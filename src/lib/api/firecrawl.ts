@@ -206,6 +206,10 @@ export const observatoryApi = {
     scannedAt?: string;
     detailsUrl?: string;
     tests?: any;
+    rawHeaders?: Record<string, string> | null;
+    cspRaw?: string | null;
+    cspDirectives?: Record<string, string[]> | null;
+    cookies?: any[] | null;
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('observatory-scan', {
