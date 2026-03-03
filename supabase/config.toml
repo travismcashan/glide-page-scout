@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.wappalyzer-lookup]
 verify_jwt = false
+
+[functions.wave-lookup]
+verify_jwt = false

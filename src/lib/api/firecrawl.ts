@@ -179,3 +179,21 @@ export const cruxApi = {
     return data;
   },
 };
+
+export const waveApi = {
+  async scan(url: string): Promise<{
+    success: boolean;
+    pageTitle?: string;
+    waveUrl?: string;
+    creditsRemaining?: number | null;
+    summary?: { errors: number; alerts: number; features: number; structure: number; aria: number; contrast: number };
+    items?: any;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('wave-lookup', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
