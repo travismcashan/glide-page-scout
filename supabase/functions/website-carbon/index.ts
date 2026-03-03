@@ -32,9 +32,12 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const text = await response.text();
       console.error('Website Carbon API error:', text);
+      const hint = response.status === 401
+        ? 'Website Carbon API now requires authentication. The /site endpoint may no longer be free.'
+        : `API returned ${response.status}`;
       return new Response(
-        JSON.stringify({ success: false, error: `API returned ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: hint }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
