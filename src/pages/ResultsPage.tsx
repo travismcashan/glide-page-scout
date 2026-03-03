@@ -89,10 +89,12 @@ export default function ResultsPage() {
 
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
+  const [builtwithCredits, setBuiltwithCredits] = useState<{ available?: string | null; used?: string | null; remaining?: string | null } | null>(null);
   useEffect(() => {
     if (!session || session.builtwith_data || builtwithLoading || builtwithFailed || isIntegrationPaused('builtwith')) return;
     setBuiltwithLoading(true);
     builtwithApi.lookup(session.domain).then(async (result) => {
+      if (result.credits) setBuiltwithCredits(result.credits);
       if (result.success && result.grouped) {
         await supabase.from('crawl_sessions').update({ builtwith_data: { grouped: result.grouped, totalCount: result.totalCount } } as any).eq('id', session.id);
         clearError('builtwith');
@@ -331,7 +333,7 @@ export default function ResultsPage() {
         {/* ── Technology Detection ── */}
         <SectionCard title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} paused={isIntegrationPaused('builtwith')}>
           {session?.builtwith_data ? (
-            <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} />
+            <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
           ) : !builtwithLoading && !builtwithFailed && !isIntegrationPaused('builtwith') ? (
             <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
           ) : null}

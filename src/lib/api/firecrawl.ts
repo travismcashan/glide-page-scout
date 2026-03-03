@@ -84,6 +84,7 @@ export const builtwithApi = {
     technologies?: { name: string; category: string; description?: string; link?: string }[];
     grouped?: Record<string, { name: string; description?: string; link?: string }[]>;
     totalCount?: number;
+    credits?: { available?: string | null; used?: string | null; remaining?: string | null } | null;
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('builtwith-lookup', {
