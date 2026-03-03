@@ -20,10 +20,6 @@ type CrawlPage = {
   ai_outline: string | null;
   screenshot_url: string | null;
   status: string;
-  gtmetrix_grade: string | null;
-  gtmetrix_scores: any | null;
-  gtmetrix_pdf_url: string | null;
-  gtmetrix_test_id: string | null;
 };
 
 type CrawlSession = {
@@ -33,6 +29,9 @@ type CrawlSession = {
   status: string;
   created_at: string;
   builtwith_data: any | null;
+  gtmetrix_grade: string | null;
+  gtmetrix_scores: any | null;
+  gtmetrix_test_id: string | null;
 };
 
 export default function ResultsPage() {
@@ -43,7 +42,7 @@ export default function ResultsPage() {
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const [processingPages, setProcessingPages] = useState<Set<string>>(new Set());
   const [generatingOutline, setGeneratingOutline] = useState<Set<string>>(new Set());
-  const [runningGtmetrix, setRunningGtmetrix] = useState<Set<string>>(new Set());
+  const [runningGtmetrix, setRunningGtmetrix] = useState(false);
   const [builtwithLoading, setBuiltwithLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -86,6 +85,27 @@ export default function ResultsPage() {
     }).catch(() => setBuiltwithLoading(false));
   }, [session, builtwithLoading, fetchData]);
 
+  // GTmetrix: run once per session on homepage
+  useEffect(() => {
+    if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix) return;
+    setRunningGtmetrix(true);
+
+    gtmetrixApi.runTest(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase
+          .from('crawl_sessions')
+          .update({
+            gtmetrix_grade: result.grade,
+            gtmetrix_scores: result.scores,
+            gtmetrix_test_id: result.testId,
+          } as any)
+          .eq('id', session.id);
+        fetchData();
+      }
+      setRunningGtmetrix(false);
+    }).catch(() => setRunningGtmetrix(false));
+  }, [session, runningGtmetrix, fetchData]);
+
   // Process pending pages — scrape + screenshot + auto-outline + GTmetrix
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
@@ -125,8 +145,6 @@ export default function ResultsPage() {
           }
         }
 
-        // Auto-run GTmetrix
-        runGtmetrixForPage(page.id, page.url);
 
         fetchData();
       } catch (error) {
@@ -155,31 +173,6 @@ export default function ResultsPage() {
     }
   }, [pages, session, fetchData]);
 
-  const runGtmetrixForPage = async (pageId: string, url: string) => {
-    setRunningGtmetrix(prev => new Set([...prev, pageId]));
-    try {
-      const result = await gtmetrixApi.runTest(url);
-      if (result.success) {
-        await supabase
-          .from('crawl_pages')
-          .update({
-            gtmetrix_grade: result.grade,
-            gtmetrix_scores: result.scores,
-            gtmetrix_test_id: result.testId,
-          } as any)
-          .eq('id', pageId);
-        fetchData();
-      }
-    } catch (e) {
-      console.error('GTmetrix error for page:', pageId, e);
-    } finally {
-      setRunningGtmetrix(prev => {
-        const next = new Set(prev);
-        next.delete(pageId);
-        return next;
-      });
-    }
-  };
 
   const generateOutline = async (page: CrawlPage) => {
     if (!page.raw_content) return;
@@ -248,8 +241,8 @@ export default function ResultsPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-4">
-        {/* BuiltWith tech stack — session level */}
-        <Card className="p-5">
+        {/* Session-level: BuiltWith + GTmetrix */}
+        <Card className="p-5 space-y-4">
           <BuiltWithCard
             grouped={session?.builtwith_data?.grouped || null}
             totalCount={session?.builtwith_data?.totalCount || 0}
@@ -258,6 +251,12 @@ export default function ResultsPage() {
           {!builtwithLoading && !session?.builtwith_data && (
             <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
           )}
+          <GtmetrixCard
+            grade={session?.gtmetrix_grade || null}
+            scores={session?.gtmetrix_scores || null}
+            testId={session?.gtmetrix_test_id || null}
+            isRunning={runningGtmetrix}
+          />
         </Card>
 
         {pages.map((page) => {
@@ -281,14 +280,7 @@ export default function ResultsPage() {
                       <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {page.gtmetrix_grade && (
-                      <Badge variant="outline" className="text-xs">
-                        <Zap className="h-3 w-3 mr-1" /> {page.gtmetrix_grade}
-                      </Badge>
-                    )}
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
+                  {isExpanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
@@ -316,13 +308,6 @@ export default function ResultsPage() {
                         )}
                       </div>
 
-                      {/* GTmetrix scores */}
-                      <GtmetrixCard
-                        grade={page.gtmetrix_grade}
-                        scores={page.gtmetrix_scores}
-                        testId={page.gtmetrix_test_id}
-                        isRunning={runningGtmetrix.has(page.id)}
-                      />
 
                       <Tabs defaultValue={page.ai_outline ? 'outline' : 'raw'} key={page.ai_outline ? 'has-outline' : 'no-outline'}>
                         <TabsList>

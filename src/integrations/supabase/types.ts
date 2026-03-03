@@ -76,6 +76,9 @@ export type Database = {
           builtwith_data: Json | null
           created_at: string
           domain: string
+          gtmetrix_grade: string | null
+          gtmetrix_scores: Json | null
+          gtmetrix_test_id: string | null
           id: string
           status: string
           updated_at: string
@@ -85,6 +88,9 @@ export type Database = {
           builtwith_data?: Json | null
           created_at?: string
           domain: string
+          gtmetrix_grade?: string | null
+          gtmetrix_scores?: Json | null
+          gtmetrix_test_id?: string | null
           id?: string
           status?: string
           updated_at?: string
@@ -94,6 +100,9 @@ export type Database = {
           builtwith_data?: Json | null
           created_at?: string
           domain?: string
+          gtmetrix_grade?: string | null
+          gtmetrix_scores?: Json | null
+          gtmetrix_test_id?: string | null
           id?: string
           status?: string
           updated_at?: string
