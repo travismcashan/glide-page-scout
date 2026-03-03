@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, AlertTriangle, PauseCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -48,7 +48,7 @@ type CrawlSession = {
   gtmetrix_test_id: string | null;
 };
 
-function SectionCard({ title, icon, children, loading, loadingText, error, errorText }: {
+function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused }: {
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
@@ -56,20 +56,28 @@ function SectionCard({ title, icon, children, loading, loadingText, error, error
   loadingText?: string;
   error?: boolean;
   errorText?: string;
+  paused?: boolean;
 }) {
   return (
-    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''}`}>
+    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-60' : ''}`}>
       <div className="px-6 py-4 border-b border-border flex items-center gap-3">
         <div className="p-2 rounded-lg bg-muted">{icon}</div>
         <h2 className="text-lg font-semibold">{title}</h2>
-        {error && (
+        {paused && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto gap-0.5">
+            <PauseCircle className="h-3 w-3" /> Paused
+          </Badge>
+        )}
+        {error && !paused && (
           <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-auto">
             <AlertTriangle className="h-3 w-3 mr-0.5" /> Error
           </Badge>
         )}
       </div>
       <div className="p-6">
-        {loading ? (
+        {paused ? (
+          <p className="text-sm text-muted-foreground py-2">This integration is paused. Enable it on the Integrations page to run it.</p>
+        ) : loading ? (
           <div className="flex items-center gap-2 text-muted-foreground py-4">
             <Loader2 className="h-4 w-4 animate-spin shrink-0" />
             <span className="text-sm">{loadingText || 'Loading...'}</span>
@@ -375,35 +383,35 @@ export default function ResultsPage() {
         )}
 
         {/* ── Technology Detection ── */}
-        <SectionCard title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith}>
+        <SectionCard title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} paused={isIntegrationPaused('builtwith')}>
           {session?.builtwith_data ? (
             <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} />
-          ) : !builtwithLoading && !builtwithFailed ? (
+          ) : !builtwithLoading && !builtwithFailed && !isIntegrationPaused('builtwith') ? (
             <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
           ) : null}
         </SectionCard>
 
-        <SectionCard title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer}>
+        <SectionCard title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer} paused={isIntegrationPaused('wappalyzer')}>
           {session?.wappalyzer_data ? (
             <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
           ) : null}
         </SectionCard>
 
         {/* ── Performance ── */}
-        <SectionCard title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix}>
+        <SectionCard title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} paused={isIntegrationPaused('gtmetrix')}>
           <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
         </SectionCard>
 
-        <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi}>
+        <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} paused={isIntegrationPaused('psi')}>
           {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
         </SectionCard>
 
-        <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon}>
+        <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} paused={isIntegrationPaused('carbon')}>
           {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
         </SectionCard>
 
         {/* ── SEO ── */}
-        <SectionCard title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush}>
+        <SectionCard title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} paused={isIntegrationPaused('semrush')}>
           {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
         </SectionCard>
 
