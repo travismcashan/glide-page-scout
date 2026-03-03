@@ -421,9 +421,13 @@ export default function ResultsPage() {
         </SectionCard>
 
         {/* ── Lighthouse Accessibility ── */}
-        <SectionCard title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility')}>
+        <SectionCard title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility') || isIntegrationPaused('psi')}>
           {session?.psi_data ? (
             <LighthouseAccessibilityCard data={extractPsiAccessibility(session.psi_data)} isLoading={false} />
+          ) : !psiLoading && !isIntegrationPaused('psi') && !isIntegrationPaused('psi-accessibility') && psiFailed ? (
+            <p className="text-sm text-muted-foreground">PageSpeed Insights failed — accessibility data unavailable.</p>
+          ) : !psiLoading && !isIntegrationPaused('psi') && !isIntegrationPaused('psi-accessibility') ? (
+            <p className="text-sm text-muted-foreground">Waiting for PageSpeed Insights data…</p>
           ) : null}
         </SectionCard>
 
