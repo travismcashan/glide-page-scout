@@ -35,6 +35,7 @@ export default function ResultsPage() {
   const [pages, setPages] = useState<CrawlPage[]>([]);
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const [processingPages, setProcessingPages] = useState<Set<string>>(new Set());
+  const [generatingOutline, setGeneratingOutline] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -119,7 +120,7 @@ export default function ResultsPage() {
 
   const generateOutline = async (page: CrawlPage) => {
     if (!page.raw_content) return;
-    toast.info('Generating AI outline...');
+    setGeneratingOutline(prev => new Set([...prev, page.id]));
 
     try {
       const result = await aiApi.generateOutline(page.raw_content, page.title || undefined, page.url);
@@ -135,6 +136,12 @@ export default function ResultsPage() {
       }
     } catch {
       toast.error('Failed to generate outline');
+    } finally {
+      setGeneratingOutline(prev => {
+        const next = new Set(prev);
+        next.delete(page.id);
+        return next;
+      });
     }
   };
 
@@ -212,13 +219,22 @@ export default function ResultsPage() {
                           </Button>
                         </a>
                         {!page.ai_outline && (
-                          <Button variant="outline" size="sm" onClick={() => generateOutline(page)}>
-                            <Zap className="h-3 w-3 mr-1" /> Generate AI Outline
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); generateOutline(page); }}
+                            disabled={generatingOutline.has(page.id)}
+                          >
+                            {generatingOutline.has(page.id) ? (
+                              <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</>
+                            ) : (
+                              <><Zap className="h-3 w-3 mr-1" /> Generate AI Outline</>
+                            )}
                           </Button>
                         )}
                       </div>
 
-                      <Tabs defaultValue={page.ai_outline ? 'outline' : 'raw'}>
+                      <Tabs defaultValue={page.ai_outline ? 'outline' : 'raw'} key={page.ai_outline ? 'has-outline' : 'no-outline'}>
                         <TabsList>
                           <TabsTrigger value="raw">Raw Content</TabsTrigger>
                           {page.ai_outline && <TabsTrigger value="outline">AI Outline</TabsTrigger>}
