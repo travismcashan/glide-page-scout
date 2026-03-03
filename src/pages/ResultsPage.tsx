@@ -19,6 +19,7 @@ import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
+import { isIntegrationPaused } from '@/lib/integrationState';
 
 type CrawlPage = {
   id: string;
@@ -111,7 +112,7 @@ export default function ResultsPage() {
 
   // BuiltWith
   useEffect(() => {
-    if (!session || session.builtwith_data || builtwithLoading) return;
+    if (!session || session.builtwith_data || builtwithLoading || isIntegrationPaused('builtwith')) return;
     setBuiltwithLoading(true);
     builtwithApi.lookup(session.domain).then(async (result) => {
       if (result.success && result.grouped) {
@@ -124,7 +125,7 @@ export default function ResultsPage() {
 
   // SEMrush
   useEffect(() => {
-    if (!session || session.semrush_data || semrushLoading) return;
+    if (!session || session.semrush_data || semrushLoading || isIntegrationPaused('semrush')) return;
     setSemrushLoading(true);
     semrushApi.domainOverview(session.domain).then(async (result) => {
       if (result.success) {
@@ -138,7 +139,7 @@ export default function ResultsPage() {
   // PageSpeed Insights
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
-    if (!session || session.psi_data || psiLoading || psiFailed) return;
+    if (!session || session.psi_data || psiLoading || psiFailed || isIntegrationPaused('psi')) return;
     setPsiLoading(true);
     pagespeedApi.analyze(session.base_url).then(async (result) => {
       if (result.success) {
@@ -152,7 +153,7 @@ export default function ResultsPage() {
   // Wappalyzer
   const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
   useEffect(() => {
-    if (!session || session.wappalyzer_data || wappalyzerLoading || wappalyzerFailed) return;
+    if (!session || session.wappalyzer_data || wappalyzerLoading || wappalyzerFailed || isIntegrationPaused('wappalyzer')) return;
     setWappalyzerLoading(true);
     wappalyzerApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
@@ -166,7 +167,7 @@ export default function ResultsPage() {
   // GTmetrix
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
-    if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed) return;
+    if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
     setRunningGtmetrix(true);
     gtmetrixApi.runTest(session.base_url).then(async (result) => {
       if (result.success) {
@@ -180,7 +181,7 @@ export default function ResultsPage() {
   // Website Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
-    if (!session || session.carbon_data || carbonLoading || carbonFailed) return;
+    if (!session || session.carbon_data || carbonLoading || carbonFailed || isIntegrationPaused('carbon')) return;
     setCarbonLoading(true);
     websiteCarbonApi.check(session.base_url).then(async (result) => {
       if (result.success) {
