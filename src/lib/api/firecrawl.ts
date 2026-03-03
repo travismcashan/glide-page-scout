@@ -197,3 +197,21 @@ export const waveApi = {
     return data;
   },
 };
+
+export const observatoryApi = {
+  async scan(host: string): Promise<{
+    success: boolean;
+    grade?: string;
+    score?: number;
+    scannedAt?: string;
+    detailsUrl?: string;
+    tests?: any;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('observatory-scan', {
+      body: { host },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
