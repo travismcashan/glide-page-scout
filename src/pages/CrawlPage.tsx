@@ -303,26 +303,26 @@ export default function CrawlPage() {
           </div>
         </form>
 
-        {/* AI Analysis Status */}
-        {isAnalyzing && (
-          <div className="max-w-2xl mx-auto mb-6">
-            <Card className="px-5 py-4 border-primary/20 bg-primary/5">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-                <div>
-                  <p className="font-medium text-sm">AI is analyzing the site navigation...</p>
-                  <p className="text-xs text-muted-foreground">
-                    Scraping the homepage, reading the nav menu, and matching against discovered URLs
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
+        {/* AI Analysis Status - shown above the discovery section */}
 
         {/* Page Discovery */}
         {showDiscovery && (
           <div className="max-w-2xl mx-auto">
+            {/* AI analyzing banner */}
+            {isAnalyzing && (
+              <Card className="px-5 py-4 border-primary/20 bg-primary/5 mb-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
+                  <div>
+                    <p className="font-medium text-sm">AI is analyzing the site navigation...</p>
+                    <p className="text-xs text-muted-foreground">
+                      Scraping the homepage, reading the nav menu, and picking key pages
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Header with counts */}
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -330,9 +330,15 @@ export default function CrawlPage() {
                   {urlEntries.length} pages found
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {selectedUrls.size} selected
-                  {analysisDone && urlEntries.some(e => e.isRecommended) && (
-                    <> · {urlEntries.filter(e => e.isRecommended).length} AI-recommended</>
+                  {isAnalyzing ? (
+                    'AI is selecting recommended pages...'
+                  ) : (
+                    <>
+                      {selectedUrls.size} selected
+                      {analysisDone && urlEntries.some(e => e.isRecommended) && (
+                        <> · {urlEntries.filter(e => e.isRecommended).length} AI-recommended</>
+                      )}
+                    </>
                   )}
                 </p>
               </div>
