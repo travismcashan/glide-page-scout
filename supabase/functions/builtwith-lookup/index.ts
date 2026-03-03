@@ -32,16 +32,34 @@ Deno.serve(async (req) => {
       `https://api.builtwith.com/v22/api.json?KEY=${apiKey}&LOOKUP=${encodeURIComponent(domain)}`
     );
 
+    // Capture credit headers from response
+    const credits = {
+      available: res.headers.get('X-API-CREDITS-AVAILABLE'),
+      used: res.headers.get('X-API-CREDITS-USED'),
+      remaining: res.headers.get('X-API-CREDITS-REMAINING'),
+    };
+    console.log('BuiltWith credits:', JSON.stringify(credits));
+
     if (!res.ok) {
       const errText = await res.text();
       console.error('BuiltWith API error:', errText);
       return new Response(
-        JSON.stringify({ success: false, error: `BuiltWith API error: ${res.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: `BuiltWith API error: ${res.status}`, credits }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await res.json();
+
+    // Check for API-level errors in the response body
+    if (data?.Errors?.length) {
+      const errorMsg = data.Errors.map((e: any) => e.Message || e).join(', ');
+      console.error('BuiltWith API returned errors:', errorMsg);
+      return new Response(
+        JSON.stringify({ success: false, error: errorMsg, credits }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Extract and simplify tech categories
     const technologies: { name: string; category: string; description?: string; link?: string }[] = [];
@@ -49,7 +67,6 @@ Deno.serve(async (req) => {
 
     for (const path of paths) {
       for (const tech of path.Technologies || []) {
-        // Deduplicate by name
         if (!technologies.find(t => t.name === tech.Name)) {
           technologies.push({
             name: tech.Name,
@@ -80,6 +97,7 @@ Deno.serve(async (req) => {
         technologies,
         grouped,
         totalCount: technologies.length,
+        credits,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
