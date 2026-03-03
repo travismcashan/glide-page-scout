@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.semrush-domain]
 verify_jwt = false
+
+[functions.pagespeed-insights]
+verify_jwt = false

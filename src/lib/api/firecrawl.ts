@@ -109,3 +109,19 @@ export const semrushApi = {
     return data;
   },
 };
+
+export const pagespeedApi = {
+  async analyze(url: string): Promise<{
+    success: boolean;
+    mobile?: any;
+    desktop?: any;
+    finalUrl?: string;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('pagespeed-insights', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
