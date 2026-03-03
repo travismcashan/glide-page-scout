@@ -20,26 +20,36 @@ async function gtmetrixFetch(path: string, apiKey: string, options: RequestInit 
 async function pollForCompletion(testId: string, apiKey: string, maxAttempts = 20): Promise<any> {
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, 5000));
-    const res = await gtmetrixFetch(`/tests/${testId}`, apiKey);
-    const data = await res.json();
 
-    // Log full response structure on first attempt for debugging
-    if (i === 0) {
-      console.log('GTmetrix poll response keys:', JSON.stringify(Object.keys(data)));
-      if (data.data) {
-        console.log('GTmetrix data keys:', JSON.stringify(Object.keys(data.data)));
-        if (data.data.attributes) {
-          console.log('GTmetrix attributes keys:', JSON.stringify(Object.keys(data.data.attributes)));
-        }
-      }
+    const res = await gtmetrixFetch(`/tests/${testId}`, apiKey);
+    const rawText = await res.text();
+
+    let data: any = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      console.warn('GTmetrix poll returned non-JSON response');
     }
 
-    const state = data.data?.attributes?.state;
-    console.log(`GTmetrix test ${testId} state: ${state} (attempt ${i + 1})`);
+    if (!res.ok) {
+      console.warn(`GTmetrix poll HTTP ${res.status} (attempt ${i + 1})`);
+      // transient errors/rate limits: keep polling
+      if (res.status === 429 || res.status >= 500) continue;
+      throw new Error(`GTmetrix poll failed: ${res.status}`);
+    }
 
-    if (state === 'completed') return data;
-    if (state === 'error') throw new Error('GTmetrix test failed');
+    const attrs = data?.data?.attributes ?? {};
+    const state = attrs?.state ?? data?.state ?? null;
+
+    // Sometimes completed payload may omit state but include scores
+    const hasFinalScores = attrs?.performance_score != null || attrs?.structure_score != null;
+
+    console.log(`GTmetrix test ${testId} state: ${state ?? 'unknown'} (attempt ${i + 1})`);
+
+    if (state === 'completed' || hasFinalScores) return data;
+    if (state === 'error' || state === 'failed') throw new Error('GTmetrix test failed');
   }
+
   throw new Error('GTmetrix test timed out after polling');
 }
 
