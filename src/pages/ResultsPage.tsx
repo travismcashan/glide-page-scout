@@ -105,9 +105,10 @@ export default function ResultsPage() {
     }).catch(() => setSemrushLoading(false));
   }, [session, semrushLoading, fetchData]);
 
-  // GTmetrix: run once per session on homepage
+  // GTmetrix: run once per session on homepage (no retry on failure)
+  const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
-    if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix) return;
+    if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed) return;
     setRunningGtmetrix(true);
 
     gtmetrixApi.runTest(session.base_url).then(async (result) => {
@@ -121,10 +122,17 @@ export default function ResultsPage() {
           } as any)
           .eq('id', session.id);
         fetchData();
+      } else {
+        console.warn('GTmetrix failed:', result.error);
+        setGtmetrixFailed(true);
       }
       setRunningGtmetrix(false);
-    }).catch(() => setRunningGtmetrix(false));
-  }, [session, runningGtmetrix, fetchData]);
+    }).catch((err) => {
+      console.warn('GTmetrix error:', err);
+      setGtmetrixFailed(true);
+      setRunningGtmetrix(false);
+    });
+  }, [session, runningGtmetrix, gtmetrixFailed, fetchData]);
 
   // Process pending pages — scrape + screenshot + auto-outline + GTmetrix
   useEffect(() => {
