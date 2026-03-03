@@ -8,10 +8,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Image, FileText, Loader2, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
+import { PageSpeedCard } from '@/components/PageSpeedCard';
 
 type CrawlPage = {
   id: string;
@@ -31,6 +32,7 @@ type CrawlSession = {
   created_at: string;
   builtwith_data: any | null;
   semrush_data: any | null;
+  psi_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -47,6 +49,7 @@ export default function ResultsPage() {
   const [runningGtmetrix, setRunningGtmetrix] = useState(false);
   const [builtwithLoading, setBuiltwithLoading] = useState(false);
   const [semrushLoading, setSemrushLoading] = useState(false);
+  const [psiLoading, setPsiLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -104,6 +107,31 @@ export default function ResultsPage() {
       setSemrushLoading(false);
     }).catch(() => setSemrushLoading(false));
   }, [session, semrushLoading, fetchData]);
+
+  // PageSpeed Insights: run once per session
+  const [psiFailed, setPsiFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.psi_data || psiLoading || psiFailed) return;
+    setPsiLoading(true);
+
+    pagespeedApi.analyze(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase
+          .from('crawl_sessions')
+          .update({ psi_data: { mobile: result.mobile, desktop: result.desktop } } as any)
+          .eq('id', session.id);
+        fetchData();
+      } else {
+        console.warn('PSI failed:', result.error);
+        setPsiFailed(true);
+      }
+      setPsiLoading(false);
+    }).catch((err) => {
+      console.warn('PSI error:', err);
+      setPsiFailed(true);
+      setPsiLoading(false);
+    });
+  }, [session, psiLoading, psiFailed, fetchData]);
 
   // GTmetrix: run once per session on homepage (no retry on failure)
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
@@ -288,6 +316,10 @@ export default function ResultsPage() {
           <SemrushCard
             data={session?.semrush_data || null}
             isLoading={semrushLoading}
+          />
+          <PageSpeedCard
+            data={session?.psi_data || null}
+            isLoading={psiLoading}
           />
         </Card>
 
