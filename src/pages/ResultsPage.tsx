@@ -235,7 +235,7 @@ export default function ResultsPage() {
     setObservatoryLoading(true);
     observatoryApi.scan(session.domain).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ observatory_data: { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests } } as any).eq('id', session.id);
+        await supabase.from('crawl_sessions').update({ observatory_data: { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests, rawHeaders: result.rawHeaders || null, cspRaw: result.cspRaw || null, cspDirectives: result.cspDirectives || null, cookies: result.cookies || null } } as any).eq('id', session.id);
         clearError('observatory');
         fetchData();
       } else { setObservatoryFailed(true); setError('observatory', result.error || 'Observatory returned an error'); }
