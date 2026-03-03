@@ -37,8 +37,8 @@ export function GtmetrixCard({ grade, scores, testId, isRunning }: Props) {
 
   if (isRunning) {
     return (
-      <div className="flex items-center gap-2 text-muted-foreground py-2">
-        <Loader2 className="h-4 w-4 animate-spin" />
+      <div className="flex items-center gap-2 text-muted-foreground py-2 min-h-[2.5rem]">
+        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
         <span className="text-sm">Running GTmetrix performance test...</span>
       </div>
     );
