@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.ai-outline]
 verify_jwt = false
+
+[functions.recommend-pages]
+verify_jwt = false

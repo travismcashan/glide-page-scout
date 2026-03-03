@@ -43,4 +43,12 @@ export const aiApi = {
     if (error) return { success: false, error: error.message };
     return data;
   },
+
+  async recommendPages(url: string, discoveredUrls: string[]): Promise<{ success: boolean; recommendations?: { url: string; reason: string }[]; error?: string }> {
+    const { data, error } = await supabase.functions.invoke('recommend-pages', {
+      body: { url, discoveredUrls },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
 };
