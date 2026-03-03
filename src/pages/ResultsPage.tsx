@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -18,6 +18,7 @@ import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
 import { CruxCard } from '@/components/CruxCard';
 import { LighthouseAccessibilityCard, extractPsiAccessibility } from '@/components/LighthouseAccessibilityCard';
 import { WaveCard } from '@/components/WaveCard';
+import { ObservatoryCard } from '@/components/ObservatoryCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -48,6 +49,7 @@ type CrawlSession = {
   carbon_data: any | null;
   crux_data: any | null;
   wave_data: any | null;
+  observatory_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -70,6 +72,7 @@ export default function ResultsPage() {
   const [carbonLoading, setCarbonLoading] = useState(false);
   const [cruxLoading, setCruxLoading] = useState(false);
   const [waveLoading, setWaveLoading] = useState(false);
+  const [observatoryLoading, setObservatoryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   // Error tracking per integration
@@ -224,6 +227,21 @@ export default function ResultsPage() {
       setWaveLoading(false);
     }).catch((e) => { setWaveFailed(true); setError('wave', e?.message || 'WAVE request failed'); setWaveLoading(false); });
   }, [session, waveLoading, waveFailed, fetchData]);
+
+  // Mozilla Observatory
+  const [observatoryFailed, setObservatoryFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.observatory_data || observatoryLoading || observatoryFailed || isIntegrationPaused('observatory')) return;
+    setObservatoryLoading(true);
+    observatoryApi.scan(session.domain).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ observatory_data: { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests } } as any).eq('id', session.id);
+        clearError('observatory');
+        fetchData();
+      } else { setObservatoryFailed(true); setError('observatory', result.error || 'Observatory returned an error'); }
+      setObservatoryLoading(false);
+    }).catch((e) => { setObservatoryFailed(true); setError('observatory', e?.message || 'Observatory request failed'); setObservatoryLoading(false); });
+  }, [session, observatoryLoading, observatoryFailed, fetchData]);
 
   // Process pending pages
   useEffect(() => {
@@ -412,6 +430,11 @@ export default function ResultsPage() {
         {/* ── WAVE ── */}
         <SectionCard title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} paused={isIntegrationPaused('wave')}>
           {session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}
+        </SectionCard>
+
+        {/* ── Mozilla Observatory ── */}
+        <SectionCard title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} paused={isIntegrationPaused('observatory')}>
+          {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
         </SectionCard>
 
         <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} paused={isIntegrationPaused('carbon')}>

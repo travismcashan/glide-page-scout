@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.wave-lookup]
 verify_jwt = false
+
+[functions.observatory-scan]
+verify_jwt = false
