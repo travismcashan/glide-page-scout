@@ -4,11 +4,14 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, Check, X, Clock, Pause, Loader2, CreditCard } from 'lucide-react';
 import { getPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 import { supabase } from '@/integrations/supabase/client';
 
 type Status = 'active' | 'coming-soon';
+type HealthStatus = 'unknown' | 'checking' | 'ok' | 'down';
+type HealthMap = Record<string, { ok: boolean; latencyMs: number; detail?: string }>;
 
 type Integration = {
   name: string;
@@ -151,13 +154,72 @@ function CreditsDisplay({ integrationId }: { integrationId: string }) {
   );
 }
 
+// Health check IDs that map to integration IDs
+const healthCheckIds: Record<string, string> = {
+  builtwith: 'builtwith',
+  gtmetrix: 'gtmetrix',
+  carbon: 'carbon',
+  psi: 'psi',
+};
+
+function StatusDot({ status, latencyMs }: { status: HealthStatus; latencyMs?: number }) {
+  if (status === 'checking') {
+    return <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />;
+  }
+  if (status === 'unknown') return null;
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`inline-block h-2.5 w-2.5 rounded-full shrink-0 ${
+              status === 'ok' ? 'bg-green-500' : 'bg-destructive'
+            }`}
+          />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">
+          {status === 'ok' ? `Reachable${latencyMs ? ` (${latencyMs}ms)` : ''}` : 'Unreachable'}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export default function IntegrationsPage() {
   const navigate = useNavigate();
   const [pausedSet, setPausedSet] = useState(() => getPausedIntegrations());
+  const [healthMap, setHealthMap] = useState<HealthMap>({});
+  const [healthLoading, setHealthLoading] = useState(true);
+
+  useEffect(() => {
+    const runHealthChecks = async () => {
+      setHealthLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('integration-health', { body: {} });
+        if (!error && data?.results) {
+          setHealthMap(data.results);
+        }
+      } catch {
+        // silently fail
+      }
+      setHealthLoading(false);
+    };
+    runHealthChecks();
+  }, []);
 
   const handleToggle = (id: string) => {
     toggleIntegrationPause(id);
     setPausedSet(getPausedIntegrations());
+  };
+
+  const getHealthStatus = (id: string): { status: HealthStatus; latencyMs?: number } => {
+    const healthId = Object.entries(healthCheckIds).find(([, v]) => v === id)?.[0];
+    if (!healthId) return { status: 'unknown' };
+    if (healthLoading) return { status: 'checking' };
+    const result = healthMap[healthId];
+    if (!result) return { status: 'unknown' };
+    return { status: result.ok ? 'ok' : 'down', latencyMs: result.latencyMs };
   };
 
   const grouped = categoryOrder.map(cat => ({
@@ -192,11 +254,13 @@ export default function IntegrationsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {items.map((integration) => {
                 const isPaused = pausedSet.has(integration.id);
+                const health = getHealthStatus(integration.id);
                 return (
                   <Card key={integration.id} className={`p-4 flex flex-col gap-0 ${isPaused ? 'opacity-60' : ''}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
+                          <StatusDot status={health.status} latencyMs={health.latencyMs} />
                           <p className={`font-medium text-sm ${integration.status === 'coming-soon' ? 'text-muted-foreground' : ''}`}>{integration.name}</p>
                           {integration.status === 'coming-soon' ? (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground border-muted-foreground/30">
