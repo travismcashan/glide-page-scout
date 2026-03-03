@@ -30,10 +30,15 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error('Wappalyzer API error:', errText);
+      console.error('Wappalyzer API error:', res.status, errText);
+      if (res.status === 403) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Wappalyzer API: Access denied. Your API key may not have permission for this endpoint — check your Wappalyzer subscription tier.' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
       return new Response(
         JSON.stringify({ success: false, error: `Wappalyzer API error: ${res.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const data = await res.json();
