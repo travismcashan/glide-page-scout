@@ -53,7 +53,7 @@ export function ScreenshotGallery({ pages }: { pages: GalleryPage[] }) {
           </div>
         </div>
         <div className="p-4">
-          <div className={condensed ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-6"}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {pages.map(page => (
               <div
                 key={page.id}
