@@ -17,19 +17,30 @@ async function gtmetrixFetch(path: string, apiKey: string, options: RequestInit 
   return res;
 }
 
-async function pollForCompletion(testId: string, apiKey: string, maxAttempts = 30): Promise<any> {
+async function pollForCompletion(testId: string, apiKey: string, maxAttempts = 20): Promise<any> {
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds between polls
+    await new Promise(r => setTimeout(r, 5000));
     const res = await gtmetrixFetch(`/tests/${testId}`, apiKey);
     const data = await res.json();
-    
+
+    // Log full response structure on first attempt for debugging
+    if (i === 0) {
+      console.log('GTmetrix poll response keys:', JSON.stringify(Object.keys(data)));
+      if (data.data) {
+        console.log('GTmetrix data keys:', JSON.stringify(Object.keys(data.data)));
+        if (data.data.attributes) {
+          console.log('GTmetrix attributes keys:', JSON.stringify(Object.keys(data.data.attributes)));
+        }
+      }
+    }
+
     const state = data.data?.attributes?.state;
     console.log(`GTmetrix test ${testId} state: ${state} (attempt ${i + 1})`);
-    
+
     if (state === 'completed') return data;
     if (state === 'error') throw new Error('GTmetrix test failed');
   }
-  throw new Error('GTmetrix test timed out');
+  throw new Error('GTmetrix test timed out after polling');
 }
 
 Deno.serve(async (req) => {
@@ -70,20 +81,22 @@ Deno.serve(async (req) => {
 
     if (!startRes.ok) {
       const err = await startRes.text();
-      console.error('GTmetrix start error:', err);
+      console.error('GTmetrix start error:', startRes.status, err);
       return new Response(
         JSON.stringify({ success: false, error: `GTmetrix API error: ${startRes.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const startData = await startRes.json();
     const testId = startData.data?.id;
 
+    console.log('GTmetrix start response:', JSON.stringify(startData).substring(0, 500));
+
     if (!testId) {
       return new Response(
         JSON.stringify({ success: false, error: 'No test ID returned' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -126,7 +139,7 @@ Deno.serve(async (req) => {
     console.error('GTmetrix error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'GTmetrix test failed' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
