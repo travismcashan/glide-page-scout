@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.builtwith-lookup]
 verify_jwt = false
+
+[functions.gtmetrix-pdf]
+verify_jwt = false

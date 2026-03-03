@@ -46,8 +46,6 @@ export default function ResultsPage() {
   const [runningGtmetrix, setRunningGtmetrix] = useState<Set<string>>(new Set());
   const [builtwithLoading, setBuiltwithLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-  // Store API key for PDF downloads (returned from edge function, not exposed in code)
-  const [gtmetrixApiKey, setGtmetrixApiKey] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
@@ -162,13 +160,11 @@ export default function ResultsPage() {
     try {
       const result = await gtmetrixApi.runTest(url);
       if (result.success) {
-        if (result.apiKey) setGtmetrixApiKey(result.apiKey);
         await supabase
           .from('crawl_pages')
           .update({
             gtmetrix_grade: result.grade,
             gtmetrix_scores: result.scores,
-            gtmetrix_pdf_url: result.pdfUrl,
             gtmetrix_test_id: result.testId,
           } as any)
           .eq('id', pageId);
@@ -324,8 +320,6 @@ export default function ResultsPage() {
                       <GtmetrixCard
                         grade={page.gtmetrix_grade}
                         scores={page.gtmetrix_scores}
-                        pdfUrl={page.gtmetrix_pdf_url}
-                        apiKey={gtmetrixApiKey}
                         testId={page.gtmetrix_test_id}
                         isRunning={runningGtmetrix.has(page.id)}
                       />

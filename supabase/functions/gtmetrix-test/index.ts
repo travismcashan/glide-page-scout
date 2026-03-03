@@ -93,9 +93,6 @@ Deno.serve(async (req) => {
     const result = await pollForCompletion(testId, apiKey);
     const attrs = result.data?.attributes;
 
-    // Build PDF report URL
-    const pdfUrl = `${GTMETRIX_API}/tests/${testId}/report-pdf`;
-
     const scores = {
       performance: attrs?.performance_score,
       structure: attrs?.structure_score,
@@ -122,8 +119,6 @@ Deno.serve(async (req) => {
         testId,
         grade,
         scores,
-        pdfUrl,
-        apiKey, // Needed client-side to construct authenticated PDF download
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

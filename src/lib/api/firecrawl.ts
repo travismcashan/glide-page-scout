@@ -68,8 +68,6 @@ export const gtmetrixApi = {
       tti: number;
       speed_index: number;
     };
-    pdfUrl?: string;
-    apiKey?: string;
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('gtmetrix-test', {

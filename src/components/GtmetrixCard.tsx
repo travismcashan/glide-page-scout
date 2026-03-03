@@ -1,6 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Zap, Download } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 
 type GtmetrixScores = {
   performance: number;
@@ -13,8 +15,6 @@ type GtmetrixScores = {
 type Props = {
   grade: string | null;
   scores: GtmetrixScores | null;
-  pdfUrl: string | null;
-  apiKey?: string | null;
   testId: string | null;
   isRunning: boolean;
 };
@@ -32,7 +32,9 @@ function gradeColor(grade: string | null): string {
   return 'destructive';
 }
 
-export function GtmetrixCard({ grade, scores, pdfUrl, apiKey, testId, isRunning }: Props) {
+export function GtmetrixCard({ grade, scores, testId, isRunning }: Props) {
+  const [downloading, setDownloading] = useState(false);
+
   if (isRunning) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-2">
@@ -44,11 +46,27 @@ export function GtmetrixCard({ grade, scores, pdfUrl, apiKey, testId, isRunning 
 
   if (!grade && !scores) return null;
 
-  const handleDownloadPdf = () => {
-    if (!pdfUrl || !apiKey) return;
-    // Open authenticated PDF in new tab
-    const authUrl = `${pdfUrl}?key=${apiKey}`;
-    window.open(authUrl, '_blank');
+  const handleDownloadPdf = async () => {
+    if (!testId) return;
+    setDownloading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gtmetrix-pdf', {
+        body: { testId },
+      });
+      if (error) throw error;
+      // data is a Blob from the response
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gtmetrix-report-${testId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('PDF download error:', e);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -59,9 +77,10 @@ export function GtmetrixCard({ grade, scores, pdfUrl, apiKey, testId, isRunning 
           <span className="text-sm font-medium">GTmetrix Performance</span>
           <Badge variant={gradeColor(grade) as any}>Grade {grade}</Badge>
         </div>
-        {pdfUrl && apiKey && (
-          <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
-            <Download className="h-3 w-3 mr-1" /> PDF Report
+        {testId && (
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={downloading}>
+            {downloading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+            PDF Report
           </Button>
         )}
       </div>
