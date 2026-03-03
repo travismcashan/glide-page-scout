@@ -47,14 +47,40 @@ export default function CrawlPage() {
     try {
       // Step 1: Map the site
       const result = await firecrawlApi.map(url);
-      const links: string[] = result.links || result.data?.links || [];
+      const rawLinks: string[] = result.links || result.data?.links || [];
 
-      if (!links.length) {
+      if (!rawLinks.length) {
         toast.error('No pages found on this site');
         return;
       }
 
-      toast.success(`Found ${links.length} pages. Analyzing navigation...`);
+      // Clean URLs: remove fragments, sitemaps, thank-you pages, then deduplicate
+      const cleanAndDedup = (urls: string[]): string[] => {
+        const dominated = /(\#\:\~\:text=|sitemap.*\.xml|\/feed$|\/wp-json\/|\/wp-admin\/-thank-you)/i;
+        const cleaned = urls
+          .filter(u => !dominated.test(u))
+          .map(u => {
+            try {
+              const parsed = new URL(u);
+              // Strip fragments entirely
+              parsed.hash = '';
+              return parsed.toString().replace(/\/+$/, '');
+            } catch {
+              return u.replace(/\/+$/, '');
+            }
+          });
+        // Deduplicate case-insensitive
+        const seen = new Map<string, string>();
+        for (const u of cleaned) {
+          const key = u.toLowerCase();
+          if (!seen.has(key)) seen.set(key, u);
+        }
+        return Array.from(seen.values());
+      };
+
+      const links = cleanAndDedup(rawLinks);
+
+      toast.success(`Found ${links.length} pages (${rawLinks.length - links.length} junk removed). Analyzing navigation...`);
 
       // Show discovered URLs immediately with no selections
       const entries: UrlEntry[] = links.map(u => ({ url: u, isRecommended: false }));
