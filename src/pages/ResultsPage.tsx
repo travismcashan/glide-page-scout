@@ -7,8 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Image, FileText, Loader2, Zap, Globe, Camera, Code, Gauge, Search, Layers, Leaf, X, Maximize2 } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -19,6 +18,8 @@ import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
+import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
+import { ContentPickerCard } from '@/components/ContentPickerCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
 
 type CrawlPage = {
@@ -87,15 +88,14 @@ export default function ResultsPage() {
   const [wappalyzerLoading, setWappalyzerLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
-
     const [sessionRes, pagesRes] = await Promise.all([
       supabase.from('crawl_sessions').select('*').eq('id', sessionId).single(),
       supabase.from('crawl_pages').select('*').eq('session_id', sessionId),
     ]);
-
     if (sessionRes.data) setSession(sessionRes.data as unknown as CrawlSession);
     if (pagesRes.data) {
       setPages(pagesRes.data as unknown as CrawlPage[]);
@@ -106,9 +106,7 @@ export default function ResultsPage() {
     setLoading(false);
   }, [sessionId]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   // BuiltWith
   useEffect(() => {
@@ -136,7 +134,7 @@ export default function ResultsPage() {
     }).catch(() => setSemrushLoading(false));
   }, [session, semrushLoading, fetchData]);
 
-  // PageSpeed Insights
+  // PSI
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
     if (!session || session.psi_data || psiLoading || psiFailed || isIntegrationPaused('psi')) return;
@@ -178,7 +176,7 @@ export default function ResultsPage() {
     }).catch(() => { setGtmetrixFailed(true); setRunningGtmetrix(false); });
   }, [session, runningGtmetrix, gtmetrixFailed, fetchData]);
 
-  // Website Carbon
+  // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
     if (!session || session.carbon_data || carbonLoading || carbonFailed || isIntegrationPaused('carbon')) return;
@@ -196,7 +194,6 @@ export default function ResultsPage() {
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
-
     const processPage = async (page: CrawlPage) => {
       setProcessingPages(prev => new Set([...prev, page.id]));
       try {
@@ -293,12 +290,30 @@ export default function ResultsPage() {
         {/* ── URL Discovery ── */}
         {session && (
           <UrlDiscoveryCard
+            baseUrl={session.base_url}
+            onUrlsDiscovered={setDiscoveredUrls}
+          />
+        )}
+
+        {/* ── Screenshots Picker ── */}
+        {session && (
+          <ScreenshotPickerCard
             sessionId={session.id}
             baseUrl={session.base_url}
-            domain={session.domain}
-            onPagesAdded={fetchData}
-            existingPageUrls={new Set(pages.map(p => p.url))}
+            discoveredUrls={discoveredUrls}
             existingScreenshotUrls={new Set(pages.filter(p => p.screenshot_url).map(p => p.url))}
+            onPagesAdded={fetchData}
+          />
+        )}
+
+        {/* ── Content Picker ── */}
+        {session && (
+          <ContentPickerCard
+            sessionId={session.id}
+            baseUrl={session.base_url}
+            discoveredUrls={discoveredUrls}
+            existingPageUrls={new Set(pages.map(p => p.url))}
+            onPagesAdded={fetchData}
           />
         )}
 
@@ -314,7 +329,7 @@ export default function ResultsPage() {
         <SectionCard title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection...">
           {session?.wappalyzer_data ? (
             <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
-          ) : !wappalyzerLoading ? null : null}
+          ) : null}
         </SectionCard>
 
         {/* ── Performance ── */}
@@ -323,22 +338,16 @@ export default function ResultsPage() {
         </SectionCard>
 
         <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)...">
-          {session?.psi_data ? (
-            <PageSpeedCard data={session.psi_data} isLoading={false} />
-          ) : null}
+          {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
         </SectionCard>
 
         <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint...">
-          {session?.carbon_data ? (
-            <WebsiteCarbonCard data={session.carbon_data} isLoading={false} />
-          ) : null}
+          {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
         </SectionCard>
 
         {/* ── SEO ── */}
         <SectionCard title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data...">
-          {session?.semrush_data ? (
-            <SemrushCard data={session.semrush_data} isLoading={false} />
-          ) : null}
+          {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
         </SectionCard>
 
         {/* ── Page Screenshots ── */}
@@ -409,7 +418,7 @@ export default function ResultsPage() {
           </SectionCard>
         )}
 
-        {/* ── Scraped Page Status ── */}
+        {/* ── Scrape Progress ── */}
         {pages.length > 0 && (
           <SectionCard title="Scrape Progress" icon={<Globe className="h-5 w-5 text-foreground" />}>
             <div className="space-y-1">
