@@ -25,24 +25,61 @@ Deno.serve(async (req) => {
 
     console.log('Checking carbon footprint for:', formattedUrl);
 
-    const response = await fetch(
-      `https://api.websitecarbon.com/site?url=${encodeURIComponent(formattedUrl)}`
-    );
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error('Website Carbon API error:', text);
-      const hint = response.status === 401
-        ? 'Website Carbon API now requires authentication. The /site endpoint may no longer be free.'
-        : `API returned ${response.status}`;
+    // Step 1: Fetch the page to measure actual transfer size
+    let bytes = 0;
+    try {
+      const pageRes = await fetch(formattedUrl, {
+        headers: { 'User-Agent': 'WebsiteCarbonCheck/1.0' },
+        redirect: 'follow',
+      });
+      const body = await pageRes.arrayBuffer();
+      bytes = body.byteLength;
+      console.log('Page bytes:', bytes);
+    } catch (e) {
+      console.error('Failed to fetch page for byte count:', e);
       return new Response(
-        JSON.stringify({ success: false, error: hint }),
+        JSON.stringify({ success: false, error: 'Could not fetch the page to measure its size.' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
-    console.log('Carbon data received:', JSON.stringify(data).slice(0, 200));
+    if (bytes === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Page returned 0 bytes.' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step 2: Check green hosting via The Green Web Foundation
+    let green = 0;
+    try {
+      const hostname = new URL(formattedUrl).hostname;
+      const gwfRes = await fetch(`https://api.thegreenwebfoundation.org/greencheck/${hostname}`);
+      if (gwfRes.ok) {
+        const gwfData = await gwfRes.json();
+        green = gwfData.green ? 1 : 0;
+        console.log('Green hosting:', green, gwfData);
+      }
+    } catch (e) {
+      console.warn('Green Web Foundation check failed, defaulting to 0:', e);
+    }
+
+    // Step 3: Call Website Carbon /data endpoint
+    const carbonRes = await fetch(
+      `https://api.websitecarbon.com/data?bytes=${bytes}&green=${green}`
+    );
+
+    if (!carbonRes.ok) {
+      const text = await carbonRes.text();
+      console.error('Website Carbon API error:', text);
+      return new Response(
+        JSON.stringify({ success: false, error: `Website Carbon API returned ${carbonRes.status}` }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data = await carbonRes.json();
+    console.log('Carbon data received:', JSON.stringify(data).slice(0, 300));
 
     return new Response(
       JSON.stringify({
@@ -52,6 +89,7 @@ Deno.serve(async (req) => {
         cleanerThan: data.cleanerThan,
         statistics: data.statistics,
         rating: data.rating,
+        gco2e: data.gco2e,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
