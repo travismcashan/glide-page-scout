@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.gtmetrix-pdf]
 verify_jwt = false
+
+[functions.semrush-domain]
+verify_jwt = false

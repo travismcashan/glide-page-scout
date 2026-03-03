@@ -93,3 +93,19 @@ export const builtwithApi = {
     return data;
   },
 };
+
+export const semrushApi = {
+  async domainOverview(domain: string): Promise<{
+    success: boolean;
+    overview?: Record<string, string>[];
+    organicKeywords?: Record<string, string>[];
+    backlinks?: Record<string, string> | null;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('semrush-domain', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
