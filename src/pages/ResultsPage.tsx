@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -16,7 +16,8 @@ import { PageSpeedCard } from '@/components/PageSpeedCard';
 import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
 import { CruxCard } from '@/components/CruxCard';
-import { AccessibilityCard, extractPsiAccessibility } from '@/components/AccessibilityCard';
+import { LighthouseAccessibilityCard, extractPsiAccessibility } from '@/components/LighthouseAccessibilityCard';
+import { WaveCard } from '@/components/WaveCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -401,15 +402,16 @@ export default function ResultsPage() {
           ) : null}
         </SectionCard>
 
-        {/* ── Accessibility ── */}
-        <SectionCard title="Accessibility — Lighthouse + WAVE" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} paused={isIntegrationPaused('wave')}>
-          {(session?.wave_data || session?.psi_data) ? (
-            <AccessibilityCard
-              waveData={session?.wave_data || null}
-              psiAccessibility={extractPsiAccessibility(session?.psi_data)}
-              isLoading={false}
-            />
+        {/* ── Lighthouse Accessibility ── */}
+        <SectionCard title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility')}>
+          {session?.psi_data ? (
+            <LighthouseAccessibilityCard data={extractPsiAccessibility(session.psi_data)} isLoading={false} />
           ) : null}
+        </SectionCard>
+
+        {/* ── WAVE ── */}
+        <SectionCard title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} paused={isIntegrationPaused('wave')}>
+          {session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}
         </SectionCard>
 
         <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} paused={isIntegrationPaused('carbon')}>
