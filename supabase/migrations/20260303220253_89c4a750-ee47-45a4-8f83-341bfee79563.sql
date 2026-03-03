@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN carbon_data jsonb DEFAULT null;
