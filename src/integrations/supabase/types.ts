@@ -14,7 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      crawl_pages: {
+        Row: {
+          ai_outline: string | null
+          created_at: string
+          id: string
+          raw_content: string | null
+          screenshot_url: string | null
+          session_id: string
+          status: string
+          title: string | null
+          url: string
+        }
+        Insert: {
+          ai_outline?: string | null
+          created_at?: string
+          id?: string
+          raw_content?: string | null
+          screenshot_url?: string | null
+          session_id: string
+          status?: string
+          title?: string | null
+          url: string
+        }
+        Update: {
+          ai_outline?: string | null
+          created_at?: string
+          id?: string
+          raw_content?: string | null
+          screenshot_url?: string | null
+          session_id?: string
+          status?: string
+          title?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crawl_pages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crawl_sessions: {
+        Row: {
+          base_url: string
+          created_at: string
+          domain: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_url: string
+          created_at?: string
+          domain: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_url?: string
+          created_at?: string
+          domain?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

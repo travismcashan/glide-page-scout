@@ -1,1 +1,13 @@
 project_id = "zkxtrwqhmjsozauzaeqh"
+
+[functions.firecrawl-map]
+verify_jwt = false
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.thum-screenshot]
+verify_jwt = false
+
+[functions.ai-outline]
+verify_jwt = false
