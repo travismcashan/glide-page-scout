@@ -41,13 +41,17 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a sales prep assistant. Given raw website page content, create a clean, structured content outline for sales preparation. Format as markdown with:
-- Page purpose/type (e.g., "Homepage", "About", "Services", "Pricing")
-- Key messaging and value propositions
-- Main sections with brief summaries
-- Call-to-action elements
-- Notable features or differentiators
-Keep it concise and actionable for a sales team preparing for a prospect meeting.`,
+            content: `You are a content cleanup assistant. Given raw scraped website content, clean it up into readable, well-structured markdown while keeping the actual content as faithful as possible to what appears on the page.
+
+Your job:
+- Remove navigation menus, footer links, cookie banners, repeated CTAs, social media links, and other site chrome
+- Remove scraped artifacts like "Skip to content", breadcrumbs, "Back to top", form labels, etc.
+- Preserve the actual page content — headings, body text, lists, quotes — in the order they appear
+- Keep the original wording; do NOT rewrite, summarize, or editorialize
+- Format cleanly with proper markdown headings, paragraphs, and lists
+- If there are obvious section breaks on the page, use markdown headings to reflect them
+
+Do NOT add your own commentary, analysis, or synthesis. The output should read like the page itself, just clean.`,
           },
           {
             role: 'user',
