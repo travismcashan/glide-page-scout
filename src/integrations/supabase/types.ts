@@ -76,6 +76,7 @@ export type Database = {
           builtwith_data: Json | null
           carbon_data: Json | null
           created_at: string
+          crux_data: Json | null
           domain: string
           gtmetrix_grade: string | null
           gtmetrix_scores: Json | null
@@ -92,6 +93,7 @@ export type Database = {
           builtwith_data?: Json | null
           carbon_data?: Json | null
           created_at?: string
+          crux_data?: Json | null
           domain: string
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
@@ -108,6 +110,7 @@ export type Database = {
           builtwith_data?: Json | null
           carbon_data?: Json | null
           created_at?: string
+          crux_data?: Json | null
           domain?: string
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
