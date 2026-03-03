@@ -5,7 +5,6 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
-// Normalize URL for comparison: strip trailing slash, fragment, query
 function normalizeUrl(u: string): string {
   try {
     const parsed = new URL(u);
@@ -15,18 +14,54 @@ function normalizeUrl(u: string): string {
   }
 }
 
-// Filter out junk URLs before sending to AI
 function isCleanUrl(u: string): boolean {
-  // Skip fragment-heavy URLs, sitemaps, feeds
   if (u.includes('#:~:text=')) return false;
   if (u.match(/sitemap.*\.xml$/i)) return false;
   if (u.includes('/feed')) return false;
   if (u.includes('/wp-json/')) return false;
   if (u.includes('/wp-admin/')) return false;
-  // Skip thank-you pages
   if (u.includes('-thank-you')) return false;
   return true;
 }
+
+const PROMPTS: Record<string, { system: string; functionName: string; functionDesc: string }> = {
+  screenshots: {
+    system: `You are an expert at analyzing website navigation structures for visual audits.
+
+Given a homepage's content and discovered URLs, identify the KEY TEMPLATE PAGES that represent the site's unique layouts — pages a web designer would screenshot to understand the site's design system.
+
+Rules:
+- Focus on pages that represent DISTINCT page templates/layouts
+- Always include the homepage
+- Include: services list page, a service detail page, blog/news list, a blog post detail, about page, contact page, careers page, portfolio/work page, team page
+- Pick ONE representative page per template type (e.g., one blog post, not all of them)
+- EXCLUDE: utility pages (privacy, terms, sitemap), login/signup, duplicate templates
+- Aim for 5-15 pages — only the key visual templates
+- You MUST return URLs exactly as they appear in the "Available URLs" list`,
+    functionName: 'select_screenshot_pages',
+    functionDesc: 'Select key template pages for screenshots. URLs must exactly match ones from the Available URLs list.',
+  },
+  content: {
+    system: `You are an expert at analyzing websites to understand a company's full offering.
+
+Given a homepage's content and discovered URLs, identify ALL SUBSTANTIVE CONTENT PAGES that help understand who this company is, what they do, and what they offer.
+
+Rules:
+- Include ALL service/product pages (every individual service, not just the list)
+- Include ALL industry/solution pages
+- Include about, team, leadership, values, mission pages
+- Include case studies, testimonials, portfolio items
+- Include pricing, FAQ, process/how-it-works pages
+- Include career/culture pages
+- EXCLUDE: blog posts, news articles, individual press releases
+- EXCLUDE: utility pages (privacy, terms, sitemap, login/signup)
+- EXCLUDE: thank-you pages, landing pages for ads
+- Be comprehensive — aim for 10-40+ pages depending on site size
+- You MUST return URLs exactly as they appear in the "Available URLs" list`,
+    functionName: 'select_content_pages',
+    functionDesc: 'Select all substantive content pages to understand the company. URLs must exactly match ones from the Available URLs list.',
+  },
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,7 +69,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { url, discoveredUrls } = await req.json();
+    const { url, discoveredUrls, mode = 'screenshots' } = await req.json();
 
     if (!url || !discoveredUrls?.length) {
       return new Response(
@@ -42,6 +77,8 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const prompt = PROMPTS[mode] || PROMPTS.screenshots;
 
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
     const aiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -58,20 +95,16 @@ Deno.serve(async (req) => {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    // Pre-clean discovered URLs - remove fragments, sitemaps, etc.
     const cleanUrls = discoveredUrls.filter((u: string) => isCleanUrl(u));
-    // Deduplicate by normalized form, keep original URL
     const normalizedMap = new Map<string, string>();
     for (const u of cleanUrls) {
       const norm = normalizeUrl(u);
-      if (!normalizedMap.has(norm)) {
-        normalizedMap.set(norm, u);
-      }
+      if (!normalizedMap.has(norm)) normalizedMap.set(norm, u);
     }
     const dedupedUrls = Array.from(normalizedMap.values());
 
-    console.log(`Scraping homepage for nav analysis: ${formattedUrl}`);
-    console.log(`Clean URLs: ${dedupedUrls.length} (from ${discoveredUrls.length} raw)`);
+    console.log(`[${mode}] Scraping homepage for nav analysis: ${formattedUrl}`);
+    console.log(`[${mode}] Clean URLs: ${dedupedUrls.length} (from ${discoveredUrls.length} raw)`);
 
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -89,13 +122,9 @@ Deno.serve(async (req) => {
     const scrapeData = await scrapeResponse.json();
     const pageLinks: string[] = (scrapeData.data?.links || scrapeData.links || []).filter((u: string) => isCleanUrl(u));
     const pageMarkdown: string = scrapeData.data?.markdown || scrapeData.markdown || '';
-
     const headerContent = pageMarkdown.substring(0, 4000);
 
-    console.log(`Found ${pageLinks.length} clean links on homepage`);
-
-    // Only send clean, deduped URLs to AI (cap at 150)
-    const urlsForAI = dedupedUrls.slice(0, 150);
+    const urlsForAI = dedupedUrls.slice(0, 200);
 
     const response = await fetch(AI_GATEWAY_URL, {
       method: 'POST',
@@ -106,20 +135,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-pro',
         messages: [
-          {
-            role: 'system',
-            content: `You are an expert at analyzing website navigation structures.
-
-Given a homepage's content and discovered URLs, identify the PRIMARY NAVIGATION PAGES — the pages in the site's main nav menu (e.g., About, Services, Products, Pricing, Contact, Team, Work/Portfolio, Industries, etc.).
-
-Rules:
-- Focus on pages visible in the header/main navigation
-- Include the homepage
-- Include key service/product pages and important landing pages
-- EXCLUDE: blog posts, individual articles, utility pages (privacy, terms, sitemap), login/signup
-- You MUST return URLs exactly as they appear in the "Available URLs" list below — copy them character-for-character
-- Aim for 5-15 pages`,
-          },
+          { role: 'system', content: prompt.system },
           {
             role: 'user',
             content: `Homepage: ${formattedUrl}
@@ -138,8 +154,8 @@ ${urlsForAI.join('\n')}`,
           {
             type: 'function',
             function: {
-              name: 'select_navigation_pages',
-              description: 'Select the primary navigation pages. URLs must exactly match ones from the Available URLs list.',
+              name: prompt.functionName,
+              description: prompt.functionDesc,
               parameters: {
                 type: 'object',
                 properties: {
@@ -149,7 +165,7 @@ ${urlsForAI.join('\n')}`,
                       type: 'object',
                       properties: {
                         url: { type: 'string', description: 'Exact URL from the Available URLs list' },
-                        reason: { type: 'string', description: 'Why this page matters (e.g., "Primary nav — Services")' },
+                        reason: { type: 'string', description: 'Why this page was selected' },
                       },
                       required: ['url', 'reason'],
                       additionalProperties: false,
@@ -162,7 +178,7 @@ ${urlsForAI.join('\n')}`,
             },
           },
         ],
-        tool_choice: { type: 'function', function: { name: 'select_navigation_pages' } },
+        tool_choice: { type: 'function', function: { name: prompt.functionName } },
       }),
     });
 
@@ -175,12 +191,6 @@ ${urlsForAI.join('\n')}`,
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'AI credits exhausted. Please add credits in Settings.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
       return new Response(
         JSON.stringify({ success: false, error: 'AI analysis failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -190,26 +200,17 @@ ${urlsForAI.join('\n')}`,
     const aiData = await response.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    console.log('AI raw response tool_calls:', JSON.stringify(aiData.choices?.[0]?.message?.tool_calls));
-
     let recommendations: { url: string; reason: string }[] = [];
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
         recommendations = parsed.recommended_urls || [];
-        console.log(`AI returned ${recommendations.length} raw recommendations`);
       } catch (e) {
         console.error('Failed to parse AI response:', e);
       }
-    } else {
-      // Fallback: check if the model returned content instead of tool call
-      const content = aiData.choices?.[0]?.message?.content;
-      if (content) {
-        console.log('AI returned content instead of tool call:', content.substring(0, 200));
-      }
     }
 
-    // Fuzzy match: normalize both sides for comparison
+    // Fuzzy match
     const discoveredNormalizedMap = new Map<string, string>();
     for (const u of discoveredUrls) {
       discoveredNormalizedMap.set(normalizeUrl(u), u);
@@ -217,22 +218,18 @@ ${urlsForAI.join('\n')}`,
 
     const matched: { url: string; reason: string }[] = [];
     for (const rec of recommendations) {
-      // Try exact match first
       if (discoveredUrls.includes(rec.url)) {
         matched.push(rec);
         continue;
       }
-      // Try normalized match
       const norm = normalizeUrl(rec.url);
       const original = discoveredNormalizedMap.get(norm);
       if (original) {
         matched.push({ url: original, reason: rec.reason });
-      } else {
-        console.log(`No match for AI recommendation: ${rec.url}`);
       }
     }
 
-    console.log(`AI recommended ${matched.length} pages (${recommendations.length} raw, ${matched.length} matched)`);
+    console.log(`[${mode}] AI recommended ${matched.length} pages (${recommendations.length} raw)`);
 
     return new Response(
       JSON.stringify({ success: true, recommendations: matched }),

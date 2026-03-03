@@ -297,6 +297,7 @@ export default function ResultsPage() {
             domain={session.domain}
             onPagesAdded={fetchData}
             existingPageUrls={new Set(pages.map(p => p.url))}
+            existingScreenshotUrls={new Set(pages.filter(p => p.screenshot_url).map(p => p.url))}
           />
         )}
 
