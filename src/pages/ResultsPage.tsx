@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -48,18 +48,25 @@ type CrawlSession = {
   gtmetrix_test_id: string | null;
 };
 
-function SectionCard({ title, icon, children, loading, loadingText }: {
+function SectionCard({ title, icon, children, loading, loadingText, error, errorText }: {
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
   loading?: boolean;
   loadingText?: string;
+  error?: boolean;
+  errorText?: string;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''}`}>
       <div className="px-6 py-4 border-b border-border flex items-center gap-3">
         <div className="p-2 rounded-lg bg-muted">{icon}</div>
         <h2 className="text-lg font-semibold">{title}</h2>
+        {error && (
+          <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-auto">
+            <AlertTriangle className="h-3 w-3 mr-0.5" /> Error
+          </Badge>
+        )}
       </div>
       <div className="p-6">
         {loading ? (
@@ -67,7 +74,22 @@ function SectionCard({ title, icon, children, loading, loadingText }: {
             <Loader2 className="h-4 w-4 animate-spin shrink-0" />
             <span className="text-sm">{loadingText || 'Loading...'}</span>
           </div>
-        ) : children}
+        ) : error && !children ? (
+          <div className="flex items-center gap-2 text-destructive py-4">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="text-sm">{errorText || 'This integration encountered an error. Check backend logs for details.'}</span>
+          </div>
+        ) : (
+          <>
+            {error && errorText && (
+              <div className="flex items-center gap-2 text-destructive mb-4 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span className="text-xs">{errorText}</span>
+              </div>
+            )}
+            {children}
+          </>
+        )}
       </div>
     </Card>
   );
@@ -89,7 +111,10 @@ export default function ResultsPage() {
   const [carbonLoading, setCarbonLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
-
+  // Error tracking per integration
+  const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
+  const setError = (key: string, msg: string) => setIntegrationErrors(prev => ({ ...prev, [key]: msg }));
+  const clearError = (key: string) => setIntegrationErrors(prev => { const next = { ...prev }; delete next[key]; return next; });
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
     const [sessionRes, pagesRes] = await Promise.all([
@@ -109,30 +134,40 @@ export default function ResultsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // BuiltWith
+  const [builtwithFailed, setBuiltwithFailed] = useState(false);
   useEffect(() => {
-    if (!session || session.builtwith_data || builtwithLoading || isIntegrationPaused('builtwith')) return;
+    if (!session || session.builtwith_data || builtwithLoading || builtwithFailed || isIntegrationPaused('builtwith')) return;
     setBuiltwithLoading(true);
     builtwithApi.lookup(session.domain).then(async (result) => {
       if (result.success && result.grouped) {
         await supabase.from('crawl_sessions').update({ builtwith_data: { grouped: result.grouped, totalCount: result.totalCount } } as any).eq('id', session.id);
+        clearError('builtwith');
         fetchData();
+      } else {
+        setBuiltwithFailed(true);
+        setError('builtwith', result.error || 'BuiltWith API returned an error');
       }
       setBuiltwithLoading(false);
-    }).catch(() => setBuiltwithLoading(false));
-  }, [session, builtwithLoading, fetchData]);
+    }).catch((e) => { setBuiltwithFailed(true); setError('builtwith', e?.message || 'BuiltWith request failed'); setBuiltwithLoading(false); });
+  }, [session, builtwithLoading, builtwithFailed, fetchData]);
 
   // SEMrush
+  const [semrushFailed, setSemrushFailed] = useState(false);
   useEffect(() => {
-    if (!session || session.semrush_data || semrushLoading || isIntegrationPaused('semrush')) return;
+    if (!session || session.semrush_data || semrushLoading || semrushFailed || isIntegrationPaused('semrush')) return;
     setSemrushLoading(true);
     semrushApi.domainOverview(session.domain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ semrush_data: { overview: result.overview, organicKeywords: result.organicKeywords, backlinks: result.backlinks } } as any).eq('id', session.id);
+        clearError('semrush');
         fetchData();
+      } else {
+        setSemrushFailed(true);
+        setError('semrush', result.error || 'SEMrush API returned an error');
       }
       setSemrushLoading(false);
-    }).catch(() => setSemrushLoading(false));
-  }, [session, semrushLoading, fetchData]);
+    }).catch((e) => { setSemrushFailed(true); setError('semrush', e?.message || 'SEMrush request failed'); setSemrushLoading(false); });
+  }, [session, semrushLoading, semrushFailed, fetchData]);
 
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
@@ -142,10 +177,11 @@ export default function ResultsPage() {
     pagespeedApi.analyze(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ psi_data: { mobile: result.mobile, desktop: result.desktop } } as any).eq('id', session.id);
+        clearError('psi');
         fetchData();
-      } else { setPsiFailed(true); }
+      } else { setPsiFailed(true); setError('psi', result.error || 'PageSpeed Insights returned an error'); }
       setPsiLoading(false);
-    }).catch(() => { setPsiFailed(true); setPsiLoading(false); });
+    }).catch((e) => { setPsiFailed(true); setError('psi', e?.message || 'PageSpeed request failed'); setPsiLoading(false); });
   }, [session, psiLoading, psiFailed, fetchData]);
 
   // Wappalyzer
@@ -156,10 +192,11 @@ export default function ResultsPage() {
     wappalyzerApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ wappalyzer_data: { grouped: result.grouped, totalCount: result.totalCount, social: result.social } } as any).eq('id', session.id);
+        clearError('wappalyzer');
         fetchData();
-      } else { setWappalyzerFailed(true); }
+      } else { setWappalyzerFailed(true); setError('wappalyzer', result.error || 'Wappalyzer returned an error'); }
       setWappalyzerLoading(false);
-    }).catch(() => { setWappalyzerFailed(true); setWappalyzerLoading(false); });
+    }).catch((e) => { setWappalyzerFailed(true); setError('wappalyzer', e?.message || 'Wappalyzer request failed'); setWappalyzerLoading(false); });
   }, [session, wappalyzerLoading, wappalyzerFailed, fetchData]);
 
   // GTmetrix
@@ -170,10 +207,11 @@ export default function ResultsPage() {
     gtmetrixApi.runTest(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ gtmetrix_grade: result.grade, gtmetrix_scores: result.scores, gtmetrix_test_id: result.testId } as any).eq('id', session.id);
+        clearError('gtmetrix');
         fetchData();
-      } else { setGtmetrixFailed(true); }
+      } else { setGtmetrixFailed(true); setError('gtmetrix', result.error || 'GTmetrix returned an error'); }
       setRunningGtmetrix(false);
-    }).catch(() => { setGtmetrixFailed(true); setRunningGtmetrix(false); });
+    }).catch((e) => { setGtmetrixFailed(true); setError('gtmetrix', e?.message || 'GTmetrix request failed'); setRunningGtmetrix(false); });
   }, [session, runningGtmetrix, gtmetrixFailed, fetchData]);
 
   // Carbon
@@ -184,10 +222,11 @@ export default function ResultsPage() {
     websiteCarbonApi.check(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ carbon_data: { green: result.green, bytes: result.bytes, cleanerThan: result.cleanerThan, statistics: result.statistics, rating: result.rating } } as any).eq('id', session.id);
+        clearError('carbon');
         fetchData();
-      } else { setCarbonFailed(true); }
+      } else { setCarbonFailed(true); setError('carbon', result.error || 'Website Carbon returned an error'); }
       setCarbonLoading(false);
-    }).catch(() => { setCarbonFailed(true); setCarbonLoading(false); });
+    }).catch((e) => { setCarbonFailed(true); setError('carbon', e?.message || 'Website Carbon request failed'); setCarbonLoading(false); });
   }, [session, carbonLoading, carbonFailed, fetchData]);
 
   // Process pending pages
@@ -197,16 +236,34 @@ export default function ResultsPage() {
     const processPage = async (page: CrawlPage) => {
       setProcessingPages(prev => new Set([...prev, page.id]));
       try {
-        const scrapeResult = await firecrawlApi.scrape(page.url, { formats: ['markdown'] });
-        const markdown = scrapeResult.data?.markdown || (scrapeResult as any).markdown || '';
-        const title = scrapeResult.data?.metadata?.title || (scrapeResult as any).metadata?.title || page.url;
-        const screenshotResult = await screenshotApi.getUrl(page.url);
-        await supabase.from('crawl_pages').update({ raw_content: markdown, title, screenshot_url: screenshotResult.success ? screenshotResult.screenshotUrl : null, status: 'scraped' }).eq('id', page.id);
+        // Run scrape and screenshot in parallel, each with its own error handling
+        const [scrapeResult, screenshotResult] = await Promise.allSettled([
+          firecrawlApi.scrape(page.url, { formats: ['markdown'] }),
+          screenshotApi.getUrl(page.url),
+        ]);
+
+        const scrapeData = scrapeResult.status === 'fulfilled' ? scrapeResult.value : null;
+        const screenshotData = screenshotResult.status === 'fulfilled' ? screenshotResult.value : null;
+
+        const markdown = scrapeData?.data?.markdown || (scrapeData as any)?.markdown || '';
+        const title = scrapeData?.data?.metadata?.title || (scrapeData as any)?.metadata?.title || page.url;
+        const screenshotUrl = screenshotData?.success ? screenshotData.screenshotUrl : null;
+
+        await supabase.from('crawl_pages').update({
+          raw_content: markdown || null,
+          title,
+          screenshot_url: screenshotUrl || null,
+          status: markdown || screenshotUrl ? 'scraped' : 'error',
+        }).eq('id', page.id);
+
+        // Generate outline independently — don't block on failure
         if (markdown) {
-          const outlineResult = await aiApi.generateOutline(markdown, title, page.url);
-          if (outlineResult.success && outlineResult.outline) {
-            await supabase.from('crawl_pages').update({ ai_outline: outlineResult.outline }).eq('id', page.id);
-          }
+          try {
+            const outlineResult = await aiApi.generateOutline(markdown, title, page.url);
+            if (outlineResult.success && outlineResult.outline) {
+              await supabase.from('crawl_pages').update({ ai_outline: outlineResult.outline }).eq('id', page.id);
+            }
+          } catch (e) { console.error('Outline generation failed for:', page.url, e); }
         }
         fetchData();
       } catch (error) {
@@ -318,35 +375,35 @@ export default function ResultsPage() {
         )}
 
         {/* ── Technology Detection ── */}
-        <SectionCard title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack...">
+        <SectionCard title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith}>
           {session?.builtwith_data ? (
             <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} />
-          ) : !builtwithLoading ? (
+          ) : !builtwithLoading && !builtwithFailed ? (
             <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
           ) : null}
         </SectionCard>
 
-        <SectionCard title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection...">
+        <SectionCard title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer}>
           {session?.wappalyzer_data ? (
             <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
           ) : null}
         </SectionCard>
 
         {/* ── Performance ── */}
-        <SectionCard title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test...">
+        <SectionCard title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix}>
           <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
         </SectionCard>
 
-        <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)...">
+        <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi}>
           {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
         </SectionCard>
 
-        <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint...">
+        <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon}>
           {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
         </SectionCard>
 
         {/* ── SEO ── */}
-        <SectionCard title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data...">
+        <SectionCard title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush}>
           {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
         </SectionCard>
 
