@@ -5,6 +5,29 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
+// Normalize URL for comparison: strip trailing slash, fragment, query
+function normalizeUrl(u: string): string {
+  try {
+    const parsed = new URL(u);
+    return (parsed.origin + parsed.pathname).replace(/\/+$/, '').toLowerCase();
+  } catch {
+    return u.replace(/\/+$/, '').toLowerCase();
+  }
+}
+
+// Filter out junk URLs before sending to AI
+function isCleanUrl(u: string): boolean {
+  // Skip fragment-heavy URLs, sitemaps, feeds
+  if (u.includes('#:~:text=')) return false;
+  if (u.match(/sitemap.*\.xml$/i)) return false;
+  if (u.includes('/feed')) return false;
+  if (u.includes('/wp-json/')) return false;
+  if (u.includes('/wp-admin/')) return false;
+  // Skip thank-you pages
+  if (u.includes('-thank-you')) return false;
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -30,13 +53,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 1: Scrape the homepage to get its HTML links and structure
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    console.log('Scraping homepage for nav analysis:', formattedUrl);
+    // Pre-clean discovered URLs - remove fragments, sitemaps, etc.
+    const cleanUrls = discoveredUrls.filter((u: string) => isCleanUrl(u));
+    // Deduplicate by normalized form, keep original URL
+    const normalizedMap = new Map<string, string>();
+    for (const u of cleanUrls) {
+      const norm = normalizeUrl(u);
+      if (!normalizedMap.has(norm)) {
+        normalizedMap.set(norm, u);
+      }
+    }
+    const dedupedUrls = Array.from(normalizedMap.values());
+
+    console.log(`Scraping homepage for nav analysis: ${formattedUrl}`);
+    console.log(`Clean URLs: ${dedupedUrls.length} (from ${discoveredUrls.length} raw)`);
 
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -47,20 +82,21 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         url: formattedUrl,
         formats: ['markdown', 'links'],
-        onlyMainContent: false, // We need the full page including nav
+        onlyMainContent: false,
       }),
     });
 
     const scrapeData = await scrapeResponse.json();
-    const pageLinks = scrapeData.data?.links || scrapeData.links || [];
-    const pageMarkdown = scrapeData.data?.markdown || scrapeData.markdown || '';
+    const pageLinks: string[] = (scrapeData.data?.links || scrapeData.links || []).filter((u: string) => isCleanUrl(u));
+    const pageMarkdown: string = scrapeData.data?.markdown || scrapeData.markdown || '';
 
-    // Take the first ~3000 chars of markdown (header/nav area) + all links
-    const headerContent = pageMarkdown.substring(0, 3000);
+    const headerContent = pageMarkdown.substring(0, 4000);
 
-    console.log(`Found ${pageLinks.length} links on homepage, ${discoveredUrls.length} discovered URLs total`);
+    console.log(`Found ${pageLinks.length} clean links on homepage`);
 
-    // Step 2: Use AI to identify primary navigation pages
+    // Only send clean, deduped URLs to AI (cap at 150)
+    const urlsForAI = dedupedUrls.slice(0, 150);
+
     const response = await fetch(AI_GATEWAY_URL, {
       method: 'POST',
       headers: {
@@ -72,34 +108,30 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert at analyzing website navigation structures. Given:
-1. The markdown content from a homepage (especially the header/navigation area)
-2. Links found on the homepage
-3. All discovered URLs from the site map
+            content: `You are an expert at analyzing website navigation structures.
 
-Your job is to identify the PRIMARY NAVIGATION PAGES — the main pages a visitor would see in the site's top-level navigation menu (e.g., About, Services, Products, Pricing, Contact, Team, Careers, Case Studies, etc.).
+Given a homepage's content and discovered URLs, identify the PRIMARY NAVIGATION PAGES — the pages in the site's main nav menu (e.g., About, Services, Products, Pricing, Contact, Team, Work/Portfolio, Industries, etc.).
 
 Rules:
-- Focus on pages that appear in the main navigation/header menu
-- Include the homepage itself
-- Include important landing pages that represent core business areas
-- EXCLUDE: blog posts, individual articles, utility pages (privacy, terms, sitemap), login/signup, asset URLs, API endpoints, anchored links (#), pagination, search results
-- EXCLUDE: deeply nested pages (more than 2 path segments) unless they're clearly primary nav items
-- Return ONLY URLs that exist in the discovered URLs list
-- Aim for 5-15 pages max — quality over quantity`,
+- Focus on pages visible in the header/main navigation
+- Include the homepage
+- Include key service/product pages and important landing pages
+- EXCLUDE: blog posts, individual articles, utility pages (privacy, terms, sitemap), login/signup
+- You MUST return URLs exactly as they appear in the "Available URLs" list below — copy them character-for-character
+- Aim for 5-15 pages`,
           },
           {
             role: 'user',
-            content: `Homepage URL: ${formattedUrl}
+            content: `Homepage: ${formattedUrl}
 
-Homepage content (first ~3000 chars):
+Homepage content (header/nav area):
 ${headerContent}
 
-Links found on homepage:
-${pageLinks.slice(0, 100).join('\n')}
+Links found on homepage (likely nav items):
+${pageLinks.slice(0, 50).join('\n')}
 
-All discovered site URLs (${discoveredUrls.length} total):
-${discoveredUrls.slice(0, 200).join('\n')}`,
+Available URLs to choose from:
+${urlsForAI.join('\n')}`,
           },
         ],
         tools: [
@@ -107,7 +139,7 @@ ${discoveredUrls.slice(0, 200).join('\n')}`,
             type: 'function',
             function: {
               name: 'select_navigation_pages',
-              description: 'Select the primary navigation pages from the discovered URLs',
+              description: 'Select the primary navigation pages. URLs must exactly match ones from the Available URLs list.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -116,13 +148,12 @@ ${discoveredUrls.slice(0, 200).join('\n')}`,
                     items: {
                       type: 'object',
                       properties: {
-                        url: { type: 'string', description: 'The full URL of the page' },
-                        reason: { type: 'string', description: 'Brief reason why this page was selected (e.g., "Main navigation - Services")' },
+                        url: { type: 'string', description: 'Exact URL from the Available URLs list' },
+                        reason: { type: 'string', description: 'Why this page matters (e.g., "Primary nav — Services")' },
                       },
                       required: ['url', 'reason'],
                       additionalProperties: false,
                     },
-                    description: 'List of recommended primary navigation page URLs with reasons',
                   },
                 },
                 required: ['recommended_urls'],
@@ -136,6 +167,8 @@ ${discoveredUrls.slice(0, 200).join('\n')}`,
     });
 
     if (!response.ok) {
+      const errText = await response.text();
+      console.error('AI error:', response.status, errText);
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ success: false, error: 'Rate limit exceeded, please try again shortly.' }),
@@ -148,8 +181,6 @@ ${discoveredUrls.slice(0, 200).join('\n')}`,
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const errText = await response.text();
-      console.error('AI error:', response.status, errText);
       return new Response(
         JSON.stringify({ success: false, error: 'AI analysis failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -159,24 +190,52 @@ ${discoveredUrls.slice(0, 200).join('\n')}`,
     const aiData = await response.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
+    console.log('AI raw response tool_calls:', JSON.stringify(aiData.choices?.[0]?.message?.tool_calls));
+
     let recommendations: { url: string; reason: string }[] = [];
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
         recommendations = parsed.recommended_urls || [];
+        console.log(`AI returned ${recommendations.length} raw recommendations`);
       } catch (e) {
         console.error('Failed to parse AI response:', e);
       }
+    } else {
+      // Fallback: check if the model returned content instead of tool call
+      const content = aiData.choices?.[0]?.message?.content;
+      if (content) {
+        console.log('AI returned content instead of tool call:', content.substring(0, 200));
+      }
     }
 
-    // Filter to only include URLs that are actually in the discovered list
-    const discoveredSet = new Set(discoveredUrls);
-    recommendations = recommendations.filter(r => discoveredSet.has(r.url));
+    // Fuzzy match: normalize both sides for comparison
+    const discoveredNormalizedMap = new Map<string, string>();
+    for (const u of discoveredUrls) {
+      discoveredNormalizedMap.set(normalizeUrl(u), u);
+    }
 
-    console.log(`AI recommended ${recommendations.length} pages`);
+    const matched: { url: string; reason: string }[] = [];
+    for (const rec of recommendations) {
+      // Try exact match first
+      if (discoveredUrls.includes(rec.url)) {
+        matched.push(rec);
+        continue;
+      }
+      // Try normalized match
+      const norm = normalizeUrl(rec.url);
+      const original = discoveredNormalizedMap.get(norm);
+      if (original) {
+        matched.push({ url: original, reason: rec.reason });
+      } else {
+        console.log(`No match for AI recommendation: ${rec.url}`);
+      }
+    }
+
+    console.log(`AI recommended ${matched.length} pages (${recommendations.length} raw, ${matched.length} matched)`);
 
     return new Response(
-      JSON.stringify({ success: true, recommendations }),
+      JSON.stringify({ success: true, recommendations: matched }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

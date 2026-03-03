@@ -84,8 +84,10 @@ export default function CrawlPage() {
         setSelectedUrls(new Set(aiResult.recommendations.map(r => r.url)));
         setSortMode('recommended-first');
         toast.success(`AI recommended ${aiResult.recommendations.length} key pages`);
+      } else if (aiResult.success) {
+        toast.info('AI couldn\'t identify specific nav pages — select manually');
       } else {
-        toast.warning('AI analysis unavailable — showing all pages');
+        toast.warning(`AI analysis issue: ${aiResult.error || 'Unknown error'} — select manually`);
       }
 
       setAnalysisDone(true);
