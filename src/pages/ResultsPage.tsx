@@ -8,7 +8,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Image, FileText, Loader2, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi } from '@/lib/api/firecrawl';
+import { GtmetrixCard } from '@/components/GtmetrixCard';
+import { BuiltWithCard } from '@/components/BuiltWithCard';
 
 type CrawlPage = {
   id: string;
@@ -18,6 +20,10 @@ type CrawlPage = {
   ai_outline: string | null;
   screenshot_url: string | null;
   status: string;
+  gtmetrix_grade: string | null;
+  gtmetrix_scores: any | null;
+  gtmetrix_pdf_url: string | null;
+  gtmetrix_test_id: string | null;
 };
 
 type CrawlSession = {
@@ -26,6 +32,7 @@ type CrawlSession = {
   base_url: string;
   status: string;
   created_at: string;
+  builtwith_data: any | null;
 };
 
 export default function ResultsPage() {
@@ -36,7 +43,11 @@ export default function ResultsPage() {
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const [processingPages, setProcessingPages] = useState<Set<string>>(new Set());
   const [generatingOutline, setGeneratingOutline] = useState<Set<string>>(new Set());
+  const [runningGtmetrix, setRunningGtmetrix] = useState<Set<string>>(new Set());
+  const [builtwithLoading, setBuiltwithLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Store API key for PDF downloads (returned from edge function, not exposed in code)
+  const [gtmetrixApiKey, setGtmetrixApiKey] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
@@ -46,10 +57,9 @@ export default function ResultsPage() {
       supabase.from('crawl_pages').select('*').eq('session_id', sessionId),
     ]);
 
-    if (sessionRes.data) setSession(sessionRes.data as CrawlSession);
+    if (sessionRes.data) setSession(sessionRes.data as unknown as CrawlSession);
     if (pagesRes.data) {
-      setPages(pagesRes.data as CrawlPage[]);
-      // Auto-expand first page
+      setPages(pagesRes.data as unknown as CrawlPage[]);
       if (pagesRes.data.length > 0 && expandedPages.size === 0) {
         setExpandedPages(new Set([pagesRes.data[0].id]));
       }
@@ -61,7 +71,24 @@ export default function ResultsPage() {
     fetchData();
   }, [fetchData]);
 
-  // Process pending pages
+  // BuiltWith: run once per session when session loads
+  useEffect(() => {
+    if (!session || session.builtwith_data || builtwithLoading) return;
+    setBuiltwithLoading(true);
+
+    builtwithApi.lookup(session.domain).then(async (result) => {
+      if (result.success && result.grouped) {
+        await supabase
+          .from('crawl_sessions')
+          .update({ builtwith_data: { grouped: result.grouped, totalCount: result.totalCount } } as any)
+          .eq('id', session.id);
+        fetchData();
+      }
+      setBuiltwithLoading(false);
+    }).catch(() => setBuiltwithLoading(false));
+  }, [session, builtwithLoading, fetchData]);
+
+  // Process pending pages — scrape + screenshot + auto-outline + GTmetrix
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
@@ -78,7 +105,7 @@ export default function ResultsPage() {
         // Get screenshot URL
         const screenshotResult = await screenshotApi.getUrl(page.url);
 
-        // Update DB
+        // Update DB with scraped content
         await supabase
           .from('crawl_pages')
           .update({
@@ -89,7 +116,20 @@ export default function ResultsPage() {
           })
           .eq('id', page.id);
 
-        // Refresh
+        // Auto-generate AI outline
+        if (markdown) {
+          const outlineResult = await aiApi.generateOutline(markdown, title, page.url);
+          if (outlineResult.success && outlineResult.outline) {
+            await supabase
+              .from('crawl_pages')
+              .update({ ai_outline: outlineResult.outline })
+              .eq('id', page.id);
+          }
+        }
+
+        // Auto-run GTmetrix
+        runGtmetrixForPage(page.id, page.url);
+
         fetchData();
       } catch (error) {
         console.error('Error processing page:', page.url, error);
@@ -101,7 +141,6 @@ export default function ResultsPage() {
       }
     };
 
-    // Process 3 at a time
     pending.slice(0, 3).forEach(processPage);
   }, [pages, processingPages, fetchData]);
 
@@ -117,6 +156,34 @@ export default function ResultsPage() {
         .then(() => fetchData());
     }
   }, [pages, session, fetchData]);
+
+  const runGtmetrixForPage = async (pageId: string, url: string) => {
+    setRunningGtmetrix(prev => new Set([...prev, pageId]));
+    try {
+      const result = await gtmetrixApi.runTest(url);
+      if (result.success) {
+        if (result.apiKey) setGtmetrixApiKey(result.apiKey);
+        await supabase
+          .from('crawl_pages')
+          .update({
+            gtmetrix_grade: result.grade,
+            gtmetrix_scores: result.scores,
+            gtmetrix_pdf_url: result.pdfUrl,
+            gtmetrix_test_id: result.testId,
+          } as any)
+          .eq('id', pageId);
+        fetchData();
+      }
+    } catch (e) {
+      console.error('GTmetrix error for page:', pageId, e);
+    } finally {
+      setRunningGtmetrix(prev => {
+        const next = new Set(prev);
+        next.delete(pageId);
+        return next;
+      });
+    }
+  };
 
   const generateOutline = async (page: CrawlPage) => {
     if (!page.raw_content) return;
@@ -185,6 +252,18 @@ export default function ResultsPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-4">
+        {/* BuiltWith tech stack — session level */}
+        <Card className="p-5">
+          <BuiltWithCard
+            grouped={session?.builtwith_data?.grouped || null}
+            totalCount={session?.builtwith_data?.totalCount || 0}
+            isLoading={builtwithLoading}
+          />
+          {!builtwithLoading && !session?.builtwith_data && (
+            <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
+          )}
+        </Card>
+
         {pages.map((page) => {
           const isExpanded = expandedPages.has(page.id);
           const isPending = page.status === 'pending';
@@ -206,7 +285,14 @@ export default function ResultsPage() {
                       <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
                     </div>
                   </div>
-                  {isExpanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {page.gtmetrix_grade && (
+                      <Badge variant="outline" className="text-xs">
+                        <Zap className="h-3 w-3 mr-1" /> {page.gtmetrix_grade}
+                      </Badge>
+                    )}
+                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
@@ -234,10 +320,20 @@ export default function ResultsPage() {
                         )}
                       </div>
 
+                      {/* GTmetrix scores */}
+                      <GtmetrixCard
+                        grade={page.gtmetrix_grade}
+                        scores={page.gtmetrix_scores}
+                        pdfUrl={page.gtmetrix_pdf_url}
+                        apiKey={gtmetrixApiKey}
+                        testId={page.gtmetrix_test_id}
+                        isRunning={runningGtmetrix.has(page.id)}
+                      />
+
                       <Tabs defaultValue={page.ai_outline ? 'outline' : 'raw'} key={page.ai_outline ? 'has-outline' : 'no-outline'}>
                         <TabsList>
                           <TabsTrigger value="raw">Raw Content</TabsTrigger>
-                          {page.ai_outline && <TabsTrigger value="outline">AI Outline</TabsTrigger>}
+                          {page.ai_outline && <TabsTrigger value="outline">Cleaned Content</TabsTrigger>}
                         </TabsList>
                         <TabsContent value="raw" className="mt-3">
                           <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto">
@@ -279,7 +375,7 @@ export default function ResultsPage() {
                   {isPending && (
                     <div className="px-5 pb-5 flex items-center gap-2 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">Scraping content and capturing screenshot...</span>
+                      <span className="text-sm">Scraping content, capturing screenshot, running performance test...</span>
                     </div>
                   )}
                 </CollapsibleContent>

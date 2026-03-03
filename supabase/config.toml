@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.recommend-pages]
 verify_jwt = false
+
+[functions.gtmetrix-test]
+verify_jwt = false
+
+[functions.builtwith-lookup]
+verify_jwt = false

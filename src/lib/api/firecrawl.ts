@@ -52,3 +52,46 @@ export const aiApi = {
     return data;
   },
 };
+
+export const gtmetrixApi = {
+  async runTest(url: string): Promise<{
+    success: boolean;
+    testId?: string;
+    grade?: string;
+    scores?: {
+      performance: number;
+      structure: number;
+      lcp: number;
+      tbt: number;
+      cls: number;
+      fcp: number;
+      tti: number;
+      speed_index: number;
+    };
+    pdfUrl?: string;
+    apiKey?: string;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('gtmetrix-test', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
+
+export const builtwithApi = {
+  async lookup(domain: string): Promise<{
+    success: boolean;
+    technologies?: { name: string; category: string; description?: string; link?: string }[];
+    grouped?: Record<string, { name: string; description?: string; link?: string }[]>;
+    totalCount?: number;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('builtwith-lookup', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};

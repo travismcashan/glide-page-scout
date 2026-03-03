@@ -18,6 +18,10 @@ export type Database = {
         Row: {
           ai_outline: string | null
           created_at: string
+          gtmetrix_grade: string | null
+          gtmetrix_pdf_url: string | null
+          gtmetrix_scores: Json | null
+          gtmetrix_test_id: string | null
           id: string
           raw_content: string | null
           screenshot_url: string | null
@@ -29,6 +33,10 @@ export type Database = {
         Insert: {
           ai_outline?: string | null
           created_at?: string
+          gtmetrix_grade?: string | null
+          gtmetrix_pdf_url?: string | null
+          gtmetrix_scores?: Json | null
+          gtmetrix_test_id?: string | null
           id?: string
           raw_content?: string | null
           screenshot_url?: string | null
@@ -40,6 +48,10 @@ export type Database = {
         Update: {
           ai_outline?: string | null
           created_at?: string
+          gtmetrix_grade?: string | null
+          gtmetrix_pdf_url?: string | null
+          gtmetrix_scores?: Json | null
+          gtmetrix_test_id?: string | null
           id?: string
           raw_content?: string | null
           screenshot_url?: string | null
@@ -61,6 +73,7 @@ export type Database = {
       crawl_sessions: {
         Row: {
           base_url: string
+          builtwith_data: Json | null
           created_at: string
           domain: string
           id: string
@@ -69,6 +82,7 @@ export type Database = {
         }
         Insert: {
           base_url: string
+          builtwith_data?: Json | null
           created_at?: string
           domain: string
           id?: string
@@ -77,6 +91,7 @@ export type Database = {
         }
         Update: {
           base_url?: string
+          builtwith_data?: Json | null
           created_at?: string
           domain?: string
           id?: string
