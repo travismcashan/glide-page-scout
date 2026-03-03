@@ -6,15 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
 import { PageSpeedCard } from '@/components/PageSpeedCard';
 import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
+import { CruxCard } from '@/components/CruxCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -43,6 +44,7 @@ type CrawlSession = {
   psi_data: any | null;
   wappalyzer_data: any | null;
   carbon_data: any | null;
+  crux_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -63,6 +65,7 @@ export default function ResultsPage() {
   const [psiLoading, setPsiLoading] = useState(false);
   const [wappalyzerLoading, setWappalyzerLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
+  const [cruxLoading, setCruxLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   // Error tracking per integration
@@ -184,6 +187,24 @@ export default function ResultsPage() {
       setCarbonLoading(false);
     }).catch((e) => { setCarbonFailed(true); setError('carbon', e?.message || 'Website Carbon request failed'); setCarbonLoading(false); });
   }, [session, carbonLoading, carbonFailed, fetchData]);
+
+  // CrUX
+  const [cruxFailed, setCruxFailed] = useState(false);
+  const [cruxNoData, setCruxNoData] = useState(false);
+  useEffect(() => {
+    if (!session || session.crux_data || cruxLoading || cruxFailed || isIntegrationPaused('crux')) return;
+    setCruxLoading(true);
+    cruxApi.lookup(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ crux_data: { overall: result.overall, phone: result.phone, desktop: result.desktop, collectionPeriod: result.collectionPeriod } } as any).eq('id', session.id);
+        clearError('crux');
+        fetchData();
+      } else if (result.noData) {
+        setCruxNoData(true);
+      } else { setCruxFailed(true); setError('crux', result.error || 'CrUX returned an error'); }
+      setCruxLoading(false);
+    }).catch((e) => { setCruxFailed(true); setError('crux', e?.message || 'CrUX request failed'); setCruxLoading(false); });
+  }, [session, cruxLoading, cruxFailed, fetchData]);
 
   // Process pending pages
   useEffect(() => {
@@ -352,6 +373,14 @@ export default function ResultsPage() {
 
         <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} paused={isIntegrationPaused('psi')}>
           {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
+        </SectionCard>
+
+        <SectionCard title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} paused={isIntegrationPaused('crux')}>
+          {session?.crux_data ? (
+            <CruxCard data={session.crux_data} isLoading={false} />
+          ) : cruxNoData ? (
+            <CruxCard data={null} isLoading={false} noData />
+          ) : null}
         </SectionCard>
 
         <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} paused={isIntegrationPaused('carbon')}>

@@ -161,3 +161,21 @@ export const websiteCarbonApi = {
     return data;
   },
 };
+
+export const cruxApi = {
+  async lookup(origin: string): Promise<{
+    success: boolean;
+    overall?: any;
+    phone?: any;
+    desktop?: any;
+    collectionPeriod?: any;
+    noData?: boolean;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('crux-lookup', {
+      body: { origin },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};

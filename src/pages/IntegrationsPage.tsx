@@ -36,6 +36,7 @@ const integrations: Integration[] = [
   { name: 'Wappalyzer', id: 'wappalyzer', description: 'Real-time technology profiling with version detection', secretKey: 'WAPPALYZER_API_KEY', configured: true, category: 'technology', status: 'active' },
   { name: 'GTmetrix', id: 'gtmetrix', description: 'Lighthouse performance audits and Web Vitals', secretKey: 'GTMETRIX_API_KEY', configured: true, category: 'performance', status: 'active' },
   { name: 'Google PageSpeed Insights', id: 'psi', description: 'Mobile & desktop Lighthouse scores and Core Web Vitals', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'performance', status: 'active' },
+  { name: 'Chrome UX Report (CrUX)', id: 'crux', description: 'Real-user field data — 28-day rolling Core Web Vitals from Chrome browsers', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'performance', status: 'active' },
   { name: 'SEMrush', id: 'semrush', description: 'Domain overview, organic keywords, and backlinks', secretKey: 'SEMRUSH_API_KEY', configured: true, category: 'seo', status: 'active' },
   { name: 'Thum.io', id: 'thumio', description: 'Full-page website screenshots', secretKey: 'THUMIO_SECRET_KEY', configured: true, category: 'content', status: 'active' },
   { name: 'Website Carbon API', id: 'carbon', description: 'CO₂ footprint per page load — free, no API key required', secretKey: '', configured: true, category: 'performance', status: 'active' },
