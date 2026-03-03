@@ -39,11 +39,13 @@ const metricConfig: { key: string; label: string; unit: 'ms' | 'score'; goodThre
   { key: 'experimental_time_to_first_byte', label: 'TTFB', unit: 'ms', goodThreshold: 800, poorThreshold: 1800 },
 ];
 
-function formatValue(value: number | undefined, unit: 'ms' | 'score'): string {
+function formatValue(value: number | string | undefined, unit: 'ms' | 'score'): string {
   if (value == null) return '—';
-  if (unit === 'score') return value.toFixed(2);
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
-  return `${Math.round(value)}ms`;
+  const num = typeof value === 'number' ? value : parseFloat(String(value));
+  if (isNaN(num)) return '—';
+  if (unit === 'score') return num.toFixed(2);
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}s`;
+  return `${Math.round(num)}ms`;
 }
 
 function getAssessment(value: number | undefined, good: number, poor: number): 'good' | 'needs-improvement' | 'poor' | 'unknown' {
