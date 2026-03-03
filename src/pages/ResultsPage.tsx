@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -364,14 +365,18 @@ export default function ResultsPage() {
                               {page.ai_outline && <TabsTrigger value="outline">Cleaned Content</TabsTrigger>}
                             </TabsList>
                             <TabsContent value="raw" className="mt-3">
-                              <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto">
-                                <pre className="text-sm whitespace-pre-wrap font-mono leading-relaxed">{page.raw_content}</pre>
+                              <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                                <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
+                                  <ReactMarkdown>{page.raw_content || ''}</ReactMarkdown>
+                                </Suspense>
                               </div>
                             </TabsContent>
                             {page.ai_outline && (
                               <TabsContent value="outline" className="mt-3">
-                                <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto">
-                                  <pre className="text-sm whitespace-pre-wrap font-mono leading-relaxed">{page.ai_outline}</pre>
+                                <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                                  <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.ai_outline}</pre>}>
+                                    <ReactMarkdown>{page.ai_outline}</ReactMarkdown>
+                                  </Suspense>
                                 </div>
                               </TabsContent>
                             )}
