@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { FileText, Loader2, Pause } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { aiApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { UrlSelectionList, type UrlEntry } from '@/components/UrlSelectionList';
+import { SectionCard } from '@/components/SectionCard';
 
 type Props = {
   sessionId: string;
@@ -21,6 +21,7 @@ export function ContentPickerCard({ sessionId, baseUrl, discoveredUrls, existing
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisDone, setAnalysisDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const paused = isIntegrationPaused('content');
 
   useEffect(() => {
@@ -39,7 +40,10 @@ export function ContentPickerCard({ sessionId, baseUrl, discoveredUrls, existing
         setSelected(new Set(result.recommendations.map(r => r.url)));
         toast.success(`AI selected ${result.recommendations.length} pages for content`);
       }
-    } catch (e) { console.error('Content analysis failed:', e); }
+    } catch (e) {
+      console.error('Content analysis failed:', e);
+      setError(e instanceof Error ? e.message : 'AI analysis failed');
+    }
     setAnalyzing(false);
     setAnalysisDone(true);
   };
@@ -60,50 +64,32 @@ export function ContentPickerCard({ sessionId, baseUrl, discoveredUrls, existing
   };
 
   return (
-    <Card className="overflow-hidden">
-      <div className="px-6 py-4 border-b border-border flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-muted">
-          <FileText className="h-5 w-5 text-foreground" />
-        </div>
-        <h2 className="text-lg font-semibold">Content Scraping</h2>
-        <p className="text-xs text-muted-foreground ml-auto">All business-relevant pages</p>
-      </div>
-      <div className="p-6">
-        {paused ? (
-          <div className="flex items-center gap-2 text-muted-foreground py-4">
-            <Pause className="h-4 w-4 shrink-0" />
-            <span className="text-sm">Content scraping is paused. Enable it in Integrations.</span>
-          </div>
-        ) : discoveredUrls.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Waiting for URL discovery...</p>
-        ) : (
-          <>
-            {analyzing && (
-              <div className="px-4 py-3 rounded-lg border border-primary/20 bg-primary/5 mb-4">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
-                  <div>
-                    <p className="font-medium text-sm">AI is selecting content-rich pages...</p>
-                    <p className="text-xs text-muted-foreground">Finding services, case studies, team pages, and more</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            <UrlSelectionList
-              entries={entries}
-              selectedUrls={selected}
-              setSelectedUrls={setSelected}
-              existingUrls={existingPageUrls}
-              existingLabel="Queued"
-              onSubmit={handleSubmit}
-              submitLabel="Queue Content"
-              isSubmitting={submitting}
-              isAnalyzing={analyzing}
-              analysisDone={analysisDone}
-            />
-          </>
-        )}
-      </div>
-    </Card>
+    <SectionCard
+      title="Content Scraping"
+      icon={<FileText className="h-5 w-5 text-foreground" />}
+      paused={paused}
+      loading={analyzing && discoveredUrls.length > 0}
+      loadingText="AI is selecting content-rich pages..."
+      error={!!error}
+      errorText={error || undefined}
+      headerExtra={<span className="text-xs text-muted-foreground">All business-relevant pages</span>}
+    >
+      {discoveredUrls.length === 0 && !paused ? (
+        <p className="text-sm text-muted-foreground">Waiting for URL discovery...</p>
+      ) : !analyzing && discoveredUrls.length > 0 ? (
+        <UrlSelectionList
+          entries={entries}
+          selectedUrls={selected}
+          setSelectedUrls={setSelected}
+          existingUrls={existingPageUrls}
+          existingLabel="Queued"
+          onSubmit={handleSubmit}
+          submitLabel="Queue Content"
+          isSubmitting={submitting}
+          isAnalyzing={analyzing}
+          analysisDone={analysisDone}
+        />
+      ) : null}
+    </SectionCard>
   );
 }

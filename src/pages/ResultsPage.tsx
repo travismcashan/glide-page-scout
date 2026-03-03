@@ -2,12 +2,11 @@ import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, AlertTriangle, PauseCircle } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -21,6 +20,7 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
 import { ContentPickerCard } from '@/components/ContentPickerCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
+import { SectionCard } from '@/components/SectionCard';
 
 type CrawlPage = {
   id: string;
@@ -48,60 +48,6 @@ type CrawlSession = {
   gtmetrix_test_id: string | null;
 };
 
-function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused }: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  loading?: boolean;
-  loadingText?: string;
-  error?: boolean;
-  errorText?: string;
-  paused?: boolean;
-}) {
-  return (
-    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-60' : ''}`}>
-      <div className="px-6 py-4 border-b border-border flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-muted">{icon}</div>
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {paused && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto gap-0.5">
-            <PauseCircle className="h-3 w-3" /> Paused
-          </Badge>
-        )}
-        {error && !paused && (
-          <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-auto">
-            <AlertTriangle className="h-3 w-3 mr-0.5" /> Error
-          </Badge>
-        )}
-      </div>
-      <div className="p-6">
-        {paused ? (
-          <p className="text-sm text-muted-foreground py-2">This integration is paused. Enable it on the Integrations page to run it.</p>
-        ) : loading ? (
-          <div className="flex items-center gap-2 text-muted-foreground py-4">
-            <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-            <span className="text-sm">{loadingText || 'Loading...'}</span>
-          </div>
-        ) : error && !children ? (
-          <div className="flex items-center gap-2 text-destructive py-4">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span className="text-sm">{errorText || 'This integration encountered an error. Check backend logs for details.'}</span>
-          </div>
-        ) : (
-          <>
-            {error && errorText && (
-              <div className="flex items-center gap-2 text-destructive mb-4 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span className="text-xs">{errorText}</span>
-              </div>
-            )}
-            {children}
-          </>
-        )}
-      </div>
-    </Card>
-  );
-}
 
 export default function ResultsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
