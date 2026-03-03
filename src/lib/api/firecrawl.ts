@@ -142,3 +142,21 @@ export const wappalyzerApi = {
     return data;
   },
 };
+
+export const websiteCarbonApi = {
+  async check(url: string): Promise<{
+    success: boolean;
+    green?: boolean;
+    bytes?: number;
+    cleanerThan?: number;
+    statistics?: any;
+    rating?: string;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('website-carbon', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};

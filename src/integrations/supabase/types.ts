@@ -74,6 +74,7 @@ export type Database = {
         Row: {
           base_url: string
           builtwith_data: Json | null
+          carbon_data: Json | null
           created_at: string
           domain: string
           gtmetrix_grade: string | null
@@ -89,6 +90,7 @@ export type Database = {
         Insert: {
           base_url: string
           builtwith_data?: Json | null
+          carbon_data?: Json | null
           created_at?: string
           domain: string
           gtmetrix_grade?: string | null
@@ -104,6 +106,7 @@ export type Database = {
         Update: {
           base_url?: string
           builtwith_data?: Json | null
+          carbon_data?: Json | null
           created_at?: string
           domain?: string
           gtmetrix_grade?: string | null

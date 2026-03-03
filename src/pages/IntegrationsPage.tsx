@@ -27,7 +27,7 @@ const integrations: Integration[] = [
   { name: 'Thum.io', description: 'Full-page website screenshots', secretKey: 'THUMIO_SECRET_KEY', configured: true, category: 'content', status: 'active' },
 
   // Coming Soon — Performance & Sustainability
-  { name: 'Website Carbon API', description: 'Measure a site\'s CO₂ footprint per page load — a powerful ESG metric for enterprise clients focused on sustainability goals', secretKey: '', configured: false, category: 'performance', status: 'coming-soon' },
+  { name: 'Website Carbon API', description: 'CO₂ footprint per page load — free, no API key required', secretKey: '', configured: true, category: 'performance', status: 'active' },
 
   // Coming Soon — UX & Accessibility
   { name: 'Applitools Eyes', description: 'Visual AI that critiques layout structure, detects visual gravity issues, and catches layout shifts that pass code checks but look wrong to humans', secretKey: '', configured: false, category: 'ux', status: 'coming-soon' },
