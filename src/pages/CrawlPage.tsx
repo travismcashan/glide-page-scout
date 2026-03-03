@@ -260,9 +260,14 @@ export default function CrawlPage() {
             <Zap className="h-6 w-6 text-primary" />
             <span className="text-lg font-semibold tracking-tight">Glide Sales Prep</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
-            History
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/integrations')}>
+              Integrations
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
+              History
+            </Button>
+          </div>
         </div>
       </header>
 

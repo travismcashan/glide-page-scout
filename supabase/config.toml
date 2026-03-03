@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.pagespeed-insights]
 verify_jwt = false
+
+[functions.wappalyzer-lookup]
+verify_jwt = false

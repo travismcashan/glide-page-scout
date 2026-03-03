@@ -8,11 +8,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Image, FileText, Loader2, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
 import { PageSpeedCard } from '@/components/PageSpeedCard';
+import { WappalyzerCard } from '@/components/WappalyzerCard';
 
 type CrawlPage = {
   id: string;
@@ -33,6 +34,7 @@ type CrawlSession = {
   builtwith_data: any | null;
   semrush_data: any | null;
   psi_data: any | null;
+  wappalyzer_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -50,6 +52,7 @@ export default function ResultsPage() {
   const [builtwithLoading, setBuiltwithLoading] = useState(false);
   const [semrushLoading, setSemrushLoading] = useState(false);
   const [psiLoading, setPsiLoading] = useState(false);
+  const [wappalyzerLoading, setWappalyzerLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -132,6 +135,31 @@ export default function ResultsPage() {
       setPsiLoading(false);
     });
   }, [session, psiLoading, psiFailed, fetchData]);
+
+  // Wappalyzer: run once per session
+  const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.wappalyzer_data || wappalyzerLoading || wappalyzerFailed) return;
+    setWappalyzerLoading(true);
+
+    wappalyzerApi.lookup(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase
+          .from('crawl_sessions')
+          .update({ wappalyzer_data: { grouped: result.grouped, totalCount: result.totalCount, social: result.social } } as any)
+          .eq('id', session.id);
+        fetchData();
+      } else {
+        console.warn('Wappalyzer failed:', result.error);
+        setWappalyzerFailed(true);
+      }
+      setWappalyzerLoading(false);
+    }).catch((err) => {
+      console.warn('Wappalyzer error:', err);
+      setWappalyzerFailed(true);
+      setWappalyzerLoading(false);
+    });
+  }, [session, wappalyzerLoading, wappalyzerFailed, fetchData]);
 
   // GTmetrix: run once per session on homepage (no retry on failure)
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
@@ -320,6 +348,10 @@ export default function ResultsPage() {
           <PageSpeedCard
             data={session?.psi_data || null}
             isLoading={psiLoading}
+          />
+          <WappalyzerCard
+            data={session?.wappalyzer_data || null}
+            isLoading={wappalyzerLoading}
           />
         </Card>
 
