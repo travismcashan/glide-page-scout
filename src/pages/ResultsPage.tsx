@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Image, FileText, Loader2, Zap, Globe, Camera, Code, Gauge, Search, Layers, Leaf } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Image, FileText, Loader2, Zap, Globe, Camera, Code, Gauge, Search, Layers, Leaf, X, Maximize2 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -15,6 +16,7 @@ import { SemrushCard } from '@/components/SemrushCard';
 import { PageSpeedCard } from '@/components/PageSpeedCard';
 import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
+import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 
 type CrawlPage = {
   id: string;
@@ -322,26 +324,7 @@ export default function ResultsPage() {
 
         {/* ── Page Screenshots ── */}
         {scrapedPages.some(p => p.screenshot_url) && (
-          <SectionCard title="Screenshots" icon={<Camera className="h-5 w-5 text-foreground" />}>
-            <div className="space-y-6">
-              {scrapedPages.filter(p => p.screenshot_url).map(page => (
-                <div key={page.id}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{page.title || page.url}</p>
-                      <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
-                    </div>
-                    <a href={page.url} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outline" size="sm"><ExternalLink className="h-3 w-3 mr-1" /> Visit</Button>
-                    </a>
-                  </div>
-                  <div className="border border-border rounded-lg overflow-hidden">
-                    <img src={page.screenshot_url!} alt={`Screenshot of ${page.title || page.url}`} className="w-full" loading="lazy" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
+          <ScreenshotGallery pages={scrapedPages.filter(p => p.screenshot_url)} />
         )}
 
         {/* ── Page Content ── */}
