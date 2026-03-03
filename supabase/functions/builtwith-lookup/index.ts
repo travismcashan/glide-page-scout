@@ -9,20 +9,44 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { domain } = await req.json();
-
-    if (!domain) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Domain is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { domain, action } = await req.json();
 
     const apiKey = Deno.env.get('BUILTWITH_API_KEY');
     if (!apiKey) {
       return new Response(
         JSON.stringify({ success: false, error: 'BuiltWith API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // WhoAmI endpoint — returns account info and credits without using a lookup credit
+    if (action === 'whoami') {
+      console.log('BuiltWith WhoAmI check');
+      const res = await fetch(`https://api.builtwith.com/whoamiv1/api.json?KEY=${apiKey}`);
+      if (!res.ok) {
+        return new Response(
+          JSON.stringify({ success: false, error: `WhoAmI API error: ${res.status}` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const data = await res.json();
+      console.log('WhoAmI data:', JSON.stringify(data).slice(0, 500));
+      return new Response(
+        JSON.stringify({
+          success: true,
+          account: data.account,
+          credits: data.credits,
+          rateLimits: data.rate_limits,
+          endpoints: data.endpoints,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!domain) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Domain is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

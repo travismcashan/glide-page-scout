@@ -1,22 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Check, X, Wrench, Clock, Pause, Play } from 'lucide-react';
+import { ArrowLeft, Check, X, Clock, Pause, Loader2, CreditCard } from 'lucide-react';
 import { getPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
+import { supabase } from '@/integrations/supabase/client';
 
 type Status = 'active' | 'coming-soon';
 
 type Integration = {
   name: string;
-  id: string; // stable key for pause state
+  id: string;
   description: string;
   secretKey: string;
   configured: boolean;
   category: 'technology' | 'performance' | 'seo' | 'content' | 'ux' | 'security' | 'intelligence' | 'enrichment';
   status: Status;
+  hasCredits?: boolean;
 };
 
 const integrations: Integration[] = [
@@ -27,7 +29,7 @@ const integrations: Integration[] = [
 
   // Third-party integrations
   { name: 'Firecrawl', id: 'firecrawl', description: 'Web scraping, content extraction, and sitemap discovery', secretKey: 'FIRECRAWL_API_KEY', configured: true, category: 'content', status: 'active' },
-  { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active' },
+  { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true },
   { name: 'Wappalyzer', id: 'wappalyzer', description: 'Real-time technology profiling with version detection', secretKey: 'WAPPALYZER_API_KEY', configured: true, category: 'technology', status: 'active' },
   { name: 'GTmetrix', id: 'gtmetrix', description: 'Lighthouse performance audits and Web Vitals', secretKey: 'GTMETRIX_API_KEY', configured: true, category: 'performance', status: 'active' },
   { name: 'Google PageSpeed Insights', id: 'psi', description: 'Mobile & desktop Lighthouse scores and Core Web Vitals', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'performance', status: 'active' },
@@ -60,6 +62,94 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryOrder = ['technology', 'performance', 'seo', 'content', 'ux', 'security', 'intelligence', 'enrichment'];
+
+type CreditInfo = { available?: string; used?: string; remaining?: string };
+
+function CreditsDisplay({ integrationId }: { integrationId: string }) {
+  const [credits, setCredits] = useState<CreditInfo | null>(null);
+  const [account, setAccount] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchCredits = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (integrationId === 'builtwith') {
+        const { data, error: fnError } = await supabase.functions.invoke('builtwith-lookup', {
+          body: { action: 'whoami' },
+        });
+        if (fnError) throw fnError;
+        if (data?.credits) {
+          setCredits({
+            available: String(data.credits.purchased ?? '?'),
+            used: String(data.credits.used ?? '?'),
+            remaining: String(data.credits.remaining ?? '?'),
+          });
+          if (data.account) setAccount(data.account);
+        } else {
+          setError('No credit info returned');
+        }
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Failed to fetch credits');
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchCredits();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        <span>Checking credits...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+        <CreditCard className="h-3 w-3" />
+        <span>Credits unavailable</span>
+        <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]" onClick={fetchCredits}>Retry</Button>
+      </div>
+    );
+  }
+
+  if (!credits) return null;
+
+  const remaining = credits.remaining ? parseInt(credits.remaining) : null;
+  const available = credits.available ? parseInt(credits.available) : null;
+  const pct = remaining != null && available != null && available > 0 ? (remaining / available) * 100 : null;
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {account?.plan_type && (
+        <div className="text-[10px] text-muted-foreground">
+          Plan: <strong className="text-foreground">{account.plan_type}</strong>
+          {account.plan_expiry && <> · Expires: {account.plan_expiry}</>}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <CreditCard className="h-3 w-3 shrink-0" />
+        <span><strong className="text-foreground">{credits.remaining ?? '?'}</strong> / {credits.available ?? '?'} credits remaining</span>
+        {credits.used && <span className="text-muted-foreground">({credits.used} used)</span>}
+      </div>
+      {pct != null && (
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${pct > 20 ? 'bg-primary' : pct > 5 ? 'bg-yellow-500' : 'bg-destructive'}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function IntegrationsPage() {
   const navigate = useNavigate();
@@ -103,36 +193,41 @@ export default function IntegrationsPage() {
               {items.map((integration) => {
                 const isPaused = pausedSet.has(integration.id);
                 return (
-                  <Card key={integration.id} className={`p-4 flex items-start justify-between gap-3 ${isPaused ? 'opacity-60' : ''}`}>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className={`font-medium text-sm ${integration.status === 'coming-soon' ? 'text-muted-foreground' : ''}`}>{integration.name}</p>
-                        {integration.status === 'coming-soon' ? (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground border-muted-foreground/30">
-                            <Clock className="h-3 w-3 mr-0.5" /> Coming soon
-                          </Badge>
-                        ) : isPaused ? (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-orange-500 border-orange-500/30">
-                            <Pause className="h-3 w-3 mr-0.5" /> Paused
-                          </Badge>
-                        ) : integration.configured ? (
-                          <Badge variant="default" className="text-[10px] px-1.5 py-0">
-                            <Check className="h-3 w-3 mr-0.5" /> Active
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            <X className="h-3 w-3 mr-0.5" /> Not configured
-                          </Badge>
-                        )}
+                  <Card key={integration.id} className={`p-4 flex flex-col gap-0 ${isPaused ? 'opacity-60' : ''}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={`font-medium text-sm ${integration.status === 'coming-soon' ? 'text-muted-foreground' : ''}`}>{integration.name}</p>
+                          {integration.status === 'coming-soon' ? (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground border-muted-foreground/30">
+                              <Clock className="h-3 w-3 mr-0.5" /> Coming soon
+                            </Badge>
+                          ) : isPaused ? (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-orange-500 border-orange-500/30">
+                              <Pause className="h-3 w-3 mr-0.5" /> Paused
+                            </Badge>
+                          ) : integration.configured ? (
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                              <Check className="h-3 w-3 mr-0.5" /> Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              <X className="h-3 w-3 mr-0.5" /> Not configured
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{integration.description}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">{integration.description}</p>
+                      {integration.status === 'active' && (
+                        <Switch
+                          checked={!isPaused}
+                          onCheckedChange={() => handleToggle(integration.id)}
+                          className="shrink-0 mt-1"
+                        />
+                      )}
                     </div>
-                    {integration.status === 'active' && (
-                      <Switch
-                        checked={!isPaused}
-                        onCheckedChange={() => handleToggle(integration.id)}
-                        className="shrink-0 mt-1"
-                      />
+                    {integration.hasCredits && integration.status === 'active' && !isPaused && (
+                      <CreditsDisplay integrationId={integration.id} />
                     )}
                   </Card>
                 );
