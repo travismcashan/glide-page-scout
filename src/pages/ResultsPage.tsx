@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -16,6 +16,7 @@ import { PageSpeedCard } from '@/components/PageSpeedCard';
 import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
 import { CruxCard } from '@/components/CruxCard';
+import { AccessibilityCard, extractPsiAccessibility } from '@/components/AccessibilityCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -45,6 +46,7 @@ type CrawlSession = {
   wappalyzer_data: any | null;
   carbon_data: any | null;
   crux_data: any | null;
+  wave_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -66,6 +68,7 @@ export default function ResultsPage() {
   const [wappalyzerLoading, setWappalyzerLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
   const [cruxLoading, setCruxLoading] = useState(false);
+  const [waveLoading, setWaveLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   // Error tracking per integration
@@ -205,6 +208,21 @@ export default function ResultsPage() {
       setCruxLoading(false);
     }).catch((e) => { setCruxFailed(true); setError('crux', e?.message || 'CrUX request failed'); setCruxLoading(false); });
   }, [session, cruxLoading, cruxFailed, fetchData]);
+
+  // WAVE
+  const [waveFailed, setWaveFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.wave_data || waveLoading || waveFailed || isIntegrationPaused('wave')) return;
+    setWaveLoading(true);
+    waveApi.scan(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ wave_data: { summary: result.summary, items: result.items, waveUrl: result.waveUrl, creditsRemaining: result.creditsRemaining, pageTitle: result.pageTitle } } as any).eq('id', session.id);
+        clearError('wave');
+        fetchData();
+      } else { setWaveFailed(true); setError('wave', result.error || 'WAVE returned an error'); }
+      setWaveLoading(false);
+    }).catch((e) => { setWaveFailed(true); setError('wave', e?.message || 'WAVE request failed'); setWaveLoading(false); });
+  }, [session, waveLoading, waveFailed, fetchData]);
 
   // Process pending pages
   useEffect(() => {
@@ -380,6 +398,17 @@ export default function ResultsPage() {
             <CruxCard data={session.crux_data} isLoading={false} />
           ) : cruxNoData ? (
             <CruxCard data={null} isLoading={false} noData />
+          ) : null}
+        </SectionCard>
+
+        {/* ── Accessibility ── */}
+        <SectionCard title="Accessibility — Lighthouse + WAVE" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} paused={isIntegrationPaused('wave')}>
+          {(session?.wave_data || session?.psi_data) ? (
+            <AccessibilityCard
+              waveData={session?.wave_data || null}
+              psiAccessibility={extractPsiAccessibility(session?.psi_data)}
+              isLoading={false}
+            />
           ) : null}
         </SectionCard>
 

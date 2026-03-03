@@ -87,6 +87,7 @@ export type Database = {
           status: string
           updated_at: string
           wappalyzer_data: Json | null
+          wave_data: Json | null
         }
         Insert: {
           base_url: string
@@ -104,6 +105,7 @@ export type Database = {
           status?: string
           updated_at?: string
           wappalyzer_data?: Json | null
+          wave_data?: Json | null
         }
         Update: {
           base_url?: string
@@ -121,6 +123,7 @@ export type Database = {
           status?: string
           updated_at?: string
           wappalyzer_data?: Json | null
+          wave_data?: Json | null
         }
         Relationships: []
       }

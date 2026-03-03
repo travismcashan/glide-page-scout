@@ -41,6 +41,7 @@ const integrations: Integration[] = [
   { name: 'Thum.io', id: 'thumio', description: 'Full-page website screenshots', secretKey: 'THUMIO_SECRET_KEY', configured: true, category: 'content', status: 'active' },
   { name: 'Website Carbon API', id: 'carbon', description: 'CO₂ footprint per page load — free, no API key required', secretKey: '', configured: true, category: 'performance', status: 'active' },
 
+  { name: 'WAVE (WebAIM)', id: 'wave', description: 'WCAG accessibility audit — errors, contrast issues, ARIA, and structural analysis', secretKey: 'WAVE_API_KEY', configured: true, category: 'ux', status: 'active' },
   { name: 'Applitools Eyes', id: 'applitools', description: 'Visual AI that critiques layout structure, detects visual gravity issues, and catches layout shifts that pass code checks but look wrong to humans', secretKey: '', configured: false, category: 'ux', status: 'coming-soon' },
   { name: 'Axe-core (Deque)', id: 'axe', description: 'Industry-standard WCAG accessibility audits with structured JSON reports and exact code-fix suggestions for every violation', secretKey: '', configured: false, category: 'ux', status: 'coming-soon' },
   { name: 'Ahrefs', id: 'ahrefs', description: 'Deep backlink profiles and internal link architecture analysis — see if a site\'s information architecture matches its business goals', secretKey: '', configured: false, category: 'seo', status: 'coming-soon' },
