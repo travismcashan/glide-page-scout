@@ -125,3 +125,20 @@ export const pagespeedApi = {
     return data;
   },
 };
+
+export const wappalyzerApi = {
+  async lookup(url: string): Promise<{
+    success: boolean;
+    technologies?: any[];
+    grouped?: Record<string, any[]>;
+    totalCount?: number;
+    social?: string[] | null;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('wappalyzer-lookup', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
