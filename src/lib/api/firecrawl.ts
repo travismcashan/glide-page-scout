@@ -247,3 +247,21 @@ export const oceanApi = {
     return data;
   },
 };
+
+export const ssllabsApi = {
+  async scan(host: string): Promise<{
+    success: boolean;
+    host?: string;
+    grade?: string;
+    endpoints?: any[];
+    certs?: any[];
+    testTime?: number;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('ssllabs-scan', {
+      body: { host },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
