@@ -160,7 +160,7 @@ serve(async (req) => {
           if (tRes.ok) {
             const tData = await tRes.json();
             transcript = {
-              sentences: (tData.sentences || []).slice(0, 200).map((s: any) => ({
+              sentences: (tData.sentences || []).map((s: any) => ({
                 text: s.text,
                 speakerName: s.speaker_name,
                 start: s.start,
