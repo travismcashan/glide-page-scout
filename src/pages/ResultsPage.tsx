@@ -31,8 +31,7 @@ import { YellowLabCard } from '@/components/YellowLabCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
-import { ContentPickerCard } from '@/components/ContentPickerCard';
-import { PagePickerCard } from '@/components/PagePickerCard';
+import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
@@ -759,17 +758,6 @@ export default function ResultsPage() {
           />
         )}
 
-        {/* ── Page Selection (Screenshots + Content) ── */}
-        {session && (
-          <PagePickerCard
-            sessionId={session.id}
-            baseUrl={session.base_url}
-            discoveredUrls={discoveredUrls}
-            existingScreenshotUrls={new Set(pages.filter(p => p.screenshot_url).map(p => p.url))}
-            existingPageUrls={new Set(pages.map(p => p.url))}
-            onPagesAdded={fetchData}
-          />
-        )}
 
         {/* ── Technology Detection ── */}
         {!isIntegrationPaused('builtwith') && (
@@ -912,71 +900,31 @@ export default function ResultsPage() {
         )}
 
         {/* ── Page Screenshots ── */}
-        {scrapedPages.some(p => p.screenshot_url) && (
-          <ScreenshotGallery pages={scrapedPages.filter(p => p.screenshot_url)} />
+        {session && !isIntegrationPaused('screenshots') && (
+          <ScreenshotGallery
+            pages={scrapedPages.filter(p => p.screenshot_url)}
+            sessionId={session.id}
+            baseUrl={session.base_url}
+            discoveredUrls={discoveredUrls}
+            existingScreenshotUrls={new Set(pages.filter(p => p.screenshot_url).map(p => p.url))}
+            onPagesAdded={fetchData}
+          />
         )}
 
         {/* ── Page Content ── */}
-        {scrapedPages.length > 0 && (
-          <SectionCard title="Page Content" icon={<FileText className="h-5 w-5 text-foreground" />}>
-            <div className="space-y-3">
-              {scrapedPages.map(page => {
-                const isExpanded = expandedPages.has(page.id);
-                return (
-                  <Collapsible key={page.id} open={isExpanded} onOpenChange={() => toggleExpand(page.id)}>
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <FileText className="h-4 w-4 text-primary shrink-0" />
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{page.title || page.url}</p>
-                            <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
-                          </div>
-                        </div>
-                        {isExpanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="px-4 pb-4 space-y-3">
-                          <div className="flex gap-2">
-                            <a href={page.url} target="_blank" rel="noopener noreferrer">
-                              <Button variant="outline" size="sm"><ExternalLink className="h-3 w-3 mr-1" /> Visit</Button>
-                            </a>
-                            {!page.ai_outline && (
-                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); generateOutline(page); }} disabled={generatingOutline.has(page.id)}>
-                                {generatingOutline.has(page.id) ? (<><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</>) : (<><Zap className="h-3 w-3 mr-1" /> Generate AI Outline</>)}
-                              </Button>
-                            )}
-                          </div>
-                          <Tabs defaultValue={page.ai_outline ? 'outline' : 'raw'} key={page.ai_outline ? 'has-outline' : 'no-outline'}>
-                            <TabsList>
-                              <TabsTrigger value="raw">Raw Content</TabsTrigger>
-                              {page.ai_outline && <TabsTrigger value="outline">Cleaned Content</TabsTrigger>}
-                            </TabsList>
-                            <TabsContent value="raw" className="mt-3">
-                              <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
-                                <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
-                                  <ReactMarkdown>{page.raw_content || ''}</ReactMarkdown>
-                                </Suspense>
-                              </div>
-                            </TabsContent>
-                            {page.ai_outline && (
-                              <TabsContent value="outline" className="mt-3">
-                                <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
-                                  <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.ai_outline}</pre>}>
-                                    <ReactMarkdown>{page.ai_outline}</ReactMarkdown>
-                                  </Suspense>
-                                </div>
-                              </TabsContent>
-                            )}
-                          </Tabs>
-                        </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                );
-              })}
-            </div>
-          </SectionCard>
+        {session && !isIntegrationPaused('content') && (
+          <ContentSectionCard
+            pages={scrapedPages}
+            sessionId={session.id}
+            baseUrl={session.base_url}
+            discoveredUrls={discoveredUrls}
+            existingPageUrls={new Set(pages.map(p => p.url))}
+            onPagesAdded={fetchData}
+            expandedPages={expandedPages}
+            toggleExpand={toggleExpand}
+            generateOutline={generateOutline}
+            generatingOutline={generatingOutline}
+          />
         )}
 
         {/* ── Scrape Progress ── */}
