@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronDown, ChevronUp, Download, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -33,6 +33,13 @@ import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
 import { ContentPickerCard } from '@/components/ContentPickerCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
+import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type CrawlPage = {
   id: string;
@@ -694,10 +701,29 @@ export default function ResultsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll}>
+            <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll} className="no-print">
               <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
               Re-run All
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="no-print">
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportAsPdf()}>
+                  Export as PDF (Print)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
+                  Export as JSON (for AI)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
+                  Export as Markdown (for AI)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {session?.status === 'analyzing' ? (
               <Badge variant="secondary">Analyzing</Badge>
             ) : session?.status === 'completed' ? (
