@@ -6,11 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
+import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -905,9 +906,38 @@ export default function ResultsPage() {
         </SectionCard>
         )}
 
-        {/* ── Gemini Deep Research ── */}
+        {/* ── AI Research (tabbed) ── */}
         {session && !isIntegrationPaused('deep-research') && (
-          <DeepResearchCard session={session} pages={scrapedPages} collapsed={allCollapsed} />
+          <SectionCard
+            title="AI Research"
+            icon={<Brain className="h-5 w-5 text-foreground" />}
+            collapsed={allCollapsed}
+          >
+            <Tabs defaultValue="deep-research" className="w-full">
+              <TabsList className="w-full justify-start h-auto flex-wrap gap-1.5 bg-transparent p-0 border-b border-border rounded-none pb-3 mb-0">
+                <TabsTrigger
+                  value="deep-research"
+                  className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
+                >
+                  <Brain className="h-3.5 w-3.5 mr-1.5" />
+                  Agentic Research
+                </TabsTrigger>
+                <TabsTrigger
+                  value="observations"
+                  className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
+                >
+                  <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
+                  Observations &amp; Insights
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="deep-research" className="mt-4">
+                <DeepResearchCard session={session} pages={scrapedPages} collapsed={allCollapsed} />
+              </TabsContent>
+              <TabsContent value="observations" className="mt-4">
+                <ObservationsInsightsCard session={session} pages={scrapedPages} />
+              </TabsContent>
+            </Tabs>
+          </SectionCard>
         )}
 
         {/* ── SEO ── */}
