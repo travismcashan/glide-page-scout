@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN schema_data jsonb NULL;

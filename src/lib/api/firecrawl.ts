@@ -332,3 +332,22 @@ export const w3cApi = {
     return data;
   },
 };
+
+export const schemaApi = {
+  async validate(url: string): Promise<{
+    success: boolean;
+    summary?: any;
+    jsonLd?: any[];
+    microdata?: any[];
+    rdfa?: any[];
+    errors?: any[];
+    warnings?: any[];
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('schema-validate', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
