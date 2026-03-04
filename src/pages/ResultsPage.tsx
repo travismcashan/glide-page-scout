@@ -32,6 +32,7 @@ import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
 import { ContentPickerCard } from '@/components/ContentPickerCard';
+import { PagePickerCard } from '@/components/PagePickerCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
@@ -758,23 +759,13 @@ export default function ResultsPage() {
           />
         )}
 
-        {/* ── Screenshots Picker ── */}
-        {session && !isIntegrationPaused('screenshots') && (
-          <ScreenshotPickerCard
+        {/* ── Page Selection (Screenshots + Content) ── */}
+        {session && (
+          <PagePickerCard
             sessionId={session.id}
             baseUrl={session.base_url}
             discoveredUrls={discoveredUrls}
             existingScreenshotUrls={new Set(pages.filter(p => p.screenshot_url).map(p => p.url))}
-            onPagesAdded={fetchData}
-          />
-        )}
-
-        {/* ── Content Picker ── */}
-        {session && !isIntegrationPaused('content') && (
-          <ContentPickerCard
-            sessionId={session.id}
-            baseUrl={session.base_url}
-            discoveredUrls={discoveredUrls}
             existingPageUrls={new Set(pages.map(p => p.url))}
             onPagesAdded={fetchData}
           />
