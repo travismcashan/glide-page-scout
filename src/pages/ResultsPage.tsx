@@ -394,7 +394,7 @@ export default function ResultsPage() {
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
 
         {/* ── URL Discovery ── */}
-        {session && (
+        {session && !isIntegrationPaused('url-discovery') && (
           <UrlDiscoveryCard
             baseUrl={session.base_url}
             onUrlsDiscovered={setDiscoveredUrls}
@@ -402,7 +402,7 @@ export default function ResultsPage() {
         )}
 
         {/* ── Screenshots Picker ── */}
-        {session && (
+        {session && !isIntegrationPaused('screenshots') && (
           <ScreenshotPickerCard
             sessionId={session.id}
             baseUrl={session.base_url}
@@ -413,7 +413,7 @@ export default function ResultsPage() {
         )}
 
         {/* ── Content Picker ── */}
-        {session && (
+        {session && !isIntegrationPaused('content') && (
           <ContentPickerCard
             sessionId={session.id}
             baseUrl={session.base_url}
@@ -424,76 +424,100 @@ export default function ResultsPage() {
         )}
 
         {/* ── Technology Detection ── */}
-        <SectionCard title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} paused={isIntegrationPaused('builtwith')}>
+        {!isIntegrationPaused('builtwith') && (
+        <SectionCard title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith}>
           {session?.builtwith_data ? (
             <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
-          ) : !builtwithLoading && !builtwithFailed && !isIntegrationPaused('builtwith') ? (
+          ) : !builtwithLoading && !builtwithFailed ? (
             <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
           ) : null}
         </SectionCard>
+        )}
 
-        <SectionCard title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer} paused={isIntegrationPaused('wappalyzer')}>
+        {!isIntegrationPaused('wappalyzer') && (
+        <SectionCard title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer}>
           {session?.wappalyzer_data ? (
             <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
           ) : null}
         </SectionCard>
+        )}
 
         {/* ── Performance ── */}
-        <SectionCard title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} paused={isIntegrationPaused('gtmetrix')}>
+        {!isIntegrationPaused('gtmetrix') && (
+        <SectionCard title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix}>
           <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
         </SectionCard>
+        )}
 
-        <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} paused={isIntegrationPaused('psi')}>
+        {!isIntegrationPaused('psi') && (
+        <SectionCard title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi}>
           {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
         </SectionCard>
+        )}
 
-        <SectionCard title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} paused={isIntegrationPaused('crux')}>
+        {!isIntegrationPaused('crux') && (
+        <SectionCard title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux}>
           {session?.crux_data ? (
             <CruxCard data={session.crux_data} isLoading={false} />
           ) : cruxNoData ? (
             <CruxCard data={null} isLoading={false} noData />
           ) : null}
         </SectionCard>
+        )}
 
         {/* ── Lighthouse Accessibility ── */}
-        <SectionCard title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility') || isIntegrationPaused('psi')}>
+        {!isIntegrationPaused('psi-accessibility') && !isIntegrationPaused('psi') && (
+        <SectionCard title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse...">
           {session?.psi_data ? (
             <LighthouseAccessibilityCard data={extractPsiAccessibility(session.psi_data)} isLoading={false} />
-          ) : !psiLoading && !isIntegrationPaused('psi') && !isIntegrationPaused('psi-accessibility') && psiFailed ? (
+          ) : !psiLoading && psiFailed ? (
             <p className="text-sm text-muted-foreground">PageSpeed Insights failed — accessibility data unavailable.</p>
-          ) : !psiLoading && !isIntegrationPaused('psi') && !isIntegrationPaused('psi-accessibility') ? (
+          ) : !psiLoading ? (
             <p className="text-sm text-muted-foreground">Waiting for PageSpeed Insights data…</p>
           ) : null}
         </SectionCard>
+        )}
 
         {/* ── WAVE ── */}
-        <SectionCard title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} paused={isIntegrationPaused('wave')}>
+        {!isIntegrationPaused('wave') && (
+        <SectionCard title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave}>
           {session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}
         </SectionCard>
+        )}
 
         {/* ── Mozilla Observatory ── */}
-        <SectionCard title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} paused={isIntegrationPaused('observatory')}>
+        {!isIntegrationPaused('observatory') && (
+        <SectionCard title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory}>
           {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
         </SectionCard>
+        )}
 
         {/* ── SSL Labs ── */}
-        <SectionCard title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} paused={isIntegrationPaused('ssllabs')}>
+        {!isIntegrationPaused('ssllabs') && (
+        <SectionCard title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs}>
           {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
         </SectionCard>
+        )}
 
-        <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} paused={isIntegrationPaused('carbon')}>
+        {!isIntegrationPaused('carbon') && (
+        <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon}>
           {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
         </SectionCard>
+        )}
 
         {/* ── Firmographics ── */}
-        <SectionCard title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} paused={isIntegrationPaused('ocean')}>
+        {!isIntegrationPaused('ocean') && (
+        <SectionCard title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean}>
           {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
         </SectionCard>
+        )}
 
         {/* ── SEO ── */}
-        <SectionCard title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} paused={isIntegrationPaused('semrush')}>
+        {!isIntegrationPaused('semrush') && (
+        <SectionCard title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush}>
           {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
         </SectionCard>
+        )}
 
         {/* ── Page Screenshots ── */}
         {scrapedPages.some(p => p.screenshot_url) && (
