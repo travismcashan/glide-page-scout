@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -19,6 +19,7 @@ import { CruxCard } from '@/components/CruxCard';
 import { LighthouseAccessibilityCard, extractPsiAccessibility } from '@/components/LighthouseAccessibilityCard';
 import { WaveCard } from '@/components/WaveCard';
 import { ObservatoryCard } from '@/components/ObservatoryCard';
+import OceanCard from '@/components/OceanCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -50,6 +51,7 @@ type CrawlSession = {
   crux_data: any | null;
   wave_data: any | null;
   observatory_data: any | null;
+  ocean_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -242,6 +244,22 @@ export default function ResultsPage() {
       setObservatoryLoading(false);
     }).catch((e) => { setObservatoryFailed(true); setError('observatory', e?.message || 'Observatory request failed'); setObservatoryLoading(false); });
   }, [session, observatoryLoading, observatoryFailed, fetchData]);
+
+  // Ocean.io
+  const [oceanLoading, setOceanLoading] = useState(false);
+  const [oceanFailed, setOceanFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
+    setOceanLoading(true);
+    oceanApi.enrich(session.domain).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
+        clearError('ocean');
+        fetchData();
+      } else { setOceanFailed(true); setError('ocean', result.error || 'Ocean.io returned an error'); }
+      setOceanLoading(false);
+    }).catch((e) => { setOceanFailed(true); setError('ocean', e?.message || 'Ocean.io request failed'); setOceanLoading(false); });
+  }, [session, oceanLoading, oceanFailed, fetchData]);
 
   // Process pending pages
   useEffect(() => {
@@ -443,6 +461,11 @@ export default function ResultsPage() {
 
         <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} paused={isIntegrationPaused('carbon')}>
           {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
+        </SectionCard>
+
+        {/* ── Firmographics ── */}
+        <SectionCard title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} paused={isIntegrationPaused('ocean')}>
+          {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
         </SectionCard>
 
         {/* ── SEO ── */}

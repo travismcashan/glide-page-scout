@@ -219,3 +219,31 @@ export const observatoryApi = {
     return data;
   },
 };
+
+export const oceanApi = {
+  async enrich(domain: string): Promise<{
+    success: boolean;
+    domain?: string;
+    companyName?: string;
+    countries?: string[];
+    primaryCountry?: string;
+    companySize?: string;
+    industries?: string[];
+    industryCategories?: string[];
+    linkedinIndustry?: string;
+    technologies?: string[];
+    yearFounded?: number | null;
+    revenue?: string | null;
+    linkedinUrl?: string | null;
+    description?: string | null;
+    ecommercePlatform?: string | null;
+    websiteTraffic?: any;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('ocean-enrich', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
