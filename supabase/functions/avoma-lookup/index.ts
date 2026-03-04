@@ -159,14 +159,16 @@ serve(async (req) => {
           });
           if (tRes.ok) {
             const tData = await tRes.json();
+            const allSentences = tData.sentences || [];
             transcript = {
-              sentences: (tData.sentences || []).map((s: any) => ({
+              sentences: allSentences.slice(0, 1000).map((s: any) => ({
                 text: s.text,
                 speakerName: s.speaker_name,
                 start: s.start,
                 end: s.end,
               })),
-              totalSentences: (tData.sentences || []).length,
+              totalSentences: allSentences.length,
+              truncated: allSentences.length > 1000,
             };
           } else { await tRes.text(); }
         } catch { /* skip */ }
