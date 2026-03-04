@@ -99,7 +99,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      let streamUrl = `${GEMINI_API_BASE}/${interactionId}?stream=true&alt=sse`;
+      // Ensure the interaction ID is prefixed with "interactions/"
+      const resourceName = interactionId.startsWith('interactions/') ? interactionId : `interactions/${interactionId}`;
+      let streamUrl = `${GEMINI_API_BASE}/${resourceName}?stream=true&alt=sse`;
       if (lastEventId) {
         streamUrl += `&last_event_id=${encodeURIComponent(lastEventId)}`;
       }
@@ -139,7 +141,8 @@ Deno.serve(async (req) => {
         );
       }
 
-      const pollUrl = `${GEMINI_API_BASE}/${interactionId}`;
+      const resourceName = interactionId.startsWith('interactions/') ? interactionId : `interactions/${interactionId}`;
+      const pollUrl = `${GEMINI_API_BASE}/${resourceName}`;
       console.log('Polling interaction:', interactionId);
 
       const pollRes = await fetch(pollUrl, {

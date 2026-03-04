@@ -278,6 +278,134 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     setStreaming(false);
   }, []);
 
+  const connectToStream = useCallback(async (iId: string, lastEvt?: string | null) => {
+    setStreaming(true);
+    try {
+      const response = await fetch(FUNC_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          action: 'stream',
+          interactionId: iId,
+          lastEventId: lastEvt || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        console.error('Stream connect failed:', errData);
+        // Fall back to polling
+        setStreaming(false);
+        return false;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream')) {
+        await processSSEStream(response);
+        return true;
+      }
+      setStreaming(false);
+      return false;
+    } catch (e: any) {
+      console.error('Stream error:', e);
+      setStreaming(false);
+      return false;
+    }
+  }, [processSSEStream]);
+
+  const pollForResults = useCallback(async (iId: string) => {
+    let attempts = 0;
+    const maxAttempts = 120; // ~10 minutes at 5s intervals
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const response = await fetch(FUNC_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ action: 'poll', interactionId: iId }),
+        });
+
+        if (!response.ok) {
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+
+        const data = await response.json();
+        const state = data.status || data.state || '';
+
+        // Extract thinking steps from intermediate content
+        if (data.output?.parts) {
+          for (const part of data.output.parts) {
+            if (part.thought && part.text) {
+              setSteps(prev => {
+                const exists = prev.some(s => s.text === part.text);
+                if (exists) return prev;
+                return [...prev, {
+                  id: `step-${Date.now()}-${Math.random()}`,
+                  text: part.text,
+                  timestamp: Date.now(),
+                  type: classifyStep(part.text),
+                }];
+              });
+              // Extract URLs
+              const urlMatches = part.text.match(/https?:\/\/[^\s)>\]"']+/g);
+              if (urlMatches) {
+                setSources(prev => {
+                  const next = new Set(prev);
+                  urlMatches.forEach((u: string) => next.add(u));
+                  return Array.from(next);
+                });
+              }
+            }
+          }
+        }
+
+        if (state === 'completed' || state === 'COMPLETED') {
+          // Extract final report
+          const parts = data.output?.parts || [];
+          const reportParts = parts.filter((p: any) => !p.thought).map((p: any) => p.text || '').join('\n');
+          if (reportParts) setReport(reportParts);
+          setStreaming(false);
+          toast.success('Deep Research report ready!');
+          return;
+        }
+
+        if (state === 'failed' || state === 'FAILED') {
+          setStreaming(false);
+          toast.error('Research task failed');
+          return;
+        }
+
+        // Still in progress
+        setSteps(prev => {
+          if (prev.length === 0 || prev[prev.length - 1].text !== 'Researching…') {
+            return [...prev, {
+              id: `poll-${Date.now()}`,
+              text: 'Researching…',
+              timestamp: Date.now(),
+              type: 'thinking' as const,
+            }];
+          }
+          return prev;
+        });
+
+        await new Promise(r => setTimeout(r, 5000));
+      } catch {
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+    setStreaming(false);
+    toast.error('Research timed out');
+  }, []);
+
   const startResearch = async () => {
     if (!prompt.trim()) { toast.error('Enter a research prompt'); return; }
     setStarting(true);
@@ -289,9 +417,8 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
 
     try {
       const crawlContext = buildCrawlContext(session, pages);
-      const controller = new AbortController();
-      abortRef.current = controller;
 
+      // Step 1: Start the background task and get interaction ID
       const response = await fetch(FUNC_URL, {
         method: 'POST',
         headers: {
@@ -305,7 +432,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           crawlContext,
           documents,
         }),
-        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -315,23 +441,31 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         return;
       }
 
+      const data = await response.json();
+      const iId = data.interactionId;
+
+      if (!iId) {
+        toast.error('No interaction ID returned');
+        setStarting(false);
+        return;
+      }
+
+      console.log('Deep Research started, interaction:', iId);
+      setInteractionId(iId);
       setStarting(false);
       setStreaming(true);
 
-      // Check if we got SSE or JSON back
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('text/event-stream')) {
-        await processSSEStream(response);
-      } else {
-        // Fallback to JSON response (shouldn't happen with new edge fn)
-        const data = await response.json();
-        if (data.interactionId) {
-          setInteractionId(data.interactionId);
-        }
-        setStreaming(false);
+      // Step 2: Try to connect to SSE stream
+      const streamWorked = await connectToStream(iId);
+
+      // Step 3: If streaming didn't work or ended early without a report, fall back to polling
+      if (!streamWorked) {
+        console.log('SSE stream unavailable, falling back to polling');
+        await pollForResults(iId);
       }
     } catch (e: any) {
       if (e.name === 'AbortError') return;
+      console.error('Start research error:', e);
       toast.error(e?.message || 'Failed to start research');
       setStarting(false);
       setStreaming(false);
@@ -340,39 +474,11 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
 
   const resumeStream = useCallback(async () => {
     if (!interactionId) return;
-    setStreaming(true);
-
-    try {
-      const response = await fetch(FUNC_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          action: 'resume',
-          interactionId,
-          lastEventId: lastEventIdRef.current,
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        toast.error(errData.error || 'Failed to resume');
-        setStreaming(false);
-        return;
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('text/event-stream')) {
-        await processSSEStream(response);
-      }
-    } catch (e: any) {
-      console.error('Resume failed:', e);
-      setStreaming(false);
+    const streamWorked = await connectToStream(interactionId, lastEventIdRef.current);
+    if (!streamWorked) {
+      await pollForResults(interactionId);
     }
-  }, [interactionId, processSSEStream]);
+  }, [interactionId, connectToStream, pollForResults]);
 
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
