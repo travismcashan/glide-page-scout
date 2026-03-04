@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('Readable.com scoring URL:', url);
+    console.log('API key length:', apiKey.length, 'starts with:', apiKey.substring(0, 4));
 
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
