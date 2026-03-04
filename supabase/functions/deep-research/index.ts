@@ -33,19 +33,31 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Build input
+      // Build input — cap total size to stay under Gemini's 131K token limit (~4 chars/token, target ~100K tokens)
+      const MAX_CHARS = 400_000;
       let fullPrompt = prompt;
+
       if (crawlContext) {
-        fullPrompt += `\n\n---\n\nHere is data already gathered about the website:\n\n${crawlContext}`;
+        const available = MAX_CHARS - fullPrompt.length - 200;
+        if (available > 0) {
+          const trimmed = crawlContext.length > available ? crawlContext.slice(0, available) + '\n\n[… context truncated to fit token limit]' : crawlContext;
+          fullPrompt += `\n\n---\n\nHere is data already gathered about the website:\n\n${trimmed}`;
+        }
       }
 
       if (documents && Array.isArray(documents)) {
         for (const doc of documents) {
-          if (doc.content) {
-            fullPrompt += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${doc.content}`;
+          if (doc.content && fullPrompt.length < MAX_CHARS) {
+            const space = MAX_CHARS - fullPrompt.length - 100;
+            if (space > 0) {
+              const trimmedDoc = doc.content.length > space ? doc.content.slice(0, space) + '\n\n[… document truncated]' : doc.content;
+              fullPrompt += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${trimmedDoc}`;
+            }
           }
         }
       }
+
+      console.log(`[deep-research] Final prompt length: ${fullPrompt.length} chars (~${Math.round(fullPrompt.length/4)} tokens)`);
 
       console.log('Starting Gemini Deep Research (background):', prompt.substring(0, 100));
 
