@@ -18,7 +18,45 @@ serve(async (req) => {
       });
     }
 
-    const { domain } = await req.json();
+    const body = await req.json();
+    const { action } = body;
+
+    // === On-demand full transcript fetch for a single meeting ===
+    if (action === 'transcript') {
+      const { transcriptionUuid } = body;
+      if (!transcriptionUuid) {
+        return new Response(JSON.stringify({ success: false, error: 'transcriptionUuid is required' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`[avoma] Fetching full transcript: ${transcriptionUuid}`);
+      const tRes = await fetch(`https://api.avoma.com/v1/transcriptions/${transcriptionUuid}/`, {
+        headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}` },
+      });
+
+      if (!tRes.ok) {
+        const errText = await tRes.text();
+        return new Response(JSON.stringify({ success: false, error: `Avoma API error [${tRes.status}]` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const tData = await tRes.json();
+      const sentences = (tData.sentences || []).map((s: any) => ({
+        text: s.text,
+        speakerName: s.speaker_name,
+        start: s.start,
+        end: s.end,
+      }));
+
+      return new Response(JSON.stringify({ success: true, sentences, totalSentences: sentences.length }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // === Default: meeting list lookup with preview transcripts ===
+    const { domain } = body;
     if (!domain) {
       return new Response(JSON.stringify({ success: false, error: 'domain is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -26,25 +64,17 @@ serve(async (req) => {
     }
 
     const domainLower = domain.toLowerCase();
-
-    // Fetch meetings from the last 6 months
     const now = new Date();
     const sixMonthsAgo = new Date(now);
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
     const fromDate = sixMonthsAgo.toISOString();
     const toDate = now.toISOString();
 
     console.log(`[avoma] Searching meetings for domain: ${domainLower}, from: ${fromDate}, to: ${toDate}`);
 
-    // Fetch first page of external meetings
     const url = `https://api.avoma.com/v1/meetings/?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}&page_size=100&is_internal=false`;
-
     const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${AVOMA_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}`, 'Content-Type': 'application/json' },
     });
 
     if (!res.ok) {
@@ -59,99 +89,61 @@ serve(async (req) => {
     const results = data.results || [];
     console.log(`[avoma] First page returned ${results.length} meetings, total count: ${data.count}`);
 
-    // Filter: any attendee email ends with @domain
     const matchedMeetings: any[] = [];
+    const extractMeeting = (meeting: any) => ({
+      uuid: meeting.uuid,
+      subject: meeting.subject,
+      startAt: meeting.start_at,
+      endAt: meeting.end_at,
+      duration: meeting.duration,
+      state: meeting.state,
+      isCall: meeting.is_call,
+      organizerEmail: meeting.organizer_email,
+      attendees: (meeting.attendees || []).map((a: any) => ({ email: a.email, name: a.name })),
+      purpose: meeting.purpose?.label || null,
+      outcome: meeting.outcome?.label || null,
+      transcriptReady: meeting.transcript_ready || false,
+      notesReady: meeting.notes_ready || false,
+      transcriptionUuid: meeting.transcription_uuid || null,
+      recordingUuid: meeting.recording_uuid || null,
+    });
+
     for (const meeting of results) {
-      const attendees = meeting.attendees || [];
-      const match = attendees.some((a: any) =>
+      const match = (meeting.attendees || []).some((a: any) =>
         a.email && a.email.toLowerCase().endsWith(`@${domainLower}`)
       );
-      if (match) {
-        matchedMeetings.push({
-          uuid: meeting.uuid,
-          subject: meeting.subject,
-          startAt: meeting.start_at,
-          endAt: meeting.end_at,
-          duration: meeting.duration,
-          state: meeting.state,
-          isCall: meeting.is_call,
-          organizerEmail: meeting.organizer_email,
-          attendees: attendees.map((a: any) => ({
-            email: a.email,
-            name: a.name,
-          })),
-          purpose: meeting.purpose?.label || null,
-          outcome: meeting.outcome?.label || null,
-          transcriptReady: meeting.transcript_ready || false,
-          notesReady: meeting.notes_ready || false,
-          transcriptionUuid: meeting.transcription_uuid || null,
-          recordingUuid: meeting.recording_uuid || null,
+      if (match) matchedMeetings.push(extractMeeting(meeting));
+    }
+
+    // Paginate up to 5 more pages
+    let nextUrl = data.next || null;
+    let pageCount = 1;
+    while (nextUrl && pageCount < 5) {
+      pageCount++;
+      try {
+        const pageRes = await fetch(nextUrl, {
+          headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}`, 'Content-Type': 'application/json' },
         });
-      }
+        if (!pageRes.ok) { await pageRes.text(); break; }
+        const pageData = await pageRes.json();
+        for (const meeting of (pageData.results || [])) {
+          const match = (meeting.attendees || []).some((a: any) =>
+            a.email && a.email.toLowerCase().endsWith(`@${domainLower}`)
+          );
+          if (match) matchedMeetings.push(extractMeeting(meeting));
+        }
+        nextUrl = pageData.next || null;
+      } catch { break; }
     }
 
     console.log(`[avoma] Found ${matchedMeetings.length} meetings matching @${domainLower}`);
 
-    // Paginate to find more matches (up to 5 more pages)
-    let nextUrl = data.next || null;
-    let pageCount = 1;
-    const maxPages = 5;
-
-    while (nextUrl && pageCount < maxPages) {
-      pageCount++;
-      try {
-        const pageRes = await fetch(nextUrl, {
-          headers: {
-            'Authorization': `Bearer ${AVOMA_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!pageRes.ok) {
-          await pageRes.text();
-          break;
-        }
-        const pageData = await pageRes.json();
-        for (const meeting of (pageData.results || [])) {
-          const attendees = meeting.attendees || [];
-          const match = attendees.some((a: any) =>
-            a.email && a.email.toLowerCase().endsWith(`@${domainLower}`)
-          );
-          if (match) {
-            matchedMeetings.push({
-              uuid: meeting.uuid,
-              subject: meeting.subject,
-              startAt: meeting.start_at,
-              endAt: meeting.end_at,
-              duration: meeting.duration,
-              state: meeting.state,
-              isCall: meeting.is_call,
-              organizerEmail: meeting.organizer_email,
-              attendees: attendees.map((a: any) => ({
-                email: a.email,
-                name: a.name,
-              })),
-              purpose: meeting.purpose?.label || null,
-              outcome: meeting.outcome?.label || null,
-              transcriptReady: meeting.transcript_ready || false,
-              notesReady: meeting.notes_ready || false,
-              transcriptionUuid: meeting.transcription_uuid || null,
-              recordingUuid: meeting.recording_uuid || null,
-            });
-          }
-        }
-        nextUrl = pageData.next || null;
-      } catch {
-        break;
-      }
-    }
-
-    // Fetch transcripts and insights for top 10 matches only (to avoid timeout)
+    // Enrich top 10 with PREVIEW transcripts (50 sentences) and insights
     const enriched = [];
     for (const meeting of matchedMeetings.slice(0, 10)) {
       let transcript = null;
       let insights = null;
 
-      // Fetch transcript
       if (meeting.transcriptReady && meeting.transcriptionUuid) {
         try {
           const tRes = await fetch(`https://api.avoma.com/v1/transcriptions/${meeting.transcriptionUuid}/`, {
@@ -161,20 +153,19 @@ serve(async (req) => {
             const tData = await tRes.json();
             const allSentences = tData.sentences || [];
             transcript = {
-              sentences: allSentences.slice(0, 1000).map((s: any) => ({
+              sentences: allSentences.slice(0, 50).map((s: any) => ({
                 text: s.text,
                 speakerName: s.speaker_name,
                 start: s.start,
                 end: s.end,
               })),
               totalSentences: allSentences.length,
-              truncated: allSentences.length > 1000,
+              truncated: allSentences.length > 50,
             };
           } else { await tRes.text(); }
         } catch { /* skip */ }
       }
 
-      // Fetch insights
       if (meeting.notesReady) {
         try {
           const iRes = await fetch(`https://api.avoma.com/v1/meetings/${meeting.uuid}/insights/`, {
@@ -183,10 +174,7 @@ serve(async (req) => {
           if (iRes.ok) {
             const iData = await iRes.json();
             insights = {
-              aiNotes: (iData.ai_notes || []).map((n: any) => ({
-                text: n.text,
-                noteType: n.note_type,
-              })),
+              aiNotes: (iData.ai_notes || []).map((n: any) => ({ text: n.text, noteType: n.note_type })),
               keywords: iData.keywords?.popular?.slice(0, 20) || [],
               speakers: iData.speakers || [],
             };
@@ -197,7 +185,6 @@ serve(async (req) => {
       enriched.push({ ...meeting, transcript, insights });
     }
 
-    // Return remaining meetings without enrichment
     for (const meeting of matchedMeetings.slice(10)) {
       enriched.push({ ...meeting, transcript: null, insights: null });
     }
