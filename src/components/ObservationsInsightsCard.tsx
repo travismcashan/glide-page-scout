@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { toast } from 'sonner';
-import { Lightbulb, Loader2, Upload, X, FileText, Play, RefreshCw } from 'lucide-react';
+import { Lightbulb, Loader2, Upload, X, FileText, Play, RefreshCw, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
+import { downloadReportPdf } from '@/lib/downloadReportPdf';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -184,9 +185,14 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-muted-foreground">Strategic Pyramid</h3>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={reset} title="New analysis">
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => result && downloadReportPdf(result, 'Observations & Insights', session.domain)} title="Download PDF">
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={reset} title="New analysis">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
           <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-li:text-foreground/90 prose-strong:text-foreground">
             <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
