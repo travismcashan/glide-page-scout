@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -267,20 +267,70 @@ export default function ResultsPage() {
     }).catch((e) => { setOceanFailed(true); setError('ocean', e?.message || 'Ocean.io request failed'); setOceanLoading(false); });
   }, [session, oceanLoading, oceanFailed, fetchData]);
 
-  // SSL Labs
+  // SSL Labs (client-side polling to avoid edge function timeout)
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
   const [ssllabsFailed, setSsllabsFailed] = useState(false);
+  const ssllabsPollingRef = useRef(false);
   useEffect(() => {
-    if (!session || session.ssllabs_data || ssllabsLoading || ssllabsFailed || isIntegrationPaused('ssllabs')) return;
+    if (!session || session.ssllabs_data || ssllabsLoading || ssllabsFailed || isIntegrationPaused('ssllabs') || ssllabsPollingRef.current) return;
+    ssllabsPollingRef.current = true;
     setSsllabsLoading(true);
-    ssllabsApi.scan(session.domain).then(async (result) => {
-      if (result.success) {
-        await supabase.from('crawl_sessions').update({ ssllabs_data: result } as any).eq('id', session.id);
-        clearError('ssllabs');
-        fetchData();
-      } else { setSsllabsFailed(true); setError('ssllabs', result.error || 'SSL Labs returned an error'); }
-      setSsllabsLoading(false);
-    }).catch((e) => { setSsllabsFailed(true); setError('ssllabs', e?.message || 'SSL Labs request failed'); setSsllabsLoading(false); });
+
+    (async () => {
+      try {
+        // 1. Start the scan
+        const startResult = await ssllabsApi.start(session.domain);
+        if (!startResult.success) {
+          setSsllabsFailed(true);
+          setError('ssllabs', startResult.error || 'SSL Labs start failed');
+          setSsllabsLoading(false);
+          return;
+        }
+        // If already READY on first call
+        if (startResult.status === 'READY') {
+          await supabase.from('crawl_sessions').update({ ssllabs_data: startResult } as any).eq('id', session.id);
+          clearError('ssllabs');
+          fetchData();
+          setSsllabsLoading(false);
+          return;
+        }
+
+        // 2. Poll every 10s, up to 5 minutes
+        const maxPolls = 30;
+        for (let i = 0; i < maxPolls; i++) {
+          await new Promise(r => setTimeout(r, 10000));
+          const pollResult = await ssllabsApi.poll(session.domain);
+          if (!pollResult.success) {
+            setSsllabsFailed(true);
+            setError('ssllabs', pollResult.error || 'SSL Labs poll error');
+            setSsllabsLoading(false);
+            return;
+          }
+          if (pollResult.status === 'READY') {
+            await supabase.from('crawl_sessions').update({ ssllabs_data: pollResult } as any).eq('id', session.id);
+            clearError('ssllabs');
+            fetchData();
+            setSsllabsLoading(false);
+            return;
+          }
+          if (pollResult.status === 'ERROR') {
+            setSsllabsFailed(true);
+            setError('ssllabs', 'SSL Labs assessment failed');
+            setSsllabsLoading(false);
+            return;
+          }
+          // Otherwise keep polling (DNS, IN_PROGRESS, OVERLOADED)
+        }
+        // Timed out after 5 min
+        setSsllabsFailed(true);
+        setError('ssllabs', 'SSL Labs scan timed out after 5 minutes — try again later');
+        setSsllabsLoading(false);
+      } catch (e: any) {
+        setSsllabsFailed(true);
+        setError('ssllabs', e?.message || 'SSL Labs request failed');
+        setSsllabsLoading(false);
+      }
+    })();
   }, [session, ssllabsLoading, ssllabsFailed, fetchData]);
 
   // httpstatus.io

@@ -5,33 +5,13 @@ const corsHeaders = {
 
 const API_BASE = 'https://api.ssllabs.com/api/v4';
 
-async function sleep(ms: number) {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-async function fetchWithRetry(url: string, options?: RequestInit, maxRetries = 5): Promise<Response> {
-  for (let i = 0; i < maxRetries; i++) {
-    const res = await fetch(url, options);
-    if (res.status === 529) {
-      const wait = (i + 1) * 15000; // 15s, 30s, 45s, 60s, 75s
-      console.warn(`SSL Labs 529 (overloaded), retry ${i + 1}/${maxRetries} in ${wait}ms`);
-      await res.text();
-      await sleep(wait);
-      continue;
-    }
-    return res;
-  }
-  // final attempt
-  return fetch(url, options);
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { host } = await req.json();
+    const { host, action = 'start' } = await req.json();
     if (!host) {
       return new Response(JSON.stringify({ success: false, error: 'host is required' }), {
         status: 400,
@@ -47,60 +27,61 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Register email first (idempotent — safe to call every time)
-    console.log('Registering email with SSL Labs:', email);
-    const registerRes = await fetch(`${API_BASE}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName: 'Site', lastName: 'Analyzer', email, organization: 'SiteAnalyzer' }),
-    });
-    if (!registerRes.ok) {
-      const regBody = await registerRes.text();
-      // 429 = already registered, which is fine
-      if (registerRes.status !== 429) {
-        console.warn('SSL Labs register response:', registerRes.status, regBody);
+    // Register email (idempotent)
+    if (action === 'start') {
+      const registerRes = await fetch(`${API_BASE}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName: 'Site', lastName: 'Analyzer', email, organization: 'SiteAnalyzer' }),
+      });
+      if (registerRes.ok || registerRes.status === 400 || registerRes.status === 429) {
+        await registerRes.text(); // consume body
       }
-    } else {
-      await registerRes.text();
     }
 
-    // Start a new assessment
-    console.log('Starting SSL Labs assessment for:', host);
-    const startUrl = `${API_BASE}/analyze?host=${encodeURIComponent(host)}&startNew=on&all=done&ignoreMismatch=on`;
-    const startRes = await fetchWithRetry(startUrl, { headers: { email } });
-    
-    if (!startRes.ok) {
-      const errBody = await startRes.text();
-      console.error('SSL Labs start error:', startRes.status, errBody);
-      const userError = startRes.status === 529
-        ? 'SSL Labs is at full capacity. Please try again in a few minutes.'
-        : `SSL Labs API error: ${startRes.status}`;
-      return new Response(JSON.stringify({ success: false, error: userError }), {
-        status: 502,
+    // Build URL — startNew only on 'start' action
+    const params = action === 'start'
+      ? `host=${encodeURIComponent(host)}&startNew=on&all=done&ignoreMismatch=on`
+      : `host=${encodeURIComponent(host)}&all=done`;
+
+    const analyzeUrl = `${API_BASE}/analyze?${params}`;
+    const analyzeRes = await fetch(analyzeUrl, { headers: { email } });
+
+    if (analyzeRes.status === 529) {
+      return new Response(JSON.stringify({
+        success: true,
+        status: 'OVERLOADED',
+        error: 'SSL Labs is at full capacity. Will retry.',
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    let result = await startRes.json();
-
-    // Poll until READY or ERROR (max ~5 minutes)
-    let attempts = 0;
-    const maxAttempts = 30;
-    while (result.status !== 'READY' && result.status !== 'ERROR' && attempts < maxAttempts) {
-      attempts++;
-      const waitTime = result.status === 'DNS' ? 5000 : 10000;
-      console.log(`Poll #${attempts}: status=${result.status}, waiting ${waitTime}ms`);
-      await sleep(waitTime);
-
-      const pollUrl = `${API_BASE}/analyze?host=${encodeURIComponent(host)}&all=done`;
-      const pollRes = await fetchWithRetry(pollUrl, { headers: { email } });
-      if (!pollRes.ok) {
-        console.error('Poll error:', pollRes.status);
-        continue;
-      }
-      result = await pollRes.json();
+    if (!analyzeRes.ok) {
+      const errBody = await analyzeRes.text();
+      console.error('SSL Labs error:', analyzeRes.status, errBody);
+      return new Response(JSON.stringify({
+        success: false,
+        error: `SSL Labs API error: ${analyzeRes.status}`,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
+    const result = await analyzeRes.json();
+
+    // If not ready yet, return the status so the client can poll
+    if (result.status !== 'READY') {
+      return new Response(JSON.stringify({
+        success: true,
+        status: result.status, // DNS, IN_PROGRESS, etc.
+        host: result.host,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // READY — extract structured data
     if (result.status === 'ERROR') {
       return new Response(JSON.stringify({
         success: false,
@@ -110,16 +91,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (result.status !== 'READY') {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Assessment timed out — try again later',
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Extract structured data
     const endpoints = (result.endpoints || []).map((ep: any) => {
       const d = ep.details || {};
       return {
@@ -129,9 +100,7 @@ Deno.serve(async (req) => {
         gradeTrustIgnored: ep.gradeTrustIgnored,
         hasWarnings: ep.hasWarnings,
         isExceptional: ep.isExceptional,
-        // Protocols
         protocols: (d.protocols || []).map((p: any) => ({ name: p.name, version: p.version })),
-        // Vulnerabilities
         vulnerabilities: {
           heartbleed: d.heartbleed || false,
           poodle: d.poodle || false,
@@ -145,19 +114,16 @@ Deno.serve(async (req) => {
           zombiePoodle: d.zombiePoodle,
           goldenDoodle: d.goldenDoodle,
         },
-        // Key features
         forwardSecrecy: d.forwardSecrecy,
         supportsAead: d.supportsAead || false,
         supportsAlpn: d.supportsAlpn || false,
         ocspStapling: d.ocspStapling || false,
-        // HSTS
         hstsPolicy: d.hstsPolicy ? {
           status: d.hstsPolicy.status,
           maxAge: d.hstsPolicy.maxAge,
           includeSubDomains: d.hstsPolicy.includeSubDomains,
           preload: d.hstsPolicy.preload,
         } : null,
-        // Certificate info
         certChains: (d.certChains || []).map((chain: any) => ({
           issues: chain.issues,
           trustPaths: (chain.trustPaths || []).map((tp: any) => ({
@@ -165,13 +131,11 @@ Deno.serve(async (req) => {
             rootStore: tp.trust?.[0]?.rootStore,
           })),
         })),
-        // Server signature
         serverSignature: d.serverSignature || null,
         httpStatusCode: d.httpStatusCode,
       };
     });
 
-    // Extract cert info from Host-level certs array
     const certs = (result.certs || []).map((cert: any) => ({
       subject: cert.subject,
       issuerSubject: cert.issuerSubject,
@@ -183,8 +147,9 @@ Deno.serve(async (req) => {
       sha256Hash: cert.sha256Hash,
     }));
 
-    const response = {
+    return new Response(JSON.stringify({
       success: true,
+      status: 'READY',
       host: result.host,
       port: result.port,
       protocol: result.protocol,
@@ -194,9 +159,7 @@ Deno.serve(async (req) => {
       grade: endpoints[0]?.grade || null,
       endpoints,
       certs,
-    };
-
-    return new Response(JSON.stringify(response), {
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
