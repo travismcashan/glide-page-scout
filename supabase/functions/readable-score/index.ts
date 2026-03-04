@@ -17,16 +17,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get('READABLE_API_KEY');
-    if (!apiKey) {
+    const rawKey = Deno.env.get('READABLE_API_KEY');
+    if (!rawKey) {
       return new Response(JSON.stringify({ success: false, error: 'Readable API key not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const apiKey = rawKey.trim();
 
     console.log('Readable.com scoring URL:', url);
-    console.log('API key length:', apiKey.length, 'starts with:', apiKey.substring(0, 4));
+    console.log('API key length:', apiKey.length);
 
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
