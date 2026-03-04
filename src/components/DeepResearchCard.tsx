@@ -132,6 +132,10 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   const abortRef = useRef<AbortController | null>(null);
   const stepsEndRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
+  const reportRef = useRef<string | null>(null);
+
+  // Keep reportRef in sync
+  useEffect(() => { reportRef.current = report; }, [report]);
 
   useEffect(() => {
     if (!prompt) {
@@ -166,7 +170,9 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     if (!reader) return;
     const decoder = new TextDecoder();
     let buffer = '';
-    let currentEventType = '';
+    let sseEventType = '';
+    let reportParts: string[] = [];
+    let completed = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -180,7 +186,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
 
         // SSE event type line
         if (line.startsWith('event: ')) {
-          currentEventType = line.slice(7).trim();
+          sseEventType = line.slice(7).trim();
           continue;
         }
 
@@ -197,85 +203,136 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               lastEventIdRef.current = parsed.event_id;
             }
 
-            // interaction.start → capture interaction ID
-            if (currentEventType === 'interaction.start' || parsed.name) {
-              const id = parsed.name || parsed.id;
-              if (id) {
-                setInteractionId(id);
-                console.log('Deep Research interaction ID:', id);
+            // Handle Gemini Deep Research SSE format:
+            // event: content.delta with delta.type === "thought_summary"
+            if (sseEventType === 'content.delta' || parsed.event_type === 'content.delta') {
+              const delta = parsed.delta || parsed;
+              const deltaType = delta?.type;
+              const content = delta?.content;
+
+              if (deltaType === 'thought_summary' && content?.text) {
+                const text = content.text.trim();
+                if (text) {
+                  // Split on double newlines to get individual thinking steps
+                  const chunks = text.split(/\n\n+/).filter(Boolean);
+                  for (const chunk of chunks) {
+                    const cleanText = chunk.replace(/^\*\*.*?\*\*\n+/, '').trim() || chunk.trim();
+                    if (cleanText) {
+                      setSteps(prev => {
+                        if (prev.some(s => s.text === cleanText)) return prev;
+                        return [...prev, {
+                          id: `step-${Date.now()}-${Math.random()}`,
+                          text: cleanText,
+                          timestamp: Date.now(),
+                          type: classifyStep(cleanText),
+                        }];
+                      });
+                    }
+                  }
+                  // Extract URLs as sources
+                  const urlMatches = text.match(/https?:\/\/[^\s)>\]"']+/g);
+                  if (urlMatches) {
+                    setSources(prev => {
+                      const next = new Set(prev);
+                      urlMatches.forEach((u: string) => next.add(u));
+                      return Array.from(next);
+                    });
+                  }
+                }
+              } else if (deltaType === 'text' || (content?.type === 'text' && !delta?.type)) {
+                // Report text content
+                const text = content?.text || delta?.text || '';
+                if (text) reportParts.push(text);
+              }
+
+              // Check for annotations (sources in report)
+              const annotations = delta?.annotations || content?.annotations || parsed.annotations;
+              if (annotations && Array.isArray(annotations)) {
+                for (const ann of annotations) {
+                  if (ann.source) {
+                    setSources(prev => {
+                      const next = new Set(prev);
+                      next.add(ann.source);
+                      return Array.from(next);
+                    });
+                  }
+                }
               }
             }
 
-            // Thinking / progress updates
-            if (currentEventType === 'interaction.thinking' || parsed.thinking_summary) {
-              const text = parsed.thinking_summary || parsed.text || parsed.thought || '';
+            // content.start — new content block beginning
+            if (sseEventType === 'content.start' || parsed.event_type === 'content.start') {
+              // If the previous block accumulated report text, flush it
+              if (reportParts.length > 0) {
+                const accumulated = reportParts.join('');
+                if (accumulated.trim()) setReport(prev => (prev || '') + accumulated);
+                reportParts = [];
+              }
+            }
+
+            // content.stop — content block finished
+            if (sseEventType === 'content.stop' || parsed.event_type === 'content.stop') {
+              if (reportParts.length > 0) {
+                const accumulated = reportParts.join('');
+                if (accumulated.trim()) setReport(prev => (prev || '') + accumulated);
+                reportParts = [];
+              }
+            }
+
+            // Legacy format support: interaction.* events
+            if (sseEventType === 'interaction.start' || parsed.name) {
+              const id = parsed.name || parsed.id;
+              if (id) setInteractionId(id);
+            }
+            if (sseEventType === 'interaction.thinking' || parsed.thinking_summary) {
+              const text = parsed.thinking_summary || parsed.text || '';
               if (text) {
-                const step: ThinkingStep = {
+                setSteps(prev => [...prev, {
                   id: `step-${Date.now()}-${Math.random()}`,
                   text,
                   timestamp: Date.now(),
                   type: classifyStep(text),
-                };
-                setSteps(prev => [...prev, step]);
-
-                // Extract URLs as sources
-                const urlMatches = text.match(/https?:\/\/[^\s)>\]"']+/g);
-                if (urlMatches) {
-                  setSources(prev => {
-                    const next = new Set(prev);
-                    urlMatches.forEach((u: string) => next.add(u));
-                    return Array.from(next);
-                  });
-                }
+                }]);
               }
             }
 
-            // Content updates (the agent is writing the report)
-            if (currentEventType === 'interaction.content' || currentEventType === 'interaction.output') {
-              const parts = parsed.output?.parts || parsed.parts || parsed.candidates?.[0]?.content?.parts || [];
-              for (const part of parts) {
-                if (part.text) {
-                  setReport(prev => (prev || '') + part.text);
-                }
-              }
-              // Also check for delta/content style
-              if (parsed.text) {
-                setReport(prev => (prev || '') + parsed.text);
-              }
-            }
-
-            // Completion
-            if (currentEventType === 'interaction.complete' || parsed.state === 'completed' || parsed.state === 'COMPLETED') {
-              // If no report was built up yet, extract from the final payload
+            // Completion signals
+            if (sseEventType === 'interaction.complete' || parsed.state === 'completed' || parsed.state === 'COMPLETED') {
               const finalParts = parsed.output?.parts || parsed.candidates?.[0]?.content?.parts || [];
               if (finalParts.length > 0) {
                 const finalText = finalParts.map((p: any) => p.text || '').join('\n');
                 if (finalText) setReport(finalText);
               }
-              setStreaming(false);
-              toast.success('Deep Research report ready!');
+              completed = true;
             }
 
             if (parsed.state === 'failed' || parsed.state === 'FAILED') {
               setStreaming(false);
               toast.error('Research task failed');
+              return;
             }
           } catch {
             // Partial JSON — wait for more data
           }
-          currentEventType = '';
+          sseEventType = '';
           continue;
         }
 
-        // Empty line resets event type
-        if (line === '') {
-          currentEventType = '';
-        }
+        if (line === '') sseEventType = '';
       }
     }
 
-    // If stream ended without explicit completion, mark done
-    setStreaming(false);
+    // Flush any remaining report parts
+    if (reportParts.length > 0) {
+      const accumulated = reportParts.join('');
+      if (accumulated.trim()) setReport(prev => (prev || '') + accumulated);
+    }
+
+    if (completed) {
+      setStreaming(false);
+      toast.success('Deep Research report ready!');
+    }
+    // Don't set streaming=false here if not completed — let the caller handle fallback
   }, []);
 
   const connectToStream = useCallback(async (iId: string, lastEvt?: string | null) => {
@@ -318,9 +375,22 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   }, [processSSEStream]);
 
   const pollForResults = useCallback(async (iId: string) => {
+    // If report was already set by the stream, skip polling
+    if (reportRef.current) {
+      setStreaming(false);
+      toast.success('Deep Research report ready!');
+      return;
+    }
+    setStreaming(true);
     let attempts = 0;
     const maxAttempts = 120; // ~10 minutes at 5s intervals
     while (attempts < maxAttempts) {
+      // Check if report was set while we were polling
+      if (reportRef.current) {
+        setStreaming(false);
+        toast.success('Deep Research report ready!');
+        return;
+      }
       attempts++;
       try {
         const response = await fetch(FUNC_URL, {
@@ -341,38 +411,68 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         const data = await response.json();
         const state = data.status || data.state || '';
 
-        // Extract thinking steps from intermediate content
+        // Extract thinking steps from outputs array (Gemini format)
+        const outputs = data.outputs || [];
+        for (const output of outputs) {
+          // Thinking summaries
+          if (output.type === 'thought' && output.summary) {
+            for (const item of output.summary) {
+              if (item.text) {
+                const cleanText = item.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                if (cleanText) {
+                  setSteps(prev => {
+                    if (prev.some(s => s.text === cleanText)) return prev;
+                    return [...prev, {
+                      id: `step-${Date.now()}-${Math.random()}`,
+                      text: cleanText,
+                      timestamp: Date.now(),
+                      type: classifyStep(cleanText),
+                    }];
+                  });
+                }
+              }
+            }
+          }
+          // Report text with annotations
+          if (output.annotations && output.text) {
+            // This is the final report
+            setReport(output.text);
+            // Extract source URLs from annotations
+            if (Array.isArray(output.annotations)) {
+              setSources(prev => {
+                const next = new Set(prev);
+                for (const ann of output.annotations) {
+                  if (ann.source) next.add(ann.source);
+                }
+                return Array.from(next);
+              });
+            }
+          }
+        }
+
+        // Also check legacy format
         if (data.output?.parts) {
           for (const part of data.output.parts) {
             if (part.thought && part.text) {
+              const cleanText = part.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
               setSteps(prev => {
-                const exists = prev.some(s => s.text === part.text);
-                if (exists) return prev;
+                if (prev.some(s => s.text === cleanText)) return prev;
                 return [...prev, {
                   id: `step-${Date.now()}-${Math.random()}`,
-                  text: part.text,
+                  text: cleanText,
                   timestamp: Date.now(),
-                  type: classifyStep(part.text),
+                  type: classifyStep(cleanText),
                 }];
               });
-              // Extract URLs
-              const urlMatches = part.text.match(/https?:\/\/[^\s)>\]"']+/g);
-              if (urlMatches) {
-                setSources(prev => {
-                  const next = new Set(prev);
-                  urlMatches.forEach((u: string) => next.add(u));
-                  return Array.from(next);
-                });
-              }
             }
           }
         }
 
         if (state === 'completed' || state === 'COMPLETED') {
-          // Extract final report
+          // Extract final report from legacy format if not already set
           const parts = data.output?.parts || [];
-          const reportParts = parts.filter((p: any) => !p.thought).map((p: any) => p.text || '').join('\n');
-          if (reportParts) setReport(reportParts);
+          const reportText = parts.filter((p: any) => !p.thought).map((p: any) => p.text || '').join('\n');
+          if (reportText) setReport(prev => prev || reportText);
           setStreaming(false);
           toast.success('Deep Research report ready!');
           return;
@@ -384,18 +484,19 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           return;
         }
 
-        // Still in progress
-        setSteps(prev => {
-          if (prev.length === 0 || prev[prev.length - 1].text !== 'Researching…') {
+        // Still in progress — show a gentle indicator only if we have no steps yet
+        if (attempts % 6 === 0) { // Every 30s
+          setSteps(prev => {
+            const lastText = prev[prev.length - 1]?.text;
+            if (lastText === 'Still researching…') return prev;
             return [...prev, {
               id: `poll-${Date.now()}`,
-              text: 'Researching…',
+              text: 'Still researching…',
               timestamp: Date.now(),
               type: 'thinking' as const,
             }];
-          }
-          return prev;
-        });
+          });
+        }
 
         await new Promise(r => setTimeout(r, 5000));
       } catch {
@@ -455,12 +556,22 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       setStarting(false);
       setStreaming(true);
 
-      // Step 2: Try to connect to SSE stream
+      // Step 2: Try SSE stream first, then fall back to polling
       const streamWorked = await connectToStream(iId);
 
-      // Step 3: If streaming didn't work or ended early without a report, fall back to polling
+      // Step 3: If stream failed to connect OR ended without producing a report, poll
+      // We check the ref-based report state indirectly — the stream sets streaming=false on completion
+      // If we reach here and streaming was set to false without a report, we need to poll
       if (!streamWorked) {
         console.log('SSE stream unavailable, falling back to polling');
+        await pollForResults(iId);
+      } else {
+        // Stream connected but may have ended without completion (edge function timeout)
+        // Check if we need to continue with polling
+        // Use a small delay to let state settle, then poll if no report
+        await new Promise(r => setTimeout(r, 1000));
+        // pollForResults will check current status and extract report if ready
+        console.log('Stream ended, checking status via polling...');
         await pollForResults(iId);
       }
     } catch (e: any) {
