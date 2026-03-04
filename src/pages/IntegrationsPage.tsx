@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Check, X, Clock, Pause, Loader2, CreditCard } from 'lucide-react';
+import { ArrowLeft, X, Clock, Loader2, CreditCard } from 'lucide-react';
 import { getPausedIntegrations, toggleIntegrationPause, loadPausedIntegrations } from '@/lib/integrationState';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -203,24 +203,17 @@ export default function IntegrationsPage() {
               {items.map((integration) => {
                 const isPaused = pausedSet.has(integration.id);
                 return (
-                  <Card key={integration.id} className={`p-4 flex flex-col gap-0 ${isPaused ? 'opacity-60' : ''}`}>
+                  <Card key={integration.id} className="p-4 flex flex-col gap-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className={`font-medium text-sm ${integration.status === 'coming-soon' ? 'text-muted-foreground' : ''}`}>{integration.name}</p>
-                          {integration.status === 'coming-soon' ? (
+                          {integration.status === 'coming-soon' && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground border-muted-foreground/30">
                               <Clock className="h-3 w-3 mr-0.5" /> Coming soon
                             </Badge>
-                          ) : isPaused ? (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-orange-500 border-orange-500/30">
-                              <Pause className="h-3 w-3 mr-0.5" /> Paused
-                            </Badge>
-                          ) : integration.configured ? (
-                            <Badge variant="default" className="text-[10px] px-1.5 py-0">
-                              <Check className="h-3 w-3 mr-0.5" /> Active
-                            </Badge>
-                          ) : (
+                          )}
+                          {integration.status === 'active' && !integration.configured && (
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                               <X className="h-3 w-3 mr-0.5" /> Not configured
                             </Badge>
@@ -232,7 +225,7 @@ export default function IntegrationsPage() {
                         <Switch
                           checked={!isPaused}
                           onCheckedChange={() => handleToggle(integration.id)}
-                          className="shrink-0 mt-1"
+                          className={`shrink-0 mt-1 ${!isPaused ? 'data-[state=checked]:bg-green-500' : 'data-[state=unchecked]:bg-red-400'}`}
                         />
                       )}
                     </div>
