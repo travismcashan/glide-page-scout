@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense, useMemo } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { toast } from 'sonner';
-import { Brain, Loader2, Upload, X, FileText, Play, RefreshCw, Globe, Search, BookOpen, PenTool, ExternalLink, Eye } from 'lucide-react';
+import { Brain, Loader2, Upload, X, FileText, Play, RefreshCw, Globe, Search, BookOpen, PenTool, ExternalLink, Eye, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { loadDefaultDocs } from '@/lib/defaultResearchDocs';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
+import { downloadReportPdf } from '@/lib/downloadReportPdf';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -683,9 +684,14 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-muted-foreground">Research Report</h3>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={reset} title="New research">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => report && downloadReportPdf(report, 'Deep Research Report', session.domain)} title="Download PDF">
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={reset} title="New research">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
               {(() => {
                 const filteredSources = sources.filter(u => !u.includes('vertexaisearch.cloud.google.com'));
