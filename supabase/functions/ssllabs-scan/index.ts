@@ -9,13 +9,13 @@ async function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function fetchWithRetry(url: string, options?: RequestInit, maxRetries = 3): Promise<Response> {
+async function fetchWithRetry(url: string, options?: RequestInit, maxRetries = 5): Promise<Response> {
   for (let i = 0; i < maxRetries; i++) {
     const res = await fetch(url, options);
     if (res.status === 529) {
-      const wait = (i + 1) * 10000;
+      const wait = (i + 1) * 15000; // 15s, 30s, 45s, 60s, 75s
       console.warn(`SSL Labs 529 (overloaded), retry ${i + 1}/${maxRetries} in ${wait}ms`);
-      await res.text(); // consume body
+      await res.text();
       await sleep(wait);
       continue;
     }
@@ -72,7 +72,10 @@ Deno.serve(async (req) => {
     if (!startRes.ok) {
       const errBody = await startRes.text();
       console.error('SSL Labs start error:', startRes.status, errBody);
-      return new Response(JSON.stringify({ success: false, error: `SSL Labs API error: ${startRes.status}` }), {
+      const userError = startRes.status === 529
+        ? 'SSL Labs is at full capacity. Please try again in a few minutes.'
+        : `SSL Labs API error: ${startRes.status}`;
+      return new Response(JSON.stringify({ success: false, error: userError }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
