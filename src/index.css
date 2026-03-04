@@ -100,3 +100,53 @@
     font-family: 'JetBrains Mono', monospace;
   }
 }
+
+/* Print styles for PDF export */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11px !important;
+  }
+
+  header {
+    position: static !important;
+    border-bottom: 2px solid #333 !important;
+  }
+
+  /* Hide interactive elements */
+  button, [role="button"], .no-print {
+    display: none !important;
+  }
+
+  /* Keep badges visible */
+  header [class*="badge"], header [class*="Badge"] {
+    display: inline-flex !important;
+  }
+
+  /* Ensure cards don't break across pages */
+  [class*="card"], [class*="Card"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+
+  /* Ensure content is visible */
+  [class*="CollapsibleContent"] {
+    display: block !important;
+    height: auto !important;
+  }
+
+  /* Remove unnecessary spacing */
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Progress bars should be visible */
+  [role="progressbar"] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
