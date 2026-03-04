@@ -9,6 +9,22 @@ async function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+async function fetchWithRetry(url: string, options?: RequestInit, maxRetries = 3): Promise<Response> {
+  for (let i = 0; i < maxRetries; i++) {
+    const res = await fetch(url, options);
+    if (res.status === 529) {
+      const wait = (i + 1) * 10000;
+      console.warn(`SSL Labs 529 (overloaded), retry ${i + 1}/${maxRetries} in ${wait}ms`);
+      await res.text(); // consume body
+      await sleep(wait);
+      continue;
+    }
+    return res;
+  }
+  // final attempt
+  return fetch(url, options);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -51,7 +67,7 @@ Deno.serve(async (req) => {
     // Start a new assessment
     console.log('Starting SSL Labs assessment for:', host);
     const startUrl = `${API_BASE}/analyze?host=${encodeURIComponent(host)}&startNew=on&all=done&ignoreMismatch=on`;
-    const startRes = await fetch(startUrl, { headers: { email } });
+    const startRes = await fetchWithRetry(startUrl, { headers: { email } });
     
     if (!startRes.ok) {
       const errBody = await startRes.text();
@@ -74,7 +90,7 @@ Deno.serve(async (req) => {
       await sleep(waitTime);
 
       const pollUrl = `${API_BASE}/analyze?host=${encodeURIComponent(host)}&all=done`;
-      const pollRes = await fetch(pollUrl, { headers: { email } });
+      const pollRes = await fetchWithRetry(pollUrl, { headers: { email } });
       if (!pollRes.ok) {
         console.error('Poll error:', pollRes.status);
         continue;
