@@ -41,11 +41,12 @@ type Props = {
 function buildCrawlContext(session: SessionData, pages?: Props['pages']): string {
   const sections: string[] = [];
   sections.push(`# Website Audit Data: ${session.domain}\nURL: ${session.base_url}\n`);
+  sections.push(`IMPORTANT: The data below comes from specific named integration tools. When referencing findings, always cite the integration by name (e.g. "According to the SEMrush Domain Analysis…", "The WAVE Accessibility Scan found…", "GTmetrix Performance Report shows…"). Treat each section as a distinct, authoritative source.\n`);
 
   const add = (label: string, data: any) => {
     if (!data) return;
     try {
-      sections.push(`## ${label}\n\`\`\`json\n${JSON.stringify(data, null, 1)}\n\`\`\``);
+      sections.push(`## [Source: ${label}]\nData from the "${label}" integration report:\n\`\`\`json\n${JSON.stringify(data, null, 1)}\n\`\`\``);
     } catch { /* skip */ }
   };
 
@@ -55,23 +56,23 @@ function buildCrawlContext(session: SessionData, pages?: Props['pages']): string
   add('BuiltWith Technology Stack', session.builtwith_data);
   add('Wappalyzer Technology Profiling', session.wappalyzer_data);
   add('Chrome UX Report (CrUX)', session.crux_data);
-  add('WAVE Accessibility', session.wave_data);
-  add('Mozilla Observatory Security', session.observatory_data);
-  add('SSL Labs TLS Assessment', session.ssllabs_data);
-  add('HTTP Status & Redirects', session.httpstatus_data);
-  add('Broken Link Check', session.linkcheck_data);
-  add('W3C HTML/CSS Validation', session.w3c_data);
-  add('Schema.org Structured Data', session.schema_data);
-  add('Readable.com Readability', session.readable_data);
+  add('WAVE Accessibility Scan', session.wave_data);
+  add('Mozilla Observatory Security Headers', session.observatory_data);
+  add('SSL Labs TLS/SSL Assessment', session.ssllabs_data);
+  add('httpstatus.io Redirect Chain', session.httpstatus_data);
+  add('Broken Link Checker', session.linkcheck_data);
+  add('W3C HTML/CSS Validator', session.w3c_data);
+  add('Schema.org Structured Data Validator', session.schema_data);
+  add('Readable.com Readability Score', session.readable_data);
   add('Website Carbon Sustainability', session.carbon_data);
   add('Yellow Lab Tools Front-End Quality', session.yellowlab_data);
 
   if (session.gtmetrix_grade || session.gtmetrix_scores) {
-    add('GTmetrix Performance', { grade: session.gtmetrix_grade, scores: session.gtmetrix_scores });
+    add('GTmetrix Performance Report', { grade: session.gtmetrix_grade, scores: session.gtmetrix_scores });
   }
 
   if (pages?.length) {
-    const pageSection: string[] = ['## Scraped Page Content\n'];
+    const pageSection: string[] = ['## [Source: Scraped Page Content]\nContent scraped directly from the website pages:\n'];
     for (const p of pages) {
       pageSection.push(`### ${p.title || p.url}\nURL: ${p.url}`);
       if (p.ai_outline) {
