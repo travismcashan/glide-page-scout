@@ -285,3 +285,18 @@ export const httpstatusApi = {
     return data;
   },
 };
+
+export const linkCheckerApi = {
+  async check(urls: string[]): Promise<{
+    success: boolean;
+    summary?: { total: number; ok: number; redirects: number; clientErrors: number; serverErrors: number; failures: number };
+    results?: { url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }[];
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('link-checker', {
+      body: { urls },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};

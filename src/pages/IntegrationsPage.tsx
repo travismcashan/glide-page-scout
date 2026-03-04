@@ -28,6 +28,7 @@ const integrations: Integration[] = [
   { name: 'URL Discovery', id: 'url-discovery', description: 'Firecrawl-powered sitemap mapping — discovers all pages on a domain', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'content', status: 'active' },
+  { name: 'Broken Link Checker', id: 'link-checker', description: 'HEAD-request scan of all discovered URLs — flags broken links, redirects, and server errors. Free, no API key.', secretKey: '', configured: true, category: 'security', status: 'active' },
 
   // Third-party integrations
   { name: 'Firecrawl', id: 'firecrawl', description: 'Web scraping, content extraction, and sitemap discovery', secretKey: 'FIRECRAWL_API_KEY', configured: true, category: 'content', status: 'active' },
