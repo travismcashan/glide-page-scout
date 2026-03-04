@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
 
     console.log('Ocean.io enrich successful');
 
-    // Extract key firmographic fields
+    // Extract all available firmographic fields
     const result: Record<string, any> = {
       success: true,
       domain: data.domain || domain,
@@ -63,13 +63,32 @@ Deno.serve(async (req) => {
       industryCategories: data.industryCategories || [],
       linkedinIndustry: data.linkedinIndustry || null,
       technologies: data.technologies || [],
+      technologyCategories: data.technologyCategories || [],
       yearFounded: data.yearFounded || null,
       revenue: data.revenue || null,
-      linkedinUrl: data.linkedinUrl || null,
       description: data.description || null,
       ecommercePlatform: data.ecommercePlatform || null,
-      websiteTraffic: data.websiteTraffic || null,
-      raw: data,
+      // Employee counts
+      employeeCountLinkedin: data.employeeCountLinkedin || null,
+      employeeCountOcean: data.employeeCountOcean || null,
+      // Department breakdown
+      departmentSizes: data.departmentSizes || [],
+      // Locations with full address data
+      locations: data.locations || [],
+      // Contact emails
+      emails: data.emails || [],
+      // Social media profiles
+      medias: data.medias || null,
+      // Company logo
+      logo: data.logo || null,
+      // Keywords extracted from website
+      keywords: data.keywords || [],
+      // Traffic data
+      webTraffic: data.webTraffic || null,
+      // Canonical URL
+      rootUrl: data.rootUrl || null,
+      // Data freshness
+      updatedAt: data.updatedAt || null,
     };
 
     return new Response(
