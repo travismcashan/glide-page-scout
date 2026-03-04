@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -22,6 +22,7 @@ import { ObservatoryCard } from '@/components/ObservatoryCard';
 import OceanCard from '@/components/OceanCard';
 import SslLabsCard from '@/components/SslLabsCard';
 import { HttpStatusCard } from '@/components/HttpStatusCard';
+import { BrokenLinksCard } from '@/components/BrokenLinksCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -56,6 +57,7 @@ type CrawlSession = {
   ocean_data: any | null;
   ssllabs_data: any | null;
   httpstatus_data: any | null;
+  linkcheck_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -297,6 +299,22 @@ export default function ResultsPage() {
     }).catch((e) => { setHttpstatusFailed(true); setError('httpstatus', e?.message || 'httpstatus.io request failed'); setHttpstatusLoading(false); });
   }, [session, httpstatusLoading, httpstatusFailed, fetchData]);
 
+  // Broken Link Checker
+  const [linkcheckLoading, setLinkcheckLoading] = useState(false);
+  const [linkcheckFailed, setLinkcheckFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || discoveredUrls.length === 0) return;
+    setLinkcheckLoading(true);
+    linkCheckerApi.check(discoveredUrls).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ linkcheck_data: result } as any).eq('id', session.id);
+        clearError('link-checker');
+        fetchData();
+      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
+      setLinkcheckLoading(false);
+    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); });
+  }, [session, linkcheckLoading, linkcheckFailed, discoveredUrls, fetchData]);
+
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
@@ -416,6 +434,7 @@ export default function ResultsPage() {
           <UrlDiscoveryCard
             baseUrl={session.base_url}
             onUrlsDiscovered={setDiscoveredUrls}
+            linkCheckResults={session.linkcheck_data?.results || null}
           />
         )}
 
@@ -521,6 +540,15 @@ export default function ResultsPage() {
         {!isIntegrationPaused('httpstatus') && (
         <SectionCard title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus}>
           {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
+        </SectionCard>
+        )}
+
+        {/* ── Broken Link Checker ── */}
+        {!isIntegrationPaused('link-checker') && (
+        <SectionCard title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={`Checking ${discoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']}>
+          {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && discoveredUrls.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
+          ) : null}
         </SectionCard>
         )}
 
