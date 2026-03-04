@@ -128,6 +128,8 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   const [starting, setStarting] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [sources, setSources] = useState<string[]>([]);
+  const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
+  const [submittedDocs, setSubmittedDocs] = useState<AttachedDoc[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const stepsEndRef = useRef<HTMLDivElement>(null);
@@ -514,6 +516,8 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     setSteps([]);
     setSources([]);
     setInteractionId(null);
+    setSubmittedPrompt(prompt.trim());
+    setSubmittedDocs([...documents]);
     lastEventIdRef.current = null;
 
     try {
@@ -602,6 +606,8 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     setReport(null);
     setStreaming(false);
     setSources([]);
+    setSubmittedPrompt(null);
+    setSubmittedDocs([]);
     lastEventIdRef.current = null;
   };
 
@@ -622,164 +628,202 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         ) : undefined
       }
     >
-      {paused ? null : report && !streaming ? (
-        /* ── Final Report ── */
+      {paused ? null : (
         <div className="space-y-4">
-          {sources.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Sources ({sources.length})</p>
-              <div className="flex flex-wrap gap-1.5">
-                {sources.slice(0, 30).map((url, i) => {
-                  let label = url;
-                  try { label = new URL(url).hostname; } catch {}
-                  return (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                       className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors truncate max-w-[200px]">
-                      <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-                      {label}
-                    </a>
-                  );
-                })}
+          {/* ── Submitted Prompt (chat-style) ── */}
+          {submittedPrompt && (
+            <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <Brain className="h-3.5 w-3.5" />
+                Research Prompt
               </div>
-            </div>
-          )}
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
-              <ReactMarkdown>{report}</ReactMarkdown>
-            </Suspense>
-          </div>
-        </div>
-      ) : isWorking || steps.length > 0 ? (
-        /* ── Live Progress ── */
-        <div className="space-y-4">
-          {/* Thinking steps log */}
-          {steps.length > 0 && (
-            <ScrollArea className="h-[300px] rounded-lg border border-border bg-muted/30 p-3">
-              <div className="space-y-2">
-                {steps.map((step) => (
-                  <div key={step.id} className="flex items-start gap-2 text-sm animate-in fade-in slide-in-from-bottom-1 duration-300">
-                    <StepIcon type={step.type} />
-                    <span className="text-muted-foreground leading-snug">{step.text}</span>
-                  </div>
-                ))}
-                {streaming && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                    <span>Researching…</span>
-                  </div>
-                )}
-                <div ref={stepsEndRef} />
-              </div>
-            </ScrollArea>
-          )}
-
-          {/* Sources found so far */}
-          {sources.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Sources found ({sources.length})</p>
-              <div className="flex flex-wrap gap-1">
-                {sources.slice(0, 20).map((url, i) => {
-                  let label = url;
-                  try { label = new URL(url).hostname; } catch {}
-                  return (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                       className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground truncate max-w-[180px]">
-                      <Globe className="h-2.5 w-2.5 shrink-0" />
-                      {label}
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Report building up in real-time */}
-          {report && (
-            <div className="border-t border-border pt-4">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Report (writing…)</p>
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <Suspense fallback={null}>
-                  <ReactMarkdown>{report}</ReactMarkdown>
-                </Suspense>
-              </div>
-            </div>
-          )}
-
-          {!streaming && steps.length > 0 && !report && (
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground">Stream disconnected.</p>
-              {interactionId && (
-                <Button variant="outline" size="sm" onClick={resumeStream}>
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                  Reconnect
-                </Button>
+              <p className="text-sm whitespace-pre-wrap">{submittedPrompt}</p>
+              {submittedDocs.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {submittedDocs.map((doc, i) => (
+                    <Badge key={i} variant="secondary" className="gap-1 text-[11px]">
+                      <FileText className="h-3 w-3" />
+                      {doc.name}
+                    </Badge>
+                  ))}
+                </div>
               )}
             </div>
           )}
 
-          {isWorking && steps.length === 0 && !report && (
-            <div className="flex items-center gap-2 py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">
-                {starting ? 'Starting Deep Research…' : 'Deep Research is running… waiting for first updates.'}
-              </span>
+          {report && !streaming ? (
+            /* ── Final Report ── */
+            <div className="space-y-4">
+              {sources.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Sources ({sources.length})</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {sources.slice(0, 30).map((url, i) => {
+                      let label = url;
+                      try { label = new URL(url).hostname; } catch {}
+                      return (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                           className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors truncate max-w-[200px]">
+                          <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                          {label}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-li:text-foreground/90 prose-strong:text-foreground">
+                <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
+                  <ReactMarkdown>{report}</ReactMarkdown>
+                </Suspense>
+              </div>
+            </div>
+          ) : isWorking || steps.length > 0 ? (
+            /* ── Live Progress ── */
+            <div className="space-y-4">
+              {/* Thinking steps log */}
+              {steps.length > 0 && (
+                <ScrollArea className="h-[300px] rounded-lg border border-border bg-muted/30 p-3">
+                  <div className="space-y-2">
+                    {steps.map((step) => (
+                      <div key={step.id} className="flex items-start gap-2 text-sm animate-in fade-in slide-in-from-bottom-1 duration-300">
+                        <StepIcon type={step.type} />
+                        <span className="text-muted-foreground leading-snug">
+                          <Suspense fallback={step.text}>
+                            <ReactMarkdown
+                              components={{
+                                p: ({ children }) => <span>{children}</span>,
+                                a: ({ href, children }) => (
+                                  <a href={href} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">{children}</a>
+                                ),
+                              }}
+                            >
+                              {step.text}
+                            </ReactMarkdown>
+                          </Suspense>
+                        </span>
+                      </div>
+                    ))}
+                    {streaming && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                        <span>Researching…</span>
+                      </div>
+                    )}
+                    <div ref={stepsEndRef} />
+                  </div>
+                </ScrollArea>
+              )}
+
+              {/* Sources found so far */}
+              {sources.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Sources found ({sources.length})</p>
+                  <div className="flex flex-wrap gap-1">
+                    {sources.slice(0, 20).map((url, i) => {
+                      let label = url;
+                      try { label = new URL(url).hostname; } catch {}
+                      return (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                           className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground truncate max-w-[180px]">
+                          <Globe className="h-2.5 w-2.5 shrink-0" />
+                          {label}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Report building up in real-time */}
+              {report && (
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Report (writing…)</p>
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-li:text-foreground/90 prose-strong:text-foreground">
+                    <Suspense fallback={null}>
+                      <ReactMarkdown>{report}</ReactMarkdown>
+                    </Suspense>
+                  </div>
+                </div>
+              )}
+
+              {!streaming && steps.length > 0 && !report && (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Stream disconnected.</p>
+                  {interactionId && (
+                    <Button variant="outline" size="sm" onClick={resumeStream}>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      Reconnect
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {isWorking && steps.length === 0 && !report && (
+                <div className="flex items-center gap-2 py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">
+                    {starting ? 'Starting Deep Research…' : 'Deep Research is running… waiting for first updates.'}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── Input Form ── */
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Research Prompt</label>
+                <Textarea
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  rows={6}
+                  placeholder="What should Deep Research investigate?"
+                  className="text-sm"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  All crawl data (tech stack, SEO, performance, accessibility, etc.) is automatically included as context.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Attach Documents (optional)</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {documents.map((doc, i) => (
+                    <Badge key={i} variant="secondary" className="gap-1.5 pr-1">
+                      <FileText className="h-3 w-3" />
+                      {doc.name}
+                      <button onClick={() => removeDoc(i)} className="ml-1 hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                  Attach Files
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Text files are read and included as context.
+                </p>
+              </div>
+
+              <Button onClick={startResearch} disabled={starting || !prompt.trim()}>
+                {starting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Play className="h-4 w-4 mr-1.5" />}
+                Start Deep Research
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Estimated cost: ~$2-5 per research task. Takes 5-20 minutes.
+              </p>
             </div>
           )}
-        </div>
-      ) : (
-        /* ── Input Form ── */
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Research Prompt</label>
-            <Textarea
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-              rows={6}
-              placeholder="What should Deep Research investigate?"
-              className="text-sm"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              All crawl data (tech stack, SEO, performance, accessibility, etc.) is automatically included as context.
-            </p>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Attach Documents (optional)</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {documents.map((doc, i) => (
-                <Badge key={i} variant="secondary" className="gap-1.5 pr-1">
-                  <FileText className="h-3 w-3" />
-                  {doc.name}
-                  <button onClick={() => removeDoc(i)} className="ml-1 hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5 mr-1.5" />
-              Attach Files
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">
-              Text files are read and included as context.
-            </p>
-          </div>
-
-          <Button onClick={startResearch} disabled={starting || !prompt.trim()}>
-            {starting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Play className="h-4 w-4 mr-1.5" />}
-            Start Deep Research
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Estimated cost: ~$2-5 per research task. Takes 5-20 minutes.
-          </p>
         </div>
       )}
     </SectionCard>
