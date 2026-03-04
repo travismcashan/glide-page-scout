@@ -1,10 +1,14 @@
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Clock, MessageSquare, Phone, Video, Users, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, MessageSquare, Phone, Video, Users, FileText, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { CardTabs } from './CardTabs';
+import { supabase } from '@/integrations/supabase/client';
+
+type Sentence = { text: string; speakerName: string; start: number; end: number };
 
 type Meeting = {
   uuid: string;
@@ -20,9 +24,11 @@ type Meeting = {
   outcome: string | null;
   transcriptReady: boolean;
   notesReady: boolean;
+  transcriptionUuid: string | null;
   transcript: {
-    sentences: { text: string; speakerName: string; start: number; end: number }[];
+    sentences: Sentence[];
     totalSentences: number;
+    truncated?: boolean;
   } | null;
   insights: {
     aiNotes: { text: string; noteType: string }[];
@@ -36,6 +42,69 @@ type AvomaData = {
   totalMatches: number;
   meetings: Meeting[];
 };
+
+function TranscriptView({ meeting }: { meeting: Meeting }) {
+  const [fullSentences, setFullSentences] = useState<Sentence[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sentences = fullSentences || meeting.transcript?.sentences || [];
+  const totalSentences = fullSentences ? fullSentences.length : (meeting.transcript?.totalSentences || 0);
+  const isTruncated = !fullSentences && meeting.transcript?.truncated;
+
+  const loadFullTranscript = async () => {
+    if (!meeting.transcriptionUuid) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('avoma-lookup', {
+        body: { action: 'transcript', transcriptionUuid: meeting.transcriptionUuid },
+      });
+      if (fnError || !data?.success) {
+        setError(fnError?.message || data?.error || 'Failed to load transcript');
+      } else {
+        setFullSentences(data.sentences);
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (sentences.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-medium mb-1.5">Transcript ({totalSentences} sentences)</p>
+      <div className="max-h-96 overflow-y-auto space-y-0.5 text-xs text-muted-foreground bg-background rounded-md p-2 border border-border">
+        {sentences.map((s, i) => (
+          <p key={i}>
+            <span className="font-medium text-foreground">{s.speakerName}:</span> {s.text}
+          </p>
+        ))}
+      </div>
+      {isTruncated && (
+        <div className="mt-2">
+          {error && <p className="text-xs text-destructive mb-1">{error}</p>}
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={loadFullTranscript}
+            disabled={loading}
+          >
+            {loading ? (
+              <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Loading full transcript...</>
+            ) : (
+              <>Load Full Transcript ({totalSentences - sentences.length} more sentences)</>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MeetingsList({ data }: { data: AvomaData }) {
   const [expandedMeeting, setExpandedMeeting] = useState<string | null>(null);
@@ -125,21 +194,7 @@ function MeetingsList({ data }: { data: AvomaData }) {
                   </div>
                 )}
 
-                {meeting.transcript && meeting.transcript.sentences.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium mb-1.5">Transcript ({meeting.transcript.totalSentences} sentences)</p>
-                    <div className="max-h-48 overflow-y-auto space-y-0.5 text-xs text-muted-foreground bg-background rounded-md p-2 border border-border">
-                      {meeting.transcript.sentences.slice(0, 50).map((s, i) => (
-                        <p key={i}>
-                          <span className="font-medium text-foreground">{s.speakerName}:</span> {s.text}
-                        </p>
-                      ))}
-                      {meeting.transcript.totalSentences > 50 && (
-                        <p className="text-muted-foreground/60 italic">... {meeting.transcript.totalSentences - 50} more sentences</p>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <TranscriptView meeting={meeting} />
               </Card>
             </CollapsibleContent>
           </Collapsible>
