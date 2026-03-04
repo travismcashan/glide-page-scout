@@ -907,7 +907,7 @@ export default function ResultsPage() {
 
         {/* ── Gemini Deep Research ── */}
         {session && !isIntegrationPaused('deep-research') && (
-          <DeepResearchCard session={session} collapsed={allCollapsed} />
+          <DeepResearchCard session={session} pages={scrapedPages} collapsed={allCollapsed} />
         )}
 
         {/* ── SEO ── */}
