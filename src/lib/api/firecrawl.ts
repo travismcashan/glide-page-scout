@@ -317,3 +317,18 @@ export const linkCheckerApi = {
     return data;
   },
 };
+
+export const w3cApi = {
+  async validate(url: string): Promise<{
+    success: boolean;
+    html?: any;
+    css?: any;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('w3c-validate', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
