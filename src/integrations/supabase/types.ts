@@ -133,6 +133,24 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_settings: {
+        Row: {
+          id: string
+          paused: boolean
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          paused?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          paused?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
