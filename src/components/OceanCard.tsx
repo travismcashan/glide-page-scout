@@ -1,6 +1,10 @@
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Globe, MapPin, Users, Calendar, DollarSign, Cpu, ExternalLink } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Building2, Globe, MapPin, Users, Calendar, DollarSign, Cpu, ExternalLink, Mail, BarChart3, Tag, Clock } from 'lucide-react';
+
+type DepartmentSize = { department: string; size: number };
+type Location = { country?: string; locality?: string; region?: string; streetAddress?: string; postalCode?: string; primary?: boolean };
+type MediaProfile = { handle?: string; url?: string; name?: string };
 
 type OceanData = {
   success: boolean;
@@ -13,14 +17,34 @@ type OceanData = {
   industryCategories?: string[];
   linkedinIndustry?: string;
   technologies?: string[];
+  technologyCategories?: string[];
   yearFounded?: number | null;
   revenue?: string | null;
-  linkedinUrl?: string | null;
   description?: string | null;
   ecommercePlatform?: string | null;
-  websiteTraffic?: Record<string, any> | null;
+  employeeCountLinkedin?: number | null;
+  employeeCountOcean?: number | null;
+  departmentSizes?: DepartmentSize[];
+  locations?: Location[];
+  emails?: string[];
+  medias?: Record<string, MediaProfile> | null;
+  logo?: string | null;
+  keywords?: string[];
+  webTraffic?: { visits?: number; pageViews?: number; pagesPerVisit?: number; bounceRate?: number } | null;
+  rootUrl?: string | null;
+  updatedAt?: string | null;
   error?: string;
 };
+
+function fmt(n: number | undefined): string {
+  if (n == null) return '—';
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+function pct(n: number | undefined): string {
+  if (n == null) return '—';
+  return `${(n * 100).toFixed(1)}%`;
+}
 
 export default function OceanCard({ data }: { data: OceanData }) {
   if (!data?.success) {
@@ -31,128 +55,291 @@ export default function OceanCard({ data }: { data: OceanData }) {
     );
   }
 
+  const maxDept = Math.max(...(data.departmentSizes?.map(d => d.size) || [1]));
+
   return (
-    <div className="space-y-4">
-      {/* Company overview */}
-      <div className="space-y-2">
-        {data.companyName && (
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="font-medium text-sm">{data.companyName}</span>
-          </div>
+    <div className="space-y-3">
+      {/* Header with logo */}
+      <div className="flex items-start gap-3">
+        {data.logo && (
+          <img src={data.logo} alt="" className="h-10 w-10 rounded object-contain bg-muted p-0.5 shrink-0" />
         )}
-        {data.description && (
-          <p className="text-xs text-muted-foreground leading-relaxed">{data.description}</p>
-        )}
+        <div className="min-w-0">
+          {data.companyName && <p className="font-medium text-sm">{data.companyName}</p>}
+          {data.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{data.description}</p>}
+        </div>
       </div>
 
-      {/* Key facts grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {data.companySize && (
-          <div className="flex items-center gap-2">
-            <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground">Employees</p>
-              <p className="text-xs font-medium">{data.companySize}</p>
-            </div>
-          </div>
-        )}
-        {data.primaryCountry && (
-          <div className="flex items-center gap-2">
-            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground">HQ Country</p>
-              <p className="text-xs font-medium uppercase">{data.primaryCountry}</p>
-            </div>
-          </div>
-        )}
-        {data.yearFounded && (
-          <div className="flex items-center gap-2">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground">Founded</p>
-              <p className="text-xs font-medium">{data.yearFounded}</p>
-            </div>
-          </div>
-        )}
-        {data.revenue && (
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground">Revenue</p>
-              <p className="text-xs font-medium">{data.revenue}</p>
-            </div>
-          </div>
-        )}
-      </div>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-transparent p-0">
+          <TabsTrigger value="overview" className="text-xs h-7 px-2.5 data-[state=active]:bg-muted">Overview</TabsTrigger>
+          {(data.departmentSizes?.length ?? 0) > 0 && (
+            <TabsTrigger value="departments" className="text-xs h-7 px-2.5 data-[state=active]:bg-muted">Departments</TabsTrigger>
+          )}
+          {(data.locations?.length ?? 0) > 0 && (
+            <TabsTrigger value="locations" className="text-xs h-7 px-2.5 data-[state=active]:bg-muted">Locations</TabsTrigger>
+          )}
+          {data.webTraffic && (
+            <TabsTrigger value="traffic" className="text-xs h-7 px-2.5 data-[state=active]:bg-muted">Traffic</TabsTrigger>
+          )}
+          {(data.technologies?.length ?? 0) > 0 && (
+            <TabsTrigger value="tech" className="text-xs h-7 px-2.5 data-[state=active]:bg-muted">Tech Stack</TabsTrigger>
+          )}
+          {((data.emails?.length ?? 0) > 0 || data.medias) && (
+            <TabsTrigger value="contact" className="text-xs h-7 px-2.5 data-[state=active]:bg-muted">Contact</TabsTrigger>
+          )}
+          {(data.keywords?.length ?? 0) > 0 && (
+            <TabsTrigger value="keywords" className="text-xs h-7 px-2.5 data-[state=active]:bg-muted">Keywords</TabsTrigger>
+          )}
+        </TabsList>
 
-      {/* Industries */}
-      {data.industries && data.industries.length > 0 && (
-        <div>
-          <p className="text-[10px] text-muted-foreground mb-1.5">Industries</p>
-          <div className="flex flex-wrap gap-1">
-            {data.industries.map((ind, i) => (
-              <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0">{ind}</Badge>
-            ))}
+        {/* ── Overview ── */}
+        <TabsContent value="overview" className="mt-3 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {data.companySize && (
+              <div className="flex items-center gap-2">
+                <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Company Size</p>
+                  <p className="text-xs font-medium">{data.companySize}</p>
+                </div>
+              </div>
+            )}
+            {(data.employeeCountLinkedin || data.employeeCountOcean) && (
+              <div className="flex items-center gap-2">
+                <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Headcount</p>
+                  <p className="text-xs font-medium">
+                    {data.employeeCountLinkedin && <span>LinkedIn: {data.employeeCountLinkedin}</span>}
+                    {data.employeeCountLinkedin && data.employeeCountOcean && <span> · </span>}
+                    {data.employeeCountOcean && <span>Ocean: {data.employeeCountOcean}</span>}
+                  </p>
+                </div>
+              </div>
+            )}
+            {data.primaryCountry && (
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">HQ Country</p>
+                  <p className="text-xs font-medium uppercase">{data.primaryCountry}</p>
+                </div>
+              </div>
+            )}
+            {data.yearFounded && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Founded</p>
+                  <p className="text-xs font-medium">{data.yearFounded}</p>
+                </div>
+              </div>
+            )}
+            {data.revenue && (
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Revenue</p>
+                  <p className="text-xs font-medium">{data.revenue}</p>
+                </div>
+              </div>
+            )}
+            {data.linkedinIndustry && (
+              <div className="flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">LinkedIn Industry</p>
+                  <p className="text-xs font-medium">{data.linkedinIndustry}</p>
+                </div>
+              </div>
+            )}
+            {data.ecommercePlatform && (
+              <div className="flex items-center gap-2">
+                <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">E-commerce</p>
+                  <p className="text-xs font-medium">{data.ecommercePlatform}</p>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Industry categories */}
-      {data.industryCategories && data.industryCategories.length > 0 && (
-        <div>
-          <p className="text-[10px] text-muted-foreground mb-1.5">Industry Categories</p>
-          <div className="flex flex-wrap gap-1">
-            {data.industryCategories.map((cat, i) => (
-              <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{cat}</Badge>
-            ))}
+          {/* Industries */}
+          {data.industries && data.industries.length > 0 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1.5">Industries</p>
+              <div className="flex flex-wrap gap-1">
+                {data.industries.map((ind, i) => (
+                  <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0">{ind}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.industryCategories && data.industryCategories.length > 0 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1.5">Industry Categories</p>
+              <div className="flex flex-wrap gap-1">
+                {data.industryCategories.map((cat, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{cat}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.countries && data.countries.length > 1 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">Presence</p>
+              <p className="text-xs">{data.countries.map(c => c.toUpperCase()).join(', ')}</p>
+            </div>
+          )}
+
+          {data.updatedAt && (
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pt-1 border-t border-border">
+              <Clock className="h-3 w-3" />
+              Data updated: {new Date(data.updatedAt).toLocaleDateString()}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Departments ── */}
+        <TabsContent value="departments" className="mt-3 space-y-2">
+          <p className="text-[10px] text-muted-foreground mb-2">Headcount by department</p>
+          {data.departmentSizes?.sort((a, b) => b.size - a.size).map((dept, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-xs w-40 shrink-0 truncate">{dept.department}</span>
+              <div className="flex-1 h-4 bg-muted rounded overflow-hidden">
+                <div
+                  className="h-full bg-primary/60 rounded transition-all"
+                  style={{ width: `${(dept.size / maxDept) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs font-medium w-8 text-right">{dept.size}</span>
+            </div>
+          ))}
+        </TabsContent>
+
+        {/* ── Locations ── */}
+        <TabsContent value="locations" className="mt-3 space-y-3">
+          {data.locations?.map((loc, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-medium">
+                  {loc.locality}{loc.region ? `, ${loc.region}` : ''}{loc.country ? ` (${loc.country.toUpperCase()})` : ''}
+                  {loc.primary && <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1.5">HQ</Badge>}
+                </p>
+                {loc.streetAddress && <p className="text-muted-foreground">{loc.streetAddress}{loc.postalCode ? `, ${loc.postalCode}` : ''}</p>}
+              </div>
+            </div>
+          ))}
+        </TabsContent>
+
+        {/* ── Traffic ── */}
+        {data.webTraffic && (
+          <TabsContent value="traffic" className="mt-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-muted-foreground">Monthly Visits</p>
+                <p className="text-lg font-semibold">{fmt(data.webTraffic.visits)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground">Page Views</p>
+                <p className="text-lg font-semibold">{fmt(data.webTraffic.pageViews)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground">Pages / Visit</p>
+                <p className="text-lg font-semibold">{data.webTraffic.pagesPerVisit?.toFixed(1) ?? '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground">Bounce Rate</p>
+                <p className="text-lg font-semibold">{pct(data.webTraffic.bounceRate)}</p>
+              </div>
+            </div>
+          </TabsContent>
+        )}
+
+        {/* ── Tech Stack ── */}
+        <TabsContent value="tech" className="mt-3 space-y-3">
+          {data.technologyCategories && data.technologyCategories.length > 0 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1.5">Categories</p>
+              <div className="flex flex-wrap gap-1">
+                {data.technologyCategories.map((cat, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{cat}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <p className="text-[10px] text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Cpu className="h-3 w-3" /> Technologies ({data.technologies?.length ?? 0})
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {data.technologies?.map((tech, i) => (
+                <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0">{tech}</Badge>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        </TabsContent>
 
-      {/* Technologies */}
-      {data.technologies && data.technologies.length > 0 && (
-        <div>
-          <p className="text-[10px] text-muted-foreground mb-1.5 flex items-center gap-1">
-            <Cpu className="h-3 w-3" /> Technologies
+        {/* ── Contact ── */}
+        <TabsContent value="contact" className="mt-3 space-y-4">
+          {data.emails && data.emails.length > 0 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Mail className="h-3 w-3" /> Email Addresses
+              </p>
+              <div className="space-y-1">
+                {data.emails.map((email, i) => (
+                  <a key={i} href={`mailto:${email}`} className="block text-xs text-primary hover:underline">{email}</a>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.medias && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1.5">Social Profiles</p>
+              <div className="space-y-1.5">
+                {Object.entries(data.medias).map(([platform, profile]) => (
+                  <a
+                    key={platform}
+                    href={profile.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    <span className="capitalize">{platform}</span>
+                    {profile.handle && <span className="text-muted-foreground">@{profile.handle}</span>}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.rootUrl && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">Website</p>
+              <a href={data.rootUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                <Globe className="h-3 w-3" /> {data.rootUrl}
+              </a>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── Keywords ── */}
+        <TabsContent value="keywords" className="mt-3">
+          <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1">
+            <Tag className="h-3 w-3" /> AI-extracted keywords ({data.keywords?.length ?? 0})
           </p>
           <div className="flex flex-wrap gap-1">
-            {data.technologies.map((tech, i) => (
-              <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0">{tech}</Badge>
+            {data.keywords?.map((kw, i) => (
+              <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0">{kw}</Badge>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Countries */}
-      {data.countries && data.countries.length > 1 && (
-        <div>
-          <p className="text-[10px] text-muted-foreground mb-1.5 flex items-center gap-1">
-            <Globe className="h-3 w-3" /> All Countries
-          </p>
-          <p className="text-xs">{data.countries.map(c => c.toUpperCase()).join(', ')}</p>
-        </div>
-      )}
-
-      {/* Ecommerce platform */}
-      {data.ecommercePlatform && (
-        <div className="text-xs">
-          <span className="text-muted-foreground">E-commerce: </span>
-          <span className="font-medium">{data.ecommercePlatform}</span>
-        </div>
-      )}
-
-      {/* LinkedIn link */}
-      {data.linkedinUrl && (
-        <a
-          href={data.linkedinUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-        >
-          <ExternalLink className="h-3 w-3" /> LinkedIn Profile
-        </a>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
