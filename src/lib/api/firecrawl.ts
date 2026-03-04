@@ -353,16 +353,29 @@ export const schemaApi = {
 };
 
 export const yellowlabApi = {
-  async scan(url: string): Promise<{
+  async start(url: string): Promise<{
     success: boolean;
+    status?: string;
     runId?: string;
-    globalScore?: number | null;
-    categories?: Record<string, { score: number; label: string }>;
-    toolsResults?: any;
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('yellowlab-scan', {
       body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+  async poll(runId: string): Promise<{
+    success: boolean;
+    status?: string;
+    runId?: string;
+    globalScore?: number | null;
+    categories?: Record<string, { score: number; label: string }>;
+    position?: number | null;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('yellowlab-scan', {
+      body: { action: 'poll', runId },
     });
     if (error) return { success: false, error: error.message };
     return data;
