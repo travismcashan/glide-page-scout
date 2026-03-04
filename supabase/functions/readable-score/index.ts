@@ -29,13 +29,15 @@ Deno.serve(async (req) => {
 
     const timestamp = Math.floor(Date.now() / 1000).toString();
 
-    // MD5(apiKey + timestamp) per Readable docs
+    // MD5(apiKey + timestamp) per Readable docs — PHP: md5($api_key . $request_time)
     const { crypto: denoCrypto } = await import("https://deno.land/std@0.224.0/crypto/mod.ts");
     const encoder = new TextEncoder();
-    const msgBytes = encoder.encode(apiKey + timestamp);
+    const toSign = apiKey + timestamp;
+    const msgBytes = encoder.encode(toSign);
     const hashBuffer = await denoCrypto.subtle.digest("MD5", msgBytes);
     const hashArray = new Uint8Array(hashBuffer);
     const signature = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+    
 
     const response = await fetch('https://api.readable.com/api/url/', {
       method: 'POST',
