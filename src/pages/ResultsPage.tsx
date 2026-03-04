@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -35,6 +35,7 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
+import { AvomaCard } from '@/components/AvomaCard';
 import { SectionCard } from '@/components/SectionCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import {
@@ -76,6 +77,7 @@ type CrawlSession = {
   schema_data: any | null;
   readable_data: any | null;
   yellowlab_data: any | null;
+  avoma_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -285,6 +287,22 @@ export default function ResultsPage() {
       setOceanLoading(false);
     }).catch((e) => { setOceanFailed(true); setError('ocean', e?.message || 'Ocean.io request failed'); setOceanLoading(false); });
   }, [session, oceanLoading, oceanFailed, fetchData]);
+
+  // Avoma
+  const [avomaLoading, setAvomaLoading] = useState(false);
+  const [avomaFailed, setAvomaFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
+    setAvomaLoading(true);
+    avomaApi.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
+        clearError('avoma');
+        fetchData();
+      } else { setAvomaFailed(true); setError('avoma', result.error || 'Avoma returned an error'); }
+      setAvomaLoading(false);
+    }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
+  }, [session, avomaLoading, avomaFailed, fetchData]);
 
   // SSL Labs (client-side polling to avoid edge function timeout)
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
@@ -628,6 +646,7 @@ export default function ResultsPage() {
     setReadableFailed(false); setReadableLoading(false);
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
     setLinkcheckFailed(false); setLinkcheckLoading(false);
+    setAvomaFailed(false); setAvomaLoading(false);
     await fetchData();
     setRerunningAll(false);
     toast.success('Re-running all integrations');
@@ -777,6 +796,15 @@ export default function ResultsPage() {
               <Brain className="h-4 w-4 mr-2" />
               AI Research
             </TabsTrigger>
+            {!isIntegrationPaused('avoma') && (
+              <TabsTrigger
+                value="avoma"
+                className="text-sm font-medium px-5 py-2.5 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
+              >
+                <Phone className="h-4 w-4 mr-2" />
+                Avoma Calls
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="raw-data" className="mt-0 space-y-6">
@@ -1014,6 +1042,23 @@ export default function ResultsPage() {
               </>
             )}
           </TabsContent>
+
+          {!isIntegrationPaused('avoma') && (
+            <TabsContent value="avoma" className="mt-0 space-y-6">
+              <SectionCard
+                title="Avoma — Call Intelligence"
+                icon={<Phone className="h-5 w-5 text-foreground" />}
+                loading={avomaLoading && !(session as any)?.avoma_data}
+                loadingText="Searching Avoma for meetings with @domain attendees..."
+                error={avomaFailed}
+                errorText={integrationErrors.avoma}
+                headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
+                collapsed={allCollapsed}
+              >
+                {(session as any)?.avoma_data ? <AvomaCard data={(session as any).avoma_data} /> : null}
+              </SectionCard>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>
