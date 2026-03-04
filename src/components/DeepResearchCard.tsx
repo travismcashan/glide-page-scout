@@ -11,86 +11,87 @@ import { isIntegrationPaused } from '@/lib/integrationState';
 
 type AttachedDoc = { name: string; content: string };
 
+type SessionData = {
+  id: string;
+  domain: string;
+  base_url: string;
+  builtwith_data?: any;
+  semrush_data?: any;
+  psi_data?: any;
+  wappalyzer_data?: any;
+  ocean_data?: any;
+  carbon_data?: any;
+  wave_data?: any;
+  observatory_data?: any;
+  readable_data?: any;
+  crux_data?: any;
+  ssllabs_data?: any;
+  httpstatus_data?: any;
+  linkcheck_data?: any;
+  w3c_data?: any;
+  schema_data?: any;
+  yellowlab_data?: any;
+  gtmetrix_grade?: string | null;
+  gtmetrix_scores?: any;
+};
+
 type Props = {
-  session: {
-    id: string;
-    domain: string;
-    base_url: string;
-    builtwith_data?: any;
-    semrush_data?: any;
-    psi_data?: any;
-    wappalyzer_data?: any;
-    ocean_data?: any;
-    carbon_data?: any;
-    wave_data?: any;
-    observatory_data?: any;
-    readable_data?: any;
-  };
+  session: SessionData;
+  pages?: { url: string; title: string | null; ai_outline: string | null; raw_content: string | null }[];
   collapsed?: boolean;
 };
 
-function buildCrawlContext(session: Props['session']): string {
-  const parts: string[] = [];
-  parts.push(`Domain: ${session.domain}`);
-  parts.push(`URL: ${session.base_url}`);
+function buildCrawlContext(session: SessionData, pages?: Props['pages']): string {
+  const sections: string[] = [];
+  sections.push(`# Website Audit Data: ${session.domain}\nURL: ${session.base_url}\n`);
 
-  if (session.ocean_data) {
-    const o = session.ocean_data;
-    parts.push(`\nCompany: ${o.companyName || session.domain}`);
-    if (o.industries?.length) parts.push(`Industries: ${o.industries.join(', ')}`);
-    if (o.companySize) parts.push(`Size: ${o.companySize}`);
-    if (o.revenue) parts.push(`Revenue: ${o.revenue}`);
-    if (o.description) parts.push(`Description: ${o.description}`);
+  const add = (label: string, data: any) => {
+    if (!data) return;
+    try {
+      sections.push(`## ${label}\n\`\`\`json\n${JSON.stringify(data, null, 1)}\n\`\`\``);
+    } catch { /* skip unserializable */ }
+  };
+
+  add('Ocean.io Firmographics', session.ocean_data);
+  add('SEMrush Domain Analysis', session.semrush_data);
+  add('PageSpeed Insights (Lighthouse)', session.psi_data);
+  add('BuiltWith Technology Stack', session.builtwith_data);
+  add('Wappalyzer Technology Profiling', session.wappalyzer_data);
+  add('Chrome UX Report (CrUX)', session.crux_data);
+  add('WAVE Accessibility', session.wave_data);
+  add('Mozilla Observatory Security', session.observatory_data);
+  add('SSL Labs TLS Assessment', session.ssllabs_data);
+  add('HTTP Status & Redirects', session.httpstatus_data);
+  add('Broken Link Check', session.linkcheck_data);
+  add('W3C HTML/CSS Validation', session.w3c_data);
+  add('Schema.org Structured Data', session.schema_data);
+  add('Readable.com Readability', session.readable_data);
+  add('Website Carbon Sustainability', session.carbon_data);
+  add('Yellow Lab Tools Front-End Quality', session.yellowlab_data);
+
+  if (session.gtmetrix_grade || session.gtmetrix_scores) {
+    add('GTmetrix Performance', { grade: session.gtmetrix_grade, scores: session.gtmetrix_scores });
   }
 
-  if (session.semrush_data?.overview?.length) {
-    const ov = session.semrush_data.overview[0];
-    parts.push(`\nSEMrush Overview:\n- Organic traffic: ${ov.Or || 'N/A'}\n- Keywords: ${ov.Ot || 'N/A'}\n- Domain rank: ${ov.Rk || 'N/A'}`);
+  // Include page content summaries (outlines preferred, fall back to truncated raw)
+  if (pages?.length) {
+    const pageSection: string[] = ['## Scraped Page Content\n'];
+    for (const p of pages) {
+      pageSection.push(`### ${p.title || p.url}\nURL: ${p.url}`);
+      if (p.ai_outline) {
+        pageSection.push(p.ai_outline);
+      } else if (p.raw_content) {
+        pageSection.push(p.raw_content.substring(0, 3000));
+      }
+      pageSection.push('');
+    }
+    sections.push(pageSection.join('\n'));
   }
 
-  if (session.psi_data) {
-    const mob = session.psi_data.mobile;
-    const desk = session.psi_data.desktop;
-    if (mob?.scores) parts.push(`\nPageSpeed Mobile: Performance ${mob.scores.performance}, SEO ${mob.scores.seo}, Accessibility ${mob.scores.accessibility}`);
-    if (desk?.scores) parts.push(`PageSpeed Desktop: Performance ${desk.scores.performance}, SEO ${desk.scores.seo}`);
-  }
-
-  if (session.builtwith_data?.grouped) {
-    const techs = Object.entries(session.builtwith_data.grouped)
-      .map(([cat, items]: [string, any]) => `${cat}: ${items.map((t: any) => t.name).join(', ')}`)
-      .join('\n');
-    parts.push(`\nTechnology Stack:\n${techs}`);
-  }
-
-  if (session.wappalyzer_data?.grouped) {
-    const techs = Object.entries(session.wappalyzer_data.grouped)
-      .map(([cat, items]: [string, any]) => `${cat}: ${items.map((t: any) => t.name).join(', ')}`)
-      .join('\n');
-    parts.push(`\nWappalyzer:\n${techs}`);
-  }
-
-  if (session.wave_data?.summary) {
-    const s = session.wave_data.summary;
-    parts.push(`\nWAVE Accessibility: ${s.errors} errors, ${s.alerts} alerts, ${s.contrast} contrast issues`);
-  }
-
-  if (session.observatory_data) {
-    parts.push(`\nMozilla Observatory: Grade ${session.observatory_data.grade}, Score ${session.observatory_data.score}/100`);
-  }
-
-  if (session.carbon_data) {
-    parts.push(`\nWebsite Carbon: ${session.carbon_data.rating || 'N/A'}, Cleaner than ${Math.round((session.carbon_data.cleanerThan || 0) * 100)}% of sites`);
-  }
-
-  if (session.readable_data) {
-    const r = session.readable_data;
-    parts.push(`\nReadability: Score ${r.readabilityScore || 'N/A'}, Grade Level ${r.gradeLevel || 'N/A'}`);
-  }
-
-  return parts.join('\n');
+  return sections.join('\n\n');
 }
 
-export function DeepResearchCard({ session, collapsed }: Props) {
+export function DeepResearchCard({ session, pages, collapsed }: Props) {
   const paused = isIntegrationPaused('deep-research');
   const [prompt, setPrompt] = useState('');
   const [documents, setDocuments] = useState<AttachedDoc[]>([]);
@@ -142,7 +143,7 @@ export function DeepResearchCard({ session, collapsed }: Props) {
     setState(null);
 
     try {
-      const crawlContext = buildCrawlContext(session);
+      const crawlContext = buildCrawlContext(session, pages);
       const result = await deepResearchApi.start(prompt, crawlContext, documents);
       if (!result.success || !result.interactionId) {
         toast.error(result.error || 'Failed to start research');
