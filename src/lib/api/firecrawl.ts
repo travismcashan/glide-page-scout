@@ -440,3 +440,19 @@ export const readableApi = {
     return data;
   },
 };
+
+export const avomaApi = {
+  async lookup(domain: string): Promise<{
+    success: boolean;
+    domain?: string;
+    totalMatches?: number;
+    meetings?: any[];
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('avoma-lookup', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};

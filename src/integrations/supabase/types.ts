@@ -72,6 +72,7 @@ export type Database = {
       }
       crawl_sessions: {
         Row: {
+          avoma_data: Json | null
           base_url: string
           builtwith_data: Json | null
           carbon_data: Json | null
@@ -101,6 +102,7 @@ export type Database = {
           yellowlab_data: Json | null
         }
         Insert: {
+          avoma_data?: Json | null
           base_url: string
           builtwith_data?: Json | null
           carbon_data?: Json | null
@@ -130,6 +132,7 @@ export type Database = {
           yellowlab_data?: Json | null
         }
         Update: {
+          avoma_data?: Json | null
           base_url?: string
           builtwith_data?: Json | null
           carbon_data?: Json | null

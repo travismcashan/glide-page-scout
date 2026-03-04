@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.deep-research]
 verify_jwt = false
+
+[functions.avoma-lookup]
+verify_jwt = false
