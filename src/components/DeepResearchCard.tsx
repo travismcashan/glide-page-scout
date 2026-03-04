@@ -5,8 +5,6 @@ import { Brain, Loader2, Upload, X, FileText, Play, RefreshCw, Globe, Search, Bo
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { SectionCard } from '@/components/SectionCard';
-import { isIntegrationPaused } from '@/lib/integrationState';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 type AttachedDoc = { name: string; content: string };
@@ -119,7 +117,6 @@ function StepIcon({ type }: { type: ThinkingStep['type'] }) {
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
 
 export function DeepResearchCard({ session, pages, collapsed }: Props) {
-  const paused = isIntegrationPaused('deep-research');
   const [prompt, setPrompt] = useState('');
   const [documents, setDocuments] = useState<AttachedDoc[]>([]);
   const [interactionId, setInteractionId] = useState<string | null>(null);
@@ -614,24 +611,9 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   const isWorking = starting || streaming;
 
   return (
-    <SectionCard
-      title="Gemini Deep Research"
-      icon={<Brain className="h-5 w-5 text-foreground" />}
-      paused={paused}
-      collapsed={collapsed}
-      loading={false}
-      headerExtra={
-        (report || steps.length > 0) ? (
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={reset} title="New research">
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-        ) : undefined
-      }
-    >
-      {paused ? null : (
-        <div className="space-y-4">
-          {/* ── Submitted Prompt (chat-style) ── */}
-          {submittedPrompt && (
+    <div className="space-y-4">
+      {/* ── Submitted Prompt (chat-style) ── */}
+      {submittedPrompt && (
             <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <Brain className="h-3.5 w-3.5" />
@@ -654,6 +636,12 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           {report && !streaming ? (
             /* ── Final Report ── */
             <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground">Research Report</h3>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={reset} title="New research">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               {sources.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium text-muted-foreground">Sources ({sources.length})</p>
@@ -824,8 +812,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               </p>
             </div>
           )}
-        </div>
-      )}
-    </SectionCard>
+    </div>
   );
 }
