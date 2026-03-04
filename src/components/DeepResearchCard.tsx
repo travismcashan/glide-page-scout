@@ -606,10 +606,12 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
             </div>
           )}
 
-          {starting && steps.length === 0 && (
+          {isWorking && steps.length === 0 && !report && (
             <div className="flex items-center gap-2 py-4">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">Starting Deep Research…</span>
+              <span className="text-sm text-muted-foreground">
+                {starting ? 'Starting Deep Research…' : 'Deep Research is running… waiting for first updates.'}
+              </span>
             </div>
           )}
         </div>
