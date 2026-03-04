@@ -351,3 +351,34 @@ export const schemaApi = {
     return data;
   },
 };
+
+export const readableApi = {
+  async score(url: string): Promise<{
+    success: boolean;
+    readabilityScore?: number | null;
+    gradeLevel?: number | string | null;
+    rating?: string | null;
+    fleschKincaid?: number | null;
+    fleschReadingEase?: number | null;
+    gunningFog?: number | null;
+    colemanLiau?: number | null;
+    ari?: number | null;
+    smog?: number | null;
+    daleChall?: number | null;
+    spacheScore?: number | null;
+    linsearWrite?: number | null;
+    wordCount?: number | null;
+    sentenceCount?: number | null;
+    syllableCount?: number | null;
+    avgWordsPerSentence?: number | null;
+    avgSyllablesPerWord?: number | null;
+    keywordDensity?: any;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('readable-score', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
