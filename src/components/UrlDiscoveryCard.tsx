@@ -15,6 +15,7 @@ type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
   linkCheckResults?: LinkCheckResult[] | null;
+  collapsed?: boolean;
 };
 
 function statusBadgeClass(code: number): string {
@@ -24,7 +25,7 @@ function statusBadgeClass(code: number): string {
   return 'bg-muted text-muted-foreground border-border';
 }
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, collapsed }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -90,6 +91,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults }
 
   return (
     <SectionCard
+      collapsed={collapsed}
       title="Discovered URLs"
       icon={<Globe className="h-5 w-5 text-foreground" />}
       paused={paused}
