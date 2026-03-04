@@ -766,6 +766,7 @@ export default function ResultsPage() {
             baseUrl={session.base_url}
             onUrlsDiscovered={setDiscoveredUrls}
             linkCheckResults={session.linkcheck_data?.results || null}
+            collapsed={allCollapsed}
           />
         )}
 

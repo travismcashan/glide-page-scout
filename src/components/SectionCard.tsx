@@ -21,17 +21,23 @@ type SectionCardProps = {
 
 export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, headerExtra, collapsed: controlledCollapsed, onToggleCollapse }: SectionCardProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
-  const isCollapsed = controlledCollapsed ?? internalCollapsed;
+  const [hasOverride, setHasOverride] = useState(false);
 
+  // When the global toggle changes, reset any local override
   useEffect(() => {
     if (controlledCollapsed !== undefined) {
-      setInternalCollapsed(controlledCollapsed);
+      setHasOverride(false);
     }
   }, [controlledCollapsed]);
+
+  const isCollapsed = hasOverride ? internalCollapsed : (controlledCollapsed ?? internalCollapsed);
 
   const handleToggle = () => {
     if (onToggleCollapse) {
       onToggleCollapse();
+    } else if (controlledCollapsed !== undefined) {
+      setHasOverride(true);
+      setInternalCollapsed(!isCollapsed);
     } else {
       setInternalCollapsed(!internalCollapsed);
     }

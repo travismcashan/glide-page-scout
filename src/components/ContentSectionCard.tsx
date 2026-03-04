@@ -39,7 +39,13 @@ export function ContentSectionCard({
   expandedPages, toggleExpand, generateOutline, generatingOutline, collapsed: controlledCollapsed
 }: Props) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
-  const isCollapsed = controlledCollapsed ?? internalCollapsed;
+  const [hasOverride, setHasOverride] = useState(false);
+
+  useEffect(() => {
+    if (controlledCollapsed !== undefined) setHasOverride(false);
+  }, [controlledCollapsed]);
+
+  const isCollapsed = hasOverride ? internalCollapsed : (controlledCollapsed ?? internalCollapsed);
   const paused = isIntegrationPaused('content');
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -93,7 +99,7 @@ export function ContentSectionCard({
     <Card className="overflow-hidden">
       <div
         className="px-6 py-4 border-b border-border flex items-center gap-3 cursor-pointer select-none hover:bg-muted/30 transition-colors"
-        onClick={() => setInternalCollapsed(!internalCollapsed)}
+        onClick={() => { setHasOverride(true); setInternalCollapsed(!isCollapsed); }}
       >
         <div className="p-2 rounded-lg bg-muted">
           <FileText className="h-5 w-5 text-foreground" />
