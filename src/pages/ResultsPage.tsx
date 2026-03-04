@@ -937,7 +937,7 @@ export default function ResultsPage() {
             sessionId={session.id}
             baseUrl={session.base_url}
             discoveredUrls={discoveredUrls}
-            existingPageUrls={new Set(pages.map(p => p.url))}
+            existingPageUrls={new Set(pages.filter(p => p.raw_content || p.ai_outline).map(p => p.url))}
             onPagesAdded={fetchData}
             expandedPages={expandedPages}
             toggleExpand={toggleExpand}
