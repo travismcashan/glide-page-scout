@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -20,6 +20,7 @@ import { LighthouseAccessibilityCard, extractPsiAccessibility } from '@/componen
 import { WaveCard } from '@/components/WaveCard';
 import { ObservatoryCard } from '@/components/ObservatoryCard';
 import OceanCard from '@/components/OceanCard';
+import SslLabsCard from '@/components/SslLabsCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -52,6 +53,7 @@ type CrawlSession = {
   wave_data: any | null;
   observatory_data: any | null;
   ocean_data: any | null;
+  ssllabs_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -261,7 +263,22 @@ export default function ResultsPage() {
     }).catch((e) => { setOceanFailed(true); setError('ocean', e?.message || 'Ocean.io request failed'); setOceanLoading(false); });
   }, [session, oceanLoading, oceanFailed, fetchData]);
 
-  // Process pending pages
+  // SSL Labs
+  const [ssllabsLoading, setSsllabsLoading] = useState(false);
+  const [ssllabsFailed, setSsllabsFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.ssllabs_data || ssllabsLoading || ssllabsFailed || isIntegrationPaused('ssllabs')) return;
+    setSsllabsLoading(true);
+    ssllabsApi.scan(session.domain).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ ssllabs_data: result } as any).eq('id', session.id);
+        clearError('ssllabs');
+        fetchData();
+      } else { setSsllabsFailed(true); setError('ssllabs', result.error || 'SSL Labs returned an error'); }
+      setSsllabsLoading(false);
+    }).catch((e) => { setSsllabsFailed(true); setError('ssllabs', e?.message || 'SSL Labs request failed'); setSsllabsLoading(false); });
+  }, [session, ssllabsLoading, ssllabsFailed, fetchData]);
+
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
@@ -457,6 +474,11 @@ export default function ResultsPage() {
         {/* ── Mozilla Observatory ── */}
         <SectionCard title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} paused={isIntegrationPaused('observatory')}>
           {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
+        </SectionCard>
+
+        {/* ── SSL Labs ── */}
+        <SectionCard title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} paused={isIntegrationPaused('ssllabs')}>
+          {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
         </SectionCard>
 
         <SectionCard title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} paused={isIntegrationPaused('carbon')}>
