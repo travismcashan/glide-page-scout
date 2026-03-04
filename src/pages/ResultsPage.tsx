@@ -405,20 +405,60 @@ export default function ResultsPage() {
     }).catch((e) => { setReadableFailed(true); setError('readable', e?.message || 'Readable.com request failed'); setReadableLoading(false); });
   }, [session, readableLoading, readableFailed, fetchData]);
 
-  // Yellow Lab Tools
+  // Yellow Lab Tools (client-side polling like SSL Labs)
   const [yellowlabLoading, setYellowlabLoading] = useState(false);
   const [yellowlabFailed, setYellowlabFailed] = useState(false);
+  const yellowlabPollingRef = useRef(false);
   useEffect(() => {
-    if (!session || (session as any).yellowlab_data || yellowlabLoading || yellowlabFailed || isIntegrationPaused('yellowlab')) return;
+    if (!session || (session as any).yellowlab_data || yellowlabLoading || yellowlabFailed || isIntegrationPaused('yellowlab') || yellowlabPollingRef.current) return;
+    yellowlabPollingRef.current = true;
     setYellowlabLoading(true);
-    yellowlabApi.scan(session.base_url).then(async (result) => {
-      if (result.success) {
-        await supabase.from('crawl_sessions').update({ yellowlab_data: { globalScore: result.globalScore, runId: result.runId, categories: result.categories } } as any).eq('id', session.id);
-        clearError('yellowlab');
-        fetchData();
-      } else { setYellowlabFailed(true); setError('yellowlab', result.error || 'Yellow Lab Tools returned an error'); }
-      setYellowlabLoading(false);
-    }).catch((e) => { setYellowlabFailed(true); setError('yellowlab', e?.message || 'Yellow Lab Tools request failed'); setYellowlabLoading(false); });
+
+    (async () => {
+      try {
+        const startResult = await yellowlabApi.start(session.base_url);
+        if (!startResult.success || !startResult.runId) {
+          setYellowlabFailed(true);
+          setError('yellowlab', startResult.error || 'Yellow Lab Tools start failed');
+          setYellowlabLoading(false);
+          return;
+        }
+
+        const runId = startResult.runId;
+        // Poll every 8s, up to 3 minutes
+        const maxPolls = 23;
+        for (let i = 0; i < maxPolls; i++) {
+          await new Promise(r => setTimeout(r, 8000));
+          const pollResult = await yellowlabApi.poll(runId);
+          if (!pollResult.success) {
+            setYellowlabFailed(true);
+            setError('yellowlab', pollResult.error || 'Yellow Lab Tools poll error');
+            setYellowlabLoading(false);
+            return;
+          }
+          if (pollResult.status === 'complete') {
+            await supabase.from('crawl_sessions').update({ yellowlab_data: { globalScore: pollResult.globalScore, runId, categories: pollResult.categories } } as any).eq('id', session.id);
+            clearError('yellowlab');
+            fetchData();
+            setYellowlabLoading(false);
+            return;
+          }
+          if (pollResult.status === 'failed') {
+            setYellowlabFailed(true);
+            setError('yellowlab', 'Yellow Lab Tools run failed');
+            setYellowlabLoading(false);
+            return;
+          }
+        }
+        setYellowlabFailed(true);
+        setError('yellowlab', 'Yellow Lab Tools timed out after 3 minutes');
+        setYellowlabLoading(false);
+      } catch (e: any) {
+        setYellowlabFailed(true);
+        setError('yellowlab', e?.message || 'Yellow Lab Tools request failed');
+        setYellowlabLoading(false);
+      }
+    })();
   }, [session, yellowlabLoading, yellowlabFailed, fetchData]);
 
   // Broken Link Checker
