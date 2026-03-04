@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CardTabs } from '@/components/CardTabs';
 import { useState } from 'react';
 import { ChevronDown, Shield, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Lock, Cookie, FileText, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -270,60 +270,15 @@ export function ObservatoryCard({ data, isLoading }: { data: ObservatoryData | n
   const hasHeaders = data.rawHeaders && Object.keys(data.rawHeaders).length > 0;
 
   return (
-    <Tabs defaultValue="overview" className="w-full">
-      <TabsList className="w-full justify-start h-auto flex-wrap gap-1 bg-transparent p-0 border-b border-border rounded-none pb-2">
-        <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-primary/10 rounded-md px-3 py-1.5">
-          Overview
-        </TabsTrigger>
-        {hasTests && (
-          <TabsTrigger value="tests" className="text-xs data-[state=active]:bg-primary/10 rounded-md px-3 py-1.5">
-            Tests
-          </TabsTrigger>
-        )}
-        {hasCsp && (
-          <TabsTrigger value="csp" className="text-xs data-[state=active]:bg-primary/10 rounded-md px-3 py-1.5">
-            <Lock className="h-3 w-3 mr-1" /> CSP
-          </TabsTrigger>
-        )}
-        {hasCookies && (
-          <TabsTrigger value="cookies" className="text-xs data-[state=active]:bg-primary/10 rounded-md px-3 py-1.5">
-            <Cookie className="h-3 w-3 mr-1" /> Cookies
-          </TabsTrigger>
-        )}
-        {hasHeaders && (
-          <TabsTrigger value="headers" className="text-xs data-[state=active]:bg-primary/10 rounded-md px-3 py-1.5">
-            <FileText className="h-3 w-3 mr-1" /> Headers
-          </TabsTrigger>
-        )}
-      </TabsList>
-
-      <TabsContent value="overview" className="mt-3">
-        <OverviewTab data={data} />
-      </TabsContent>
-
-      {hasTests && (
-        <TabsContent value="tests" className="mt-3">
-          <TestsTab tests={data.tests!} />
-        </TabsContent>
-      )}
-
-      {hasCsp && (
-        <TabsContent value="csp" className="mt-3">
-          <CspTab cspRaw={data.cspRaw!} cspDirectives={data.cspDirectives || null} />
-        </TabsContent>
-      )}
-
-      {hasCookies && (
-        <TabsContent value="cookies" className="mt-3">
-          <CookiesTab cookies={data.cookies!} />
-        </TabsContent>
-      )}
-
-      {hasHeaders && (
-        <TabsContent value="headers" className="mt-3">
-          <HeadersTab headers={data.rawHeaders!} />
-        </TabsContent>
-      )}
-    </Tabs>
+    <CardTabs
+      defaultValue="overview"
+      tabs={[
+        { value: 'overview', label: 'Overview', content: <OverviewTab data={data} /> },
+        { value: 'tests', label: 'Tests', visible: hasTests, content: hasTests ? <TestsTab tests={data.tests!} /> : null },
+        { value: 'csp', label: 'CSP', icon: <Lock className="h-3.5 w-3.5" />, visible: hasCsp, content: hasCsp ? <CspTab cspRaw={data.cspRaw!} cspDirectives={data.cspDirectives || null} /> : null },
+        { value: 'cookies', label: 'Cookies', icon: <Cookie className="h-3.5 w-3.5" />, visible: hasCookies, content: hasCookies ? <CookiesTab cookies={data.cookies!} /> : null },
+        { value: 'headers', label: 'Headers', icon: <FileText className="h-3.5 w-3.5" />, visible: hasHeaders, content: hasHeaders ? <HeadersTab headers={data.rawHeaders!} /> : null },
+      ]}
+    />
   );
 }
