@@ -137,13 +137,15 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   // Keep reportRef in sync
   useEffect(() => { reportRef.current = report; }, [report]);
 
+  const companyName = session.ocean_data?.companyName || session.domain;
+
   useEffect(() => {
     if (!prompt) {
       setPrompt(
-        `Conduct a comprehensive competitive analysis and website audit for ${session.domain}. Include:\n\n1. Executive Summary\n2. Competitive Landscape (identify 3-5 key competitors)\n3. Strengths & Weaknesses analysis\n4. Technology stack comparison with competitors\n5. SEO & Content Strategy assessment\n6. UX/Design recommendations\n7. Actionable improvement roadmap`
+        `Complete the 5C diagnostic for ${companyName}, located at ${session.domain}. This is all in the context of a marketing engagement between ${companyName} and GLIDE®. I want to impress them with my thoughtful, consultative, knowledge of their world and their needs. But more importantly, I want to help them become successful.\n\nMake sure that when you write it, you're not derogatory toward their team. As I'm going to share this document with the client, so it should always be constructive, forward-looking, and exciting, but still authoritative and still willing to say the hard things, just not in a way that makes people feel upset.\n\nThe FIVE C's are:\n\n1. **Climate** — The macro environment: industry trends, regulatory landscape, economic forces, technological shifts, and market dynamics affecting ${companyName}.\n\n2. **Competition** — Identify 3-5 key competitors and analyze their positioning, strengths, digital presence, messaging, and where ${companyName} can differentiate.\n\n3. **Customers** — Who are ${companyName}'s ideal customers? What are their pain points, buying journey, content preferences, and how well does the current website serve them?\n\n4. **Company** — ${companyName}'s brand positioning, value proposition, technology stack, content strategy, SEO health, site performance, and digital maturity.\n\n5. **Culture** — The brand voice, tone, visual identity, team positioning, and how well the digital presence reflects the company's mission and values.\n\nConclude with a strategic roadmap that ties all 5 C's together into actionable next steps.`
       );
     }
-  }, [session.domain]);
+  }, [session.domain, companyName]);
 
   // Auto-scroll steps
   useEffect(() => {
