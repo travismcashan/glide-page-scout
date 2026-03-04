@@ -87,6 +87,7 @@ export type Database = {
           observatory_data: Json | null
           ocean_data: Json | null
           psi_data: Json | null
+          schema_data: Json | null
           semrush_data: Json | null
           ssllabs_data: Json | null
           status: string
@@ -111,6 +112,7 @@ export type Database = {
           observatory_data?: Json | null
           ocean_data?: Json | null
           psi_data?: Json | null
+          schema_data?: Json | null
           semrush_data?: Json | null
           ssllabs_data?: Json | null
           status?: string
@@ -135,6 +137,7 @@ export type Database = {
           observatory_data?: Json | null
           ocean_data?: Json | null
           psi_data?: Json | null
+          schema_data?: Json | null
           semrush_data?: Json | null
           ssllabs_data?: Json | null
           status?: string

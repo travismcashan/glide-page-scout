@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -24,6 +24,7 @@ import SslLabsCard from '@/components/SslLabsCard';
 import { HttpStatusCard } from '@/components/HttpStatusCard';
 import { BrokenLinksCard } from '@/components/BrokenLinksCard';
 import { W3CCard } from '@/components/W3CCard';
+import { SchemaCard } from '@/components/SchemaCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -60,6 +61,7 @@ type CrawlSession = {
   httpstatus_data: any | null;
   linkcheck_data: any | null;
   w3c_data: any | null;
+  schema_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -367,6 +369,22 @@ export default function ResultsPage() {
     }).catch((e) => { setW3cFailed(true); setError('w3c', e?.message || 'W3C validation request failed'); setW3cLoading(false); });
   }, [session, w3cLoading, w3cFailed, fetchData]);
 
+  // Schema.org / Rich Results
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [schemaFailed, setSchemaFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.schema_data || schemaLoading || schemaFailed || isIntegrationPaused('schema')) return;
+    setSchemaLoading(true);
+    schemaApi.validate(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ schema_data: result } as any).eq('id', session.id);
+        clearError('schema');
+        fetchData();
+      } else { setSchemaFailed(true); setError('schema', result.error || 'Schema validation failed'); }
+      setSchemaLoading(false);
+    }).catch((e) => { setSchemaFailed(true); setError('schema', e?.message || 'Schema validation request failed'); setSchemaLoading(false); });
+  }, [session, schemaLoading, schemaFailed, fetchData]);
+
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
@@ -624,6 +642,13 @@ export default function ResultsPage() {
         {!isIntegrationPaused('w3c') && (
         <SectionCard title="W3C — HTML & CSS Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c}>
           {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
+        </SectionCard>
+        )}
+
+        {/* ── Schema.org / Rich Results ── */}
+        {!isIntegrationPaused('schema') && (
+        <SectionCard title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema}>
+          {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
         </SectionCard>
         )}
 
