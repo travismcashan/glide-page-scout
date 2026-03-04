@@ -18,6 +18,7 @@ Deno.serve(async (req) => {
       const statusRes = await fetch(`${YLT_API}/runs/${runId}`);
       if (!statusRes.ok) {
         const errText = await statusRes.text();
+        console.error('YLT status check failed:', statusRes.status, errText);
         return new Response(JSON.stringify({ success: false, error: `YLT status check failed: ${statusRes.status}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -47,7 +48,9 @@ Deno.serve(async (req) => {
       }
 
       if (statusCode === 'failed') {
-        return new Response(JSON.stringify({ success: true, status: 'failed', runId }), {
+        const errorMessage = statusData.status?.error || statusData.status?.statusMessage || 'Yellow Lab Tools could not analyze this page';
+        console.error('YLT run failed:', JSON.stringify(statusData.status));
+        return new Response(JSON.stringify({ success: true, status: 'failed', runId, error: errorMessage }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
