@@ -39,7 +39,18 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    const rawText = await response.text();
+
+    if (!contentType.includes('application/json')) {
+      console.error('Ocean.io returned non-JSON:', response.status, rawText.substring(0, 300));
+      return new Response(
+        JSON.stringify({ success: false, error: `Ocean.io returned an unexpected response (${response.status}). The API may be temporarily unavailable.` }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data = JSON.parse(rawText);
 
     if (!response.ok) {
       console.error('Ocean.io API error:', response.status, data);
