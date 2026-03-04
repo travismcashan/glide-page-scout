@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN httpstatus_data jsonb DEFAULT NULL;

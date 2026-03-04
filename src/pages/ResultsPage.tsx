@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -21,6 +21,7 @@ import { WaveCard } from '@/components/WaveCard';
 import { ObservatoryCard } from '@/components/ObservatoryCard';
 import OceanCard from '@/components/OceanCard';
 import SslLabsCard from '@/components/SslLabsCard';
+import { HttpStatusCard } from '@/components/HttpStatusCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -54,6 +55,7 @@ type CrawlSession = {
   observatory_data: any | null;
   ocean_data: any | null;
   ssllabs_data: any | null;
+  httpstatus_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -279,6 +281,22 @@ export default function ResultsPage() {
     }).catch((e) => { setSsllabsFailed(true); setError('ssllabs', e?.message || 'SSL Labs request failed'); setSsllabsLoading(false); });
   }, [session, ssllabsLoading, ssllabsFailed, fetchData]);
 
+  // httpstatus.io
+  const [httpstatusLoading, setHttpstatusLoading] = useState(false);
+  const [httpstatusFailed, setHttpstatusFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.httpstatus_data || httpstatusLoading || httpstatusFailed || isIntegrationPaused('httpstatus')) return;
+    setHttpstatusLoading(true);
+    httpstatusApi.check(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ httpstatus_data: result } as any).eq('id', session.id);
+        clearError('httpstatus');
+        fetchData();
+      } else { setHttpstatusFailed(true); setError('httpstatus', result.error || 'httpstatus.io returned an error'); }
+      setHttpstatusLoading(false);
+    }).catch((e) => { setHttpstatusFailed(true); setError('httpstatus', e?.message || 'httpstatus.io request failed'); setHttpstatusLoading(false); });
+  }, [session, httpstatusLoading, httpstatusFailed, fetchData]);
+
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
@@ -496,6 +514,13 @@ export default function ResultsPage() {
         {!isIntegrationPaused('ssllabs') && (
         <SectionCard title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs}>
           {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
+        </SectionCard>
+        )}
+
+        {/* ── httpstatus.io ── */}
+        {!isIntegrationPaused('httpstatus') && (
+        <SectionCard title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus}>
+          {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
         </SectionCard>
         )}
 

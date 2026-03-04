@@ -265,3 +265,23 @@ export const ssllabsApi = {
     return data;
   },
 };
+
+export const httpstatusApi = {
+  async check(url: string): Promise<{
+    success: boolean;
+    requestUrl?: string;
+    finalUrl?: string;
+    finalStatusCode?: number;
+    redirectCount?: number;
+    hops?: any[];
+    metadata?: any;
+    parsedUrl?: any;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('httpstatus-check', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
