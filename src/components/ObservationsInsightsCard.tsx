@@ -1,4 +1,4 @@
-import { useState, useRef, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { toast } from 'sonner';
 import { Lightbulb, Loader2, Upload, X, FileText, Play, RefreshCw } from 'lucide-react';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -31,6 +32,7 @@ type SessionData = {
   yellowlab_data?: any;
   gtmetrix_grade?: string | null;
   gtmetrix_scores?: any;
+  observations_data?: any;
 };
 
 type Props = {
@@ -40,13 +42,13 @@ type Props = {
 
 function buildCrawlContext(session: SessionData, pages?: Props['pages']): string {
   const sections: string[] = [];
-  sections.push(`# Website Audit Data: ${session.domain}\nURL: ${session.base_url}\n`);
-  sections.push(`IMPORTANT: The data below comes from specific named integration tools. When referencing findings, always cite the integration by name (e.g. "According to the SEMrush Domain Analysis…", "The WAVE Accessibility Scan found…", "GTmetrix Performance Report shows…"). Treat each section as a distinct, authoritative source.\n`);
+  sections.push(`# Website Audit Data: ${session.domain}\r\nURL: ${session.base_url}\r\n`);
+  sections.push(`IMPORTANT: The data below comes from specific named integration tools. When referencing findings, always cite the integration by name (e.g. "According to the SEMrush Domain Analysis…", "The WAVE Accessibility Scan found…", "GTmetrix Performance Report shows…"). Treat each section as a distinct, authoritative source.\r\n`);
 
   const add = (label: string, data: any) => {
     if (!data) return;
     try {
-      sections.push(`## [Source: ${label}]\nData from the "${label}" integration report:\n\`\`\`json\n${JSON.stringify(data, null, 1)}\n\`\`\``);
+      sections.push(`## [Source: ${label}]\r\nData from the "${label}" integration report:\r\n\`\`\`json\r\n${JSON.stringify(data, null, 1)}\r\n\`\`\``);
     } catch { /* skip */ }
   };
 
@@ -72,9 +74,9 @@ function buildCrawlContext(session: SessionData, pages?: Props['pages']): string
   }
 
   if (pages?.length) {
-    const pageSection: string[] = ['## [Source: Scraped Page Content]\nContent scraped directly from the website pages:\n'];
+    const pageSection: string[] = ['## [Source: Scraped Page Content]\r\nContent scraped directly from the website pages:\r\n'];
     for (const p of pages) {
-      pageSection.push(`### ${p.title || p.url}\nURL: ${p.url}`);
+      pageSection.push(`### ${p.title || p.url}\r\nURL: ${p.url}`);
       if (p.ai_outline) {
         pageSection.push(p.ai_outline);
       } else if (p.raw_content) {
@@ -82,16 +84,16 @@ function buildCrawlContext(session: SessionData, pages?: Props['pages']): string
       }
       pageSection.push('');
     }
-    sections.push(pageSection.join('\n'));
+    sections.push(pageSection.join('\r\n'));
   }
 
-  return sections.join('\n\n');
+  return sections.join('\r\n\r\n');
 }
 
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/observations-insights`;
 
 export function ObservationsInsightsCard({ session, pages }: Props) {
-  const defaultPrompt = `Review Company (${session.domain}) as it relates to all the documents, transcripts, URLs, site scrape data, and research provided, and give me:\n\n30 observations\n20 insights\n10 recommendations\n5 strategies\n3 keys to success\n1 north star`;
+  const defaultPrompt = `Review Company (${session.domain}) as it relates to all the documents, transcripts, URLs, site scrape data, and research provided, and give me:\r\n\r\n30 observations\r\n20 insights\r\n10 recommendations\r\n5 strategies\r\n3 keys to success\r\n1 north star`;
 
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [documents, setDocuments] = useState<AttachedDoc[]>([]);
@@ -100,6 +102,35 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
   const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
   const [submittedDocs, setSubmittedDocs] = useState<AttachedDoc[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load persisted results from database on mount
+  useEffect(() => {
+    if (session.observations_data) {
+      const data = session.observations_data;
+      if (data.result) setResult(data.result);
+      if (data.prompt) setSubmittedPrompt(data.prompt);
+      if (data.documents) setSubmittedDocs(data.documents.map((d: any) => ({ name: d.name, content: '' })));
+    }
+  }, [session.id]);
+
+  // Save results to database
+  const saveToDatabase = useCallback(async (finalResult: string, finalPrompt: string | null, finalDocs: AttachedDoc[]) => {
+    try {
+      const payload = {
+        result: finalResult,
+        prompt: finalPrompt,
+        documents: finalDocs.map(d => ({ name: d.name })),
+        updated_at: new Date().toISOString(),
+      };
+      await supabase
+        .from('crawl_sessions')
+        .update({ observations_data: payload as any })
+        .eq('id', session.id);
+      console.log('Observations & Insights results saved to database');
+    } catch (e) {
+      console.error('Failed to save Observations & Insights results:', e);
+    }
+  }, [session.id]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -150,6 +181,8 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
       const data = await response.json();
       if (data.success && data.result) {
         setResult(data.result);
+        // Save to database
+        await saveToDatabase(data.result, prompt.trim(), documents);
         toast.success('Analysis complete!');
       } else {
         toast.error(data.error || 'No result returned');
