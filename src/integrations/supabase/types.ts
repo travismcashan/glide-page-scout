@@ -77,6 +77,7 @@ export type Database = {
           carbon_data: Json | null
           created_at: string
           crux_data: Json | null
+          deep_research_data: Json | null
           domain: string
           gtmetrix_grade: string | null
           gtmetrix_scores: Json | null
@@ -84,6 +85,7 @@ export type Database = {
           httpstatus_data: Json | null
           id: string
           linkcheck_data: Json | null
+          observations_data: Json | null
           observatory_data: Json | null
           ocean_data: Json | null
           psi_data: Json | null
@@ -104,6 +106,7 @@ export type Database = {
           carbon_data?: Json | null
           created_at?: string
           crux_data?: Json | null
+          deep_research_data?: Json | null
           domain: string
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
@@ -111,6 +114,7 @@ export type Database = {
           httpstatus_data?: Json | null
           id?: string
           linkcheck_data?: Json | null
+          observations_data?: Json | null
           observatory_data?: Json | null
           ocean_data?: Json | null
           psi_data?: Json | null
@@ -131,6 +135,7 @@ export type Database = {
           carbon_data?: Json | null
           created_at?: string
           crux_data?: Json | null
+          deep_research_data?: Json | null
           domain?: string
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
@@ -138,6 +143,7 @@ export type Database = {
           httpstatus_data?: Json | null
           id?: string
           linkcheck_data?: Json | null
+          observations_data?: Json | null
           observatory_data?: Json | null
           ocean_data?: Json | null
           psi_data?: Json | null

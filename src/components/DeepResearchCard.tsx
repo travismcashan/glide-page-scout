@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { loadDefaultDocs } from '@/lib/defaultResearchDocs';
+import { supabase } from '@/integrations/supabase/client';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -39,6 +40,7 @@ type SessionData = {
   yellowlab_data?: any;
   gtmetrix_grade?: string | null;
   gtmetrix_scores?: any;
+  deep_research_data?: any;
 };
 
 type Props = {
@@ -140,6 +142,37 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
 
   const companyName = session.ocean_data?.companyName || session.domain;
 
+  // Load persisted results from database on mount
+  useEffect(() => {
+    if (session.deep_research_data) {
+      const data = session.deep_research_data;
+      if (data.report) setReport(data.report);
+      if (data.sources) setSources(data.sources);
+      if (data.prompt) setSubmittedPrompt(data.prompt);
+      if (data.documents) setSubmittedDocs(data.documents.map((d: any) => ({ name: d.name, content: '' })));
+    }
+  }, [session.id]);
+
+  // Save results to database when report is finalized
+  const saveToDatabase = useCallback(async (finalReport: string, finalSources: string[], finalPrompt: string | null, finalDocs: AttachedDoc[]) => {
+    try {
+      const payload = {
+        report: finalReport,
+        sources: finalSources,
+        prompt: finalPrompt,
+        documents: finalDocs.map(d => ({ name: d.name })),
+        updated_at: new Date().toISOString(),
+      };
+      await supabase
+        .from('crawl_sessions')
+        .update({ deep_research_data: payload as any })
+        .eq('id', session.id);
+      console.log('Deep Research results saved to database');
+    } catch (e) {
+      console.error('Failed to save Deep Research results:', e);
+    }
+  }, [session.id]);
+
   useEffect(() => {
     if (!prompt) {
       setPrompt(
@@ -153,7 +186,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     loadDefaultDocs().then(docs => {
       if (docs.length > 0) {
         setDocuments(prev => {
-          // Only add if no docs loaded yet (avoid duplicating on re-render)
           if (prev.length > 0) return prev;
           return docs;
         });
@@ -200,13 +232,11 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         const line = buffer.slice(0, newlineIdx).replace(/\r$/, '');
         buffer = buffer.slice(newlineIdx + 1);
 
-        // SSE event type line
         if (line.startsWith('event: ')) {
           sseEventType = line.slice(7).trim();
           continue;
         }
 
-        // SSE data line
         if (line.startsWith('data: ')) {
           const jsonStr = line.slice(6).trim();
           if (!jsonStr || jsonStr === '[DONE]') continue;
@@ -214,13 +244,10 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           try {
             const parsed = JSON.parse(jsonStr);
 
-            // Track event_id for resume
             if (parsed.event_id) {
               lastEventIdRef.current = parsed.event_id;
             }
 
-            // Handle Gemini Deep Research SSE format:
-            // event: content.delta with delta.type === "thought_summary"
             if (sseEventType === 'content.delta' || parsed.event_type === 'content.delta') {
               const delta = parsed.delta || parsed;
               const deltaType = delta?.type;
@@ -229,7 +256,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               if (deltaType === 'thought_summary' && content?.text) {
                 const text = content.text.trim();
                 if (text) {
-                  // Split on double newlines to get individual thinking steps
                   const chunks = text.split(/\n\n+/).filter(Boolean);
                   for (const chunk of chunks) {
                     const cleanText = chunk.replace(/^\*\*.*?\*\*\n+/, '').trim() || chunk.trim();
@@ -245,7 +271,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                       });
                     }
                   }
-                  // Extract URLs as sources
                   const urlMatches = text.match(/https?:\/\/[^\s)>\]"']+/g);
                   if (urlMatches) {
                     setSources(prev => {
@@ -256,12 +281,10 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                   }
                 }
               } else if (deltaType === 'text' || (content?.type === 'text' && !delta?.type)) {
-                // Report text content
                 const text = content?.text || delta?.text || '';
                 if (text) reportParts.push(text);
               }
 
-              // Check for annotations (sources in report)
               const annotations = delta?.annotations || content?.annotations || parsed.annotations;
               if (annotations && Array.isArray(annotations)) {
                 for (const ann of annotations) {
@@ -276,9 +299,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               }
             }
 
-            // content.start — new content block beginning
             if (sseEventType === 'content.start' || parsed.event_type === 'content.start') {
-              // If the previous block accumulated report text, flush it
               if (reportParts.length > 0) {
                 const accumulated = reportParts.join('');
                 if (accumulated.trim()) setReport(prev => (prev || '') + accumulated);
@@ -286,7 +307,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               }
             }
 
-            // content.stop — content block finished
             if (sseEventType === 'content.stop' || parsed.event_type === 'content.stop') {
               if (reportParts.length > 0) {
                 const accumulated = reportParts.join('');
@@ -295,7 +315,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               }
             }
 
-            // Legacy format support: interaction.* events
             if (sseEventType === 'interaction.start' || parsed.name) {
               const id = parsed.name || parsed.id;
               if (id) setInteractionId(id);
@@ -312,7 +331,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               }
             }
 
-            // Completion signals
             if (sseEventType === 'interaction.complete' || parsed.state === 'completed' || parsed.state === 'COMPLETED') {
               const finalParts = parsed.output?.parts || parsed.candidates?.[0]?.content?.parts || [];
               if (finalParts.length > 0) {
@@ -348,7 +366,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       setStreaming(false);
       toast.success('Deep Research report ready!');
     }
-    // Don't set streaming=false here if not completed — let the caller handle fallback
   }, []);
 
   const connectToStream = useCallback(async (iId: string, lastEvt?: string | null) => {
@@ -371,7 +388,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         console.error('Stream connect failed:', errData);
-        // Fall back to polling
         setStreaming(false);
         return false;
       }
@@ -391,7 +407,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   }, [processSSEStream]);
 
   const pollForResults = useCallback(async (iId: string) => {
-    // If report was already set by the stream, skip polling
     if (reportRef.current) {
       setStreaming(false);
       toast.success('Deep Research report ready!');
@@ -399,9 +414,8 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     }
     setStreaming(true);
     let attempts = 0;
-    const maxAttempts = 120; // ~10 minutes at 5s intervals
+    const maxAttempts = 120;
     while (attempts < maxAttempts) {
-      // Check if report was set while we were polling
       if (reportRef.current) {
         setStreaming(false);
         toast.success('Deep Research report ready!');
@@ -427,10 +441,8 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         const data = await response.json();
         const state = data.status || data.state || '';
 
-        // Extract thinking steps from outputs array (Gemini format)
         const outputs = data.outputs || [];
         for (const output of outputs) {
-          // Thinking summaries
           if (output.type === 'thought' && output.summary) {
             for (const item of output.summary) {
               if (item.text) {
@@ -449,11 +461,8 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
               }
             }
           }
-          // Report text with annotations
           if (output.annotations && output.text) {
-            // This is the final report
             setReport(output.text);
-            // Extract source URLs from annotations
             if (Array.isArray(output.annotations)) {
               setSources(prev => {
                 const next = new Set(prev);
@@ -466,7 +475,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           }
         }
 
-        // Also check legacy format
         if (data.output?.parts) {
           for (const part of data.output.parts) {
             if (part.thought && part.text) {
@@ -485,7 +493,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         }
 
         if (state === 'completed' || state === 'COMPLETED') {
-          // Extract final report from legacy format if not already set
           const parts = data.output?.parts || [];
           const reportText = parts.filter((p: any) => !p.thought).map((p: any) => p.text || '').join('\n');
           if (reportText) setReport(prev => prev || reportText);
@@ -500,8 +507,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           return;
         }
 
-        // Still in progress — show a gentle indicator only if we have no steps yet
-        if (attempts % 6 === 0) { // Every 30s
+        if (attempts % 6 === 0) {
           setSteps(prev => {
             const lastText = prev[prev.length - 1]?.text;
             if (lastText === 'Still researching…') return prev;
@@ -537,7 +543,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     try {
       const crawlContext = buildCrawlContext(session, pages);
 
-      // Step 1: Start the background task and get interaction ID
       const response = await fetch(FUNC_URL, {
         method: 'POST',
         headers: {
@@ -574,21 +579,13 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       setStarting(false);
       setStreaming(true);
 
-      // Step 2: Try SSE stream first, then fall back to polling
       const streamWorked = await connectToStream(iId);
 
-      // Step 3: If stream failed to connect OR ended without producing a report, poll
-      // We check the ref-based report state indirectly — the stream sets streaming=false on completion
-      // If we reach here and streaming was set to false without a report, we need to poll
       if (!streamWorked) {
         console.log('SSE stream unavailable, falling back to polling');
         await pollForResults(iId);
       } else {
-        // Stream connected but may have ended without completion (edge function timeout)
-        // Check if we need to continue with polling
-        // Use a small delay to let state settle, then poll if no report
         await new Promise(r => setTimeout(r, 1000));
-        // pollForResults will check current status and extract report if ready
         console.log('Stream ended, checking status via polling...');
         await pollForResults(iId);
       }
@@ -600,6 +597,16 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       setStreaming(false);
     }
   };
+
+  // Save to DB when report is finalized (streaming done + report exists)
+  useEffect(() => {
+    if (report && !streaming && !starting && submittedPrompt) {
+      // Only save if this is a fresh result (not loaded from DB)
+      if (!session.deep_research_data?.report || session.deep_research_data.report !== report) {
+        saveToDatabase(report, sources, submittedPrompt, submittedDocs);
+      }
+    }
+  }, [report, streaming, starting]);
 
   const resumeStream = useCallback(async () => {
     if (!interactionId) return;
@@ -689,7 +696,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           ) : isWorking || steps.length > 0 ? (
             /* ── Live Progress ── */
             <div className="space-y-4">
-              {/* Thinking steps log */}
               {steps.length > 0 && (
                 <ScrollArea className="h-[300px] rounded-lg border border-border bg-muted/30 p-3">
                   <div className="space-y-2">
@@ -723,7 +729,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                 </ScrollArea>
               )}
 
-              {/* Sources found so far */}
               {(() => {
                 const filtered = sources.filter(u => !u.includes('vertexaisearch.cloud.google.com'));
                 return filtered.length > 0 ? (
@@ -746,7 +751,6 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                 ) : null;
               })()}
 
-              {/* Report building up in real-time */}
               {report && (
                 <div className="border-t border-border pt-4">
                   <p className="text-xs font-medium text-muted-foreground mb-2">Report (writing…)</p>
