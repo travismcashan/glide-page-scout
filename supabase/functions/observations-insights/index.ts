@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-3-pro-preview',
         messages: [
           {
             role: 'system',
@@ -80,7 +80,8 @@ Define the single most important guiding principle or metric this company should
 ${contextBlock}`,
           },
         ],
-        max_tokens: 8000,
+        max_tokens: 16000,
+        reasoning_effort: 'high',
       }),
     });
 
