@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { loadDefaultDocs } from '@/lib/defaultResearchDocs';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -146,6 +147,19 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       );
     }
   }, [session.domain, companyName]);
+
+  // Pre-load default framework documents
+  useEffect(() => {
+    loadDefaultDocs().then(docs => {
+      if (docs.length > 0) {
+        setDocuments(prev => {
+          // Only add if no docs loaded yet (avoid duplicating on re-render)
+          if (prev.length > 0) return prev;
+          return docs;
+        });
+      }
+    });
+  }, []);
 
   // Auto-scroll steps
   useEffect(() => {
