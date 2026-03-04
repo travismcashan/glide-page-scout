@@ -44,60 +44,90 @@ Deno.serve(async (req) => {
         'API_REQUEST_TIME': timestamp,
         'API_SIGNATURE': signature,
       },
-      body: new URLSearchParams({ url }),
+      body: new URLSearchParams({ url, extract: 'true' }),
     });
 
-    const data = await response.json();
+    const d = await response.json();
 
-    if (data.result === 'error') {
-      console.error('Readable API error:', data.messages);
-      return new Response(JSON.stringify({ success: false, error: data.messages?.join('; ') || 'Readable API error' }), {
+    if (d.result === 'error') {
+      console.error('Readable API error:', d.messages);
+      return new Response(JSON.stringify({ success: false, error: d.messages?.join('; ') || 'Readable API error' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (data.result !== 'success' && data.result !== 'pass') {
-      return new Response(JSON.stringify({ success: false, error: `Unexpected result: ${data.result}` }), {
+    if (d.result !== 'success') {
+      return new Response(JSON.stringify({ success: false, error: `Unexpected result: ${d.result}` }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const s = data.scoring || data;
-
+    // Map exact API field names to our result
     const result = {
       success: true,
-      url: data.url || url,
-      // Composite score
-      readabilityScore: s.readabilityScore ?? s.readability_score ?? null,
-      gradeLevel: s.gradeLevel ?? s.grade_level ?? null,
-      rating: s.rating ?? null,
-      // Individual formulas
-      fleschKincaid: s.fleschKincaid ?? s.flesch_kincaid ?? null,
-      fleschReadingEase: s.fleschReadingEase ?? s.flesch_reading_ease ?? null,
-      gunningFog: s.gunningFog ?? s.gunning_fog ?? null,
-      colemanLiau: s.colemanLiau ?? s.coleman_liau ?? null,
-      ari: s.ari ?? s.automated_readability_index ?? null,
-      smog: s.smog ?? null,
-      daleChall: s.daleChall ?? s.dale_chall ?? null,
-      spacheScore: s.spache ?? s.spache_score ?? null,
-      linsearWrite: s.linsearWrite ?? s.linsear_write ?? null,
-      // Text statistics
-      wordCount: s.wordCount ?? s.word_count ?? null,
-      sentenceCount: s.sentenceCount ?? s.sentence_count ?? null,
-      syllableCount: s.syllableCount ?? s.syllable_count ?? null,
-      avgWordsPerSentence: s.avgWordsPerSentence ?? s.average_words_per_sentence ?? null,
-      avgSyllablesPerWord: s.avgSyllablesPerWord ?? s.average_syllables_per_word ?? null,
+      url,
+      // Rating & scores
+      rating: d.rating ?? null,
+      reach: d.reach ?? null,
+      reachPublic: d.reach_public ?? null,
+      averageGradeLevel: d.average_grade_level ?? null,
+      cefrLevel: d.cefr_level ?? null,
+      ieltsLevel: d.ielts_level ?? null,
+      // Readability formulas
+      fleschReadingEase: d.flesch_reading_ease ?? d.flesch_kincaid_reading_ease ?? null,
+      fleschKincaidGradeLevel: d.flesch_kincaid_grade_level ?? null,
+      gunningFogScore: d.gunning_fog_score ?? null,
+      colemanLiauIndex: d.coleman_liau_index ?? null,
+      automatedReadabilityIndex: d.automated_readability_index ?? null,
+      smogIndex: d.smog_index ?? null,
+      daleChallScore: d.dale_chall_readability_score ?? null,
+      spacheScore: d.spache_readability_score ?? null,
+      forcastGrade: d.forcast_grade ?? null,
+      lixScore: d.lix_score ?? null,
+      rixScore: d.rix_score ?? null,
+      lensearWrite: d.lensear_write ?? null,
+      fryGrade: d.fry_grade ?? null,
+      raygorGrade: d.raygor_grade ?? null,
+      powersSumnerKearlScore: d.powers_sumner_kearl_score ?? null,
+      // Basic statistics
+      wordCount: d.word_count ?? null,
+      sentenceCount: d.sentence_count ?? null,
+      paragraphCount: d.paragraph_count ?? null,
+      syllableCount: d.syllable_count ?? null,
+      letterCount: d.letter_count ?? null,
+      uniqueWordCount: d.unique_word_count ?? null,
+      wordsPerSentence: d.words_per_sentence ?? null,
+      syllablesPerWord: d.syllables_per_word ?? null,
+      lettersPerWord: d.letters_per_word ?? null,
+      sentencesPerParagraph: d.sentences_per_paragraph ?? null,
+      readingTime: d.reading_time ?? null,
+      speakingTime: d.speaking_time ?? null,
+      // Tone & sentiment
+      sentiment: d.sentiment ?? null,
+      sentimentNumber: d.sentiment_number ?? null,
+      tone: d.tone ?? null,
+      toneNumber: d.tone_number ?? null,
+      personal: d.personal ?? null,
+      personalNumber: d.personal_number ?? null,
+      gender: d.gender ?? null,
+      genderNumber: d.gender_number ?? null,
+      // Composition
+      compositionNouns: d.composition_noun_count ?? null,
+      compositionVerbs: d.composition_verb_count ?? null,
+      compositionAdjectives: d.composition_adjective_count ?? null,
+      compositionAdverbs: d.composition_adverb_count ?? null,
+      compositionPronouns: d.composition_pronoun_count ?? null,
+      compositionPrepositions: d.composition_preposition_count ?? null,
+      compositionConjunctions: d.composition_conjunction_count ?? null,
       // Keyword density
-      keywordDensity: s.keywordDensity ?? s.keyword_density ?? null,
+      keywordDensity: d.keyword_density ?? null,
       // Score ID for highlights
-      scoreId: data.score_id ?? data.scoreId ?? null,
-      // Raw data for debugging
-      raw: data,
+      scoreId: d.score_id ?? null,
     };
 
-    console.log('Readable scoring complete');
+    console.log('Readable scoring complete, rating:', result.rating);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
