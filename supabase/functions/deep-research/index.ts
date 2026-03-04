@@ -22,50 +22,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action = 'start' } = body;
 
-    // ── POLL (non-streaming fallback) ──
-    if (action === 'poll') {
-      const { interactionId } = body;
-      if (!interactionId) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'interactionId is required for polling' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const pollRes = await fetch(
-        `${GEMINI_API_BASE}/interactions/${interactionId}`,
-        { headers: { 'x-goog-api-key': apiKey } }
-      );
-
-      if (!pollRes.ok) {
-        const errText = await pollRes.text();
-        console.error('Gemini poll error:', pollRes.status, errText);
-        return new Response(
-          JSON.stringify({ success: false, error: `Poll failed (${pollRes.status})` }),
-          { status: pollRes.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const pollData = await pollRes.json();
-      const state = pollData.state || 'unknown';
-      let report: string | null = null;
-
-      if (state === 'completed' || state === 'COMPLETED') {
-        const outputParts = pollData.output?.parts || pollData.output?.content?.parts || [];
-        report = outputParts.map((p: any) => p.text || '').join('\n');
-        if (!report && pollData.output?.text) report = pollData.output.text;
-        if (!report && pollData.candidates?.[0]?.content?.parts) {
-          report = pollData.candidates[0].content.parts.map((p: any) => p.text || '').join('\n');
-        }
-      }
-
-      return new Response(
-        JSON.stringify({ success: true, state, report, raw: pollData }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // ── RESUME stream ──
+    // ── RESUME: reconnect to an existing stream ──
     if (action === 'resume') {
       const { interactionId, lastEventId } = body;
       if (!interactionId) {
@@ -80,6 +37,8 @@ Deno.serve(async (req) => {
         resumeUrl += `&last_event_id=${encodeURIComponent(lastEventId)}`;
       }
 
+      console.log('Resuming stream for:', interactionId);
+
       const resumeRes = await fetch(resumeUrl, {
         headers: { 'x-goog-api-key': apiKey },
       });
@@ -88,23 +47,21 @@ Deno.serve(async (req) => {
         const errText = await resumeRes.text();
         console.error('Resume error:', resumeRes.status, errText);
         return new Response(
-          JSON.stringify({ success: false, error: `Resume failed (${resumeRes.status})` }),
+          JSON.stringify({ success: false, error: `Resume failed (${resumeRes.status}): ${errText}` }),
           { status: resumeRes.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Proxy the SSE stream
       return new Response(resumeRes.body, {
         headers: {
           ...corsHeaders,
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
         },
       });
     }
 
-    // ── START with streaming ──
+    // ── START: kick off a new streaming research task ──
     const { prompt, crawlContext, documents } = body;
 
     if (!prompt) {
@@ -114,7 +71,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build multimodal input
+    // Build input
     const inputParts: any[] = [];
     let fullPrompt = prompt;
     if (crawlContext) {
@@ -135,26 +92,23 @@ Deno.serve(async (req) => {
 
     console.log('Starting Gemini Deep Research (streaming):', prompt.substring(0, 100));
 
-    const startRes = await fetch(
-      `${GEMINI_API_BASE}/interactions?alt=sse`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
+    const startRes = await fetch(`${GEMINI_API_BASE}/interactions?alt=sse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        input: inputParts.length === 1 ? inputParts[0].text : inputParts,
+        agent: 'deep-research-pro-preview-12-2025',
+        background: true,
+        stream: true,
+        agent_config: {
+          type: 'deep-research',
+          thinking_summaries: 'auto',
         },
-        body: JSON.stringify({
-          input: inputParts.length === 1 ? inputParts[0].text : inputParts,
-          agent: 'deep-research-pro-preview-12-2025',
-          background: true,
-          stream: true,
-          agent_config: {
-            type: 'deep-research',
-            thinking_summaries: 'auto',
-          },
-        }),
-      }
-    );
+      }),
+    });
 
     if (!startRes.ok) {
       const errText = await startRes.text();
@@ -171,7 +125,6 @@ Deno.serve(async (req) => {
         ...corsHeaders,
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
       },
     });
   } catch (error) {
