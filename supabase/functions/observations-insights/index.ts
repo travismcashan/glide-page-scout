@@ -30,12 +30,12 @@ Deno.serve(async (req) => {
 
     let contextBlock = '';
     if (crawlContext) {
-      contextBlock += `\n\n---\n\nHere is all the data gathered about the website:\n\n${crawlContext.substring(0, 80000)}`;
+      contextBlock += `\n\n---\n\nHere is all the data gathered about the website:\n\n${crawlContext}`;
     }
     if (documents && Array.isArray(documents)) {
       for (const doc of documents) {
         if (doc.content) {
-          contextBlock += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${doc.content.substring(0, 30000)}`;
+          contextBlock += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${doc.content}`;
         }
       }
     }
