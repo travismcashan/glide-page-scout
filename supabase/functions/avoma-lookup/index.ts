@@ -5,6 +5,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Convert Avoma transcript format to our sentence format
+function parseTranscript(tData: any): { text: string; speakerName: string; speakerId: number; start: number; end: number }[] {
+  const speakers = new Map<number, string>();
+  for (const s of (tData.speakers || [])) {
+    speakers.set(s.id, s.name || s.email || `Speaker ${s.id}`);
+  }
+
+  const sentences: any[] = [];
+  for (const seg of (tData.transcript || [])) {
+    const speakerName = speakers.get(seg.speaker_id) || `Speaker ${seg.speaker_id}`;
+    const timestamps = seg.timestamps || [];
+    sentences.push({
+      text: seg.transcript || '',
+      speakerName,
+      speakerId: seg.speaker_id,
+      start: timestamps[0] || 0,
+      end: timestamps[timestamps.length - 1] || 0,
+    });
+  }
+  return sentences;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -37,18 +59,15 @@ serve(async (req) => {
 
       if (!tRes.ok) {
         const errText = await tRes.text();
+        console.error(`[avoma] Transcript API error [${tRes.status}]: ${errText}`);
         return new Response(JSON.stringify({ success: false, error: `Avoma API error [${tRes.status}]` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       const tData = await tRes.json();
-      const sentences = (tData.sentences || []).map((s: any) => ({
-        text: s.text,
-        speakerName: s.speaker_name,
-        start: s.start,
-        end: s.end,
-      }));
+      console.log(`[avoma] Transcript raw keys: ${Object.keys(tData).join(', ')}, transcript segments: ${(tData.transcript || []).length}, speakers: ${(tData.speakers || []).length}`);
+      const sentences = parseTranscript(tData);
 
       return new Response(JSON.stringify({ success: true, sentences, totalSentences: sentences.length }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -138,7 +157,7 @@ serve(async (req) => {
 
     console.log(`[avoma] Found ${matchedMeetings.length} meetings matching @${domainLower}`);
 
-    // Enrich top 10 with PREVIEW transcripts (50 sentences) and insights
+    // Enrich top 10 with PREVIEW transcripts (50 segments) and insights
     const enriched = [];
     for (const meeting of matchedMeetings.slice(0, 10)) {
       let transcript = null;
@@ -151,19 +170,20 @@ serve(async (req) => {
           });
           if (tRes.ok) {
             const tData = await tRes.json();
-            const allSentences = tData.sentences || [];
+            const allSentences = parseTranscript(tData);
+            console.log(`[avoma] Meeting ${meeting.uuid}: parsed ${allSentences.length} transcript segments`);
             transcript = {
-              sentences: allSentences.slice(0, 50).map((s: any) => ({
-                text: s.text,
-                speakerName: s.speaker_name,
-                start: s.start,
-                end: s.end,
-              })),
+              sentences: allSentences.slice(0, 50),
               totalSentences: allSentences.length,
               truncated: allSentences.length > 50,
             };
-          } else { await tRes.text(); }
-        } catch { /* skip */ }
+          } else {
+            const errText = await tRes.text();
+            console.error(`[avoma] Transcript fetch error for ${meeting.transcriptionUuid}: ${tRes.status}`);
+          }
+        } catch (e) {
+          console.error(`[avoma] Transcript fetch exception: ${e.message}`);
+        }
       }
 
       if (meeting.notesReady) {
