@@ -34,8 +34,16 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         requestUrl: url,
-        followRedirects: true,
-        userAgent: 'Googlebot/2.1',
+        followRedirect: true,
+        maxRedirects: 10,
+        userAgent: 'googlebot-desktop',
+        responseHeaders: true,
+        requestHeaders: true,
+        timings: true,
+        parsedUrl: true,
+        parsedHostname: true,
+        meta: true,
+        validateTlsCertificate: true,
       }),
     });
 
@@ -52,29 +60,37 @@ serve(async (req) => {
 
     const hops = chain.map((hop: any, i: number) => ({
       step: i + 1,
-      url: hop.requestUrl || hop.url || '',
+      url: hop.url || '',
       statusCode: hop.statusCode || 0,
-      statusText: hop.statusText || '',
-      redirectUrl: hop.redirectUrl || null,
+      statusMessage: hop.statusMessage || hop.statusText || '',
+      redirectFrom: hop.redirectFrom || null,
+      redirectTo: hop.redirectTo || null,
+      redirectType: hop.redirectType || null,
       ip: hop.ip || null,
-      timing: hop.timing || null,
-      tls: hop.tls || null,
-      headers: hop.headers || null,
+      latency: hop.latency || null,
+      timings: hop.timings?.phases || null,
+      responseHeaders: hop.responseHeaders || null,
+      requestHeaders: hop.requestHeaders || null,
+      parsedUrl: hop.parsedUrl || null,
+      parsedHostname: hop.parsedHostname || null,
     }));
 
     const finalHop = hops.length > 0 ? hops[hops.length - 1] : null;
-    const metadata = data.response?.meta || null;
-    const parsedUrl = data.response?.parsedUrl || null;
+    const metaData = finalHop?.responseHeaders ? undefined : null;
+
+    // Extract meta from the last hop if available (API puts it on the destination)
+    const lastChainItem = chain.length > 0 ? chain[chain.length - 1] : null;
+    const meta = lastChainItem?.metaData || lastChainItem?.meta || data.response?.metaData || null;
 
     return new Response(JSON.stringify({
       success: true,
       requestUrl: url,
       finalUrl: finalHop?.url || url,
       finalStatusCode: finalHop?.statusCode || 0,
-      redirectCount: Math.max(0, hops.length - 1),
+      redirectCount: data.response?.numberOfRedirects ?? Math.max(0, hops.length - 1),
       hops,
-      metadata,
-      parsedUrl,
+      meta,
+      apiMeta: data.metaData || null,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
