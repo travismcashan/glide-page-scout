@@ -249,8 +249,9 @@ export const oceanApi = {
 };
 
 export const ssllabsApi = {
-  async scan(host: string): Promise<{
+  async start(host: string): Promise<{
     success: boolean;
+    status?: string;
     host?: string;
     grade?: string;
     endpoints?: any[];
@@ -259,7 +260,23 @@ export const ssllabsApi = {
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('ssllabs-scan', {
-      body: { host },
+      body: { host, action: 'start' },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+  async poll(host: string): Promise<{
+    success: boolean;
+    status?: string;
+    host?: string;
+    grade?: string;
+    endpoints?: any[];
+    certs?: any[];
+    testTime?: number;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('ssllabs-scan', {
+      body: { host, action: 'poll' },
     });
     if (error) return { success: false, error: error.message };
     return data;
