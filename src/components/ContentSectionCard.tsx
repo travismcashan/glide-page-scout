@@ -31,15 +31,17 @@ type Props = {
   toggleExpand: (id: string) => void;
   generateOutline: (page: ContentPage) => void;
   generatingOutline: Set<string>;
+  collapsed?: boolean;
 };
 
 export function ContentSectionCard({
   pages, sessionId, baseUrl, discoveredUrls, existingPageUrls, onPagesAdded,
-  expandedPages, toggleExpand, generateOutline, generatingOutline
+  expandedPages, toggleExpand, generateOutline, generatingOutline, collapsed: controlledCollapsed
 }: Props) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = controlledCollapsed ?? internalCollapsed;
   const paused = isIntegrationPaused('content');
 
-  // Picker state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [entries, setEntries] = useState<UrlEntry[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -89,12 +91,15 @@ export function ContentSectionCard({
 
   return (
     <Card className="overflow-hidden">
-      <div className="px-6 py-4 border-b border-border flex items-center gap-3">
+      <div
+        className="px-6 py-4 border-b border-border flex items-center gap-3 cursor-pointer select-none hover:bg-muted/30 transition-colors"
+        onClick={() => setInternalCollapsed(!internalCollapsed)}
+      >
         <div className="p-2 rounded-lg bg-muted">
           <FileText className="h-5 w-5 text-foreground" />
         </div>
         <h2 className="text-lg font-semibold">Page Content</h2>
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 ml-auto" onClick={e => e.stopPropagation()}>
           <span className="text-sm text-muted-foreground">{pages.length} pages</span>
           {discoveredUrls.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setPickerOpen(!pickerOpen)}>
@@ -103,10 +108,12 @@ export function ContentSectionCard({
             </Button>
           )}
         </div>
+        <div className="shrink-0">
+          {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+        </div>
       </div>
 
-      {/* Inline picker */}
-      {pickerOpen && (
+      {!isCollapsed && pickerOpen && (
         <div className="px-6 py-4 border-b border-border bg-muted/30">
           <p className="text-xs text-muted-foreground mb-3">Select business-relevant pages for content scraping</p>
           {analyzing ? (
@@ -133,7 +140,7 @@ export function ContentSectionCard({
         </div>
       )}
 
-      {pages.length > 0 ? (
+      {!isCollapsed && pages.length > 0 ? (
         <div className="p-4 space-y-3">
           {pages.map(page => {
             const isExpanded = expandedPages.has(page.id);
@@ -191,13 +198,13 @@ export function ContentSectionCard({
             );
           })}
         </div>
-      ) : (
+      ) : !isCollapsed ? (
         <div className="p-6 text-center text-sm text-muted-foreground">
           No content scraped yet. {discoveredUrls.length > 0 && !pickerOpen && (
             <button onClick={() => setPickerOpen(true)} className="text-primary underline underline-offset-2">Select pages to scrape.</button>
           )}
         </div>
-      )}
+      ) : null}
     </Card>
   );
 }
