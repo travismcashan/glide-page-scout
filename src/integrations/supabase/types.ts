@@ -96,6 +96,7 @@ export type Database = {
           w3c_data: Json | null
           wappalyzer_data: Json | null
           wave_data: Json | null
+          yellowlab_data: Json | null
         }
         Insert: {
           base_url: string
@@ -122,6 +123,7 @@ export type Database = {
           w3c_data?: Json | null
           wappalyzer_data?: Json | null
           wave_data?: Json | null
+          yellowlab_data?: Json | null
         }
         Update: {
           base_url?: string
@@ -148,6 +150,7 @@ export type Database = {
           w3c_data?: Json | null
           wappalyzer_data?: Json | null
           wave_data?: Json | null
+          yellowlab_data?: Json | null
         }
         Relationships: []
       }
