@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action = 'start' } = body;
 
-    // ── POLL ──
+    // ── POLL (non-streaming fallback) ──
     if (action === 'poll') {
       const { interactionId } = body;
       if (!interactionId) {
@@ -51,11 +51,9 @@ Deno.serve(async (req) => {
       let report: string | null = null;
 
       if (state === 'completed' || state === 'COMPLETED') {
-        // Extract final text from the interaction output
         const outputParts = pollData.output?.parts || pollData.output?.content?.parts || [];
         report = outputParts.map((p: any) => p.text || '').join('\n');
         if (!report && pollData.output?.text) report = pollData.output.text;
-        // Fallback: check candidates array
         if (!report && pollData.candidates?.[0]?.content?.parts) {
           report = pollData.candidates[0].content.parts.map((p: any) => p.text || '').join('\n');
         }
@@ -67,7 +65,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── START ──
+    // ── RESUME stream ──
+    if (action === 'resume') {
+      const { interactionId, lastEventId } = body;
+      if (!interactionId) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'interactionId is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      let resumeUrl = `${GEMINI_API_BASE}/interactions/${interactionId}?stream=true&alt=sse`;
+      if (lastEventId) {
+        resumeUrl += `&last_event_id=${encodeURIComponent(lastEventId)}`;
+      }
+
+      const resumeRes = await fetch(resumeUrl, {
+        headers: { 'x-goog-api-key': apiKey },
+      });
+
+      if (!resumeRes.ok) {
+        const errText = await resumeRes.text();
+        console.error('Resume error:', resumeRes.status, errText);
+        return new Response(
+          JSON.stringify({ success: false, error: `Resume failed (${resumeRes.status})` }),
+          { status: resumeRes.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Proxy the SSE stream
+      return new Response(resumeRes.body, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
+    // ── START with streaming ──
     const { prompt, crawlContext, documents } = body;
 
     if (!prompt) {
@@ -77,17 +114,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build the input — can be multimodal
+    // Build multimodal input
     const inputParts: any[] = [];
-
-    // Main research prompt with crawl context
     let fullPrompt = prompt;
     if (crawlContext) {
       fullPrompt += `\n\n---\n\nHere is data already gathered about the website:\n\n${crawlContext.substring(0, 60000)}`;
     }
     inputParts.push({ type: 'text', text: fullPrompt });
 
-    // Attach documents as inline text (parsed content from frontend)
     if (documents && Array.isArray(documents)) {
       for (const doc of documents) {
         if (doc.content) {
@@ -99,10 +133,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Starting Gemini Deep Research:', prompt.substring(0, 100));
+    console.log('Starting Gemini Deep Research (streaming):', prompt.substring(0, 100));
 
     const startRes = await fetch(
-      `${GEMINI_API_BASE}/interactions`,
+      `${GEMINI_API_BASE}/interactions?alt=sse`,
       {
         method: 'POST',
         headers: {
@@ -113,6 +147,11 @@ Deno.serve(async (req) => {
           input: inputParts.length === 1 ? inputParts[0].text : inputParts,
           agent: 'deep-research-pro-preview-12-2025',
           background: true,
+          stream: true,
+          agent_config: {
+            type: 'deep-research',
+            thinking_summaries: 'auto',
+          },
         }),
       }
     );
@@ -126,15 +165,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const startData = await startRes.json();
-    const interactionId = startData.name || startData.id;
-
-    console.log('Deep Research started, interaction:', interactionId);
-
-    return new Response(
-      JSON.stringify({ success: true, interactionId, state: 'in_progress' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Proxy the SSE stream directly to the client
+    return new Response(startRes.body, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   } catch (error) {
     console.error('Deep Research error:', error);
     return new Response(
