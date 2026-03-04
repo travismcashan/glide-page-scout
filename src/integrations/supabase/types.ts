@@ -86,6 +86,7 @@ export type Database = {
           ocean_data: Json | null
           psi_data: Json | null
           semrush_data: Json | null
+          ssllabs_data: Json | null
           status: string
           updated_at: string
           wappalyzer_data: Json | null
@@ -106,6 +107,7 @@ export type Database = {
           ocean_data?: Json | null
           psi_data?: Json | null
           semrush_data?: Json | null
+          ssllabs_data?: Json | null
           status?: string
           updated_at?: string
           wappalyzer_data?: Json | null
@@ -126,6 +128,7 @@ export type Database = {
           ocean_data?: Json | null
           psi_data?: Json | null
           semrush_data?: Json | null
+          ssllabs_data?: Json | null
           status?: string
           updated_at?: string
           wappalyzer_data?: Json | null
