@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Check, X, Clock, Pause, Loader2, CreditCard } from 'lucide-react';
-import { getPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
+import { getPausedIntegrations, toggleIntegrationPause, loadPausedIntegrations } from '@/lib/integrationState';
 import { supabase } from '@/integrations/supabase/client';
 
 type Status = 'active' | 'coming-soon';
@@ -160,8 +160,12 @@ export default function IntegrationsPage() {
   const navigate = useNavigate();
   const [pausedSet, setPausedSet] = useState(() => getPausedIntegrations());
 
-  const handleToggle = (id: string) => {
-    toggleIntegrationPause(id);
+  useEffect(() => {
+    loadPausedIntegrations().then(setPausedSet);
+  }, []);
+
+  const handleToggle = async (id: string) => {
+    await toggleIntegrationPause(id);
     setPausedSet(getPausedIntegrations());
   };
 
