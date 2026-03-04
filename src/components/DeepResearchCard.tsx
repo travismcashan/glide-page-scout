@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { loadDefaultDocs } from '@/lib/defaultResearchDocs';
 import { supabase } from '@/integrations/supabase/client';
+import { buildCrawlContext } from '@/lib/buildCrawlContext';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -22,6 +23,7 @@ type SessionData = {
   id: string;
   domain: string;
   base_url: string;
+  avoma_data?: any;
   builtwith_data?: any;
   semrush_data?: any;
   psi_data?: any;
@@ -49,55 +51,7 @@ type Props = {
   collapsed?: boolean;
 };
 
-function buildCrawlContext(session: SessionData, pages?: Props['pages']): string {
-  const sections: string[] = [];
-  sections.push(`# Website Audit Data: ${session.domain}\nURL: ${session.base_url}\n`);
-  sections.push(`IMPORTANT: The data below comes from specific named integration tools. When referencing findings, always cite the integration by name (e.g. "According to the SEMrush Domain Analysis…", "The WAVE Accessibility scan found…", "GTmetrix Performance report shows…"). Treat each section as a distinct, authoritative source.\n`);
-
-  const add = (label: string, data: any) => {
-    if (!data) return;
-    try {
-      sections.push(`## [Source: ${label}]\nData from the "${label}" integration report:\n\`\`\`json\n${JSON.stringify(data, null, 1)}\n\`\`\``);
-    } catch { /* skip */ }
-  };
-
-  add('Ocean.io Firmographics', session.ocean_data);
-  add('SEMrush Domain Analysis', session.semrush_data);
-  add('PageSpeed Insights (Lighthouse)', session.psi_data);
-  add('BuiltWith Technology Stack', session.builtwith_data);
-  add('Wappalyzer Technology Profiling', session.wappalyzer_data);
-  add('Chrome UX Report (CrUX)', session.crux_data);
-  add('WAVE Accessibility Scan', session.wave_data);
-  add('Mozilla Observatory Security Headers', session.observatory_data);
-  add('SSL Labs TLS/SSL Assessment', session.ssllabs_data);
-  add('httpstatus.io Redirect Chain', session.httpstatus_data);
-  add('Broken Link Checker', session.linkcheck_data);
-  add('W3C HTML/CSS Validator', session.w3c_data);
-  add('Schema.org Structured Data Validator', session.schema_data);
-  add('Readable.com Readability Score', session.readable_data);
-  add('Website Carbon Sustainability', session.carbon_data);
-  add('Yellow Lab Tools Front-End Quality', session.yellowlab_data);
-
-  if (session.gtmetrix_grade || session.gtmetrix_scores) {
-    add('GTmetrix Performance Report', { grade: session.gtmetrix_grade, scores: session.gtmetrix_scores });
-  }
-
-  if (pages?.length) {
-    const pageSection: string[] = ['## [Source: Scraped Page Content]\nContent scraped directly from the website pages:\n'];
-    for (const p of pages) {
-      pageSection.push(`### ${p.title || p.url}\nURL: ${p.url}`);
-      if (p.ai_outline) {
-        pageSection.push(p.ai_outline);
-      } else if (p.raw_content) {
-        pageSection.push(p.raw_content.substring(0, 3000));
-      }
-      pageSection.push('');
-    }
-    sections.push(pageSection.join('\n'));
-  }
-
-  return sections.join('\n\n');
-}
+// buildCrawlContext is now imported from @/lib/buildCrawlContext
 
 function classifyStep(text: string): ThinkingStep['type'] {
   const lower = text.toLowerCase();
