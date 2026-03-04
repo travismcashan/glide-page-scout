@@ -91,6 +91,7 @@ export type Database = {
           ssllabs_data: Json | null
           status: string
           updated_at: string
+          w3c_data: Json | null
           wappalyzer_data: Json | null
           wave_data: Json | null
         }
@@ -114,6 +115,7 @@ export type Database = {
           ssllabs_data?: Json | null
           status?: string
           updated_at?: string
+          w3c_data?: Json | null
           wappalyzer_data?: Json | null
           wave_data?: Json | null
         }
@@ -137,6 +139,7 @@ export type Database = {
           ssllabs_data?: Json | null
           status?: string
           updated_at?: string
+          w3c_data?: Json | null
           wappalyzer_data?: Json | null
           wave_data?: Json | null
         }

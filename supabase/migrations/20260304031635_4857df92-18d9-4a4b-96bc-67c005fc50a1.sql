@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN w3c_data jsonb DEFAULT NULL;

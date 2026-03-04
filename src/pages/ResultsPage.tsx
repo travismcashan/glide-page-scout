@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -23,6 +23,7 @@ import OceanCard from '@/components/OceanCard';
 import SslLabsCard from '@/components/SslLabsCard';
 import { HttpStatusCard } from '@/components/HttpStatusCard';
 import { BrokenLinksCard } from '@/components/BrokenLinksCard';
+import { W3CCard } from '@/components/W3CCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -58,6 +59,7 @@ type CrawlSession = {
   ssllabs_data: any | null;
   httpstatus_data: any | null;
   linkcheck_data: any | null;
+  w3c_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -349,6 +351,22 @@ export default function ResultsPage() {
     }).catch((e) => { setHttpstatusFailed(true); setError('httpstatus', e?.message || 'httpstatus.io request failed'); setHttpstatusLoading(false); });
   }, [session, httpstatusLoading, httpstatusFailed, fetchData]);
 
+  // W3C HTML/CSS Validation
+  const [w3cLoading, setW3cLoading] = useState(false);
+  const [w3cFailed, setW3cFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.w3c_data || w3cLoading || w3cFailed || isIntegrationPaused('w3c')) return;
+    setW3cLoading(true);
+    w3cApi.validate(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ w3c_data: result } as any).eq('id', session.id);
+        clearError('w3c');
+        fetchData();
+      } else { setW3cFailed(true); setError('w3c', result.error || 'W3C validation failed'); }
+      setW3cLoading(false);
+    }).catch((e) => { setW3cFailed(true); setError('w3c', e?.message || 'W3C validation request failed'); setW3cLoading(false); });
+  }, [session, w3cLoading, w3cFailed, fetchData]);
+
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
@@ -599,6 +617,13 @@ export default function ResultsPage() {
           {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && discoveredUrls.length === 0 ? (
             <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
           ) : null}
+        </SectionCard>
+        )}
+
+        {/* ── W3C Validation ── */}
+        {!isIntegrationPaused('w3c') && (
+        <SectionCard title="W3C — HTML & CSS Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c}>
+          {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
         </SectionCard>
         )}
 
