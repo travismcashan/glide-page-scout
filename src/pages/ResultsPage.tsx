@@ -445,7 +445,7 @@ export default function ResultsPage() {
           }
           if (pollResult.status === 'failed') {
             setYellowlabFailed(true);
-            setError('yellowlab', 'Yellow Lab Tools run failed');
+            setError('yellowlab', (pollResult as any).error || 'Yellow Lab Tools could not analyze this page — the site may block automated testing');
             setYellowlabLoading(false);
             return;
           }
