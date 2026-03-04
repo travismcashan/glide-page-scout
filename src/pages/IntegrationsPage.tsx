@@ -51,7 +51,7 @@ const integrations: Integration[] = [
   { name: 'Hunter.io', id: 'hunter', description: 'Find the people behind a site — technical leads, marketing managers — and build a persona of the team you\'re competing against', secretKey: '', configured: false, category: 'intelligence', status: 'coming-soon' },
   { name: 'Clay', id: 'clay', description: 'Waterfall enrichment across 150+ data providers with native AI that categorizes companies into specific niches, not just generic industries', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon' },
   { name: 'Apollo.io', id: 'apollo', description: '275M+ contacts with firmographics and technographics — query "every company using Shopify but NOT Klaviyo" to find perfect prospects', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon' },
-  { name: 'Ocean.io', id: 'ocean', description: 'AI-powered lookalike search — provide ideal client websites and find semantically similar companies instead of relying on NAICS codes', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon' },
+  { name: 'Ocean.io', id: 'ocean', description: 'Company firmographics — industry, size, revenue, technologies, and lookalike search', secretKey: 'OCEAN_IO_API_KEY', configured: true, category: 'enrichment', status: 'active' },
   { name: 'Crunchbase', id: 'crunchbase', description: 'Funding rounds, acquisitions, and leadership changes — companies that just raised a Series B are 10x more likely to need a site overhaul', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon' },
 ];
 

@@ -83,6 +83,7 @@ export type Database = {
           gtmetrix_test_id: string | null
           id: string
           observatory_data: Json | null
+          ocean_data: Json | null
           psi_data: Json | null
           semrush_data: Json | null
           status: string
@@ -102,6 +103,7 @@ export type Database = {
           gtmetrix_test_id?: string | null
           id?: string
           observatory_data?: Json | null
+          ocean_data?: Json | null
           psi_data?: Json | null
           semrush_data?: Json | null
           status?: string
@@ -121,6 +123,7 @@ export type Database = {
           gtmetrix_test_id?: string | null
           id?: string
           observatory_data?: Json | null
+          ocean_data?: Json | null
           psi_data?: Json | null
           semrush_data?: Json | null
           status?: string
