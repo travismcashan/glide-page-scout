@@ -382,6 +382,34 @@ export const yellowlabApi = {
   },
 };
 
+export const deepResearchApi = {
+  async start(prompt: string, crawlContext?: string, documents?: { name: string; content: string }[]): Promise<{
+    success: boolean;
+    interactionId?: string;
+    state?: string;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('deep-research', {
+      body: { action: 'start', prompt, crawlContext, documents },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+
+  async poll(interactionId: string): Promise<{
+    success: boolean;
+    state?: string;
+    report?: string;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('deep-research', {
+      body: { action: 'poll', interactionId },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
+
 export const readableApi = {
   async score(url: string): Promise<{
     success: boolean;

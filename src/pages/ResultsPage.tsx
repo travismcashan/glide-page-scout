@@ -10,6 +10,7 @@ import { ArrowLeft, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsU
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi } from '@/lib/api/firecrawl';
+import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -902,6 +903,11 @@ export default function ResultsPage() {
         <SectionCard collapsed={allCollapsed} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)}>
           {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
         </SectionCard>
+        )}
+
+        {/* ── Gemini Deep Research ── */}
+        {session && !isIntegrationPaused('deep-research') && (
+          <DeepResearchCard session={session} collapsed={allCollapsed} />
         )}
 
         {/* ── SEO ── */}
