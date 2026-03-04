@@ -170,14 +170,17 @@ export default function IntegrationsPage() {
     setPausedSet(getPausedIntegrations());
   };
 
+  const activeIntegrations = integrations.filter(i => i.status === 'active');
+  const wishlistIntegrations = integrations.filter(i => i.status === 'coming-soon');
+
   const grouped = categoryOrder.map(cat => ({
     category: cat,
     label: categoryLabels[cat],
-    items: integrations.filter(i => i.category === cat),
+    items: activeIntegrations.filter(i => i.category === cat),
   })).filter(g => g.items.length > 0);
 
-  const activeCount = integrations.filter(i => i.status === 'active' && !pausedSet.has(i.id)).length;
-  const pausedCount = integrations.filter(i => i.status === 'active' && pausedSet.has(i.id)).length;
+  const activeCount = activeIntegrations.filter(i => !pausedSet.has(i.id)).length;
+  const pausedCount = activeIntegrations.filter(i => pausedSet.has(i.id)).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -206,30 +209,16 @@ export default function IntegrationsPage() {
                   <Card key={integration.id} className="p-4 flex flex-col gap-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className={`font-medium text-sm ${integration.status === 'coming-soon' ? 'text-muted-foreground' : ''}`}>{integration.name}</p>
-                          {integration.status === 'coming-soon' && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground border-muted-foreground/30">
-                              <Clock className="h-3 w-3 mr-0.5" /> Coming soon
-                            </Badge>
-                          )}
-                          {integration.status === 'active' && !integration.configured && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              <X className="h-3 w-3 mr-0.5" /> Not configured
-                            </Badge>
-                          )}
-                        </div>
+                        <p className="font-medium text-sm">{integration.name}</p>
                         <p className="text-xs text-muted-foreground mt-1">{integration.description}</p>
                       </div>
-                      {integration.status === 'active' && (
-                        <Switch
-                          checked={!isPaused}
-                          onCheckedChange={() => handleToggle(integration.id)}
-                          className={`shrink-0 mt-1 ${!isPaused ? 'data-[state=checked]:bg-green-500' : 'data-[state=unchecked]:bg-red-400'}`}
-                        />
-                      )}
+                      <Switch
+                        checked={!isPaused}
+                        onCheckedChange={() => handleToggle(integration.id)}
+                        className={`shrink-0 mt-1 ${!isPaused ? 'data-[state=checked]:bg-green-500' : 'data-[state=unchecked]:bg-red-400'}`}
+                      />
                     </div>
-                    {integration.hasCredits && integration.status === 'active' && !isPaused && (
+                    {integration.hasCredits && !isPaused && (
                       <CreditsDisplay integrationId={integration.id} />
                     )}
                   </Card>
@@ -238,6 +227,25 @@ export default function IntegrationsPage() {
             </div>
           </div>
         ))}
+
+        {/* Wishlist / Coming Soon */}
+        {wishlistIntegrations.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-dashed border-border">
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-muted-foreground">Wishlist</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">Integrations we're considering — reach out if you'd like to prioritize one.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {wishlistIntegrations.map((integration) => (
+                <div key={integration.id} className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                  <p className="font-medium text-sm text-muted-foreground">{integration.name}</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">{integration.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
