@@ -761,6 +761,25 @@ export default function ResultsPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        <Tabs defaultValue="raw-data" className="w-full">
+          <TabsList className="w-full justify-start h-auto bg-transparent p-0 border-b border-border rounded-none pb-3 mb-6 gap-2">
+            <TabsTrigger
+              value="raw-data"
+              className="text-sm font-medium px-5 py-2.5 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
+            >
+              <Globe className="h-4 w-4 mr-2" />
+              Raw Data &amp; Research
+            </TabsTrigger>
+            <TabsTrigger
+              value="ai-research"
+              className="text-sm font-medium px-5 py-2.5 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
+            >
+              <Brain className="h-4 w-4 mr-2" />
+              AI Research
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="raw-data" className="mt-0 space-y-6">
 
         {/* ── URL Discovery ── */}
         {session && !isIntegrationPaused('url-discovery') && (
@@ -906,39 +925,6 @@ export default function ResultsPage() {
         </SectionCard>
         )}
 
-        {/* ── AI Research (tabbed) ── */}
-        {session && !isIntegrationPaused('deep-research') && (
-          <SectionCard
-            title="AI Research"
-            icon={<Brain className="h-5 w-5 text-foreground" />}
-            collapsed={allCollapsed}
-          >
-            <Tabs defaultValue="deep-research" className="w-full">
-              <TabsList className="w-full justify-start h-auto flex-wrap gap-1.5 bg-transparent p-0 border-b border-border rounded-none pb-3 mb-0">
-                <TabsTrigger
-                  value="deep-research"
-                  className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
-                >
-                  <Brain className="h-3.5 w-3.5 mr-1.5" />
-                  Agentic Research
-                </TabsTrigger>
-                <TabsTrigger
-                  value="observations"
-                  className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
-                >
-                  <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-                  Observations &amp; Insights
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="deep-research" className="mt-4">
-                <DeepResearchCard session={session} pages={scrapedPages} collapsed={allCollapsed} />
-              </TabsContent>
-              <TabsContent value="observations" className="mt-4">
-                <ObservationsInsightsCard session={session} pages={scrapedPages} />
-              </TabsContent>
-            </Tabs>
-          </SectionCard>
-        )}
 
         {/* ── SEO ── */}
         {!isIntegrationPaused('semrush') && (
@@ -1005,6 +991,30 @@ export default function ResultsPage() {
           </SectionCard>
         )}
 
+          </TabsContent>
+
+          <TabsContent value="ai-research" className="mt-0 space-y-6">
+            {session && (
+              <>
+                <SectionCard
+                  title="Gemini Deep Research"
+                  icon={<Brain className="h-5 w-5 text-foreground" />}
+                  collapsed={allCollapsed}
+                >
+                  <DeepResearchCard session={session} pages={scrapedPages} collapsed={allCollapsed} />
+                </SectionCard>
+
+                <SectionCard
+                  title="Observations & Insights"
+                  icon={<Lightbulb className="h-5 w-5 text-foreground" />}
+                  collapsed={allCollapsed}
+                >
+                  <ObservationsInsightsCard session={session} pages={scrapedPages} />
+                </SectionCard>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
