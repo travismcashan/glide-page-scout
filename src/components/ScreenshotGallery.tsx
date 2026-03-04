@@ -24,11 +24,14 @@ type Props = {
   discoveredUrls: string[];
   existingScreenshotUrls: Set<string>;
   onPagesAdded: () => void;
+  collapsed?: boolean;
 };
 
 const STORAGE_KEY = 'screenshot-gallery-mode';
 
-export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, existingScreenshotUrls, onPagesAdded }: Props) {
+export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, existingScreenshotUrls, onPagesAdded, collapsed: controlledCollapsed }: Props) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = controlledCollapsed ?? internalCollapsed;
   const [selectedPage, setSelectedPage] = useState<GalleryPage | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [condensed, setCondensed] = useState(() => {
@@ -90,12 +93,15 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
   return (
     <>
       <Card className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-border flex items-center gap-3">
+        <div
+          className="px-6 py-4 border-b border-border flex items-center gap-3 cursor-pointer select-none hover:bg-muted/30 transition-colors"
+          onClick={() => setInternalCollapsed(!internalCollapsed)}
+        >
           <div className="p-2 rounded-lg bg-muted">
             <Camera className="h-5 w-5 text-foreground" />
           </div>
           <h2 className="text-lg font-semibold">Screenshots</h2>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto" onClick={e => e.stopPropagation()}>
             <span className="text-sm text-muted-foreground">{pages.length} pages</span>
             {!paused && discoveredUrls.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => setPickerOpen(!pickerOpen)}>
@@ -120,10 +126,13 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
               </button>
             </div>
           </div>
+          <div className="shrink-0">
+            {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+          </div>
         </div>
 
         {/* Inline picker */}
-        {pickerOpen && (
+        {!isCollapsed && pickerOpen && (
           <div className="px-6 py-4 border-b border-border bg-muted/30">
             <p className="text-xs text-muted-foreground mb-3">Select pages to capture screenshots (5–15 key template pages)</p>
             {analyzing ? (
@@ -150,7 +159,7 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
           </div>
         )}
 
-        {pages.length > 0 ? (
+        {!isCollapsed && pages.length > 0 ? (
           <div className="p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {pages.map(page => (
@@ -193,7 +202,7 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
               ))}
             </div>
           </div>
-        ) : !paused ? (
+        ) : !isCollapsed && !paused ? (
           <div className="p-6 text-center text-sm text-muted-foreground">
             No screenshots yet. {discoveredUrls.length > 0 && !pickerOpen && (
               <button onClick={() => setPickerOpen(true)} className="text-primary underline underline-offset-2">Select pages to capture.</button>
