@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -25,6 +25,7 @@ import { HttpStatusCard } from '@/components/HttpStatusCard';
 import { BrokenLinksCard } from '@/components/BrokenLinksCard';
 import { W3CCard } from '@/components/W3CCard';
 import { SchemaCard } from '@/components/SchemaCard';
+import { ReadableCard } from '@/components/ReadableCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -62,6 +63,7 @@ type CrawlSession = {
   linkcheck_data: any | null;
   w3c_data: any | null;
   schema_data: any | null;
+  readable_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -385,6 +387,22 @@ export default function ResultsPage() {
     }).catch((e) => { setSchemaFailed(true); setError('schema', e?.message || 'Schema validation request failed'); setSchemaLoading(false); });
   }, [session, schemaLoading, schemaFailed, fetchData]);
 
+  // Readable.com
+  const [readableLoading, setReadableLoading] = useState(false);
+  const [readableFailed, setReadableFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).readable_data || readableLoading || readableFailed || isIntegrationPaused('readable')) return;
+    setReadableLoading(true);
+    readableApi.score(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ readable_data: result } as any).eq('id', session.id);
+        clearError('readable');
+        fetchData();
+      } else { setReadableFailed(true); setError('readable', result.error || 'Readable.com returned an error'); }
+      setReadableLoading(false);
+    }).catch((e) => { setReadableFailed(true); setError('readable', e?.message || 'Readable.com request failed'); setReadableLoading(false); });
+  }, [session, readableLoading, readableFailed, fetchData]);
+
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
@@ -635,6 +653,13 @@ export default function ResultsPage() {
           {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && discoveredUrls.length === 0 ? (
             <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
           ) : null}
+        </SectionCard>
+        )}
+
+        {/* ── Readable.com — Readability ── */}
+        {!isIntegrationPaused('readable') && (
+        <SectionCard title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable}>
+          {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
         </SectionCard>
         )}
 
