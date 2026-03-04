@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowLeft, Building2, ChevronDown, ChevronUp, ExternalLink, FileText, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi } from '@/lib/api/firecrawl';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -26,6 +26,7 @@ import { BrokenLinksCard } from '@/components/BrokenLinksCard';
 import { W3CCard } from '@/components/W3CCard';
 import { SchemaCard } from '@/components/SchemaCard';
 import { ReadableCard } from '@/components/ReadableCard';
+import { YellowLabCard } from '@/components/YellowLabCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
@@ -64,6 +65,7 @@ type CrawlSession = {
   w3c_data: any | null;
   schema_data: any | null;
   readable_data: any | null;
+  yellowlab_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -403,6 +405,22 @@ export default function ResultsPage() {
     }).catch((e) => { setReadableFailed(true); setError('readable', e?.message || 'Readable.com request failed'); setReadableLoading(false); });
   }, [session, readableLoading, readableFailed, fetchData]);
 
+  // Yellow Lab Tools
+  const [yellowlabLoading, setYellowlabLoading] = useState(false);
+  const [yellowlabFailed, setYellowlabFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).yellowlab_data || yellowlabLoading || yellowlabFailed || isIntegrationPaused('yellowlab')) return;
+    setYellowlabLoading(true);
+    yellowlabApi.scan(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ yellowlab_data: { globalScore: result.globalScore, runId: result.runId, categories: result.categories } } as any).eq('id', session.id);
+        clearError('yellowlab');
+        fetchData();
+      } else { setYellowlabFailed(true); setError('yellowlab', result.error || 'Yellow Lab Tools returned an error'); }
+      setYellowlabLoading(false);
+    }).catch((e) => { setYellowlabFailed(true); setError('yellowlab', e?.message || 'Yellow Lab Tools request failed'); setYellowlabLoading(false); });
+  }, [session, yellowlabLoading, yellowlabFailed, fetchData]);
+
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
@@ -660,6 +678,13 @@ export default function ResultsPage() {
         {!isIntegrationPaused('readable') && (
         <SectionCard title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable}>
           {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
+        </SectionCard>
+        )}
+
+        {/* ── Yellow Lab Tools ── */}
+        {!isIntegrationPaused('yellowlab') && (
+        <SectionCard title="Yellow Lab Tools — Front-End Quality" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={yellowlabLoading && !(session as any)?.yellowlab_data} loadingText="Running Yellow Lab Tools audit (this may take 1-2 minutes)..." error={yellowlabFailed} errorText={integrationErrors.yellowlab}>
+          {(session as any)?.yellowlab_data ? <YellowLabCard data={(session as any).yellowlab_data} /> : null}
         </SectionCard>
         )}
 

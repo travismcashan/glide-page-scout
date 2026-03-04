@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.observatory-scan]
 verify_jwt = false
+
+[functions.yellowlab-scan]
+verify_jwt = false

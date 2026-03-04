@@ -352,6 +352,23 @@ export const schemaApi = {
   },
 };
 
+export const yellowlabApi = {
+  async scan(url: string): Promise<{
+    success: boolean;
+    runId?: string;
+    globalScore?: number | null;
+    categories?: Record<string, { score: number; label: string }>;
+    toolsResults?: any;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('yellowlab-scan', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
+
 export const readableApi = {
   async score(url: string): Promise<{
     success: boolean;
