@@ -36,13 +36,13 @@ Deno.serve(async (req) => {
       // Build input
       let fullPrompt = prompt;
       if (crawlContext) {
-        fullPrompt += `\n\n---\n\nHere is data already gathered about the website:\n\n${crawlContext.substring(0, 60000)}`;
+        fullPrompt += `\n\n---\n\nHere is data already gathered about the website:\n\n${crawlContext}`;
       }
 
       if (documents && Array.isArray(documents)) {
         for (const doc of documents) {
           if (doc.content) {
-            fullPrompt += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${doc.content.substring(0, 30000)}`;
+            fullPrompt += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${doc.content}`;
           }
         }
       }
