@@ -65,8 +65,8 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
           try {
             const parsed = new URL(u);
             parsed.hash = '';
-            return parsed.toString().replace(/\/+$/, '');
-          } catch { return u.replace(/\/+$/, ''); }
+            return parsed.toString();
+          } catch { return u; }
         });
       const seen = new Map<string, string>();
       for (const u of cleaned) {
