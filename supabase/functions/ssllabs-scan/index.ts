@@ -31,6 +31,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Register email first (idempotent — safe to call every time)
+    console.log('Registering email with SSL Labs:', email);
+    const registerRes = await fetch(`${API_BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName: 'Site', lastName: 'Analyzer', email, organization: 'SiteAnalyzer' }),
+    });
+    if (!registerRes.ok) {
+      const regBody = await registerRes.text();
+      // 429 = already registered, which is fine
+      if (registerRes.status !== 429) {
+        console.warn('SSL Labs register response:', registerRes.status, regBody);
+      }
+    } else {
+      await registerRes.text();
+    }
+
     // Start a new assessment
     console.log('Starting SSL Labs assessment for:', host);
     const startUrl = `${API_BASE}/analyze?host=${encodeURIComponent(host)}&startNew=on&all=done&ignoreMismatch=on`;
