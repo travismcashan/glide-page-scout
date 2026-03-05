@@ -5,77 +5,10 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+type ScreenshotRef = { url: string; title: string };
 
-  try {
-    const { domain, crawlContext, documents } = await req.json();
-
-    if (!domain) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Domain is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    let contextBlock = '';
-    if (crawlContext) {
-      contextBlock += `\n\n---\n\nHere is all the data gathered about the website:\n\n${crawlContext}`;
-    }
-    if (documents && Array.isArray(documents)) {
-      for (const doc of documents) {
-        if (doc.content) {
-          contextBlock += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${doc.content}`;
-        }
-      }
-    }
-
-    console.log('Generating Observations & Insights for:', domain);
-
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-pro-preview',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
-
-When writing Observations, organize them as bullet points under these category subheadings. CRITICAL: Every observation must be its own bullet point. Never combine observations into paragraphs. Use markdown bullet syntax (- ) for every single observation:
-- Technology & Infrastructure
-- User Experience & Design
-- Content & SEO
-- Performance & Analytics
-- Organizational Context
-- Competitive Landscape & Market Position
-
-When writing Insights, organize them under these thematic subheadings:
-- Strategic Opportunities
-- Risk Areas
-- Patterns & Correlations
-
-When writing Recommendations, format each one with three clearly labeled parts:
-- **Action:** What specifically to do
-- **Why:** The reasoning and evidence behind it
-- **Impact:** The expected outcome or benefit`,
-          },
-          {
-            role: 'user',
-            content: `Review the company at ${domain} using all the documents, transcripts, URLs, site scrape data, and research provided below. Produce the following strategic pyramid:
+function buildUserContent(domain: string, contextBlock: string, screenshotUrls?: ScreenshotRef[]) {
+  const textPrompt = `Review the company at ${domain} using all the documents, transcripts, URLs, site scrape data, screenshots, and research provided below. Produce the following strategic pyramid:
 
 ## 30 Observations
 *A comprehensive inventory of what we found — specific, data-backed facts drawn directly from the research, crawl data, and documents provided.*
@@ -137,7 +70,96 @@ Identify the 3 most critical factors that will determine whether this company su
 
 Define the single most important guiding principle or metric this company should orient all digital efforts around.
 
-${contextBlock}`,
+${contextBlock}`;
+
+  // If we have screenshots, build multimodal content parts
+  if (screenshotUrls && screenshotUrls.length > 0) {
+    const parts: any[] = [{ type: 'text', text: textPrompt }];
+    parts.push({ type: 'text', text: '\n\n---\n\n## Page Screenshots\nBelow are screenshots of key pages from the website. Use these to inform your observations about User Experience & Design, Content & SEO, and other visual aspects:\n' });
+    for (const ss of screenshotUrls) {
+      parts.push({ type: 'text', text: `\nScreenshot: ${ss.title}` });
+      parts.push({ type: 'image_url', image_url: { url: ss.url } });
+    }
+    return parts;
+  }
+
+  return textPrompt;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { domain, crawlContext, documents, screenshotUrls } = await req.json();
+
+    if (!domain) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Domain is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'AI not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let contextBlock = '';
+    if (crawlContext) {
+      contextBlock += `\n\n---\n\nHere is all the data gathered about the website:\n\n${crawlContext}`;
+    }
+    if (documents && Array.isArray(documents)) {
+      for (const doc of documents) {
+        if (doc.content) {
+          contextBlock += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${doc.content}`;
+        }
+      }
+    }
+
+    const screenshotCount = screenshotUrls?.length || 0;
+    console.log(`Generating Observations & Insights for: ${domain} (${screenshotCount} screenshots)`);
+
+    const response = await fetch(AI_GATEWAY_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-3-pro-preview',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
+
+When writing Observations, organize them as bullet points under these category subheadings. CRITICAL: Every observation must be its own bullet point. Never combine observations into paragraphs. Use markdown bullet syntax (- ) for every single observation:
+- Technology & Infrastructure
+- User Experience & Design
+- Content & SEO
+- Performance & Analytics
+- Organizational Context
+- Competitive Landscape & Market Position
+
+When writing Insights, organize them under these thematic subheadings:
+- Strategic Opportunities
+- Risk Areas
+- Patterns & Correlations
+
+When writing Recommendations, format each one with three clearly labeled parts:
+- **Action:** What specifically to do
+- **Why:** The reasoning and evidence behind it
+- **Impact:** The expected outcome or benefit
+
+If page screenshots are provided, use them to make specific visual observations about layout, design quality, content hierarchy, calls-to-action, branding consistency, and mobile responsiveness.`,
+          },
+          {
+            role: 'user',
+            content: buildUserContent(domain, contextBlock, screenshotUrls),
           },
         ],
         max_tokens: 16000,

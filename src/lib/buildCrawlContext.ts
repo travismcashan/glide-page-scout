@@ -40,6 +40,7 @@ type PageData = {
   title: string | null;
   ai_outline: string | null;
   raw_content: string | null;
+  screenshot_url?: string | null;
 };
 
 // ── Per-integration extractors ──────────────────────────────────
@@ -312,6 +313,9 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
     const pageLines: string[] = [];
     for (const p of pages) {
       pageLines.push(`### ${p.title || p.url}\nURL: ${p.url}`);
+      if (p.screenshot_url) {
+        pageLines.push(`Screenshot: ${p.screenshot_url}`);
+      }
       if (p.ai_outline) {
         pageLines.push(p.ai_outline);
       } else if (p.raw_content) {

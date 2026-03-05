@@ -41,7 +41,7 @@ type SessionData = {
 
 type Props = {
   session: SessionData;
-  pages?: { url: string; title: string | null; ai_outline: string | null; raw_content: string | null }[];
+  pages?: { url: string; title: string | null; ai_outline: string | null; raw_content: string | null; screenshot_url?: string | null }[];
 };
 
 // buildCrawlContext is now imported from @/lib/buildCrawlContext
@@ -129,6 +129,12 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
     try {
       const crawlContext = buildCrawlContext(session, pages);
 
+      // Collect screenshot URLs (cap at 10 to manage token usage)
+      const screenshotUrls = (pages || [])
+        .filter(p => p.screenshot_url)
+        .slice(0, 10)
+        .map(p => ({ url: p.screenshot_url!, title: p.title || p.url }));
+
       const response = await fetch(FUNC_URL, {
         method: 'POST',
         headers: {
@@ -140,6 +146,7 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
           domain: session.domain,
           crawlContext,
           documents,
+          screenshotUrls,
         }),
       });
 
