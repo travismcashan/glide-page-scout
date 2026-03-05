@@ -36,12 +36,14 @@ type Meeting = {
     keywords: { word: string; count: number }[];
     speakers: { name: string; email: string; is_rep: boolean }[];
   } | null;
+  matchReason?: string;
 };
 
 type AvomaData = {
   domain: string;
   totalMatches: number;
   meetings: Meeting[];
+  matchBreakdown?: { emailDomain: number; attendeeName: number; subject: number };
 };
 
 function TranscriptView({ meeting }: { meeting: Meeting }) {
@@ -112,9 +114,22 @@ function MeetingsList({ data }: { data: AvomaData }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground mb-3">
-        Found <strong>{data.totalMatches}</strong> meetings with <strong>@{data.domain}</strong> attendees
+      <p className="text-xs text-muted-foreground mb-1">
+        Found <strong>{data.totalMatches}</strong> meetings matching <strong>{data.domain}</strong>
       </p>
+      {data.matchBreakdown && (data.matchBreakdown.attendeeName > 0 || data.matchBreakdown.subject > 0) && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {data.matchBreakdown.emailDomain > 0 && (
+            <Badge variant="secondary" className="text-[10px]">📧 Email domain: {data.matchBreakdown.emailDomain}</Badge>
+          )}
+          {data.matchBreakdown.attendeeName > 0 && (
+            <Badge variant="secondary" className="text-[10px]">👤 Name match: {data.matchBreakdown.attendeeName}</Badge>
+          )}
+          {data.matchBreakdown.subject > 0 && (
+            <Badge variant="secondary" className="text-[10px]">📋 Subject match: {data.matchBreakdown.subject}</Badge>
+          )}
+        </div>
+      )}
       {data.meetings.map((meeting) => {
         const isExpanded = expandedMeeting === meeting.uuid;
         const domainAttendees = meeting.attendees.filter(a =>
@@ -145,6 +160,11 @@ function MeetingsList({ data }: { data: AvomaData }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {meeting.matchReason && meeting.matchReason !== 'email_domain' && (
+                      <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                        {meeting.matchReason === 'attendee_name' ? '👤 name' : '📋 subject'}
+                      </Badge>
+                    )}
                     {meeting.purpose && <Badge variant="secondary" className="text-[10px]">{meeting.purpose}</Badge>}
                     {meeting.outcome && <Badge variant="outline" className="text-[10px]">{meeting.outcome}</Badge>}
                     {meeting.transcriptReady && <FileText className="h-3.5 w-3.5 text-primary" />}
