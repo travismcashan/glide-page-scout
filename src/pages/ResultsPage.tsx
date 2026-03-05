@@ -228,7 +228,7 @@ export default function ResultsPage() {
   const [cruxFailed, setCruxFailed] = useState(false);
   const [cruxNoData, setCruxNoData] = useState(false);
   useEffect(() => {
-    if (!session || session.crux_data || cruxLoading || cruxFailed || isIntegrationPaused('crux')) return;
+    if (!session || session.crux_data || cruxLoading || cruxFailed || cruxNoData || isIntegrationPaused('crux')) return;
     setCruxLoading(true);
     cruxApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
@@ -240,7 +240,7 @@ export default function ResultsPage() {
       } else { setCruxFailed(true); setError('crux', result.error || 'CrUX returned an error'); }
       setCruxLoading(false);
     }).catch((e) => { setCruxFailed(true); setError('crux', e?.message || 'CrUX request failed'); setCruxLoading(false); });
-  }, [session, cruxLoading, cruxFailed, fetchData]);
+  }, [session, cruxLoading, cruxFailed, cruxNoData, fetchData]);
 
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
