@@ -2,7 +2,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Clock, MessageSquare, Phone, Video, Users, FileText, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, MessageSquare, Phone, Video, Users, FileText, Loader2, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { CardTabs } from './CardTabs';
@@ -279,12 +280,49 @@ function InsightsSummary({ data }: { data: AvomaData }) {
   );
 }
 
-export function AvomaCard({ data }: { data: AvomaData }) {
+export function AvomaCard({ data, onSearchDomain }: { data: AvomaData; onSearchDomain?: (domain: string) => void }) {
+  const [manualInput, setManualInput] = useState('');
+  const [searching, setSearching] = useState(false);
+
+  const handleManualSearch = () => {
+    if (!manualInput.trim() || !onSearchDomain) return;
+    let domain = manualInput.trim().toLowerCase();
+    if (domain.includes('@')) domain = domain.split('@').pop() || domain;
+    try { domain = new URL(domain.startsWith('http') ? domain : `https://${domain}`).hostname.replace(/^www\./, ''); } catch { /* use as-is */ }
+    setSearching(true);
+    onSearchDomain(domain);
+  };
+
   if (!data.meetings || data.meetings.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No Avoma meetings found with attendees from <strong>@{data.domain}</strong> in the last 12 months.
-      </p>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          No Avoma meetings found with attendees from <strong>@{data.domain}</strong> in the last 12 months.
+        </p>
+        {onSearchDomain && (
+          <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Try searching by a contact's email address or company domain:
+            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. john@company.com or company.com"
+                value={manualInput}
+                onChange={(e) => setManualInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()}
+                className="text-sm"
+              />
+              <Button
+                size="sm"
+                onClick={handleManualSearch}
+                disabled={!manualInput.trim() || searching}
+              >
+                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
 
