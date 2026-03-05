@@ -53,20 +53,41 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers for each section.`,
+            content: `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
+
+When writing Observations, organize them under these category subheadings:
+- Technology & Infrastructure
+- User Experience & Design
+- Content & SEO
+- Performance & Analytics
+- Organizational Context
+- Competitive Landscape & Market Position
+
+When writing Insights, organize them under these thematic subheadings:
+- Strategic Opportunities
+- Risk Areas
+- Patterns & Correlations
+
+When writing Recommendations, format each one with three clearly labeled parts:
+- **Action:** What specifically to do
+- **Why:** The reasoning and evidence behind it
+- **Impact:** The expected outcome or benefit`,
           },
           {
             role: 'user',
             content: `Review the company at ${domain} using all the documents, transcripts, URLs, site scrape data, and research provided below. Produce the following strategic pyramid:
 
 ## 30 Observations
-List 30 specific, data-backed observations about the company, its website, technology, content, SEO, performance, accessibility, security, and market position. Each should be a single clear statement.
+List 30 specific, data-backed observations organized under these subheadings: Technology & Infrastructure, User Experience & Design, Content & SEO, Performance & Analytics, Organizational Context, and Competitive Landscape & Market Position. Each observation should be a single clear, data-backed statement.
 
 ## 20 Insights
-From the observations above, derive 20 deeper insights — patterns, implications, opportunities, or risks that aren't immediately obvious.
+From the observations above, derive 20 deeper insights organized under these thematic subheadings: Strategic Opportunities, Risk Areas, and Patterns & Correlations. Each insight should synthesize across observation categories to surface patterns, implications, or risks that aren't immediately obvious.
 
 ## 10 Recommendations
-Provide 10 concrete, prioritized recommendations the company should act on. Each should include what to do, why, and expected impact.
+Provide 10 concrete, prioritized recommendations. For each recommendation, provide:
+- **Action:** What specifically to do
+- **Why:** The reasoning and evidence behind it
+- **Impact:** The expected outcome or benefit
 
 ## 5 Strategies
 Define 5 high-level strategies that tie the recommendations together into coherent themes or initiatives.
