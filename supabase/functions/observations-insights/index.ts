@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
             role: 'system',
             content: `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
 
-When writing Observations, organize them under these category subheadings:
+When writing Observations, organize them as bullet points under these category subheadings. CRITICAL: Every observation must be its own bullet point. Never combine observations into paragraphs. Use markdown bullet syntax (- ) for every single observation:
 - Technology & Infrastructure
 - User Experience & Design
 - Content & SEO
@@ -78,24 +78,63 @@ When writing Recommendations, format each one with three clearly labeled parts:
             content: `Review the company at ${domain} using all the documents, transcripts, URLs, site scrape data, and research provided below. Produce the following strategic pyramid:
 
 ## 30 Observations
-List 30 specific, data-backed observations organized under these subheadings: Technology & Infrastructure, User Experience & Design, Content & SEO, Performance & Analytics, Organizational Context, and Competitive Landscape & Market Position. Each observation should be a single clear, data-backed statement.
+*A comprehensive inventory of what we found — specific, data-backed facts drawn directly from the research, crawl data, and documents provided.*
+
+Organize the observations as **bullet points** under the following subheadings. Every single observation must be its own bullet point — do NOT combine them into paragraphs:
+
+### Technology & Infrastructure
+- (bullet observations here)
+
+### User Experience & Design
+- (bullet observations here)
+
+### Content & SEO
+- (bullet observations here)
+
+### Performance & Analytics
+- (bullet observations here)
+
+### Organizational Context
+- (bullet observations here)
+
+### Competitive Landscape & Market Position
+- (bullet observations here)
 
 ## 20 Insights
-From the observations above, derive 20 deeper insights organized under these thematic subheadings: Strategic Opportunities, Risk Areas, and Patterns & Correlations. Each insight should synthesize across observation categories to surface patterns, implications, or risks that aren't immediately obvious.
+*Patterns, implications, and connections that emerge when we look across the observations — the "so what" behind the data.*
+
+Organize the insights as **bullet points** under the following thematic subheadings:
+
+### Strategic Opportunities
+- (bullet insights here)
+
+### Risk Areas
+- (bullet insights here)
+
+### Patterns & Correlations
+- (bullet insights here)
 
 ## 10 Recommendations
+*At GLIDE®, we subscribe to the concept of "diagnose before prescribe." These are observations turned into action so you can see where our thinking is headed. They will only get more clear as conversations continue, and of course, if we engage in a full project with the full team.*
+
 Provide 10 concrete, prioritized recommendations. For each recommendation, provide:
 - **Action:** What specifically to do
 - **Why:** The reasoning and evidence behind it
 - **Impact:** The expected outcome or benefit
 
 ## 5 Strategies
+*High-level initiatives that tie the recommendations together into coherent themes.*
+
 Define 5 high-level strategies that tie the recommendations together into coherent themes or initiatives.
 
 ## 3 Keys to Success
+*The most critical factors that will determine whether this company succeeds in its digital presence.*
+
 Identify the 3 most critical factors that will determine whether this company succeeds in its digital presence.
 
 ## 1 North Star
+*The single guiding principle or metric that should orient all digital efforts.*
+
 Define the single most important guiding principle or metric this company should orient all digital efforts around.
 
 ${contextBlock}`,
