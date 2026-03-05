@@ -6,8 +6,35 @@ const corsHeaders = {
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
 type ScreenshotRef = { url: string; title: string };
+type Base64Screenshot = { data: string; mimeType: string; title: string };
 
-function buildUserContent(domain: string, contextBlock: string, screenshotUrls?: ScreenshotRef[]) {
+async function downloadScreenshotAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) {
+      console.warn(`Failed to download screenshot (${resp.status}): ${url}`);
+      return null;
+    }
+    const arrayBuffer = await resp.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const contentType = resp.headers.get('content-type') || 'image/png';
+    const mimeType = contentType.split(';')[0].trim();
+    return { data: base64, mimeType };
+  } catch (e) {
+    console.warn(`Screenshot download error for ${url}:`, e);
+    return null;
+  }
+}
+
+function buildUserContent(domain: string, contextBlock: string, screenshots?: Base64Screenshot[]) {
   const textPrompt = `Review the company at ${domain} using all the documents, transcripts, URLs, site scrape data, screenshots, and research provided below. Produce the following strategic pyramid:
 
 ## 30 Observations
@@ -72,13 +99,13 @@ Define the single most important guiding principle or metric this company should
 
 ${contextBlock}`;
 
-  // If we have screenshots, build multimodal content parts
-  if (screenshotUrls && screenshotUrls.length > 0) {
+  // If we have base64 screenshots, build multimodal content parts
+  if (screenshots && screenshots.length > 0) {
     const parts: any[] = [{ type: 'text', text: textPrompt }];
     parts.push({ type: 'text', text: '\n\n---\n\n## Page Screenshots\nBelow are screenshots of key pages from the website. Use these to inform your observations about User Experience & Design, Content & SEO, and other visual aspects:\n' });
-    for (const ss of screenshotUrls) {
+    for (const ss of screenshots) {
       parts.push({ type: 'text', text: `\nScreenshot: ${ss.title}` });
-      parts.push({ type: 'image_url', image_url: { url: ss.url } });
+      parts.push({ type: 'image_url', image_url: { url: `data:${ss.mimeType};base64,${ss.data}` } });
     }
     return parts;
   }
@@ -124,6 +151,22 @@ Deno.serve(async (req) => {
     const screenshotCount = screenshotUrls?.length || 0;
     console.log(`Generating Observations & Insights for: ${domain} (${screenshotCount} screenshots)`);
 
+    // Download screenshots server-side to avoid 403 when AI tries to fetch them
+    let base64Screenshots: Base64Screenshot[] = [];
+    if (screenshotUrls && screenshotUrls.length > 0) {
+      console.log('Downloading screenshots server-side...');
+      const downloadPromises = screenshotUrls.map(async (ss: ScreenshotRef) => {
+        const result = await downloadScreenshotAsBase64(ss.url);
+        if (result) {
+          return { data: result.data, mimeType: result.mimeType, title: ss.title };
+        }
+        return null;
+      });
+      const results = await Promise.all(downloadPromises);
+      base64Screenshots = results.filter((r): r is Base64Screenshot => r !== null);
+      console.log(`Successfully downloaded ${base64Screenshots.length}/${screenshotCount} screenshots`);
+    }
+
     const systemPrompt = `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
 
 When writing Observations, organize them as bullet points under these category subheadings. CRITICAL: Every observation must be its own bullet point. Never combine observations into paragraphs. Use markdown bullet syntax (- ) for every single observation:
@@ -156,7 +199,7 @@ If page screenshots are provided, use them to make specific visual observations 
         model: 'google/gemini-3-pro-preview',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: buildUserContent(domain, contextBlock, screenshotUrls) },
+          { role: 'user', content: buildUserContent(domain, contextBlock, base64Screenshots.length > 0 ? base64Screenshots : undefined) },
         ],
         max_tokens: 16000,
         reasoning_effort: 'high',
@@ -176,7 +219,7 @@ If page screenshots are provided, use them to make specific visual observations 
     let result = data.choices?.[0]?.message?.content || '';
 
     // If multimodal request returned empty, retry with text-only
-    if (!result && screenshotUrls?.length > 0) {
+    if (!result && base64Screenshots.length > 0) {
       console.warn('Multimodal request returned empty result, retrying text-only...');
       const retryResponse = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
