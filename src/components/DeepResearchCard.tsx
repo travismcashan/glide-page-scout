@@ -49,7 +49,7 @@ type SessionData = {
 
 type Props = {
   session: SessionData;
-  pages?: { url: string; title: string | null; ai_outline: string | null; raw_content: string | null }[];
+  pages?: { url: string; title: string | null; ai_outline: string | null; raw_content: string | null; screenshot_url?: string | null }[];
   collapsed?: boolean;
 };
 
