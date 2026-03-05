@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { toast } from 'sonner';
-import { Lightbulb, Loader2, Upload, X, FileText, Play, RefreshCw, Download } from 'lucide-react';
+import { Lightbulb, Loader2, Upload, X, FileText, Play, RefreshCw, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { loadDefaultDocs } from '@/lib/defaultResearchDocs';
+import { ContextPreview } from '@/components/ContextPreview';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -277,6 +279,21 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
             <Play className="h-4 w-4 mr-1.5" />
             Generate Analysis
           </Button>
+
+          {/* AI Context Preview */}
+          <Accordion type="single" collapsible>
+            <AccordionItem value="context-preview" className="border rounded-lg">
+              <AccordionTrigger className="px-4 py-2 text-xs text-muted-foreground hover:no-underline">
+                <span className="flex items-center gap-1.5">
+                  <Eye className="h-3.5 w-3.5" />
+                  Preview AI Context
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-3">
+                <ContextPreview session={session} pages={pages} documents={documents} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       )}
     </div>
