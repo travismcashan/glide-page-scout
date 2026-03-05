@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
+import { loadDefaultDocs } from '@/lib/defaultResearchDocs';
 
 type AttachedDoc = { name: string; content: string };
 
@@ -67,6 +68,21 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
       if (data.documents) setSubmittedDocs(data.documents.map((d: any) => ({ name: d.name, content: '' })));
     }
   }, [session.id]);
+
+  // Pre-load default framework documents
+  useEffect(() => {
+    let cancelled = false;
+    loadDefaultDocs().then(docs => {
+      if (!cancelled && docs.length > 0) {
+        setDocuments(prev => {
+          const existingNames = new Set(prev.map(d => d.name));
+          const newDocs = docs.filter(d => !existingNames.has(d.name));
+          return [...prev, ...newDocs];
+        });
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Save results to database
   const saveToDatabase = useCallback(async (finalResult: string, finalPrompt: string | null, finalDocs: AttachedDoc[]) => {
