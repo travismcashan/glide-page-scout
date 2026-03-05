@@ -49,7 +49,8 @@ type Props = {
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/observations-insights`;
 
 export function ObservationsInsightsCard({ session, pages }: Props) {
-  const defaultPrompt = `Review Company (${session.domain}) as it relates to all the documents, transcripts, URLs, site scrape data, and research provided, and give me:\r\n\r\n30 observations\r\n20 insights\r\n10 recommendations\r\n5 strategies\r\n3 keys to success\r\n1 north star`;
+  const companyName = session.ocean_data?.companyName || session.domain;
+  const defaultPrompt = `Review ${companyName}, located at ${session.domain}, as it relates to all the documents, transcripts, URLs, site scrape data, and research provided, and give me:\r\n\r\n30 observations\r\n20 insights\r\n10 recommendations\r\n5 strategies\r\n3 keys to success\r\n1 north star`;
 
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [documents, setDocuments] = useState<AttachedDoc[]>([]);
