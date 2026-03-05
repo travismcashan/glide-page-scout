@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, lazy, Suspense, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { toast } from 'sonner';
 import { Brain, Loader2, Upload, X, FileText, Play, RefreshCw, Globe, Search, BookOpen, PenTool, ExternalLink, Eye, Download } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ContextPreview } from '@/components/ContextPreview';
 import { loadDefaultDocs } from '@/lib/defaultResearchDocs';
 import { supabase } from '@/integrations/supabase/client';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
@@ -76,71 +77,7 @@ function StepIcon({ type }: { type: ThinkingStep['type'] }) {
 
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
 
-/** Shows what buildCrawlContext will send, broken into labeled sections */
-function ContextPreview({ session, pages, documents }: { session: SessionData; pages?: Props['pages']; documents: AttachedDoc[] }) {
-  const context = useMemo(() => buildCrawlContext(session, pages), [session, pages]);
-  const totalChars = context.length;
-  const estTokens = Math.round(totalChars / 4);
-  const docChars = documents.reduce((sum, d) => sum + d.content.length, 0);
-
-  const sections = useMemo(() => {
-    const parts: { label: string; content: string; chars: number }[] = [];
-    const raw = context.split(/^## /m);
-    for (const part of raw) {
-      if (!part.trim()) continue;
-      const newline = part.indexOf('\n');
-      const label = newline > 0 ? part.slice(0, newline).replace(/^\[Source: (.+)\]$/, '$1').trim() : part.trim();
-      const content = newline > 0 ? part.slice(newline + 1).trim() : '';
-      parts.push({ label, content, chars: content.length });
-    }
-    return parts;
-  }, [context]);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <span>Crawl context: <strong className="text-foreground">{totalChars.toLocaleString()}</strong> chars (~{estTokens.toLocaleString()} tokens)</span>
-        {docChars > 0 && <span>Attached docs: <strong className="text-foreground">{docChars.toLocaleString()}</strong> chars (~{Math.round(docChars / 4).toLocaleString()} tokens)</span>}
-        <span>Combined: ~<strong className="text-foreground">{Math.round((totalChars + docChars) / 4).toLocaleString()}</strong> / 100K tokens</span>
-      </div>
-
-      <div className="text-xs space-y-0.5">
-        <p className="font-medium text-muted-foreground mb-1">What's included:</p>
-        <ul className="space-y-0.5">
-          {sections.map((s, i) => {
-            const isPassthrough = s.label.includes('Avoma') || s.label.includes('Scraped Page');
-            return (
-              <li key={i} className="flex items-start gap-1.5">
-                <span className={`shrink-0 mt-0.5 h-1.5 w-1.5 rounded-full ${s.chars > 0 ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
-                <span className="text-foreground/80">
-                  <strong>{s.label}</strong>
-                  <span className="text-muted-foreground ml-1">
-                    ({s.chars.toLocaleString()} chars)
-                    {isPassthrough && ' — passed in full'}
-                    {!isPassthrough && s.chars > 0 && ' — key metrics extracted'}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      <Accordion type="single" collapsible>
-        <AccordionItem value="raw" className="border-0">
-          <AccordionTrigger className="py-1 text-[11px] text-muted-foreground hover:no-underline">
-            Show raw context
-          </AccordionTrigger>
-          <AccordionContent>
-            <ScrollArea className="h-[300px] rounded border border-border bg-muted/30 p-2">
-              <pre className="text-[11px] whitespace-pre-wrap font-mono text-foreground/70">{context}</pre>
-            </ScrollArea>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-    </div>
-  );
-}
+// ContextPreview is now imported from @/components/ContextPreview
 
 export function DeepResearchCard({ session, pages, collapsed }: Props) {
   const [prompt, setPrompt] = useState('');
