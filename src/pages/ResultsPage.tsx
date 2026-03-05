@@ -1055,7 +1055,26 @@ export default function ResultsPage() {
                 headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
                 collapsed={allCollapsed}
               >
-                {(session as any)?.avoma_data ? <AvomaCard data={(session as any).avoma_data} /> : null}
+                {(session as any)?.avoma_data ? <AvomaCard data={(session as any).avoma_data} onSearchDomain={async (domain) => {
+                  setAvomaLoading(true);
+                  setAvomaFailed(false);
+                  try {
+                    const result = await avomaApi.lookup(domain);
+                    if (result.success) {
+                      await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
+                      clearError('avoma');
+                      fetchData();
+                    } else {
+                      setError('avoma', result.error || 'No results');
+                      // Still update with new domain result so UI reflects the search
+                      await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
+                      fetchData();
+                    }
+                  } catch (e: any) {
+                    setError('avoma', e?.message || 'Search failed');
+                  }
+                  setAvomaLoading(false);
+                }} /> : null}
               </SectionCard>
             </TabsContent>
           )}
