@@ -18,17 +18,38 @@ serve(async (req) => {
       });
     }
 
-    // Fetch the page HTML
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SiteAnalyzer/1.0)' },
-      redirect: 'follow',
-    });
-    if (!res.ok) {
-      return new Response(JSON.stringify({ success: false, error: `Failed to fetch page: HTTP ${res.status}` }), {
+    // Fetch the page HTML with retry + timeout
+    let html = '';
+    let lastErr = '';
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SiteAnalyzer/1.0)' },
+          redirect: 'follow',
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!res.ok) {
+          return new Response(JSON.stringify({ success: false, error: `Failed to fetch page: HTTP ${res.status}` }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        html = await res.text();
+        lastErr = '';
+        break;
+      } catch (e) {
+        lastErr = e.message || String(e);
+        console.warn(`schema-validate fetch attempt ${attempt + 1} failed: ${lastErr}`);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+    if (lastErr) {
+      return new Response(JSON.stringify({ success: false, error: `Could not reach site after 3 attempts: ${lastErr}` }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const html = await res.text();
 
     // 1. Extract JSON-LD blocks
     const jsonLdBlocks = extractJsonLd(html);
