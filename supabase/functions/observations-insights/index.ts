@@ -124,18 +124,7 @@ Deno.serve(async (req) => {
     const screenshotCount = screenshotUrls?.length || 0;
     console.log(`Generating Observations & Insights for: ${domain} (${screenshotCount} screenshots)`);
 
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-pro-preview',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
+    const systemPrompt = `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
 
 When writing Observations, organize them as bullet points under these category subheadings. CRITICAL: Every observation must be its own bullet point. Never combine observations into paragraphs. Use markdown bullet syntax (- ) for every single observation:
 - Technology & Infrastructure
@@ -155,12 +144,19 @@ When writing Recommendations, format each one with three clearly labeled parts:
 - **Why:** The reasoning and evidence behind it
 - **Impact:** The expected outcome or benefit
 
-If page screenshots are provided, use them to make specific visual observations about layout, design quality, content hierarchy, calls-to-action, branding consistency, and mobile responsiveness.`,
-          },
-          {
-            role: 'user',
-            content: buildUserContent(domain, contextBlock, screenshotUrls),
-          },
+If page screenshots are provided, use them to make specific visual observations about layout, design quality, content hierarchy, calls-to-action, branding consistency, and mobile responsiveness.`;
+
+    const response = await fetch(AI_GATEWAY_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-3-pro-preview',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: buildUserContent(domain, contextBlock, screenshotUrls) },
         ],
         max_tokens: 16000,
         reasoning_effort: 'high',
@@ -177,7 +173,45 @@ If page screenshots are provided, use them to make specific visual observations 
       );
     }
 
-    const result = data.choices?.[0]?.message?.content || '';
+    let result = data.choices?.[0]?.message?.content || '';
+
+    // If multimodal request returned empty, retry with text-only
+    if (!result && screenshotUrls?.length > 0) {
+      console.warn('Multimodal request returned empty result, retrying text-only...');
+      const retryResponse = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-pro-preview',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: buildUserContent(domain, contextBlock) },
+          ],
+          max_tokens: 16000,
+          reasoning_effort: 'high',
+        }),
+      });
+      const retryData = await retryResponse.json();
+      if (!retryResponse.ok) {
+        console.error('AI Gateway retry error:', retryData);
+        return new Response(
+          JSON.stringify({ success: false, error: retryData.error?.message || 'AI request failed on retry' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      result = retryData.choices?.[0]?.message?.content || '';
+    }
+
+    if (!result) {
+      console.error('AI returned empty result. Full response:', JSON.stringify(data).substring(0, 2000));
+      return new Response(
+        JSON.stringify({ success: false, error: 'AI returned an empty response. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true, result }),
