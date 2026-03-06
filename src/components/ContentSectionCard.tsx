@@ -54,6 +54,7 @@ export function ContentSectionCard({
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisDone, setAnalysisDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!pickerOpen || analysisDone || analyzing || paused || discoveredUrls.length === 0) return;
@@ -153,50 +154,57 @@ export function ContentSectionCard({
             return (
               <Collapsible key={page.id} open={isExpanded} onOpenChange={() => toggleExpand(page.id)}>
                 <div className="border border-border rounded-lg overflow-hidden">
-                  <CollapsibleTrigger className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors">
+                    <CollapsibleTrigger className="flex items-center gap-3 min-w-0 flex-1 text-left">
                       <FileText className="h-4 w-4 text-primary shrink-0" />
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{page.title || page.url}</p>
                         <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
                       </div>
+                    </CollapsibleTrigger>
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                      {!page.ai_outline && (
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => generateOutline(page)} disabled={generatingOutline.has(page.id)}>
+                          {generatingOutline.has(page.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                        </Button>
+                      )}
+                      {page.ai_outline && (
+                        <Tabs defaultValue="outline" key={page.ai_outline ? 'has-outline' : 'no-outline'}>
+                          <TabsList className="h-7">
+                            <TabsTrigger value="raw" className="text-[11px] px-2 h-5" onClick={() => setActiveTab(prev => ({ ...prev, [page.id]: 'raw' }))}>Raw</TabsTrigger>
+                            <TabsTrigger value="outline" className="text-[11px] px-2 h-5" onClick={() => setActiveTab(prev => ({ ...prev, [page.id]: 'outline' }))}>Clean</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      )}
+                      <a href={page.url} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>
+                      </a>
                     </div>
-                    {isExpanded ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
-                  </CollapsibleTrigger>
+                    <CollapsibleTrigger className="shrink-0">
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </CollapsibleTrigger>
+                  </div>
                   <CollapsibleContent>
-                    <div className="px-4 pb-4 space-y-3">
-                      <div className="flex gap-2">
-                        <a href={page.url} target="_blank" rel="noopener noreferrer">
-                          <Button variant="outline" size="sm"><ExternalLink className="h-3 w-3 mr-1" /> Visit</Button>
-                        </a>
-                        {!page.ai_outline && (
-                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); generateOutline(page); }} disabled={generatingOutline.has(page.id)}>
-                            {generatingOutline.has(page.id) ? (<><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</>) : (<><Zap className="h-3 w-3 mr-1" /> Generate AI Outline</>)}
-                          </Button>
-                        )}
-                      </div>
-                      <Tabs defaultValue={page.ai_outline ? 'outline' : 'raw'} key={page.ai_outline ? 'has-outline' : 'no-outline'}>
-                        <TabsList>
-                          <TabsTrigger value="raw">Raw Content</TabsTrigger>
-                          {page.ai_outline && <TabsTrigger value="outline">Cleaned Content</TabsTrigger>}
-                        </TabsList>
-                        <TabsContent value="raw" className="mt-3">
-                          <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
-                            <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
-                              <ReactMarkdown components={{ img: () => null }}>{page.raw_content || ''}</ReactMarkdown>
-                            </Suspense>
-                          </div>
-                        </TabsContent>
-                        {page.ai_outline && (
-                          <TabsContent value="outline" className="mt-3">
-                            <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
-                              <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.ai_outline}</pre>}>
-                                <ReactMarkdown components={{ img: () => null }}>{page.ai_outline}</ReactMarkdown>
-                              </Suspense>
-                            </div>
-                          </TabsContent>
-                        )}
-                      </Tabs>
+                    <div className="px-4 pb-4">
+                      {(activeTab[page.id] || (page.ai_outline ? 'outline' : 'raw')) === 'raw' ? (
+                        <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                          <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
+                            <ReactMarkdown components={{ img: () => null }}>{page.raw_content || ''}</ReactMarkdown>
+                          </Suspense>
+                        </div>
+                      ) : page.ai_outline ? (
+                        <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                          <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.ai_outline}</pre>}>
+                            <ReactMarkdown components={{ img: () => null }}>{page.ai_outline}</ReactMarkdown>
+                          </Suspense>
+                        </div>
+                      ) : (
+                        <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                          <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
+                            <ReactMarkdown components={{ img: () => null }}>{page.raw_content || ''}</ReactMarkdown>
+                          </Suspense>
+                        </div>
+                      )}
                     </div>
                   </CollapsibleContent>
                 </div>
