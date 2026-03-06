@@ -2,7 +2,8 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FileText, ExternalLink, ChevronDown, ChevronUp, Loader2, Zap, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -89,12 +90,20 @@ export function ContentSectionCard({
       if (error) throw error;
       await supabase.from('crawl_sessions').update({ status: 'crawling' }).eq('id', sessionId);
       toast.success(`Queued ${newUrls.length} pages for content scraping`);
+      setPickerOpen(false);
       onPagesAdded();
     } catch (e) { console.error(e); toast.error('Failed to queue content pages'); }
     setSubmitting(false);
   };
 
   if (paused) return null;
+
+  const pendingCount = pages.filter(p => p.status === 'pending').length;
+  const scrapedCount = pages.filter(p => p.status === 'scraped').length;
+  const errorCount = pages.filter(p => p.status === 'error').length;
+
+  // Only show "Add Pages" when there are unqueued discovered URLs
+  const hasNewUrlsToAdd = discoveredUrls.length > 0 && discoveredUrls.some(u => !existingPageUrls.has(u));
 
   return (
     <Card className="overflow-hidden">
@@ -107,8 +116,18 @@ export function ContentSectionCard({
         </div>
         <h2 className="text-lg font-semibold">Page Content</h2>
         <div className="flex items-center gap-2 ml-auto" onClick={e => e.stopPropagation()}>
-          <span className="text-sm text-muted-foreground">{pages.length} pages</span>
-          {discoveredUrls.length > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {scrapedCount > 0 && <span>{scrapedCount} scraped</span>}
+            {pendingCount > 0 && (
+              <span className="flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {pendingCount} pending
+              </span>
+            )}
+            {errorCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{errorCount} failed</Badge>}
+            {pages.length === 0 && <span>No pages</span>}
+          </div>
+          {hasNewUrlsToAdd && (
             <Button variant="outline" size="sm" onClick={() => setPickerOpen(!pickerOpen)}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Add Pages
@@ -148,67 +167,91 @@ export function ContentSectionCard({
       )}
 
       {!isCollapsed && pages.length > 0 ? (
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-1">
           {pages.map(page => {
             const isExpanded = expandedPages.has(page.id);
+            const isPending = page.status === 'pending';
+            const isError = page.status === 'error';
+            const hasContent = !!page.raw_content;
+
             return (
-              <Collapsible key={page.id} open={isExpanded} onOpenChange={() => toggleExpand(page.id)}>
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <div className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors">
-                    <CollapsibleTrigger className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                      <FileText className="h-4 w-4 text-primary shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{page.title || page.url}</p>
-                        <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
-                      </div>
-                    </CollapsibleTrigger>
-                    <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-                      {!page.ai_outline && (
-                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => generateOutline(page)} disabled={generatingOutline.has(page.id)}>
-                          {generatingOutline.has(page.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-                        </Button>
-                      )}
-                      {page.ai_outline && (
-                        <Tabs defaultValue="outline" key={page.ai_outline ? 'has-outline' : 'no-outline'}>
-                          <TabsList className="h-7">
-                            <TabsTrigger value="raw" className="text-[11px] px-2 h-5" onClick={() => setActiveTab(prev => ({ ...prev, [page.id]: 'raw' }))}>Raw</TabsTrigger>
-                            <TabsTrigger value="outline" className="text-[11px] px-2 h-5" onClick={() => setActiveTab(prev => ({ ...prev, [page.id]: 'outline' }))}>Clean</TabsTrigger>
-                          </TabsList>
-                        </Tabs>
-                      )}
-                      <a href={page.url} target="_blank" rel="noopener noreferrer" className="inline-flex">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>
-                      </a>
-                    </div>
-                    <CollapsibleTrigger className="shrink-0">
-                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                    </CollapsibleTrigger>
+              <div key={page.id} className="border border-border rounded-lg overflow-hidden">
+                <div className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-muted/50 transition-colors">
+                  {/* Status indicator */}
+                  <div className="shrink-0">
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : isError ? (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Error</Badge>
+                    ) : (
+                      <FileText className="h-4 w-4 text-primary" />
+                    )}
                   </div>
-                  <CollapsibleContent>
-                    <div className="px-4 pb-4">
-                      {(activeTab[page.id] || (page.ai_outline ? 'outline' : 'raw')) === 'raw' ? (
-                        <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
-                          <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
-                            <ReactMarkdown components={{ img: () => null }}>{page.raw_content || ''}</ReactMarkdown>
-                          </Suspense>
+
+                  {/* Title & URL — clickable to expand only if has content */}
+                  {hasContent ? (
+                    <Collapsible open={isExpanded} onOpenChange={() => toggleExpand(page.id)} className="flex-1 min-w-0">
+                      <CollapsibleTrigger className="flex items-center gap-3 min-w-0 w-full text-left">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{page.title || page.url}</p>
+                          <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
                         </div>
-                      ) : page.ai_outline ? (
-                        <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
-                          <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.ai_outline}</pre>}>
-                            <ReactMarkdown components={{ img: () => null }}>{page.ai_outline}</ReactMarkdown>
-                          </Suspense>
-                        </div>
-                      ) : (
-                        <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
-                          <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
-                            <ReactMarkdown components={{ img: () => null }}>{page.raw_content || ''}</ReactMarkdown>
-                          </Suspense>
-                        </div>
-                      )}
+                      </CollapsibleTrigger>
+                    </Collapsible>
+                  ) : (
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{page.title || page.url}</p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
                     </div>
-                  </CollapsibleContent>
+                  )}
+
+                  {/* Right side controls */}
+                  <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                    {hasContent && !page.ai_outline && (
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => generateOutline(page)} disabled={generatingOutline.has(page.id)}>
+                        {generatingOutline.has(page.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                      </Button>
+                    )}
+                    {hasContent && page.ai_outline && (
+                      <Tabs defaultValue="outline" key={page.ai_outline ? 'has-outline' : 'no-outline'}>
+                        <TabsList className="h-7">
+                          <TabsTrigger value="raw" className="text-[11px] px-2 h-5" onClick={() => setActiveTab(prev => ({ ...prev, [page.id]: 'raw' }))}>Raw</TabsTrigger>
+                          <TabsTrigger value="outline" className="text-[11px] px-2 h-5" onClick={() => setActiveTab(prev => ({ ...prev, [page.id]: 'outline' }))}>Clean</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    )}
+                    <a href={page.url} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>
+                    </a>
+                  </div>
+
+                  {/* Expand chevron — only if content exists */}
+                  {hasContent && (
+                    <button className="shrink-0" onClick={() => toggleExpand(page.id)}>
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+                  )}
                 </div>
-              </Collapsible>
+
+                {/* Expandable content area */}
+                {hasContent && isExpanded && (
+                  <div className="px-4 pb-4">
+                    {(activeTab[page.id] || (page.ai_outline ? 'outline' : 'raw')) === 'raw' ? (
+                      <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                        <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
+                          <ReactMarkdown components={{ img: () => null }}>{page.raw_content || ''}</ReactMarkdown>
+                        </Suspense>
+                      </div>
+                    ) : page.ai_outline ? (
+                      <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
+                        <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.ai_outline}</pre>}>
+                          <ReactMarkdown components={{ img: () => null }}>{page.ai_outline}</ReactMarkdown>
+                        </Suspense>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

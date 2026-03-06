@@ -969,11 +969,11 @@ export default function ResultsPage() {
         {/* ── Page Content ── */}
         {session && !isIntegrationPaused('content') && (
           <ContentSectionCard
-            pages={scrapedPages}
+            pages={pages}
             sessionId={session.id}
             baseUrl={session.base_url}
             discoveredUrls={discoveredUrls}
-            existingPageUrls={new Set(pages.filter(p => p.raw_content || p.ai_outline).map(p => p.url))}
+            existingPageUrls={new Set(pages.map(p => p.url))}
             onPagesAdded={fetchData}
             expandedPages={expandedPages}
             toggleExpand={toggleExpand}
@@ -983,33 +983,8 @@ export default function ResultsPage() {
           />
         )}
 
-        {/* ── Scrape Progress ── */}
-        {pages.length > 0 && (
-          <SectionCard collapsed={allCollapsed} title="Scrape Progress" icon={<Globe className="h-5 w-5 text-foreground" />}>
-            <div className="space-y-1">
-              {pages.map(page => (
-                <div key={page.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {page.status === 'pending' ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
-                    ) : page.status === 'error' ? (
-                      <Badge variant="destructive" className="shrink-0 text-[10px]">Error</Badge>
-                    ) : (
-                      <Badge variant="default" className="shrink-0 text-[10px]">Done</Badge>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{page.title || page.url}</p>
-                      <p className="text-xs text-muted-foreground font-mono truncate">{page.url}</p>
-                    </div>
-                  </div>
-                  <a href={page.url} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="icon" className="shrink-0"><ExternalLink className="h-3 w-3" /></Button>
-                  </a>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        )}
+
+
 
           </TabsContent>
 
