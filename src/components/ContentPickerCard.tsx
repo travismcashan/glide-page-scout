@@ -57,7 +57,7 @@ export function ContentPickerCard({ sessionId, baseUrl, discoveredUrls, existing
       const { error } = await supabase.from('crawl_pages').insert(pages);
       if (error) throw error;
       await supabase.from('crawl_sessions').update({ status: 'crawling' }).eq('id', sessionId);
-      toast.success(`Queued ${newUrls.length} pages for content scraping`);
+      toast.success(`Scraping ${newUrls.length} pages`);
       onPagesAdded();
     } catch (e) { console.error(e); toast.error('Failed to queue content pages'); }
     setSubmitting(false);
@@ -82,9 +82,9 @@ export function ContentPickerCard({ sessionId, baseUrl, discoveredUrls, existing
           selectedUrls={selected}
           setSelectedUrls={setSelected}
           existingUrls={existingPageUrls}
-          existingLabel="Queued"
+          existingLabel="Scraped"
           onSubmit={handleSubmit}
-          submitLabel="Queue Content"
+          submitLabel="Scrape Pages"
           isSubmitting={submitting}
           isAnalyzing={analyzing}
           analysisDone={analysisDone}

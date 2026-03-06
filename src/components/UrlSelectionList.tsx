@@ -145,21 +145,23 @@ export function UrlSelectionList({
           return (
             <label
               key={entry.url}
-              className={`flex items-start gap-3 px-3 py-2 rounded-md cursor-pointer transition-colors ${
-                alreadyAdded ? 'bg-muted/50 opacity-60' : isSelected ? 'bg-primary/5 border border-primary/10' : 'hover:bg-muted border border-transparent'
+              className={`flex items-start gap-3 px-3 py-2 rounded-md transition-colors ${
+                alreadyAdded ? 'bg-muted/30 opacity-50 cursor-default' : isSelected ? 'bg-primary/5 border border-primary/10 cursor-pointer' : 'hover:bg-muted border border-transparent cursor-pointer'
               }`}
             >
-              <Checkbox checked={isSelected} onCheckedChange={() => toggleUrl(entry.url)} className="mt-0.5" disabled={alreadyAdded} />
+              {!alreadyAdded && (
+                <Checkbox checked={isSelected} onCheckedChange={() => toggleUrl(entry.url)} className="mt-0.5" />
+              )}
               <div className="min-w-0 flex-1">
                 <span className="text-sm font-mono truncate block">{entry.url}</span>
-                {entry.isRecommended && entry.reason && (
+                {entry.isRecommended && entry.reason && !alreadyAdded && (
                   <span className="text-xs text-primary flex items-center gap-1 mt-0.5">
                     <Sparkles className="h-3 w-3" />{entry.reason}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                {alreadyAdded && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{existingLabel}</Badge>}
+                {alreadyAdded && <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">{existingLabel}</Badge>}
                 {entry.isRecommended && !alreadyAdded && <Badge variant="default" className="text-[10px] px-1.5 py-0">AI pick</Badge>}
                 <a href={entry.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
                   <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground" />
