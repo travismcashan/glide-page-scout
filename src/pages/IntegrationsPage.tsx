@@ -189,6 +189,19 @@ export default function IntegrationsPage() {
 
   const activeCount = activeIntegrations.filter(i => !pausedSet.has(i.id)).length;
   const pausedCount = activeIntegrations.filter(i => pausedSet.has(i.id)).length;
+  const allOn = pausedCount === 0;
+
+  const handleToggleAll = async (turnOn: boolean) => {
+    const targets = activeIntegrations.filter(i => turnOn ? pausedSet.has(i.id) : !pausedSet.has(i.id));
+    for (const t of targets) await toggleIntegrationPause(t.id);
+    setPausedSet(getPausedIntegrations());
+  };
+
+  const handleToggleCategory = async (items: Integration[], turnOn: boolean) => {
+    const targets = items.filter(i => turnOn ? pausedSet.has(i.id) : !pausedSet.has(i.id));
+    for (const t of targets) await toggleIntegrationPause(t.id);
+    setPausedSet(getPausedIntegrations());
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -197,19 +210,40 @@ export default function IntegrationsPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="font-semibold text-lg">Integrations</h1>
             <p className="text-xs text-muted-foreground">
               {activeCount} active{pausedCount > 0 && <> · {pausedCount} paused</>}
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => handleToggleAll(true)} disabled={allOn} className="text-xs">
+              Enable All
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleToggleAll(false)} disabled={pausedCount === activeIntegrations.length} className="text-xs">
+              Disable All
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        {grouped.map(({ category, label, items }) => (
+        {grouped.map(({ category, label, items }) => {
+          const catActiveCount = items.filter(i => !pausedSet.has(i.id)).length;
+          const catAllOn = catActiveCount === items.length;
+          return (
           <div key={category}>
-            <h2 className="text-sm font-semibold mb-3">{label}</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold">{label}</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[11px] h-6 px-2 text-muted-foreground"
+                onClick={() => handleToggleCategory(items, !catAllOn)}
+              >
+                {catAllOn ? 'Disable section' : 'Enable section'}
+              </Button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {items.map((integration) => {
                 const isPaused = pausedSet.has(integration.id);
@@ -234,7 +268,7 @@ export default function IntegrationsPage() {
               })}
             </div>
           </div>
-        ))}
+        )})}
 
         {/* Wishlist / Coming Soon */}
         {wishlistIntegrations.length > 0 && (
