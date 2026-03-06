@@ -183,7 +183,7 @@ export function ContentSectionCard({
                         <TabsContent value="raw" className="mt-3">
                           <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
                             <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.raw_content}</pre>}>
-                              <ReactMarkdown>{page.raw_content || ''}</ReactMarkdown>
+                              <ReactMarkdown components={{ img: () => null }}>{page.raw_content || ''}</ReactMarkdown>
                             </Suspense>
                           </div>
                         </TabsContent>
@@ -191,7 +191,7 @@ export function ContentSectionCard({
                           <TabsContent value="outline" className="mt-3">
                             <div className="bg-muted rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-a:text-primary prose-strong:text-foreground">
                               <Suspense fallback={<pre className="text-sm whitespace-pre-wrap">{page.ai_outline}</pre>}>
-                                <ReactMarkdown>{page.ai_outline}</ReactMarkdown>
+                                <ReactMarkdown components={{ img: () => null }}>{page.ai_outline}</ReactMarkdown>
                               </Suspense>
                             </div>
                           </TabsContent>

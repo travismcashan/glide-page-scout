@@ -512,24 +512,16 @@ export default function ResultsPage() {
     const processPage = async (page: CrawlPage) => {
       setProcessingPages(prev => new Set([...prev, page.id]));
       try {
-        // Run scrape and screenshot in parallel, each with its own error handling
-        const [scrapeResult, screenshotResult] = await Promise.allSettled([
-          firecrawlApi.scrape(page.url, { formats: ['markdown'] }),
-          screenshotApi.getUrl(page.url),
-        ]);
+        // Scrape content only — screenshots are handled separately by the Screenshot Picker
+        const scrapeResult = await firecrawlApi.scrape(page.url, { formats: ['markdown'] });
 
-        const scrapeData = scrapeResult.status === 'fulfilled' ? scrapeResult.value : null;
-        const screenshotData = screenshotResult.status === 'fulfilled' ? screenshotResult.value : null;
-
-        const markdown = scrapeData?.data?.markdown || (scrapeData as any)?.markdown || '';
-        const title = scrapeData?.data?.metadata?.title || (scrapeData as any)?.metadata?.title || page.url;
-        const screenshotUrl = screenshotData?.success ? screenshotData.screenshotUrl : null;
+        const markdown = scrapeResult?.data?.markdown || (scrapeResult as any)?.markdown || '';
+        const title = scrapeResult?.data?.metadata?.title || (scrapeResult as any)?.metadata?.title || page.url;
 
         await supabase.from('crawl_pages').update({
           raw_content: markdown || null,
           title,
-          screenshot_url: screenshotUrl || null,
-          status: markdown || screenshotUrl ? 'scraped' : 'error',
+          status: markdown ? 'scraped' : 'error',
         }).eq('id', page.id);
 
         // Generate outline independently — don't block on failure
