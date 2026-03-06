@@ -168,6 +168,7 @@ function CreditsDisplay({ integrationId }: { integrationId: string }) {
 export default function IntegrationsPage() {
   const navigate = useNavigate();
   const [pausedSet, setPausedSet] = useState(() => getPausedIntegrations());
+  const [bulkLoading, setBulkLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadPausedIntegrations().then(setPausedSet);
@@ -192,15 +193,21 @@ export default function IntegrationsPage() {
   const allOn = pausedCount === 0;
 
   const handleToggleAll = async (turnOn: boolean) => {
-    const targets = activeIntegrations.filter(i => turnOn ? pausedSet.has(i.id) : !pausedSet.has(i.id));
-    for (const t of targets) await toggleIntegrationPause(t.id);
-    setPausedSet(getPausedIntegrations());
+    setBulkLoading(turnOn ? 'enable-all' : 'disable-all');
+    try {
+      const targets = activeIntegrations.filter(i => turnOn ? pausedSet.has(i.id) : !pausedSet.has(i.id));
+      for (const t of targets) await toggleIntegrationPause(t.id);
+      setPausedSet(getPausedIntegrations());
+    } finally { setBulkLoading(null); }
   };
 
-  const handleToggleCategory = async (items: Integration[], turnOn: boolean) => {
-    const targets = items.filter(i => turnOn ? pausedSet.has(i.id) : !pausedSet.has(i.id));
-    for (const t of targets) await toggleIntegrationPause(t.id);
-    setPausedSet(getPausedIntegrations());
+  const handleToggleCategory = async (items: Integration[], turnOn: boolean, category: string) => {
+    setBulkLoading(category);
+    try {
+      const targets = items.filter(i => turnOn ? pausedSet.has(i.id) : !pausedSet.has(i.id));
+      for (const t of targets) await toggleIntegrationPause(t.id);
+      setPausedSet(getPausedIntegrations());
+    } finally { setBulkLoading(null); }
   };
 
   return (
@@ -217,11 +224,11 @@ export default function IntegrationsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => handleToggleAll(true)} disabled={allOn} className="text-xs">
-              Enable All
+            <Button variant="outline" size="sm" onClick={() => handleToggleAll(true)} disabled={allOn || !!bulkLoading} className="text-xs">
+              {bulkLoading === 'enable-all' && <Loader2 className="h-3 w-3 animate-spin mr-1" />}Enable All
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleToggleAll(false)} disabled={pausedCount === activeIntegrations.length} className="text-xs">
-              Disable All
+            <Button variant="outline" size="sm" onClick={() => handleToggleAll(false)} disabled={pausedCount === activeIntegrations.length || !!bulkLoading} className="text-xs">
+              {bulkLoading === 'disable-all' && <Loader2 className="h-3 w-3 animate-spin mr-1" />}Disable All
             </Button>
           </div>
         </div>
@@ -239,8 +246,10 @@ export default function IntegrationsPage() {
                 variant="ghost"
                 size="sm"
                 className="text-[11px] h-6 px-2 text-muted-foreground"
-                onClick={() => handleToggleCategory(items, !catAllOn)}
+                onClick={() => handleToggleCategory(items, !catAllOn, category)}
+                disabled={!!bulkLoading}
               >
+                {bulkLoading === category && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
                 {catAllOn ? 'Disable section' : 'Enable section'}
               </Button>
             </div>
