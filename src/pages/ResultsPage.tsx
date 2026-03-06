@@ -972,6 +972,7 @@ export default function ResultsPage() {
             pages={pages}
             sessionId={session.id}
             baseUrl={session.base_url}
+            domain={session.domain}
             discoveredUrls={discoveredUrls}
             existingPageUrls={new Set(pages.map(p => p.url))}
             onPagesAdded={fetchData}
