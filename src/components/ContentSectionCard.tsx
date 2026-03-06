@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FileText, ExternalLink, ChevronDown, ChevronUp, Loader2, Zap, Plus } from 'lucide-react';
+import { FileText, ExternalLink, ChevronDown, ChevronUp, Loader2, Zap, Plus, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { UrlSelectionList, type UrlEntry } from '@/components/UrlSelectionList';
+import { downloadReportPdf } from '@/lib/downloadReportPdf';
 
 type ContentPage = {
   id: string;
@@ -25,6 +26,7 @@ type Props = {
   pages: ContentPage[];
   sessionId: string;
   baseUrl: string;
+  domain: string;
   discoveredUrls: string[];
   existingPageUrls: Set<string>;
   onPagesAdded: () => void;
@@ -36,7 +38,7 @@ type Props = {
 };
 
 export function ContentSectionCard({
-  pages, sessionId, baseUrl, discoveredUrls, existingPageUrls, onPagesAdded,
+  pages, sessionId, baseUrl, domain, discoveredUrls, existingPageUrls, onPagesAdded,
   expandedPages, toggleExpand, generateOutline, generatingOutline, collapsed: controlledCollapsed
 }: Props) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
@@ -101,9 +103,26 @@ export function ContentSectionCard({
   const pendingCount = pages.filter(p => p.status === 'pending').length;
   const scrapedCount = pages.filter(p => p.status === 'scraped').length;
   const errorCount = pages.filter(p => p.status === 'error').length;
+  const cleanPages = pages.filter(p => p.ai_outline);
 
   // Only show "Add Pages" when there are unqueued discovered URLs
   const hasNewUrlsToAdd = discoveredUrls.length > 0 && discoveredUrls.some(u => !existingPageUrls.has(u));
+
+  const downloadPagePdf = (page: ContentPage) => {
+    const content = page.ai_outline || page.raw_content;
+    if (!content) return;
+    downloadReportPdf(content, page.title || page.url, domain);
+  };
+
+  const downloadAllPdf = () => {
+    const pagesWithContent = pages.filter(p => p.ai_outline || p.raw_content);
+    if (pagesWithContent.length === 0) return;
+    const combined = pagesWithContent.map(p => {
+      const content = p.ai_outline || p.raw_content || '';
+      return `# ${p.title || p.url}\n\n${content}`;
+    }).join('\n\n---\n\n');
+    downloadReportPdf(combined, `All Page Content (${pagesWithContent.length} pages)`, domain);
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -127,6 +146,12 @@ export function ContentSectionCard({
             {errorCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{errorCount} failed</Badge>}
             {pages.length === 0 && <span>No pages</span>}
           </div>
+          {scrapedCount > 0 && (
+            <Button variant="outline" size="sm" onClick={downloadAllPdf} title="Download all content as PDF">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Download All
+            </Button>
+          )}
           {hasNewUrlsToAdd && (
             <Button variant="outline" size="sm" onClick={() => setPickerOpen(!pickerOpen)}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -219,6 +244,11 @@ export function ContentSectionCard({
                           <TabsTrigger value="outline" className="text-[11px] px-2 h-5" onClick={() => setActiveTab(prev => ({ ...prev, [page.id]: 'outline' }))}>Clean</TabsTrigger>
                         </TabsList>
                       </Tabs>
+                    )}
+                    {hasContent && (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => downloadPagePdf(page)} title="Download as PDF">
+                        <Download className="h-3 w-3" />
+                      </Button>
                     )}
                     <a href={page.url} target="_blank" rel="noopener noreferrer" className="inline-flex">
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>
