@@ -80,6 +80,7 @@ export type Database = {
           created_at: string
           crux_data: Json | null
           deep_research_data: Json | null
+          discovered_urls: Json | null
           domain: string
           gtmetrix_grade: string | null
           gtmetrix_scores: Json | null
@@ -111,6 +112,7 @@ export type Database = {
           created_at?: string
           crux_data?: Json | null
           deep_research_data?: Json | null
+          discovered_urls?: Json | null
           domain: string
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
@@ -142,6 +144,7 @@ export type Database = {
           created_at?: string
           crux_data?: Json | null
           deep_research_data?: Json | null
+          discovered_urls?: Json | null
           domain?: string
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
