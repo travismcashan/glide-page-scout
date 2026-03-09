@@ -36,14 +36,33 @@ export function ContextPreview({ session, pages, documents }: Props) {
 
   const sections = useMemo(() => {
     const parts: { label: string; content: string; chars: number }[] = [];
-    const raw = context.split(/^## /m);
-    for (const part of raw) {
-      if (!part.trim()) continue;
-      const newline = part.indexOf('\n');
-      const label = newline > 0 ? part.slice(0, newline).replace(/^\[Source: (.+)\]$/, '$1').trim() : part.trim();
-      const content = newline > 0 ? part.slice(newline + 1).trim() : '';
-      parts.push({ label, content, chars: content.length });
+    // Split only on our tagged source headers, not arbitrary ## headings in page content
+    const sourcePattern = /^## \[Source: (.+?)\]/gm;
+    let match: RegExpExecArray | null;
+    const matches: { label: string; start: number }[] = [];
+
+    while ((match = sourcePattern.exec(context)) !== null) {
+      matches.push({ label: match[1], start: match.index + match[0].length });
     }
+
+    // First section: everything before the first [Source:] tag (header/preamble)
+    if (matches.length > 0) {
+      const preamble = context.slice(0, matches[0].start - matches[0].label.length - '## [Source: ]'.length).trim();
+      if (preamble) {
+        const firstLine = preamble.split('\n')[0].replace(/^#+ /, '').trim();
+        parts.push({ label: firstLine, content: preamble, chars: preamble.length });
+      }
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const start = matches[i].start;
+      const end = i + 1 < matches.length
+        ? context.lastIndexOf('## [Source:', matches[i + 1].start)
+        : context.length;
+      const content = context.slice(start, end).trim();
+      parts.push({ label: matches[i].label, content, chars: content.length });
+    }
+
     return parts;
   }, [context]);
 
