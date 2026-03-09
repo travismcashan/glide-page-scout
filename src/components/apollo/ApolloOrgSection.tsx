@@ -8,8 +8,8 @@ function GrowthBadge({ label, value }: { label: string; value: number | null | u
   const isPositive = value > 0;
   return (
     <span className="flex items-center gap-1 text-xs">
-      {isPositive ? <TrendingUp className="h-3 w-3 text-green-600" /> : <TrendingDown className="h-3 w-3 text-red-500" />}
-      <span className={isPositive ? 'text-green-600' : 'text-red-500'}>{isPositive ? '+' : ''}{pct}%</span>
+      {isPositive ? <TrendingUp className="h-3 w-3 text-primary" /> : <TrendingDown className="h-3 w-3 text-destructive" />}
+      <span className={isPositive ? 'text-primary' : 'text-destructive'}>{isPositive ? '+' : ''}{pct}%</span>
       <span className="text-muted-foreground">{label}</span>
     </span>
   );
