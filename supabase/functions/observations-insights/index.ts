@@ -197,7 +197,7 @@ If page screenshots are provided, use them to make specific visual observations 
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: buildUserContent(domain, contextBlock, screenshotRefs.length > 0 ? screenshotRefs : undefined) },
+          { role: 'user', content: buildUserContent(domain, contextBlock, base64Screenshots.length > 0 ? base64Screenshots : undefined) },
         ],
         max_tokens: 16000,
       }),
