@@ -80,6 +80,7 @@ type CrawlSession = {
   yellowlab_data: any | null;
   avoma_data: any | null;
   apollo_data: any | null;
+  discovered_urls: string[] | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -836,6 +837,11 @@ export default function ResultsPage() {
             onUrlsDiscovered={setDiscoveredUrls}
             linkCheckResults={session.linkcheck_data?.results || null}
             collapsed={allCollapsed}
+            persistedUrls={session.discovered_urls}
+            onUrlsPersist={async (urls) => {
+              await supabase.from('crawl_sessions').update({ discovered_urls: urls } as any).eq('id', session.id);
+              console.log('Discovered URLs persisted to database');
+            }}
           />
         )}
 
