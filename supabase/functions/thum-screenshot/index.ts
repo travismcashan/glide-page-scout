@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
     }
 
     const keyId = '76733';
-    // 5 minute expiry
-    const expires = Date.now() + (1000 * 300);
+    // 30 day expiry so stored URLs remain valid
+    const expires = Date.now() + (1000 * 60 * 60 * 24 * 30);
     const hash = await md5(secret + expires + url);
     const auth = `${keyId}-${expires}-${hash}`;
 
