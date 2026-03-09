@@ -76,45 +76,97 @@ Deno.serve(async (req) => {
     console.log('Apollo match successful:', person.name);
 
     const org = person.organization || {};
+    const contact = person.contact || {};
+
     const result = {
       success: true,
       found: true,
+      // Person basics
       id: person.id,
       firstName: person.first_name,
       lastName: person.last_name,
       name: person.name,
       title: person.title,
       headline: person.headline,
-      linkedinUrl: person.linkedin_url,
       photoUrl: person.photo_url,
+      // Contact info
       email: person.email,
       emailStatus: person.email_status,
+      emailSource: contact.email_source || null,
+      emailTrueStatus: contact.email_true_status || null,
+      extrapolatedEmailConfidence: person.extrapolated_email_confidence || null,
+      emailDomainCatchall: person.email_domain_catchall ?? null,
+      freeDomain: contact.free_domain ?? null,
       personalEmails: person.personal_emails || [],
-      phone: person.phone_numbers?.[0]?.sanitized_number || null,
+      phone: person.phone_numbers?.[0]?.sanitized_number || contact.sanitized_phone || null,
       phoneNumbers: person.phone_numbers || [],
+      // Location
+      streetAddress: person.street_address || null,
       city: person.city,
       state: person.state,
       country: person.country,
+      postalCode: person.postal_code || null,
+      formattedAddress: person.formatted_address || null,
+      timeZone: contact.time_zone || person.time_zone || null,
       // Social profiles
+      linkedinUrl: person.linkedin_url || null,
       twitterUrl: person.twitter_url || null,
       facebookUrl: person.facebook_url || null,
       githubUrl: person.github_url || null,
+      // Seniority & department
+      seniority: person.seniority,
+      departments: person.departments,
+      subdepartments: person.subdepartments || [],
+      functions: person.functions || [],
+      // Engagement signals
+      isLikelyToEngage: contact.is_likely_to_engage ?? person.is_likely_to_engage ?? null,
+      intentStrength: person.intent_strength || null,
+      showIntent: person.show_intent || false,
+      revealedForCurrentTeam: person.revealed_for_current_team ?? null,
       // Organization
+      organizationId: person.organization_id || null,
       organizationName: org.name || null,
       organizationDomain: org.primary_domain || null,
-      organizationIndustry: org.industry || null,
-      organizationSize: org.estimated_num_employees || null,
-      organizationLinkedin: org.linkedin_url || null,
-      organizationLogo: org.logo_url || null,
       organizationWebsite: org.website_url || null,
+      organizationLogo: org.logo_url || null,
+      organizationIndustry: org.industry || null,
+      organizationIndustries: org.industries || [],
+      organizationSecondaryIndustries: org.secondary_industries || [],
+      organizationSize: org.estimated_num_employees || null,
       organizationFounded: org.founded_year || null,
-      organizationRevenue: org.annual_revenue_printed || null,
+      organizationRevenue: org.annual_revenue_printed || org.organization_revenue_printed || null,
+      organizationRevenueRaw: org.annual_revenue || org.organization_revenue || null,
       organizationDescription: org.short_description || null,
       organizationKeywords: org.keywords || [],
       organizationPhone: org.phone || null,
+      // Org location
+      organizationStreetAddress: org.street_address || null,
       organizationCity: org.city || null,
       organizationState: org.state || null,
       organizationCountry: org.country || null,
+      organizationPostalCode: org.postal_code || null,
+      organizationRawAddress: org.raw_address || null,
+      // Org social
+      organizationLinkedin: org.linkedin_url || null,
+      organizationTwitter: org.twitter_url || null,
+      organizationFacebook: org.facebook_url || null,
+      organizationBlogUrl: org.blog_url || null,
+      organizationAngellistUrl: org.angellist_url || null,
+      organizationCrunchbaseUrl: org.crunchbase_url || null,
+      // Org classification
+      organizationSicCodes: org.sic_codes || [],
+      organizationNaicsCodes: org.naics_codes || [],
+      organizationAlexaRanking: org.alexa_ranking || null,
+      organizationLanguages: org.languages || [],
+      organizationRetailLocationCount: org.retail_location_count ?? null,
+      // Org public trading
+      organizationPubliclyTradedSymbol: org.publicly_traded_symbol || null,
+      organizationPubliclyTradedExchange: org.publicly_traded_exchange || null,
+      // Org growth
+      organizationHeadcountGrowth6mo: org.organization_headcount_six_month_growth ?? null,
+      organizationHeadcountGrowth12mo: org.organization_headcount_twelve_month_growth ?? null,
+      organizationHeadcountGrowth24mo: org.organization_headcount_twenty_four_month_growth ?? null,
+      // Org technologies
       organizationTechnologies: org.current_technologies?.map((t: any) => t.name || t) || [],
       // Employment history
       employmentHistory: person.employment_history?.map((e: any) => ({
@@ -124,13 +176,9 @@ Deno.serve(async (req) => {
         endDate: e.end_date,
         current: e.current,
         description: e.description || null,
+        degree: e.degree || null,
+        kind: e.kind || null,
       })) || [],
-      // Seniority & department
-      seniority: person.seniority,
-      departments: person.departments,
-      // Intent & signals
-      intentStrength: person.intent_strength || null,
-      showIntent: person.show_intent || false,
     };
 
     return new Response(
