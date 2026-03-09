@@ -724,7 +724,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                 </Suspense>
               </div>
             </div>
-          ) : isWorking || steps.length > 0 ? (
+          ) : isWorking || steps.length > 0 || (interactionId && !report) ? (
             /* ── Live Progress ── */
             <div className="space-y-4">
               {steps.length > 0 && (
