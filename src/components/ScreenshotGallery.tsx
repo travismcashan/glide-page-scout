@@ -216,14 +216,14 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
 
         {!isCollapsed && completedShots.length > 0 ? (
           <div className="p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
               {completedShots.map(shot => (
                 <div
                   key={shot.id}
-                  className="cursor-pointer group rounded-lg border border-border overflow-hidden hover:border-primary/50 hover:shadow-md transition-all"
+                  className="cursor-pointer group rounded-lg border border-border overflow-hidden hover:border-primary/50 hover:shadow-md transition-all break-inside-avoid"
                   onClick={() => setSelectedShot(shot)}
                 >
-                  <div className={`relative overflow-hidden ${condensed ? 'h-[280px]' : ''}`}>
+                  <div className={`relative overflow-hidden ${condensed ? 'max-h-[400px]' : ''}`}>
                     <img
                       src={shot.screenshot_url!}
                       alt={`Screenshot of ${shot.url}`}
