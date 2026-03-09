@@ -74,6 +74,57 @@ function extractAvoma(data: any): string | null {
   return lines.join('\n');
 }
 
+function extractApollo(data: any): string | null {
+  if (!data || !data.found) return null;
+  const parts: string[] = [];
+  // Person
+  if (data.name) parts.push(`Contact: ${data.name}`);
+  if (data.title) parts.push(`Title: ${data.title}`);
+  if (data.headline && data.headline !== data.title) parts.push(`Headline: ${data.headline}`);
+  if (data.email) parts.push(`Email: ${data.email} (${data.emailStatus || 'unknown'})`);
+  if (data.phone) parts.push(`Phone: ${data.phone}`);
+  if (data.linkedinUrl) parts.push(`LinkedIn: ${data.linkedinUrl}`);
+  if (data.twitterUrl) parts.push(`Twitter: ${data.twitterUrl}`);
+  if (data.timeZone) parts.push(`Timezone: ${data.timeZone}`);
+  const loc = [data.city, data.state, data.country].filter(Boolean).join(', ');
+  if (loc) parts.push(`Location: ${loc}`);
+  if (data.seniority) parts.push(`Seniority: ${data.seniority}`);
+  if (data.departments?.length) parts.push(`Departments: ${data.departments.join(', ')}`);
+  if (data.subdepartments?.length) parts.push(`Subdepartments: ${data.subdepartments.join(', ')}`);
+  if (data.functions?.length) parts.push(`Functions: ${data.functions.join(', ')}`);
+  if (data.isLikelyToEngage != null) parts.push(`Likely to engage: ${data.isLikelyToEngage ? 'Yes' : 'No'}`);
+  // Organization
+  if (data.organizationName) {
+    parts.push(`\nCompany: ${data.organizationName}`);
+    if (data.organizationDomain) parts.push(`Domain: ${data.organizationDomain}`);
+    if (data.organizationIndustry) parts.push(`Industry: ${data.organizationIndustry}`);
+    if (data.organizationSize) parts.push(`Employees: ${data.organizationSize}`);
+    if (data.organizationFounded) parts.push(`Founded: ${data.organizationFounded}`);
+    if (data.organizationRevenue) parts.push(`Revenue: ${data.organizationRevenue}`);
+    if (data.organizationDescription) parts.push(`Description: ${data.organizationDescription}`);
+    if (data.organizationPubliclyTradedSymbol) parts.push(`Ticker: ${data.organizationPubliclyTradedExchange ? data.organizationPubliclyTradedExchange + ':' : ''}${data.organizationPubliclyTradedSymbol}`);
+    if (data.organizationHeadcountGrowth6mo != null) parts.push(`Headcount growth 6mo: ${(data.organizationHeadcountGrowth6mo * 100).toFixed(1)}%`);
+    if (data.organizationHeadcountGrowth12mo != null) parts.push(`Headcount growth 12mo: ${(data.organizationHeadcountGrowth12mo * 100).toFixed(1)}%`);
+    if (data.organizationHeadcountGrowth24mo != null) parts.push(`Headcount growth 24mo: ${(data.organizationHeadcountGrowth24mo * 100).toFixed(1)}%`);
+    if (data.organizationAlexaRanking) parts.push(`Alexa rank: #${data.organizationAlexaRanking}`);
+    const orgLoc = [data.organizationCity, data.organizationState, data.organizationCountry].filter(Boolean).join(', ');
+    if (orgLoc) parts.push(`HQ: ${orgLoc}`);
+    if (data.organizationTechnologies?.length) parts.push(`Technologies: ${data.organizationTechnologies.slice(0, 20).join(', ')}`);
+    if (data.organizationKeywords?.length) parts.push(`Keywords: ${data.organizationKeywords.slice(0, 15).join(', ')}`);
+    if (data.organizationSicCodes?.length) parts.push(`SIC: ${data.organizationSicCodes.join(', ')}`);
+    if (data.organizationNaicsCodes?.length) parts.push(`NAICS: ${data.organizationNaicsCodes.join(', ')}`);
+  }
+  // Employment history
+  if (data.employmentHistory?.length) {
+    parts.push(`\nEmployment history (${data.employmentHistory.length} positions):`);
+    for (const job of data.employmentHistory.slice(0, 10)) {
+      const dates = [job.startDate, job.endDate || (job.current ? 'Present' : '')].filter(Boolean).join(' – ');
+      parts.push(`  ${job.title} at ${job.organizationName}${dates ? ` (${dates})` : ''}`);
+    }
+  }
+  return parts.length ? parts.join('\n') : null;
+}
+
 function extractOcean(data: any): string | null {
   if (!data) return null;
   const parts: string[] = [];
