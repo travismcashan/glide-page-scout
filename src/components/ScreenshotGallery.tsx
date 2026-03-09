@@ -315,11 +315,12 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-6 flex justify-center">
+          <div className="flex-1 overflow-auto flex justify-center">
             <img
               src={selectedShot.screenshot_url!}
               alt={`Screenshot of ${selectedShot.url}`}
-              className="max-w-full h-auto object-contain"
+              className="w-full"
+              style={{ maxWidth: '1440px' }}
             />
           </div>
         </div>
