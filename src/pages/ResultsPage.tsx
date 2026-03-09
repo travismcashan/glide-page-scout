@@ -813,15 +813,6 @@ export default function ResultsPage() {
                 Avoma Calls
               </TabsTrigger>
             )}
-            {!isIntegrationPaused('apollo') && (
-              <TabsTrigger
-                value="apollo"
-                className="text-sm font-medium px-5 py-2.5 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Contact Enrichment
-              </TabsTrigger>
-            )}
           </TabsList>
 
           <TabsContent value="raw-data" className="mt-0 space-y-6">
@@ -970,6 +961,13 @@ export default function ResultsPage() {
         </SectionCard>
         )}
 
+        {/* ── Apollo.io Contact Enrichment ── */}
+        {!isIntegrationPaused('apollo') && (
+        <SectionCard collapsed={allCollapsed} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />}>
+          <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
+        </SectionCard>
+        )}
+
 
         {/* ── SEO ── */}
         {!isIntegrationPaused('semrush') && (
@@ -1009,21 +1007,6 @@ export default function ResultsPage() {
           />
           )}
 
-          {!isIntegrationPaused('apollo') && (
-            <TabsContent value="apollo" className="mt-0 space-y-6">
-              <SectionCard
-                title="Apollo.io — Contact Enrichment"
-                icon={<UserPlus className="h-5 w-5 text-foreground" />}
-                collapsed={allCollapsed}
-              >
-                <ApolloCard
-                  data={apolloData}
-                  isLoading={apolloLoading}
-                  onSearch={handleApolloSearch}
-                />
-              </SectionCard>
-            </TabsContent>
-          )}
 
 
 
