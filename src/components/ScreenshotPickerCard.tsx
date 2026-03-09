@@ -50,16 +50,16 @@ export function ScreenshotPickerCard({ sessionId, baseUrl, discoveredUrls, exist
 
   const handleSubmit = async () => {
     const newUrls = Array.from(selected).filter(u => !existingScreenshotUrls.has(u));
-    if (newUrls.length === 0) { toast.info('All selected pages already queued'); return; }
+    if (newUrls.length === 0) { toast.info('All selected pages already captured'); return; }
     setSubmitting(true);
     try {
       const pages = newUrls.map(url => ({ session_id: sessionId, url, status: 'pending' }));
       const { error } = await supabase.from('crawl_pages').insert(pages);
       if (error) throw error;
       await supabase.from('crawl_sessions').update({ status: 'crawling' }).eq('id', sessionId);
-      toast.success(`Queued ${newUrls.length} pages for screenshots`);
+      toast.success(`Taking ${newUrls.length} screenshots`);
       onPagesAdded();
-    } catch (e) { console.error(e); toast.error('Failed to queue screenshots'); }
+    } catch (e) { console.error(e); toast.error('Failed to take screenshots'); }
     setSubmitting(false);
   };
 
@@ -82,9 +82,9 @@ export function ScreenshotPickerCard({ sessionId, baseUrl, discoveredUrls, exist
           selectedUrls={selected}
           setSelectedUrls={setSelected}
           existingUrls={existingScreenshotUrls}
-          existingLabel="Queued"
+          existingLabel="Captured"
           onSubmit={handleSubmit}
-          submitLabel="Queue Screenshots"
+          submitLabel="Take Screenshots"
           isSubmitting={submitting}
           isAnalyzing={analyzing}
           analysisDone={analysisDone}
