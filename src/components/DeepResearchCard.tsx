@@ -107,8 +107,16 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       const data = session.deep_research_data;
       if (data.report) setReport(data.report);
       if (data.sources) setSources(data.sources);
-      if (data.prompt) setSubmittedPrompt(data.prompt);
+      if (data.prompt) {
+        setSubmittedPrompt(data.prompt);
+        setPrompt(data.prompt);
+      }
       if (data.documents) setSubmittedDocs(data.documents.map((d: any) => ({ name: d.name, content: '' })));
+      if (data.steps) setSteps(data.steps);
+      // If there's an active interactionId but no final report, resume polling
+      if (data.interactionId && !data.report) {
+        setInteractionId(data.interactionId);
+      }
     }
   }, [session.id]);
 
@@ -120,6 +128,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         sources: finalSources,
         prompt: finalPrompt,
         documents: finalDocs.map(d => ({ name: d.name })),
+        interactionId: null, // clear — research is done
         updated_at: new Date().toISOString(),
       };
       await supabase
@@ -129,6 +138,25 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       console.log('Deep Research results saved to database');
     } catch (e) {
       console.error('Failed to save Deep Research results:', e);
+    }
+  }, [session.id]);
+
+  // Save in-progress state (interactionId, steps, prompt) so we can resume after navigation
+  const saveInProgressState = useCallback(async (iId: string, currentSteps: ThinkingStep[], currentPrompt: string, currentDocs: AttachedDoc[]) => {
+    try {
+      const payload = {
+        interactionId: iId,
+        steps: currentSteps.slice(-50), // keep last 50 steps to avoid bloat
+        prompt: currentPrompt,
+        documents: currentDocs.map(d => ({ name: d.name })),
+        updated_at: new Date().toISOString(),
+      };
+      await supabase
+        .from('crawl_sessions')
+        .update({ deep_research_data: payload as any })
+        .eq('id', session.id);
+    } catch (e) {
+      console.error('Failed to save in-progress state:', e);
     }
   }, [session.id]);
 
@@ -538,6 +566,9 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       setStarting(false);
       setStreaming(true);
 
+      // Persist interactionId immediately so we can resume if user navigates away
+      await saveInProgressState(iId, [], prompt, documents);
+
       const streamWorked = await connectToStream(iId);
 
       if (!streamWorked) {
@@ -574,6 +605,29 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       await pollForResults(interactionId);
     }
   }, [interactionId, connectToStream, pollForResults]);
+
+  // Auto-resume: if we have an interactionId but no report, start polling automatically
+  const hasResumedRef = useRef(false);
+  useEffect(() => {
+    if (interactionId && !report && !streaming && !starting && !hasResumedRef.current) {
+      hasResumedRef.current = true;
+      console.log('Auto-resuming Deep Research polling for:', interactionId);
+      toast.info('Resuming Deep Research…');
+      pollForResults(interactionId);
+    }
+  }, [interactionId, report, streaming, starting, pollForResults]);
+
+  // Periodically save in-progress steps to DB so they survive refreshes
+  const lastStepsSaveRef = useRef(0);
+  useEffect(() => {
+    if (streaming && interactionId && submittedPrompt && steps.length > 0) {
+      const now = Date.now();
+      if (now - lastStepsSaveRef.current > 10000) { // every 10s
+        lastStepsSaveRef.current = now;
+        saveInProgressState(interactionId, steps, submittedPrompt, submittedDocs);
+      }
+    }
+  }, [steps, streaming, interactionId, submittedPrompt, submittedDocs, saveInProgressState]);
 
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
