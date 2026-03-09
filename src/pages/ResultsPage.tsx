@@ -79,6 +79,7 @@ type CrawlSession = {
   readable_data: any | null;
   yellowlab_data: any | null;
   avoma_data: any | null;
+  apollo_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
