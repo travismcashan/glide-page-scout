@@ -837,6 +837,11 @@ export default function ResultsPage() {
             onUrlsDiscovered={setDiscoveredUrls}
             linkCheckResults={session.linkcheck_data?.results || null}
             collapsed={allCollapsed}
+            persistedUrls={session.discovered_urls}
+            onUrlsPersist={async (urls) => {
+              await supabase.from('crawl_sessions').update({ discovered_urls: urls } as any).eq('id', session.id);
+              console.log('Discovered URLs persisted to database');
+            }}
           />
         )}
 
