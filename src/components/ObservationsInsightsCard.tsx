@@ -153,11 +153,10 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
     try {
       const crawlContext = buildCrawlContext(session, pages);
 
-      // Collect screenshot URLs (cap at 10 to manage token usage)
-      const screenshotUrls = (pages || [])
-        .filter(p => p.screenshot_url)
+      // Collect screenshot URLs from crawl_screenshots (cap at 10)
+      const screenshotUrls = screenshots
         .slice(0, 10)
-        .map(p => ({ url: p.screenshot_url!, title: p.title || p.url }));
+        .map(s => ({ url: s.screenshot_url, title: s.title || s.url }));
 
       const response = await fetch(FUNC_URL, {
         method: 'POST',
