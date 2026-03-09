@@ -62,7 +62,17 @@ Do NOT add your own commentary, analysis, or synthesis. The output should read l
       }),
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error('Failed to parse AI response:', responseText.substring(0, 500));
+      return new Response(
+        JSON.stringify({ success: false, error: 'AI returned invalid response. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!response.ok) {
       console.error('AI Gateway error:', data);
