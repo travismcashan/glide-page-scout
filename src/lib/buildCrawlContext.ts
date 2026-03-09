@@ -357,20 +357,30 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
     if (content) sections.push(`## [Source: ${label}]\n${content}`);
   };
 
-  // ── PRIORITY 1: Full Avoma transcripts (most valuable) ──
-  addSection('Avoma Call Transcripts & Meetings', extractAvoma(session.avoma_data));
+  // ── 🔧 Technology Detection ──
+  addSection('BuiltWith Technology Stack', extractBuiltWith(session.builtwith_data));
+  addSection('Wappalyzer Technology Profiling', extractWappalyzer(session.wappalyzer_data));
 
-  // ── PRIORITY 2: Scraped page content (deduplicated) ──
+  // ── ⚡ Performance & Sustainability ──
+  addSection('GTmetrix Performance Report', extractGtmetrix(session.gtmetrix_grade, session.gtmetrix_scores));
+  addSection('PageSpeed Insights (Lighthouse)', extractPageSpeed(session.psi_data));
+  addSection('Chrome UX Report (CrUX)', extractCrux(session.crux_data));
+  addSection('Website Carbon Sustainability', extractCarbon(session.carbon_data));
+  addSection('Yellow Lab Tools Front-End Quality', extractYellowLab(session.yellowlab_data));
+
+  // ── 🔍 SEO & Search ──
+  addSection('SEMrush Domain Analysis', extractSemrush(session.semrush_data));
+  addSection('Schema.org Structured Data', extractSchema(session.schema_data));
+
+  // ── 📄 Content & Scraping ──
   if (pages?.length) {
     const pageLines: string[] = [];
     const seenContentHashes = new Set<string>();
 
     for (const p of pages) {
-      // Use AI outline if available, otherwise raw content (truncated)
       const content = p.ai_outline || (p.raw_content ? p.raw_content.substring(0, 3000) : null);
       if (!content) continue;
 
-      // Deduplicate: hash first 500 chars to detect near-identical pages
       const contentFingerprint = content.substring(0, 500).replace(/\s+/g, ' ').trim();
       if (seenContentHashes.has(contentFingerprint)) continue;
       seenContentHashes.add(contentFingerprint);
@@ -386,30 +396,24 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
       addSection('Scraped Page Content', pageLines.join('\n'));
     }
   }
+  addSection('Readable.com Readability Score', extractReadable(session.readable_data));
 
-  // ── PRIORITY 3: High-signal integrations (key metrics) ──
-  addSection('Ocean.io Firmographics', extractOcean(session.ocean_data));
-  addSection('Apollo.io Contact Enrichment', extractApollo(session.apollo_data));
-  addSection('SEMrush Domain Analysis', extractSemrush(session.semrush_data));
-  addSection('PageSpeed Insights (Lighthouse)', extractPageSpeed(session.psi_data));
-  addSection('Chrome UX Report (CrUX)', extractCrux(session.crux_data));
-
-  // ── PRIORITY 4: Medium-signal (compact summaries) ──
-  addSection('BuiltWith Technology Stack', extractBuiltWith(session.builtwith_data));
-  addSection('Wappalyzer Technology Profiling', extractWappalyzer(session.wappalyzer_data));
+  // ── 🎨 UX & Accessibility ──
   addSection('WAVE Accessibility Scan', extractWave(session.wave_data));
+  addSection('W3C HTML/CSS Validator', extractW3c(session.w3c_data));
+
+  // ── 🛡️ Security & Compliance ──
   addSection('Mozilla Observatory Security Headers', extractObservatory(session.observatory_data));
   addSection('SSL Labs TLS/SSL Assessment', extractSslLabs(session.ssllabs_data));
-  addSection('GTmetrix Performance Report', extractGtmetrix(session.gtmetrix_grade, session.gtmetrix_scores));
-
-  // ── PRIORITY 5: Low-signal (one-liner summaries) ──
   addSection('httpstatus.io Redirect Chain', extractHttpStatus(session.httpstatus_data));
   addSection('Broken Link Checker', extractLinkCheck(session.linkcheck_data));
-  addSection('W3C HTML/CSS Validator', extractW3c(session.w3c_data));
-  addSection('Schema.org Structured Data', extractSchema(session.schema_data));
-  addSection('Readable.com Readability Score', extractReadable(session.readable_data));
-  addSection('Website Carbon Sustainability', extractCarbon(session.carbon_data));
-  addSection('Yellow Lab Tools Front-End Quality', extractYellowLab(session.yellowlab_data));
+
+  // ── 🧲 Enrichment & Prospecting ──
+  addSection('Ocean.io Firmographics', extractOcean(session.ocean_data));
+  addSection('Apollo.io Contact Enrichment', extractApollo(session.apollo_data));
+
+  // ── 🎙️ Avoma Call Transcripts (full — highest-signal data) ──
+  addSection('Avoma Call Transcripts & Meetings', extractAvoma(session.avoma_data));
 
   return sections.join('\n\n');
 }
