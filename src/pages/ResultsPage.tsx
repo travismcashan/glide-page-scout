@@ -1005,12 +1005,9 @@ export default function ResultsPage() {
         {/* ── Page Screenshots ── */}
         {session && !isIntegrationPaused('screenshots') && (
           <ScreenshotGallery
-            pages={scrapedPages.filter(p => p.screenshot_url)}
             sessionId={session.id}
             baseUrl={session.base_url}
             discoveredUrls={discoveredUrls}
-            existingScreenshotUrls={new Set(pages.filter(p => p.screenshot_url).map(p => p.url))}
-            onPagesAdded={fetchData}
             collapsed={allCollapsed}
           />
         )}
