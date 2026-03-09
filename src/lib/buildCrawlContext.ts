@@ -360,22 +360,31 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
   // ── PRIORITY 1: Full Avoma transcripts (most valuable) ──
   addSection('Avoma Call Transcripts & Meetings', extractAvoma(session.avoma_data));
 
-  // ── PRIORITY 2: Scraped page content ──
+  // ── PRIORITY 2: Scraped page content (deduplicated) ──
   if (pages?.length) {
     const pageLines: string[] = [];
+    const seenContentHashes = new Set<string>();
+
     for (const p of pages) {
+      // Use AI outline if available, otherwise raw content (truncated)
+      const content = p.ai_outline || (p.raw_content ? p.raw_content.substring(0, 3000) : null);
+      if (!content) continue;
+
+      // Deduplicate: hash first 500 chars to detect near-identical pages
+      const contentFingerprint = content.substring(0, 500).replace(/\s+/g, ' ').trim();
+      if (seenContentHashes.has(contentFingerprint)) continue;
+      seenContentHashes.add(contentFingerprint);
+
       pageLines.push(`### ${p.title || p.url}\nURL: ${p.url}`);
       if (p.screenshot_url) {
         pageLines.push(`Screenshot: ${p.screenshot_url}`);
       }
-      if (p.ai_outline) {
-        pageLines.push(p.ai_outline);
-      } else if (p.raw_content) {
-        pageLines.push(p.raw_content.substring(0, 3000));
-      }
+      pageLines.push(content);
       pageLines.push('');
     }
-    addSection('Scraped Page Content', pageLines.join('\n'));
+    if (pageLines.length) {
+      addSection('Scraped Page Content', pageLines.join('\n'));
+    }
   }
 
   // ── PRIORITY 3: High-signal integrations (key metrics) ──
