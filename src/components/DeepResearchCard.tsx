@@ -101,10 +101,21 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
 
   const companyName = session.ocean_data?.companyName || session.domain;
 
-  // Load persisted results from database on mount
+  // Load persisted results from database on mount — always re-fetch fresh from DB
+  // because the prop may be stale (e.g., after tab switch within the same page)
   useEffect(() => {
-    if (session.deep_research_data) {
-      const data = session.deep_research_data;
+    let cancelled = false;
+    (async () => {
+      const { data: freshSession } = await supabase
+        .from('crawl_sessions')
+        .select('deep_research_data')
+        .eq('id', session.id)
+        .single();
+
+      if (cancelled) return;
+      const data = (freshSession?.deep_research_data as any) || session.deep_research_data;
+      if (!data) return;
+
       if (data.report) setReport(data.report);
       if (data.sources) setSources(data.sources);
       if (data.prompt) {
@@ -115,9 +126,11 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       if (data.steps) setSteps(data.steps);
       // If there's an active interactionId but no final report, resume polling
       if (data.interactionId && !data.report) {
+        console.log('Found in-progress research, will resume:', data.interactionId);
         setInteractionId(data.interactionId);
       }
-    }
+    })();
+    return () => { cancelled = true; };
   }, [session.id]);
 
   // Save results to database when report is finalized
