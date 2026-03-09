@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Camera, ExternalLink, Maximize2, X, Rows3, Grid2x2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Camera, ExternalLink, Maximize2, X, Rows3, Grid2x2, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiApi, screenshotApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
@@ -96,8 +96,35 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
   }, [screenshots, processingIds, fetchScreenshots]);
 
   const existingUrls = new Set(screenshots.map(s => s.url));
-  const completedShots = screenshots.filter(s => s.screenshot_url);
+  const completedShots = screenshots.filter(s => s.screenshot_url && s.status === 'done');
+  const errorShots = screenshots.filter(s => s.status === 'error');
   const pendingCount = screenshots.filter(s => s.status === 'pending').length;
+  const [recapturing, setRecapturing] = useState(false);
+
+  // Check if any completed shots still have old Thum.io URLs (not stored in our bucket)
+  const hasExpiredUrls = completedShots.some(s => s.screenshot_url?.includes('image.thum.io'));
+  const recaptureCount = screenshots.filter(s => s.status === 'error' || (s.screenshot_url?.includes('image.thum.io'))).length;
+
+  const handleRecapture = async () => {
+    setRecapturing(true);
+    try {
+      // Reset all error shots and shots with old Thum.io URLs back to pending
+      const idsToReset = screenshots
+        .filter(s => s.status === 'error' || (s.screenshot_url?.includes('image.thum.io')))
+        .map(s => s.id);
+      if (idsToReset.length === 0) { toast.info('Nothing to re-capture'); setRecapturing(false); return; }
+      for (const id of idsToReset) {
+        await supabase.from('crawl_screenshots').update({ status: 'pending', screenshot_url: null }).eq('id', id);
+      }
+      setProcessingIds(new Set()); // clear so they get picked up again
+      toast.success(`Re-capturing ${idsToReset.length} screenshots`);
+      fetchScreenshots();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to re-capture');
+    }
+    setRecapturing(false);
+  };
 
   // Auto-run analysis when picker opens for first time
   useEffect(() => {
@@ -158,6 +185,12 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
                 </span>
               )}
             </span>
+            {!paused && recaptureCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleRecapture} disabled={recapturing || pendingCount > 0}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${recapturing ? 'animate-spin' : ''}`} />
+                Re-capture {recaptureCount}
+              </Button>
+            )}
             {!paused && discoveredUrls.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => setPickerOpen(!pickerOpen)}>
                 <Camera className="h-3.5 w-3.5 mr-1.5" />
