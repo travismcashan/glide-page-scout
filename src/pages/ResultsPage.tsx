@@ -305,7 +305,22 @@ export default function ResultsPage() {
     }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
   }, [session, avomaLoading, avomaFailed, fetchData]);
 
-  // SSL Labs (client-side polling to avoid edge function timeout)
+  // Apollo.io contact enrichment (manual search, not auto-triggered)
+  const [apolloData, setApolloData] = useState<any>(null);
+  const [apolloLoading, setApolloLoading] = useState(false);
+  const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
+    setApolloLoading(true);
+    try {
+      const result = await apolloApi.enrich(email, firstName, lastName, session?.domain);
+      setApolloData(result);
+      if (!result.success) toast.error(result.error || 'Apollo enrichment failed');
+    } catch (e: any) {
+      toast.error(e?.message || 'Apollo request failed');
+    }
+    setApolloLoading(false);
+  };
+
+
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
   const [ssllabsFailed, setSsllabsFailed] = useState(false);
   const ssllabsPollingRef = useRef(false);
