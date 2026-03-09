@@ -828,200 +828,235 @@ export default function ResultsPage() {
             )}
           </TabsList>
 
-          <TabsContent value="raw-data" className="mt-0 space-y-6">
+          <TabsContent value="raw-data" className="mt-0 space-y-8">
 
-        {/* ── URL Discovery ── */}
-        {session && !isIntegrationPaused('url-discovery') && (
-          <UrlDiscoveryCard
-            baseUrl={session.base_url}
-            onUrlsDiscovered={setDiscoveredUrls}
-            linkCheckResults={session.linkcheck_data?.results || null}
-            collapsed={allCollapsed}
-            persistedUrls={session.discovered_urls}
-            onUrlsPersist={async (urls) => {
-              await supabase.from('crawl_sessions').update({ discovered_urls: urls } as any).eq('id', session.id);
-              console.log('Discovered URLs persisted to database');
-            }}
-          />
+        {/* ══════ 🔧 Technology Detection ══════ */}
+        {(!isIntegrationPaused('builtwith') || !isIntegrationPaused('wappalyzer')) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">🔧 Technology Detection</h2>
+            <div className="space-y-6">
+              {!isIntegrationPaused('builtwith') && (
+              <SectionCard collapsed={allCollapsed} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)}>
+                {session?.builtwith_data ? (
+                  <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
+                ) : !builtwithLoading && !builtwithFailed ? (
+                  <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
+                ) : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('wappalyzer') && (
+              <SectionCard collapsed={allCollapsed} title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer} headerExtra={rerunButton('wappalyzer', 'wappalyzer_data', wappalyzerLoading)}>
+                {session?.wappalyzer_data ? (
+                  <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
+                ) : null}
+              </SectionCard>
+              )}
+            </div>
+          </div>
         )}
 
+        {/* ══════ ⚡ Performance & Sustainability ══════ */}
+        {(!isIntegrationPaused('gtmetrix') || !isIntegrationPaused('psi') || !isIntegrationPaused('crux') || !isIntegrationPaused('carbon') || !isIntegrationPaused('yellowlab')) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">⚡ Performance & Sustainability</h2>
+            <div className="space-y-6">
+              {!isIntegrationPaused('gtmetrix') && (
+              <SectionCard collapsed={allCollapsed} title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)}>
+                <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
+              </SectionCard>
+              )}
 
-        {/* ── Technology Detection ── */}
-        {!isIntegrationPaused('builtwith') && (
-        <SectionCard collapsed={allCollapsed} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)}>
-          {session?.builtwith_data ? (
-            <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
-          ) : !builtwithLoading && !builtwithFailed ? (
-            <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
-          ) : null}
-        </SectionCard>
+              {!isIntegrationPaused('psi') && (
+              <SectionCard collapsed={allCollapsed} title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} headerExtra={rerunButton('psi', 'psi_data', psiLoading)}>
+                {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('crux') && (
+              <SectionCard collapsed={allCollapsed} title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} headerExtra={rerunButton('crux', 'crux_data', cruxLoading)}>
+                {session?.crux_data ? (
+                  <CruxCard data={session.crux_data} isLoading={false} />
+                ) : cruxNoData ? (
+                  <CruxCard data={null} isLoading={false} noData />
+                ) : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('yellowlab') && (
+              <SectionCard collapsed={allCollapsed} title="Yellow Lab Tools — Front-End Quality" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={yellowlabLoading && !(session as any)?.yellowlab_data} loadingText="Running Yellow Lab Tools audit (this may take 1-2 minutes)..." error={yellowlabFailed} errorText={integrationErrors.yellowlab} headerExtra={rerunButton('yellowlab', 'yellowlab_data', yellowlabLoading)}>
+                {(session as any)?.yellowlab_data ? <YellowLabCard data={(session as any).yellowlab_data} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('carbon') && (
+              <SectionCard collapsed={allCollapsed} title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} headerExtra={rerunButton('carbon', 'carbon_data', carbonLoading)}>
+                {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+            </div>
+          </div>
         )}
 
-        {!isIntegrationPaused('wappalyzer') && (
-        <SectionCard collapsed={allCollapsed} title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer} headerExtra={rerunButton('wappalyzer', 'wappalyzer_data', wappalyzerLoading)}>
-          {session?.wappalyzer_data ? (
-            <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
-          ) : null}
-        </SectionCard>
+        {/* ══════ 🔍 SEO & Search ══════ */}
+        {(!isIntegrationPaused('semrush') || !isIntegrationPaused('schema')) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">🔍 SEO & Search</h2>
+            <div className="space-y-6">
+              {!isIntegrationPaused('semrush') && (
+              <SectionCard collapsed={allCollapsed} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)}>
+                {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('schema') && (
+              <SectionCard collapsed={allCollapsed} title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)}>
+                {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
+              </SectionCard>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* ── Performance ── */}
-        {!isIntegrationPaused('gtmetrix') && (
-        <SectionCard collapsed={allCollapsed} title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)}>
-          <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
-        </SectionCard>
+        {/* ══════ 📄 Content & Scraping ══════ */}
+        {((!isIntegrationPaused('url-discovery') && session) || !isIntegrationPaused('screenshots') || !isIntegrationPaused('content') || !isIntegrationPaused('readable')) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">📄 Content & Scraping</h2>
+            <div className="space-y-6">
+              {session && !isIntegrationPaused('url-discovery') && (
+                <UrlDiscoveryCard
+                  baseUrl={session.base_url}
+                  onUrlsDiscovered={setDiscoveredUrls}
+                  linkCheckResults={session.linkcheck_data?.results || null}
+                  collapsed={allCollapsed}
+                  persistedUrls={session.discovered_urls}
+                  onUrlsPersist={async (urls) => {
+                    await supabase.from('crawl_sessions').update({ discovered_urls: urls } as any).eq('id', session.id);
+                    console.log('Discovered URLs persisted to database');
+                  }}
+                />
+              )}
+
+              {session && !isIntegrationPaused('screenshots') && (
+                <ScreenshotGallery
+                  sessionId={session.id}
+                  baseUrl={session.base_url}
+                  discoveredUrls={discoveredUrls}
+                  collapsed={allCollapsed}
+                />
+              )}
+
+              {session && !isIntegrationPaused('content') && (
+                <ContentSectionCard
+                  pages={pages}
+                  sessionId={session.id}
+                  baseUrl={session.base_url}
+                  domain={session.domain}
+                  discoveredUrls={discoveredUrls}
+                  existingPageUrls={new Set(pages.map(p => p.url))}
+                  onPagesAdded={fetchData}
+                  expandedPages={expandedPages}
+                  toggleExpand={toggleExpand}
+                  generateOutline={generateOutline}
+                  generatingOutline={generatingOutline}
+                  collapsed={allCollapsed}
+                />
+              )}
+
+              {!isIntegrationPaused('readable') && (
+              <SectionCard collapsed={allCollapsed} title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable} headerExtra={rerunButton('readable', 'readable_data', readableLoading)}>
+                {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
+              </SectionCard>
+              )}
+            </div>
+          </div>
         )}
 
-        {!isIntegrationPaused('psi') && (
-        <SectionCard collapsed={allCollapsed} title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} headerExtra={rerunButton('psi', 'psi_data', psiLoading)}>
-          {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
-        </SectionCard>
+        {/* ══════ 🎨 UX & Accessibility ══════ */}
+        {(!isIntegrationPaused('psi-accessibility') || !isIntegrationPaused('wave') || !isIntegrationPaused('w3c')) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">🎨 UX & Accessibility</h2>
+            <div className="space-y-6">
+              {!isIntegrationPaused('psi-accessibility') && !isIntegrationPaused('psi') && (
+              <SectionCard collapsed={allCollapsed} title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse...">
+                {session?.psi_data ? (
+                  <LighthouseAccessibilityCard data={extractPsiAccessibility(session.psi_data)} isLoading={false} />
+                ) : !psiLoading && psiFailed ? (
+                  <p className="text-sm text-muted-foreground">PageSpeed Insights failed — accessibility data unavailable.</p>
+                ) : !psiLoading ? (
+                  <p className="text-sm text-muted-foreground">Waiting for PageSpeed Insights data…</p>
+                ) : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('wave') && (
+              <SectionCard collapsed={allCollapsed} title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} headerExtra={rerunButton('wave', 'wave_data', waveLoading)}>
+                {session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('w3c') && (
+              <SectionCard collapsed={allCollapsed} title="W3C — HTML & CSS Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)}>
+                {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
+              </SectionCard>
+              )}
+            </div>
+          </div>
         )}
 
-        {!isIntegrationPaused('crux') && (
-        <SectionCard collapsed={allCollapsed} title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} headerExtra={rerunButton('crux', 'crux_data', cruxLoading)}>
-          {session?.crux_data ? (
-            <CruxCard data={session.crux_data} isLoading={false} />
-          ) : cruxNoData ? (
-            <CruxCard data={null} isLoading={false} noData />
-          ) : null}
-        </SectionCard>
+        {/* ══════ 🛡️ Security & Compliance ══════ */}
+        {(!isIntegrationPaused('observatory') || !isIntegrationPaused('ssllabs') || !isIntegrationPaused('httpstatus') || !isIntegrationPaused('link-checker')) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">🛡️ Security & Compliance</h2>
+            <div className="space-y-6">
+              {!isIntegrationPaused('observatory') && (
+              <SectionCard collapsed={allCollapsed} title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)}>
+                {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('ssllabs') && (
+              <SectionCard collapsed={allCollapsed} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading)}>
+                {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('httpstatus') && (
+              <SectionCard collapsed={allCollapsed} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)}>
+                {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('link-checker') && (
+              <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={`Checking ${discoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
+                {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && discoveredUrls.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
+                ) : null}
+              </SectionCard>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* ── Lighthouse Accessibility ── */}
-        {!isIntegrationPaused('psi-accessibility') && !isIntegrationPaused('psi') && (
-        <SectionCard collapsed={allCollapsed} title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse...">
-          {session?.psi_data ? (
-            <LighthouseAccessibilityCard data={extractPsiAccessibility(session.psi_data)} isLoading={false} />
-          ) : !psiLoading && psiFailed ? (
-            <p className="text-sm text-muted-foreground">PageSpeed Insights failed — accessibility data unavailable.</p>
-          ) : !psiLoading ? (
-            <p className="text-sm text-muted-foreground">Waiting for PageSpeed Insights data…</p>
-          ) : null}
-        </SectionCard>
+        {/* ══════ 🧲 Enrichment & Prospecting ══════ */}
+        {(!isIntegrationPaused('ocean') || !isIntegrationPaused('apollo')) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">🧲 Enrichment & Prospecting</h2>
+            <div className="space-y-6">
+              {!isIntegrationPaused('ocean') && (
+              <SectionCard collapsed={allCollapsed} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)}>
+                {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
+              </SectionCard>
+              )}
+
+              {!isIntegrationPaused('apollo') && (
+              <SectionCard collapsed={allCollapsed} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />}>
+                <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
+              </SectionCard>
+              )}
+            </div>
+          </div>
         )}
-
-        {/* ── WAVE ── */}
-        {!isIntegrationPaused('wave') && (
-        <SectionCard collapsed={allCollapsed} title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} headerExtra={rerunButton('wave', 'wave_data', waveLoading)}>
-          {session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── Mozilla Observatory ── */}
-        {!isIntegrationPaused('observatory') && (
-        <SectionCard collapsed={allCollapsed} title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)}>
-          {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── SSL Labs ── */}
-        {!isIntegrationPaused('ssllabs') && (
-        <SectionCard collapsed={allCollapsed} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading)}>
-          {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── httpstatus.io ── */}
-        {!isIntegrationPaused('httpstatus') && (
-        <SectionCard collapsed={allCollapsed} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)}>
-          {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── Broken Link Checker ── */}
-        {!isIntegrationPaused('link-checker') && (
-        <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={`Checking ${discoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
-          {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && discoveredUrls.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
-          ) : null}
-        </SectionCard>
-        )}
-
-        {/* ── Readable.com — Readability ── */}
-        {!isIntegrationPaused('readable') && (
-        <SectionCard collapsed={allCollapsed} title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable} headerExtra={rerunButton('readable', 'readable_data', readableLoading)}>
-          {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── Yellow Lab Tools ── */}
-        {!isIntegrationPaused('yellowlab') && (
-        <SectionCard collapsed={allCollapsed} title="Yellow Lab Tools — Front-End Quality" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={yellowlabLoading && !(session as any)?.yellowlab_data} loadingText="Running Yellow Lab Tools audit (this may take 1-2 minutes)..." error={yellowlabFailed} errorText={integrationErrors.yellowlab} headerExtra={rerunButton('yellowlab', 'yellowlab_data', yellowlabLoading)}>
-          {(session as any)?.yellowlab_data ? <YellowLabCard data={(session as any).yellowlab_data} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── W3C Validation ── */}
-        {!isIntegrationPaused('w3c') && (
-        <SectionCard collapsed={allCollapsed} title="W3C — HTML & CSS Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)}>
-          {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── Schema.org / Rich Results ── */}
-        {!isIntegrationPaused('schema') && (
-        <SectionCard collapsed={allCollapsed} title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)}>
-          {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
-        </SectionCard>
-        )}
-
-        {!isIntegrationPaused('carbon') && (
-        <SectionCard collapsed={allCollapsed} title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} headerExtra={rerunButton('carbon', 'carbon_data', carbonLoading)}>
-          {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── Firmographics ── */}
-        {!isIntegrationPaused('ocean') && (
-        <SectionCard collapsed={allCollapsed} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)}>
-          {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── Apollo.io Contact Enrichment ── */}
-        {!isIntegrationPaused('apollo') && (
-        <SectionCard collapsed={allCollapsed} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />}>
-          <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
-        </SectionCard>
-        )}
-
-
-        {/* ── SEO ── */}
-        {!isIntegrationPaused('semrush') && (
-        <SectionCard collapsed={allCollapsed} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)}>
-          {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
-        </SectionCard>
-        )}
-
-        {/* ── Page Screenshots ── */}
-        {session && !isIntegrationPaused('screenshots') && (
-          <ScreenshotGallery
-            sessionId={session.id}
-            baseUrl={session.base_url}
-            discoveredUrls={discoveredUrls}
-            collapsed={allCollapsed}
-          />
-        )}
-
-        {/* ── Page Content ── */}
-        {session && !isIntegrationPaused('content') && (
-          <ContentSectionCard
-            pages={pages}
-            sessionId={session.id}
-            baseUrl={session.base_url}
-            domain={session.domain}
-            discoveredUrls={discoveredUrls}
-            existingPageUrls={new Set(pages.map(p => p.url))}
-            onPagesAdded={fetchData}
-            expandedPages={expandedPages}
-            toggleExpand={toggleExpand}
-            generateOutline={generateOutline}
-            generatingOutline={generatingOutline}
-            collapsed={allCollapsed}
-          />
-          )}
-
 
 
 
