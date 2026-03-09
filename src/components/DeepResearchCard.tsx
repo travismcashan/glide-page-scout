@@ -606,6 +606,29 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     }
   }, [interactionId, connectToStream, pollForResults]);
 
+  // Auto-resume: if we have an interactionId but no report, start polling automatically
+  const hasResumedRef = useRef(false);
+  useEffect(() => {
+    if (interactionId && !report && !streaming && !starting && !hasResumedRef.current) {
+      hasResumedRef.current = true;
+      console.log('Auto-resuming Deep Research polling for:', interactionId);
+      toast.info('Resuming Deep Research…');
+      pollForResults(interactionId);
+    }
+  }, [interactionId, report, streaming, starting, pollForResults]);
+
+  // Periodically save in-progress steps to DB so they survive refreshes
+  const lastStepsSaveRef = useRef(0);
+  useEffect(() => {
+    if (streaming && interactionId && submittedPrompt && steps.length > 0) {
+      const now = Date.now();
+      if (now - lastStepsSaveRef.current > 10000) { // every 10s
+        lastStepsSaveRef.current = now;
+        saveInProgressState(interactionId, steps, submittedPrompt, submittedDocs);
+      }
+    }
+  }, [steps, streaming, interactionId, submittedPrompt, submittedDocs, saveInProgressState]);
+
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
   }, []);
