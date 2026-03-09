@@ -329,6 +329,7 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
 
   // ── PRIORITY 3: High-signal integrations (key metrics) ──
   addSection('Ocean.io Firmographics', extractOcean(session.ocean_data));
+  addSection('Apollo.io Contact Enrichment', extractApollo(session.apollo_data));
   addSection('SEMrush Domain Analysis', extractSemrush(session.semrush_data));
   addSection('PageSpeed Insights (Lighthouse)', extractPageSpeed(session.psi_data));
   addSection('Chrome UX Report (CrUX)', extractCrux(session.crux_data));
