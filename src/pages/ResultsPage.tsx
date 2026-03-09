@@ -79,6 +79,7 @@ type CrawlSession = {
   readable_data: any | null;
   yellowlab_data: any | null;
   avoma_data: any | null;
+  apollo_data: any | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
@@ -305,14 +306,25 @@ export default function ResultsPage() {
     }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
   }, [session, avomaLoading, avomaFailed, fetchData]);
 
-  // Apollo.io contact enrichment (manual search, not auto-triggered)
-  const [apolloData, setApolloData] = useState<any>(null);
+  // Apollo.io contact enrichment (manual search, persisted)
+  const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
   const [apolloLoading, setApolloLoading] = useState(false);
+
+  // Sync apolloData from session when session loads/changes
+  useEffect(() => {
+    if (session?.apollo_data && !apolloData) {
+      setApolloData(session.apollo_data);
+    }
+  }, [session?.apollo_data]);
+
   const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
     setApolloLoading(true);
     try {
       const result = await apolloApi.enrich(email, firstName, lastName, session?.domain);
       setApolloData(result);
+      if (result.success && session) {
+        await supabase.from('crawl_sessions').update({ apollo_data: result } as any).eq('id', session.id);
+      }
       if (!result.success) toast.error(result.error || 'Apollo enrichment failed');
     } catch (e: any) {
       toast.error(e?.message || 'Apollo request failed');
