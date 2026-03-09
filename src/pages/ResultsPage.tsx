@@ -807,8 +807,8 @@ export default function ResultsPage() {
               value="raw-data"
               className="text-sm font-medium px-5 py-2.5 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
             >
-              <Globe className="h-4 w-4 mr-2" />
-              Raw Data &amp; Research
+             <Globe className="h-4 w-4 mr-2" />
+              Results
             </TabsTrigger>
             <TabsTrigger
               value="ai-research"
