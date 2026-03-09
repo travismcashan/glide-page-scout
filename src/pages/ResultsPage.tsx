@@ -32,7 +32,7 @@ import { ReadableCard } from '@/components/ReadableCard';
 import { YellowLabCard } from '@/components/YellowLabCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
-import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
+// ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { AvomaCard } from '@/components/AvomaCard';
