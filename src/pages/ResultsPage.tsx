@@ -80,6 +80,7 @@ type CrawlSession = {
   yellowlab_data: any | null;
   avoma_data: any | null;
   apollo_data: any | null;
+  discovered_urls: string[] | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
