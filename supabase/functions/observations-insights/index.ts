@@ -6,8 +6,37 @@ const corsHeaders = {
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
 type ScreenshotRef = { url: string; title: string };
+type Base64Screenshot = { data: string; mimeType: string; title: string };
 
-function buildUserContent(domain: string, contextBlock: string, screenshots?: ScreenshotRef[]) {
+const MAX_SCREENSHOTS = 5;
+const MAX_IMAGE_BYTES = 500_000; // 500KB per image
+
+async function downloadScreenshot(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return null;
+
+    const arrayBuffer = await resp.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
+      console.warn(`Screenshot too large (${arrayBuffer.byteLength} bytes), skipping: ${url}`);
+      return null;
+    }
+
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    const contentType = resp.headers.get('content-type') || 'image/png';
+    return { data: base64, mimeType: contentType.split(';')[0].trim() };
+  } catch {
+    return null;
+  }
+}
+
+function buildUserContent(domain: string, contextBlock: string, screenshots?: Base64Screenshot[]) {
   const textPrompt = `Review the company at ${domain} using all the documents, transcripts, URLs, site scrape data, screenshots, and research provided below. Produce the following strategic pyramid:
 
 ## 30 Observations
@@ -72,13 +101,12 @@ Define the single most important guiding principle or metric this company should
 
 ${contextBlock}`;
 
-  // If we have screenshots, pass them as URL references (public storage URLs)
   if (screenshots && screenshots.length > 0) {
     const parts: any[] = [{ type: 'text', text: textPrompt }];
     parts.push({ type: 'text', text: '\n\n---\n\n## Page Screenshots\nBelow are screenshots of key pages from the website. Use these to inform your observations about User Experience & Design, Content & SEO, and other visual aspects:\n' });
     for (const ss of screenshots) {
       parts.push({ type: 'text', text: `\nScreenshot: ${ss.title}` });
-      parts.push({ type: 'image_url', image_url: { url: ss.url } });
+      parts.push({ type: 'image_url', image_url: { url: `data:${ss.mimeType};base64,${ss.data}` } });
     }
     return parts;
   }
@@ -122,12 +150,20 @@ Deno.serve(async (req) => {
     }
 
     const screenshotCount = screenshotUrls?.length || 0;
-    console.log(`Generating Observations & Insights for: ${domain} (${screenshotCount} screenshots)`);
+    console.log(`Generating Observations & Insights for: ${domain} (${screenshotCount} screenshots, downloading up to ${MAX_SCREENSHOTS})`);
 
-    // Screenshots are now in permanent public storage — pass URLs directly to the AI
-    const screenshotRefs: ScreenshotRef[] = screenshotUrls && screenshotUrls.length > 0
-      ? screenshotUrls.slice(0, 10)
-      : [];
+    // Download screenshots sequentially to control memory — cap count and size
+    let base64Screenshots: Base64Screenshot[] = [];
+    if (screenshotUrls && screenshotUrls.length > 0) {
+      const toDownload = screenshotUrls.slice(0, MAX_SCREENSHOTS);
+      for (const ss of toDownload) {
+        const result = await downloadScreenshot(ss.url);
+        if (result) {
+          base64Screenshots.push({ data: result.data, mimeType: result.mimeType, title: ss.title });
+        }
+      }
+      console.log(`Downloaded ${base64Screenshots.length}/${toDownload.length} screenshots`);
+    }
 
     const systemPrompt = `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
 
@@ -161,7 +197,7 @@ If page screenshots are provided, use them to make specific visual observations 
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: buildUserContent(domain, contextBlock, screenshotRefs.length > 0 ? screenshotRefs : undefined) },
+          { role: 'user', content: buildUserContent(domain, contextBlock, base64Screenshots.length > 0 ? base64Screenshots : undefined) },
         ],
         max_tokens: 16000,
       }),
@@ -203,7 +239,7 @@ If page screenshots are provided, use them to make specific visual observations 
     let result = data.choices?.[0]?.message?.content || '';
 
     // If multimodal request returned empty, retry with text-only
-    if (!result && screenshotRefs.length > 0) {
+    if (!result && base64Screenshots.length > 0) {
       console.warn('Multimodal request returned empty result, retrying text-only...');
       const retryResponse = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
