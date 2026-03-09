@@ -3,7 +3,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Linkedin, Mail, Phone, Building2, MapPin, Briefcase, Search, UserPlus } from 'lucide-react';
-import { apolloApi } from '@/lib/api/firecrawl';
 import { toast } from 'sonner';
 
 type ApolloData = {
