@@ -85,6 +85,8 @@ type CrawlSession = {
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
+  deep_research_data: any | null;
+  observations_data: any | null;
 };
 
 
