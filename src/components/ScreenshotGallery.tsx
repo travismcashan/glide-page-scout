@@ -96,8 +96,35 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
   }, [screenshots, processingIds, fetchScreenshots]);
 
   const existingUrls = new Set(screenshots.map(s => s.url));
-  const completedShots = screenshots.filter(s => s.screenshot_url);
+  const completedShots = screenshots.filter(s => s.screenshot_url && s.status === 'done');
+  const errorShots = screenshots.filter(s => s.status === 'error');
   const pendingCount = screenshots.filter(s => s.status === 'pending').length;
+  const [recapturing, setRecapturing] = useState(false);
+
+  // Check if any completed shots still have old Thum.io URLs (not stored in our bucket)
+  const hasExpiredUrls = completedShots.some(s => s.screenshot_url?.includes('image.thum.io'));
+  const recaptureCount = screenshots.filter(s => s.status === 'error' || (s.screenshot_url?.includes('image.thum.io'))).length;
+
+  const handleRecapture = async () => {
+    setRecapturing(true);
+    try {
+      // Reset all error shots and shots with old Thum.io URLs back to pending
+      const idsToReset = screenshots
+        .filter(s => s.status === 'error' || (s.screenshot_url?.includes('image.thum.io')))
+        .map(s => s.id);
+      if (idsToReset.length === 0) { toast.info('Nothing to re-capture'); setRecapturing(false); return; }
+      for (const id of idsToReset) {
+        await supabase.from('crawl_screenshots').update({ status: 'pending', screenshot_url: null }).eq('id', id);
+      }
+      setProcessingIds(new Set()); // clear so they get picked up again
+      toast.success(`Re-capturing ${idsToReset.length} screenshots`);
+      fetchScreenshots();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to re-capture');
+    }
+    setRecapturing(false);
+  };
 
   // Auto-run analysis when picker opens for first time
   useEffect(() => {
