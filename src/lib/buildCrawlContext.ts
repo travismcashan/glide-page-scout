@@ -14,6 +14,7 @@ type SessionData = {
   domain: string;
   base_url: string;
   avoma_data?: any;
+  apollo_data?: any;
   ocean_data?: any;
   semrush_data?: any;
   psi_data?: any;
