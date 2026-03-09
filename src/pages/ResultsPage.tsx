@@ -39,6 +39,7 @@ import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
+import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import {
   DropdownMenu,
   DropdownMenuContent,
