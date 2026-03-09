@@ -107,8 +107,16 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       const data = session.deep_research_data;
       if (data.report) setReport(data.report);
       if (data.sources) setSources(data.sources);
-      if (data.prompt) setSubmittedPrompt(data.prompt);
+      if (data.prompt) {
+        setSubmittedPrompt(data.prompt);
+        setPrompt(data.prompt);
+      }
       if (data.documents) setSubmittedDocs(data.documents.map((d: any) => ({ name: d.name, content: '' })));
+      if (data.steps) setSteps(data.steps);
+      // If there's an active interactionId but no final report, resume polling
+      if (data.interactionId && !data.report) {
+        setInteractionId(data.interactionId);
+      }
     }
   }, [session.id]);
 
@@ -120,6 +128,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         sources: finalSources,
         prompt: finalPrompt,
         documents: finalDocs.map(d => ({ name: d.name })),
+        interactionId: null, // clear — research is done
         updated_at: new Date().toISOString(),
       };
       await supabase
@@ -129,6 +138,25 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       console.log('Deep Research results saved to database');
     } catch (e) {
       console.error('Failed to save Deep Research results:', e);
+    }
+  }, [session.id]);
+
+  // Save in-progress state (interactionId, steps, prompt) so we can resume after navigation
+  const saveInProgressState = useCallback(async (iId: string, currentSteps: ThinkingStep[], currentPrompt: string, currentDocs: AttachedDoc[]) => {
+    try {
+      const payload = {
+        interactionId: iId,
+        steps: currentSteps.slice(-50), // keep last 50 steps to avoid bloat
+        prompt: currentPrompt,
+        documents: currentDocs.map(d => ({ name: d.name })),
+        updated_at: new Date().toISOString(),
+      };
+      await supabase
+        .from('crawl_sessions')
+        .update({ deep_research_data: payload as any })
+        .eq('id', session.id);
+    } catch (e) {
+      console.error('Failed to save in-progress state:', e);
     }
   }, [session.id]);
 
