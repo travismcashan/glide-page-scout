@@ -296,25 +296,25 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
             </Button>
           </div>
 
-          <Button onClick={runAnalysis} disabled={loading || !prompt.trim()}>
-            <Play className="h-4 w-4 mr-1.5" />
-            Generate Analysis
-          </Button>
-
           {/* AI Context Preview */}
-          <Accordion type="single" collapsible>
-            <AccordionItem value="context-preview" className="border rounded-lg">
-              <AccordionTrigger className="px-4 py-2 text-xs text-muted-foreground hover:no-underline">
+          <Accordion type="single" collapsible className="border rounded-lg">
+            <AccordionItem value="context-preview" className="border-0">
+              <AccordionTrigger className="px-3 py-2 text-xs font-medium text-muted-foreground hover:no-underline">
                 <span className="flex items-center gap-1.5">
                   <Eye className="h-3.5 w-3.5" />
                   Preview AI Context
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-3">
+              <AccordionContent className="px-3 pb-3">
                 <ContextPreview session={session} pages={pages} documents={documents} screenshotCount={screenshots.length} />
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <Button onClick={runAnalysis} disabled={loading || !prompt.trim()}>
+            <Play className="h-4 w-4 mr-1.5" />
+            Generate Analysis
+          </Button>
         </div>
       )}
     </div>
