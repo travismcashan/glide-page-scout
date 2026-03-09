@@ -92,7 +92,7 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
       await supabase.from('crawl_sessions').update({ status: 'crawling' }).eq('id', sessionId);
       toast.success(`Taking ${newUrls.length} screenshots`);
       onPagesAdded();
-    } catch (e) { console.error(e); toast.error('Failed to queue screenshots'); }
+    } catch (e) { console.error(e); toast.error('Failed to take screenshots'); }
     setSubmitting(false);
   };
 
