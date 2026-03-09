@@ -311,7 +311,7 @@ export default function ResultsPage() {
   const [apolloLoading, setApolloLoading] = useState(false);
 
   // Sync apolloData from session when session loads/changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (session?.apollo_data && !apolloData) {
       setApolloData(session.apollo_data);
     }
