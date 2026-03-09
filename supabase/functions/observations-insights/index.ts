@@ -150,12 +150,20 @@ Deno.serve(async (req) => {
     }
 
     const screenshotCount = screenshotUrls?.length || 0;
-    console.log(`Generating Observations & Insights for: ${domain} (${screenshotCount} screenshots)`);
+    console.log(`Generating Observations & Insights for: ${domain} (${screenshotCount} screenshots, downloading up to ${MAX_SCREENSHOTS})`);
 
-    // Screenshots are now in permanent public storage — pass URLs directly to the AI
-    const screenshotRefs: ScreenshotRef[] = screenshotUrls && screenshotUrls.length > 0
-      ? screenshotUrls.slice(0, 10)
-      : [];
+    // Download screenshots sequentially to control memory — cap count and size
+    let base64Screenshots: Base64Screenshot[] = [];
+    if (screenshotUrls && screenshotUrls.length > 0) {
+      const toDownload = screenshotUrls.slice(0, MAX_SCREENSHOTS);
+      for (const ss of toDownload) {
+        const result = await downloadScreenshot(ss.url);
+        if (result) {
+          base64Screenshots.push({ data: result.data, mimeType: result.mimeType, title: ss.title });
+        }
+      }
+      console.log(`Downloaded ${base64Screenshots.length}/${toDownload.length} screenshots`);
+    }
 
     const systemPrompt = `You are a senior digital strategist and website analyst. You produce structured strategic analysis using a pyramid framework. Your analysis must be specific, actionable, and grounded in the data provided. Use markdown formatting with clear headers and subheaders for each section.
 
