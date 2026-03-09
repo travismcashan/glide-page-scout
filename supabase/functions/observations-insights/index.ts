@@ -247,7 +247,17 @@ If page screenshots are provided, use them to make specific visual observations 
           reasoning_effort: 'high',
         }),
       });
-      const retryData = await retryResponse.json();
+      const retryText = await retryResponse.text();
+      let retryData: any;
+      try {
+        retryData = JSON.parse(retryText);
+      } catch {
+        console.error('Failed to parse AI retry response:', retryText.substring(0, 500));
+        return new Response(
+          JSON.stringify({ success: false, error: 'AI returned invalid response on retry. Please try again.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       if (!retryResponse.ok) {
         console.error('AI Gateway retry error:', retryData);
         return new Response(
