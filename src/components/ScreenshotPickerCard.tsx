@@ -82,9 +82,9 @@ export function ScreenshotPickerCard({ sessionId, baseUrl, discoveredUrls, exist
           selectedUrls={selected}
           setSelectedUrls={setSelected}
           existingUrls={existingScreenshotUrls}
-          existingLabel="Queued"
+          existingLabel="Captured"
           onSubmit={handleSubmit}
-          submitLabel="Queue Screenshots"
+          submitLabel="Take Screenshots"
           isSubmitting={submitting}
           isAnalyzing={analyzing}
           analysisDone={analysisDone}
