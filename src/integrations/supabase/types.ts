@@ -70,6 +70,41 @@ export type Database = {
           },
         ]
       }
+      crawl_screenshots: {
+        Row: {
+          created_at: string
+          id: string
+          screenshot_url: string | null
+          session_id: string
+          status: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          screenshot_url?: string | null
+          session_id: string
+          status?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          screenshot_url?: string | null
+          session_id?: string
+          status?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crawl_screenshots_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crawl_sessions: {
         Row: {
           apollo_data: Json | null
