@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
 
     console.log('Apollo match successful:', person.name);
 
+    const org = person.organization || {};
     const result = {
       success: true,
       found: true,
@@ -88,17 +89,33 @@ Deno.serve(async (req) => {
       photoUrl: person.photo_url,
       email: person.email,
       emailStatus: person.email_status,
+      personalEmails: person.personal_emails || [],
       phone: person.phone_numbers?.[0]?.sanitized_number || null,
+      phoneNumbers: person.phone_numbers || [],
       city: person.city,
       state: person.state,
       country: person.country,
+      // Social profiles
+      twitterUrl: person.twitter_url || null,
+      facebookUrl: person.facebook_url || null,
+      githubUrl: person.github_url || null,
       // Organization
-      organizationName: person.organization?.name || null,
-      organizationDomain: person.organization?.primary_domain || null,
-      organizationIndustry: person.organization?.industry || null,
-      organizationSize: person.organization?.estimated_num_employees || null,
-      organizationLinkedin: person.organization?.linkedin_url || null,
-      organizationLogo: person.organization?.logo_url || null,
+      organizationName: org.name || null,
+      organizationDomain: org.primary_domain || null,
+      organizationIndustry: org.industry || null,
+      organizationSize: org.estimated_num_employees || null,
+      organizationLinkedin: org.linkedin_url || null,
+      organizationLogo: org.logo_url || null,
+      organizationWebsite: org.website_url || null,
+      organizationFounded: org.founded_year || null,
+      organizationRevenue: org.annual_revenue_printed || null,
+      organizationDescription: org.short_description || null,
+      organizationKeywords: org.keywords || [],
+      organizationPhone: org.phone || null,
+      organizationCity: org.city || null,
+      organizationState: org.state || null,
+      organizationCountry: org.country || null,
+      organizationTechnologies: org.current_technologies?.map((t: any) => t.name || t) || [],
       // Employment history
       employmentHistory: person.employment_history?.map((e: any) => ({
         title: e.title,
@@ -106,10 +123,14 @@ Deno.serve(async (req) => {
         startDate: e.start_date,
         endDate: e.end_date,
         current: e.current,
+        description: e.description || null,
       })) || [],
       // Seniority & department
       seniority: person.seniority,
       departments: person.departments,
+      // Intent & signals
+      intentStrength: person.intent_strength || null,
+      showIntent: person.show_intent || false,
     };
 
     return new Response(
