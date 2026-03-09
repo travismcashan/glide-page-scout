@@ -992,8 +992,23 @@ export default function ResultsPage() {
             generatingOutline={generatingOutline}
             collapsed={allCollapsed}
           />
-        )}
+          )}
 
+          {!isIntegrationPaused('apollo') && (
+            <TabsContent value="apollo" className="mt-0 space-y-6">
+              <SectionCard
+                title="Apollo.io — Contact Enrichment"
+                icon={<UserPlus className="h-5 w-5 text-foreground" />}
+                collapsed={allCollapsed}
+              >
+                <ApolloCard
+                  data={apolloData}
+                  isLoading={apolloLoading}
+                  onSearch={handleApolloSearch}
+                />
+              </SectionCard>
+            </TabsContent>
+          )}
 
 
 
