@@ -6,8 +6,37 @@ const corsHeaders = {
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
 type ScreenshotRef = { url: string; title: string };
+type Base64Screenshot = { data: string; mimeType: string; title: string };
 
-function buildUserContent(domain: string, contextBlock: string, screenshots?: ScreenshotRef[]) {
+const MAX_SCREENSHOTS = 5;
+const MAX_IMAGE_BYTES = 500_000; // 500KB per image
+
+async function downloadScreenshot(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return null;
+
+    const arrayBuffer = await resp.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
+      console.warn(`Screenshot too large (${arrayBuffer.byteLength} bytes), skipping: ${url}`);
+      return null;
+    }
+
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    const contentType = resp.headers.get('content-type') || 'image/png';
+    return { data: base64, mimeType: contentType.split(';')[0].trim() };
+  } catch {
+    return null;
+  }
+}
+
+function buildUserContent(domain: string, contextBlock: string, screenshots?: Base64Screenshot[]) {
   const textPrompt = `Review the company at ${domain} using all the documents, transcripts, URLs, site scrape data, screenshots, and research provided below. Produce the following strategic pyramid:
 
 ## 30 Observations
@@ -72,13 +101,12 @@ Define the single most important guiding principle or metric this company should
 
 ${contextBlock}`;
 
-  // If we have screenshots, pass them as URL references (public storage URLs)
   if (screenshots && screenshots.length > 0) {
     const parts: any[] = [{ type: 'text', text: textPrompt }];
     parts.push({ type: 'text', text: '\n\n---\n\n## Page Screenshots\nBelow are screenshots of key pages from the website. Use these to inform your observations about User Experience & Design, Content & SEO, and other visual aspects:\n' });
     for (const ss of screenshots) {
       parts.push({ type: 'text', text: `\nScreenshot: ${ss.title}` });
-      parts.push({ type: 'image_url', image_url: { url: ss.url } });
+      parts.push({ type: 'image_url', image_url: { url: `data:${ss.mimeType};base64,${ss.data}` } });
     }
     return parts;
   }
