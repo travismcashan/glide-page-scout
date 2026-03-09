@@ -456,3 +456,39 @@ export const avomaApi = {
     return data;
   },
 };
+
+export const apolloApi = {
+  async enrich(email: string, firstName?: string, lastName?: string, domain?: string): Promise<{
+    success: boolean;
+    found?: boolean;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    title?: string;
+    headline?: string;
+    linkedinUrl?: string;
+    photoUrl?: string;
+    email?: string;
+    emailStatus?: string;
+    phone?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    organizationName?: string;
+    organizationDomain?: string;
+    organizationIndustry?: string;
+    organizationSize?: number;
+    organizationLinkedin?: string;
+    organizationLogo?: string;
+    seniority?: string;
+    departments?: string[];
+    employmentHistory?: { title: string; organizationName: string; startDate?: string; endDate?: string; current?: boolean }[];
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('apollo-enrich', {
+      body: { email, firstName, lastName, domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};

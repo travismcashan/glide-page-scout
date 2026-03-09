@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.avoma-lookup]
 verify_jwt = false
+
+[functions.apollo-enrich]
+verify_jwt = false

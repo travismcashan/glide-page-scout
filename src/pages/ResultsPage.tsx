@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone } from 'lucide-react';
+import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -36,6 +36,7 @@ import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { AvomaCard } from '@/components/AvomaCard';
+import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import {
@@ -304,7 +305,22 @@ export default function ResultsPage() {
     }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
   }, [session, avomaLoading, avomaFailed, fetchData]);
 
-  // SSL Labs (client-side polling to avoid edge function timeout)
+  // Apollo.io contact enrichment (manual search, not auto-triggered)
+  const [apolloData, setApolloData] = useState<any>(null);
+  const [apolloLoading, setApolloLoading] = useState(false);
+  const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
+    setApolloLoading(true);
+    try {
+      const result = await apolloApi.enrich(email, firstName, lastName, session?.domain);
+      setApolloData(result);
+      if (!result.success) toast.error(result.error || 'Apollo enrichment failed');
+    } catch (e: any) {
+      toast.error(e?.message || 'Apollo request failed');
+    }
+    setApolloLoading(false);
+  };
+
+
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
   const [ssllabsFailed, setSsllabsFailed] = useState(false);
   const ssllabsPollingRef = useRef(false);
@@ -797,6 +813,15 @@ export default function ResultsPage() {
                 Avoma Calls
               </TabsTrigger>
             )}
+            {!isIntegrationPaused('apollo') && (
+              <TabsTrigger
+                value="apollo"
+                className="text-sm font-medium px-5 py-2.5 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Contact Enrichment
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="raw-data" className="mt-0 space-y-6">
@@ -982,8 +1007,23 @@ export default function ResultsPage() {
             generatingOutline={generatingOutline}
             collapsed={allCollapsed}
           />
-        )}
+          )}
 
+          {!isIntegrationPaused('apollo') && (
+            <TabsContent value="apollo" className="mt-0 space-y-6">
+              <SectionCard
+                title="Apollo.io — Contact Enrichment"
+                icon={<UserPlus className="h-5 w-5 text-foreground" />}
+                collapsed={allCollapsed}
+              >
+                <ApolloCard
+                  data={apolloData}
+                  isLoading={apolloLoading}
+                  onSearch={handleApolloSearch}
+                />
+              </SectionCard>
+            </TabsContent>
+          )}
 
 
 
