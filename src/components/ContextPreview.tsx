@@ -24,14 +24,15 @@ type Props = {
   session: SessionData;
   pages?: PageData[];
   documents: AttachedDoc[];
+  screenshotCount?: number;
 };
 
-export function ContextPreview({ session, pages, documents }: Props) {
+export function ContextPreview({ session, pages, documents, screenshotCount: externalScreenshotCount }: Props) {
   const context = useMemo(() => buildCrawlContext(session, pages), [session, pages]);
   const totalChars = context.length;
   const estTokens = Math.round(totalChars / 4);
   const docChars = documents.reduce((sum, d) => sum + d.content.length, 0);
-  const screenshotCount = (pages || []).filter(p => p.screenshot_url).length;
+  const screenshotCount = externalScreenshotCount ?? (pages || []).filter(p => p.screenshot_url).length;
   const screenshotsIncluded = Math.min(screenshotCount, 10);
 
   const sections = useMemo(() => {
