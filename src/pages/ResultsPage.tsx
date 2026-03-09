@@ -961,6 +961,13 @@ export default function ResultsPage() {
         </SectionCard>
         )}
 
+        {/* ── Apollo.io Contact Enrichment ── */}
+        {!isIntegrationPaused('apollo') && (
+        <SectionCard collapsed={allCollapsed} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />}>
+          <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
+        </SectionCard>
+        )}
+
 
         {/* ── SEO ── */}
         {!isIntegrationPaused('semrush') && (
