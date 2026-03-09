@@ -239,7 +239,7 @@ If page screenshots are provided, use them to make specific visual observations 
     let result = data.choices?.[0]?.message?.content || '';
 
     // If multimodal request returned empty, retry with text-only
-    if (!result && screenshotRefs.length > 0) {
+    if (!result && base64Screenshots.length > 0) {
       console.warn('Multimodal request returned empty result, retrying text-only...');
       const retryResponse = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
