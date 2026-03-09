@@ -1,44 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Camera, ExternalLink, Maximize2, X, Rows3, Grid2x2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { aiApi } from '@/lib/api/firecrawl';
+import { aiApi, screenshotApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { UrlSelectionList, type UrlEntry } from '@/components/UrlSelectionList';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
-type GalleryPage = {
+type Screenshot = {
   id: string;
   url: string;
-  title: string | null;
   screenshot_url: string | null;
+  status: string;
 };
 
 type Props = {
-  pages: GalleryPage[];
   sessionId: string;
   baseUrl: string;
   discoveredUrls: string[];
-  existingScreenshotUrls: Set<string>;
-  onPagesAdded: () => void;
   collapsed?: boolean;
 };
 
 const STORAGE_KEY = 'screenshot-gallery-mode';
 
-export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, existingScreenshotUrls, onPagesAdded, collapsed: controlledCollapsed }: Props) {
+export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapsed: controlledCollapsed }: Props) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const [hasOverride, setHasOverride] = useState(false);
+  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (controlledCollapsed !== undefined) setHasOverride(false);
   }, [controlledCollapsed]);
 
   const isCollapsed = hasOverride ? internalCollapsed : (controlledCollapsed ?? internalCollapsed);
-  const [selectedPage, setSelectedPage] = useState<GalleryPage | null>(null);
+  const [selectedShot, setSelectedShot] = useState<Screenshot | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [condensed, setCondensed] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) !== 'full'; } catch { return true; }
@@ -56,6 +54,50 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, condensed ? 'condensed' : 'full'); } catch {}
   }, [condensed]);
+
+  // Fetch screenshots from their own table
+  const fetchScreenshots = useCallback(async () => {
+    const { data } = await supabase
+      .from('crawl_screenshots')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+    if (data) setScreenshots(data as unknown as Screenshot[]);
+  }, [sessionId]);
+
+  useEffect(() => { fetchScreenshots(); }, [fetchScreenshots]);
+
+  // Process pending screenshots independently
+  useEffect(() => {
+    const pending = screenshots.filter(s => s.status === 'pending' && !processingIds.has(s.id));
+    if (pending.length === 0) return;
+
+    const processScreenshot = async (shot: Screenshot) => {
+      setProcessingIds(prev => new Set([...prev, shot.id]));
+      try {
+        const result = await screenshotApi.getUrl(shot.url);
+        if (result.success && result.screenshotUrl) {
+          await supabase.from('crawl_screenshots').update({
+            screenshot_url: result.screenshotUrl,
+            status: 'done',
+          }).eq('id', shot.id);
+        } else {
+          await supabase.from('crawl_screenshots').update({ status: 'error' }).eq('id', shot.id);
+        }
+      } catch (e) {
+        console.error('Screenshot failed for:', shot.url, e);
+        await supabase.from('crawl_screenshots').update({ status: 'error' }).eq('id', shot.id);
+      }
+      fetchScreenshots();
+    };
+
+    // Process up to 5 at a time
+    pending.slice(0, 5).forEach(processScreenshot);
+  }, [screenshots, processingIds, fetchScreenshots]);
+
+  const existingUrls = new Set(screenshots.map(s => s.url));
+  const completedShots = screenshots.filter(s => s.screenshot_url);
+  const pendingCount = screenshots.filter(s => s.status === 'pending').length;
 
   // Auto-run analysis when picker opens for first time
   useEffect(() => {
@@ -82,16 +124,15 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
   };
 
   const handleSubmit = async () => {
-    const newUrls = Array.from(selected).filter(u => !existingScreenshotUrls.has(u));
+    const newUrls = Array.from(selected).filter(u => !existingUrls.has(u));
     if (newUrls.length === 0) { toast.info('All selected pages already captured'); return; }
     setSubmitting(true);
     try {
       const rows = newUrls.map(url => ({ session_id: sessionId, url, status: 'pending' }));
-      const { error } = await supabase.from('crawl_pages').insert(rows);
+      const { error } = await supabase.from('crawl_screenshots').insert(rows);
       if (error) throw error;
-      await supabase.from('crawl_sessions').update({ status: 'crawling' }).eq('id', sessionId);
       toast.success(`Taking ${newUrls.length} screenshots`);
-      onPagesAdded();
+      fetchScreenshots();
     } catch (e) { console.error(e); toast.error('Failed to take screenshots'); }
     setSubmitting(false);
   };
@@ -108,7 +149,15 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
           </div>
           <h2 className="text-lg font-semibold">Screenshots</h2>
           <div className="flex items-center gap-2 ml-auto" onClick={e => e.stopPropagation()}>
-            <span className="text-sm text-muted-foreground">{pages.length} pages</span>
+            <span className="text-sm text-muted-foreground">
+              {completedShots.length} captured
+              {pendingCount > 0 && (
+                <span className="ml-1 text-primary">
+                  <Loader2 className="h-3 w-3 animate-spin inline mr-0.5" />
+                  {pendingCount} processing
+                </span>
+              )}
+            </span>
             {!paused && discoveredUrls.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => setPickerOpen(!pickerOpen)}>
                 <Camera className="h-3.5 w-3.5 mr-1.5" />
@@ -151,7 +200,7 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
                 entries={entries}
                 selectedUrls={selected}
                 setSelectedUrls={setSelected}
-                existingUrls={existingScreenshotUrls}
+                existingUrls={existingUrls}
                 existingLabel="Captured"
                 onSubmit={handleSubmit}
                 submitLabel="Take Screenshots"
@@ -165,19 +214,19 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
           </div>
         )}
 
-        {!isCollapsed && pages.length > 0 ? (
+        {!isCollapsed && completedShots.length > 0 ? (
           <div className="p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pages.map(page => (
+              {completedShots.map(shot => (
                 <div
-                  key={page.id}
+                  key={shot.id}
                   className="cursor-pointer group rounded-lg border border-border overflow-hidden hover:border-primary/50 hover:shadow-md transition-all"
-                  onClick={() => setSelectedPage(page)}
+                  onClick={() => setSelectedShot(shot)}
                 >
                   <div className={`relative overflow-hidden ${condensed ? 'h-[280px]' : ''}`}>
                     <img
-                      src={page.screenshot_url!}
-                      alt={`Screenshot of ${page.title || page.url}`}
+                      src={shot.screenshot_url!}
+                      alt={`Screenshot of ${shot.url}`}
                       className="w-full block"
                       loading="lazy"
                     />
@@ -201,8 +250,7 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
                     </div>
                   </div>
                   <div className="px-3 py-2 bg-muted/30">
-                    <p className="text-xs font-medium truncate">{page.title || page.url}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono truncate">{page.url}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate">{shot.url}</p>
                   </div>
                 </div>
               ))}
@@ -218,17 +266,16 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
       </Card>
 
       {/* Medium view dialog */}
-      <Dialog open={!!selectedPage && !fullscreen} onOpenChange={(open) => { if (!open) setSelectedPage(null); }}>
+      <Dialog open={!!selectedShot && !fullscreen} onOpenChange={(open) => { if (!open) setSelectedShot(null); }}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 gap-0">
-          {selectedPage && (
+          {selectedShot && (
             <>
               <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
                 <div className="min-w-0 flex-1 mr-4">
-                  <p className="font-medium text-sm truncate">{selectedPage.title || selectedPage.url}</p>
-                  <p className="text-xs text-muted-foreground font-mono truncate">{selectedPage.url}</p>
+                  <p className="text-xs text-muted-foreground font-mono truncate">{selectedShot.url}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <a href={selectedPage.url} target="_blank" rel="noopener noreferrer">
+                  <a href={selectedShot.url} target="_blank" rel="noopener noreferrer">
                     <Button variant="outline" size="sm">
                       <ExternalLink className="h-3 w-3 mr-1" /> Visit
                     </Button>
@@ -240,8 +287,8 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
               </div>
               <div className="p-4">
                 <img
-                  src={selectedPage.screenshot_url!}
-                  alt={`Screenshot of ${selectedPage.title || selectedPage.url}`}
+                  src={selectedShot.screenshot_url!}
+                  alt={`Screenshot of ${selectedShot.url}`}
                   className="w-full rounded-lg border border-border"
                 />
               </div>
@@ -251,28 +298,27 @@ export function ScreenshotGallery({ pages, sessionId, baseUrl, discoveredUrls, e
       </Dialog>
 
       {/* Fullscreen overlay */}
-      {fullscreen && selectedPage && (
+      {fullscreen && selectedShot && (
         <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <div className="min-w-0 flex-1 mr-4">
-              <p className="font-medium">{selectedPage.title || selectedPage.url}</p>
-              <p className="text-xs text-muted-foreground font-mono">{selectedPage.url}</p>
+              <p className="text-xs text-muted-foreground font-mono">{selectedShot.url}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <a href={selectedPage.url} target="_blank" rel="noopener noreferrer">
+              <a href={selectedShot.url} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   <ExternalLink className="h-3 w-3 mr-1" /> Visit
                 </Button>
               </a>
-              <Button variant="outline" size="icon" onClick={() => { setFullscreen(false); setSelectedPage(null); }}>
+              <Button variant="outline" size="icon" onClick={() => { setFullscreen(false); setSelectedShot(null); }}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
           <div className="flex-1 overflow-auto p-6 flex justify-center">
             <img
-              src={selectedPage.screenshot_url!}
-              alt={`Screenshot of ${selectedPage.title || selectedPage.url}`}
+              src={selectedShot.screenshot_url!}
+              alt={`Screenshot of ${selectedShot.url}`}
               className="max-w-full h-auto object-contain"
             />
           </div>

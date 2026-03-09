@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, screenshotApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -32,7 +32,7 @@ import { ReadableCard } from '@/components/ReadableCard';
 import { YellowLabCard } from '@/components/YellowLabCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
-import { ScreenshotPickerCard } from '@/components/ScreenshotPickerCard';
+// ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { AvomaCard } from '@/components/AvomaCard';
@@ -541,23 +541,15 @@ export default function ResultsPage() {
     const processPage = async (page: CrawlPage) => {
       setProcessingPages(prev => new Set([...prev, page.id]));
       try {
-        // Scrape content and take screenshot in parallel
-        const [scrapeResult, screenshotResult] = await Promise.all([
-          firecrawlApi.scrape(page.url, { formats: ['markdown'] }),
-          screenshotApi.getUrl(page.url).catch(e => {
-            console.error('Screenshot failed for:', page.url, e);
-            return { success: false } as { success: boolean; screenshotUrl?: string };
-          }),
-        ]);
+        // Content scraping only — screenshots are a completely separate integration
+        const scrapeResult = await firecrawlApi.scrape(page.url, { formats: ['markdown'] });
 
         const markdown = scrapeResult?.data?.markdown || (scrapeResult as any)?.markdown || '';
         const title = scrapeResult?.data?.metadata?.title || (scrapeResult as any)?.metadata?.title || page.url;
-        const screenshotUrl = screenshotResult.success ? screenshotResult.screenshotUrl || null : null;
 
         await supabase.from('crawl_pages').update({
           raw_content: markdown || null,
           title,
-          screenshot_url: screenshotUrl,
           status: markdown ? 'scraped' : 'error',
         }).eq('id', page.id);
 
@@ -1005,12 +997,9 @@ export default function ResultsPage() {
         {/* ── Page Screenshots ── */}
         {session && !isIntegrationPaused('screenshots') && (
           <ScreenshotGallery
-            pages={scrapedPages.filter(p => p.screenshot_url)}
             sessionId={session.id}
             baseUrl={session.base_url}
             discoveredUrls={discoveredUrls}
-            existingScreenshotUrls={new Set(pages.filter(p => p.screenshot_url).map(p => p.url))}
-            onPagesAdded={fetchData}
             collapsed={allCollapsed}
           />
         )}
