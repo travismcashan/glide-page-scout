@@ -16,6 +16,10 @@ type Props = {
   onUrlsDiscovered: (urls: string[]) => void;
   linkCheckResults?: LinkCheckResult[] | null;
   collapsed?: boolean;
+  /** Pre-loaded discovered URLs from database */
+  persistedUrls?: string[] | null;
+  /** Called after fresh discovery so parent can persist */
+  onUrlsPersist?: (urls: string[]) => void;
 };
 
 function statusBadgeClass(code: number): string {
@@ -25,7 +29,7 @@ function statusBadgeClass(code: number): string {
   return 'bg-muted text-muted-foreground border-border';
 }
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, collapsed }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, collapsed, persistedUrls, onUrlsPersist }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -40,8 +44,19 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     }
   }
 
+  // Use persisted URLs if available — skip Firecrawl call entirely
+  useEffect(() => {
+    if (persistedUrls && persistedUrls.length > 0 && !discoveryDone) {
+      setAllUrls(persistedUrls);
+      setDiscoveryDone(true);
+      onUrlsDiscovered(persistedUrls);
+    }
+  }, [persistedUrls]);
+
   useEffect(() => {
     if (discoveryDone || isMapping || paused) return;
+    // Don't re-discover if we already have persisted URLs
+    if (persistedUrls && persistedUrls.length > 0) return;
     startDiscovery();
   }, []);
 
@@ -80,6 +95,8 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
       setIsMapping(false);
       setDiscoveryDone(true);
       onUrlsDiscovered(links);
+      // Persist to database via parent
+      onUrlsPersist?.(links);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to discover pages');
