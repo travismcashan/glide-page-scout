@@ -541,15 +541,23 @@ export default function ResultsPage() {
     const processPage = async (page: CrawlPage) => {
       setProcessingPages(prev => new Set([...prev, page.id]));
       try {
-        // Scrape content only — screenshots are handled separately by the Screenshot Picker
-        const scrapeResult = await firecrawlApi.scrape(page.url, { formats: ['markdown'] });
+        // Scrape content and take screenshot in parallel
+        const [scrapeResult, screenshotResult] = await Promise.all([
+          firecrawlApi.scrape(page.url, { formats: ['markdown'] }),
+          screenshotApi.getUrl(page.url).catch(e => {
+            console.error('Screenshot failed for:', page.url, e);
+            return { success: false } as { success: boolean; screenshotUrl?: string };
+          }),
+        ]);
 
         const markdown = scrapeResult?.data?.markdown || (scrapeResult as any)?.markdown || '';
         const title = scrapeResult?.data?.metadata?.title || (scrapeResult as any)?.metadata?.title || page.url;
+        const screenshotUrl = screenshotResult.success ? screenshotResult.screenshotUrl || null : null;
 
         await supabase.from('crawl_pages').update({
           raw_content: markdown || null,
           title,
+          screenshot_url: screenshotUrl,
           status: markdown ? 'scraped' : 'error',
         }).eq('id', page.id);
 
