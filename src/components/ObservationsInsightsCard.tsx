@@ -311,7 +311,7 @@ export function ObservationsInsightsCard({ session, pages }: Props) {
                 </span>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-3">
-                <ContextPreview session={session} pages={pages} documents={documents} />
+                <ContextPreview session={session} pages={pages} documents={documents} screenshotCount={screenshots.length} />
               </AccordionContent>
             </AccordionItem>
           </Accordion>
