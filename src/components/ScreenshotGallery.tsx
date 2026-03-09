@@ -280,9 +280,11 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
                       <ExternalLink className="h-3 w-3 mr-1" /> Visit
                     </Button>
                   </a>
-                  <Button variant="outline" size="sm" onClick={() => setFullscreen(true)}>
-                    <Maximize2 className="h-3 w-3 mr-1" /> Full
-                  </Button>
+                  <a href={selectedShot.screenshot_url!} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm">
+                      <Maximize2 className="h-3 w-3 mr-1" /> Full
+                    </Button>
+                  </a>
                 </div>
               </div>
               <div className="p-4">
