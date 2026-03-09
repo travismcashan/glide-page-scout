@@ -566,6 +566,9 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
       setStarting(false);
       setStreaming(true);
 
+      // Persist interactionId immediately so we can resume if user navigates away
+      await saveInProgressState(iId, [], prompt, documents);
+
       const streamWorked = await connectToStream(iId);
 
       if (!streamWorked) {
