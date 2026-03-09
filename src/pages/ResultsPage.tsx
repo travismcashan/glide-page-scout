@@ -39,6 +39,7 @@ import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
+import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,6 +85,8 @@ type CrawlSession = {
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
+  deep_research_data: any | null;
+  observations_data: any | null;
 };
 
 
@@ -778,6 +781,18 @@ export default function ResultsPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {session?.deep_research_data?.report && (
+                  <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                    <Brain className="h-3.5 w-3.5 mr-1.5" />
+                    Deep Research PDF
+                  </DropdownMenuItem>
+                )}
+                {session?.observations_data && (
+                  <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
+                    <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
+                    Observations & Insights PDF
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => exportAsPdf()}>
                   Export as PDF (Print)
                 </DropdownMenuItem>
