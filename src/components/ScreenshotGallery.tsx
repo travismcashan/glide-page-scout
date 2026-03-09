@@ -185,6 +185,12 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
                 </span>
               )}
             </span>
+            {!paused && recaptureCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleRecapture} disabled={recapturing || pendingCount > 0}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${recapturing ? 'animate-spin' : ''}`} />
+                Re-capture {recaptureCount}
+              </Button>
+            )}
             {!paused && discoveredUrls.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => setPickerOpen(!pickerOpen)}>
                 <Camera className="h-3.5 w-3.5 mr-1.5" />
