@@ -1,5 +1,6 @@
 import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 import { encodeHex } from "https://deno.land/std@0.208.0/encoding/hex.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,22 +36,67 @@ Deno.serve(async (req) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Generate signed Thum.io URL (short expiry is fine — we'll fetch immediately)
     const keyId = '76733';
-    // 30 day expiry so stored URLs remain valid
-    const expires = Date.now() + (1000 * 60 * 60 * 24 * 30);
+    const expires = Date.now() + (1000 * 300); // 5 min is plenty for a fetch
     const hash = await md5(secret + expires + url);
     const auth = `${keyId}-${expires}-${hash}`;
+    const thumUrl = `https://image.thum.io/get/auth/${auth}/fullpage/width/1280/noanimate/${url}`;
 
-    const screenshotUrl = `https://image.thum.io/get/auth/${auth}/fullpage/width/1280/noanimate/${url}`;
+    console.log('Fetching screenshot for:', url);
 
-    console.log('Generated screenshot URL for:', url);
+    // Download the actual image from Thum.io
+    const imageResponse = await fetch(thumUrl);
+    if (!imageResponse.ok) {
+      console.error('Thum.io fetch failed:', imageResponse.status, imageResponse.statusText);
+      return new Response(
+        JSON.stringify({ success: false, error: `Thum.io returned ${imageResponse.status}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const imageBlob = await imageResponse.blob();
+    const contentType = imageResponse.headers.get('content-type') || 'image/png';
+    const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg' : 'png';
+
+    // Create a unique filename from the URL
+    const urlHash = await md5(url + Date.now());
+    const filePath = `${urlHash}.${ext}`;
+
+    // Upload to storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('screenshots')
+      .upload(filePath, imageBlob, {
+        contentType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('Storage upload failed:', uploadError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to store screenshot: ' + uploadError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get the public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('screenshots')
+      .getPublicUrl(filePath);
+
+    const screenshotUrl = publicUrlData.publicUrl;
+    console.log('Screenshot stored permanently:', screenshotUrl);
 
     return new Response(
       JSON.stringify({ success: true, screenshotUrl }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error generating screenshot URL:', error);
+    console.error('Error generating screenshot:', error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to generate screenshot' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
