@@ -41,7 +41,6 @@ Deno.serve(async (req) => {
         last_name: lastName || undefined,
         domain: domain || undefined,
         reveal_personal_emails: false,
-        reveal_phone_number: true,
       }),
     });
 
