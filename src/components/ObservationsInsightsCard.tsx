@@ -51,6 +51,28 @@ type Props = {
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/observations-insights`;
 
 export function ObservationsInsightsCard({ session, pages }: Props) {
+  const [screenshots, setScreenshots] = useState<{ url: string; screenshot_url: string; title?: string }[]>([]);
+
+  // Fetch completed screenshots from crawl_screenshots table
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('crawl_screenshots')
+        .select('url, screenshot_url, status')
+        .eq('session_id', session.id)
+        .eq('status', 'done');
+      if (data) {
+        setScreenshots(
+          data
+            .filter(s => s.screenshot_url)
+            .map(s => {
+              const page = (pages || []).find(p => p.url === s.url);
+              return { url: s.url, screenshot_url: s.screenshot_url!, title: page?.title || s.url };
+            })
+        );
+      }
+    })();
+  }, [session.id, pages]);
   const companyName = session.ocean_data?.companyName || session.domain;
   const defaultPrompt = `Review ${companyName}, located at ${session.domain}, as it relates to all the documents, transcripts, URLs, site scrape data, and research provided, and give me:\r\n\r\n30 observations as bullet points grouped under: Technology & Infrastructure, User Experience & Design, Content & SEO, Performance & Analytics, Organizational Context, and Competitive Landscape & Market Position\r\n\r\n20 insights as bullet points grouped under: Strategic Opportunities, Risk Areas, and Patterns & Correlations\r\n\r\n10 recommendations, each with Action, Why, and Impact (diagnose before prescribe)\r\n\r\n5 strategies\r\n3 keys to success\r\n1 north star`;
 
