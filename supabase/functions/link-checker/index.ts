@@ -1,50 +1,62 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function checkUrl(url: string): Promise<{ url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }> {
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function checkUrl(url: string, attempt = 1): Promise<{ url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }> {
   const start = Date.now();
-  try {
+  const tryFetch = async (method: string) => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch(url, {
-      method: 'HEAD',
-      redirect: 'manual',
-      signal: controller.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BrokenLinkChecker/1.0)' },
-    });
-    clearTimeout(timeout);
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const res = await fetch(url, {
+        method,
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: { 'User-Agent': USER_AGENT },
+      });
+      clearTimeout(timeout);
+      if (method === 'GET') await res.body?.cancel();
+      return res;
+    } catch (e) {
+      clearTimeout(timeout);
+      throw e;
+    }
+  };
+
+  try {
+    let res: Response;
+    try {
+      res = await tryFetch('HEAD');
+    } catch {
+      res = await tryFetch('GET');
+    }
+
+    // Retry on 429 with backoff (up to 2 retries)
+    if (res.status === 429 && attempt <= 2) {
+      const retryAfter = res.headers.get('retry-after');
+      const waitMs = retryAfter ? Math.min(parseInt(retryAfter, 10) * 1000, 5000) : attempt * 2000;
+      console.log(`429 for ${url}, retrying in ${waitMs}ms (attempt ${attempt})`);
+      await sleep(waitMs);
+      return checkUrl(url, attempt + 1);
+    }
+
     const elapsed = Date.now() - start;
     const redirectUrl = res.headers.get('location') || null;
     return { url, statusCode: res.status, redirectUrl, responseTimeMs: elapsed, error: null };
   } catch (e: any) {
     const elapsed = Date.now() - start;
-    // If HEAD fails, try GET (some servers block HEAD)
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(url, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BrokenLinkChecker/1.0)' },
-      });
-      clearTimeout(timeout);
-      const getElapsed = Date.now() - start;
-      const redirectUrl = res.headers.get('location') || null;
-      // Consume body to free resources
-      await res.body?.cancel();
-      return { url, statusCode: res.status, redirectUrl, responseTimeMs: getElapsed, error: null };
-    } catch (e2: any) {
-      return { url, statusCode: 0, redirectUrl: null, responseTimeMs: elapsed, error: e2?.message || 'Request failed' };
-    }
+    return { url, statusCode: 0, redirectUrl: null, responseTimeMs: elapsed, error: e?.message || 'Request failed' };
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -57,15 +69,19 @@ serve(async (req) => {
       });
     }
 
-    // Limit to 200 URLs per request to avoid timeouts
-    const batch = urls.slice(0, 200);
-    const concurrency = 10;
+    const batch = urls.slice(0, 300);
+    // Lower concurrency to avoid triggering rate limits
+    const concurrency = 5;
     const results: any[] = [];
 
     for (let i = 0; i < batch.length; i += concurrency) {
       const chunk = batch.slice(i, i + concurrency);
-      const chunkResults = await Promise.all(chunk.map(checkUrl));
+      const chunkResults = await Promise.all(chunk.map(u => checkUrl(u)));
       results.push(...chunkResults);
+      // Small delay between batches to be polite
+      if (i + concurrency < batch.length) {
+        await sleep(300);
+      }
     }
 
     const summary = {
