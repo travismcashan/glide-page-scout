@@ -100,6 +100,42 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
   const errorShots = screenshots.filter(s => s.status === 'error');
   const pendingCount = screenshots.filter(s => s.status === 'pending').length;
   const [recapturing, setRecapturing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadAll = async () => {
+    if (completedShots.length === 0) return;
+    setDownloading(true);
+    try {
+      let count = 0;
+      for (const shot of completedShots) {
+        if (!shot.screenshot_url) continue;
+        try {
+          const resp = await fetch(shot.screenshot_url);
+          const blob = await resp.blob();
+          const urlObj = new URL(shot.url);
+          const safeName = urlObj.pathname.replace(/\//g, '_').replace(/^_/, '') || 'homepage';
+          const ext = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'jpg' : 'png';
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${urlObj.hostname}${safeName === 'homepage' ? '' : '_' + safeName}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+          count++;
+          // Small delay to avoid browser blocking multiple downloads
+          if (count < completedShots.length) await new Promise(r => setTimeout(r, 300));
+        } catch (e) {
+          console.error('Failed to download:', shot.url, e);
+        }
+      }
+      toast.success(`Downloaded ${count} screenshots`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Download failed');
+    }
+    setDownloading(false);
+  };
 
   // Check if any completed shots still have old Thum.io URLs (not stored in our bucket)
   const hasExpiredUrls = completedShots.some(s => s.screenshot_url?.includes('image.thum.io'));
