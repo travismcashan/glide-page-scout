@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, ExternalLink, Navigation } from 'lucide-react';
+import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 type NavItem = {
@@ -9,7 +9,10 @@ type NavItem = {
 };
 
 type NavStructureData = {
-  items: NavItem[];
+  primary?: NavItem[];
+  secondary?: NavItem[];
+  footer?: NavItem[];
+  items?: NavItem[]; // backward compat
   totalLinks: number;
 };
 
@@ -20,7 +23,7 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   return (
     <div>
       <div
-        className={`flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group ${depth > 0 ? 'ml-4' : ''}`}
+        className={`flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
         {hasChildren ? (
@@ -72,29 +75,82 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   );
 }
 
+function NavSection({ title, icon, items, emptyText }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string }) {
+  if (!items.length && !emptyText) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        {icon}
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h4>
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1">
+          {items.length}
+        </Badge>
+      </div>
+      {items.length > 0 ? (
+        <div className="border border-border rounded-lg p-2 bg-muted/20">
+          {items.map((item, idx) => (
+            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} />
+          ))}
+        </div>
+      ) : emptyText ? (
+        <p className="text-xs text-muted-foreground italic pl-6">{emptyText}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function countLinks(items: NavItem[]): number {
+  let count = 0;
+  for (const item of items) {
+    if (item.url) count++;
+    if (item.children) count += countLinks(item.children);
+  }
+  return count;
+}
+
 export function NavStructureCard({ data }: { data: NavStructureData }) {
-  if (!data?.items?.length) {
+  const primary = data.primary || data.items || [];
+  const secondary = data.secondary || [];
+  const footer = data.footer || [];
+
+  if (!primary.length && !secondary.length && !footer.length) {
     return (
       <p className="text-sm text-muted-foreground">No navigation structure detected.</p>
     );
   }
 
+  const totalCount = data.totalLinks || (countLinks(primary) + countLinks(secondary) + countLinks(footer));
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <Navigation className="h-3.5 w-3.5" />
-          <span>{data.items.length} top-level items</span>
-        </div>
-        <span>·</span>
-        <span>{data.totalLinks} total links</span>
+        <span>{totalCount} total unique links</span>
+        {primary.length > 0 && <span>· {countLinks(primary)} primary</span>}
+        {secondary.length > 0 && <span>· {countLinks(secondary)} secondary</span>}
+        {footer.length > 0 && <span>· {countLinks(footer)} footer-only</span>}
       </div>
 
-      <div className="border border-border rounded-lg p-2 bg-muted/20">
-        {data.items.map((item, idx) => (
-          <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} />
-        ))}
-      </div>
+      {secondary.length > 0 && (
+        <NavSection
+          title="Secondary Navigation"
+          icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />}
+          items={secondary}
+        />
+      )}
+
+      <NavSection
+        title="Primary Navigation"
+        icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />}
+        items={primary}
+      />
+
+      <NavSection
+        title="Footer Only (unique pages)"
+        icon={<Menu className="h-3.5 w-3.5 text-muted-foreground" />}
+        items={footer}
+        emptyText="No unique footer links — all footer items match the header navigation."
+      />
     </div>
   );
 }
