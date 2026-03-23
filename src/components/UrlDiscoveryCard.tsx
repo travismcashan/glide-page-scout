@@ -5,6 +5,7 @@ import { Globe } from 'lucide-react';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
+import { CardTabs } from '@/components/CardTabs';
 
 type LinkCheckResult = {
   url: string;
@@ -16,9 +17,7 @@ type Props = {
   onUrlsDiscovered: (urls: string[]) => void;
   linkCheckResults?: LinkCheckResult[] | null;
   collapsed?: boolean;
-  /** Pre-loaded discovered URLs from database */
   persistedUrls?: string[] | null;
-  /** Called after fresh discovery so parent can persist */
   onUrlsPersist?: (urls: string[]) => void;
 };
 
@@ -29,6 +28,31 @@ function statusBadgeClass(code: number): string {
   return 'bg-muted text-muted-foreground border-border';
 }
 
+function UrlList({ urls, statusMap }: { urls: string[]; statusMap: Map<string, number> }) {
+  if (!urls.length) {
+    return <p className="text-sm text-muted-foreground italic py-4 text-center">No URLs in this range</p>;
+  }
+  return (
+    <div className="space-y-0 max-h-[300px] overflow-y-auto rounded-lg border border-border bg-card">
+      {urls.map(url => {
+        const status = statusMap.get(url);
+        return (
+          <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
+            {status != null ? (
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono shrink-0 ${statusBadgeClass(status)}`}>
+                {status}
+              </Badge>
+            ) : (
+              <span className="w-8 shrink-0" />
+            )}
+            <span className="text-sm font-mono truncate text-muted-foreground">{url}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, collapsed, persistedUrls, onUrlsPersist }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
@@ -36,7 +60,6 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
   const [error, setError] = useState<string | null>(null);
   const paused = isIntegrationPaused('url-discovery');
 
-  // Build a lookup map from link check results
   const statusMap = new Map<string, number>();
   if (linkCheckResults) {
     for (const r of linkCheckResults) {
@@ -44,7 +67,16 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     }
   }
 
-  // Use persisted URLs if available — skip Firecrawl call entirely
+  // Bucket URLs by status code range
+  const hasStatuses = statusMap.size > 0;
+  const buckets = {
+    all: allUrls,
+    '2xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 200 && s < 300; }),
+    '3xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 300 && s < 400; }),
+    '4xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 400 && s < 500; }),
+    '5xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 500; }),
+  };
+
   useEffect(() => {
     if (persistedUrls && persistedUrls.length > 0 && !discoveryDone) {
       setAllUrls(persistedUrls);
@@ -55,7 +87,6 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
 
   useEffect(() => {
     if (discoveryDone || isMapping || paused) return;
-    // Don't re-discover if we already have persisted URLs
     if (persistedUrls && persistedUrls.length > 0) return;
     startDiscovery();
   }, []);
@@ -95,7 +126,6 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
       setIsMapping(false);
       setDiscoveryDone(true);
       onUrlsDiscovered(links);
-      // Persist to database via parent
       onUrlsPersist?.(links);
     } catch (err) {
       console.error(err);
@@ -119,23 +149,20 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
       headerExtra={discoveryDone && !error ? <Badge variant="secondary">{allUrls.length} pages</Badge> : undefined}
     >
       {discoveryDone && !error ? (
-        <div className="space-y-0 max-h-[300px] overflow-y-auto rounded-lg border border-border bg-card">
-          {allUrls.map(url => {
-            const status = statusMap.get(url);
-            return (
-              <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
-                {status != null ? (
-                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono shrink-0 ${statusBadgeClass(status)}`}>
-                    {status}
-                  </Badge>
-                ) : (
-                  <span className="w-8 shrink-0" />
-                )}
-                <span className="text-sm font-mono truncate text-muted-foreground">{url}</span>
-              </div>
-            );
-          })}
-        </div>
+        hasStatuses ? (
+          <CardTabs
+            defaultValue="all"
+            tabs={[
+              { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} /> },
+              { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} />, visible: buckets['2xx'].length > 0 },
+              { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} />, visible: buckets['3xx'].length > 0 },
+              { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} />, visible: buckets['4xx'].length > 0 },
+              { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} />, visible: buckets['5xx'].length > 0 },
+            ]}
+          />
+        ) : (
+          <UrlList urls={allUrls} statusMap={statusMap} />
+        )
       ) : !isMapping && !error && !paused ? (
         <p className="text-sm text-muted-foreground">Will start mapping automatically...</p>
       ) : null}
