@@ -542,9 +542,12 @@ export default function ResultsPage() {
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
   const [linkcheckProgress, setLinkcheckProgress] = useState<{ checked: number; total: number } | null>(null);
+  const linkcheckRunningRef = useRef(false);
   const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
   useEffect(() => {
     if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
+    if (linkcheckRunningRef.current) return;
+    linkcheckRunningRef.current = true;
     setLinkcheckLoading(true);
     setLinkcheckProgress({ checked: 0, total: effectiveDiscoveredUrls.length });
     linkCheckerApi.check(effectiveDiscoveredUrls, (checked, total) => {
@@ -557,7 +560,8 @@ export default function ResultsPage() {
       } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); });
+      linkcheckRunningRef.current = false;
+    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; });
   }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData]);
 
   // Nav Structure extraction
@@ -999,7 +1003,8 @@ export default function ResultsPage() {
                     setDiscoveredUrls(urls);
                     setLinkcheckFailed(false);
                     setLinkcheckLoading(false);
-                    setLinkcheckProgress({ checked: 0, total: urls.length });
+                    linkcheckRunningRef.current = false;
+                    setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
                     fetchData();
                   }}
