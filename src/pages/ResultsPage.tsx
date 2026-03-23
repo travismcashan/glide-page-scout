@@ -1089,7 +1089,7 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('link-checker', !!session?.linkcheck_data) && (
-              <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={`Checking ${discoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
+              <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${discoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
                 {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && discoveredUrls.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
                 ) : null}
