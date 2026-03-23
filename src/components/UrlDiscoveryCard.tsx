@@ -175,6 +175,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
   for (const result of effectiveResults) {
     statusMap.set(result.url, result.statusCode);
   }
+  const navMap = buildNavMap(navStructure ?? null);
 
   const sorted = [...allUrls].sort((a, b) => a.localeCompare(b));
   const buckets = {
