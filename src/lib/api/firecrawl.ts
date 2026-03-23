@@ -308,8 +308,10 @@ export const linkCheckerApi = {
     urls: string[],
     onProgress?: (checked: number, total: number) => void,
     onPartialResults?: (results: { url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }[]) => void,
+    signal?: AbortSignal,
   ): Promise<{
     success: boolean;
+    stopped?: boolean;
     summary?: { total: number; ok: number; redirects: number; clientErrors: number; serverErrors: number; failures: number };
     results?: { url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }[];
     error?: string;
@@ -318,10 +320,17 @@ export const linkCheckerApi = {
     const allResults: any[] = [];
 
     for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+      if (signal?.aborted) {
+        return buildResult(allResults, true);
+      }
       const batch = urls.slice(i, i + BATCH_SIZE);
       const { data, error } = await supabase.functions.invoke('link-checker', {
         body: { urls: batch },
       });
+      if (signal?.aborted) {
+        if (data?.results) allResults.push(...data.results);
+        return buildResult(allResults, true);
+      }
       if (error) return { success: false, error: error.message };
       if (!data?.success) return data;
       allResults.push(...(data.results || []));
@@ -329,18 +338,21 @@ export const linkCheckerApi = {
       onPartialResults?.([...allResults]);
     }
 
-    const summary = {
-      total: allResults.length,
-      ok: allResults.filter((r: any) => r.statusCode >= 200 && r.statusCode < 300).length,
-      redirects: allResults.filter((r: any) => r.statusCode >= 300 && r.statusCode < 400).length,
-      clientErrors: allResults.filter((r: any) => r.statusCode >= 400 && r.statusCode < 500).length,
-      serverErrors: allResults.filter((r: any) => r.statusCode >= 500).length,
-      failures: allResults.filter((r: any) => r.statusCode === 0).length,
-    };
-
-    return { success: true, summary, results: allResults };
+    return buildResult(allResults, false);
   },
 };
+
+function buildResult(allResults: any[], stopped: boolean) {
+  const summary = {
+    total: allResults.length,
+    ok: allResults.filter((r: any) => r.statusCode >= 200 && r.statusCode < 300).length,
+    redirects: allResults.filter((r: any) => r.statusCode >= 300 && r.statusCode < 400).length,
+    clientErrors: allResults.filter((r: any) => r.statusCode >= 400 && r.statusCode < 500).length,
+    serverErrors: allResults.filter((r: any) => r.statusCode >= 500).length,
+    failures: allResults.filter((r: any) => r.statusCode === 0).length,
+  };
+  return { success: true, stopped, summary, results: allResults };
+}
 
 export const w3cApi = {
   async validate(url: string): Promise<{
