@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus } from 'lucide-react';
+import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -30,6 +30,7 @@ import { W3CCard } from '@/components/W3CCard';
 import { SchemaCard } from '@/components/SchemaCard';
 import { ReadableCard } from '@/components/ReadableCard';
 import { YellowLabCard } from '@/components/YellowLabCard';
+import { NavStructureCard } from '@/components/NavStructureCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 // ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
@@ -86,6 +87,7 @@ type CrawlSession = {
   yellowlab_data: any | null;
   avoma_data: any | null;
   apollo_data: any | null;
+  nav_structure: any | null;
   discovered_urls: string[] | null;
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
@@ -548,6 +550,22 @@ export default function ResultsPage() {
     }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); });
   }, [session, linkcheckLoading, linkcheckFailed, discoveredUrls, fetchData]);
 
+  // Nav Structure extraction
+  const [navLoading, setNavLoading] = useState(false);
+  const [navFailed, setNavFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).nav_structure || navLoading || navFailed || isIntegrationPaused('nav-structure')) return;
+    setNavLoading(true);
+    navExtractApi.extract(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ nav_structure: result } as any).eq('id', session.id);
+        clearError('nav-structure');
+        fetchData();
+      } else { setNavFailed(true); setError('nav-structure', result.error || 'Nav structure extraction failed'); }
+      setNavLoading(false);
+    }).catch((e) => { setNavFailed(true); setError('nav-structure', e?.message || 'Nav structure request failed'); setNavLoading(false); });
+  }, [session, navLoading, navFailed, fetchData]);
+
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
@@ -644,6 +662,7 @@ export default function ResultsPage() {
     { key: 'carbon', dbColumn: 'carbon_data' },
     { key: 'ocean', dbColumn: 'ocean_data' },
     { key: 'semrush', dbColumn: 'semrush_data' },
+    { key: 'nav-structure', dbColumn: 'nav_structure' },
   ];
 
   const [rerunningAll, setRerunningAll] = useState(false);
