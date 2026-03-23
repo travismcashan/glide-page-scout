@@ -307,6 +307,7 @@ export const linkCheckerApi = {
   async check(
     urls: string[],
     onProgress?: (checked: number, total: number) => void,
+    onPartialResults?: (results: { url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }[]) => void,
   ): Promise<{
     success: boolean;
     summary?: { total: number; ok: number; redirects: number; clientErrors: number; serverErrors: number; failures: number };
@@ -325,6 +326,7 @@ export const linkCheckerApi = {
       if (!data?.success) return data;
       allResults.push(...(data.results || []));
       onProgress?.(Math.min(i + BATCH_SIZE, urls.length), urls.length);
+      onPartialResults?.([...allResults]);
     }
 
     const summary = {
