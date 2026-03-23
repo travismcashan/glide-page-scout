@@ -537,17 +537,22 @@ export default function ResultsPage() {
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
+  const [linkcheckProgress, setLinkcheckProgress] = useState<{ checked: number; total: number } | null>(null);
   useEffect(() => {
     if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || discoveredUrls.length === 0) return;
     setLinkcheckLoading(true);
-    linkCheckerApi.check(discoveredUrls).then(async (result) => {
+    setLinkcheckProgress({ checked: 0, total: discoveredUrls.length });
+    linkCheckerApi.check(discoveredUrls, (checked, total) => {
+      setLinkcheckProgress({ checked, total });
+    }).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ linkcheck_data: result } as any).eq('id', session.id);
         clearError('link-checker');
         fetchData();
       } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
       setLinkcheckLoading(false);
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); });
+      setLinkcheckProgress(null);
+    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); });
   }, [session, linkcheckLoading, linkcheckFailed, discoveredUrls, fetchData]);
 
   // Nav Structure extraction
