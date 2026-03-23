@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Camera, ExternalLink, Maximize2, X, Rows3, Grid2x2, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Camera, ExternalLink, Maximize2, X, Rows3, Grid2x2, Loader2, ChevronDown, ChevronUp, RefreshCw, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiApi, screenshotApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
