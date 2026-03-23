@@ -1,7 +1,8 @@
 import { useState, useEffect, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Globe, RefreshCw } from 'lucide-react';
+import { Globe, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
@@ -17,6 +18,8 @@ type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
   linkCheckResults?: LinkCheckResult[] | null;
+  linkCheckLoading?: boolean;
+  linkCheckProgress?: { checked: number; total: number } | null;
   collapsed?: boolean;
   persistedUrls?: string[] | null;
   onUrlsPersist?: (urls: string[]) => void;
@@ -64,7 +67,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, collapsed, persistedUrls, onUrlsPersist }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckLoading, linkCheckProgress, collapsed, persistedUrls, onUrlsPersist }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -201,23 +204,41 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     >
       {discoveryDone && !error ? (
         allUrls.length > 0 ? (
-          <CardTabs
-            defaultValue="all"
-            tabs={[
-              { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} /> },
-              {
-                value: 'pending',
-                label: `Pending checks (${buckets.pending.length})`,
-                content: <UrlList urls={buckets.pending} statusMap={statusMap} emptyText="All URLs have been checked." />,
-                visible: buckets.pending.length > 0,
-              },
-              { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} />, visible: buckets['2xx'].length > 0 },
-              { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} />, visible: buckets['3xx'].length > 0 },
-              { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} />, visible: buckets['429'].length > 0 },
-              { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} />, visible: buckets['4xx'].length > 0 },
-              { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} />, visible: buckets['5xx'].length > 0 },
-            ]}
-          />
+          <div className="space-y-3">
+            {linkCheckLoading && (
+              <div className="flex items-center gap-3 px-1">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Checking links{linkCheckProgress ? ` — ${linkCheckProgress.checked} of ${linkCheckProgress.total}` : '…'}</span>
+                    {linkCheckProgress && (
+                      <span>{Math.round((linkCheckProgress.checked / linkCheckProgress.total) * 100)}%</span>
+                    )}
+                  </div>
+                  {linkCheckProgress && (
+                    <Progress value={(linkCheckProgress.checked / linkCheckProgress.total) * 100} className="h-1.5" />
+                  )}
+                </div>
+              </div>
+            )}
+            <CardTabs
+              defaultValue="all"
+              tabs={[
+                { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} /> },
+                {
+                  value: 'pending',
+                  label: `Pending (${buckets.pending.length})`,
+                  content: <UrlList urls={buckets.pending} statusMap={statusMap} emptyText="All URLs have been checked." />,
+                  visible: buckets.pending.length > 0,
+                },
+                { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} />, visible: buckets['2xx'].length > 0 },
+                { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} />, visible: buckets['3xx'].length > 0 },
+                { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} />, visible: buckets['429'].length > 0 },
+                { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} />, visible: buckets['4xx'].length > 0 },
+                { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} />, visible: buckets['5xx'].length > 0 },
+              ]}
+            />
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">No URLs found for this site.</p>
         )
