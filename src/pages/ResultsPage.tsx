@@ -538,11 +538,12 @@ export default function ResultsPage() {
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
   const [linkcheckProgress, setLinkcheckProgress] = useState<{ checked: number; total: number } | null>(null);
+  const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
   useEffect(() => {
-    if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || discoveredUrls.length === 0) return;
+    if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
     setLinkcheckLoading(true);
-    setLinkcheckProgress({ checked: 0, total: discoveredUrls.length });
-    linkCheckerApi.check(discoveredUrls, (checked, total) => {
+    setLinkcheckProgress({ checked: 0, total: effectiveDiscoveredUrls.length });
+    linkCheckerApi.check(effectiveDiscoveredUrls, (checked, total) => {
       setLinkcheckProgress({ checked, total });
     }).then(async (result) => {
       if (result.success) {
@@ -553,7 +554,7 @@ export default function ResultsPage() {
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
     }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); });
-  }, [session, linkcheckLoading, linkcheckFailed, discoveredUrls, fetchData]);
+  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData]);
 
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
@@ -990,10 +991,11 @@ export default function ResultsPage() {
                   collapsed={allCollapsed}
                   persistedUrls={session.discovered_urls}
                   onUrlsPersist={async (urls) => {
-                    // Clear link check data so it re-runs on the fresh URL list
                     await supabase.from('crawl_sessions').update({ discovered_urls: urls, linkcheck_data: null } as any).eq('id', session.id);
+                    setDiscoveredUrls(urls);
                     setLinkcheckFailed(false);
                     setLinkcheckLoading(false);
+                    setLinkcheckProgress({ checked: 0, total: urls.length });
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
                     fetchData();
                   }}
@@ -1090,9 +1092,9 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('link-checker', !!session?.linkcheck_data) && (
-              <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${discoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
-                {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && discoveredUrls.length === 0 ? (
+              {shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0) && (
+              <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${effectiveDiscoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
+                {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && effectiveDiscoveredUrls.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
                 ) : null}
               </SectionCard>
