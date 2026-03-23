@@ -304,17 +304,39 @@ export const httpstatusApi = {
 };
 
 export const linkCheckerApi = {
-  async check(urls: string[]): Promise<{
+  async check(
+    urls: string[],
+    onProgress?: (checked: number, total: number) => void,
+  ): Promise<{
     success: boolean;
     summary?: { total: number; ok: number; redirects: number; clientErrors: number; serverErrors: number; failures: number };
     results?: { url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }[];
     error?: string;
   }> {
-    const { data, error } = await supabase.functions.invoke('link-checker', {
-      body: { urls },
-    });
-    if (error) return { success: false, error: error.message };
-    return data;
+    const BATCH_SIZE = 200;
+    const allResults: any[] = [];
+
+    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+      const batch = urls.slice(i, i + BATCH_SIZE);
+      const { data, error } = await supabase.functions.invoke('link-checker', {
+        body: { urls: batch },
+      });
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return data;
+      allResults.push(...(data.results || []));
+      onProgress?.(Math.min(i + BATCH_SIZE, urls.length), urls.length);
+    }
+
+    const summary = {
+      total: allResults.length,
+      ok: allResults.filter((r: any) => r.statusCode >= 200 && r.statusCode < 300).length,
+      redirects: allResults.filter((r: any) => r.statusCode >= 300 && r.statusCode < 400).length,
+      clientErrors: allResults.filter((r: any) => r.statusCode >= 400 && r.statusCode < 500).length,
+      serverErrors: allResults.filter((r: any) => r.statusCode >= 500).length,
+      failures: allResults.filter((r: any) => r.statusCode === 0).length,
+    };
+
+    return { success: true, summary, results: allResults };
   },
 };
 
