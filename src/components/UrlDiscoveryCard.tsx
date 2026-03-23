@@ -18,6 +18,7 @@ type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
   linkCheckResults?: LinkCheckResult[] | null;
+  linkCheckStreaming?: LinkCheckResult[] | null;
   linkCheckLoading?: boolean;
   linkCheckProgress?: { checked: number; total: number } | null;
   collapsed?: boolean;
@@ -88,7 +89,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckLoading, linkCheckProgress, collapsed, persistedUrls, onUrlsPersist }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, collapsed, persistedUrls, onUrlsPersist }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -116,7 +117,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     startDiscovery();
   }, [discoveryDone, isMapping, paused, persistedUrls]);
 
-  const effectiveResults = linkCheckResults ?? cachedResults ?? [];
+  const effectiveResults = linkCheckResults ?? linkCheckStreaming ?? cachedResults ?? [];
   const statusMap = new Map<string, number>();
   for (const result of effectiveResults) {
     statusMap.set(result.url, result.statusCode);
