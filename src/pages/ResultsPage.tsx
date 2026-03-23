@@ -545,14 +545,22 @@ export default function ResultsPage() {
   const [linkcheckStreamingResults, setLinkcheckStreamingResults] = useState<{ url: string; statusCode: number }[] | null>(null);
   const linkcheckRunningRef = useRef(false);
   const lastLinkcheckKeyRef = useRef<string | null>(null);
+  const linkcheckAbortRef = useRef<AbortController | null>(null);
   const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
   const effectiveLinkcheckKey = session ? `${session.id}:${effectiveDiscoveredUrls.join('|')}` : null;
+
+  const stopLinkcheck = useCallback(async () => {
+    linkcheckAbortRef.current?.abort();
+  }, []);
+
   useEffect(() => {
     if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
     if (!effectiveLinkcheckKey) return;
     if (linkcheckRunningRef.current || lastLinkcheckKeyRef.current === effectiveLinkcheckKey) return;
     linkcheckRunningRef.current = true;
     lastLinkcheckKeyRef.current = effectiveLinkcheckKey;
+    const abortController = new AbortController();
+    linkcheckAbortRef.current = abortController;
     setLinkcheckLoading(true);
     setLinkcheckStreamingResults(null);
     setLinkcheckProgress({ checked: 0, total: effectiveDiscoveredUrls.length });
@@ -560,6 +568,7 @@ export default function ResultsPage() {
       effectiveDiscoveredUrls,
       (checked, total) => { setLinkcheckProgress({ checked, total }); },
       (partialResults) => { setLinkcheckStreamingResults(partialResults); },
+      abortController.signal,
     ).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ linkcheck_data: result } as any).eq('id', session.id);
@@ -570,7 +579,8 @@ export default function ResultsPage() {
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; lastLinkcheckKeyRef.current = null; });
+      linkcheckAbortRef.current = null;
+    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; lastLinkcheckKeyRef.current = null; linkcheckAbortRef.current = null; });
   }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, effectiveLinkcheckKey, fetchData]);
 
   // Nav Structure extraction
@@ -1006,6 +1016,7 @@ export default function ResultsPage() {
                   linkCheckStreaming={linkcheckStreamingResults}
                   linkCheckLoading={linkcheckLoading}
                   linkCheckProgress={linkcheckProgress}
+                  onStopLinkCheck={linkcheckLoading ? stopLinkcheck : undefined}
                   collapsed={allCollapsed}
                   persistedUrls={session.discovered_urls}
                   onUrlsPersist={async (urls) => {

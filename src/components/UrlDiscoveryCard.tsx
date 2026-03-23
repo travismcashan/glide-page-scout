@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Globe, RefreshCw, Loader2 } from 'lucide-react';
+import { Globe, RefreshCw, Loader2, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
@@ -21,6 +21,7 @@ type Props = {
   linkCheckStreaming?: LinkCheckResult[] | null;
   linkCheckLoading?: boolean;
   linkCheckProgress?: { checked: number; total: number } | null;
+  onStopLinkCheck?: () => void;
   collapsed?: boolean;
   persistedUrls?: string[] | null;
   onUrlsPersist?: (urls: string[]) => void;
@@ -89,7 +90,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, collapsed, persistedUrls, onUrlsPersist }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, collapsed, persistedUrls, onUrlsPersist }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -233,6 +234,17 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
                     <Progress value={(linkCheckProgress.checked / linkCheckProgress.total) * 100} className="h-1.5" />
                   )}
                 </div>
+                {onStopLinkCheck && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={onStopLinkCheck}
+                    title="Stop link checking"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                  </Button>
+                )}
               </div>
             )}
             <CardTabs
