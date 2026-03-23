@@ -117,7 +117,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     startDiscovery();
   }, [discoveryDone, isMapping, paused, persistedUrls]);
 
-  const effectiveResults = linkCheckResults ?? cachedResults ?? [];
+  const effectiveResults = linkCheckResults ?? linkCheckStreaming ?? cachedResults ?? [];
   const statusMap = new Map<string, number>();
   for (const result of effectiveResults) {
     statusMap.set(result.url, result.statusCode);
