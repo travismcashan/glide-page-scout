@@ -106,7 +106,8 @@ Links found in the <footer> element. IMPORTANT: Only include footer links whose 
 - If a nav item is a section header with no link, set url to null
 - Ignore social media icon links, search buttons, login/signup buttons, and language selectors
 - Deduplicate items that appear in both desktop and mobile nav (same URL = same item)
-- For footer deduplication: compare by URL path, not label (same URL with different label = duplicate)`
+- For footer deduplication: compare by URL path, not label (same URL with different label = duplicate)
+- IMPORTANT: Normalize label casing. Many sites use CSS text-transform to show labels in ALL CAPS, but the underlying text is normal. If a label appears to be ALL CAPS (like "ABOUT US", "END-OF-LIFE CARE", "CONTACT"), convert it to Title Case ("About Us", "End-of-Life Care", "Contact"). Preserve genuine acronyms like FAQ, SEO, CRM, B2B, HIPAA, IT, HR, etc. Use your language understanding to distinguish between acronyms and regular words that were just styled uppercase.`
           },
           {
             role: 'user',
