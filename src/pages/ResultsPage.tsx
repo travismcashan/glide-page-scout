@@ -543,11 +543,15 @@ export default function ResultsPage() {
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
   const [linkcheckProgress, setLinkcheckProgress] = useState<{ checked: number; total: number } | null>(null);
   const linkcheckRunningRef = useRef(false);
+  const lastLinkcheckKeyRef = useRef<string | null>(null);
   const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
+  const effectiveLinkcheckKey = session ? `${session.id}:${effectiveDiscoveredUrls.join('|')}` : null;
   useEffect(() => {
     if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
-    if (linkcheckRunningRef.current) return;
+    if (!effectiveLinkcheckKey) return;
+    if (linkcheckRunningRef.current || lastLinkcheckKeyRef.current === effectiveLinkcheckKey) return;
     linkcheckRunningRef.current = true;
+    lastLinkcheckKeyRef.current = effectiveLinkcheckKey;
     setLinkcheckLoading(true);
     setLinkcheckProgress({ checked: 0, total: effectiveDiscoveredUrls.length });
     linkCheckerApi.check(effectiveDiscoveredUrls, (checked, total) => {
@@ -556,13 +560,13 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ linkcheck_data: result } as any).eq('id', session.id);
         clearError('link-checker');
-        fetchData();
-      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
+        await fetchData();
+      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); lastLinkcheckKeyRef.current = null; }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; });
-  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData]);
+    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; lastLinkcheckKeyRef.current = null; });
+  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, effectiveLinkcheckKey, fetchData]);
 
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
@@ -651,7 +655,7 @@ export default function ResultsPage() {
       schema: () => { setSchemaFailed(false); setSchemaLoading(false); },
       readable: () => { setReadableFailed(false); setReadableLoading(false); },
       yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
-      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); },
+      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null; },
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
     };
     resetMap[key]?.();
@@ -713,7 +717,7 @@ export default function ResultsPage() {
     setSchemaFailed(false); setSchemaLoading(false);
     setReadableFailed(false); setReadableLoading(false);
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
-    setLinkcheckFailed(false); setLinkcheckLoading(false);
+    setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null;
     setAvomaFailed(false); setAvomaLoading(false);
     setNavFailed(false); setNavLoading(false);
     await fetchData();
@@ -1004,6 +1008,7 @@ export default function ResultsPage() {
                     setLinkcheckFailed(false);
                     setLinkcheckLoading(false);
                     linkcheckRunningRef.current = false;
+                    lastLinkcheckKeyRef.current = null;
                     setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
                     fetchData();
