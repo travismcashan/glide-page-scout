@@ -164,9 +164,17 @@ Deno.serve(async (req) => {
       if (!pollRes.ok) {
         const errText = await pollRes.text();
         console.error('Gemini poll error:', pollRes.status, errText);
+        // 409 = conflict / task failed on Gemini's side — treat as terminal
+        const isTerminal = pollRes.status === 409 || pollRes.status === 404;
         return new Response(
-          JSON.stringify({ success: false, error: `Poll failed (${pollRes.status})` }),
-          { status: pollRes.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            success: false, 
+            error: isTerminal 
+              ? 'Research task failed on the server side. Please try again with a new request.' 
+              : `Poll failed (${pollRes.status})`,
+            terminal: isTerminal,
+          }),
+          { status: isTerminal ? 200 : pollRes.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
