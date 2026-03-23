@@ -1016,6 +1016,7 @@ export default function ResultsPage() {
                   linkCheckStreaming={linkcheckStreamingResults}
                   linkCheckLoading={linkcheckLoading}
                   linkCheckProgress={linkcheckProgress}
+                  onStopLinkCheck={linkcheckLoading ? stopLinkcheck : undefined}
                   collapsed={allCollapsed}
                   persistedUrls={session.discovered_urls}
                   onUrlsPersist={async (urls) => {
