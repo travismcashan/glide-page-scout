@@ -48,7 +48,8 @@ type PageData = {
 
 function extractAvoma(data: any): string | null {
   if (!data) return null;
-  const meetings = data.meetings || [];
+  const excluded = new Set(data.excludedMeetings || []);
+  const meetings = (data.meetings || []).filter((m: any) => !excluded.has(m.uuid));
   if (!meetings.length) return null;
 
   const lines: string[] = [`Found ${data.totalMatches || meetings.length} meetings with domain participants.\n`];
