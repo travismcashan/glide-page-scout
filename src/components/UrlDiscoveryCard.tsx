@@ -95,10 +95,10 @@ function normalizeDiscoveredUrl(rawUrl: string): string {
   }
 }
 
-const navTypeColors: Record<string, string> = {
-  primary: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-  secondary: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
-  footer: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+const navDotColors: Record<string, string> = {
+  primary: 'bg-blue-500',
+  secondary: 'bg-purple-500',
+  footer: 'bg-orange-500',
 };
 
 const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string }>(
@@ -107,34 +107,46 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
       return <p className="text-sm text-muted-foreground italic py-4 text-center">{emptyText}</p>;
     }
 
-    return (
-      <div ref={ref} className="space-y-0 max-h-[300px] overflow-y-auto rounded-lg border border-border bg-card">
-        {urls.map((url) => {
-          const status = statusMap.get(url);
-          const isPending = status == null;
-          const navKey = url.toLowerCase().replace(/\/$/, '');
-          const tags = navMap.get(navKey) || [];
+    const hasAnyNav = urls.some(u => (navMap.get(u.toLowerCase().replace(/\/$/, '')) || []).length > 0);
 
-          return (
-            <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
-              {isPending ? (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-                  Pending
-                </Badge>
-              ) : (
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono shrink-0 ${statusBadgeClass(status)}`}>
-                  {status}
-                </Badge>
-              )}
-              {tags.map((tag, i) => (
-                <Badge key={`${tag.type}-${i}`} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navTypeColors[tag.type]}`}>
-                  {tag.type === 'primary' ? '🔵 Primary' : tag.type === 'secondary' ? '🟣 Secondary' : '🟠 Footer'} · {tag.label}
-                </Badge>
-              ))}
-              <span className="text-sm font-mono truncate text-muted-foreground">{url}</span>
-            </div>
-          );
-        })}
+    return (
+      <div>
+        <div ref={ref} className="space-y-0 max-h-[300px] overflow-y-auto rounded-lg border border-border bg-card">
+          {urls.map((url) => {
+            const status = statusMap.get(url);
+            const isPending = status == null;
+            const navKey = url.toLowerCase().replace(/\/$/, '');
+            const tags = navMap.get(navKey) || [];
+
+            return (
+              <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
+                {isPending ? (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                    Pending
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono shrink-0 ${statusBadgeClass(status)}`}>
+                    {status}
+                  </Badge>
+                )}
+                <span className="text-sm font-mono truncate text-muted-foreground flex-1">{url}</span>
+                {tags.map((tag, i) => (
+                  <span key={`${tag.type}-${i}`} className="flex items-center gap-1 shrink-0">
+                    <span className={`inline-block h-2 w-2 rounded-full ${navDotColors[tag.type]}`} />
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{tag.label}</span>
+                  </span>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+        {hasAnyNav && (
+          <div className="flex items-center gap-4 px-1 pt-2 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-500" /> Primary Nav</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-purple-500" /> Secondary Nav</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-orange-500" /> Footer Nav</span>
+          </div>
+        )}
       </div>
     );
   },
