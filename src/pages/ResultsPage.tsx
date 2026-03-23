@@ -638,6 +638,7 @@ export default function ResultsPage() {
       readable: () => { setReadableFailed(false); setReadableLoading(false); },
       yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
       'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); },
+      'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data

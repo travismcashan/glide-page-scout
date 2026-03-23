@@ -492,3 +492,13 @@ export const apolloApi = {
     return data;
   },
 };
+
+export const navExtractApi = {
+  async extract(url: string): Promise<{ success: boolean; items?: any[]; totalLinks?: number; error?: string }> {
+    const { data, error } = await supabase.functions.invoke('nav-extract', {
+      body: { url },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
