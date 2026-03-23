@@ -161,15 +161,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
       const dominated = /(\#\:\~\:text=|sitemap.*\.xml|\/feed$|\/wp-json\/|\/wp-admin\/-thank-you)/i;
       const cleaned = rawLinks
         .filter((u) => !dominated.test(u))
-        .map((u) => {
-          try {
-            const parsed = new URL(u);
-            parsed.hash = '';
-            return parsed.toString();
-          } catch {
-            return u;
-          }
-        });
+        .map((u) => normalizeDiscoveredUrl(u));
 
       const seen = new Map<string, string>();
       for (const url of cleaned) {
