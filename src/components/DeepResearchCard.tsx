@@ -439,6 +439,14 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
         }
 
         const data = await response.json();
+
+        // Handle terminal errors from the server (e.g. 409 conflict from Gemini)
+        if (data.success === false && data.terminal) {
+          setStreaming(false);
+          toast.error(data.error || 'Research task failed on the server. Please try again.');
+          return;
+        }
+
         const state = data.status || data.state || '';
 
         const outputs = data.outputs || [];
