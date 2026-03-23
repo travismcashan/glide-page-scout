@@ -33,6 +33,27 @@ function statusBadgeClass(code: number): string {
   return 'bg-muted text-muted-foreground border-border';
 }
 
+function normalizeDiscoveredUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    parsed.hash = '';
+
+    const isFileLikePath = /\.[a-z0-9]+$/i.test(parsed.pathname);
+    const shouldKeepAsIs =
+      parsed.pathname === '/' ||
+      isFileLikePath ||
+      parsed.pathname.endsWith('/');
+
+    if (!shouldKeepAsIs) {
+      parsed.pathname = `${parsed.pathname}/`;
+    }
+
+    return parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; emptyText?: string }>(
   ({ urls, statusMap, emptyText = 'No URLs in this range' }, ref) => {
     if (!urls.length) {
@@ -140,15 +161,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
       const dominated = /(\#\:\~\:text=|sitemap.*\.xml|\/feed$|\/wp-json\/|\/wp-admin\/-thank-you)/i;
       const cleaned = rawLinks
         .filter((u) => !dominated.test(u))
-        .map((u) => {
-          try {
-            const parsed = new URL(u);
-            parsed.hash = '';
-            return parsed.toString();
-          } catch {
-            return u;
-          }
-        });
+        .map((u) => normalizeDiscoveredUrl(u));
 
       const seen = new Map<string, string>();
       for (const url of cleaned) {
