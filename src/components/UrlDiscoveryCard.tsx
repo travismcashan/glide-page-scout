@@ -95,8 +95,14 @@ function normalizeDiscoveredUrl(rawUrl: string): string {
   }
 }
 
-const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; emptyText?: string }>(
-  ({ urls, statusMap, emptyText = 'No URLs in this range' }, ref) => {
+const navTypeColors: Record<string, string> = {
+  primary: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
+  secondary: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+  footer: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+};
+
+const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string }>(
+  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range' }, ref) => {
     if (!urls.length) {
       return <p className="text-sm text-muted-foreground italic py-4 text-center">{emptyText}</p>;
     }
@@ -106,6 +112,8 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
         {urls.map((url) => {
           const status = statusMap.get(url);
           const isPending = status == null;
+          const navKey = url.toLowerCase().replace(/\/$/, '');
+          const tags = navMap.get(navKey) || [];
 
           return (
             <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
@@ -118,6 +126,11 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
                   {status}
                 </Badge>
               )}
+              {tags.map((tag, i) => (
+                <Badge key={`${tag.type}-${i}`} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navTypeColors[tag.type]}`}>
+                  {tag.type === 'primary' ? '🔵 Primary' : tag.type === 'secondary' ? '🟣 Secondary' : '🟠 Footer'} · {tag.label}
+                </Badge>
+              ))}
               <span className="text-sm font-mono truncate text-muted-foreground">{url}</span>
             </div>
           );
