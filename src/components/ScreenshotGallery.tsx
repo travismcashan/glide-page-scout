@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Camera, ExternalLink, Maximize2, X, Rows3, Grid2x2, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Camera, ExternalLink, Maximize2, X, Rows3, Grid2x2, Loader2, ChevronDown, ChevronUp, RefreshCw, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiApi, screenshotApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
@@ -100,6 +100,42 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
   const errorShots = screenshots.filter(s => s.status === 'error');
   const pendingCount = screenshots.filter(s => s.status === 'pending').length;
   const [recapturing, setRecapturing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadAll = async () => {
+    if (completedShots.length === 0) return;
+    setDownloading(true);
+    try {
+      let count = 0;
+      for (const shot of completedShots) {
+        if (!shot.screenshot_url) continue;
+        try {
+          const resp = await fetch(shot.screenshot_url);
+          const blob = await resp.blob();
+          const urlObj = new URL(shot.url);
+          const safeName = urlObj.pathname.replace(/\//g, '_').replace(/^_/, '') || 'homepage';
+          const ext = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'jpg' : 'png';
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${urlObj.hostname}${safeName === 'homepage' ? '' : '_' + safeName}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+          count++;
+          // Small delay to avoid browser blocking multiple downloads
+          if (count < completedShots.length) await new Promise(r => setTimeout(r, 300));
+        } catch (e) {
+          console.error('Failed to download:', shot.url, e);
+        }
+      }
+      toast.success(`Downloaded ${count} screenshots`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Download failed');
+    }
+    setDownloading(false);
+  };
 
   // Check if any completed shots still have old Thum.io URLs (not stored in our bucket)
   const hasExpiredUrls = completedShots.some(s => s.screenshot_url?.includes('image.thum.io'));
@@ -185,6 +221,12 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
                 </span>
               )}
             </span>
+            {completedShots.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleDownloadAll} disabled={downloading}>
+                <Download className={`h-3.5 w-3.5 mr-1.5 ${downloading ? 'animate-pulse' : ''}`} />
+                {downloading ? 'Downloading...' : `Download All (${completedShots.length})`}
+              </Button>
+            )}
             {!paused && recaptureCount > 0 && (
               <Button variant="outline" size="sm" onClick={handleRecapture} disabled={recapturing || pendingCount > 0}>
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${recapturing ? 'animate-spin' : ''}`} />
