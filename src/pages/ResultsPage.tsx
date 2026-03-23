@@ -300,7 +300,12 @@ export default function ResultsPage() {
   useEffect(() => {
     if (!session || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
     setAvomaLoading(true);
-    avomaApi.lookup(session.domain).then(async (result) => {
+    // Prefer Apollo contact email for Avoma search, fallback to domain
+    const apolloEmail = session.apollo_data?.email;
+    const searchDomain = apolloEmail
+      ? apolloEmail.split('@').pop()?.toLowerCase() || session.domain
+      : session.domain;
+    avomaApi.lookup(searchDomain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
@@ -1111,26 +1116,36 @@ export default function ResultsPage() {
                 headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
                 collapsed={allCollapsed}
               >
-                {(session as any)?.avoma_data ? <AvomaCard data={(session as any).avoma_data} onSearchDomain={async (domain) => {
-                  setAvomaLoading(true);
-                  setAvomaFailed(false);
-                  try {
-                    const result = await avomaApi.lookup(domain);
-                    if (result.success) {
-                      await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
-                      clearError('avoma');
-                      fetchData();
-                    } else {
-                      setError('avoma', result.error || 'No results');
-                      // Still update with new domain result so UI reflects the search
-                      await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
-                      fetchData();
+                {(session as any)?.avoma_data ? <AvomaCard
+                  data={(session as any).avoma_data}
+                  apolloEmail={session.apollo_data?.email || null}
+                  onSearchDomain={async (domain) => {
+                    setAvomaLoading(true);
+                    setAvomaFailed(false);
+                    try {
+                      const result = await avomaApi.lookup(domain);
+                      if (result.success) {
+                        await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
+                        clearError('avoma');
+                        fetchData();
+                      } else {
+                        setError('avoma', result.error || 'No results');
+                        await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
+                        fetchData();
+                      }
+                    } catch (e: any) {
+                      setError('avoma', e?.message || 'Search failed');
                     }
-                  } catch (e: any) {
-                    setError('avoma', e?.message || 'Search failed');
-                  }
-                  setAvomaLoading(false);
-                }} /> : null}
+                    setAvomaLoading(false);
+                  }}
+                  onExcludedChange={async (excludedUuids) => {
+                    const current = (session as any).avoma_data;
+                    if (!current) return;
+                    const updated = { ...current, excludedMeetings: excludedUuids };
+                    await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
+                    fetchData();
+                  }}
+                /> : null}
               </SectionCard>
             </TabsContent>
           )}
