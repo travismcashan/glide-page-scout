@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Globe } from 'lucide-react';
+import { Globe, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
@@ -149,7 +150,26 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
       loadingText="Mapping site URLs..."
       error={!!error}
       errorText={error || undefined}
-      headerExtra={discoveryDone && !error ? <Badge variant="secondary">{allUrls.length} pages</Badge> : undefined}
+      headerExtra={
+        <div className="flex items-center gap-2">
+          {discoveryDone && !error && <Badge variant="secondary">{allUrls.length} pages</Badge>}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={isMapping}
+            onClick={() => {
+              setAllUrls([]);
+              setDiscoveryDone(false);
+              setError(null);
+              startDiscovery();
+            }}
+            title="Re-discover URLs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isMapping ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      }
     >
       {discoveryDone && !error ? (
         hasStatuses ? (
