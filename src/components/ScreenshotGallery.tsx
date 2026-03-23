@@ -221,6 +221,12 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
                 </span>
               )}
             </span>
+            {completedShots.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleDownloadAll} disabled={downloading}>
+                <Download className={`h-3.5 w-3.5 mr-1.5 ${downloading ? 'animate-pulse' : ''}`} />
+                {downloading ? 'Downloading...' : `Download All (${completedShots.length})`}
+              </Button>
+            )}
             {!paused && recaptureCount > 0 && (
               <Button variant="outline" size="sm" onClick={handleRecapture} disabled={recapturing || pendingCount > 0}>
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${recapturing ? 'animate-spin' : ''}`} />
