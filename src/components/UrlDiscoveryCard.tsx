@@ -59,11 +59,18 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cachedResults, setCachedResults] = useState<LinkCheckResult[] | null>(null);
   const paused = isIntegrationPaused('url-discovery');
 
+  // Cache link check results so tabs persist during re-checks
+  const effectiveResults = linkCheckResults || cachedResults;
+  if (linkCheckResults && linkCheckResults !== cachedResults) {
+    setCachedResults(linkCheckResults);
+  }
+
   const statusMap = new Map<string, number>();
-  if (linkCheckResults) {
-    for (const r of linkCheckResults) {
+  if (effectiveResults) {
+    for (const r of effectiveResults) {
       statusMap.set(r.url, r.statusCode);
     }
   }
@@ -161,6 +168,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
               setAllUrls([]);
               setDiscoveryDone(false);
               setError(null);
+              setCachedResults(null);
               startDiscovery();
             }}
             title="Re-discover URLs"
