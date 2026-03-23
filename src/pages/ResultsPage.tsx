@@ -1003,7 +1003,8 @@ export default function ResultsPage() {
                     setDiscoveredUrls(urls);
                     setLinkcheckFailed(false);
                     setLinkcheckLoading(false);
-                    setLinkcheckProgress({ checked: 0, total: urls.length });
+                    linkcheckRunningRef.current = false;
+                    setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
                     fetchData();
                   }}
