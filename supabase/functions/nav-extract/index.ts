@@ -87,28 +87,30 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a web navigation structure extraction expert. You analyze HTML to extract the primary navigation menu structure from website headers and top-level navigation bars.
+            content: `You are a web navigation structure extraction expert. You analyze full-page HTML to extract THREE distinct navigation sections from websites.
 
-Your job is to return a JSON structure representing the navigation hierarchy. Focus on:
-1. The PRIMARY header/top navigation (not footer, sidebar, or in-content links)
-2. Dropdown/mega-menu items and their children
-3. The exact labels and URLs as they appear
+## Navigation Sections to Extract
 
-Return a JSON object using this tool call structure.
+### 1. Primary Navigation
+The main menu — usually the largest nav bar in the header. Contains the core pages and dropdowns (Services, About, Work, etc.). This is what most people think of as "the nav."
 
-Rules:
-- Only extract navigation items from <nav>, <header>, or elements clearly serving as primary navigation
+### 2. Secondary Navigation (optional)
+A smaller utility bar that often appears ABOVE the primary nav. Common items: phone numbers, "Request a Quote", "Client Login", "Careers", location links, or quick-access utility links. Many sites don't have this — return an empty array if absent. Do NOT confuse CTA buttons within the primary nav (like "Contact Us" or "Get Started") with secondary nav.
+
+### 3. Footer Navigation (deduplicated)
+Links found in the <footer> element. IMPORTANT: Only include footer links whose URLs are NOT already present in the primary or secondary navigation. If a footer link points to the same URL as a primary/secondary nav item, exclude it. This ensures the footer section only shows unique pages that aren't already represented above.
+
+## Rules
 - Preserve the exact hierarchy (parent → children → grandchildren)
-- Include the href/URL for each item (resolve relative URLs against the base URL: ${formattedUrl})
+- Include the href/URL for each item (resolve relative URLs against: ${formattedUrl})
 - If a nav item is a section header with no link, set url to null
 - Ignore social media icon links, search buttons, login/signup buttons, and language selectors
-- Ignore utility nav items like "Cart", "My Account" unless they're part of the main nav structure
-- Include both desktop and mobile nav structures (they often have the same items)
-- Deduplicate items that appear in both desktop and mobile nav`
+- Deduplicate items that appear in both desktop and mobile nav (same URL = same item)
+- For footer deduplication: compare by URL path, not label (same URL with different label = duplicate)`
           },
           {
             role: 'user',
-            content: `Extract the primary navigation structure from this HTML:\n\n${truncatedHtml}`
+            content: `Extract the primary, secondary, and footer navigation from this HTML:\n\n${truncatedHtml}`
           }
         ],
         tools: [
@@ -116,21 +118,20 @@ Rules:
             type: 'function',
             function: {
               name: 'extract_navigation',
-              description: 'Extract the website navigation structure as a hierarchical tree',
+              description: 'Extract the website navigation structure split into primary, secondary, and deduplicated footer sections',
               parameters: {
                 type: 'object',
                 properties: {
-                  items: {
+                  primary: {
                     type: 'array',
-                    description: 'Top-level navigation items',
+                    description: 'Primary/main header navigation items',
                     items: {
                       type: 'object',
                       properties: {
                         label: { type: 'string', description: 'Display text of the nav item' },
-                        url: { type: ['string', 'null'], description: 'URL of the nav item, null if section header only' },
+                        url: { type: ['string', 'null'], description: 'URL, null if section header only' },
                         children: {
                           type: 'array',
-                          description: 'Child/dropdown items',
                           items: {
                             type: 'object',
                             properties: {
@@ -155,9 +156,44 @@ Rules:
                       required: ['label']
                     }
                   },
-                  totalLinks: { type: 'number', description: 'Total count of all nav links (including nested)' }
+                  secondary: {
+                    type: 'array',
+                    description: 'Secondary/utility navigation items (above primary nav). Empty array if none found.',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        label: { type: 'string' },
+                        url: { type: ['string', 'null'] }
+                      },
+                      required: ['label']
+                    }
+                  },
+                  footer: {
+                    type: 'array',
+                    description: 'Footer navigation items NOT already in primary or secondary nav (deduplicated by URL)',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        label: { type: 'string' },
+                        url: { type: ['string', 'null'] },
+                        children: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              label: { type: 'string' },
+                              url: { type: ['string', 'null'] }
+                            },
+                            required: ['label']
+                          }
+                        }
+                      },
+                      required: ['label']
+                    }
+                  },
+                  totalLinks: { type: 'number', description: 'Total count of all unique nav links across all sections' }
                 },
-                required: ['items', 'totalLinks'],
+                required: ['primary', 'secondary', 'footer', 'totalLinks'],
                 additionalProperties: false
               }
             }
@@ -200,7 +236,6 @@ Rules:
       );
     }
 
-    // Extract tool call result
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) {
       console.error('No tool call in AI response:', JSON.stringify(aiData));
@@ -221,13 +256,17 @@ Rules:
       );
     }
 
-    console.log(`Navigation extracted: ${navStructure.totalLinks} links, ${navStructure.items?.length} top-level items`);
+    console.log(`Navigation extracted: ${navStructure.totalLinks} total links | Primary: ${navStructure.primary?.length} | Secondary: ${navStructure.secondary?.length} | Footer (unique): ${navStructure.footer?.length}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        items: navStructure.items || [],
+        primary: navStructure.primary || [],
+        secondary: navStructure.secondary || [],
+        footer: navStructure.footer || [],
         totalLinks: navStructure.totalLinks || 0,
+        // Keep backward compat
+        items: navStructure.primary || [],
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
