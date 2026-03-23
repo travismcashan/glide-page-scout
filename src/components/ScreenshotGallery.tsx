@@ -110,8 +110,18 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
       for (const shot of completedShots) {
         if (!shot.screenshot_url) continue;
         try {
-          const resp = await fetch(shot.screenshot_url);
-          const blob = await resp.blob();
+          // Extract the storage file path from the public URL
+          const storagePrefix = '/storage/v1/object/public/screenshots/';
+          const idx = shot.screenshot_url.indexOf(storagePrefix);
+          if (idx === -1) continue;
+          const filePath = shot.screenshot_url.substring(idx + storagePrefix.length);
+
+          // Use Supabase storage download which returns the blob directly
+          const { data: blob, error } = await supabase.storage
+            .from('screenshots')
+            .download(filePath);
+          if (error || !blob) { console.error('Download error:', error); continue; }
+
           const urlObj = new URL(shot.url);
           const safeName = urlObj.pathname.replace(/\//g, '_').replace(/^_/, '') || 'homepage';
           const ext = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'jpg' : 'png';
@@ -123,8 +133,7 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
           document.body.removeChild(a);
           URL.revokeObjectURL(a.href);
           count++;
-          // Small delay to avoid browser blocking multiple downloads
-          if (count < completedShots.length) await new Promise(r => setTimeout(r, 300));
+          if (count < completedShots.length) await new Promise(r => setTimeout(r, 500));
         } catch (e) {
           console.error('Failed to download:', shot.url, e);
         }
