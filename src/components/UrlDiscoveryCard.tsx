@@ -168,6 +168,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
               setAllUrls([]);
               setDiscoveryDone(false);
               setError(null);
+              setCachedResults(null);
               startDiscovery();
             }}
             title="Re-discover URLs"
