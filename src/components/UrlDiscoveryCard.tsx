@@ -18,6 +18,7 @@ type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
   linkCheckResults?: LinkCheckResult[] | null;
+  linkCheckStreaming?: LinkCheckResult[] | null;
   linkCheckLoading?: boolean;
   linkCheckProgress?: { checked: number; total: number } | null;
   collapsed?: boolean;
