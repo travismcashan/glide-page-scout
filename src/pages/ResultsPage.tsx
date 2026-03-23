@@ -35,6 +35,11 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 // ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused } from '@/lib/integrationState';
+
+/** Show a card if data already exists (historical) OR integration is active */
+function shouldShowIntegration(key: string, hasData: boolean): boolean {
+  return hasData || !isIntegrationPaused(key);
+}
 import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
