@@ -300,7 +300,7 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
 
         {!isCollapsed && completedShots.length > 0 ? (
           <div className="p-4">
-            <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
+            <div className="columns-1 sm:columns-2 lg:columns-4 gap-4 space-y-4">
               {completedShots.map(shot => (
                 <div
                   key={shot.id}
