@@ -4,6 +4,23 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
+/** Smart title-case: converts ALL-CAPS labels to Title Case but preserves short acronyms (FAQ, SEO, CRM, B2B, etc.) */
+function smartTitleCase(text: string): string {
+  // If it's not mostly uppercase, leave it alone
+  const upperCount = (text.match(/[A-Z]/g) || []).length;
+  const letterCount = (text.match(/[A-Za-z]/g) || []).length;
+  if (letterCount === 0 || upperCount / letterCount < 0.7) return text;
+
+  return text.split(/(\s+|[-/&])/).map(word => {
+    // Preserve separators
+    if (/^[\s\-\/&]+$/.test(word)) return word;
+    // Keep short all-caps words as acronyms (≤4 chars)
+    if (word === word.toUpperCase() && word.length <= 4) return word;
+    // Title-case the rest
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join('');
+}
+
 type NavItem = {
   label: string;
   url?: string | null;
@@ -103,7 +120,7 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           <span className="w-4.5" />
         )}
 
-        <span className={`text-sm ${depth === 0 ? 'font-medium' : 'text-muted-foreground'}`}>{item.label}</span>
+        <span className={`text-sm ${depth === 0 ? 'font-medium' : 'text-muted-foreground'}`}>{smartTitleCase(item.label)}</span>
 
         {hasChildren && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{item.children!.length}</Badge>
