@@ -123,6 +123,7 @@ export type Database = {
           httpstatus_data: Json | null
           id: string
           linkcheck_data: Json | null
+          nav_structure: Json | null
           observations_data: Json | null
           observatory_data: Json | null
           ocean_data: Json | null
@@ -155,6 +156,7 @@ export type Database = {
           httpstatus_data?: Json | null
           id?: string
           linkcheck_data?: Json | null
+          nav_structure?: Json | null
           observations_data?: Json | null
           observatory_data?: Json | null
           ocean_data?: Json | null
@@ -187,6 +189,7 @@ export type Database = {
           httpstatus_data?: Json | null
           id?: string
           linkcheck_data?: Json | null
+          nav_structure?: Json | null
           observations_data?: Json | null
           observatory_data?: Json | null
           ocean_data?: Json | null
