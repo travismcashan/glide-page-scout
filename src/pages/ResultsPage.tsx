@@ -542,6 +542,7 @@ export default function ResultsPage() {
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
   const [linkcheckProgress, setLinkcheckProgress] = useState<{ checked: number; total: number } | null>(null);
+  const [linkcheckStreamingResults, setLinkcheckStreamingResults] = useState<{ url: string; statusCode: number }[] | null>(null);
   const linkcheckRunningRef = useRef(false);
   const lastLinkcheckKeyRef = useRef<string | null>(null);
   const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
@@ -553,13 +554,17 @@ export default function ResultsPage() {
     linkcheckRunningRef.current = true;
     lastLinkcheckKeyRef.current = effectiveLinkcheckKey;
     setLinkcheckLoading(true);
+    setLinkcheckStreamingResults(null);
     setLinkcheckProgress({ checked: 0, total: effectiveDiscoveredUrls.length });
-    linkCheckerApi.check(effectiveDiscoveredUrls, (checked, total) => {
-      setLinkcheckProgress({ checked, total });
-    }).then(async (result) => {
+    linkCheckerApi.check(
+      effectiveDiscoveredUrls,
+      (checked, total) => { setLinkcheckProgress({ checked, total }); },
+      (partialResults) => { setLinkcheckStreamingResults(partialResults); },
+    ).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ linkcheck_data: result } as any).eq('id', session.id);
         clearError('link-checker');
+        setLinkcheckStreamingResults(null);
         await fetchData();
       } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); lastLinkcheckKeyRef.current = null; }
       setLinkcheckLoading(false);
