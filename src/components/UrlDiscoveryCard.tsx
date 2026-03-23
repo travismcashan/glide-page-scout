@@ -14,6 +14,44 @@ type LinkCheckResult = {
   statusCode: number;
 };
 
+type NavItem = {
+  label: string;
+  url?: string | null;
+  children?: NavItem[];
+};
+
+type NavStructureData = {
+  primary?: NavItem[];
+  secondary?: NavItem[];
+  footer?: NavItem[];
+  items?: NavItem[];
+} | null;
+
+type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
+
+function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
+  const map = new Map<string, NavTag[]>();
+  if (!nav) return map;
+
+  const walk = (items: NavItem[] | undefined, type: 'primary' | 'secondary' | 'footer') => {
+    if (!items) return;
+    for (const item of items) {
+      if (item.url) {
+        const key = item.url.toLowerCase().replace(/\/$/, '');
+        const existing = map.get(key) || [];
+        existing.push({ type, label: item.label });
+        map.set(key, existing);
+      }
+      if (item.children) walk(item.children, type);
+    }
+  };
+
+  walk(nav.primary, 'primary');
+  walk(nav.secondary, 'secondary');
+  walk(nav.footer, 'footer');
+  return map;
+}
+
 type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
@@ -22,6 +60,7 @@ type Props = {
   linkCheckLoading?: boolean;
   linkCheckProgress?: { checked: number; total: number } | null;
   onStopLinkCheck?: () => void;
+  navStructure?: NavStructureData;
   collapsed?: boolean;
   persistedUrls?: string[] | null;
   onUrlsPersist?: (urls: string[]) => void;
