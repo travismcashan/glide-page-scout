@@ -120,7 +120,7 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           <span className="w-4.5" />
         )}
 
-        <span className={`text-sm ${depth === 0 ? 'font-medium' : 'text-muted-foreground'}`}>{item.label}</span>
+        <span className={`text-sm ${depth === 0 ? 'font-medium' : 'text-muted-foreground'}`}>{smartTitleCase(item.label)}</span>
 
         {hasChildren && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{item.children!.length}</Badge>
