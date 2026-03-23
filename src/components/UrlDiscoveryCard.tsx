@@ -78,7 +78,6 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     '4xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 400 && s < 500 && s !== 429; }),
     '429': sorted.filter(u => statusMap.get(u) === 429),
     '5xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 500; }),
-    'unchecked': sorted.filter(u => !statusMap.has(u)),
   };
 
   useEffect(() => {
