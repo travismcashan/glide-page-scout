@@ -29,6 +29,7 @@ const integrations: Integration[] = [
   { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Broken Link Checker', id: 'link-checker', description: 'HEAD-request scan of all discovered URLs — flags broken links, redirects, and server errors. Free, no API key.', secretKey: '', configured: true, category: 'security', status: 'active' },
+  { name: 'Navigation Structure', id: 'nav-structure', description: 'AI-powered extraction of the primary header navigation — builds a hierarchical sitemap from the actual menu structure, not a full crawl', secretKey: '', configured: true, category: 'content', status: 'active' },
 
   // Third-party integrations
   { name: 'Firecrawl', id: 'firecrawl', description: 'Web scraping, content extraction, and sitemap discovery', secretKey: 'FIRECRAWL_API_KEY', configured: true, category: 'content', status: 'active' },
