@@ -985,6 +985,8 @@ export default function ResultsPage() {
                   baseUrl={session.base_url}
                   onUrlsDiscovered={setDiscoveredUrls}
                   linkCheckResults={session.linkcheck_data?.results || null}
+                  linkCheckLoading={linkcheckLoading}
+                  linkCheckProgress={linkcheckProgress}
                   collapsed={allCollapsed}
                   persistedUrls={session.discovered_urls}
                   onUrlsPersist={async (urls) => {
