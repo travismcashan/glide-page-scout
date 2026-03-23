@@ -1017,6 +1017,7 @@ export default function ResultsPage() {
                   linkCheckLoading={linkcheckLoading}
                   linkCheckProgress={linkcheckProgress}
                   onStopLinkCheck={linkcheckLoading ? stopLinkcheck : undefined}
+                  navStructure={(session as any).nav_structure || null}
                   collapsed={allCollapsed}
                   persistedUrls={session.discovered_urls}
                   onUrlsPersist={async (urls) => {
