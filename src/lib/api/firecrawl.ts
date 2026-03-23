@@ -313,7 +313,7 @@ export const linkCheckerApi = {
     results?: { url: string; statusCode: number; redirectUrl: string | null; responseTimeMs: number; error: string | null }[];
     error?: string;
   }> {
-    const BATCH_SIZE = 200;
+    const BATCH_SIZE = 25;
     const allResults: any[] = [];
 
     for (let i = 0; i < urls.length; i += BATCH_SIZE) {
