@@ -701,6 +701,7 @@ export default function ResultsPage() {
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
     setLinkcheckFailed(false); setLinkcheckLoading(false);
     setAvomaFailed(false); setAvomaLoading(false);
+    setNavFailed(false); setNavLoading(false);
     await fetchData();
     setRerunningAll(false);
     toast.success('Re-running all integrations');
@@ -961,10 +962,16 @@ export default function ResultsPage() {
               )}
             </div>
           </div>
-        )}
+              )}
+
+              {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
+              <SectionCard collapsed={allCollapsed} title="Navigation Structure — Header Sitemap" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={rerunButton('nav-structure', 'nav_structure', navLoading)}>
+                {(session as any)?.nav_structure ? <NavStructureCard data={(session as any).nav_structure} /> : null}
+              </SectionCard>
+              )}
 
         {/* ══════ 📄 Content & Scraping ══════ */}
-        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
+        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">📄 Content & Scraping</h2>
             <div className="space-y-6">
