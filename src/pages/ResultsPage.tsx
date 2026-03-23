@@ -35,7 +35,7 @@ import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 // ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
 import { ContentSectionCard } from '@/components/ContentSectionCard';
-import { isIntegrationPaused } from '@/lib/integrationState';
+import { isIntegrationPaused, loadPausedIntegrations } from '@/lib/integrationState';
 
 /** Show a card if data already exists (historical) OR integration is active */
 function shouldShowIntegration(key: string, hasData: boolean): boolean {
@@ -137,7 +137,11 @@ export default function ResultsPage() {
     setLoading(false);
   }, [sessionId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    loadPausedIntegrations().catch(() => undefined).finally(() => {
+      fetchData();
+    });
+  }, [fetchData]);
 
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
