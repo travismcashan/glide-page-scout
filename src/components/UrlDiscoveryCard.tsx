@@ -74,8 +74,10 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     all: sorted,
     '2xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 200 && s < 300; }),
     '3xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 300 && s < 400; }),
-    '4xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 400 && s < 500; }),
+    '4xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 400 && s < 500 && s !== 429; }),
+    '429': sorted.filter(u => statusMap.get(u) === 429),
     '5xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 500; }),
+    'unchecked': sorted.filter(u => !statusMap.has(u)),
   };
 
   useEffect(() => {
@@ -158,7 +160,9 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
               { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} />, visible: buckets['2xx'].length > 0 },
               { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} />, visible: buckets['3xx'].length > 0 },
               { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} />, visible: buckets['4xx'].length > 0 },
+              { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} />, visible: buckets['429'].length > 0 },
               { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} />, visible: buckets['5xx'].length > 0 },
+              { value: 'unchecked', label: `Unchecked (${buckets.unchecked.length})`, content: <UrlList urls={buckets.unchecked} statusMap={statusMap} />, visible: buckets.unchecked.length > 0 },
             ]}
           />
         ) : (
