@@ -234,6 +234,17 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
                     <Progress value={(linkCheckProgress.checked / linkCheckProgress.total) * 100} className="h-1.5" />
                   )}
                 </div>
+                {onStopLinkCheck && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={onStopLinkCheck}
+                    title="Stop link checking"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                  </Button>
+                )}
               </div>
             )}
             <CardTabs
