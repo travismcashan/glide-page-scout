@@ -14,6 +14,44 @@ type LinkCheckResult = {
   statusCode: number;
 };
 
+type NavItem = {
+  label: string;
+  url?: string | null;
+  children?: NavItem[];
+};
+
+type NavStructureData = {
+  primary?: NavItem[];
+  secondary?: NavItem[];
+  footer?: NavItem[];
+  items?: NavItem[];
+} | null;
+
+type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
+
+function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
+  const map = new Map<string, NavTag[]>();
+  if (!nav) return map;
+
+  const walk = (items: NavItem[] | undefined, type: 'primary' | 'secondary' | 'footer') => {
+    if (!items) return;
+    for (const item of items) {
+      if (item.url) {
+        const key = item.url.toLowerCase().replace(/\/$/, '');
+        const existing = map.get(key) || [];
+        existing.push({ type, label: item.label });
+        map.set(key, existing);
+      }
+      if (item.children) walk(item.children, type);
+    }
+  };
+
+  walk(nav.primary, 'primary');
+  walk(nav.secondary, 'secondary');
+  walk(nav.footer, 'footer');
+  return map;
+}
+
 type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
@@ -22,6 +60,7 @@ type Props = {
   linkCheckLoading?: boolean;
   linkCheckProgress?: { checked: number; total: number } | null;
   onStopLinkCheck?: () => void;
+  navStructure?: NavStructureData;
   collapsed?: boolean;
   persistedUrls?: string[] | null;
   onUrlsPersist?: (urls: string[]) => void;
@@ -56,8 +95,14 @@ function normalizeDiscoveredUrl(rawUrl: string): string {
   }
 }
 
-const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; emptyText?: string }>(
-  ({ urls, statusMap, emptyText = 'No URLs in this range' }, ref) => {
+const navTypeColors: Record<string, string> = {
+  primary: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
+  secondary: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+  footer: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+};
+
+const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string }>(
+  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range' }, ref) => {
     if (!urls.length) {
       return <p className="text-sm text-muted-foreground italic py-4 text-center">{emptyText}</p>;
     }
@@ -67,6 +112,8 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
         {urls.map((url) => {
           const status = statusMap.get(url);
           const isPending = status == null;
+          const navKey = url.toLowerCase().replace(/\/$/, '');
+          const tags = navMap.get(navKey) || [];
 
           return (
             <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
@@ -79,6 +126,11 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
                   {status}
                 </Badge>
               )}
+              {tags.map((tag, i) => (
+                <Badge key={`${tag.type}-${i}`} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navTypeColors[tag.type]}`}>
+                  {tag.type === 'primary' ? '🔵 Primary' : tag.type === 'secondary' ? '🟣 Secondary' : '🟠 Footer'} · {tag.label}
+                </Badge>
+              ))}
               <span className="text-sm font-mono truncate text-muted-foreground">{url}</span>
             </div>
           );
@@ -90,7 +142,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, collapsed, persistedUrls, onUrlsPersist }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -123,6 +175,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
   for (const result of effectiveResults) {
     statusMap.set(result.url, result.statusCode);
   }
+  const navMap = buildNavMap(navStructure ?? null);
 
   const sorted = [...allUrls].sort((a, b) => a.localeCompare(b));
   const buckets = {
@@ -250,18 +303,18 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
             <CardTabs
               defaultValue="all"
               tabs={[
-                { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} /> },
+                { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} navMap={navMap} /> },
                 {
                   value: 'pending',
                   label: `Pending (${buckets.pending.length})`,
-                  content: <UrlList urls={buckets.pending} statusMap={statusMap} emptyText="All URLs have been checked." />,
+                  content: <UrlList urls={buckets.pending} statusMap={statusMap} navMap={navMap} emptyText="All URLs have been checked." />,
                   visible: buckets.pending.length > 0,
                 },
-                { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} />, visible: buckets['2xx'].length > 0 },
-                { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} />, visible: buckets['3xx'].length > 0 },
-                { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} />, visible: buckets['429'].length > 0 },
-                { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} />, visible: buckets['4xx'].length > 0 },
-                { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} />, visible: buckets['5xx'].length > 0 },
+                { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['2xx'].length > 0 },
+                { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['3xx'].length > 0 },
+                { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} navMap={navMap} />, visible: buckets['429'].length > 0 },
+                { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['4xx'].length > 0 },
+                { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['5xx'].length > 0 },
               ]}
             />
           </div>
