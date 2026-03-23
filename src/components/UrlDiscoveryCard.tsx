@@ -69,12 +69,13 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
 
   // Bucket URLs by status code range
   const hasStatuses = statusMap.size > 0;
+  const sorted = [...allUrls].sort((a, b) => a.localeCompare(b));
   const buckets = {
-    all: allUrls,
-    '2xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 200 && s < 300; }),
-    '3xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 300 && s < 400; }),
-    '4xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 400 && s < 500; }),
-    '5xx': allUrls.filter(u => { const s = statusMap.get(u); return s != null && s >= 500; }),
+    all: sorted,
+    '2xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 200 && s < 300; }),
+    '3xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 300 && s < 400; }),
+    '4xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 400 && s < 500; }),
+    '5xx': sorted.filter(u => { const s = statusMap.get(u); return s != null && s >= 500; }),
   };
 
   useEffect(() => {
