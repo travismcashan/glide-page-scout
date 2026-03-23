@@ -655,7 +655,7 @@ export default function ResultsPage() {
       schema: () => { setSchemaFailed(false); setSchemaLoading(false); },
       readable: () => { setReadableFailed(false); setReadableLoading(false); },
       yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
-      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); },
+      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null; },
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
     };
     resetMap[key]?.();
@@ -717,7 +717,7 @@ export default function ResultsPage() {
     setSchemaFailed(false); setSchemaLoading(false);
     setReadableFailed(false); setReadableLoading(false);
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
-    setLinkcheckFailed(false); setLinkcheckLoading(false);
+    setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null;
     setAvomaFailed(false); setAvomaLoading(false);
     setNavFailed(false); setNavLoading(false);
     await fetchData();
@@ -1008,6 +1008,7 @@ export default function ResultsPage() {
                     setLinkcheckFailed(false);
                     setLinkcheckLoading(false);
                     linkcheckRunningRef.current = false;
+                    lastLinkcheckKeyRef.current = null;
                     setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
                     fetchData();
