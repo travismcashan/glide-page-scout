@@ -69,9 +69,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const batch = urls.slice(0, 300);
-    // Lower concurrency to avoid triggering rate limits
-    const concurrency = 5;
+    const batch = urls.slice(0, 50);
+    const concurrency = 10;
     const results: any[] = [];
 
     for (let i = 0; i < batch.length; i += concurrency) {
