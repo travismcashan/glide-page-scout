@@ -314,6 +314,7 @@ Additional rules:
 3. A single index/listing page at a directory root (e.g., /services/ itself with no child slug) is Archive.
 4. Only truly unique one-off pages (About, Contact, Careers) are Page type.
 5. When in doubt between Page and CPT for a group with ${minCount}+ URLs, ALWAYS choose CPT.
+6. **TAXONOMY ARCHIVES are Archive, NOT CPT.** Directories like /tag/, /tags/, /author/, /authors/, /category/, /categories/, /topics/ are taxonomy term listing pages — they list posts filtered by a term. Even if they have many child URLs, they are Archive (template: "Archive: Tags", "Archive: Authors", etc.), NOT CPT. In WordPress these are built-in taxonomy archives, not custom post types.
 
 You MUST classify EVERY directory group.`;
 
