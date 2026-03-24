@@ -190,7 +190,9 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       const { data, error } = await supabase.functions.invoke('recommend-templates', { body: payload });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'AI analysis failed');
-      setAiTiers(data.tiers as AiTiers);
+      const tiers = data.tiers as AiTiers;
+      setAiTiers(tiers);
+      onTiersChange?.(tiers);
       toast.success('AI recommendations ready');
     } catch (err) {
       console.error('AI recommend error:', err);
