@@ -172,7 +172,7 @@ function countLinks(items: NavItem[]): number {
   return count;
 }
 
-export function NavStructureCard({ data }: { data: NavStructureData }) {
+export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
   const [copiedFormat, setCopiedFormat] = useState<'md' | 'rich' | null>(null);
   const primary = data.primary || data.items || [];
   const secondary = data.secondary || [];
