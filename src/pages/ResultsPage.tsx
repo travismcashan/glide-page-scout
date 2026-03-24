@@ -654,17 +654,17 @@ export default function ResultsPage() {
 
   useEffect(() => {
     if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
-    if (!effectiveLinkcheckKey) return;
-    if (linkcheckRunningRef.current || lastLinkcheckKeyRef.current === effectiveLinkcheckKey) return;
+    if (linkcheckRunningRef.current) return;
     linkcheckRunningRef.current = true;
-    lastLinkcheckKeyRef.current = effectiveLinkcheckKey;
+    // Snapshot URLs at start so mid-run URL changes don't cause issues
+    const urlsToCheck = [...effectiveDiscoveredUrls];
     const abortController = new AbortController();
     linkcheckAbortRef.current = abortController;
     setLinkcheckLoading(true);
     setLinkcheckStreamingResults(null);
-    setLinkcheckProgress({ checked: 0, total: effectiveDiscoveredUrls.length });
+    setLinkcheckProgress({ checked: 0, total: urlsToCheck.length });
     linkCheckerApi.check(
-      effectiveDiscoveredUrls,
+      urlsToCheck,
       (checked, total) => { setLinkcheckProgress({ checked, total }); },
       (partialResults) => { setLinkcheckStreamingResults(partialResults); },
       abortController.signal,
@@ -674,13 +674,13 @@ export default function ResultsPage() {
         clearError('link-checker');
         setLinkcheckStreamingResults(null);
         await fetchData();
-      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); lastLinkcheckKeyRef.current = null; }
+      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
       linkcheckAbortRef.current = null;
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; lastLinkcheckKeyRef.current = null; linkcheckAbortRef.current = null; });
-  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, effectiveLinkcheckKey, fetchData]);
+    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
+  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData]);
 
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
