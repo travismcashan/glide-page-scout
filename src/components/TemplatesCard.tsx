@@ -37,6 +37,8 @@ interface Props {
   domain?: string;
   savedTiers?: AiTiers | null;
   onTiersChange?: (tiers: AiTiers) => void;
+  onRerunRequest?: (rerunFn: () => void) => void;
+  isRerunning?: boolean;
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
