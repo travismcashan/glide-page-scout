@@ -133,6 +133,7 @@ export type Database = {
           readable_data: Json | null
           schema_data: Json | null
           semrush_data: Json | null
+          sitemap_data: Json | null
           ssllabs_data: Json | null
           status: string
           updated_at: string
@@ -168,6 +169,7 @@ export type Database = {
           readable_data?: Json | null
           schema_data?: Json | null
           semrush_data?: Json | null
+          sitemap_data?: Json | null
           ssllabs_data?: Json | null
           status?: string
           updated_at?: string
@@ -203,6 +205,7 @@ export type Database = {
           readable_data?: Json | null
           schema_data?: Json | null
           semrush_data?: Json | null
+          sitemap_data?: Json | null
           ssllabs_data?: Json | null
           status?: string
           updated_at?: string
