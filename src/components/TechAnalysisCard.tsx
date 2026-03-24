@@ -260,8 +260,15 @@ export function TechAnalysisCard({ data, isLoading }: Props) {
   if (!data?.analysis) return null;
 
   const { analysis, techCount, sources } = data;
-  const findings = analysis.findings || analysis; // backwards compat
-  const scope = analysis.scope;
+  // backwards compat: old format had findings at top level
+  const findings: Findings = (analysis as any).findings || {
+    platform: (analysis as any).platform,
+    highlights: (analysis as any).highlights,
+    risks: (analysis as any).risks,
+    stackAge: (analysis as any).stackAge,
+    complexity: (analysis as any).complexity,
+  };
+  const scope: Scope | undefined = (analysis as any).scope;
 
   return (
     <CardTabs
