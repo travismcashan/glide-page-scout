@@ -47,6 +47,7 @@ import { SectionCard } from '@/components/SectionCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
+import { autoSeedPageTags, setPageTemplate, type PageTagsMap, type PageTemplateType, type PageTemplateVariant, getPageTagsSummary } from '@/lib/pageTags';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -96,6 +97,7 @@ type CrawlSession = {
   deep_research_data: any | null;
   observations_data: any | null;
   content_types_data: any | null;
+  page_tags: PageTagsMap | null;
 };
 
 
