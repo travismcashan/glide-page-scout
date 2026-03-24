@@ -280,7 +280,7 @@ Classify each DIRECTORY GROUP into exactly ONE type:
 - **Page**: One-off pages with unique designs. Only for directories with 1-2 child URLs or utility pages.
 - **Post**: Blog/news articles in a date-based feed. Usually under /blog/, /news/, /articles/.
 - **CPT** (Custom Post Type): ANY directory group with ${minCount}+ child URLs that follow a repeating template. This includes services, industries, solutions, test standards, team members, case studies, products, portfolio items, locations, resources, etc. Provide the CPT name.
-- **Archive**: The top-level index/list page of a CPT or blog section (e.g., /blog/ with no slug, /services/ as a listing page).
+- **Archive / Taxonomy**: Taxonomy and meta pages — tag pages, author pages, category pages, pagination pages (/page/2/, /page/3/), and list/index pages for CPT or blog sections. These are NOT CPTs even if there are many of them. They do not need custom design templates.
 - **Search**: Site search results pages.
 
 Then assign a TEMPLATE name:
