@@ -47,6 +47,7 @@ import { SectionCard } from '@/components/SectionCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { SitemapCard } from '@/components/SitemapCard';
 import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
+import { TemplatesCard } from '@/components/TemplatesCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -1199,7 +1200,13 @@ export default function ResultsPage() {
 
               {session && (session as any)?.page_tags && (
               <SectionCard collapsed={allCollapsed} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />}>
-                <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} navStructure={(session as any).nav_structure} domain={(session as any).domain} />
+                <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} />
+              </SectionCard>
+              )}
+
+              {session && (session as any)?.page_tags && (
+              <SectionCard collapsed={allCollapsed} title="Unique Templates" icon={<Layers className="h-5 w-5 text-foreground" />}>
+                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} />
               </SectionCard>
               )}
 
