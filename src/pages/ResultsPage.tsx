@@ -1236,17 +1236,18 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border px-6 py-4">
         <div className="max-w-6xl mx-auto space-y-3">
-          {/* Row 1: Large domain name */}
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          {/* Row 1: Large domain name + back button on the right */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-[2rem] font-bold tracking-tight text-foreground leading-tight">
               {session?.domain?.replace(/^www\./i, '')}
             </h1>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="shrink-0 text-muted-foreground">
+              <ArrowLeft className="h-4 w-4 mr-1.5" />
+              Back
+            </Button>
           </div>
           {/* Row 2: URL, date, and action buttons */}
-          <div className="flex items-center justify-between pl-11">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>{session?.base_url}</span>
               {session?.created_at && (
