@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 const ReactMarkdown = lazy(() => import('react-markdown'));
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon } from 'lucide-react';
+import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
@@ -111,6 +111,8 @@ type CrawlSession = {
 export default function ResultsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSharedView = searchParams.get('view') === 'shared';
   const [session, setSession] = useState<CrawlSession | null>(null);
   const [pages, setPages] = useState<CrawlPage[]>([]);
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
@@ -969,26 +971,29 @@ export default function ResultsPage() {
     prevLoadingRef.current = { ...loadingMap };
   });
 
-  const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => (
-    <>
-      {integrationDurations[key] != null && !isLoading && (
-        <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]}s</span>
-      )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7"
-        disabled={isLoading}
-        onClick={() => {
-          setIntegrationDurations(d => { const next = { ...d }; delete next[key]; return next; });
-          key === 'gtmetrix' ? rerunGtmetrix() : rerunIntegration(key, dbColumn);
-        }}
-        title="Run again"
-      >
-        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-      </Button>
-    </>
-  );
+  const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
+    if (isSharedView) return null;
+    return (
+      <>
+        {integrationDurations[key] != null && !isLoading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]}s</span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={isLoading}
+          onClick={() => {
+            setIntegrationDurations(d => { const next = { ...d }; delete next[key]; return next; });
+            key === 'gtmetrix' ? rerunGtmetrix() : rerunIntegration(key, dbColumn);
+          }}
+          title="Run again"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
+      </>
+    );
+  };
 
   const innerExpandToggle = (expanded: boolean | null, setExpanded: React.Dispatch<React.SetStateAction<boolean | null>>) => (
     <Button
@@ -1065,48 +1070,68 @@ export default function ResultsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setAllCollapsed(!allCollapsed)}
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('view', 'shared');
+                navigator.clipboard.writeText(url.toString());
+                toast.success('View-only link copied to clipboard');
+              }}
               className="no-print"
-              title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
             >
-              {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
-              {allCollapsed ? 'Expand All' : 'Collapse All'}
+              <Share2 className="h-3.5 w-3.5 mr-1.5" />
+              Share
             </Button>
-            <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll} className="no-print">
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
-              Re-run All
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="no-print">
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Export
+            {!isSharedView && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAllCollapsed(!allCollapsed)}
+                  className="no-print"
+                  title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+                >
+                  {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
+                  {allCollapsed ? 'Expand All' : 'Collapse All'}
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {session?.deep_research_data?.report && (
-                  <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
-                    <Brain className="h-3.5 w-3.5 mr-1.5" />
-                    Deep Research PDF
+                <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll} className="no-print">
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
+                  Re-run All
+                </Button>
+              </>
+            )}
+            {!isSharedView && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="no-print">
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {session?.deep_research_data?.report && (
+                    <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                      <Brain className="h-3.5 w-3.5 mr-1.5" />
+                      Deep Research PDF
+                    </DropdownMenuItem>
+                  )}
+                  {session?.observations_data && (
+                    <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
+                      <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
+                      Observations & Insights PDF
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => exportAsPdf()}>
+                    Export as PDF (Print)
                   </DropdownMenuItem>
-                )}
-                {session?.observations_data && (
-                  <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                    <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-                    Observations & Insights PDF
+                  <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
+                    Export as JSON (for AI)
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={() => exportAsPdf()}>
-                  Export as PDF (Print)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
-                  Export as JSON (for AI)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
-                  Export as Markdown (for AI)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
+                    Export as Markdown (for AI)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {session?.status === 'analyzing' ? (
               <Badge variant="secondary">Analyzing</Badge>
             ) : session?.status === 'completed' ? (
@@ -1231,7 +1256,7 @@ export default function ResultsPage() {
 
               {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="content-types" persistedCollapsed={isSectionCollapsed("content-types")} onCollapseChange={toggleSection} title="Repeating Content (Posts & CPTs)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('content-types', 'content_types_data', contentTypesLoading)}{(session as any)?.content_types_data && innerExpandToggle(contentTypesInnerExpand, setContentTypesInnerExpand)}</div>}>
-                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} globalInnerExpand={contentTypesInnerExpand} onDataChange={async (updated) => {
+                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={isSharedView ? undefined : handlePageTagChange} globalInnerExpand={contentTypesInnerExpand} onDataChange={isSharedView ? undefined : async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
                   fetchData();
                 }} /> : null}
@@ -1239,8 +1264,8 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
-              <SectionCard collapsed={allCollapsed} sectionId="nav-structure" persistedCollapsed={isSectionCollapsed("nav-structure")} onCollapseChange={toggleSection} title="Site Navigation" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={<div className="flex items-center gap-1.5">{(session as any)?.nav_structure && <><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyMarkdown()} title="Copy as Markdown"><Copy className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyRichText()} title="Copy as Rich Text"><FileText className="h-3.5 w-3.5" /></Button></>}{rerunButton('nav-structure', 'nav_structure', navLoading)}{(session as any)?.nav_structure && innerExpandToggle(navInnerExpand, setNavInnerExpand)}</div>}>
-                {(session as any)?.nav_structure ? <NavStructureCard ref={navRef} data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} globalInnerExpand={navInnerExpand} /> : null}
+              <SectionCard collapsed={allCollapsed} sectionId="nav-structure" persistedCollapsed={isSectionCollapsed("nav-structure")} onCollapseChange={toggleSection} title="Site Navigation" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={<div className="flex items-center gap-1.5">{!isSharedView && (session as any)?.nav_structure && <><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyMarkdown()} title="Copy as Markdown"><Copy className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyRichText()} title="Copy as Rich Text"><FileText className="h-3.5 w-3.5" /></Button></>}{rerunButton('nav-structure', 'nav_structure', navLoading)}{(session as any)?.nav_structure && innerExpandToggle(navInnerExpand, setNavInnerExpand)}</div>}>
+                {(session as any)?.nav_structure ? <NavStructureCard ref={navRef} data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={isSharedView ? undefined : handlePageTagChange} globalInnerExpand={navInnerExpand} /> : null}
               </SectionCard>
               )}
 
@@ -1271,7 +1296,7 @@ export default function ResultsPage() {
               <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Detection" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)}>
                 {(session as any)?.forms_data ? (
                   <FormsCard data={(session as any).forms_data} />
-                ) : !formsLoading ? (
+                ) : !formsLoading && !isSharedView ? (
                   <div className="text-center py-4">
                     <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
                     <Button variant="outline" size="sm" onClick={runFormsDetection} disabled={formsLoading}>
