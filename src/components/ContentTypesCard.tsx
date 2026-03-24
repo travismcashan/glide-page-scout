@@ -209,6 +209,14 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
       {/* Expandable rows */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Sticky header */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center gap-2 px-3 py-1.5 border-b border-border">
+          <span className="w-[18px] shrink-0" />
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Content Type</span>
+          <span className="w-[60px] text-center text-xs font-medium text-muted-foreground">Base Type</span>
+          <span className="w-[52px] text-center text-xs font-medium text-muted-foreground">Confidence</span>
+          <span className="w-[36px] text-center text-xs font-medium text-muted-foreground">URLs</span>
+        </div>
         {summary.map((row) => {
           const isExpanded = expandedTypes.has(row.type);
           const typeUrls = urlsByType[row.type] || [];
