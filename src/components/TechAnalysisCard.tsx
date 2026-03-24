@@ -90,10 +90,10 @@ function FindingsTab({ findings, techCount, sources }: { findings: Findings; tec
           <span className="w-24 text-center text-xs font-medium text-muted-foreground">Score</span>
         </div>
 
-        <div className="flex items-center px-3 py-2 border-b border-border/50">
+        <div className="flex items-center px-3 py-1 border-b border-border/50 hover:bg-muted/20 transition-colors">
           <div className="flex-1 flex items-center gap-2 min-w-0">
             <Server className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs font-medium truncate">{findings.platform.name}</span>
+            <span className="text-xs leading-5 truncate">{findings.platform.name}</span>
           </div>
           <div className="w-24">
             <ScoreBar score={findings.platform.modernScore} />
@@ -211,14 +211,14 @@ function ScopeTab({ scope }: { scope: Scope }) {
               </button>
 
               {!isCollapsed && section.items.map((item, idx) => (
-                <div key={idx} className="flex items-center px-3 py-1.5 border-t border-border/50 hover:bg-muted/30 transition-colors">
+                <div key={idx} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium truncate">{item.name}</span>
+                    <span className="text-xs leading-5 truncate block">{item.name}</span>
                     {item.note && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{item.note}</p>
+                      <span className="text-[10px] leading-4 text-muted-foreground truncate block">{item.note}</span>
                     )}
                   </div>
-                  <span className="w-[180px] text-xs text-muted-foreground truncate">
+                  <span className="w-[180px] text-xs leading-5 text-muted-foreground truncate">
                     {item.role || item.purpose || item.type || item.reason || '—'}
                   </span>
                   <span className="w-[70px] text-center">

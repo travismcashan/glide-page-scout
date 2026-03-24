@@ -199,9 +199,9 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
               </button>
 
               {!isCollapsed && rows.map((row, idx) => (
-                <div key={`${row.name}-${idx}`} className="flex items-center px-3 py-1.5 border-t border-border/50 hover:bg-muted/30 transition-colors">
-                  <span className="flex-1 text-xs font-medium truncate min-w-0">{row.name}</span>
-                  <span className="w-[150px] text-xs text-muted-foreground truncate">{row.subcategory}</span>
+                <div key={`${row.name}-${idx}`} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
+                  <span className="flex-1 text-xs leading-5 truncate min-w-0">{row.name}</span>
+                  <span className="w-[150px] text-xs leading-5 text-muted-foreground truncate">{row.subcategory}</span>
                 </div>
               ))}
             </div>
