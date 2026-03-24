@@ -239,7 +239,6 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
 
       {/* Controls */}
       <div className="flex items-center justify-end gap-2">
-        {aiLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         {!aiTiers && !aiLoading && (
           <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
             <Sparkles className="h-3 w-3" /> AI Recommend
@@ -258,6 +257,14 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
           ))}
         </ToggleGroup>
       </div>
+
+      {/* AI Loading indicator */}
+      {aiLoading && (
+        <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border border-border animate-in fade-in">
+          <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+          <span className="text-xs text-muted-foreground">{loadingMsg}</span>
+        </div>
+      )}
 
       {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
         <p className="text-xs text-muted-foreground italic border-l-2 border-primary/30 pl-2">
