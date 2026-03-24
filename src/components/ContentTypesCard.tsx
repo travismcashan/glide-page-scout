@@ -67,7 +67,9 @@ function sourceBadge(source: string) {
 function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number }) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? urls : urls.slice(0, 2);
-  const hasMore = totalUrls > 2;
+  const hasMore = urls.length > 2 || totalUrls > 2;
+  const hiddenInArray = urls.length - 2;
+  const hiddenTotal = totalUrls - urls.length;
 
   return (
     <TooltipProvider>
@@ -84,17 +86,28 @@ function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number
             </TooltipContent>
           </Tooltip>
         ))}
-        {hasMore && (
+        {hasMore && !expanded && (
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => setExpanded(true)}
             className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-0.5 cursor-pointer bg-transparent border-none p-0"
           >
-            {expanded ? (
-              <>Show less <ChevronUp className="h-3 w-3" /></>
-            ) : (
-              <>+{totalUrls - 2} more <ChevronDown className="h-3 w-3" /></>
-            )}
+            +{hiddenInArray > 0 ? hiddenInArray : totalUrls - 2} more <ChevronDown className="h-3 w-3" />
           </button>
+        )}
+        {expanded && (
+          <>
+            {hiddenTotal > 0 && (
+              <span className="text-[10px] text-muted-foreground mt-0.5">
+                Showing {urls.length} of {totalUrls} URLs
+              </span>
+            )}
+            <button
+              onClick={() => setExpanded(false)}
+              className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-0.5 cursor-pointer bg-transparent border-none p-0"
+            >
+              Show less <ChevronUp className="h-3 w-3" />
+            </button>
+          </>
         )}
       </div>
     </TooltipProvider>
