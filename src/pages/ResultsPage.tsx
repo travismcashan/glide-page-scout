@@ -41,9 +41,10 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 
-/** Always show all integrations — paused ones appear collapsed with a toggle */
-function shouldShowIntegration(_key: string, _hasData: boolean): boolean {
-  return true;
+/** Show integration if it has data, is active, or user toggled "Show All" */
+function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean): boolean {
+  if (showAll) return true;
+  return hasData || !isIntegrationPaused(key);
 }
 import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
