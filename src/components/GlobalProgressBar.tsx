@@ -44,14 +44,14 @@ export function GlobalProgressBar({ steps }: Props) {
   return (
     <div className="border-b border-border bg-muted/30 relative">
       {/* Progress bar track */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-border">
+      <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-border">
         <div
           className="h-full bg-primary transition-all duration-700 ease-out"
           style={{ width: `${percent}%` }}
         />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-2 flex items-center gap-4">
+      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-4">
         {/* Status text */}
         <div className="flex items-center gap-2 shrink-0">
           {allDone ? (
@@ -87,12 +87,6 @@ export function GlobalProgressBar({ steps }: Props) {
           ))}
         </div>
 
-        {/* Current step label */}
-        {currentStep && !allDone && (
-          <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">
-            {currentStep.label}…
-          </span>
-        )}
       </div>
     </div>
   );
