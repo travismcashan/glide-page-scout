@@ -267,7 +267,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
               {/* Expanded content */}
               {isExpanded && (
-                <div className="border-t border-border/50 bg-card py-1">
+                <div>
                   <ExpandableUrlRows
                     urls={displayUrls}
                     allTypes={allTypes}
