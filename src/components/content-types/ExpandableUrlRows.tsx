@@ -28,17 +28,13 @@ interface ExpandableUrlRowsProps {
 }
 
 export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
-  const INITIAL = 5;
-  const STEP = 10;
-  const [visibleCount, setVisibleCount] = useState(INITIAL);
-  const visible = urls.slice(0, visibleCount);
-  const hasMore = visibleCount < urls.length;
-  const remaining = urls.length - visibleCount;
+  // Show all URLs in a scrollable container (max ~7 visible rows, 28px each = 196px)
+  const maxHeight = urls.length > 7 ? 196 : undefined;
 
   return (
     <TooltipProvider>
-      <div>
-        {visible.map((item) => {
+      <div style={maxHeight ? { maxHeight: `${maxHeight}px`, overflowY: 'auto' } : undefined}>
+        {urls.map((item) => {
           let pathname: string;
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
           const pageTag = getPageTag(pageTags, item.url);
@@ -107,26 +103,6 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
             </div>
           );
         })}
-        {urls.length > INITIAL && (
-          <div className="flex items-center gap-3 px-3 py-0.5">
-            {hasMore && (
-              <button
-                onClick={() => setVisibleCount(urls.length)}
-                className="text-[10px] text-primary hover:underline flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
-              >
-                Show all ({urls.length}) <ChevronDown className="h-3 w-3" />
-              </button>
-            )}
-            {visibleCount > INITIAL && (
-              <button
-                onClick={() => setVisibleCount(INITIAL)}
-                className="text-[10px] text-primary hover:underline flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
-              >
-                Show less <ChevronUp className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </TooltipProvider>
   );
