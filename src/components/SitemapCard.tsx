@@ -1,6 +1,16 @@
-import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
+import { PageTemplateBadge } from '@/components/PageTemplateBadge';
+import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
+
+const baseTypeStyles: Record<string, string> = {
+  Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  Post: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  CPT: 'bg-violet-500/10 text-violet-600 border-violet-500/30',
+  Archive: 'bg-sky-500/10 text-sky-600 border-sky-500/30',
+  Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
+};
 
 type SitemapGroup = {
   sitemapUrl: string;
@@ -20,9 +30,11 @@ type SitemapData = {
 type Props = {
   data: SitemapData;
   globalInnerExpand?: boolean | null;
+  pageTags?: PageTagsMap | null;
+  onPageTagChange?: (url: string, template: string) => void;
 };
 
-export function SitemapCard({ data, globalInnerExpand = null }: Props) {
+export function SitemapCard({ data, globalInnerExpand = null, pageTags, onPageTagChange }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -72,10 +84,11 @@ export function SitemapCard({ data, globalInnerExpand = null }: Props) {
 
       {/* Sitemap tree */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Sticky column header — matches NavStructureCard / UrlDiscoveryCard */}
         <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
-          <span className="flex-1 text-xs font-medium text-muted-foreground">Sitemap</span>
-          <span className="w-[80px] text-center text-xs font-medium text-muted-foreground">Label</span>
-          <span className="w-[70px] text-right text-xs font-medium text-muted-foreground">URLs</span>
+          <span className="flex-1 text-xs font-medium text-muted-foreground">URL</span>
+          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
+          <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
         </div>
         {groups.map((group) => {
           const isExpanded = expandedGroups.has(group.sitemapUrl);
@@ -88,33 +101,55 @@ export function SitemapCard({ data, globalInnerExpand = null }: Props) {
           })();
 
           return (
-            <div key={group.sitemapUrl} className="border-b border-border last:border-0">
+            <div key={group.sitemapUrl}>
+              {/* Collapsible section header — matches NavStructureCard sections */}
               <button
                 onClick={() => toggleGroup(group.sitemapUrl)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
               >
-                {isExpanded ? (
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                )}
+                {isExpanded
+                  ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                }
                 <span className="text-xs font-semibold text-foreground flex-1 truncate">{filename}</span>
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{group.urls.length}</Badge>
               </button>
               {isExpanded && (
-                <div className="max-h-[200px] overflow-y-auto border-t border-border bg-card">
-                  {group.urls.map((url) => (
-                    <a
-                      key={url}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-6 py-1 text-xs font-mono leading-5 text-muted-foreground hover:text-primary hover:underline hover:bg-muted/20 transition-colors border-t border-border/50 first:border-t-0"
-                    >
-                      <span className="truncate flex-1">{url}</span>
-                      <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100" />
-                    </a>
-                  ))}
+                <div className="max-h-[200px] overflow-y-auto bg-card">
+                  {group.urls.map((url) => {
+                    const pageTag = getPageTag(pageTags, url);
+                    return (
+                      <div key={url} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors group">
+                        <div className="flex-1 min-w-0">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-mono leading-5 truncate block text-muted-foreground hover:text-primary hover:underline"
+                          >
+                            {url}
+                          </a>
+                        </div>
+                        <div className="flex items-center gap-0 shrink-0">
+                          <span className="w-[70px] flex justify-center">
+                            {pageTag?.baseType && (
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[pageTag.baseType] || ''}`}>
+                                {pageTag.baseType}
+                              </Badge>
+                            )}
+                          </span>
+                          <span className="w-[120px] flex justify-center">
+                            <PageTemplateBadge
+                              tag={pageTag}
+                              onChange={onPageTagChange ? (t) => onPageTagChange(url, t) : undefined}
+                              readOnly={!onPageTagChange}
+                              hideBaseType
+                            />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
