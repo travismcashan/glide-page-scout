@@ -1250,6 +1250,33 @@ export default function ResultsPage() {
         </div>
       </header>
 
+      {/* Global tagging progress banner */}
+      {session && !isSharedView && !(session as any).page_tags && effectiveDiscoveredUrls.length > 0 && (
+        <div className="border-b border-border bg-muted/40">
+          <div className="max-w-6xl mx-auto px-6 py-2.5 flex items-center gap-3">
+            {autoTagging ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Page tagging in progress</span>
+                  {' — '}classifying {effectiveDiscoveredUrls.length} URLs by template type…
+                </span>
+              </>
+            ) : !prerequisitesReady ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Waiting for prerequisites</span>
+                  {' — '}page tagging will start after
+                  {!contentTypesReady && !navReady ? ' content classification and nav extraction' : !contentTypesReady ? ' content classification' : ' nav extraction'}
+                  {' '}complete
+                </span>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         <Tabs defaultValue="raw-data" className="w-full">
           <TabsList className="w-full justify-start h-auto bg-transparent p-0 border-b border-border rounded-none pb-3 mb-6 gap-2">
