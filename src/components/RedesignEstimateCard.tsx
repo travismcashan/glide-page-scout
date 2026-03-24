@@ -16,6 +16,38 @@ interface Props {
   contentTypesData: ContentTypesData | null;
 }
 
+function TableSection({ title, columns, rows }: {
+  title: string;
+  columns: string[];
+  rows: { cells: React.ReactNode[] }[];
+}) {
+  return (
+    <div>
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{title}</h4>
+      <div className="border border-border rounded-md overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/50 text-left">
+              {columns.map((col, i) => (
+                <th key={col} className={`px-3 py-2 font-medium text-muted-foreground ${i > 0 ? 'text-right' : ''}`}>{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className="border-t border-border hover:bg-muted/30 transition-colors">
+                {row.cells.map((cell, j) => (
+                  <td key={j} className={`px-3 py-1.5 ${j === 0 ? 'font-medium text-foreground' : 'text-right text-muted-foreground'}`}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
   const { baseTypeCounts, templates, contentTypes, totalTemplates } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
@@ -37,11 +69,13 @@ export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
       .sort(([, a], [, b]) => b.count - a.count)
       .map(([name, data]) => ({ name, ...data }));
 
-    // Content types from content_types_data
-    const ctList: { type: string; count: number }[] = [];
+    // Content types: only Post and CPT (matching Repeating Content card)
+    const ctList: { type: string; count: number; baseType?: string }[] = [];
     if (contentTypesData?.summary) {
       for (const s of contentTypesData.summary) {
-        ctList.push({ type: s.type, count: s.count });
+        if (s.baseType === 'Post' || s.baseType === 'CPT') {
+          ctList.push({ type: s.type, count: s.count, baseType: s.baseType });
+        }
       }
     }
 
@@ -70,71 +104,46 @@ export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
       </div>
 
       {/* Level 1 — Base Types */}
-      <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Level 1 — Base Types</h4>
-        <div className="flex flex-wrap gap-2">
-          {baseTypeCounts.map(([type, count]) => (
-            <Badge key={type} variant="outline" className={`${baseTypeColors[type] || ''} text-sm px-3 py-1`}>
-              {type} <span className="ml-1.5 font-bold">{count}</span>
-            </Badge>
-          ))}
-        </div>
-      </div>
+      <TableSection
+        title="Level 1 — Base Types"
+        columns={['Type', 'URLs']}
+        rows={baseTypeCounts.map(([type, count]) => ({
+          cells: [
+            <span className="flex items-center gap-2">
+              <Badge variant="outline" className={`${baseTypeColors[type] || ''} text-[10px] px-1.5 py-0`}>{type}</Badge>
+              {type}
+            </span>,
+            count,
+          ],
+        }))}
+      />
 
       {/* Level 2 — Unique Templates */}
-      <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Level 2 — Unique Templates ({totalTemplates})</h4>
-        <div className="border border-border rounded-md overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 text-left">
-                <th className="px-3 py-2 font-medium text-muted-foreground">Template</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground text-right">Type</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground text-right">URLs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((t) => (
-                <tr key={t.name} className="border-t border-border hover:bg-muted/30 transition-colors">
-                  <td className="px-3 py-1.5 font-medium text-foreground">{t.name}</td>
-                  <td className="px-3 py-1.5 text-right">
-                    {t.baseType && (
-                      <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>
-                        {t.baseType}
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="px-3 py-1.5 text-right text-muted-foreground">{t.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TableSection
+        title={`Level 2 — Unique Templates (${totalTemplates})`}
+        columns={['Template', 'Type', 'URLs']}
+        rows={templates.map((t) => ({
+          cells: [
+            t.name,
+            t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null,
+            t.count,
+          ],
+        }))}
+      />
 
-      {/* Level 3 — Content Types */}
+      {/* Level 3 — Repeating Content Types (Post & CPT only) */}
       {contentTypes.length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Level 3 — Content Types ({contentTypes.length})</h4>
-          <div className="border border-border rounded-md overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted/50 text-left">
-                  <th className="px-3 py-2 font-medium text-muted-foreground">Content Type</th>
-                  <th className="px-3 py-2 font-medium text-muted-foreground text-right">URLs</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contentTypes.map((ct) => (
-                  <tr key={ct.type} className="border-t border-border hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-1.5 font-medium text-foreground">{ct.type}</td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground">{ct.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TableSection
+          title={`Level 3 — Repeating Content (${contentTypes.length})`}
+          columns={['Content Type', 'Type', 'URLs']}
+          rows={contentTypes.map((ct) => ({
+            cells: [
+              ct.type,
+              ct.baseType ? <Badge variant="outline" className={`${baseTypeColors[ct.baseType] || ''} text-[10px] px-1.5 py-0`}>{ct.baseType}</Badge> : null,
+              ct.count,
+            ],
+          }))}
+        />
       )}
     </div>
   );
