@@ -912,6 +912,7 @@ export default function ResultsPage() {
     { key: 'sitemap', dbColumn: 'sitemap_data' },
     { key: 'builtwith', dbColumn: 'builtwith_data' },
     { key: 'wappalyzer', dbColumn: 'wappalyzer_data' },
+    { key: 'detectzestack', dbColumn: 'detectzestack_data' },
     { key: 'gtmetrix', dbColumn: 'gtmetrix_grade' },
     { key: 'psi', dbColumn: 'psi_data' },
     { key: 'crux', dbColumn: 'crux_data' },
@@ -952,6 +953,7 @@ export default function ResultsPage() {
     setSemrushFailed(false); setSemrushLoading(false);
     setPsiFailed(false); setPsiLoading(false);
     setWappalyzerFailed(false); setWappalyzerLoading(false);
+    setDetectzestackFailed(false); setDetectzestackLoading(false);
     setGtmetrixFailed(false); setRunningGtmetrix(false);
     setCarbonFailed(false); setCarbonLoading(false);
     setCruxFailed(false); setCruxNoData(false); setCruxLoading(false);
@@ -987,7 +989,7 @@ export default function ResultsPage() {
   const prevLoadingRef = useRef<Record<string, boolean>>({});
   const loadingMap: Record<string, boolean> = {
     builtwith: builtwithLoading, semrush: semrushLoading, psi: psiLoading,
-    wappalyzer: wappalyzerLoading, carbon: carbonLoading, crux: cruxLoading,
+    wappalyzer: wappalyzerLoading, detectzestack: detectzestackLoading, carbon: carbonLoading, crux: cruxLoading,
     wave: waveLoading, observatory: observatoryLoading, ocean: oceanLoading,
     ssllabs: ssllabsLoading, httpstatus: httpstatusLoading, w3c: w3cLoading,
     schema: schemaLoading, readable: readableLoading, yellowlab: yellowlabLoading,
