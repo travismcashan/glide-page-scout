@@ -94,7 +94,7 @@ baseType definitions:
 - **Page**: One-off pages with unique designs (Homepage, About, Pricing, Contact, etc.)
 - **Post**: Blog/news articles in a date-based feed
 - **CPT**: Custom Post Type detail pages — repeating template with 3+ similar URLs (case studies, team members, products)
-- **Archive**: List/index/category pages that aggregate other pages
+- **Archive**: List/index/category pages that aggregate other pages. **IMPORTANT: Taxonomy pages like /tag/*, /author/*, /category/*, /topics/* are ALWAYS Archive, never CPT.** These are WordPress taxonomy term archives that list posts filtered by a term.
 - **Search**: Site search results pages
 
 ${industryInstruction}
