@@ -146,7 +146,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
                   {navBadgeLabel[type]}
                 </Badge>
               ))}
-              <span className="text-sm font-mono truncate text-muted-foreground flex-1">{url}</span>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-mono truncate text-muted-foreground flex-1 hover:text-primary hover:underline">{url}</a>
             </div>
           );
         })}
