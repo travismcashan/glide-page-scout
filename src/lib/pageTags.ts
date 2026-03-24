@@ -48,34 +48,54 @@ export function getTemplateCategory(template: string): TemplateCategory {
   return 'custom';
 }
 
-/** All known template names, grouped by category */
-export const TEMPLATE_OPTIONS: { category: TemplateCategory; label: string; templates: string[] }[] = [
-  {
-    category: 'custom',
-    label: 'Custom Pages',
-    templates: [...CUSTOM_TEMPLATES].sort(),
-  },
-  {
-    category: 'template',
-    label: 'Template Pages',
-    templates: [
-      'Blog List', 'Blog Detail',
-      'Case Study List', 'Case Study Detail',
-      'Resource List', 'Resource Detail',
-      'News List', 'News Detail',
-      'Event List', 'Event Detail',
-      'Career List', 'Career Detail',
-      'Portfolio List', 'Portfolio Detail',
-      'Guide List', 'Guide Detail',
-      'Docs List', 'Docs Detail',
-    ],
-  },
-  {
-    category: 'toolkit',
-    label: 'Toolkit Pages',
-    templates: [...TOOLKIT_TEMPLATES].sort(),
-  },
-];
+// ── Runtime custom templates (persist for session) ──
+
+const runtimeCustom: string[] = [];
+const runtimeTemplate: string[] = [];
+const runtimeToolkit: string[] = [];
+
+export function addCustomTemplate(name: string, category: TemplateCategory) {
+  const target = category === 'custom' ? runtimeCustom : category === 'template' ? runtimeTemplate : runtimeToolkit;
+  if (!target.includes(name)) target.push(name);
+  // Also register for category detection
+  const set = category === 'custom' ? CUSTOM_TEMPLATES : category === 'template' ? TEMPLATE_TEMPLATES : TOOLKIT_TEMPLATES;
+  set.add(name);
+}
+
+/** All known template names, grouped by category (includes user-added) */
+export function getTemplateOptions(): { category: TemplateCategory; label: string; templates: string[] }[] {
+  return [
+    {
+      category: 'custom',
+      label: 'Custom Pages',
+      templates: [...new Set([...[...CUSTOM_TEMPLATES].sort(), ...runtimeCustom])],
+    },
+    {
+      category: 'template',
+      label: 'Template Pages',
+      templates: [...new Set([
+        'Blog List', 'Blog Detail',
+        'Case Study List', 'Case Study Detail',
+        'Resource List', 'Resource Detail',
+        'News List', 'News Detail',
+        'Event List', 'Event Detail',
+        'Career List', 'Career Detail',
+        'Portfolio List', 'Portfolio Detail',
+        'Guide List', 'Guide Detail',
+        'Docs List', 'Docs Detail',
+        ...runtimeTemplate,
+      ])],
+    },
+    {
+      category: 'toolkit',
+      label: 'Toolkit Pages',
+      templates: [...new Set([...[...TOOLKIT_TEMPLATES].sort(), ...runtimeToolkit])],
+    },
+  ];
+}
+
+/** @deprecated Use getTemplateOptions() instead */
+export const TEMPLATE_OPTIONS = getTemplateOptions();
 
 // ── URL normalization ──
 
