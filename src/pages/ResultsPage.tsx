@@ -39,7 +39,7 @@ import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 // ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
 import { ContentSectionCard } from '@/components/ContentSectionCard';
-import { isIntegrationPaused, loadPausedIntegrations } from '@/lib/integrationState';
+import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 
 /** Always show all integrations — paused ones appear collapsed with a toggle */
 function shouldShowIntegration(_key: string, _hasData: boolean): boolean {
