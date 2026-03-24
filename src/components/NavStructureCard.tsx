@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
-import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
+import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
 
 type NavItem = {
   label: string;

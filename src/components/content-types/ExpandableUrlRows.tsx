@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
-import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
+import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
 import type { ClassifiedUrl } from './types';
 
 export type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };

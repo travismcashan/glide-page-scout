@@ -9,7 +9,7 @@ import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
 import { CardTabs } from '@/components/CardTabs';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
-import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
+import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
 
 type LinkCheckResult = {
   url: string;
