@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ClassifiedUrl } from './types';
 
-type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
+export type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
 
 const navBadgeClass: Record<string, string> = {
   primary: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
@@ -61,6 +61,11 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
                   <p className="text-xs font-mono break-all">{item.url}</p>
                 </TooltipContent>
               </Tooltip>
+              {uniqueNavTypes.map((type) => (
+                <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
+                  {navBadgeLabel[type]}
+                </Badge>
+              ))}
               <a
                 href={item.url}
                 target="_blank"
