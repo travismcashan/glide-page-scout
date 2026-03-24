@@ -389,19 +389,18 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
 
     for (const url of urls) {
       const htmlSig = htmlSignals.get(url);
-      const aiResult = aiUrlMap.get(url);
+      const aiGroup = findAiGroup(url);
 
-      if (aiResult) {
-        // Use AI result, but boost confidence with HTML signal if matching
-        const conf = htmlSig ? 'high' : aiResult.confidence;
+      if (aiGroup) {
+        const conf = htmlSig ? 'high' : (aiGroup.confidence || 'medium');
         classified.push({
           url,
-          contentType: aiResult.cptName || aiResult.template,
-          confidence: conf,
+          contentType: aiGroup.cptName || aiGroup.template,
+          confidence: conf as 'high' | 'medium' | 'low',
           source: htmlSig ? htmlSig.source : 'ai',
-          baseType: aiResult.baseType,
-          template: aiResult.template,
-          cptName: aiResult.cptName,
+          baseType: aiGroup.baseType as BaseType,
+          template: aiGroup.template,
+          cptName: aiGroup.cptName,
         });
       } else if (htmlSig) {
         classified.push({
@@ -413,7 +412,6 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
           template: htmlSig.type,
         });
       } else {
-        // Unclassified — default to Page
         classified.push({
           url,
           contentType: 'Uncategorized',
