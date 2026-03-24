@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN IF NOT EXISTS forms_data jsonb DEFAULT NULL;
