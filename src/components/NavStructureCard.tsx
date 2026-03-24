@@ -153,7 +153,7 @@ function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }
       {items.length > 0 ? (
         <div className="border border-border rounded-lg p-2 bg-muted/20">
           {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} />
+            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       ) : emptyText ? (
