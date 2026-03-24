@@ -261,16 +261,16 @@ export function TechAnalysisCard({ data, isLoading }: Props) {
     <CardTabs
       tabs={[
         {
-          value: 'findings',
-          label: 'Findings',
-          icon: <TrendingUp className="h-3.5 w-3.5" />,
-          content: <FindingsTab findings={findings} techCount={techCount} sources={sources} />,
-        },
-        {
           value: 'scope',
-          label: 'Estimate Scope',
+          label: 'Estimated Scope',
           icon: <Wrench className="h-3.5 w-3.5" />,
           content: scope ? <ScopeTab scope={scope} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>,
+        },
+        {
+          value: 'findings',
+          label: 'Tech Analysis Findings',
+          icon: <TrendingUp className="h-3.5 w-3.5" />,
+          content: <FindingsTab findings={findings} techCount={techCount} sources={sources} />,
         },
       ]}
     />
