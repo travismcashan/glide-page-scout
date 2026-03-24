@@ -643,10 +643,8 @@ export default function ResultsPage() {
   const [linkcheckProgress, setLinkcheckProgress] = useState<{ checked: number; total: number } | null>(null);
   const [linkcheckStreamingResults, setLinkcheckStreamingResults] = useState<{ url: string; statusCode: number }[] | null>(null);
   const linkcheckRunningRef = useRef(false);
-  const lastLinkcheckKeyRef = useRef<string | null>(null);
   const linkcheckAbortRef = useRef<AbortController | null>(null);
   const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
-  const effectiveLinkcheckKey = session ? `${session.id}:${effectiveDiscoveredUrls.join('|')}` : null;
 
   const stopLinkcheck = useCallback(async () => {
     linkcheckAbortRef.current?.abort();
