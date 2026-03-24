@@ -94,11 +94,11 @@ Deno.serve(async (req) => {
 ### 1. Primary Navigation
 The main menu — usually the largest nav bar in the header. Contains the core pages and dropdowns (Services, About, Work, etc.). This is what most people think of as "the nav."
 
-### 2. Secondary Navigation (optional)
-A smaller utility bar that often appears ABOVE the primary nav. Common items: phone numbers, "Request a Quote", "Client Login", "Careers", location links, or quick-access utility links. Many sites don't have this — return an empty array if absent. Do NOT confuse CTA buttons within the primary nav (like "Contact Us" or "Get Started") with secondary nav.
+### 2. Secondary Navigation (optional, deduplicated)
+A smaller utility bar that often appears ABOVE the primary nav. Common items: phone numbers, "Request a Quote", "Client Login", "Careers", location links, or quick-access utility links. Many sites don't have this — return an empty array if absent. Do NOT confuse CTA buttons within the primary nav (like "Contact Us" or "Get Started") with secondary nav. IMPORTANT: Only include items whose URLs are NOT already present in the primary navigation.
 
 ### 3. Footer Navigation (deduplicated)
-Links found in the <footer> element. IMPORTANT: Only include footer links whose URLs are NOT already present in the primary or secondary navigation. If a footer link points to the same URL as a primary/secondary nav item, exclude it. This ensures the footer section only shows unique pages that aren't already represented above.
+Links found in the <footer> element. IMPORTANT: Only include footer links whose URLs are NOT already present in the primary OR secondary navigation. If a footer link points to the same URL as a primary/secondary nav item, exclude it. This ensures the footer section only shows unique pages that aren't already represented above.
 
 ## Rules
 - Preserve the exact hierarchy (parent → children → grandchildren)
