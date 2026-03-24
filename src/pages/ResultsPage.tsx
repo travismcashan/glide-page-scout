@@ -1234,8 +1234,8 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-6xl mx-auto space-y-3">
+      <header className="border-b border-border">
+        <div className="max-w-6xl mx-auto px-6 py-4 space-y-3">
           {/* Row 1: Large domain name + back button on the right */}
           <div className="flex items-center justify-between">
             <h1 className="text-[2rem] font-bold tracking-tight text-foreground leading-tight">
