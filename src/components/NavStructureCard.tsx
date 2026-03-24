@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop, Copy, FileText, Check, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,21 +34,13 @@ function itemsToMarkdown(items: NavItem[], depth: number = 0): string {
 
 function toMarkdown(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): string {
   const sections: string[] = [];
-
-  if (primary.length > 0) {
-    sections.push(`## Primary Navigation\n\n${itemsToMarkdown(primary)}`);
-  }
-
-  if (secondary.length > 0) {
-    sections.push(`## Secondary Navigation\n\n${itemsToMarkdown(secondary)}`);
-  }
-
+  if (primary.length > 0) sections.push(`## Primary Navigation\n\n${itemsToMarkdown(primary)}`);
+  if (secondary.length > 0) sections.push(`## Secondary Navigation\n\n${itemsToMarkdown(secondary)}`);
   if (footer.length > 0) {
     sections.push(`## Footer Navigation (unique pages)\n\n${itemsToMarkdown(footer)}`);
   } else {
     sections.push(`## Footer Navigation\n\n_No unique footer links — all footer items match the header navigation._`);
   }
-
   return `# Site Navigation Structure\n\n${sections.join('\n\n')}`;
 }
 
@@ -67,25 +59,58 @@ function itemsToHtml(items: NavItem[], depth: number = 0): string {
 
 function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): string {
   const sections: string[] = [];
-
-  if (primary.length > 0) {
-    sections.push(`<h3>Primary Navigation</h3><ul>${itemsToHtml(primary)}</ul>`);
-  }
-
-  if (secondary.length > 0) {
-    sections.push(`<h3>Secondary Navigation</h3><ul>${itemsToHtml(secondary)}</ul>`);
-  }
-
+  if (primary.length > 0) sections.push(`<h3>Primary Navigation</h3><ul>${itemsToHtml(primary)}</ul>`);
+  if (secondary.length > 0) sections.push(`<h3>Secondary Navigation</h3><ul>${itemsToHtml(secondary)}</ul>`);
   if (footer.length > 0) {
     sections.push(`<h3>Footer Navigation (unique pages)</h3><ul>${itemsToHtml(footer)}</ul>`);
   } else {
     sections.push(`<h3>Footer Navigation</h3><p><em>No unique footer links — all footer items match the header navigation.</em></p>`);
   }
-
   return `<h2>Site Navigation Structure</h2>${sections.join('')}`;
 }
 
-// ── Components ──
+// ── Infer nesting for flat section headers ──
+// When a no-URL, no-children item (section header) is followed by flat items,
+// group those items as children of the header.
+
+function inferNesting(items: NavItem[]): NavItem[] {
+  const result: NavItem[] = [];
+  let currentHeader: NavItem | null = null;
+  let collecting: NavItem[] = [];
+
+  const flush = () => {
+    if (currentHeader && collecting.length > 0) {
+      result.push({ ...currentHeader, children: [...(currentHeader.children || []), ...collecting] });
+    } else if (currentHeader) {
+      result.push(currentHeader);
+    }
+    currentHeader = null;
+    collecting = [];
+  };
+
+  for (const item of items) {
+    const isHeader = !item.url && (!item.children || item.children.length === 0);
+    if (isHeader) {
+      flush();
+      currentHeader = item;
+    } else if (currentHeader) {
+      collecting.push(item);
+    } else {
+      result.push({
+        ...item,
+        children: item.children ? inferNesting(item.children) : undefined,
+      });
+    }
+  }
+  flush();
+
+  return result.map(item => ({
+    ...item,
+    children: item.children ? inferNesting(item.children) : undefined,
+  }));
+}
+
+// ── Tree rendering ──
 
 function buildTreePrefix(parentLines: boolean[], isLast: boolean, isFirst: boolean): string {
   let prefix = '';
@@ -93,7 +118,6 @@ function buildTreePrefix(parentLines: boolean[], isLast: boolean, isFirst: boole
     prefix += showLine ? '│   ' : '    ';
   }
   if (isFirst && parentLines.length === 0) {
-    // First root item: no vertical above, just horizontal down
     prefix += isLast ? '─── ' : '┌── ';
   } else {
     prefix += isLast ? '└── ' : '├── ';
@@ -101,24 +125,27 @@ function buildTreePrefix(parentLines: boolean[], isLast: boolean, isFirst: boole
   return prefix;
 }
 
-function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentLines = [], pageTags, onPageTagChange }: { item: NavItem; depth?: number; isLast?: boolean; isFirst?: boolean; parentLines?: boolean[]; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
-  const [expanded, setExpanded] = useState(depth < 2);
+function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentLines = [], globalExpand, pageTags, onPageTagChange }: {
+  item: NavItem; depth?: number; isLast?: boolean; isFirst?: boolean; parentLines?: boolean[];
+  globalExpand?: boolean | null; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void;
+}) {
+  const defaultExpanded = depth < 2;
+  const [localToggle, setLocalToggle] = useState<boolean | null>(null);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
   const isBold = depth === 0 || hasChildren || !item.url;
 
+  const expanded = globalExpand !== null && globalExpand !== undefined ? globalExpand : localToggle !== null ? localToggle : defaultExpanded;
+
   return (
     <div>
-      <div
-        className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
-      >
-        {/* Tree prefix using monospace box-drawing characters */}
+      <div className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group">
         <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
           {buildTreePrefix(parentLines, isLast, isFirst)}
         </span>
 
         {hasChildren ? (
-          <button onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
+          <button onClick={() => setLocalToggle(prev => !(prev ?? expanded))} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
         ) : null}
@@ -157,6 +184,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
               depth={depth + 1}
               isLast={idx === item.children!.length - 1}
               parentLines={[...parentLines, !isLast]}
+              globalExpand={globalExpand}
               pageTags={pageTags}
               onPageTagChange={onPageTagChange}
             />
@@ -167,7 +195,10 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
   );
 }
 
-function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
+function NavSection({ title, icon, items, emptyText, globalExpand, pageTags, onPageTagChange }: {
+  title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string;
+  globalExpand?: boolean | null; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void;
+}) {
   if (!items.length && !emptyText) return null;
 
   return (
@@ -180,7 +211,7 @@ function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }
       {items.length > 0 ? (
         <div className="border border-border rounded-lg p-2 bg-muted/20">
           {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            <NavTreeItem key={`${item.label}-${idx}-${globalExpand}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       ) : emptyText ? (
@@ -201,9 +232,16 @@ function countLinks(items: NavItem[]): number {
 
 export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
   const [copiedFormat, setCopiedFormat] = useState<'md' | 'rich' | null>(null);
-  const primary = data.primary || data.items || [];
-  const secondary = data.secondary || [];
-  const footer = data.footer || [];
+  const [globalExpand, setGlobalExpand] = useState<boolean | null>(null);
+
+  const rawPrimary = data.primary || data.items || [];
+  const rawSecondary = data.secondary || [];
+  const rawFooter = data.footer || [];
+
+  // Infer nesting for flat section headers
+  const primary = inferNesting(rawPrimary);
+  const secondary = inferNesting(rawSecondary);
+  const footer = inferNesting(rawFooter);
 
   if (!primary.length && !secondary.length && !footer.length) {
     return <p className="text-sm text-muted-foreground">No navigation structure detected.</p>;
@@ -233,7 +271,6 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
       toast.success('Rich text copied — paste into Word or Google Docs');
       setTimeout(() => setCopiedFormat(null), 2000);
     } catch {
-      // Fallback for browsers that don't support ClipboardItem
       await navigator.clipboard.writeText(plainText);
       setCopiedFormat('md');
       toast.success('Copied as plain text (rich text not supported in this browser)');
@@ -251,6 +288,14 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
           {footer.length > 0 && <span>· {countLinks(footer)} footer-only</span>}
         </div>
         <div className="flex items-center gap-1.5">
+          <Button variant="ghost" size="sm" onClick={() => setGlobalExpand(true)} className="h-7 text-xs gap-1 px-2">
+            <ChevronsUpDown className="h-3 w-3" />
+            Expand
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setGlobalExpand(false)} className="h-7 text-xs gap-1 px-2">
+            <ChevronsDownUp className="h-3 w-3" />
+            Collapse
+          </Button>
           <Button variant="outline" size="sm" onClick={copyMarkdown} className="h-7 text-xs gap-1.5">
             {copiedFormat === 'md' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             Markdown
@@ -262,10 +307,10 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
         </div>
       </div>
 
-      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
 
       {secondary.length > 0 && (
-        <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+        <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
       )}
 
       <NavSection
@@ -273,9 +318,9 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
         icon={<Menu className="h-3.5 w-3.5 text-muted-foreground" />}
         items={footer}
         emptyText="No unique footer links — all footer items match the header navigation."
+        globalExpand={globalExpand}
         pageTags={pageTags}
         onPageTagChange={onPageTagChange}
-       
       />
     </div>
   );
