@@ -1217,7 +1217,8 @@ export default function ResultsPage() {
           (session && (session as any)?.page_tags) ||
           shouldShowIntegration('content-types', !!(session as any)?.content_types_data) ||
           shouldShowIntegration('content', pages.length > 0) ||
-          shouldShowIntegration('readable', !!(session as any)?.readable_data)
+          shouldShowIntegration('readable', !!(session as any)?.readable_data) ||
+          shouldShowIntegration('forms', !!(session as any)?.forms_data)
         ) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Content Analysis</h2>
