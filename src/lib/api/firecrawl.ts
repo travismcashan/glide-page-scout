@@ -548,3 +548,20 @@ export const contentTypesApi = {
     return data;
   },
 };
+
+export const autoTagPagesApi = {
+  async classify(urls: string[], domain: string, homepageContent?: string, navStructure?: any): Promise<{
+    success: boolean;
+    industry?: string;
+    industryConfidence?: string;
+    pages?: { url: string; template: string }[];
+    presetTemplates?: string[];
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('auto-tag-pages', {
+      body: { urls, domain, homepageContent, navStructure },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
