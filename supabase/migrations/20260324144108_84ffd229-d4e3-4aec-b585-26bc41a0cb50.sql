@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN IF NOT EXISTS sitemap_data jsonb;

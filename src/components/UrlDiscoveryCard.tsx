@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Globe, RefreshCw, Loader2, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { firecrawlApi, sitemapApi } from '@/lib/api/firecrawl';
+import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
 import { CardTabs } from '@/components/CardTabs';
@@ -66,6 +66,7 @@ type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
   onSitemapHints?: (hints: { label: string; urls: string[] }[]) => void;
+  sitemapUrls?: string[] | null;
   linkCheckResults?: LinkCheckResult[] | null;
   linkCheckStreaming?: LinkCheckResult[] | null;
   linkCheckLoading?: boolean;
@@ -168,7 +169,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist, pageTags, onPageTagChange }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, sitemapUrls, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist, pageTags, onPageTagChange }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -230,21 +231,14 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, li
     setIsMapping(true);
 
     try {
-      // Run Firecrawl map and sitemap parse in parallel
-      const [mapResult, sitemapResult] = await Promise.all([
-        firecrawlApi.map(baseUrl),
-        sitemapApi.parse(baseUrl).catch(() => ({ success: false } as any)),
-      ]);
+      // Run Firecrawl map (sitemap is now a separate integration)
+      const mapResult = await firecrawlApi.map(baseUrl);
 
       const rawLinks: string[] = mapResult.links || mapResult.data?.links || [];
-      const sitemapUrls: string[] = sitemapResult?.success && sitemapResult?.found ? (sitemapResult.urls || []) : [];
+      // Merge sitemap URLs from the standalone sitemap integration
+      const extraSitemapUrls: string[] = sitemapUrls || [];
 
-      // Pass sitemap content type hints upstream
-      if (sitemapResult?.success && sitemapResult?.contentTypeHints?.length > 0) {
-        onSitemapHints?.(sitemapResult.contentTypeHints);
-      }
-
-      const combined = [...rawLinks, ...sitemapUrls];
+      const combined = [...rawLinks, ...extraSitemapUrls];
 
       if (!combined.length) {
         toast.error('No pages found on this site');
@@ -264,7 +258,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, li
       }
 
       const links = Array.from(seen.values());
-      const sitemapExtra = sitemapUrls.length > 0 ? ` (${sitemapUrls.length} from sitemap)` : '';
+      const sitemapExtra = extraSitemapUrls.length > 0 ? ` (${extraSitemapUrls.length} from sitemap)` : '';
       toast.success(`Found ${links.length} pages${sitemapExtra}`);
       setAllUrls(links);
       setDiscoveryDone(true);

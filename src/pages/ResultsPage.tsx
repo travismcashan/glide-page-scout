@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation } from 'lucide-react';
+import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi } from '@/lib/api/firecrawl';
@@ -45,6 +45,7 @@ import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
+import { SitemapCard } from '@/components/SitemapCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -98,6 +99,7 @@ type CrawlSession = {
   observations_data: any | null;
   content_types_data: any | null;
   page_tags: PageTagsMap | null;
+  sitemap_data: any | null;
 };
 
 
@@ -604,6 +606,33 @@ export default function ResultsPage() {
     }).catch((e) => { setNavFailed(true); setError('nav-structure', e?.message || 'Nav structure request failed'); setNavLoading(false); });
   }, [session, navLoading, navFailed, fetchData]);
 
+  // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
+  const [sitemapLoading, setSitemapLoading] = useState(false);
+  const [sitemapFailed, setSitemapFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
+    setSitemapLoading(true);
+    sitemapApi.parse(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ sitemap_data: result } as any).eq('id', session.id);
+        clearError('sitemap');
+        // Feed sitemap hints upstream
+        if (result.contentTypeHints?.length) {
+          setSitemapHints(result.contentTypeHints);
+        }
+        fetchData();
+      } else { setSitemapFailed(true); setError('sitemap', result.error || 'Sitemap parsing failed'); }
+      setSitemapLoading(false);
+    }).catch((e) => { setSitemapFailed(true); setError('sitemap', e?.message || 'Sitemap parsing request failed'); setSitemapLoading(false); });
+  }, [session, sitemapLoading, sitemapFailed, fetchData]);
+
+  // Hydrate sitemapHints from persisted sitemap_data on load
+  useEffect(() => {
+    if (session?.sitemap_data?.contentTypeHints?.length && sitemapHints.length === 0) {
+      setSitemapHints(session.sitemap_data.contentTypeHints);
+    }
+  }, [session?.sitemap_data]);
+
   // Content Types classification (auto-run after URL discovery)
   const [contentTypesLoading, setContentTypesLoading] = useState(false);
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
@@ -774,6 +803,7 @@ export default function ResultsPage() {
       'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null; },
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
+      'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
@@ -781,6 +811,7 @@ export default function ResultsPage() {
   }, [session, fetchData]);
 
   const integrationList: { key: string; dbColumn: string }[] = [
+    { key: 'sitemap', dbColumn: 'sitemap_data' },
     { key: 'builtwith', dbColumn: 'builtwith_data' },
     { key: 'wappalyzer', dbColumn: 'wappalyzer_data' },
     { key: 'gtmetrix', dbColumn: 'gtmetrix_grade' },
@@ -838,6 +869,7 @@ export default function ResultsPage() {
     setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null;
     setAvomaFailed(false); setAvomaLoading(false);
     setNavFailed(false); setNavLoading(false);
+    setSitemapFailed(false); setSitemapLoading(false);
     await fetchData();
     setRerunningAll(false);
     toast.success('Re-running all integrations');
@@ -1107,15 +1139,21 @@ export default function ResultsPage() {
               )}
 
         {/* ══════ 📄 Content & Scraping ══════ */}
-        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('content-types', !!(session as any)?.content_types_data) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
+        {((shouldShowIntegration('sitemap', !!session?.sitemap_data) && session) || (shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('content-types', !!(session as any)?.content_types_data) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">📄 Content & Scraping</h2>
             <div className="space-y-6">
+              {session && shouldShowIntegration('sitemap', !!session.sitemap_data) && (
+                <SectionCard collapsed={allCollapsed} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={rerunButton('sitemap', 'sitemap_data', sitemapLoading)}>
+                  {session.sitemap_data ? <SitemapCard data={session.sitemap_data} /> : null}
+                </SectionCard>
+              )}
               {session && shouldShowIntegration('url-discovery', !!session.discovered_urls) && (
                 <UrlDiscoveryCard
                   baseUrl={session.base_url}
                   onUrlsDiscovered={setDiscoveredUrls}
                   onSitemapHints={setSitemapHints}
+                  sitemapUrls={session.sitemap_data?.urls || null}
                   linkCheckResults={session.linkcheck_data?.results || null}
                   linkCheckStreaming={linkcheckStreamingResults}
                   linkCheckLoading={linkcheckLoading}
