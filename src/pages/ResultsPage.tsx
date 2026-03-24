@@ -611,7 +611,7 @@ export default function ResultsPage() {
     if (!session || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
     setContentTypesLoading(true);
-    contentTypesApi.classify(effectiveDiscoveredUrls, session.base_url).then(async (result) => {
+    contentTypesApi.classify(effectiveDiscoveredUrls, session.base_url, sitemapHints.length > 0 ? sitemapHints : undefined).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
         clearError('content-types');
@@ -1111,6 +1111,7 @@ export default function ResultsPage() {
                 <UrlDiscoveryCard
                   baseUrl={session.base_url}
                   onUrlsDiscovered={setDiscoveredUrls}
+                  onSitemapHints={setSitemapHints}
                   linkCheckResults={session.linkcheck_data?.results || null}
                   linkCheckStreaming={linkcheckStreamingResults}
                   linkCheckLoading={linkcheckLoading}
