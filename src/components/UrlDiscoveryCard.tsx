@@ -231,21 +231,14 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
     setIsMapping(true);
 
     try {
-      // Run Firecrawl map and sitemap parse in parallel
-      const [mapResult, sitemapResult] = await Promise.all([
-        firecrawlApi.map(baseUrl),
-        sitemapApi.parse(baseUrl).catch(() => ({ success: false } as any)),
-      ]);
+      // Run Firecrawl map (sitemap is now a separate integration)
+      const mapResult = await firecrawlApi.map(baseUrl);
 
       const rawLinks: string[] = mapResult.links || mapResult.data?.links || [];
-      const sitemapUrls: string[] = sitemapResult?.success && sitemapResult?.found ? (sitemapResult.urls || []) : [];
+      // Merge sitemap URLs from the standalone sitemap integration
+      const extraSitemapUrls: string[] = sitemapUrls || [];
 
-      // Pass sitemap content type hints upstream
-      if (sitemapResult?.success && sitemapResult?.contentTypeHints?.length > 0) {
-        onSitemapHints?.(sitemapResult.contentTypeHints);
-      }
-
-      const combined = [...rawLinks, ...sitemapUrls];
+      const combined = [...rawLinks, ...extraSitemapUrls];
 
       if (!combined.length) {
         toast.error('No pages found on this site');
@@ -265,7 +258,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
       }
 
       const links = Array.from(seen.values());
-      const sitemapExtra = sitemapUrls.length > 0 ? ` (${sitemapUrls.length} from sitemap)` : '';
+      const sitemapExtra = extraSitemapUrls.length > 0 ? ` (${extraSitemapUrls.length} from sitemap)` : '';
       toast.success(`Found ${links.length} pages${sitemapExtra}`);
       setAllUrls(links);
       setDiscoveryDone(true);
