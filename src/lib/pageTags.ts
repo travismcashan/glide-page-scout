@@ -96,36 +96,36 @@ const LIST_PATTERNS = [
   /^\/documentation\/?$/i,
 ];
 
-const CUSTOM_PATTERNS = [
-  /^\/?$/,                    // homepage
-  /^\/about\/?$/i,
-  /^\/pricing\/?$/i,
-  /^\/contact\/?$/i,
-  /^\/demo\/?$/i,
-  /^\/services?\/?$/i,
-  /^\/solutions?\/?$/i,
-  /^\/platform\/?$/i,
-  /^\/product\/?$/i,
-  /^\/features?\/?$/i,
-  /^\/how-it-works\/?$/i,
-  /^\/why-.*\/?$/i,
-  /^\/partners?\/?$/i,
-  /^\/integrations?\/?$/i,
+const CUSTOM_PATTERNS: Array<[RegExp, string]> = [
+  [/^\/?$/, 'Homepage'],
+  [/^\/about\/?$/i, 'About'],
+  [/^\/pricing\/?$/i, 'Pricing'],
+  [/^\/contact\/?$/i, 'Contact'],
+  [/^\/demo\/?$/i, 'Demo'],
+  [/^\/services?\/?$/i, 'Services'],
+  [/^\/solutions?\/?$/i, 'Solutions'],
+  [/^\/platform\/?$/i, 'Platform'],
+  [/^\/product\/?$/i, 'Product'],
+  [/^\/features?\/?$/i, 'Features'],
+  [/^\/how-it-works\/?$/i, 'How It Works'],
+  [/^\/why-.*\/?$/i, 'Why Us'],
+  [/^\/partners?\/?$/i, 'Partners'],
+  [/^\/integrations?\/?$/i, 'Integrations'],
 ];
 
-const TOOLKIT_PATTERNS = [
-  /^\/privacy/i,
-  /^\/terms/i,
-  /^\/cookie/i,
-  /^\/legal/i,
-  /^\/disclaimer/i,
-  /^\/accessibility/i,
-  /^\/sitemap/i,
-  /^\/404/i,
-  /^\/search/i,
-  /^\/login/i,
-  /^\/signup/i,
-  /^\/register/i,
+const TOOLKIT_PATTERNS: Array<[RegExp, string]> = [
+  [/^\/privacy/i, 'Privacy Policy'],
+  [/^\/terms/i, 'Terms'],
+  [/^\/cookie/i, 'Cookie Policy'],
+  [/^\/legal/i, 'Legal'],
+  [/^\/disclaimer/i, 'Disclaimer'],
+  [/^\/accessibility/i, 'Accessibility'],
+  [/^\/sitemap/i, 'Sitemap'],
+  [/^\/404/i, '404'],
+  [/^\/search/i, 'Search'],
+  [/^\/login/i, 'Login'],
+  [/^\/signup/i, 'Sign Up'],
+  [/^\/register/i, 'Register'],
 ];
 
 /** Content type names that suggest template detail pages */
