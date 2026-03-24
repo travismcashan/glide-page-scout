@@ -214,7 +214,9 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
     if (tier === 'All') return 'All';
     const labels = { S: 'Small', M: 'Medium', L: 'Large' };
     const label = labels[tier as 'S' | 'M' | 'L'];
-    const count = aiTiers ? aiTiers[tier as 'S' | 'M' | 'L'].length : '…';
+    if (!aiTiers) return `${label} · … forms`;
+    const includedTypes = new Set(aiTiers[tier as 'S' | 'M' | 'L']);
+    const count = forms.filter(f => includedTypes.has(f.formType)).length;
     return `${label} · ${count} forms`;
   };
 
