@@ -128,17 +128,37 @@ export function ContentTypesCard({ data, onDataChange, navStructure }: { data: C
             </>
           )}
         </div>
-        {onDataChange && (
+        <div className="flex items-center gap-2">
           <Button
-            variant={mergeMode ? 'secondary' : 'outline'}
+            variant="outline"
             size="sm"
             className="text-xs h-7 gap-1"
-            onClick={() => { setMergeMode(!mergeMode); if (mergeMode) setSelected(new Set()); }}
+            onClick={() => {
+              if (expandedTypes.size === allTypes.length) {
+                setExpandedTypes(new Set());
+              } else {
+                setExpandedTypes(new Set(allTypes));
+              }
+            }}
           >
-            <Merge className="h-3 w-3" />
-            {mergeMode ? 'Cancel' : 'Merge Types'}
+            {expandedTypes.size === allTypes.length ? (
+              <><ChevronDown className="h-3 w-3" /> Collapse All</>
+            ) : (
+              <><ChevronRight className="h-3 w-3" /> Expand All</>
+            )}
           </Button>
-        )}
+          {onDataChange && (
+            <Button
+              variant={mergeMode ? 'secondary' : 'outline'}
+              size="sm"
+              className="text-xs h-7 gap-1"
+              onClick={() => { setMergeMode(!mergeMode); if (mergeMode) setSelected(new Set()); }}
+            >
+              <Merge className="h-3 w-3" />
+              {mergeMode ? 'Cancel' : 'Merge Types'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Merge action bar */}
