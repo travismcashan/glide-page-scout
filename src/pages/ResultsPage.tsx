@@ -1273,14 +1273,14 @@ export default function ResultsPage() {
             <TabsList className="h-auto bg-transparent p-0 rounded-none mb-0 gap-0">
               <TabsTrigger
                 value="raw-data"
-                className="relative text-base font-medium px-5 py-2.5 rounded-none rounded-t-md border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 data-[state=active]:font-bold text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+                className="relative text-base font-medium px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 data-[state=active]:font-bold text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
               >
                 <Globe className="h-4 w-4 mr-2" />
                 Results
               </TabsTrigger>
               <TabsTrigger
                 value="ai-research"
-                className="relative text-base font-medium px-5 py-2.5 rounded-none rounded-t-md border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 data-[state=active]:font-bold text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+                className="relative text-base font-medium px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 data-[state=active]:font-bold text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
               >
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
@@ -1288,7 +1288,7 @@ export default function ResultsPage() {
               {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
                 <TabsTrigger
                   value="avoma"
-                  className="relative text-base font-medium px-5 py-2.5 rounded-none rounded-t-md border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 data-[state=active]:font-bold text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+                  className="relative text-base font-medium px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 data-[state=active]:font-bold text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
                 >
                   <Phone className="h-4 w-4 mr-2" />
                   Avoma Calls
