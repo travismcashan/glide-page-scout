@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Loader2, Sparkles } from 'lucide-react';
+import { CardTabs } from '@/components/CardTabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { PageTagsMap } from '@/lib/pageTags';
@@ -274,6 +275,109 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     return tier === 'S' ? 'S (~5)' : tier === 'M' ? 'M (~10)' : 'L (~15)';
   };
 
+  const level1Content = (
+    <TableSection
+      title=""
+      columns={['Type', 'In Nav', 'URLs']}
+      colAligns={['left', 'center', 'right']}
+      rows={baseTypeCounts.map(([type, count]) => ({
+        cells: [type, '', count],
+      }))}
+    />
+  );
+
+  const level2Content = (
+    <div className="space-y-3">
+      <div className="flex items-center justify-end gap-2">
+        {aiLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        {!aiTiers && !aiLoading && (
+          <button
+            onClick={fetchAiRecommendations}
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+          >
+            <Sparkles className="h-3 w-3" />
+            AI Recommend
+          </button>
+        )}
+        {aiTiers && (
+          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Sparkles className="h-2.5 w-2.5" />
+            AI
+          </span>
+        )}
+        <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
+          {TIER_KEYS.map(tier => (
+            <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+              {tierLabel(tier)}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+
+      {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
+        <p className="text-xs text-muted-foreground italic border-l-2 border-primary/30 pl-2">
+          {aiTiers.reasoning}
+        </p>
+      )}
+
+      <div className="border border-border rounded-md overflow-hidden">
+        <table className="w-full text-sm table-fixed">
+          <thead>
+            <tr className="bg-muted/50 text-left">
+              <th className="px-3 py-2 font-medium text-muted-foreground w-10 text-center">Design</th>
+              <th className="px-3 py-2 font-medium text-muted-foreground text-left">Template</th>
+              <th className="px-3 py-2 font-medium text-muted-foreground text-center">Type</th>
+              <th className="px-3 py-2 font-medium text-muted-foreground text-center">Nav</th>
+              <th className="px-3 py-2 font-medium text-muted-foreground text-right">URLs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {templates.map((t, i) => {
+              const isExcluded = excluded.has(t.name);
+              return (
+                <tr key={i} className={`border-t border-border transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/30'}`}>
+                  <td className="px-3 py-1.5 text-center">
+                    <Checkbox
+                      checked={!isExcluded}
+                      onCheckedChange={() => toggleExcluded(t.name)}
+                      className="mx-auto"
+                    />
+                  </td>
+                  <td className={`px-3 py-1.5 font-medium text-foreground ${isExcluded ? 'line-through' : ''}`}>{t.name}</td>
+                  <td className="px-3 py-1.5 text-center text-muted-foreground">
+                    {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}
+                  </td>
+                  <td className="px-3 py-1.5 text-center text-muted-foreground">
+                    {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
+                  </td>
+                  <td className="px-3 py-1.5 text-right text-muted-foreground">{t.count}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const level3Content = contentTypes.length > 0 ? (
+    <TableSection
+      title=""
+      columns={['Content Type', 'Type', 'In Nav', 'URLs']}
+      colAligns={['left', 'center', 'center', 'right']}
+      rows={contentTypes.map((ct) => ({
+        cells: [
+          ct.type,
+          ct.baseType ? <Badge variant="outline" className={`${baseTypeColors[ct.baseType] || ''} text-[10px] px-1.5 py-0`}>{ct.baseType}</Badge> : null,
+          '',
+          ct.count,
+        ],
+      }))}
+    />
+  ) : (
+    <p className="text-sm text-muted-foreground">No repeating content types detected.</p>
+  );
+
   return (
     <div className="space-y-6">
       {/* Summary */}
@@ -291,111 +395,14 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
         <span className="text-sm text-muted-foreground">URLs</span>
       </div>
 
-      {/* Level 1 — Base Types */}
-      <TableSection
-        title="Level 1 — Base Types"
-        columns={['Type', 'In Nav', 'URLs']}
-        colAligns={['left', 'center', 'right']}
-        rows={baseTypeCounts.map(([type, count]) => ({
-          cells: [type, '', count],
-        }))}
+      <CardTabs
+        defaultValue="templates"
+        tabs={[
+          { value: 'types', label: `Base Types (${baseTypeCounts.length})`, content: level1Content },
+          { value: 'templates', label: `Templates (${totalTemplates})`, content: level2Content },
+          { value: 'repeating', label: `Repeating Content (${contentTypes.length})`, content: level3Content },
+        ]}
       />
-
-      {/* Level 2 — Unique Templates */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {`Level 2 — Unique Templates (${totalTemplates})`}
-          </h4>
-          <div className="flex items-center gap-2">
-            {aiLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-            {!aiTiers && !aiLoading && (
-              <button
-                onClick={fetchAiRecommendations}
-                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-              >
-                <Sparkles className="h-3 w-3" />
-                AI Recommend
-              </button>
-            )}
-            {aiTiers && (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-2.5 w-2.5" />
-                AI
-              </span>
-            )}
-            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
-              {TIER_KEYS.map(tier => (
-                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
-                  {tierLabel(tier)}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-        </div>
-
-        {/* AI reasoning */}
-        {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
-          <p className="text-xs text-muted-foreground mb-2 italic border-l-2 border-primary/30 pl-2">
-            {aiTiers.reasoning}
-          </p>
-        )}
-
-        <div className="border border-border rounded-md overflow-hidden">
-          <table className="w-full text-sm table-fixed">
-            <thead>
-              <tr className="bg-muted/50 text-left">
-                <th className="px-3 py-2 font-medium text-muted-foreground w-10 text-center">Design</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground text-left">Template</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground text-center">Type</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground text-center">Nav</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground text-right">URLs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((t, i) => {
-                const isExcluded = excluded.has(t.name);
-                return (
-                  <tr key={i} className={`border-t border-border transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/30'}`}>
-                    <td className="px-3 py-1.5 text-center">
-                      <Checkbox
-                        checked={!isExcluded}
-                        onCheckedChange={() => toggleExcluded(t.name)}
-                        className="mx-auto"
-                      />
-                    </td>
-                    <td className={`px-3 py-1.5 font-medium text-foreground ${isExcluded ? 'line-through' : ''}`}>{t.name}</td>
-                    <td className="px-3 py-1.5 text-center text-muted-foreground">
-                      {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}
-                    </td>
-                    <td className="px-3 py-1.5 text-center text-muted-foreground">
-                      {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
-                    </td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground">{t.count}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Level 3 — Repeating Content Types (Post & CPT only) */}
-      {contentTypes.length > 0 && (
-        <TableSection
-          title={`Level 3 — Repeating Content (${contentTypes.length})`}
-          columns={['Content Type', 'Type', 'In Nav', 'URLs']}
-          colAligns={['left', 'center', 'center', 'right']}
-          rows={contentTypes.map((ct) => ({
-            cells: [
-              ct.type,
-              ct.baseType ? <Badge variant="outline" className={`${baseTypeColors[ct.baseType] || ''} text-[10px] px-1.5 py-0`}>{ct.baseType}</Badge> : null,
-              '',
-              ct.count,
-            ],
-          }))}
-        />
-      )}
     </div>
   );
 }
