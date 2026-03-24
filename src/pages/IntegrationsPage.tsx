@@ -87,16 +87,16 @@ const integrations: Integration[] = [
 
 
 const categoryLabels: Record<string, string> = {
-  architecture: '🔗 URL Analysis',
-  analysis: '📊 Content Analysis',
-  content: '🎨 Design Analysis',
-  technology: '🔧 Technology Detection',
-  performance: '⚡ Performance & Sustainability',
-  seo: '🔍 SEO & Search',
-  ux: '🎨 UX & Accessibility',
-  security: '🛡️ Security & Compliance',
-  intelligence: '📊 Competitive Intelligence',
-  enrichment: '🧲 Enrichment & Prospecting',
+  architecture: 'URL Analysis',
+  analysis: 'Content Analysis',
+  content: 'Design Analysis',
+  technology: 'Technology Detection',
+  performance: 'Performance & Sustainability',
+  seo: 'SEO & Search',
+  ux: 'UX & Accessibility',
+  security: 'Security & Compliance',
+  intelligence: 'Competitive Intelligence',
+  enrichment: 'Enrichment & Prospecting',
 };
 
 const categoryOrder = ['architecture', 'analysis', 'content', 'technology', 'performance', 'seo', 'ux', 'security', 'intelligence', 'enrichment'];
@@ -258,14 +258,14 @@ export default function IntegrationsPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-4xl mx-auto px-6 py-8 space-y-12">
         {grouped.map(({ category, label, items }) => {
           const catActiveCount = items.filter(i => !pausedSet.has(i.id)).length;
           const catAllOn = catActiveCount === items.length;
           return (
           <div key={category}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold">{label}</h2>
+            <div className="flex items-end justify-between mb-4">
+              <h2 className="text-3xl font-light tracking-tight text-foreground/80">{label}</h2>
               <Button
                 variant="ghost"
                 size="sm"

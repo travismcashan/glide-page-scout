@@ -1064,7 +1064,7 @@ export default function ResultsPage() {
           shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0)
         ) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🔗 URL Analysis</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">URL Analysis</h2>
             <div className="space-y-6">
               {session && shouldShowIntegration('sitemap', !!session.sitemap_data) && (
                 <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={rerunButton('sitemap', 'sitemap_data', sitemapLoading)}>
@@ -1128,7 +1128,7 @@ export default function ResultsPage() {
           shouldShowIntegration('readable', !!(session as any)?.readable_data)
         ) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">📊 Content Analysis</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Content Analysis</h2>
             <div className="space-y-6">
               {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
               <SectionCard collapsed={allCollapsed} sectionId="nav-structure" persistedCollapsed={isSectionCollapsed("nav-structure")} onCollapseChange={toggleSection} title="Navigation Structure — Header Sitemap" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={rerunButton('nav-structure', 'nav_structure', navLoading)}>
@@ -1183,7 +1183,7 @@ export default function ResultsPage() {
           shouldShowIntegration('screenshots', false)
         ) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🎨 Design Analysis</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Design Analysis</h2>
             <div className="space-y-6">
               {session && (session as any)?.page_tags && (
               <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Unique Templates" icon={<Layers className="h-5 w-5 text-foreground" />}>
@@ -1206,7 +1206,7 @@ export default function ResultsPage() {
         {/* ══════ 🔧 Technology Detection ══════ */}
         {(shouldShowIntegration('builtwith', !!session?.builtwith_data) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data)) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🔧 Technology Detection</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
               {shouldShowIntegration('builtwith', !!session?.builtwith_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="builtwith" persistedCollapsed={isSectionCollapsed("builtwith")} onCollapseChange={toggleSection} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)}>
@@ -1232,7 +1232,7 @@ export default function ResultsPage() {
         {/* ══════ ⚡ Performance & Sustainability ══════ */}
         {(shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade) || shouldShowIntegration('psi', !!session?.psi_data) || shouldShowIntegration('crux', !!session?.crux_data) || shouldShowIntegration('yellowlab', !!(session as any)?.yellowlab_data) || shouldShowIntegration('carbon', !!session?.carbon_data)) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">⚡ Performance & Sustainability</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Performance & Sustainability</h2>
             <div className="space-y-6">
               {shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade) && (
               <SectionCard collapsed={allCollapsed} sectionId="gtmetrix" persistedCollapsed={isSectionCollapsed("gtmetrix")} onCollapseChange={toggleSection} title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)}>
@@ -1272,7 +1272,7 @@ export default function ResultsPage() {
         {/* ══════ 🔍 SEO & Search ══════ */}
         {(shouldShowIntegration('semrush', !!session?.semrush_data) || shouldShowIntegration('schema', !!session?.schema_data)) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🔍 SEO & Search</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">SEO & Search</h2>
             <div className="space-y-6">
               {shouldShowIntegration('semrush', !!session?.semrush_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="semrush" persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)}>
@@ -1292,7 +1292,7 @@ export default function ResultsPage() {
         {/* ══════ 🎨 UX & Accessibility ══════ */}
         {(shouldShowIntegration('psi-accessibility', !!session?.psi_data) || shouldShowIntegration('wave', !!session?.wave_data) || shouldShowIntegration('w3c', !!session?.w3c_data)) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🎨 UX & Accessibility</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">UX & Accessibility</h2>
             <div className="space-y-6">
               {shouldShowIntegration('psi-accessibility', !!session?.psi_data) && shouldShowIntegration('psi', !!session?.psi_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="psi-accessibility" persistedCollapsed={isSectionCollapsed("psi-accessibility")} onCollapseChange={toggleSection} title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse...">
@@ -1324,7 +1324,7 @@ export default function ResultsPage() {
         {/* ══════ 🛡️ Security & Compliance ══════ */}
         {(shouldShowIntegration('observatory', !!session?.observatory_data) || shouldShowIntegration('ssllabs', !!session?.ssllabs_data)) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🛡️ Security & Compliance</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Security & Compliance</h2>
             <div className="space-y-6">
               {shouldShowIntegration('observatory', !!session?.observatory_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="observatory" persistedCollapsed={isSectionCollapsed("observatory")} onCollapseChange={toggleSection} title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)}>
@@ -1344,7 +1344,7 @@ export default function ResultsPage() {
         {/* ══════ 🧲 Enrichment & Prospecting ══════ */}
         {(shouldShowIntegration('ocean', !!session?.ocean_data) || shouldShowIntegration('apollo', !!session?.apollo_data)) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🧲 Enrichment & Prospecting</h2>
+            <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Enrichment & Prospecting</h2>
             <div className="space-y-6">
               {shouldShowIntegration('ocean', !!session?.ocean_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)}>
