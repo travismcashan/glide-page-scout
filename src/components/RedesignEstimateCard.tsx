@@ -194,13 +194,13 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
       {/* Level 2 — Unique Templates */}
       <TableSection
         title={`Level 2 — Unique Templates (${totalTemplates})`}
-        columns={['Template', 'Type', 'In Nav', 'URLs']}
+        columns={['Template', 'Type', 'Nav', 'URLs']}
         colAligns={['left', 'center', 'center', 'right']}
         rows={templates.map((t) => ({
           cells: [
             t.name,
             t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null,
-            t.inNav ? <Check className="h-3.5 w-3.5 text-emerald-500 inline-block" /> : null,
+            t.navSection ? <span className="text-xs text-muted-foreground">{t.navSection}</span> : null,
             t.count,
           ],
         }))}
