@@ -114,7 +114,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
       >
         {/* Tree prefix using monospace box-drawing characters */}
         <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
-          {buildTreePrefix(parentLines, isLast)}
+          {buildTreePrefix(parentLines, isLast, isFirst)}
         </span>
 
         {hasChildren ? (
