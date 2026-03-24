@@ -212,12 +212,7 @@ function ScopeTab({ scope }: { scope: Scope }) {
 
               {!isCollapsed && section.items.map((item, idx) => (
                 <div key={idx} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs leading-5 truncate block">{item.name}</span>
-                    {item.note && (
-                      <span className="text-[10px] leading-4 text-muted-foreground truncate block">{item.note}</span>
-                    )}
-                  </div>
+                  <span className="flex-1 text-xs leading-5 truncate min-w-0">{item.name}</span>
                   <span className="w-[180px] text-xs leading-5 text-muted-foreground truncate">
                     {item.role || item.purpose || item.type || item.reason || '—'}
                   </span>
