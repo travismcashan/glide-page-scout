@@ -28,7 +28,7 @@ interface ExpandableUrlRowsProps {
   readOnly?: boolean;
   navMap?: Map<string, NavTag[]>;
   pageTags?: PageTagsMap | null;
-  onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
+  onPageTagChange?: (url: string, template: string) => void;
   onPageLabelChange?: (url: string, label: string) => void;
 }
 

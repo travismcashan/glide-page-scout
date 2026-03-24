@@ -40,7 +40,7 @@ function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
   return map;
 }
 
-export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void; onPageLabelChange?: (url: string, label: string) => void }) {
+export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
