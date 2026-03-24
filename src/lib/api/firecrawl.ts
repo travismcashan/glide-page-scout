@@ -572,7 +572,7 @@ export const autoTagPagesApi = {
     success: boolean;
     industry?: string;
     industryConfidence?: string;
-    pages?: { url: string; template: string }[];
+    pages?: { url: string; template: string; baseType?: string; cptName?: string }[];
     presetTemplates?: string[];
     error?: string;
   }> {

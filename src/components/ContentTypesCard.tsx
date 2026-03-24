@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { ConfidenceBadge, SourceBadge } from '@/components/content-types/ConfidenceBadge';
 import { ExpandableUrlRows, type NavTag } from '@/components/content-types/ExpandableUrlRows';
-import type { ContentTypesData, ClassifiedUrl } from '@/components/content-types/types';
+import type { ContentTypesData, ClassifiedUrl, BaseType } from '@/components/content-types/types';
 import { rebuildSummary } from '@/components/content-types/types';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
 import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
@@ -18,6 +18,14 @@ export { type ContentTypesData } from '@/components/content-types/types';
 
 type NavItem = { label: string; url?: string | null; children?: NavItem[] };
 type NavStructureData = { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[]; items?: NavItem[] } | null;
+
+const baseTypeStyles: Record<BaseType, string> = {
+  Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  Post: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  CPT: 'bg-violet-500/10 text-violet-600 border-violet-500/30',
+  Archive: 'bg-sky-500/10 text-sky-600 border-sky-500/30',
+  Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
+};
 
 function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
   const map = new Map<string, NavTag[]>();
@@ -47,12 +55,24 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   const [mergeMode, setMergeMode] = useState(false);
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
-  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(data?.summary?.slice(0, 5).map(s => s.type) || []));
 
-  const { summary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
+  const { summary: allSummary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
   const classified = data?.classified || [];
-  const allTypes = useMemo(() => summary.map(s => s.type), [summary]);
   const navMap = useMemo(() => buildNavMap(navStructure ?? null), [navStructure]);
+
+  // Level 3 filter: only show Post + CPT (repeating content)
+  const summary = useMemo(() => {
+    return allSummary.filter(s => {
+      if (s.baseType === 'Post' || s.baseType === 'CPT') return true;
+      // Fallback for legacy data without baseType — keep non-Uncategorized items that have 3+ URLs
+      if (!s.baseType && s.type !== 'Uncategorized' && s.count >= 3) return true;
+      return false;
+    });
+  }, [allSummary]);
+
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(summary.slice(0, 5).map(s => s.type) || []));
+
+  const allTypes = useMemo(() => allSummary.map(s => s.type), [allSummary]);
 
   const urlsByType = useMemo(() => {
     const map: Record<string, ClassifiedUrl[]> = {};
@@ -63,8 +83,14 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
     return map;
   }, [classified]);
 
+  const repeatingCount = summary.reduce((acc, s) => acc + s.count, 0);
+
   if (!data?.summary?.length) {
     return <p className="text-sm text-muted-foreground">No content types detected.</p>;
+  }
+
+  if (summary.length === 0) {
+    return <p className="text-sm text-muted-foreground">No repeating content (Posts or CPTs) detected. All URLs appear to be one-off pages.</p>;
   }
 
   const toggleSelect = (type: string) => {
@@ -120,15 +146,11 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
       {/* Stats row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground">{stats.total}</strong> URLs analyzed</span>
+          <span><strong className="text-foreground">{repeatingCount}</strong> repeating URLs</span>
           <span>·</span>
-          <span><strong className="text-foreground">{stats.uniqueTypes}</strong> content types found</span>
-          {stats.ambiguousScanned > 0 && (
-            <>
-              <span>·</span>
-              <span><strong className="text-foreground">{stats.ambiguousScanned}</strong> pages scanned for HTML signals</span>
-            </>
-          )}
+          <span><strong className="text-foreground">{summary.length}</strong> content types</span>
+          <span>·</span>
+          <span className="text-muted-foreground">{stats.total} total URLs analyzed</span>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -136,14 +158,14 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
             size="sm"
             className="text-xs h-7 gap-1"
             onClick={() => {
-              if (expandedTypes.size === allTypes.length) {
+              if (expandedTypes.size === summary.length) {
                 setExpandedTypes(new Set());
               } else {
-                setExpandedTypes(new Set(allTypes));
+                setExpandedTypes(new Set(summary.map(s => s.type)));
               }
             }}
           >
-            {expandedTypes.size === allTypes.length ? (
+            {expandedTypes.size === summary.length ? (
               <><ChevronDown className="h-3 w-3" /> Collapse All</>
             ) : (
               <><ChevronRight className="h-3 w-3" /> Expand All</>
@@ -187,9 +209,10 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
       {/* Summary table with expandable rows */}
       <div className="rounded-lg border border-border overflow-hidden">
-        <div className="grid grid-cols-[auto_1fr_60px_80px] text-xs font-medium text-muted-foreground border-b border-border">
+        <div className="grid grid-cols-[auto_1fr_60px_80px_80px] text-xs font-medium text-muted-foreground border-b border-border">
           {mergeMode && <div className="px-3 py-2.5 w-[40px]" />}
           <div className="px-3 py-2.5">Content Type</div>
+          <div className="px-3 py-2.5 text-center">Type</div>
           <div className="px-3 py-2.5 text-right">Count</div>
           <div className="px-3 py-2.5">Confidence</div>
         </div>
@@ -197,16 +220,15 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           const isExpanded = expandedTypes.has(row.type);
           const typeUrls = urlsByType[row.type] || [];
           const hasClassified = typeUrls.length > 0;
-          // Fallback: if no classified data, build from summary urls
           const fallbackUrls: ClassifiedUrl[] = !hasClassified
-            ? row.urls.map(u => ({ url: u, contentType: row.type, confidence: 'medium' as const, source: '' }))
+            ? row.urls.map(u => ({ url: u, contentType: row.type, confidence: 'medium' as const, source: '', baseType: row.baseType }))
             : [];
           const displayUrls = hasClassified ? typeUrls : fallbackUrls;
 
           return (
             <div key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
               <div
-                className="grid grid-cols-[auto_1fr_60px_80px] items-center border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
+                className="grid grid-cols-[auto_1fr_60px_80px_80px] items-center border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => setExpandedTypes(prev => { const next = new Set(prev); if (isExpanded) next.delete(row.type); else next.add(row.type); return next; })}
               >
                 <div className="flex items-center gap-1 px-3 py-2.5">
@@ -248,6 +270,13 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                     >
                       {row.type}
                     </span>
+                  )}
+                </div>
+                <div className="px-3 py-2.5 text-center">
+                  {row.baseType && (
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[row.baseType] || ''}`}>
+                      {row.baseType}
+                    </Badge>
                   )}
                 </div>
                 <div className="px-3 py-2.5 text-sm text-right font-mono">{row.count}</div>

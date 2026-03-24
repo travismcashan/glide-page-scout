@@ -1,18 +1,36 @@
-// Simplified Page Template Taxonomy System
-// Each URL gets a single "template" name (e.g., "Homepage", "Blog List", "Privacy Policy")
-// The category (custom/template/toolkit) is derived for color-coding purposes.
+// Three-Level Cascading Classification System
+// Level 1: Type (Page, Post, CPT, Archive, Search)
+// Level 2: Template (Homepage, Blog Detail, Case Study Detail, etc.)
+// Level 3: Repeating Content (filtered view — Post + CPT only)
+
+export type BaseType = 'Page' | 'Post' | 'CPT' | 'Archive' | 'Search';
 
 export interface PageTag {
-  template: string;       // e.g. "Homepage", "About", "Blog List", "Blog Detail", "Privacy Policy"
+  template: string;       // e.g. "Homepage", "About", "Blog Detail", "Case Study Detail"
+  baseType?: BaseType;    // Level 1 classification
   contentType?: string;   // from content classification
+  cptName?: string;       // CPT name for CPT types (e.g., "Case Study")
   notes?: string;
 }
 
 export type PageTagsMap = Record<string, PageTag>;
 
-// ── Template category derivation ──
+// ── Template category derivation (for badge colors) ──
 
 export type TemplateCategory = 'custom' | 'template' | 'toolkit';
+
+/** Map baseType to color category */
+export function getTemplateCategoryFromBaseType(baseType?: BaseType): TemplateCategory {
+  if (!baseType) return 'custom';
+  switch (baseType) {
+    case 'Page': return 'custom';
+    case 'Post': return 'template';
+    case 'CPT': return 'template';
+    case 'Archive': return 'template';
+    case 'Search': return 'toolkit';
+    default: return 'custom';
+  }
+}
 
 const CUSTOM_TEMPLATES = new Set([
   'Homepage', 'About', 'Pricing', 'Contact', 'Demo',
@@ -38,13 +56,13 @@ const TOOLKIT_TEMPLATES = new Set([
   'Accessibility', 'Sitemap', 'Search', 'Login', 'Sign Up', 'Register', '404',
 ]);
 
-/** Derive color category from template name */
+/** Derive color category from template name (fallback when baseType not set) */
 export function getTemplateCategory(template: string): TemplateCategory {
   if (CUSTOM_TEMPLATES.has(template)) return 'custom';
   if (TEMPLATE_TEMPLATES.has(template)) return 'template';
   if (TOOLKIT_TEMPLATES.has(template)) return 'toolkit';
-  // Heuristic: if it ends with "List" or "Detail", it's a template
   if (/\bList$/i.test(template) || /\bDetail$/i.test(template)) return 'template';
+  if (/\bArchive/i.test(template)) return 'template';
   return 'custom';
 }
 
@@ -57,7 +75,6 @@ const runtimeToolkit: string[] = [];
 export function addCustomTemplate(name: string, category: TemplateCategory) {
   const target = category === 'custom' ? runtimeCustom : category === 'template' ? runtimeTemplate : runtimeToolkit;
   if (!target.includes(name)) target.push(name);
-  // Also register for category detection
   const set = category === 'custom' ? CUSTOM_TEMPLATES : category === 'template' ? TEMPLATE_TEMPLATES : TOOLKIT_TEMPLATES;
   set.add(name);
 }
@@ -204,7 +221,6 @@ const CONTENT_TYPE_TO_DETAIL: Array<[string, string]> = [
 
 /** Derive list parent pattern from pathname */
 const LIST_PARENT_PATTERNS = LIST_PATTERNS.map(([regex, template]) => {
-  // Extract the base path from the regex, e.g. /blog/ -> "blog"
   const base = regex.source.replace(/[\^\/\?\$\\]/g, '').replace(/i$/, '').toLowerCase();
   return { base, template: template.replace(' List', ' Detail') };
 });
@@ -212,15 +228,15 @@ const LIST_PARENT_PATTERNS = LIST_PATTERNS.map(([regex, template]) => {
 export function autoSeedPageTags(
   existingTags: PageTagsMap | null | undefined,
   urls: string[],
-  contentTypesClassified?: Array<{ url: string; contentType: string }>,
+  contentTypesClassified?: Array<{ url: string; contentType: string; baseType?: BaseType; cptName?: string }>,
   baseUrl?: string,
 ): PageTagsMap {
   const map = { ...(existingTags || {}) };
 
-  const ctMap = new Map<string, string>();
+  const ctMap = new Map<string, { contentType: string; baseType?: BaseType; cptName?: string }>();
   if (contentTypesClassified) {
     for (const c of contentTypesClassified) {
-      ctMap.set(normalizeTagKey(c.url), c.contentType);
+      ctMap.set(normalizeTagKey(c.url), { contentType: c.contentType, baseType: c.baseType, cptName: c.cptName });
     }
   }
 
@@ -231,70 +247,92 @@ export function autoSeedPageTags(
     let pathname: string;
     try { pathname = new URL(url).pathname; } catch { pathname = url; }
 
-    const contentType = ctMap.get(key);
+    const ct = ctMap.get(key);
 
     // 1. Custom page patterns
     const customMatch = CUSTOM_PATTERNS.find(([p]) => p.test(pathname));
     if (customMatch) {
-      map[key] = { template: customMatch[1] };
+      map[key] = { template: customMatch[1], baseType: 'Page' };
       continue;
     }
 
     // 2. Toolkit patterns
     const toolkitMatch = TOOLKIT_PATTERNS.find(([p]) => p.test(pathname));
     if (toolkitMatch) {
-      map[key] = { template: toolkitMatch[1] };
+      map[key] = { template: toolkitMatch[1], baseType: 'Page' };
       continue;
     }
 
-    // 3. List page patterns
+    // 3. List page patterns → Archive
     const listMatch = LIST_PATTERNS.find(([p]) => p.test(pathname));
     if (listMatch) {
-      map[key] = { template: listMatch[1], contentType: contentType || undefined };
+      map[key] = { template: listMatch[1], baseType: 'Archive', contentType: ct?.contentType || undefined };
       continue;
     }
 
-    // 4. Content type → detail template
-    if (contentType) {
+    // 4. Content type classification → use baseType from classifier
+    if (ct?.baseType) {
+      map[key] = {
+        template: ct.contentType,
+        baseType: ct.baseType,
+        contentType: ct.contentType,
+        cptName: ct.cptName,
+      };
+      continue;
+    }
+
+    // 5. Content type → detail template (legacy fallback)
+    if (ct?.contentType) {
       const detailMatch = CONTENT_TYPE_TO_DETAIL.find(([keyword]) =>
-        contentType.toLowerCase().includes(keyword)
+        ct.contentType.toLowerCase().includes(keyword)
       );
       if (detailMatch) {
-        map[key] = { template: detailMatch[1], contentType };
+        map[key] = { template: detailMatch[1], baseType: 'Post', contentType: ct.contentType };
         continue;
       }
     }
 
-    // 5. Parent path heuristic for detail pages
+    // 6. Parent path heuristic for detail pages
     const segments = pathname.split('/').filter(Boolean);
     if (segments.length >= 2) {
       const parentMatch = LIST_PARENT_PATTERNS.find(p => segments[0].toLowerCase() === p.base);
       if (parentMatch) {
-        map[key] = { template: parentMatch.template, contentType: contentType || undefined };
+        map[key] = { template: parentMatch.template, baseType: 'Post', contentType: ct?.contentType || undefined };
         continue;
       }
     }
 
-    // 6. Default → generic toolkit
-    map[key] = { template: 'Toolkit' };
+    // 7. Default → Page
+    map[key] = { template: 'Page', baseType: 'Page' };
   }
 
   return map;
 }
 
-/** Get summary counts by category */
+/** Get summary counts by base type */
 export function getPageTagsSummary(tags: PageTagsMap | null | undefined): {
+  page: number;
+  post: number;
+  cpt: number;
+  archive: number;
+  search: number;
+  total: number;
+  // Legacy compat
   custom: number;
   template: number;
   toolkit: number;
-  total: number;
 } {
-  if (!tags) return { custom: 0, template: 0, toolkit: 0, total: 0 };
+  if (!tags) return { page: 0, post: 0, cpt: 0, archive: 0, search: 0, total: 0, custom: 0, template: 0, toolkit: 0 };
   const values = Object.values(tags);
   return {
+    page: values.filter(t => t.baseType === 'Page').length,
+    post: values.filter(t => t.baseType === 'Post').length,
+    cpt: values.filter(t => t.baseType === 'CPT').length,
+    archive: values.filter(t => t.baseType === 'Archive').length,
+    search: values.filter(t => t.baseType === 'Search').length,
+    total: values.length,
     custom: values.filter(t => getTemplateCategory(t.template) === 'custom').length,
     template: values.filter(t => getTemplateCategory(t.template) === 'template').length,
     toolkit: values.filter(t => getTemplateCategory(t.template) === 'toolkit').length,
-    total: values.length,
   };
 }

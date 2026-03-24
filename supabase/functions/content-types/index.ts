@@ -4,29 +4,34 @@ const corsHeaders = {
 };
 
 /**
- * Content Type Classification — v2
+ * Three-Level Cascading Classification
  *
- * Focuses on identifying REPEATING content types (custom post types / templates
- * with multiple entries) rather than labelling every individual page.
+ * Level 1: TYPE — Page, Post, CPT, Archive, Search
+ * Level 2: TEMPLATE — specific page purpose (Homepage, Blog Detail, etc.)
+ * Level 3: REPEATING CONTENT — filtered view (Post + CPT only)
  *
- * Phase 1: URL-pattern grouping to find repeating directory structures
- * Phase 2: HTML signal extraction on a sample (Schema.org, body classes, OG)
- * Phase 3: AI analysis using the best model to identify true content types
- * Phase 4: Post-processing — demote types with < minCount URLs
+ * Phase 1: URL-pattern grouping
+ * Phase 2: HTML signal extraction (Schema.org, WP body classes, OG)
+ * Phase 3: AI analysis with Gemini — outputs baseType + template per group
+ * Phase 4: Post-processing — CPT groups below 3 URLs demoted to Page
  */
+
+type BaseType = 'Page' | 'Post' | 'CPT' | 'Archive' | 'Search';
 
 type ClassifiedUrl = {
   url: string;
   contentType: string;
   confidence: 'high' | 'medium' | 'low';
   source: string;
+  baseType: BaseType;
+  template: string;
+  cptName?: string;
 };
 
 // ---------------------------------------------------------------------------
-// Phase 1 helpers — group URLs by their directory prefix
+// Phase 1 helpers
 // ---------------------------------------------------------------------------
 
-/** Known single-page slugs that should never form a content type */
 const SINGLE_PAGE_SLUGS = new Set([
   'about', 'about-us', 'contact', 'contact-us', 'careers', 'jobs',
   'pricing', 'plans', 'faq', 'faqs', 'privacy', 'privacy-policy',
@@ -40,10 +45,6 @@ const SINGLE_PAGE_SLUGS = new Set([
   'press', 'newsroom', 'media', 'investors', 'accessibility',
 ]);
 
-/**
- * Group URLs by their first path segment (directory).
- * Returns groups of 2+ URLs sharing the same directory.
- */
 function groupByDirectory(urls: string[], baseUrl: string): Map<string, string[]> {
   const groups = new Map<string, string[]>();
   let baseHost = '';
@@ -52,18 +53,13 @@ function groupByDirectory(urls: string[], baseUrl: string): Map<string, string[]
   for (const url of urls) {
     try {
       const parsed = new URL(url);
-      // Skip off-domain
       if (baseHost && parsed.hostname !== baseHost) continue;
-
       const segments = parsed.pathname.split('/').filter(Boolean);
-      if (segments.length === 0) continue; // homepage
+      if (segments.length === 0) continue;
       if (segments.length === 1) {
-        // Top-level page — skip known singles
         if (SINGLE_PAGE_SLUGS.has(segments[0].toLowerCase())) continue;
-        // Could still be a type index page, skip for now
         continue;
       }
-      // Use first segment as group key
       const dir = segments[0].toLowerCase();
       if (!groups.has(dir)) groups.set(dir, []);
       groups.get(dir)!.push(url);
@@ -77,7 +73,7 @@ function groupByDirectory(urls: string[], baseUrl: string): Map<string, string[]
 // Phase 2 — HTML signal extraction
 // ---------------------------------------------------------------------------
 
-function classifyByHtml(html: string): { type: string; confidence: 'high' | 'medium'; source: string } | null {
+function classifyByHtml(html: string): { type: string; confidence: 'high' | 'medium'; source: string; baseType: BaseType } | null {
   // Schema.org JSON-LD
   const jsonLdMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
   if (jsonLdMatches) {
@@ -87,49 +83,55 @@ function classifyByHtml(html: string): { type: string; confidence: 'high' | 'med
         const data = JSON.parse(content);
         const schemaType = data['@type'] || (Array.isArray(data['@graph']) ? data['@graph'][0]?.['@type'] : null);
         if (schemaType) {
-          const typeMap: Record<string, string> = {
-            'BlogPosting': 'Blog Post', 'NewsArticle': 'News Article', 'Article': 'Article',
-            'Product': 'Product', 'Event': 'Event', 'HowTo': 'Guide', 'Recipe': 'Recipe',
-            'Course': 'Course', 'VideoObject': 'Video', 'PodcastEpisode': 'Podcast Episode',
-            'SoftwareApplication': 'Product', 'Service': 'Service', 'Review': 'Review',
-            'CollectionPage': 'Collection', 'ItemList': 'Collection',
+          const typeMap: Record<string, { name: string; baseType: BaseType }> = {
+            'BlogPosting': { name: 'Blog Post', baseType: 'Post' },
+            'NewsArticle': { name: 'News Article', baseType: 'Post' },
+            'Article': { name: 'Article', baseType: 'Post' },
+            'Product': { name: 'Product', baseType: 'CPT' },
+            'Event': { name: 'Event', baseType: 'CPT' },
+            'HowTo': { name: 'Guide', baseType: 'Post' },
+            'Recipe': { name: 'Recipe', baseType: 'CPT' },
+            'Course': { name: 'Course', baseType: 'CPT' },
+            'VideoObject': { name: 'Video', baseType: 'CPT' },
+            'PodcastEpisode': { name: 'Podcast Episode', baseType: 'CPT' },
+            'SoftwareApplication': { name: 'Product', baseType: 'CPT' },
+            'Service': { name: 'Service', baseType: 'Page' },
+            'Review': { name: 'Review', baseType: 'CPT' },
+            'CollectionPage': { name: 'Archive', baseType: 'Archive' },
+            'ItemList': { name: 'Archive', baseType: 'Archive' },
           };
-          // Skip generic page types — they don't help
           if (['WebPage', 'AboutPage', 'ContactPage', 'FAQPage', 'Organization'].includes(schemaType)) continue;
           const mapped = typeMap[schemaType];
-          if (mapped) return { type: mapped, confidence: 'high', source: 'schema-org' };
+          if (mapped) return { type: mapped.name, confidence: 'high', source: 'schema-org', baseType: mapped.baseType };
         }
       } catch { /* skip */ }
     }
   }
 
-  // WordPress body classes — look for CPT patterns
+  // WordPress body classes
   const bodyMatch = html.match(/<body[^>]*class="([^"]*)"[^>]*>/i);
   if (bodyMatch) {
     const classes = bodyMatch[1].toLowerCase();
-    // Look for single-{cpt} patterns which indicate a custom post type
     const cptMatch = classes.match(/\bsingle-([a-z][a-z0-9_-]+)\b/);
     if (cptMatch && !['post', 'page', 'attachment'].includes(cptMatch[1])) {
-      // Format CPT name nicely
       const name = cptMatch[1].replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      return { type: name, confidence: 'high', source: 'css-classes' };
+      return { type: name, confidence: 'high', source: 'css-classes', baseType: 'CPT' };
     }
-    // Archive patterns
     const archiveMatch = classes.match(/\bpost-type-archive-([a-z][a-z0-9_-]+)\b/);
     if (archiveMatch && !['post', 'page'].includes(archiveMatch[1])) {
       const name = archiveMatch[1].replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      return { type: name, confidence: 'high', source: 'css-classes' };
+      return { type: name, confidence: 'high', source: 'css-classes', baseType: 'Archive' };
     }
-    // Blog posts
-    if (/\bsingle-post\b/.test(classes)) return { type: 'Blog Post', confidence: 'high', source: 'css-classes' };
+    if (/\bsingle-post\b/.test(classes)) return { type: 'Blog Post', confidence: 'high', source: 'css-classes', baseType: 'Post' };
+    if (/\bblog\b/.test(classes) && /\barchive\b/.test(classes)) return { type: 'Archive', confidence: 'high', source: 'css-classes', baseType: 'Archive' };
   }
 
   // OG type
   const ogMatch = html.match(/<meta[^>]*property="og:type"[^>]*content="([^"]*)"[^>]*>/i);
   if (ogMatch) {
     const ogType = ogMatch[1].toLowerCase();
-    if (ogType === 'article') return { type: 'Article', confidence: 'medium', source: 'meta-tags' };
-    if (ogType === 'product') return { type: 'Product', confidence: 'medium', source: 'meta-tags' };
+    if (ogType === 'article') return { type: 'Article', confidence: 'medium', source: 'meta-tags', baseType: 'Post' };
+    if (ogType === 'product') return { type: 'Product', confidence: 'medium', source: 'meta-tags', baseType: 'CPT' };
   }
 
   return null;
@@ -155,19 +157,17 @@ Deno.serve(async (req) => {
     }
 
     const classified: ClassifiedUrl[] = [];
-    const htmlSignals = new Map<string, { type: string; confidence: 'high' | 'medium'; source: string }>();
+    const htmlSignals = new Map<string, { type: string; confidence: 'high' | 'medium'; source: string; baseType: BaseType }>();
 
-    // Phase 1: Group by directory to find repeating patterns
+    // Phase 1: Group by directory
     const dirGroups = groupByDirectory(urls, baseUrl);
 
     // Phase 2: Scrape a sample for HTML signals
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
     if (apiKey) {
-      // Pick a sample across different directories
       const samplesToScrape: string[] = [];
       for (const [, groupUrls] of dirGroups) {
         if (groupUrls.length >= 2) {
-          // Take up to 2 from each directory group
           samplesToScrape.push(...groupUrls.slice(0, 2));
         }
       }
@@ -198,29 +198,27 @@ Deno.serve(async (req) => {
         const results = await Promise.allSettled(scrapePromises);
         for (const r of results) {
           if (r.status === 'fulfilled' && r.value) {
-            htmlSignals.set(r.value.url, { type: r.value.type, confidence: r.value.confidence, source: r.value.source });
+            htmlSignals.set(r.value.url, { type: r.value.type, confidence: r.value.confidence, source: r.value.source, baseType: r.value.baseType });
           }
         }
       }
     }
 
-    // Phase 3: AI classification — send ALL URLs + directory groups + HTML signals to the best model
+    // Phase 3: AI classification with baseType + template
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    let aiClassifications = new Map<string, string>();
+    let aiGroups: Array<{ baseType: BaseType; cptName?: string; template: string; urls: string[]; confidence: 'high' | 'medium' }> = [];
 
     if (LOVABLE_API_KEY) {
       try {
-        // Build context for AI
         const dirSummary = Array.from(dirGroups.entries())
           .filter(([, v]) => v.length >= 2)
           .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 3).join(', ')}`)
           .join('\n');
 
         const htmlContext = Array.from(htmlSignals.entries())
-          .map(([url, sig]) => `${url} → ${sig.type} (via ${sig.source})`)
+          .map(([url, sig]) => `${url} → ${sig.type} [${sig.baseType}] (via ${sig.source})`)
           .join('\n');
 
-        // Identify homepage and top-level single pages
         const topLevelPages: string[] = [];
         let homepage = '';
         for (const url of urls) {
@@ -232,41 +230,53 @@ Deno.serve(async (req) => {
           } catch { /* skip */ }
         }
 
-        const allUrlsList = urls.join('\n');
-
-        const systemPrompt = `You are a web content strategist analyzing a website to identify its CONTENT TYPES (also known as Custom Post Types or repeating page templates).
-
-CRITICAL RULES:
-1. A "content type" is a REPEATING template used for multiple similar pages. Examples: Blog Posts, Case Studies, Products, Team Members, Resources, Locations.
-2. Individual pages are NOT content types. Pages like Homepage, About, Pricing, Contact, Careers, Privacy Policy, Terms — these are individual pages, not content types. Do NOT classify them.
-3. A valid content type MUST have at least ${minCount} pages using that template.
-4. Focus on the URL STRUCTURE: pages sharing a common directory prefix (e.g., /blog/*, /case-studies/*, /products/*) are likely the same content type.
-5. Name content types using their singular form where appropriate (e.g., "Blog Post" not "Blog Posts", "Case Study" not "Case Studies").
-6. If a URL group is clearly just a section with sub-pages (like /solutions/enterprise, /solutions/smb), that's a section with individual pages, NOT a content type — unless there are many similar detail pages.
-7. Return ONLY URLs that belong to a genuine repeating content type. Skip everything else.`;
-
-        // Build sitemap hints context
         const sitemapContext = sitemapHints && Array.isArray(sitemapHints) && sitemapHints.length > 0
           ? sitemapHints
               .map((h: { label: string; urls: string[] }) => `Sitemap "${h.label}" (${h.urls.length} URLs) — samples: ${h.urls.slice(0, 3).join(', ')}`)
               .join('\n')
           : '';
 
-        const userPrompt = `Analyze this website (${baseUrl}) and identify the repeating content types.
+        const systemPrompt = `You are a web content strategist classifying URLs by their WordPress content model type.
 
-ALL URLs on the site:
-${allUrlsList}
+Classify every URL into exactly ONE type:
+- **Page**: One-off pages with unique designs (About, Contact, Pricing, Services, Homepage, etc.)
+- **Post**: Blog/news articles in a date-based feed. Usually under /blog/, /news/, /articles/.
+- **CPT** (Custom Post Type): Detail pages from a repeating template with 3+ similar URLs. Examples: case studies, team members, products, portfolio items, locations. Provide the CPT name.
+- **Archive**: Any list/index/category/tag page that aggregates other pages. Blog index, category pages, resource library pages.
+- **Search**: Site search results pages.
+
+Then assign a TEMPLATE name describing each page's purpose:
+- Page templates: Homepage, About, Pricing, Contact, Careers, Services, Solutions, Demo, Features, Platform, etc.
+- Post templates: Blog Detail
+- CPT templates: [CPT Name] Detail (e.g., "Case Study Detail", "Team Member Detail")
+- Archive templates: Archive: [What it archives] (e.g., "Archive: Blog", "Archive: Case Studies")
+- Search templates: Search
+
+CRITICAL RULES:
+1. A CPT MUST have at least ${minCount} similar URLs. If fewer, classify as Page.
+2. The homepage is ALWAYS type Page with template Homepage.
+3. Utility pages (privacy, terms, login, 404) are type Page.
+4. List/index pages are ALWAYS type Archive, not Page.
+5. Blog posts are type Post, NOT CPT — even if there are many.
+6. Individual service/solution sub-pages are Page unless there are ${minCount}+ with identical structure.
+
+You MUST classify EVERY URL provided.`;
+
+        const userPrompt = `Analyze this website (${baseUrl}) and classify every URL.
+
+ALL URLs:
+${urls.join('\n')}
 
 Directory groups with 2+ URLs:
-${dirSummary || '(none detected)'}
+${dirSummary || '(none)'}
 
-HTML signals detected:
-${htmlContext || '(none detected)'}
+HTML signals:
+${htmlContext || '(none)'}
 
-${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes URLs by content type in separate sitemaps):\n${sitemapContext}\n` : ''}Homepage: ${homepage || 'not found'}
+${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes by content type):\n${sitemapContext}\n` : ''}Homepage: ${homepage || 'not found'}
 Top-level pages: ${topLevelPages.join(', ') || 'none'}
 
-Identify ONLY genuine repeating content types. For each URL that belongs to a content type, classify it. Skip individual/one-off pages entirely.${sitemapContext ? ' Pay special attention to the XML sitemap groupings — they are the strongest signal of content types as they come directly from the CMS configuration.' : ''}`;
+Classify every URL with its type and template.${sitemapContext ? ' Sitemap groupings are the strongest signal — use them.' : ''}`;
 
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -279,32 +289,34 @@ Identify ONLY genuine repeating content types. For each URL that belongs to a co
             tools: [{
               type: 'function',
               function: {
-                name: 'classify_content_types',
-                description: 'Classify URLs that belong to repeating content types. Only include URLs that are part of a genuine content type with multiple entries.',
+                name: 'classify_urls',
+                description: 'Classify every URL with its WordPress content model type and template.',
                 parameters: {
                   type: 'object',
                   properties: {
-                    contentTypes: {
+                    groups: {
                       type: 'array',
-                      description: 'List of identified content types with their URLs',
+                      description: 'Groups of URLs sharing the same type and template',
                       items: {
                         type: 'object',
                         properties: {
-                          name: { type: 'string', description: 'Content type name (singular form, e.g., "Blog Post", "Case Study")' },
-                          urls: { type: 'array', items: { type: 'string' }, description: 'URLs belonging to this content type' },
+                          baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'], description: 'WordPress content model type' },
+                          cptName: { type: 'string', description: 'CPT name (required for CPT type, e.g. "Case Study", "Team Member")' },
+                          template: { type: 'string', description: 'Template name describing the page purpose' },
+                          urls: { type: 'array', items: { type: 'string' }, description: 'URLs in this group' },
                           confidence: { type: 'string', enum: ['high', 'medium'], description: 'Classification confidence' },
                         },
-                        required: ['name', 'urls', 'confidence'],
+                        required: ['baseType', 'template', 'urls', 'confidence'],
                         additionalProperties: false,
                       },
                     },
                   },
-                  required: ['contentTypes'],
+                  required: ['groups'],
                   additionalProperties: false,
                 },
               },
             }],
-            tool_choice: { type: 'function', function: { name: 'classify_content_types' } },
+            tool_choice: { type: 'function', function: { name: 'classify_urls' } },
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt },
@@ -317,15 +329,8 @@ Identify ONLY genuine repeating content types. For each URL that belongs to a co
           const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall?.function?.arguments) {
             const parsed = JSON.parse(toolCall.function.arguments);
-            if (parsed?.contentTypes) {
-              for (const ct of parsed.contentTypes) {
-                // Enforce minimum count
-                if (ct.urls && ct.urls.length >= minCount) {
-                  for (const url of ct.urls) {
-                    aiClassifications.set(url, ct.name);
-                  }
-                }
-              }
+            if (parsed?.groups) {
+              aiGroups = parsed.groups;
             }
           }
         } else {
@@ -337,64 +342,88 @@ Identify ONLY genuine repeating content types. For each URL that belongs to a co
     }
 
     // Phase 4: Build final classifications
-    // Priority: HTML signals > AI > skip (uncategorized)
-    const classifiedUrls = new Set<string>();
+    // Priority: AI groups (with HTML signal override for individual URLs) > fallback
 
-    for (const url of urls) {
-      const htmlSig = htmlSignals.get(url);
-      const aiType = aiClassifications.get(url);
-
-      if (htmlSig) {
-        classified.push({ url, contentType: htmlSig.type, confidence: htmlSig.confidence, source: htmlSig.source });
-        classifiedUrls.add(url);
-      } else if (aiType) {
-        classified.push({ url, contentType: aiType, confidence: 'medium', source: 'ai' });
-        classifiedUrls.add(url);
-      } else {
-        classified.push({ url, contentType: 'Uncategorized', confidence: 'low', source: 'url-pattern' });
+    // Build a map from AI results
+    const aiUrlMap = new Map<string, { baseType: BaseType; template: string; cptName?: string; confidence: 'high' | 'medium' }>();
+    for (const group of aiGroups) {
+      for (const url of (group.urls || [])) {
+        aiUrlMap.set(url, { baseType: group.baseType, template: group.template, cptName: group.cptName, confidence: group.confidence });
       }
     }
 
-    // Post-processing: enforce minimum count threshold
-    const typeCounts: Record<string, { count: number; urls: string[]; confidence: Record<string, number> }> = {};
+    for (const url of urls) {
+      const htmlSig = htmlSignals.get(url);
+      const aiResult = aiUrlMap.get(url);
+
+      if (aiResult) {
+        // Use AI result, but boost confidence with HTML signal if matching
+        const conf = htmlSig ? 'high' : aiResult.confidence;
+        classified.push({
+          url,
+          contentType: aiResult.cptName || aiResult.template,
+          confidence: conf,
+          source: htmlSig ? htmlSig.source : 'ai',
+          baseType: aiResult.baseType,
+          template: aiResult.template,
+          cptName: aiResult.cptName,
+        });
+      } else if (htmlSig) {
+        classified.push({
+          url,
+          contentType: htmlSig.type,
+          confidence: htmlSig.confidence,
+          source: htmlSig.source,
+          baseType: htmlSig.baseType,
+          template: htmlSig.type,
+        });
+      } else {
+        // Unclassified — default to Page
+        classified.push({
+          url,
+          contentType: 'Uncategorized',
+          confidence: 'low',
+          source: 'url-pattern',
+          baseType: 'Page',
+          template: 'Page',
+        });
+      }
+    }
+
+    // Post-processing: CPT groups below minCount get demoted to Page
+    const cptCounts = new Map<string, number>();
+    for (const c of classified) {
+      if (c.baseType === 'CPT' && c.cptName) {
+        cptCounts.set(c.cptName, (cptCounts.get(c.cptName) || 0) + 1);
+      }
+    }
+    for (const c of classified) {
+      if (c.baseType === 'CPT' && c.cptName && (cptCounts.get(c.cptName) || 0) < minCount) {
+        c.baseType = 'Page';
+        c.contentType = c.template;
+        c.cptName = undefined;
+      }
+    }
+
+    // Build summary — group by contentType
+    const typeCounts: Record<string, { count: number; urls: string[]; confidence: Record<string, number>; baseType: BaseType; cptName?: string }> = {};
     for (const c of classified) {
       if (!typeCounts[c.contentType]) {
-        typeCounts[c.contentType] = { count: 0, urls: [], confidence: { high: 0, medium: 0, low: 0 } };
+        typeCounts[c.contentType] = { count: 0, urls: [], confidence: { high: 0, medium: 0, low: 0 }, baseType: c.baseType, cptName: c.cptName };
       }
       typeCounts[c.contentType].count++;
       typeCounts[c.contentType].urls.push(c.url);
       typeCounts[c.contentType].confidence[c.confidence]++;
     }
 
-    // Demote types below threshold (except Uncategorized)
-    for (const [type, data] of Object.entries(typeCounts)) {
-      if (type !== 'Uncategorized' && data.count < minCount) {
-        // Move these URLs to Uncategorized
-        for (const c of classified) {
-          if (c.contentType === type) {
-            c.contentType = 'Uncategorized';
-            c.confidence = 'low';
-          }
-        }
-      }
-    }
-
-    // Rebuild summary after demotions
-    const finalCounts: Record<string, { count: number; urls: string[]; confidence: Record<string, number> }> = {};
-    for (const c of classified) {
-      if (!finalCounts[c.contentType]) {
-        finalCounts[c.contentType] = { count: 0, urls: [], confidence: { high: 0, medium: 0, low: 0 } };
-      }
-      finalCounts[c.contentType].count++;
-      finalCounts[c.contentType].urls.push(c.url);
-      finalCounts[c.contentType].confidence[c.confidence]++;
-    }
-
-    // Sort: real content types first (by count desc), Uncategorized last
-    const summary = Object.entries(finalCounts)
+    // Sort: repeating content first (Post/CPT by count desc), then archives, then pages, Uncategorized last
+    const typeOrder: Record<BaseType, number> = { Post: 0, CPT: 1, Archive: 2, Search: 3, Page: 4 };
+    const summary = Object.entries(typeCounts)
       .sort(([a, aData], [b, bData]) => {
         if (a === 'Uncategorized') return 1;
         if (b === 'Uncategorized') return -1;
+        const orderDiff = (typeOrder[aData.baseType] || 4) - (typeOrder[bData.baseType] || 4);
+        if (orderDiff !== 0) return orderDiff;
         return bData.count - aData.count;
       })
       .map(([type, data]) => ({
@@ -403,6 +432,8 @@ Identify ONLY genuine repeating content types. For each URL that belongs to a co
         urls: data.urls,
         totalUrls: data.urls.length,
         confidence: data.confidence,
+        baseType: data.baseType,
+        cptName: data.cptName,
       }));
 
     const realTypes = summary.filter(s => s.type !== 'Uncategorized');

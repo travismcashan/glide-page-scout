@@ -646,11 +646,15 @@ export default function ResultsPage() {
         );
 
         if (result.success && result.pages?.length) {
-          // Build PageTagsMap from AI results
+          // Build PageTagsMap from AI results (now with baseType)
           const tagMap: PageTagsMap = {};
           for (const page of result.pages) {
             const key = page.url.toLowerCase().replace(/\/$/, '');
-            tagMap[key] = { template: page.template };
+            tagMap[key] = {
+              template: page.template,
+              baseType: (page.baseType as any) || undefined,
+              cptName: page.cptName || undefined,
+            };
           }
           // Fill any remaining URLs with pattern-based fallback
           const ctData = (session as any).content_types_data;
@@ -1138,7 +1142,7 @@ export default function ResultsPage() {
                )}
 
               {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
-              <SectionCard collapsed={allCollapsed} title="Content Types — Page Classification" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText="Classifying content types across discovered URLs..." error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
+              <SectionCard collapsed={allCollapsed} title="Repeating Content — Posts & CPTs" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText="Classifying content types across discovered URLs..." error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
                 {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} onDataChange={async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
                   fetchData();
