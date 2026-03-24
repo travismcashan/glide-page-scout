@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Globe, RefreshCw, Loader2, Square } from 'lucide-react';
+import { Globe, RefreshCw, Loader2, Square, CheckCircle, ArrowRight, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
@@ -318,7 +318,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
     >
       {discoveryDone && !error ? (
         allUrls.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {linkCheckLoading && (
               <div className="flex items-center gap-3 px-1">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />
@@ -346,21 +346,39 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
                 )}
               </div>
             )}
+            {/* Progress bar — mirrors BrokenLinksCard */}
+            {effectiveResults.length > 0 && (
+              <div className="h-2 rounded-full bg-muted overflow-hidden flex">
+                {buckets['2xx'].length > 0 && (
+                  <div className="h-full bg-green-500" style={{ width: `${(buckets['2xx'].length / allUrls.length) * 100}%` }} />
+                )}
+                {buckets['3xx'].length > 0 && (
+                  <div className="h-full bg-yellow-500" style={{ width: `${(buckets['3xx'].length / allUrls.length) * 100}%` }} />
+                )}
+                {(buckets['4xx'].length + buckets['5xx'].length) > 0 && (
+                  <div className="h-full bg-destructive" style={{ width: `${((buckets['4xx'].length + buckets['5xx'].length) / allUrls.length) * 100}%` }} />
+                )}
+                {buckets.pending.length > 0 && (
+                  <div className="h-full bg-muted-foreground/20" style={{ width: `${(buckets.pending.length / allUrls.length) * 100}%` }} />
+                )}
+              </div>
+            )}
             <CardTabs
-              defaultValue="all"
+              defaultValue="2xx"
               tabs={[
                 { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} /> },
                 {
                   value: 'pending',
                   label: `Pending (${buckets.pending.length})`,
+                  icon: <Clock className="h-3.5 w-3.5 text-muted-foreground" />,
                   content: <UrlList urls={buckets.pending} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} emptyText="All URLs have been checked." />,
                   visible: buckets.pending.length > 0,
                 },
-                { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['2xx'].length > 0 },
-                { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['3xx'].length > 0 },
-                { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['429'].length > 0 },
-                { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['4xx'].length > 0 },
-                { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['5xx'].length > 0 },
+                { value: '2xx', label: `OK (${buckets['2xx'].length})`, icon: <CheckCircle className="h-3.5 w-3.5 text-green-500" />, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['2xx'].length > 0 },
+                { value: '3xx', label: `Redirects (${buckets['3xx'].length})`, icon: <ArrowRight className="h-3.5 w-3.5 text-yellow-500" />, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['3xx'].length > 0 },
+                { value: '429', label: `Rate Limited (${buckets['429'].length})`, icon: <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />, content: <UrlList urls={buckets['429']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['429'].length > 0 },
+                { value: '4xx', label: `Broken (${buckets['4xx'].length})`, icon: <XCircle className="h-3.5 w-3.5 text-destructive" />, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['4xx'].length > 0 },
+                { value: '5xx', label: `Server Errors (${buckets['5xx'].length})`, icon: <XCircle className="h-3.5 w-3.5 text-destructive" />, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['5xx'].length > 0 },
               ]}
             />
           </div>
