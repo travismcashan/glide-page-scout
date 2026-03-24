@@ -1,3 +1,4 @@
+import JSZip from 'jszip';
 import type { Json } from '@/integrations/supabase/types';
 
 type ExportSession = {
@@ -25,6 +26,18 @@ type ExportSession = {
   gtmetrix_grade: string | null;
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
+  detectzestack_data?: any | null;
+  tech_analysis_data?: any | null;
+  deep_research_data?: any | null;
+  observations_data?: any | null;
+  content_types_data?: any | null;
+  nav_structure?: any | null;
+  sitemap_data?: any | null;
+  forms_data?: any | null;
+  apollo_data?: any | null;
+  avoma_data?: any | null;
+  discovered_urls?: any | null;
+  page_tags?: any | null;
 };
 
 type ExportPage = {
@@ -37,14 +50,54 @@ type ExportPage = {
   status: string;
 };
 
+/** All integration sections with labels and data keys */
+function getIntegrationSections(session: ExportSession) {
+  return [
+    { key: 'builtwith', label: 'BuiltWith', data: session.builtwith_data },
+    { key: 'wappalyzer', label: 'Wappalyzer', data: session.wappalyzer_data },
+    { key: 'detectzestack', label: 'DetectZeStack', data: session.detectzestack_data },
+    { key: 'tech-analysis', label: 'AI Tech Analysis', data: session.tech_analysis_data },
+    { key: 'gtmetrix', label: 'GTmetrix', data: session.gtmetrix_grade ? { grade: session.gtmetrix_grade, scores: session.gtmetrix_scores, testId: session.gtmetrix_test_id } : null },
+    { key: 'pagespeed', label: 'PageSpeed Insights', data: session.psi_data },
+    { key: 'crux', label: 'CrUX Field Data', data: session.crux_data },
+    { key: 'yellowlab', label: 'Yellow Lab Tools', data: session.yellowlab_data },
+    { key: 'wave', label: 'WAVE Accessibility', data: session.wave_data },
+    { key: 'observatory', label: 'Mozilla Observatory', data: session.observatory_data },
+    { key: 'ssllabs', label: 'SSL Labs', data: session.ssllabs_data },
+    { key: 'semrush', label: 'SEMrush', data: session.semrush_data },
+    { key: 'schema', label: 'Schema.org', data: session.schema_data },
+    { key: 'httpstatus', label: 'HTTP Status', data: session.httpstatus_data },
+    { key: 'linkcheck', label: 'Broken Links', data: session.linkcheck_data },
+    { key: 'w3c', label: 'W3C Validation', data: session.w3c_data },
+    { key: 'readable', label: 'Readability', data: session.readable_data },
+    { key: 'carbon', label: 'Website Carbon', data: session.carbon_data },
+    { key: 'ocean', label: 'Ocean.io', data: session.ocean_data },
+    { key: 'deep-research', label: 'Deep Research', data: session.deep_research_data },
+    { key: 'observations', label: 'Observations & Insights', data: session.observations_data },
+    { key: 'content-types', label: 'Content Types', data: session.content_types_data },
+    { key: 'nav-structure', label: 'Navigation Structure', data: session.nav_structure },
+    { key: 'sitemap', label: 'Sitemap', data: session.sitemap_data },
+    { key: 'forms', label: 'Forms', data: session.forms_data },
+    { key: 'apollo', label: 'Apollo', data: session.apollo_data },
+    { key: 'avoma', label: 'Avoma', data: session.avoma_data },
+    { key: 'discovered-urls', label: 'Discovered URLs', data: session.discovered_urls },
+    { key: 'page-tags', label: 'Page Tags', data: session.page_tags },
+  ].filter(s => s.data != null);
+}
+
 /** Build a structured object ideal for AI model ingestion */
 function buildStructuredExport(session: ExportSession, pages: ExportPage[]) {
   const ts = new Date().toISOString();
+  const sections = getIntegrationSections(session);
+  const integrations: Record<string, any> = {};
+  for (const s of sections) {
+    integrations[s.key] = s.data;
+  }
   return {
     _meta: {
       exportedAt: ts,
       format: 'site-analysis-v1',
-      description: 'Structured site analysis data suitable for AI model ingestion. Each integration section contains raw results from third-party APIs.',
+      description: 'Structured site analysis data suitable for AI model ingestion.',
     },
     site: {
       domain: session.domain,
@@ -53,44 +106,7 @@ function buildStructuredExport(session: ExportSession, pages: ExportPage[]) {
       sessionId: session.id,
       status: session.status,
     },
-    technologyStack: {
-      builtwith: session.builtwith_data ?? null,
-      wappalyzer: session.wappalyzer_data ?? null,
-    },
-    performance: {
-      gtmetrix: session.gtmetrix_grade
-        ? { grade: session.gtmetrix_grade, scores: session.gtmetrix_scores, testId: session.gtmetrix_test_id }
-        : null,
-      pageSpeedInsights: session.psi_data ?? null,
-      crux: session.crux_data ?? null,
-      yellowLabTools: session.yellowlab_data ?? null,
-    },
-    accessibility: {
-      wave: session.wave_data ?? null,
-      lighthouseAccessibility: session.psi_data
-        ? { note: 'Derived from PageSpeed Insights data — see performance.pageSpeedInsights' }
-        : null,
-    },
-    security: {
-      observatory: session.observatory_data ?? null,
-      sslLabs: session.ssllabs_data ?? null,
-    },
-    seo: {
-      semrush: session.semrush_data ?? null,
-      schema: session.schema_data ?? null,
-      httpStatus: session.httpstatus_data ?? null,
-      brokenLinks: session.linkcheck_data ?? null,
-    },
-    codeQuality: {
-      w3cValidation: session.w3c_data ?? null,
-      readability: session.readable_data ?? null,
-    },
-    sustainability: {
-      websiteCarbon: session.carbon_data ?? null,
-    },
-    firmographics: {
-      ocean: session.ocean_data ?? null,
-    },
+    integrations,
     pages: pages.map(p => ({
       url: p.url,
       title: p.title,
@@ -102,9 +118,8 @@ function buildStructuredExport(session: ExportSession, pages: ExportPage[]) {
   };
 }
 
-/** Download a JSON blob as a file */
-function downloadFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
+/** Download a blob as a file */
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -115,14 +130,18 @@ function downloadFile(content: string, filename: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Export structured JSON for AI ingestion */
+function downloadFile(content: string, filename: string, mimeType: string) {
+  downloadBlob(new Blob([content], { type: mimeType }), filename);
+}
+
+/** Export structured JSON — single combined file */
 export function exportAsJson(session: ExportSession, pages: ExportPage[]) {
   const data = buildStructuredExport(session, pages);
   const json = JSON.stringify(data, null, 2);
   downloadFile(json, `${session.domain}-analysis.json`, 'application/json');
 }
 
-/** Export as Markdown — a more readable format that also works well for AI */
+/** Export as Markdown — single combined file */
 export function exportAsMarkdown(session: ExportSession, pages: ExportPage[]) {
   const data = buildStructuredExport(session, pages);
   const lines: string[] = [];
@@ -132,32 +151,14 @@ export function exportAsMarkdown(session: ExportSession, pages: ExportPage[]) {
   lines.push(`> URL: ${session.base_url}`);
   lines.push('');
 
-  const addSection = (title: string, obj: any) => {
-    if (!obj) return;
-    lines.push(`## ${title}`);
+  const sections = getIntegrationSections(session);
+  for (const s of sections) {
+    lines.push(`## ${s.label}`);
     lines.push('```json');
-    lines.push(JSON.stringify(obj, null, 2));
+    lines.push(JSON.stringify(s.data, null, 2));
     lines.push('```');
     lines.push('');
-  };
-
-  addSection('Technology Stack — BuiltWith', data.technologyStack.builtwith);
-  addSection('Technology Stack — Wappalyzer', data.technologyStack.wappalyzer);
-  addSection('Performance — GTmetrix', data.performance.gtmetrix);
-  addSection('Performance — PageSpeed Insights', data.performance.pageSpeedInsights);
-  addSection('Performance — CrUX Field Data', data.performance.crux);
-  addSection('Performance — Yellow Lab Tools', data.performance.yellowLabTools);
-  addSection('Accessibility — WAVE', data.accessibility.wave);
-  addSection('Security — Mozilla Observatory', data.security.observatory);
-  addSection('Security — SSL Labs', data.security.sslLabs);
-  addSection('SEO — SEMrush', data.seo.semrush);
-  addSection('SEO — Schema.org', data.seo.schema);
-  addSection('SEO — HTTP Status & Redirects', data.seo.httpStatus);
-  addSection('SEO — Broken Links', data.seo.brokenLinks);
-  addSection('Code Quality — W3C Validation', data.codeQuality.w3cValidation);
-  addSection('Code Quality — Readability', data.codeQuality.readability);
-  addSection('Sustainability — Website Carbon', data.sustainability.websiteCarbon);
-  addSection('Firmographics — Ocean.io', data.firmographics.ocean);
+  }
 
   if (data.pages.length > 0) {
     lines.push('## Analyzed Pages');
@@ -175,6 +176,42 @@ export function exportAsMarkdown(session: ExportSession, pages: ExportPage[]) {
   }
 
   downloadFile(lines.join('\n'), `${session.domain}-analysis.md`, 'text/markdown');
+}
+
+/** Export as ZIP — one JSON file per integration */
+export async function exportAsZip(session: ExportSession, pages: ExportPage[]) {
+  const zip = new JSZip();
+  const folder = zip.folder(session.domain)!;
+
+  // Site overview
+  folder.file('_site-info.json', JSON.stringify({
+    domain: session.domain,
+    baseUrl: session.base_url,
+    analyzedAt: session.created_at,
+    sessionId: session.id,
+    status: session.status,
+  }, null, 2));
+
+  // One file per integration
+  const sections = getIntegrationSections(session);
+  for (const s of sections) {
+    folder.file(`${s.key}.json`, JSON.stringify(s.data, null, 2));
+  }
+
+  // Pages
+  if (pages.length > 0) {
+    folder.file('pages.json', JSON.stringify(pages.map(p => ({
+      url: p.url,
+      title: p.title,
+      status: p.status,
+      screenshotUrl: p.screenshot_url,
+      content: p.raw_content ? p.raw_content.slice(0, 5000) : null,
+      aiOutline: p.ai_outline,
+    })), null, 2));
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(blob, `${session.domain}-analysis.zip`);
 }
 
 /** Export as PDF using the browser's print dialog */

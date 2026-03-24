@@ -53,7 +53,7 @@ import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { TemplatesCard } from '@/components/TemplatesCard';
 import { FormsCard } from '@/components/FormsCard';
 import { GlobalProgressBar } from '@/components/GlobalProgressBar';
-import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
+import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
 import {
@@ -61,6 +61,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 
 type CrawlPage = {
@@ -1301,27 +1303,40 @@ export default function ResultsPage() {
                     Export
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {session?.deep_research_data?.report && (
-                    <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
-                      <Brain className="h-3.5 w-3.5 mr-1.5" />
-                      Deep Research PDF
-                    </DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-56">
+                  {(session?.deep_research_data?.report || session?.observations_data) && (
+                    <>
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">Reports</DropdownMenuLabel>
+                      {session?.deep_research_data?.report && (
+                        <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                          <Brain className="h-3.5 w-3.5 mr-1.5" />
+                          Deep Research PDF
+                        </DropdownMenuItem>
+                      )}
+                      {session?.observations_data && (
+                        <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
+                          <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
+                          Observations & Insights PDF
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                    </>
                   )}
-                  {session?.observations_data && (
-                    <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                      <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-                      Observations & Insights PDF
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Single File</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => exportAsPdf()}>
                     Export as PDF (Print)
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
-                    Export as JSON (for AI)
+                    Export as JSON
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
-                    Export as Markdown (for AI)
+                    Export as Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Multiple Files</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => session && exportAsZip(session, pages)}>
+                    <Layers className="h-3.5 w-3.5 mr-1.5" />
+                    Export as ZIP (one file per integration)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
