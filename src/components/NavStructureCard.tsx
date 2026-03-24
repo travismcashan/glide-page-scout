@@ -169,12 +169,12 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 
           {item.url ? (
             <a href={item.url} target="_blank" rel="noopener noreferrer"
-              className={`text-sm hover:underline truncate ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}
+              className={`text-xs font-mono leading-5 hover:underline truncate ${isBold ? 'font-bold text-foreground' : 'text-muted-foreground'}`}
               onClick={(e) => e.stopPropagation()}>
               {item.label}
             </a>
           ) : (
-            <span className={`text-sm truncate ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
+            <span className={`text-xs leading-5 truncate ${isBold ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
               {item.label}
             </span>
           )}

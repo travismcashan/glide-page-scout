@@ -52,7 +52,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] font-mono text-muted-foreground truncate min-w-0 hover:text-primary hover:underline"
+                      className="text-xs font-mono leading-5 text-muted-foreground truncate min-w-0 hover:text-primary hover:underline"
                     >
                       {pathname}
                     </a>
