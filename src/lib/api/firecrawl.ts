@@ -161,7 +161,7 @@ export const detectzestackApi = {
   },
 };
 
-
+export const websiteCarbonApi = {
   async check(url: string): Promise<{
     success: boolean;
     green?: boolean;
