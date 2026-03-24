@@ -243,8 +243,6 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
   const globalForms = forms.filter(f => f.isGlobal);
   const pageForms = forms.filter(f => !f.isGlobal);
 
-  const designCount = forms.filter(f => !excluded.has(f.formType)).length;
-  const blockBuiltCount = forms.length - designCount;
 
   return (
     <div className="space-y-4">
