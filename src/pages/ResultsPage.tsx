@@ -1139,10 +1139,15 @@ export default function ResultsPage() {
               )}
 
         {/* ══════ 📄 Content & Scraping ══════ */}
-        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('content-types', !!(session as any)?.content_types_data) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
+        {((shouldShowIntegration('sitemap', !!session?.sitemap_data) && session) || (shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('content-types', !!(session as any)?.content_types_data) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">📄 Content & Scraping</h2>
             <div className="space-y-6">
+              {session && shouldShowIntegration('sitemap', !!session.sitemap_data) && (
+                <SectionCard collapsed={allCollapsed} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={rerunButton('sitemap', 'sitemap_data', sitemapLoading)}>
+                  {session.sitemap_data ? <SitemapCard data={session.sitemap_data} /> : null}
+                </SectionCard>
+              )}
               {session && shouldShowIntegration('url-discovery', !!session.discovered_urls) && (
                 <UrlDiscoveryCard
                   baseUrl={session.base_url}
