@@ -120,7 +120,19 @@ For each tier, list ONLY template names that need custom design. Everything not 
                   },
                   reasoning: {
                     type: 'string',
-                    description: 'Brief explanation of the design strategy and why certain templates were grouped together or excluded',
+                    description: 'Brief overall design strategy summary (1-2 sentences)',
+                  },
+                  reasoning_S: {
+                    type: 'string',
+                    description: 'Markdown-formatted explanation for the Small tier: why these ~5 templates were chosen, what trade-offs were made. Use **bold** for template names.',
+                  },
+                  reasoning_M: {
+                    type: 'string',
+                    description: 'Markdown-formatted explanation for the Medium tier: what was added beyond Small and why. Use **bold** for template names.',
+                  },
+                  reasoning_L: {
+                    type: 'string',
+                    description: 'Markdown-formatted explanation for the Large tier: what was added beyond Medium and why. Use **bold** for template names.',
                   },
                 },
                 required: ['S', 'M', 'L', 'reasoning'],
