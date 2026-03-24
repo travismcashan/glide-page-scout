@@ -75,9 +75,9 @@ function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number
         {visible.map((url) => (
           <Tooltip key={url}>
             <TooltipTrigger asChild>
-              <span className="text-[11px] font-mono text-muted-foreground truncate block cursor-default">
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-mono text-muted-foreground truncate block cursor-pointer hover:text-primary hover:underline">
                 {(() => { try { return new URL(url).pathname; } catch { return url; } })()}
-              </span>
+              </a>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-md">
               <p className="text-xs font-mono break-all">{url}</p>
