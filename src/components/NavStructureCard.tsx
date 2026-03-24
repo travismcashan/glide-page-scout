@@ -87,7 +87,7 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 
 // ── Components ──
 
-function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: NavItem; depth?: number; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
+function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange, onPageLabelChange }: { item: NavItem; depth?: number; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void; onPageLabelChange?: (url: string, label: string) => void }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
@@ -116,6 +116,7 @@ function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: Nav
           <PageTemplateBadge
             tag={pageTag}
             onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url!, t, v) : undefined}
+            onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(item.url!, l) : undefined}
             readOnly={!onPageTagChange}
           />
         )}
@@ -132,7 +133,7 @@ function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: Nav
       {hasChildren && expanded && (
         <div>
           {item.children!.map((child, idx) => (
-            <NavTreeItem key={`${child.label}-${idx}`} item={child} depth={depth + 1} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            <NavTreeItem key={`${child.label}-${idx}`} item={child} depth={depth + 1} pageTags={pageTags} onPageTagChange={onPageTagChange} onPageLabelChange={onPageLabelChange} />
           ))}
         </div>
       )}
@@ -140,7 +141,7 @@ function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: Nav
   );
 }
 
-function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
+function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange, onPageLabelChange }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void; onPageLabelChange?: (url: string, label: string) => void }) {
   if (!items.length && !emptyText) return null;
 
   return (
@@ -153,7 +154,7 @@ function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }
       {items.length > 0 ? (
         <div className="border border-border rounded-lg p-2 bg-muted/20">
           {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} pageTags={pageTags} onPageTagChange={onPageTagChange} onPageLabelChange={onPageLabelChange} />
           ))}
         </div>
       ) : emptyText ? (
@@ -172,7 +173,7 @@ function countLinks(items: NavItem[]): number {
   return count;
 }
 
-export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
+export function NavStructureCard({ data, pageTags, onPageTagChange, onPageLabelChange }: { data: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void; onPageLabelChange?: (url: string, label: string) => void }) {
   const [copiedFormat, setCopiedFormat] = useState<'md' | 'rich' | null>(null);
   const primary = data.primary || data.items || [];
   const secondary = data.secondary || [];
