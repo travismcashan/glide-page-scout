@@ -150,7 +150,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
               const pageTag = getPageTag(pageTags, url);
 
               return (
-                <tr key={url} className="border-t border-border hover:bg-muted/30 transition-colors group">
+                <tr key={url} className="border-t border-border hover:bg-muted/20 transition-colors group">
                   <td className="px-3 py-1.5">
                     <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono leading-5 truncate block text-muted-foreground hover:text-primary hover:underline">{url}</a>
                   </td>
