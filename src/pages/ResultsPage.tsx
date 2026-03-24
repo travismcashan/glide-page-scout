@@ -878,6 +878,7 @@ export default function ResultsPage() {
       semrush: () => { setSemrushFailed(false); setSemrushLoading(false); },
       psi: () => { setPsiFailed(false); setPsiLoading(false); },
       wappalyzer: () => { setWappalyzerFailed(false); setWappalyzerLoading(false); },
+      detectzestack: () => { setDetectzestackFailed(false); setDetectzestackLoading(false); },
       gtmetrix: () => { setGtmetrixFailed(false); setRunningGtmetrix(false); },
       carbon: () => { setCarbonFailed(false); setCarbonLoading(false); },
       crux: () => { setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); },
