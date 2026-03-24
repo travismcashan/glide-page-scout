@@ -196,13 +196,13 @@ function FormRow({ form, index, isExpanded, onToggle }: { form: FormEntry; index
         </div>
 
         {/* Right columns */}
-        <span className="w-[70px] flex justify-center">
-          <Badge variant="outline" className={`${platformColors[form.platform || 'Native'] || platformColors.Native} text-[10px] px-1.5 py-0`}>
+        <span className="w-[120px] flex justify-center">
+          <Badge variant="outline" className={`${platformColors[form.platform || 'Native'] || platformColors.Native} text-[10px] px-1.5 py-0 whitespace-nowrap`}>
             {form.platform || 'Native'}
           </Badge>
         </span>
-        <span className="w-[70px] text-center text-xs text-muted-foreground">{form.fieldCount}</span>
-        <span className="w-[120px] text-right text-xs text-muted-foreground">{form.pageCount}</span>
+        <span className="w-[45px] text-center text-xs text-muted-foreground">{form.fieldCount}</span>
+        <span className="w-[50px] text-right text-xs text-muted-foreground">{form.pageCount}</span>
       </div>
 
       {/* Expanded detail */}
