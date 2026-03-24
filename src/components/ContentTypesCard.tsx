@@ -21,7 +21,7 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
   const [mergeMode, setMergeMode] = useState(false);
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
-  const [expandedType, setExpandedType] = useState<string | null>(null);
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(data?.summary?.slice(0, 5).map(s => s.type) || []));
 
   const { summary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
   const classified = data?.classified || [];
