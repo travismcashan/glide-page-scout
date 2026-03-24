@@ -66,6 +66,7 @@ type Props = {
   baseUrl: string;
   onUrlsDiscovered: (urls: string[]) => void;
   onSitemapHints?: (hints: { label: string; urls: string[] }[]) => void;
+  sitemapUrls?: string[] | null;
   linkCheckResults?: LinkCheckResult[] | null;
   linkCheckStreaming?: LinkCheckResult[] | null;
   linkCheckLoading?: boolean;
@@ -168,7 +169,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist, pageTags, onPageTagChange }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, sitemapUrls, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist, pageTags, onPageTagChange }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
