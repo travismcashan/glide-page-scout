@@ -144,7 +144,24 @@ export const wappalyzerApi = {
   },
 };
 
-export const websiteCarbonApi = {
+export const detectzestackApi = {
+  async lookup(domain: string): Promise<{
+    success: boolean;
+    technologies?: any[];
+    grouped?: Record<string, any[]>;
+    totalCount?: number;
+    scanDepth?: string | null;
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('detectzestack-lookup', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
+
+
   async check(url: string): Promise<{
     success: boolean;
     green?: boolean;
