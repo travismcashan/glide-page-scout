@@ -3,7 +3,8 @@ import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop, Co
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-
+import { PageTemplateBadge } from '@/components/PageTemplateBadge';
+import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
 
 type NavItem = {
   label: string;
@@ -86,9 +87,10 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 
 // ── Components ──
 
-function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
+function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: NavItem; depth?: number; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
+  const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
 
   return (
     <div>
@@ -111,6 +113,14 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
         )}
 
         {item.url && (
+          <PageTemplateBadge
+            tag={pageTag}
+            onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url!, t, v) : undefined}
+            readOnly={!onPageTagChange}
+          />
+        )}
+
+        {item.url && (
           <a href={item.url} target="_blank" rel="noopener noreferrer"
             className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
             onClick={(e) => e.stopPropagation()}>
@@ -122,7 +132,7 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
       {hasChildren && expanded && (
         <div>
           {item.children!.map((child, idx) => (
-            <NavTreeItem key={`${child.label}-${idx}`} item={child} depth={depth + 1} />
+            <NavTreeItem key={`${child.label}-${idx}`} item={child} depth={depth + 1} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       )}
@@ -130,7 +140,7 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   );
 }
 
-function NavSection({ title, icon, items, emptyText }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string }) {
+function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
   if (!items.length && !emptyText) return null;
 
   return (
@@ -143,7 +153,7 @@ function NavSection({ title, icon, items, emptyText }: { title: string; icon: Re
       {items.length > 0 ? (
         <div className="border border-border rounded-lg p-2 bg-muted/20">
           {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} />
+            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       ) : emptyText ? (
@@ -162,7 +172,7 @@ function countLinks(items: NavItem[]): number {
   return count;
 }
 
-export function NavStructureCard({ data }: { data: NavStructureData }) {
+export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
   const [copiedFormat, setCopiedFormat] = useState<'md' | 'rich' | null>(null);
   const primary = data.primary || data.items || [];
   const secondary = data.secondary || [];
@@ -225,10 +235,10 @@ export function NavStructureCard({ data }: { data: NavStructureData }) {
         </div>
       </div>
 
-      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} />
+      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} pageTags={pageTags} onPageTagChange={onPageTagChange} />
 
       {secondary.length > 0 && (
-        <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} />
+        <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} pageTags={pageTags} onPageTagChange={onPageTagChange} />
       )}
 
       <NavSection
@@ -236,6 +246,8 @@ export function NavStructureCard({ data }: { data: NavStructureData }) {
         icon={<Menu className="h-3.5 w-3.5 text-muted-foreground" />}
         items={footer}
         emptyText="No unique footer links — all footer items match the header navigation."
+        pageTags={pageTags}
+        onPageTagChange={onPageTagChange}
       />
     </div>
   );

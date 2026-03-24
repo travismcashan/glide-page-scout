@@ -11,6 +11,8 @@ import { ConfidenceBadge, SourceBadge } from '@/components/content-types/Confide
 import { ExpandableUrlRows, type NavTag } from '@/components/content-types/ExpandableUrlRows';
 import type { ContentTypesData, ClassifiedUrl } from '@/components/content-types/types';
 import { rebuildSummary } from '@/components/content-types/types';
+import { PageTemplateBadge } from '@/components/PageTemplateBadge';
+import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
 
 export { type ContentTypesData } from '@/components/content-types/types';
 
@@ -38,7 +40,7 @@ function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
   return map;
 }
 
-export function ContentTypesCard({ data, onDataChange, navStructure }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData }) {
+export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
@@ -259,6 +261,8 @@ export function ContentTypesCard({ data, onDataChange, navStructure }: { data: C
                     onChangeType={onDataChange ? handleChangeUrlType : undefined}
                     readOnly={!onDataChange}
                     navMap={navMap}
+                    pageTags={pageTags}
+                    onPageTagChange={onPageTagChange}
                   />
                 </div>
               )}

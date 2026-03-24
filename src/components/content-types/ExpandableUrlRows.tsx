@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PageTemplateBadge } from '@/components/PageTemplateBadge';
+import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
 import type { ClassifiedUrl } from './types';
 
 export type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
@@ -25,9 +27,11 @@ interface ExpandableUrlRowsProps {
   onChangeType?: (url: string, newType: string) => void;
   readOnly?: boolean;
   navMap?: Map<string, NavTag[]>;
+  pageTags?: PageTagsMap | null;
+  onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
   const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);
@@ -44,6 +48,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           const navKey = item.url.toLowerCase().replace(/\/$/, '');
           const navTags = navMap?.get(navKey) || [];
           const uniqueNavTypes = [...new Set(navTags.map(t => t.type))];
+          const pageTag = getPageTag(pageTags, item.url);
           return (
             <div key={item.url} className="flex items-center gap-2 py-1 px-3 rounded hover:bg-muted/30 group">
               <Tooltip>
@@ -61,6 +66,11 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
                   <p className="text-xs font-mono break-all">{item.url}</p>
                 </TooltipContent>
               </Tooltip>
+              <PageTemplateBadge
+                tag={pageTag}
+                onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url, t, v) : undefined}
+                readOnly={!onPageTagChange}
+              />
               {uniqueNavTypes.map((type) => (
                 <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
                   {navBadgeLabel[type]}

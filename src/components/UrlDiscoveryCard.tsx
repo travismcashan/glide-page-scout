@@ -8,6 +8,8 @@ import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
 import { CardTabs } from '@/components/CardTabs';
+import { PageTemplateBadge } from '@/components/PageTemplateBadge';
+import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
 
 type LinkCheckResult = {
   url: string;
@@ -72,6 +74,8 @@ type Props = {
   collapsed?: boolean;
   persistedUrls?: string[] | null;
   onUrlsPersist?: (urls: string[]) => void;
+  pageTags?: PageTagsMap | null;
+  onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
 };
 
 function statusBadgeClass(code: number): string {
@@ -115,8 +119,8 @@ const navBadgeLabel: Record<string, string> = {
   footer: 'Footer',
 };
 
-const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string }>(
-  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range' }, ref) => {
+const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }>(
+  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range', pageTags, onPageTagChange }, ref) => {
     if (!urls.length) {
       return <p className="text-sm text-muted-foreground italic py-4 text-center">{emptyText}</p>;
     }
@@ -129,6 +133,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
           const navKey = url.toLowerCase().replace(/\/$/, '');
           const tags = navMap.get(navKey) || [];
           const uniqueTypes = [...new Set(tags.map(t => t.type))];
+          const pageTag = getPageTag(pageTags, url);
 
           return (
             <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
@@ -141,6 +146,11 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
                   {status}
                 </Badge>
               )}
+              <PageTemplateBadge
+                tag={pageTag}
+                onChange={onPageTagChange ? (t, v) => onPageTagChange(url, t, v) : undefined}
+                readOnly={!onPageTagChange}
+              />
               {uniqueTypes.map((type) => (
                 <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
                   {navBadgeLabel[type]}
@@ -157,7 +167,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist, pageTags, onPageTagChange }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -318,18 +328,18 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
             <CardTabs
               defaultValue="all"
               tabs={[
-                { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} navMap={navMap} /> },
+                { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} /> },
                 {
                   value: 'pending',
                   label: `Pending (${buckets.pending.length})`,
-                  content: <UrlList urls={buckets.pending} statusMap={statusMap} navMap={navMap} emptyText="All URLs have been checked." />,
+                  content: <UrlList urls={buckets.pending} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} emptyText="All URLs have been checked." />,
                   visible: buckets.pending.length > 0,
                 },
-                { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['2xx'].length > 0 },
-                { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['3xx'].length > 0 },
-                { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} navMap={navMap} />, visible: buckets['429'].length > 0 },
-                { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['4xx'].length > 0 },
-                { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} navMap={navMap} />, visible: buckets['5xx'].length > 0 },
+                { value: '2xx', label: `2xx (${buckets['2xx'].length})`, content: <UrlList urls={buckets['2xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['2xx'].length > 0 },
+                { value: '3xx', label: `3xx (${buckets['3xx'].length})`, content: <UrlList urls={buckets['3xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['3xx'].length > 0 },
+                { value: '429', label: `429 Rate Limited (${buckets['429'].length})`, content: <UrlList urls={buckets['429']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['429'].length > 0 },
+                { value: '4xx', label: `4xx (${buckets['4xx'].length})`, content: <UrlList urls={buckets['4xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['4xx'].length > 0 },
+                { value: '5xx', label: `5xx (${buckets['5xx'].length})`, content: <UrlList urls={buckets['5xx']} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets['5xx'].length > 0 },
               ]}
             />
           </div>
