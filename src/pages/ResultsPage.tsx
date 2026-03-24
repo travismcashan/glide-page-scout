@@ -647,7 +647,35 @@ export default function ResultsPage() {
     }
   }, [session?.sitemap_data]);
 
-  // Content Types classification (auto-run after URL discovery) — phased with progress
+  // Forms Detection (manual trigger — scrapes pages via Firecrawl)
+  const [formsLoading, setFormsLoading] = useState(false);
+  const [formsFailed, setFormsFailed] = useState(false);
+  const runFormsDetection = useCallback(async () => {
+    if (!session || formsLoading) return;
+    setFormsLoading(true);
+    setFormsFailed(false);
+    clearError('forms');
+    try {
+      const urls = effectiveDiscoveredUrls.length > 0 ? effectiveDiscoveredUrls : [session.base_url];
+      const result = await formsDetectApi.detect(urls, session.domain);
+      if (result.success && result.data) {
+        await supabase.from('crawl_sessions').update({ forms_data: result.data } as any).eq('id', session.id);
+        clearError('forms');
+        fetchData();
+        toast.success(`Found ${result.data.summary?.uniqueForms || 0} unique forms`);
+      } else {
+        setFormsFailed(true);
+        setError('forms', result.error || 'Forms detection failed');
+      }
+    } catch (e: any) {
+      setFormsFailed(true);
+      setError('forms', e?.message || 'Forms detection request failed');
+    } finally {
+      setFormsLoading(false);
+    }
+  }, [session, formsLoading, effectiveDiscoveredUrls, fetchData]);
+
+
   const [contentTypesLoading, setContentTypesLoading] = useState(false);
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
   const [contentTypesProgress, setContentTypesProgress] = useState('');
