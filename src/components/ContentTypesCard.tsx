@@ -65,7 +65,7 @@ function sourceBadge(source: string) {
 }
 
 function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number }) {
-  const INITIAL = 3;
+  const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);
   const visible = urls.slice(0, visibleCount);
