@@ -222,40 +222,43 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
 
   const tierLabel = (tier: TierKey) => {
     if (tier === 'All') return 'All';
-    if (aiTiers) return `${tier} (${aiTiers[tier as 'S' | 'M' | 'L'].length})`;
-    return tier === 'S' ? 'S (~5)' : tier === 'M' ? 'M (~10)' : 'L (~15)';
+    const labels = { S: 'Small', M: 'Medium', L: 'Large' };
+    const defaults = { S: 5, M: 10, L: 15 };
+    const label = labels[tier as 'S' | 'M' | 'L'];
+    const count = aiTiers ? aiTiers[tier as 'S' | 'M' | 'L'].length : defaults[tier as 'S' | 'M' | 'L'];
+    return `${label} · ${count} layouts`;
   };
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-        <span><strong className="text-foreground text-sm">{totalTemplates}</strong> Unique Templates</span>
-        <span>·</span>
-        <span><strong className="text-foreground text-sm">{designCount}</strong> Custom Design</span>
-        <span>·</span>
-        <span><strong className="text-foreground text-sm">{blockBuiltCount}</strong> Block-Built</span>
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center justify-end gap-2">
-        {!aiTiers && !aiLoading && (
-          <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
-            <Sparkles className="h-3 w-3" /> AI Recommend
-          </button>
-        )}
-        {aiTiers && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <Sparkles className="h-2.5 w-2.5" /> AI
-          </span>
-        )}
-        <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
-          {TIER_KEYS.map(tier => (
-            <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
-              {tierLabel(tier)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+      {/* Summary + Controls on same row */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+          <span><strong className="text-foreground text-sm">{totalTemplates}</strong> Unique Templates</span>
+          <span>·</span>
+          <span><strong className="text-foreground text-sm">{designCount}</strong> Custom Design</span>
+          <span>·</span>
+          <span><strong className="text-foreground text-sm">{blockBuiltCount}</strong> Block-Built</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!aiTiers && !aiLoading && (
+            <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
+              <Sparkles className="h-3 w-3" /> AI Recommend
+            </button>
+          )}
+          {aiTiers && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Sparkles className="h-2.5 w-2.5" /> AI
+            </span>
+          )}
+          <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
+            {TIER_KEYS.map(tier => (
+              <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+                {tierLabel(tier)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
       </div>
 
       {/* AI Loading indicator */}
