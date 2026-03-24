@@ -54,12 +54,43 @@ interface AiTiers {
   reasoning: string;
 }
 
+const LOADING_MESSAGES = [
+  'Dispatching design pigeons…',
+  'Garden gnomes are analyzing layouts…',
+  'Measuring whitespace with tiny rulers…',
+  'Consulting the font gods…',
+  'Debating hero section strategies…',
+  'Sorting templates by vibes…',
+  'Pixel-peeping every page…',
+  'Asking the AI which pages spark joy…',
+  'Running templates through the taste machine…',
+  'Counting unique layouts with abacuses…',
+];
+
 export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
   const [aiTiers, setAiTiers] = useState<AiTiers | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
+  const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Rotate loading messages
+  useEffect(() => {
+    if (aiLoading) {
+      let idx = Math.floor(Math.random() * LOADING_MESSAGES.length);
+      setLoadingMsg(LOADING_MESSAGES[idx]);
+      loadingInterval.current = setInterval(() => {
+        idx = (idx + 1) % LOADING_MESSAGES.length;
+        setLoadingMsg(LOADING_MESSAGES[idx]);
+      }, 3000);
+    } else if (loadingInterval.current) {
+      clearInterval(loadingInterval.current);
+      loadingInterval.current = null;
+    }
+    return () => { if (loadingInterval.current) clearInterval(loadingInterval.current); };
+  }, [aiLoading]);
 
   const { templates, totalTemplates } = useMemo(() => {
     const templateMap: Record<string, { count: number; baseType?: string; urls: string[] }> = {};
