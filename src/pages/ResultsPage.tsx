@@ -761,8 +761,6 @@ export default function ResultsPage() {
   useEffect(() => {
     if (!session || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
-    // Wait until all pages are scraped (session status = completed) or this is a revisit with persisted data
-    if (session.status === 'crawling' || session.status === 'analyzing') return;
     setContentTypesLoading(true);
     setContentTypesProgress('Starting classification…');
     contentTypesApi.classifyPhased(
