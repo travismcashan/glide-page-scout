@@ -878,6 +878,12 @@ export default function ResultsPage() {
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
       'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
+      'forms': () => {
+        setFormsFailed(false); setFormsLoading(false); formsAutoRunRef.current = false;
+        formsRerunFnRef.current?.();
+        // Also clear forms_tiers
+        supabase.from('crawl_sessions').update({ forms_tiers: null } as any).eq('id', session!.id).then();
+      },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
