@@ -1393,7 +1393,7 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔧 Technology Detection ══════ */}
-        {(shouldShowIntegration('builtwith', !!session?.builtwith_data) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data)) && (
+        {(shouldShowIntegration('builtwith', !!session?.builtwith_data) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
@@ -1403,6 +1403,14 @@ export default function ResultsPage() {
                   <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
                 ) : !builtwithLoading && !builtwithFailed ? (
                   <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
+                ) : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="detectzestack" persistedCollapsed={isSectionCollapsed("detectzestack")} onCollapseChange={toggleSection} title="DetectZeStack — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={detectzestackLoading && !(session as any)?.detectzestack_data} loadingText="Running DetectZeStack detection..." error={detectzestackFailed} errorText={integrationErrors.detectzestack} headerExtra={rerunButton('detectzestack', 'detectzestack_data', detectzestackLoading)}>
+                {(session as any)?.detectzestack_data ? (
+                  <DetectZeStackCard data={(session as any).detectzestack_data} />
                 ) : null}
               </SectionCard>
               )}
