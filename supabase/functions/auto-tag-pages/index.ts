@@ -274,41 +274,15 @@ Deno.serve(async (req) => {
       ? `Navigation structure:\n${JSON.stringify(navStructure, null, 1).substring(0, 2000)}`
       : '';
 
-    // Split into batches
-    const batches: string[][] = [];
-    for (let i = 0; i < dedupedUrls.length; i += BATCH_SIZE) {
-      batches.push(dedupedUrls.slice(i, i + BATCH_SIZE));
-    }
+    // Single AI call — client handles batching across invocations
+    console.log(`[auto-tag] Classifying ${dedupedUrls.length} URLs for domain: ${domain}`);
 
-    console.log(`[auto-tag] Classifying ${dedupedUrls.length} URLs in ${batches.length} batch(es) for domain: ${domain}`);
+    const result = await classifyBatch(aiKey, dedupedUrls, domain, homepageContent || '', navSummary, knownIndustry || undefined);
+    const industry = result.industry || 'Generic / Other';
+    const industryConfidence = result.industry_confidence || 'low';
+    const allPages: any[] = [...(result.pages || [])];
 
-    // First batch: detect industry
-    const firstResult = await classifyBatch(aiKey, batches[0], domain, homepageContent || '', navSummary, knownIndustry || undefined);
-    const industry = firstResult.industry || 'Generic / Other';
-    const industryConfidence = firstResult.industry_confidence || 'low';
-    const allPages: any[] = [...(firstResult.pages || [])];
-
-    console.log(`[auto-tag] Batch 1/${batches.length}: industry="${industry}" (${industryConfidence}), ${firstResult.pages?.length || 0} pages`);
-
-    // Subsequent batches: reuse detected industry, run in parallel (max 2 concurrent)
-    if (batches.length > 1) {
-      const remainingBatches = batches.slice(1);
-      // Process 2 at a time to avoid rate limits
-      for (let i = 0; i < remainingBatches.length; i += 2) {
-        const chunk = remainingBatches.slice(i, i + 2);
-        const results = await Promise.allSettled(
-          chunk.map(batch => classifyBatch(aiKey, batch, domain, homepageContent || '', navSummary, industry))
-        );
-        for (const r of results) {
-          if (r.status === 'fulfilled' && r.value.pages) {
-            allPages.push(...r.value.pages);
-            console.log(`[auto-tag] Batch: +${r.value.pages.length} pages`);
-          } else if (r.status === 'rejected') {
-            console.error(`[auto-tag] Batch failed:`, r.reason?.message);
-          }
-        }
-      }
-    }
+    console.log(`[auto-tag] Industry: "${industry}" (${industryConfidence}), ${allPages.length} pages classified`);
 
     // Fuzzy-match URLs back to originals
     const inputNormMap = new Map<string, string>();
