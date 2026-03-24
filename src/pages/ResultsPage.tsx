@@ -128,6 +128,9 @@ export default function ResultsPage() {
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
+  // Timing tracking per integration
+  const integrationStartTimes = useRef<Record<string, number>>({});
+  const [integrationDurations, setIntegrationDurations] = useState<Record<string, number>>({});
   // Error tracking per integration
   const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
   const setError = (key: string, msg: string) => setIntegrationErrors(prev => ({ ...prev, [key]: msg }));
