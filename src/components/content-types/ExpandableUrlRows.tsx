@@ -53,8 +53,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
             <div key={item.url} className="flex items-center gap-2 py-1 px-3 rounded hover:bg-muted/30 group">
               <PageTemplateBadge
                 tag={pageTag}
-                onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url, t, v) : undefined}
-                onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(item.url, l) : undefined}
+                onChange={onPageTagChange ? (t) => onPageTagChange(item.url, t) : undefined}
                 readOnly={!onPageTagChange}
               />
               {uniqueNavTypes.map((type) => (
