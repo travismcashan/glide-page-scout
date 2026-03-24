@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Check } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
 import { normalizeTagKey } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
