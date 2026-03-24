@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Check } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
+import { normalizeTagKey } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
 const baseTypeColors: Record<string, string> = {
@@ -11,34 +13,71 @@ const baseTypeColors: Record<string, string> = {
   Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
 };
 
+// Priority order for sorting templates: Page first (custom pages are most important for redesign),
+// then Archive (list pages), then Post/CPT (repeating), then Search/toolkit last.
+const baseTypePriority: Record<string, number> = {
+  Page: 0,
+  Archive: 1,
+  CPT: 2,
+  Post: 3,
+  Search: 4,
+};
+
+interface NavItem {
+  label: string;
+  url?: string | null;
+  children?: NavItem[];
+}
+
 interface Props {
   pageTags: PageTagsMap | null;
   contentTypesData: ContentTypesData | null;
+  navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
 }
 
-function TableSection({ title, columns, rows }: {
+/** Collect all URLs from a nav tree */
+function collectNavUrls(items: NavItem[] | undefined): Set<string> {
+  const urls = new Set<string>();
+  if (!items) return urls;
+  for (const item of items) {
+    if (item.url) urls.add(normalizeTagKey(item.url));
+    if (item.children) {
+      for (const u of collectNavUrls(item.children)) urls.add(u);
+    }
+  }
+  return urls;
+}
+
+function TableSection({ title, columns, colAligns, rows }: {
   title: string;
   columns: string[];
+  colAligns?: ('left' | 'center' | 'right')[];
   rows: { cells: React.ReactNode[] }[];
 }) {
   return (
     <div>
       <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{title}</h4>
       <div className="border border-border rounded-md overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="bg-muted/50 text-left">
-              {columns.map((col, i) => (
-                <th key={col} className={`px-3 py-2 font-medium text-muted-foreground ${i > 0 ? 'text-right' : ''}`}>{col}</th>
-              ))}
+              {columns.map((col, i) => {
+                const align = colAligns?.[i] || (i > 0 ? 'right' : 'left');
+                return (
+                  <th key={col} className={`px-3 py-2 font-medium text-muted-foreground ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}`}>{col}</th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, i) => (
               <tr key={i} className="border-t border-border hover:bg-muted/30 transition-colors">
-                {row.cells.map((cell, j) => (
-                  <td key={j} className={`px-3 py-1.5 ${j === 0 ? 'font-medium text-foreground' : 'text-right text-muted-foreground'}`}>{cell}</td>
-                ))}
+                {row.cells.map((cell, j) => {
+                  const align = colAligns?.[j] || (j > 0 ? 'right' : 'left');
+                  return (
+                    <td key={j} className={`px-3 py-1.5 ${j === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'} ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}`}>{cell}</td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -48,28 +87,45 @@ function TableSection({ title, columns, rows }: {
   );
 }
 
-export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
+export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure }: Props) {
   const { baseTypeCounts, templates, contentTypes, totalTemplates } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
-    const templateMap: Record<string, { count: number; baseType?: string }> = {};
+    const templateMap: Record<string, { count: number; baseType?: string; urls: string[] }> = {};
 
     if (pageTags) {
-      for (const tag of Object.values(pageTags)) {
+      for (const [url, tag] of Object.entries(pageTags)) {
         const bt = tag.baseType || 'Page';
         counts[bt] = (counts[bt] || 0) + 1;
         const tmpl = tag.template || 'Unknown';
         if (!templateMap[tmpl]) {
-          templateMap[tmpl] = { count: 0, baseType: bt };
+          templateMap[tmpl] = { count: 0, baseType: bt, urls: [] };
         }
         templateMap[tmpl].count++;
+        templateMap[tmpl].urls.push(url);
       }
     }
 
-    const sortedTemplates = Object.entries(templateMap)
-      .sort(([, a], [, b]) => b.count - a.count)
-      .map(([name, data]) => ({ name, ...data }));
+    // Collect primary nav URLs
+    const primaryNavUrls = collectNavUrls(navStructure?.primary);
 
-    // Content types: only Post and CPT (matching Repeating Content card)
+    // Sort by importance: in-nav first, then by baseType priority, then by count desc
+    const sortedTemplates = Object.entries(templateMap)
+      .map(([name, data]) => {
+        const inNav = data.urls.some(u => primaryNavUrls.has(normalizeTagKey(u)));
+        return { name, ...data, inNav };
+      })
+      .sort((a, b) => {
+        // In-nav templates first
+        if (a.inNav !== b.inNav) return a.inNav ? -1 : 1;
+        // Then by base type priority
+        const pa = baseTypePriority[a.baseType || 'Page'] ?? 5;
+        const pb = baseTypePriority[b.baseType || 'Page'] ?? 5;
+        if (pa !== pb) return pa - pb;
+        // Then by count desc
+        return b.count - a.count;
+      });
+
+    // Content types: only Post and CPT
     const ctList: { type: string; count: number; baseType?: string }[] = [];
     if (contentTypesData?.summary) {
       for (const s of contentTypesData.summary) {
@@ -85,7 +141,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
       contentTypes: ctList,
       totalTemplates: sortedTemplates.length,
     };
-  }, [pageTags, contentTypesData]);
+  }, [pageTags, contentTypesData, navStructure]);
 
   if (!pageTags || Object.keys(pageTags).length === 0) {
     return <p className="text-sm text-muted-foreground">No page classification data available yet. Run URL Discovery and Content Types first.</p>;
@@ -106,26 +162,23 @@ export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
       {/* Level 1 — Base Types */}
       <TableSection
         title="Level 1 — Base Types"
-        columns={['Type', 'URLs']}
+        columns={['Type', 'In Nav', 'URLs']}
+        colAligns={['left', 'center', 'right']}
         rows={baseTypeCounts.map(([type, count]) => ({
-          cells: [
-            <span className="flex items-center gap-2">
-              <Badge variant="outline" className={`${baseTypeColors[type] || ''} text-[10px] px-1.5 py-0`}>{type}</Badge>
-              {type}
-            </span>,
-            count,
-          ],
+          cells: [type, '', count],
         }))}
       />
 
       {/* Level 2 — Unique Templates */}
       <TableSection
         title={`Level 2 — Unique Templates (${totalTemplates})`}
-        columns={['Template', 'Type', 'URLs']}
+        columns={['Template', 'Type', 'In Nav', 'URLs']}
+        colAligns={['left', 'center', 'center', 'right']}
         rows={templates.map((t) => ({
           cells: [
             t.name,
             t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null,
+            t.inNav ? <Check className="h-3.5 w-3.5 text-emerald-500 inline-block" /> : null,
             t.count,
           ],
         }))}
@@ -135,11 +188,13 @@ export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
       {contentTypes.length > 0 && (
         <TableSection
           title={`Level 3 — Repeating Content (${contentTypes.length})`}
-          columns={['Content Type', 'Type', 'URLs']}
+          columns={['Content Type', 'Type', 'In Nav', 'URLs']}
+          colAligns={['left', 'center', 'center', 'right']}
           rows={contentTypes.map((ct) => ({
             cells: [
               ct.type,
               ct.baseType ? <Badge variant="outline" className={`${baseTypeColors[ct.baseType] || ''} text-[10px] px-1.5 py-0`}>{ct.baseType}</Badge> : null,
+              '',
               ct.count,
             ],
           }))}
