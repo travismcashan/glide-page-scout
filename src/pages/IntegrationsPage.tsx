@@ -18,7 +18,7 @@ type Integration = {
   description: string;
   secretKey: string;
   configured: boolean;
-  category: 'technology' | 'performance' | 'seo' | 'content' | 'ux' | 'security' | 'intelligence' | 'enrichment';
+  category: 'architecture' | 'analysis' | 'technology' | 'performance' | 'seo' | 'content' | 'ux' | 'security' | 'intelligence' | 'enrichment';
   status: Status;
   hasCredits?: boolean;
 };
