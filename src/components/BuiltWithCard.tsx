@@ -144,7 +144,7 @@ function buildSuperGroups(grouped: Record<string, Technology[]>): SuperGroupData
 
 export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  const [hideOld, setHideOld] = useState(false);
+  const [hideOld, setHideOld] = useState(true);
 
   const toggleSection = (key: string) => {
     setCollapsedSections(prev => {
