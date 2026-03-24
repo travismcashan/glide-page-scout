@@ -305,7 +305,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[auto-tag] Industry: ${industry} (${industryConfidence}), tagged ${matchedPages.length}/${urls.length} URLs across ${batches.length} batch(es)`);
+    console.log(`[auto-tag] Industry: ${industry} (${industryConfidence}), tagged ${matchedPages.length}/${urls.length} URLs`);
 
     return new Response(
       JSON.stringify({
