@@ -150,18 +150,18 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
               const pageTag = getPageTag(pageTags, url);
 
               return (
-                <tr key={url} className="border-t border-border hover:bg-muted/20 transition-colors group">
-                  <td className="px-3 py-1.5">
+                <tr key={url} className="border-t border-border/50 hover:bg-muted/20 transition-colors group">
+                  <td className="px-3 py-1">
                     <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono leading-5 truncate block text-muted-foreground hover:text-primary hover:underline">{url}</a>
                   </td>
-                  <td className="px-2 py-1.5 text-center">
+                  <td className="px-2 py-1 text-center">
                     {pageTag?.baseType && (
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[pageTag.baseType] || ''}`}>
                         {pageTag.baseType}
                       </Badge>
                     )}
                   </td>
-                  <td className="px-2 py-1.5 text-center">
+                  <td className="px-2 py-1 text-center">
                     <PageTemplateBadge
                       tag={pageTag}
                       onChange={onPageTagChange ? (t) => onPageTagChange(url, t) : undefined}
