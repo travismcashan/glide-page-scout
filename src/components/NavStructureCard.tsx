@@ -87,12 +87,17 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 
 // ── Components ──
 
-function buildTreePrefix(parentLines: boolean[], isLast: boolean): string {
+function buildTreePrefix(parentLines: boolean[], isLast: boolean, isFirst: boolean): string {
   let prefix = '';
   for (const showLine of parentLines) {
     prefix += showLine ? '│   ' : '    ';
   }
-  prefix += isLast ? '└── ' : '├── ';
+  if (isFirst && parentLines.length === 0) {
+    // First root item: no vertical above, just horizontal down
+    prefix += isLast ? '─── ' : '┌── ';
+  } else {
+    prefix += isLast ? '└── ' : '├── ';
+  }
   return prefix;
 }
 
