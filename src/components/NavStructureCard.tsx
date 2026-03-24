@@ -154,10 +154,10 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 
   return (
     <div>
-      <div className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group">
+      <div className="flex items-center py-1 px-2 rounded-md hover:bg-muted/50 transition-colors group">
         {/* Left: tree + label */}
         <div className="flex items-center flex-1 min-w-0">
-          <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
+          <span className="font-mono text-xs leading-5 text-foreground/50 whitespace-pre select-none shrink-0">
             {buildTreePrefix(parentLines, isLast, isFirst)}
           </span>
 
