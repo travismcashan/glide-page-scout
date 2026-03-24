@@ -50,8 +50,9 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
   if (!tag) return null;
 
   const style = templateStyles[tag.template];
-  const label = templateLabels[tag.template];
+  const typeLabel = templateLabels[tag.template];
   const variant = tag.variant ? variantLabel[tag.variant] : null;
+  const pageLabel = tag.label || tag.contentType;
   const interactive = !readOnly && onChange;
 
   return (
@@ -65,7 +66,7 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
           setOpen(!open);
         }}
       >
-        {label}{variant ? ` · ${variant}` : ''}
+        {typeLabel}{variant ? ` · ${variant}` : ''}{pageLabel ? ` · ${pageLabel}` : ''}
       </Badge>
       {open && interactive && (
         <div className="absolute z-50 top-full mt-1 left-0 bg-popover border border-border rounded-md shadow-md py-1 min-w-[160px]">
