@@ -55,7 +55,9 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
     const newSummary = rebuildSummary(newClassified);
     onDataChange({ ...data, summary: newSummary, classified: newClassified, stats: { ...stats, uniqueTypes: newSummary.length } });
     setEditingType(null);
-    if (expandedType === oldType) setExpandedType(newName);
+    if (expandedTypes.has(oldType)) {
+      setExpandedTypes(prev => { const next = new Set(prev); next.delete(oldType); next.add(newName); return next; });
+    }
   };
 
   const handleChangeUrlType = (url: string, newType: string) => {
@@ -145,7 +147,7 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
           <div className="px-3 py-2.5">Confidence</div>
         </div>
         {summary.map((row) => {
-          const isExpanded = expandedType === row.type;
+          const isExpanded = expandedTypes.has(row.type);
           const typeUrls = urlsByType[row.type] || [];
           const hasClassified = typeUrls.length > 0;
           // Fallback: if no classified data, build from summary urls
@@ -158,7 +160,7 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
             <div key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
               <div
                 className="grid grid-cols-[auto_1fr_60px_80px] items-center border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
-                onClick={() => setExpandedType(isExpanded ? null : row.type)}
+                onClick={() => setExpandedTypes(prev => { const next = new Set(prev); if (isExpanded) next.delete(row.type); else next.add(row.type); return next; })}
               >
                 <div className="flex items-center gap-1 px-3 py-2.5">
                   {mergeMode && (
