@@ -29,6 +29,14 @@ type NavStructureData = {
 
 type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
 
+const navWeight: Record<string, number> = { primary: 4, secondary: 2, footer: 1 };
+
+function navSortScore(url: string, navMap: Map<string, NavTag[]>): number {
+  const tags = navMap.get(url.toLowerCase().replace(/\/$/, '')) || [];
+  if (!tags.length) return 0;
+  return tags.reduce((sum, t) => sum + (navWeight[t.type] || 0), 0);
+}
+
 function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
   const map = new Map<string, NavTag[]>();
   if (!nav) return map;
