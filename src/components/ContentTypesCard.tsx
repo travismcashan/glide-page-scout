@@ -263,6 +263,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                     navMap={navMap}
                     pageTags={pageTags}
                     onPageTagChange={onPageTagChange}
+                    onPageLabelChange={onPageLabelChange}
                   />
                 </div>
               )}
