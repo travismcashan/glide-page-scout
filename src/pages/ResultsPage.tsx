@@ -1254,8 +1254,8 @@ export default function ResultsPage() {
             </div>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground mt-2 h-12 w-12">
-                  <Menu className="h-9 w-9" />
+                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground mt-2 h-16 w-16">
+                  <Menu className="h-12 w-12" strokeWidth={2.5} />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-64 p-0">
