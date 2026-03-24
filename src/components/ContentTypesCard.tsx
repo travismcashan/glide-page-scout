@@ -146,11 +146,11 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
       {/* Stats row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground">{repeatingCount}</strong> repeating URLs</span>
+          <span><strong className="text-foreground">{repeatingCount}</strong> Repeating URLs</span>
           <span>·</span>
-          <span><strong className="text-foreground">{summary.length}</strong> content types</span>
+          <span><strong className="text-foreground">{summary.length}</strong> Content Types</span>
           <span>·</span>
-          <span className="text-muted-foreground">{stats.total} total URLs analyzed</span>
+          <span><strong className="text-foreground">{stats.total}</strong> Total URLs Analyzed</span>
         </div>
         <div className="flex items-center gap-2">
           <Button
