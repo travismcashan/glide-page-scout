@@ -253,7 +253,32 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
                     />
                   </TableCell>
                 )}
-                <TableCell className="text-sm font-medium">{row.type}</TableCell>
+                <TableCell className="text-sm font-medium">
+                  {editingType === row.type ? (
+                    <Input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleRename(row.type)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRename(row.type);
+                        if (e.key === 'Escape') setEditingType(null);
+                      }}
+                      className="h-6 text-sm px-1.5 py-0 w-40"
+                      autoFocus
+                    />
+                  ) : (
+                    <span
+                      className={onDataChange ? 'cursor-pointer hover:text-primary hover:underline' : ''}
+                      onClick={() => {
+                        if (!onDataChange) return;
+                        setEditingType(row.type);
+                        setEditValue(row.type);
+                      }}
+                    >
+                      {row.type}
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm text-right font-mono">{row.count}</TableCell>
                 <TableCell>{confidenceBadge(row.confidence)}</TableCell>
                 <TableCell>
