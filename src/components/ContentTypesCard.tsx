@@ -183,17 +183,6 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
         </div>
       )}
 
-      {/* Detection source badges */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {Object.entries(stats.bySource)
-          .filter(([, count]) => count > 0)
-          .map(([source, count]) => (
-            <span key={source} className="flex items-center gap-1">
-              <SourceBadge source={source} />
-              <span className="text-[10px] text-muted-foreground">{count}</span>
-            </span>
-          ))}
-      </div>
 
       {/* Expandable rows */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
