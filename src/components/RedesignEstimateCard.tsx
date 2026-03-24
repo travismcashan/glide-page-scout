@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { PageTagsMap } from '@/lib/pageTags';
 import { normalizeTagKey, getTemplateCategory } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
+
+const TIER_SIZES = { S: 5, M: 10, L: 15, All: Infinity } as const;
+type TierKey = keyof typeof TIER_SIZES;
 
 const baseTypeColors: Record<string, string> = {
   Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
@@ -90,6 +94,7 @@ function TableSection({ title, columns, colAligns, rows }: {
 export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
+  const [activeTier, setActiveTier] = useState<TierKey | null>(null);
 
   const { baseTypeCounts, templates, contentTypes, totalTemplates } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
@@ -181,12 +186,27 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
   }
 
   const toggleExcluded = (name: string) => {
+    setActiveTier(null); // manual override clears tier
     setExcluded(prev => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
+  };
+
+  const applyTier = (tier: TierKey) => {
+    if (activeTier === tier) {
+      setActiveTier(null);
+      return;
+    }
+    setActiveTier(tier);
+    const limit = TIER_SIZES[tier];
+    const newExcluded = new Set<string>();
+    templates.forEach((t, i) => {
+      if (i >= limit) newExcluded.add(t.name);
+    });
+    setExcluded(newExcluded);
   };
 
   if (!pageTags || Object.keys(pageTags).length === 0) {
@@ -226,9 +246,21 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
 
       {/* Level 2 — Unique Templates */}
       <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          {`Level 2 — Unique Templates (${totalTemplates})`}
-        </h4>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {`Level 2 — Unique Templates (${totalTemplates})`}
+          </h4>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Preset:</span>
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
+              {(Object.keys(TIER_SIZES) as TierKey[]).map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
+                  {tier === 'All' ? 'All' : `${tier} (${TIER_SIZES[tier]})`}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </div>
         <div className="border border-border rounded-md overflow-hidden">
           <table className="w-full text-sm table-fixed">
             <thead>
