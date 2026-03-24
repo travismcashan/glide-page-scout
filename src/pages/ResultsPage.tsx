@@ -1269,18 +1269,18 @@ export default function ResultsPage() {
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex items-end justify-between border-b border-border">
+          <div className="flex items-end justify-between border-b-2 border-foreground/30">
             <TabsList className="h-auto bg-transparent p-0 rounded-none mb-0 gap-0">
               <TabsTrigger
                 value="raw-data"
-                className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+                className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
               >
                 <Globe className="h-4 w-4 mr-2" />
                 Results
               </TabsTrigger>
               <TabsTrigger
                 value="ai-research"
-                className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+                className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
               >
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
@@ -1288,7 +1288,7 @@ export default function ResultsPage() {
               {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
                 <TabsTrigger
                   value="avoma"
-                  className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+                  className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
                 >
                   <Phone className="h-4 w-4 mr-2" />
                   Avoma Calls
