@@ -386,6 +386,9 @@ export default function ResultsPage() {
   const [templatesRerunning, setTemplatesRerunning] = useState(false);
   const templatesRerunFnRef = useRef<(() => void) | null>(null);
 
+  // Forms rerun support
+  const formsRerunFnRef = useRef<(() => void) | null>(null);
+
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
   const [ssllabsFailed, setSsllabsFailed] = useState(false);
   const ssllabsPollingRef = useRef(false);
@@ -875,6 +878,12 @@ export default function ResultsPage() {
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
       'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
+      'forms': () => {
+        setFormsFailed(false); setFormsLoading(false); formsAutoRunRef.current = false;
+        formsRerunFnRef.current?.();
+        // Also clear forms_tiers
+        supabase.from('crawl_sessions').update({ forms_tiers: null } as any).eq('id', session!.id).then();
+      },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
@@ -1321,7 +1330,7 @@ export default function ResultsPage() {
               {shouldShowIntegration('forms', !!(session as any)?.forms_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Detection" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)}>
                 {(session as any)?.forms_data ? (
-                  <FormsCard data={(session as any).forms_data} />
+                  <FormsCard data={(session as any).forms_data} domain={(session as any).domain} savedTiers={(session as any).forms_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { formsRerunFnRef.current = fn; }} />
                 ) : !formsLoading && !isSharedView ? (
                   <div className="text-center py-4">
                     <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
