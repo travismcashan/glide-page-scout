@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -620,18 +620,73 @@ export default function ResultsPage() {
     }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData]);
 
-  // Auto-seed page tags after content types are available
+  // Auto-seed page tags using AI industry detection, with URL-pattern fallback
+  const [autoTagging, setAutoTagging] = useState(false);
   useEffect(() => {
-    if (!session || !effectiveDiscoveredUrls.length) return;
+    if (!session || !effectiveDiscoveredUrls.length || autoTagging) return;
     // Only auto-seed if page_tags is empty/null
     if ((session as any).page_tags && Object.keys((session as any).page_tags).length > 0) return;
-    const ctData = (session as any).content_types_data;
-    const classified = ctData?.classified || [];
-    const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
-    if (Object.keys(seeded).length > 0) {
-      supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id).then(() => fetchData());
-    }
-  }, [session?.id, (session as any)?.content_types_data, effectiveDiscoveredUrls.length]);
+
+    const runAutoTag = async () => {
+      setAutoTagging(true);
+      try {
+        // Gather homepage content from scraped pages if available
+        const homePage = pages.find(p => {
+          try { return new URL(p.url).pathname === '/'; } catch { return false; }
+        });
+        const homepageContent = homePage?.raw_content?.substring(0, 4000) || '';
+        const navData = (session as any).nav_structure;
+
+        const result = await autoTagPagesApi.classify(
+          effectiveDiscoveredUrls,
+          session.domain,
+          homepageContent,
+          navData,
+        );
+
+        if (result.success && result.pages?.length) {
+          // Build PageTagsMap from AI results
+          const tagMap: PageTagsMap = {};
+          for (const page of result.pages) {
+            const key = page.url.toLowerCase().replace(/\/$/, '');
+            tagMap[key] = { template: page.template };
+          }
+          // Fill any remaining URLs with pattern-based fallback
+          const ctData = (session as any).content_types_data;
+          const classified = ctData?.classified || [];
+          const merged = autoSeedPageTags(tagMap, effectiveDiscoveredUrls, classified, session.base_url);
+
+          await supabase.from('crawl_sessions').update({ page_tags: merged } as any).eq('id', session.id);
+          if (result.industry) {
+            console.log(`[auto-tag] Industry: ${result.industry} (${result.industryConfidence})`);
+          }
+          fetchData();
+        } else {
+          // Fallback to pure pattern matching
+          const ctData = (session as any).content_types_data;
+          const classified = ctData?.classified || [];
+          const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
+          if (Object.keys(seeded).length > 0) {
+            await supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id);
+            fetchData();
+          }
+        }
+      } catch (e) {
+        console.error('[auto-tag] AI tagging failed, using pattern fallback:', e);
+        const ctData = (session as any).content_types_data;
+        const classified = ctData?.classified || [];
+        const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
+        if (Object.keys(seeded).length > 0) {
+          await supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id);
+          fetchData();
+        }
+      } finally {
+        setAutoTagging(false);
+      }
+    };
+
+    runAutoTag();
+  }, [session?.id, effectiveDiscoveredUrls.length]);
 
   const handlePageTagChange = useCallback(async (url: string, template: string) => {
     if (!session) return;
