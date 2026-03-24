@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN integration_durations jsonb DEFAULT NULL;
