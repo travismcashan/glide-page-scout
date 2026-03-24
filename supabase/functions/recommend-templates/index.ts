@@ -89,12 +89,11 @@ For each tier, list ONLY template names that need custom design. Everything not 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },
         ],
-        reasoning: { effort: 'high' },
         tools: [
           {
             type: 'function',
