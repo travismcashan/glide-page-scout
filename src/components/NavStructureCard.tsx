@@ -100,7 +100,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
-  const isParent = hasChildren || (!item.url);
+  const isBold = depth === 0 || hasChildren || !item.url;
 
   return (
     <div>
@@ -108,21 +108,17 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
         className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
       >
         {/* Tree prefix using monospace box-drawing characters */}
-        {depth > 0 && (
-          <span className="font-mono text-sm text-primary/60 whitespace-pre select-none shrink-0">
-            {buildTreePrefix(parentLines, isLast)}
-          </span>
-        )}
+        <span className="font-mono text-sm text-primary/60 whitespace-pre select-none shrink-0">
+          {buildTreePrefix(parentLines, isLast)}
+        </span>
 
         {hasChildren ? (
           <button onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
-        ) : depth === 0 ? (
-          <span className="w-[18px] shrink-0" />
         ) : null}
 
-        <span className={`text-sm ${isParent ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
+        <span className={`text-sm ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
           {item.label}
         </span>
 
@@ -155,7 +151,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
               item={child}
               depth={depth + 1}
               isLast={idx === item.children!.length - 1}
-              parentLines={depth > 0 ? [...parentLines, !isLast] : []}
+              parentLines={[...parentLines, !isLast]}
               pageTags={pageTags}
               onPageTagChange={onPageTagChange}
             />
