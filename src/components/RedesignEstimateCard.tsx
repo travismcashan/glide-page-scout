@@ -77,6 +77,11 @@ export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
 
       {/* Unified container with collapsible sections */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Sticky header */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Type</span>
+          <span className="text-xs font-medium text-muted-foreground">Count</span>
+        </div>
         {/* Base Types section */}
         <button
           onClick={() => toggleSection('base-types')}
