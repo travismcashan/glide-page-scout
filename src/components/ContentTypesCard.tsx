@@ -57,9 +57,86 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  const { summary: allSummary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
+  const { summary: rawSummary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
   const classified = data?.classified || [];
   const navMap = useMemo(() => buildNavMap(navStructure ?? null), [navStructure]);
+
+  // Enrich summary with pageTags: URLs classified as "Uncategorized" Page in content_types
+  // but tagged as Post/CPT in pageTags should be reassigned to their correct group.
+  const allSummary = useMemo(() => {
+    if (!pageTags || !rawSummary.length) return rawSummary;
+
+    // Build a lookup of pageTags by normalized URL
+    const tagLookup = new Map<string, PageTag>();
+    for (const [url, tag] of Object.entries(pageTags)) {
+      tagLookup.set(normalizeTagKey(url), tag);
+    }
+
+    // Find the "Uncategorized" group and any URLs in it that pageTags says are Post/CPT
+    const uncatGroup = rawSummary.find(s => s.type === 'Uncategorized' && s.baseType === 'Page');
+    if (!uncatGroup) return rawSummary;
+
+    // Collect URLs that need to be reassigned
+    const reassign: Record<string, { urls: string[]; baseType: BaseType; cptName?: string }> = {};
+    const remainingUncatUrls: string[] = [];
+
+    for (const url of uncatGroup.urls) {
+      const key = normalizeTagKey(url);
+      const tag = tagLookup.get(key);
+      if (tag && (tag.baseType === 'Post' || tag.baseType === 'CPT') && tag.contentType) {
+        const ct = tag.contentType;
+        if (!reassign[ct]) reassign[ct] = { urls: [], baseType: tag.baseType, cptName: tag.cptName };
+        reassign[ct].urls.push(url);
+      } else {
+        remainingUncatUrls.push(url);
+      }
+    }
+
+    if (Object.keys(reassign).length === 0) return rawSummary;
+
+    // Rebuild summary: merge reassigned URLs into existing groups or create new ones
+    const newSummary = rawSummary
+      .filter(s => s !== uncatGroup)
+      .map(s => {
+        const extra = reassign[s.type];
+        if (extra) {
+          const merged = {
+            ...s,
+            urls: [...s.urls, ...extra.urls],
+            count: s.count + extra.urls.length,
+            totalUrls: s.totalUrls + extra.urls.length,
+          };
+          delete reassign[s.type];
+          return merged;
+        }
+        return s;
+      });
+
+    // Add any remaining reassigned groups as new entries
+    for (const [type, info] of Object.entries(reassign)) {
+      newSummary.push({
+        type,
+        count: info.urls.length,
+        urls: info.urls,
+        totalUrls: info.urls.length,
+        confidence: { high: 0, medium: info.urls.length, low: 0 },
+        baseType: info.baseType,
+        cptName: info.cptName,
+      });
+    }
+
+    // Add back remaining uncategorized if any
+    if (remainingUncatUrls.length > 0) {
+      newSummary.push({
+        ...uncatGroup,
+        urls: remainingUncatUrls,
+        count: remainingUncatUrls.length,
+        totalUrls: remainingUncatUrls.length,
+      });
+    }
+
+    return newSummary.sort((a, b) => b.count - a.count);
+  }, [rawSummary, pageTags]);
 
   // Level 3 filter: only show Post + CPT (repeating content)
   const summary = useMemo(() => {
