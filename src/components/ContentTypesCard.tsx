@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -48,7 +48,7 @@ function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
   return map;
 }
 
-export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
+export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange, globalInnerExpand = null }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void; globalInnerExpand?: boolean | null }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
@@ -71,6 +71,14 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   }, [allSummary]);
 
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(summary.slice(0, 5).map(s => s.type) || []));
+
+  useEffect(() => {
+    if (globalInnerExpand === true) {
+      setExpandedTypes(new Set(summary.map(s => s.type)));
+    } else if (globalInnerExpand === false) {
+      setExpandedTypes(new Set());
+    }
+  }, [globalInnerExpand]);
 
   const allTypes = useMemo(() => allSummary.map(s => s.type), [allSummary]);
 
@@ -152,37 +160,17 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           <span>·</span>
           <span><strong className="text-foreground">{stats.total}</strong> Total URLs Analyzed</span>
         </div>
-        <div className="flex items-center gap-2">
+        {onDataChange && (
           <Button
-            variant="outline"
+            variant={mergeMode ? 'secondary' : 'outline'}
             size="sm"
             className="text-xs h-7 gap-1"
-            onClick={() => {
-              if (expandedTypes.size === summary.length) {
-                setExpandedTypes(new Set());
-              } else {
-                setExpandedTypes(new Set(summary.map(s => s.type)));
-              }
-            }}
+            onClick={() => { setMergeMode(!mergeMode); if (mergeMode) setSelected(new Set()); }}
           >
-            {expandedTypes.size === summary.length ? (
-              <><ChevronDown className="h-3 w-3" /> Collapse All</>
-            ) : (
-              <><ChevronRight className="h-3 w-3" /> Expand All</>
-            )}
+            <Merge className="h-3 w-3" />
+            {mergeMode ? 'Cancel' : 'Merge Types'}
           </Button>
-          {onDataChange && (
-            <Button
-              variant={mergeMode ? 'secondary' : 'outline'}
-              size="sm"
-              className="text-xs h-7 gap-1"
-              onClick={() => { setMergeMode(!mergeMode); if (mergeMode) setSelected(new Set()); }}
-            >
-              <Merge className="h-3 w-3" />
-              {mergeMode ? 'Cancel' : 'Merge Types'}
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Merge action bar */}

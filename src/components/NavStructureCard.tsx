@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop, Copy, FileText, Check, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
+import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
 import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
@@ -78,8 +77,6 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 }
 
 // ── Infer nesting for flat section headers ──
-// When a no-URL, no-children item (section header) is followed by flat items,
-// group those items as children of the header.
 
 function inferNesting(items: NavItem[]): NavItem[] {
   const result: NavItem[] = [];
@@ -251,141 +248,125 @@ type SectionDef = {
   emptyText?: string;
 };
 
-export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
-  const [copiedFormat, setCopiedFormat] = useState<'md' | 'rich' | null>(null);
-  const [globalExpand, setGlobalExpand] = useState<boolean | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+export interface NavStructureCardHandle {
+  copyMarkdown: () => Promise<void>;
+  copyRichText: () => Promise<void>;
+}
 
-  const rawPrimary = data.primary || data.items || [];
-  const rawSecondary = data.secondary || [];
-  const rawFooter = data.footer || [];
+type NavStructureCardProps = {
+  data: NavStructureData;
+  pageTags?: PageTagsMap | null;
+  onPageTagChange?: (url: string, template: string) => void;
+  globalInnerExpand?: boolean | null;
+};
 
-  const primary = inferNesting(rawPrimary);
-  const secondary = inferNesting(rawSecondary);
-  const footer = inferNesting(rawFooter);
+export const NavStructureCard = forwardRef<NavStructureCardHandle, NavStructureCardProps>(
+  function NavStructureCard({ data, pageTags, onPageTagChange, globalInnerExpand = null }, ref) {
+    const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-  if (!primary.length && !secondary.length && !footer.length) {
-    return <p className="text-sm text-muted-foreground">No navigation structure detected.</p>;
-  }
+    const rawPrimary = data.primary || data.items || [];
+    const rawSecondary = data.secondary || [];
+    const rawFooter = data.footer || [];
 
-  const totalCount = data.totalLinks || (countLinks(primary) + countLinks(secondary) + countLinks(footer));
+    const primary = inferNesting(rawPrimary);
+    const secondary = inferNesting(rawSecondary);
+    const footer = inferNesting(rawFooter);
 
-  const sections: SectionDef[] = [
-    { key: 'primary', title: 'Primary Navigation', icon: <Navigation className="h-3.5 w-3.5 text-muted-foreground" />, items: primary },
-    ...(secondary.length > 0 ? [{ key: 'secondary', title: 'Secondary Navigation', icon: <PanelTop className="h-3.5 w-3.5 text-muted-foreground" />, items: secondary }] : []),
-    { key: 'footer', title: 'Footer Only (unique pages)', icon: <Menu className="h-3.5 w-3.5 text-muted-foreground" />, items: footer, emptyText: 'No unique footer links — all footer items match the header navigation.' },
-  ];
+    useImperativeHandle(ref, () => ({
+      copyMarkdown: async () => {
+        const md = toMarkdown(primary, secondary, footer);
+        await navigator.clipboard.writeText(md);
+        toast.success('Markdown copied to clipboard');
+      },
+      copyRichText: async () => {
+        const html = toHtml(primary, secondary, footer);
+        const plainText = toMarkdown(primary, secondary, footer);
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html': new Blob([html], { type: 'text/html' }),
+              'text/plain': new Blob([plainText], { type: 'text/plain' }),
+            }),
+          ]);
+          toast.success('Rich text copied — paste into Word or Google Docs');
+        } catch {
+          await navigator.clipboard.writeText(plainText);
+          toast.success('Copied as plain text');
+        }
+      },
+    }), [primary, secondary, footer]);
 
-  const toggleSection = (key: string) => {
-    setCollapsedSections(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  };
-
-  const copyMarkdown = async () => {
-    const md = toMarkdown(primary, secondary, footer);
-    await navigator.clipboard.writeText(md);
-    setCopiedFormat('md');
-    toast.success('Markdown copied to clipboard');
-    setTimeout(() => setCopiedFormat(null), 2000);
-  };
-
-  const copyRichText = async () => {
-    const html = toHtml(primary, secondary, footer);
-    const plainText = toMarkdown(primary, secondary, footer);
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': new Blob([html], { type: 'text/html' }),
-          'text/plain': new Blob([plainText], { type: 'text/plain' }),
-        }),
-      ]);
-      setCopiedFormat('rich');
-      toast.success('Rich text copied — paste into Word or Google Docs');
-      setTimeout(() => setCopiedFormat(null), 2000);
-    } catch {
-      await navigator.clipboard.writeText(plainText);
-      setCopiedFormat('md');
-      toast.success('Copied as plain text (rich text not supported in this browser)');
-      setTimeout(() => setCopiedFormat(null), 2000);
+    if (!primary.length && !secondary.length && !footer.length) {
+      return <p className="text-sm text-muted-foreground">No navigation structure detected.</p>;
     }
-  };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    const totalCount = data.totalLinks || (countLinks(primary) + countLinks(secondary) + countLinks(footer));
+
+    const sections: SectionDef[] = [
+      { key: 'primary', title: 'Primary Navigation', icon: <Navigation className="h-3.5 w-3.5 text-muted-foreground" />, items: primary },
+      ...(secondary.length > 0 ? [{ key: 'secondary', title: 'Secondary Navigation', icon: <PanelTop className="h-3.5 w-3.5 text-muted-foreground" />, items: secondary }] : []),
+      { key: 'footer', title: 'Footer Only (unique pages)', icon: <Menu className="h-3.5 w-3.5 text-muted-foreground" />, items: footer, emptyText: 'No unique footer links — all footer items match the header navigation.' },
+    ];
+
+    const toggleSection = (key: string) => {
+      setCollapsedSections(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        return next;
+      });
+    };
+
+    return (
+      <div className="space-y-4">
         <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
           <span><strong className="text-foreground">{totalCount}</strong> Total Unique Links</span>
           {primary.length > 0 && <><span>·</span><span><strong className="text-foreground">{countLinks(primary)}</strong> Primary</span></>}
           {secondary.length > 0 && <><span>·</span><span><strong className="text-foreground">{countLinks(secondary)}</strong> Secondary</span></>}
           {footer.length > 0 && <><span>·</span><span><strong className="text-foreground">{countLinks(footer)}</strong> Footer Only</span></>}
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="sm" onClick={() => setGlobalExpand(true)} className="h-7 text-xs gap-1 px-2">
-            <ChevronsUpDown className="h-3 w-3" />
-            Expand
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setGlobalExpand(false)} className="h-7 text-xs gap-1 px-2">
-            <ChevronsDownUp className="h-3 w-3" />
-            Collapse
-          </Button>
-          <Button variant="outline" size="sm" onClick={copyMarkdown} className="h-7 text-xs gap-1.5">
-            {copiedFormat === 'md' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            Markdown
-          </Button>
-          <Button variant="outline" size="sm" onClick={copyRichText} className="h-7 text-xs gap-1.5">
-            {copiedFormat === 'rich' ? <Check className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
-            Rich Text
-          </Button>
+
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+            <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
+            <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
+            <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
+            <span className="w-[16px]" />
+          </div>
+
+          {sections.map((section) => {
+            const isCollapsed = collapsedSections.has(section.key);
+            const linkCount = countLinks(section.items);
+
+            return (
+              <div key={section.key}>
+                <button
+                  onClick={() => toggleSection(section.key)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
+                >
+                  {isCollapsed
+                    ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  }
+                  <span className="text-xs font-semibold text-foreground flex-1">{section.title}</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{linkCount}</Badge>
+                </button>
+
+                {!isCollapsed && (
+                  section.items.length > 0 ? (
+                    <div>
+                      {section.items.map((item, idx) => (
+                        <NavTreeItem key={`${section.key}-${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === section.items.length - 1} parentLines={[]} globalExpand={globalInnerExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+                      ))}
+                    </div>
+                  ) : section.emptyText ? (
+                    <p className="text-xs text-muted-foreground italic px-3 py-2">{section.emptyText}</p>
+                  ) : null
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
-        {/* Sticky header */}
-        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
-          <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
-          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
-          <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
-          <span className="w-[16px]" />
-        </div>
-
-        {sections.map((section) => {
-          const isCollapsed = collapsedSections.has(section.key);
-          const linkCount = countLinks(section.items);
-
-          return (
-            <div key={section.key}>
-              {/* Section header — collapsible */}
-              <button
-                onClick={() => toggleSection(section.key)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
-              >
-                {isCollapsed
-                  ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                }
-                <span className="text-xs font-semibold text-foreground flex-1">{section.title}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{linkCount}</Badge>
-              </button>
-
-              {/* Section content */}
-              {!isCollapsed && (
-                section.items.length > 0 ? (
-                  <div>
-                    {section.items.map((item, idx) => (
-                      <NavTreeItem key={`${section.key}-${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === section.items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
-                    ))}
-                  </div>
-                ) : section.emptyText ? (
-                  <p className="text-xs text-muted-foreground italic px-3 py-2">{section.emptyText}</p>
-                ) : null
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+    );
+  }
+);

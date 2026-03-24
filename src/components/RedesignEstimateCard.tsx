@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
@@ -15,10 +15,19 @@ const baseTypeColors: Record<string, string> = {
 interface Props {
   pageTags: PageTagsMap | null;
   contentTypesData: ContentTypesData | null;
+  globalInnerExpand?: boolean | null;
 }
 
-export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
+export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerExpand = null }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (globalInnerExpand === true) {
+      setCollapsedSections(new Set());
+    } else if (globalInnerExpand === false) {
+      setCollapsedSections(new Set(['base-types', 'repeating']));
+    }
+  }, [globalInnerExpand]);
 
   const { baseTypeCounts, contentTypes, totalPages } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };

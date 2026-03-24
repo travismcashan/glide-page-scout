@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type SitemapGroup = {
   sitemapUrl: string;
@@ -19,10 +19,19 @@ type SitemapData = {
 
 type Props = {
   data: SitemapData;
+  globalInnerExpand?: boolean | null;
 };
 
-export function SitemapCard({ data }: Props) {
+export function SitemapCard({ data, globalInnerExpand = null }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (globalInnerExpand === true) {
+      setExpandedGroups(new Set((data.groups || []).map(g => g.sitemapUrl)));
+    } else if (globalInnerExpand === false) {
+      setExpandedGroups(new Set());
+    }
+  }, [globalInnerExpand, data.groups]);
 
   if (!data.found) {
     return (
