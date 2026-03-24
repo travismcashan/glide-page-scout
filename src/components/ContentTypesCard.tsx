@@ -83,8 +83,9 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
     for (const url of uncatGroup.urls) {
       const key = normalizeTagKey(url);
       const tag = tagLookup.get(key);
-      if (tag && (tag.baseType === 'Post' || tag.baseType === 'CPT') && tag.contentType) {
-        const ct = tag.contentType;
+      if (tag && (tag.baseType === 'Post' || tag.baseType === 'CPT')) {
+        // Derive a content type name: prefer contentType, then cptName, then template-based fallback
+        const ct = tag.contentType || tag.cptName || (tag.baseType === 'Post' ? 'Blog Post' : tag.template || 'Unknown');
         if (!reassign[ct]) reassign[ct] = { urls: [], baseType: tag.baseType, cptName: tag.cptName };
         reassign[ct].urls.push(url);
       } else {
