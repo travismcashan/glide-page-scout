@@ -232,7 +232,7 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
           <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">First Seen</span>
           <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Last Seen</span>
           <span className="w-[50px] text-center text-xs font-medium text-muted-foreground">Tag</span>
-          <span className="w-[50px] text-center text-xs font-medium text-muted-foreground">Premium</span>
+          
         </div>
 
         {superGroupData.map((group) => {
@@ -263,7 +263,7 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
                   <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.firstDetected)}</span>
                   <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.lastDetected)}</span>
                   <span className="w-[50px] text-center text-xs leading-5 text-muted-foreground truncate">{row.tag || '—'}</span>
-                  <span className="w-[50px] text-center text-xs leading-5 text-muted-foreground">{row.isPremium ? '✓' : '—'}</span>
+                  
                 </div>
               ))}
             </div>
