@@ -129,7 +129,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
           <span className="w-[18px] shrink-0" />
         )}
 
-        <span className={`text-sm ml-1 ${depth === 0 ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-foreground/80'}`}>
+        <span className={`text-sm ml-1 ${depth === 0 ? 'font-semibold text-accent-foreground' : 'text-foreground/80'}`}>
           {item.url ? item.label : <strong>{item.label}</strong>}
         </span>
 
