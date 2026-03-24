@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
-import { getTemplateCategory, TEMPLATE_OPTIONS, type PageTag, type TemplateCategory } from '@/lib/pageTags';
+import { getTemplateCategory, getTemplateOptions, addCustomTemplate, type PageTag, type TemplateCategory } from '@/lib/pageTags';
 
 const categoryStyles: Record<TemplateCategory, string> = {
   custom: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20',
