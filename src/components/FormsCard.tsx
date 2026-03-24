@@ -96,7 +96,9 @@ export function FormsCard({ data }: Props) {
       <div className="flex items-center gap-4 flex-wrap">
         <MetaStat value={summary.uniqueForms} label="Unique Forms" />
         <MetaStatDivider />
-        <MetaStat value={summary.globalForms} label="Global" />
+        <MetaStat value={summary.globalForms} label="Global Forms" />
+        <MetaStatDivider />
+        <MetaStat value={summary.uniqueForms - summary.globalForms} label="Page-Specific Forms" />
         <MetaStatDivider />
         <MetaStat value={summary.pagesWithForms} label="Pages with Forms" />
         <MetaStatDivider />
