@@ -33,6 +33,8 @@ interface Props {
   pageTags: PageTagsMap | null;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
   domain?: string;
+  savedTiers?: AiTiers | null;
+  onTiersChange?: (tiers: AiTiers) => void;
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
@@ -85,11 +87,11 @@ const LOADING_MESSAGES = [
   'Counting unique layouts with abacuses…',
 ];
 
-export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
+export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
-  const [aiTiers, setAiTiers] = useState<AiTiers | null>(null);
+  const [aiTiers, setAiTiers] = useState<AiTiers | null>(savedTiers || null);
   const [aiLoading, setAiLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -188,7 +190,9 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
       const { data, error } = await supabase.functions.invoke('recommend-templates', { body: payload });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'AI analysis failed');
-      setAiTiers(data.tiers as AiTiers);
+      const tiers = data.tiers as AiTiers;
+      setAiTiers(tiers);
+      onTiersChange?.(tiers);
       toast.success('AI recommendations ready');
     } catch (err) {
       console.error('AI recommend error:', err);

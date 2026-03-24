@@ -136,6 +136,7 @@ export type Database = {
           sitemap_data: Json | null
           ssllabs_data: Json | null
           status: string
+          template_tiers: Json | null
           updated_at: string
           w3c_data: Json | null
           wappalyzer_data: Json | null
@@ -172,6 +173,7 @@ export type Database = {
           sitemap_data?: Json | null
           ssllabs_data?: Json | null
           status?: string
+          template_tiers?: Json | null
           updated_at?: string
           w3c_data?: Json | null
           wappalyzer_data?: Json | null
@@ -208,6 +210,7 @@ export type Database = {
           sitemap_data?: Json | null
           ssllabs_data?: Json | null
           status?: string
+          template_tiers?: Json | null
           updated_at?: string
           w3c_data?: Json | null
           wappalyzer_data?: Json | null

@@ -1249,7 +1249,7 @@ export default function ResultsPage() {
             <div className="space-y-6">
               {session && (session as any)?.page_tags && (
               <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Unique Templates" icon={<Layers className="h-5 w-5 text-foreground" />}>
-                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} />
+                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} />
               </SectionCard>
               )}
 
