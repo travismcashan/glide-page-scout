@@ -110,9 +110,9 @@ export function FormsCard({ data }: Props) {
         {/* Sticky header — matches Nav/Content/Sitemaps cards */}
         <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
           <span className="flex-1 text-xs font-medium text-muted-foreground">Form</span>
-          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Platform</span>
-          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Fields</span>
-          <span className="w-[120px] text-right text-xs font-medium text-muted-foreground">Pages</span>
+          <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Platform</span>
+          <span className="w-[45px] text-center text-xs font-medium text-muted-foreground">Fields</span>
+          <span className="w-[50px] text-right text-xs font-medium text-muted-foreground">Pages</span>
         </div>
 
         {/* Global forms section */}
@@ -196,13 +196,13 @@ function FormRow({ form, index, isExpanded, onToggle }: { form: FormEntry; index
         </div>
 
         {/* Right columns */}
-        <span className="w-[70px] flex justify-center">
-          <Badge variant="outline" className={`${platformColors[form.platform || 'Native'] || platformColors.Native} text-[10px] px-1.5 py-0`}>
+        <span className="w-[120px] flex justify-center">
+          <Badge variant="outline" className={`${platformColors[form.platform || 'Native'] || platformColors.Native} text-[10px] px-1.5 py-0 whitespace-nowrap`}>
             {form.platform || 'Native'}
           </Badge>
         </span>
-        <span className="w-[70px] text-center text-xs text-muted-foreground">{form.fieldCount}</span>
-        <span className="w-[120px] text-right text-xs text-muted-foreground">{form.pageCount}</span>
+        <span className="w-[45px] text-center text-xs text-muted-foreground">{form.fieldCount}</span>
+        <span className="w-[50px] text-right text-xs text-muted-foreground">{form.pageCount}</span>
       </div>
 
       {/* Expanded detail */}
