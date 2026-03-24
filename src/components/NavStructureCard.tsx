@@ -248,10 +248,18 @@ function NavSection({ title, icon, items, emptyText, globalExpand, pageTags, onP
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1">{items.length}</Badge>
       </div>
       {items.length > 0 ? (
-        <div className="border border-border rounded-lg p-2 bg-muted/20">
-          {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
-          ))}
+        <div className="border border-border rounded-lg bg-muted/20">
+          <div className="flex items-center px-2 py-1.5 border-b border-border">
+            <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
+            <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
+            <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
+            <span className="w-[16px]" />
+          </div>
+          <div className="p-2 pt-0">
+            {items.map((item, idx) => (
+              <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            ))}
+          </div>
         </div>
       ) : emptyText ? (
         <p className="text-xs text-muted-foreground italic pl-6">{emptyText}</p>
