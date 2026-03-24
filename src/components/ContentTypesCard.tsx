@@ -95,6 +95,11 @@ function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number
             +{Math.min(remaining, STEP)} more{remaining > STEP ? ` (${remaining} left)` : ''} <ChevronDown className="h-3 w-3" />
           </button>
         )}
+        {!hasMore && totalUrls > urls.length && (
+          <span className="text-[10px] text-muted-foreground mt-0.5">
+            {totalUrls - urls.length} more URLs not loaded — re-run to refresh
+          </span>
+        )}
         {visibleCount > INITIAL && (
           <button
             onClick={() => setVisibleCount(INITIAL)}
