@@ -105,18 +105,40 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
       }
     }
 
-    // Collect primary nav URLs
+    // Collect nav URLs by section
     const primaryNavUrls = collectNavUrls(navStructure?.primary);
+    const secondaryNavUrls = collectNavUrls(navStructure?.secondary);
+    const footerNavUrls = collectNavUrls(navStructure?.footer);
 
-    // Sort by importance: in-nav first, then by baseType priority, then by count desc
+    const getNavSection = (urls: string[]): 'Primary' | 'Secondary' | 'Footer' | null => {
+      for (const u of urls) {
+        const key = normalizeTagKey(u);
+        if (primaryNavUrls.has(key)) return 'Primary';
+      }
+      for (const u of urls) {
+        const key = normalizeTagKey(u);
+        if (secondaryNavUrls.has(key)) return 'Secondary';
+      }
+      for (const u of urls) {
+        const key = normalizeTagKey(u);
+        if (footerNavUrls.has(key)) return 'Footer';
+      }
+      return null;
+    };
+
+    const navPriority: Record<string, number> = { Primary: 0, Secondary: 1, Footer: 2 };
+
+    // Sort by importance: in-nav first (primary > secondary > footer), then by baseType priority, then by count desc
     const sortedTemplates = Object.entries(templateMap)
       .map(([name, data]) => {
-        const inNav = data.urls.some(u => primaryNavUrls.has(normalizeTagKey(u)));
-        return { name, ...data, inNav };
+        const navSection = getNavSection(data.urls);
+        return { name, ...data, navSection };
       })
       .sort((a, b) => {
-        // In-nav templates first
-        if (a.inNav !== b.inNav) return a.inNav ? -1 : 1;
+        // In-nav templates first, ordered by nav section
+        const na = a.navSection ? navPriority[a.navSection] ?? 3 : 4;
+        const nb = b.navSection ? navPriority[b.navSection] ?? 3 : 4;
+        if (na !== nb) return na - nb;
         // Then by base type priority
         const pa = baseTypePriority[a.baseType || 'Page'] ?? 5;
         const pb = baseTypePriority[b.baseType || 'Page'] ?? 5;
