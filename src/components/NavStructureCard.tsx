@@ -87,7 +87,7 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 
 // ── Components ──
 
-function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: NavItem; depth?: number; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
+function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTags, onPageTagChange }: { item: NavItem; depth?: number; isLast?: boolean; parentLines?: boolean[]; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
@@ -95,21 +95,46 @@ function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: Nav
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        className="flex items-center py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
       >
+        {/* Tree connector lines */}
+        {depth > 0 && (
+          <div className="flex items-center shrink-0" style={{ width: `${depth * 20}px` }}>
+            {parentLines.map((showLine, i) => (
+              <span
+                key={i}
+                className="inline-block w-5 h-full self-stretch text-center shrink-0"
+                style={{ position: 'relative' }}
+              >
+                {showLine && (
+                  <span className="absolute left-[9px] top-0 bottom-0 w-px bg-accent/40" />
+                )}
+              </span>
+            ))}
+            <span className="inline-flex items-center w-5 shrink-0 relative">
+              <span className="absolute left-[9px] top-0 h-1/2 w-px bg-accent/40" />
+              <span className="absolute left-[9px] top-1/2 w-[10px] h-px bg-accent/40" />
+              {!isLast && (
+                <span className="absolute left-[9px] top-1/2 bottom-0 w-px bg-accent/40" />
+              )}
+            </span>
+          </div>
+        )}
+
         {hasChildren ? (
-          <button onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-muted">
+          <button onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
         ) : (
-          <span className="w-4.5" />
+          <span className="w-[18px] shrink-0" />
         )}
 
-        <span className={`text-sm ${depth === 0 ? 'font-medium' : 'text-muted-foreground'}`}>{item.label}</span>
+        <span className={`text-sm ml-1 ${depth === 0 ? 'font-semibold text-accent-foreground' : 'text-foreground/80'}`}>
+          {item.url ? item.label : <strong>{item.label}</strong>}
+        </span>
 
         {hasChildren && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{item.children!.length}</Badge>
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-1.5">{item.children!.length}</Badge>
         )}
 
         {item.url && (
@@ -132,7 +157,15 @@ function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: Nav
       {hasChildren && expanded && (
         <div>
           {item.children!.map((child, idx) => (
-            <NavTreeItem key={`${child.label}-${idx}`} item={child} depth={depth + 1} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            <NavTreeItem
+              key={`${child.label}-${idx}`}
+              item={child}
+              depth={depth + 1}
+              isLast={idx === item.children!.length - 1}
+              parentLines={[...parentLines, !isLast && depth > 0 ? true : false]}
+              pageTags={pageTags}
+              onPageTagChange={onPageTagChange}
+            />
           ))}
         </div>
       )}
@@ -153,7 +186,7 @@ function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }
       {items.length > 0 ? (
         <div className="border border-border rounded-lg p-2 bg-muted/20">
           {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isLast={idx === items.length - 1} parentLines={[]} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       ) : emptyText ? (
