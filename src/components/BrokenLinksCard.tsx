@@ -1,5 +1,5 @@
 import { CardTabs } from '@/components/CardTabs';
-import { CheckCircle, ArrowRight, XCircle, ExternalLink } from 'lucide-react';
+import { CheckCircle, ArrowRight, XCircle } from 'lucide-react';
 
 type LinkResult = {
   url: string;
@@ -97,19 +97,19 @@ export function BrokenLinksCard({ data }: { data: LinkCheckData }) {
           {
             value: 'broken',
             label: `Broken (${brokenUrls.length})`,
-            icon: <XCircle className="h-3.5 w-3.5" />,
+            icon: <XCircle className="h-3.5 w-3.5 text-destructive" />,
             content: <LinkList results={brokenUrls} emptyMessage="No broken links found!" />,
           },
           {
             value: 'redirects',
             label: `Redirects (${redirectUrls.length})`,
-            icon: <ArrowRight className="h-3.5 w-3.5" />,
+            icon: <ArrowRight className="h-3.5 w-3.5 text-yellow-500" />,
             content: <LinkList results={redirectUrls} emptyMessage="No redirects found." showRedirect />,
           },
           {
             value: 'ok',
             label: `OK (${okUrls.length})`,
-            icon: <CheckCircle className="h-3.5 w-3.5" />,
+            icon: <CheckCircle className="h-3.5 w-3.5 text-green-500" />,
             content: <LinkList results={okUrls} />,
           },
         ]}
