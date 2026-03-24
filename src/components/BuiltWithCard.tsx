@@ -3,6 +3,16 @@ import { Code, CreditCard, ChevronRight, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
+function formatEpoch(epoch?: number): string {
+  if (!epoch) return '—';
+  // BuiltWith uses milliseconds
+  const d = new Date(epoch);
+  if (isNaN(d.getTime())) return '—';
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${month}/${year}`;
+}
+
 type Technology = {
   name: string;
   description?: string;
@@ -213,9 +223,6 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
                   <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground truncate">{row.tag || '—'}</span>
                 </div>
               ))}
-            </div>
-          );
-        })}
             </div>
           );
         })}
