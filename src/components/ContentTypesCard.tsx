@@ -50,6 +50,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure }: { data: C
   const { summary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
   const classified = data?.classified || [];
   const allTypes = useMemo(() => summary.map(s => s.type), [summary]);
+  const navMap = useMemo(() => buildNavMap(navStructure ?? null), [navStructure]);
 
   const urlsByType = useMemo(() => {
     const map: Record<string, ClassifiedUrl[]> = {};
