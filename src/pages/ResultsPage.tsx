@@ -382,6 +382,9 @@ export default function ResultsPage() {
     setApolloLoading(false);
   };
 
+  // Unique Templates rerun support
+  const [templatesRerunning, setTemplatesRerunning] = useState(false);
+  const templatesRerunFnRef = useRef<(() => void) | null>(null);
 
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
   const [ssllabsFailed, setSsllabsFailed] = useState(false);
