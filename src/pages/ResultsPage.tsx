@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon } from 'lucide-react';
+import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi } from '@/lib/api/firecrawl';
@@ -31,7 +31,7 @@ import { W3CCard } from '@/components/W3CCard';
 import { SchemaCard } from '@/components/SchemaCard';
 import { ReadableCard } from '@/components/ReadableCard';
 import { YellowLabCard } from '@/components/YellowLabCard';
-import { NavStructureCard } from '@/components/NavStructureCard';
+import { NavStructureCard, type NavStructureCardHandle } from '@/components/NavStructureCard';
 import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 // ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
@@ -128,6 +128,11 @@ export default function ResultsPage() {
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
+  const navRef = useRef<NavStructureCardHandle>(null);
+  const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
+  const [sitemapInnerExpand, setSitemapInnerExpand] = useState<boolean | null>(null);
+  const [contentTypesInnerExpand, setContentTypesInnerExpand] = useState<boolean | null>(null);
+  const [redesignInnerExpand, setRedesignInnerExpand] = useState<boolean | null>(null);
   // Timing tracking per integration
   const integrationStartTimes = useRef<Record<string, number>>({});
   const [integrationDurations, setIntegrationDurations] = useState<Record<string, number>>({});
@@ -935,7 +940,7 @@ export default function ResultsPage() {
   });
 
   const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => (
-    <div className="flex items-center gap-1.5">
+    <>
       {integrationDurations[key] != null && !isLoading && (
         <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]}s</span>
       )}
@@ -952,7 +957,19 @@ export default function ResultsPage() {
       >
         <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
       </Button>
-    </div>
+    </>
+  );
+
+  const innerExpandToggle = (expanded: boolean | null, setExpanded: React.Dispatch<React.SetStateAction<boolean | null>>) => (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      onClick={() => setExpanded(v => v === true ? false : true)}
+      title={expanded === true ? 'Collapse inner sections' : 'Expand inner sections'}
+    >
+      {expanded === true ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+    </Button>
   );
 
   const generateOutline = async (page: CrawlPage) => {
@@ -1112,8 +1129,8 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">URL Analysis</h2>
             <div className="space-y-6">
               {session && shouldShowIntegration('sitemap', !!session.sitemap_data) && (
-                <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={rerunButton('sitemap', 'sitemap_data', sitemapLoading)}>
-                  {session.sitemap_data ? <SitemapCard data={session.sitemap_data} /> : null}
+                <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('sitemap', 'sitemap_data', sitemapLoading)}{session.sitemap_data && innerExpandToggle(sitemapInnerExpand, setSitemapInnerExpand)}</div>}>
+                  {session.sitemap_data ? <SitemapCard data={session.sitemap_data} globalInnerExpand={sitemapInnerExpand} /> : null}
                 </SectionCard>
               )}
 
@@ -1176,20 +1193,20 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Content Analysis</h2>
             <div className="space-y-6">
               {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
-              <SectionCard collapsed={allCollapsed} sectionId="nav-structure" persistedCollapsed={isSectionCollapsed("nav-structure")} onCollapseChange={toggleSection} title="Site Navigation" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={rerunButton('nav-structure', 'nav_structure', navLoading)}>
-                {(session as any)?.nav_structure ? <NavStructureCard data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} /> : null}
+              <SectionCard collapsed={allCollapsed} sectionId="nav-structure" persistedCollapsed={isSectionCollapsed("nav-structure")} onCollapseChange={toggleSection} title="Site Navigation" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={<div className="flex items-center gap-1.5">{(session as any)?.nav_structure && <><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyMarkdown()} title="Copy as Markdown"><Copy className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyRichText()} title="Copy as Rich Text"><FileText className="h-3.5 w-3.5" /></Button></>}{rerunButton('nav-structure', 'nav_structure', navLoading)}{(session as any)?.nav_structure && innerExpandToggle(navInnerExpand, setNavInnerExpand)}</div>}>
+                {(session as any)?.nav_structure ? <NavStructureCard ref={navRef} data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} globalInnerExpand={navInnerExpand} /> : null}
               </SectionCard>
               )}
 
               {session && (session as any)?.page_tags && (
-              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />}>
-                <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} />
+              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} headerExtra={<div className="flex items-center gap-1.5">{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div>}>
+                <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} globalInnerExpand={redesignInnerExpand} />
               </SectionCard>
               )}
 
               {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="content-types" persistedCollapsed={isSectionCollapsed("content-types")} onCollapseChange={toggleSection} title="Repeating Content (Posts & CPTs)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
-                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} onDataChange={async (updated) => {
+              <SectionCard collapsed={allCollapsed} sectionId="content-types" persistedCollapsed={isSectionCollapsed("content-types")} onCollapseChange={toggleSection} title="Repeating Content (Posts & CPTs)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('content-types', 'content_types_data', contentTypesLoading)}{(session as any)?.content_types_data && innerExpandToggle(contentTypesInnerExpand, setContentTypesInnerExpand)}</div>}>
+                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} globalInnerExpand={contentTypesInnerExpand} onDataChange={async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
                   fetchData();
                 }} /> : null}
