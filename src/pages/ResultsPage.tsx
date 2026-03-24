@@ -1443,8 +1443,20 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
               {/* AI Tech Analysis — merged card */}
-              {(techAnalysisData || techAnalysisLoading) && (
-              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']}>
+              {(techAnalysisData || techAnalysisLoading || session?.tech_analysis_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} headerExtra={
+                !isSharedView ? (
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={techAnalysisLoading} onClick={async () => {
+                    setTechAnalysisData(null);
+                    setTechAnalysisFailed(false);
+                    clearError('tech-analysis');
+                    if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
+                    fetchData();
+                  }} title="Run again">
+                    <RefreshCw className={`h-3.5 w-3.5 ${techAnalysisLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                ) : null
+              }>
                 <TechAnalysisCard data={techAnalysisData} isLoading={techAnalysisLoading} />
               </SectionCard>
               )}
