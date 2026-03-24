@@ -339,23 +339,6 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
                 )}
               </div>
             )}
-            {/* Status bar — mirrors BrokenLinksCard */}
-            {effectiveResults.length > 0 && (
-              <div className="h-2 rounded-full bg-muted overflow-hidden flex">
-                {buckets.ok.length > 0 && (
-                  <div className="h-full bg-green-500" style={{ width: `${(buckets.ok.length / allUrls.length) * 100}%` }} />
-                )}
-                {buckets.redirects.length > 0 && (
-                  <div className="h-full bg-yellow-500" style={{ width: `${(buckets.redirects.length / allUrls.length) * 100}%` }} />
-                )}
-                {buckets.broken.length > 0 && (
-                  <div className="h-full bg-destructive" style={{ width: `${(buckets.broken.length / allUrls.length) * 100}%` }} />
-                )}
-                {buckets.pending.length > 0 && (
-                  <div className="h-full bg-muted-foreground/20" style={{ width: `${(buckets.pending.length / allUrls.length) * 100}%` }} />
-                )}
-              </div>
-            )}
             <CardTabs
               defaultValue="ok"
               tabs={[
