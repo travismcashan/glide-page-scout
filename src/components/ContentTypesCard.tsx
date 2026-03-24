@@ -261,6 +261,8 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                     onChangeType={onDataChange ? handleChangeUrlType : undefined}
                     readOnly={!onDataChange}
                     navMap={navMap}
+                    pageTags={pageTags}
+                    onPageTagChange={onPageTagChange}
                   />
                 </div>
               )}

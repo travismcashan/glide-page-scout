@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PageTemplateBadge } from '@/components/PageTemplateBadge';
+import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
 import type { ClassifiedUrl } from './types';
 
 export type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
@@ -25,6 +27,8 @@ interface ExpandableUrlRowsProps {
   onChangeType?: (url: string, newType: string) => void;
   readOnly?: boolean;
   navMap?: Map<string, NavTag[]>;
+  pageTags?: PageTagsMap | null;
+  onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
 }
 
 export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap }: ExpandableUrlRowsProps) {
