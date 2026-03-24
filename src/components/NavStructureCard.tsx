@@ -87,50 +87,43 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 
 // ── Components ──
 
+function buildTreePrefix(parentLines: boolean[], isLast: boolean): string {
+  let prefix = '';
+  for (const showLine of parentLines) {
+    prefix += showLine ? '│   ' : '    ';
+  }
+  prefix += isLast ? '└── ' : '├── ';
+  return prefix;
+}
+
 function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTags, onPageTagChange }: { item: NavItem; depth?: number; isLast?: boolean; parentLines?: boolean[]; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
+  const isParent = hasChildren || (!item.url);
 
   return (
     <div>
       <div
-        className="flex items-center py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
+        className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
       >
-        {/* Tree connector lines */}
+        {/* Tree prefix using monospace box-drawing characters */}
         {depth > 0 && (
-          <div className="flex items-center shrink-0" style={{ width: `${depth * 20}px` }}>
-            {parentLines.map((showLine, i) => (
-              <span
-                key={i}
-                className="inline-block w-5 h-full self-stretch text-center shrink-0"
-                style={{ position: 'relative' }}
-              >
-                {showLine && (
-                  <span className="absolute left-[9px] top-0 bottom-0 w-px bg-accent/40" />
-                )}
-              </span>
-            ))}
-            <span className="inline-flex items-center w-5 shrink-0 relative">
-              <span className="absolute left-[9px] top-0 h-1/2 w-px bg-accent/40" />
-              <span className="absolute left-[9px] top-1/2 w-[10px] h-px bg-accent/40" />
-              {!isLast && (
-                <span className="absolute left-[9px] top-1/2 bottom-0 w-px bg-accent/40" />
-              )}
-            </span>
-          </div>
+          <span className="font-mono text-sm text-primary/60 whitespace-pre select-none shrink-0">
+            {buildTreePrefix(parentLines, isLast)}
+          </span>
         )}
 
         {hasChildren ? (
-          <button onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0">
+          <button onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
-        ) : (
+        ) : depth === 0 ? (
           <span className="w-[18px] shrink-0" />
-        )}
+        ) : null}
 
-        <span className={`text-sm ml-1 ${depth === 0 ? 'font-semibold text-accent-foreground' : 'text-foreground/80'}`}>
-          {item.url ? item.label : <strong>{item.label}</strong>}
+        <span className={`text-sm ${isParent ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
+          {item.label}
         </span>
 
         {hasChildren && (
@@ -162,7 +155,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
               item={child}
               depth={depth + 1}
               isLast={idx === item.children!.length - 1}
-              parentLines={[...parentLines, !isLast && depth > 0 ? true : false]}
+              parentLines={depth > 0 ? [...parentLines, !isLast] : []}
               pageTags={pageTags}
               onPageTagChange={onPageTagChange}
             />
