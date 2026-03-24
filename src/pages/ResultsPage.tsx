@@ -151,8 +151,15 @@ export default function ResultsPage() {
   const [integrationDurations, setIntegrationDurations] = useState<Record<string, number>>({});
   // Error tracking per integration
   const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
+  const [pauseVersion, setPauseVersion] = useState(0);
   const setError = (key: string, msg: string) => setIntegrationErrors(prev => ({ ...prev, [key]: msg }));
   const clearError = (key: string) => setIntegrationErrors(prev => { const next = { ...prev }; delete next[key]; return next; });
+
+  /** Toggle an integration on from the results page — unpause it and bump version to trigger re-render & re-run */
+  const handleTogglePause = useCallback(async (key: string) => {
+    await toggleIntegrationPause(key);
+    setPauseVersion(v => v + 1);
+  }, []);
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
     const [sessionRes, pagesRes] = await Promise.all([
