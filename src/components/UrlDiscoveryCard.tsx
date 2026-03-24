@@ -137,43 +137,39 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
     return (
       <div ref={ref} className="max-h-[300px] overflow-y-auto rounded-lg border border-border bg-card">
-        <table className="w-full text-sm table-fixed">
-          <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
-            <tr className="text-left">
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground">URL</th>
-              <th className="px-2 py-1.5 font-medium text-xs text-muted-foreground text-center w-[70px]">Type</th>
-              <th className="px-2 py-1.5 font-medium text-xs text-muted-foreground text-center w-[120px]">Template</th>
-            </tr>
-          </thead>
-          <tbody>
-            {urls.map((url) => {
-              const pageTag = getPageTag(pageTags, url);
-
-              return (
-                <tr key={url} className="border-t border-border/50 hover:bg-muted/20 transition-colors group">
-                  <td className="px-3 py-1">
-                    <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono leading-5 truncate block text-muted-foreground hover:text-primary hover:underline">{url}</a>
-                  </td>
-                  <td className="px-2 py-1 text-center">
-                    {pageTag?.baseType && (
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[pageTag.baseType] || ''}`}>
-                        {pageTag.baseType}
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="px-2 py-1 text-center">
-                    <PageTemplateBadge
-                      tag={pageTag}
-                      onChange={onPageTagChange ? (t) => onPageTagChange(url, t) : undefined}
-                      readOnly={!onPageTagChange}
-                      hideBaseType
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {/* Sticky header — matches all other tables */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">URL</span>
+          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
+          <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
+        </div>
+        {urls.map((url) => {
+          const pageTag = getPageTag(pageTags, url);
+          return (
+            <div key={url} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors group">
+              <div className="flex-1 min-w-0">
+                <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono leading-5 truncate block text-muted-foreground hover:text-primary hover:underline">{url}</a>
+              </div>
+              <div className="flex items-center gap-0 shrink-0">
+                <span className="w-[70px] flex justify-center">
+                  {pageTag?.baseType && (
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[pageTag.baseType] || ''}`}>
+                      {pageTag.baseType}
+                    </Badge>
+                  )}
+                </span>
+                <span className="w-[120px] flex justify-center">
+                  <PageTemplateBadge
+                    tag={pageTag}
+                    onChange={onPageTagChange ? (t) => onPageTagChange(url, t) : undefined}
+                    readOnly={!onPageTagChange}
+                    hideBaseType
+                  />
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     );
   },
