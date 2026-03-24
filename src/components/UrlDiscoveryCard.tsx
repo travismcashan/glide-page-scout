@@ -219,7 +219,8 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
     pending: sorted.filter((u) => !statusMap.has(u)),
     ok: sorted.filter((u) => {
       const s = statusMap.get(u);
-      return s != null && s >= 200 && s < 300;
+      // Include unchecked URLs as OK (presumed good until checked)
+      return s == null || (s >= 200 && s < 300);
     }).sort((a, b) => navSortScore(b, navMap) - navSortScore(a, navMap)),
     redirects: sorted.filter((u) => {
       const s = statusMap.get(u);
