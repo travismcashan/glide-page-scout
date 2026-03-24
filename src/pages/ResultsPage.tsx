@@ -1240,8 +1240,8 @@ export default function ResultsPage() {
             </div>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground mt-2 h-16 w-16">
-                  <Menu className="h-12 w-12" strokeWidth={2.5} />
+                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground mt-2 h-16 w-16 [&>svg]:h-10 [&>svg]:w-10">
+                  <Menu className="!h-10 !w-10" strokeWidth={2} />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-64 p-0">
