@@ -277,27 +277,26 @@ export default function IntegrationsPage() {
                 {catAllOn ? 'Disable section' : 'Enable section'}
               </Button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-0 divide-y divide-border rounded-lg border border-border overflow-hidden">
               {items.map((integration) => {
                 const isPaused = pausedSet.has(integration.id);
                 return (
-                  <Card key={integration.id} className="p-4 flex flex-col gap-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm">{integration.name}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{integration.description}</p>
-                      </div>
-                      <Switch
-                        checked={!isPaused}
-                        onCheckedChange={() => handleToggle(integration.id)}
-                        className={`shrink-0 mt-1 ${!isPaused ? 'data-[state=checked]:bg-green-500' : 'data-[state=unchecked]:bg-red-400'}`}
-                      />
+                  <div key={integration.id} className="px-4 py-3 flex items-center justify-between gap-3 bg-card">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm">{integration.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
+                      {integration.hasCredits && !isPaused && (
+                        <CreditsDisplay integrationId={integration.id} />
+                      )}
                     </div>
-                    {integration.hasCredits && !isPaused && (
-                      <CreditsDisplay integrationId={integration.id} />
-                    )}
-                  </Card>
+                    <Switch
+                      checked={!isPaused}
+                      onCheckedChange={() => handleToggle(integration.id)}
+                      className={`shrink-0 ${!isPaused ? 'data-[state=checked]:bg-green-500' : 'data-[state=unchecked]:bg-red-400'}`}
+                    />
+                  </div>
                 );
+              })}
               })}
             </div>
           </div>
