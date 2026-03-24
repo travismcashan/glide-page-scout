@@ -223,13 +223,12 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         {/* Sticky header — matches all other tables */}
         <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
-          <span className="flex-1 text-xs font-medium text-muted-foreground">Technology</span>
-          <span className="w-[180px] text-xs font-medium text-muted-foreground">Description</span>
+          <span className="w-[120px] text-xs font-medium text-muted-foreground">Technology</span>
           <span className="w-[100px] text-xs font-medium text-muted-foreground">Subcategory</span>
           <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">First Seen</span>
           <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Last Seen</span>
           <span className="w-[50px] text-center text-xs font-medium text-muted-foreground">Tag</span>
-          
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Description</span>
         </div>
 
         {superGroupData.map((group) => {
@@ -254,13 +253,12 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
 
               {!isCollapsed && rows.map((row, idx) => (
                 <div key={`${row.name}-${idx}`} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
-                  <span className="flex-1 text-xs leading-5 truncate min-w-0">{row.name}</span>
-                  <span className="w-[180px] text-xs leading-5 text-muted-foreground truncate" title={row.description}>{row.description || '—'}</span>
+                  <span className="w-[120px] text-xs leading-5 truncate">{row.name}</span>
                   <span className="w-[100px] text-xs leading-5 text-muted-foreground truncate">{row.subcategory}</span>
                   <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.firstDetected)}</span>
                   <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.lastDetected)}</span>
                   <span className="w-[50px] text-center text-xs leading-5 text-muted-foreground truncate">{row.tag || '—'}</span>
-                  
+                  <span className="flex-1 text-xs leading-5 text-muted-foreground truncate min-w-0" title={row.description}>{row.description || '—'}</span>
                 </div>
               ))}
             </div>
