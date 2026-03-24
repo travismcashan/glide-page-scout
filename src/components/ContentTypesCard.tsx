@@ -166,6 +166,12 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(summary.map(s => s.type)));
 
+  // Keep all sections expanded when summary changes (new items added after pageTags load)
+  useEffect(() => {
+    if (globalInnerExpand === false) return; // respect explicit collapse
+    setExpandedTypes(new Set(summary.map(s => s.type)));
+  }, [summary]);
+
   useEffect(() => {
     if (globalInnerExpand === true) {
       setExpandedTypes(new Set(summary.map(s => s.type)));
