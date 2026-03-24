@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop, Copy, FileText, Check } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop, Copy, FileText, Check, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
