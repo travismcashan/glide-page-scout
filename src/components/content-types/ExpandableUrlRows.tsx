@@ -66,6 +66,11 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
                   <p className="text-xs font-mono break-all">{item.url}</p>
                 </TooltipContent>
               </Tooltip>
+              <PageTemplateBadge
+                tag={pageTag}
+                onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url, t, v) : undefined}
+                readOnly={!onPageTagChange}
+              />
               {uniqueNavTypes.map((type) => (
                 <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
                   {navBadgeLabel[type]}
