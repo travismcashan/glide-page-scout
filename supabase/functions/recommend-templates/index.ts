@@ -113,17 +113,17 @@ For each tier, list ONLY template names that need custom design. Everything not 
                   S: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Template names for Small tier (~5 custom designs)',
+                    description: `Template names for Small tier (${sRange.min}–${sRange.max} custom designs)`,
                   },
                   M: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Template names for Medium tier (~10 custom designs)',
+                    description: `Template names for Medium tier (${mRange.min}–${mRange.max} custom designs)`,
                   },
                   L: {
                     type: 'array',
                     items: { type: 'string' },
-                    description: 'Template names for Large tier (~15 custom designs)',
+                    description: `Template names for Large tier (${lRange.min}–${lRange.max} custom designs)`,
                   },
                   reasoning: {
                     type: 'string',
