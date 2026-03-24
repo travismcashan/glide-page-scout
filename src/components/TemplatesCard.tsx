@@ -291,9 +291,8 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const tierLabel = (tier: TierKey) => {
     if (tier === 'All') return 'All';
     const labels = { S: 'Small', M: 'Medium', L: 'Large' };
-    const defaults = { S: 5, M: 10, L: 15 };
     const label = labels[tier as 'S' | 'M' | 'L'];
-    const count = aiTiers ? aiTiers[tier as 'S' | 'M' | 'L'].length : defaults[tier as 'S' | 'M' | 'L'];
+    const count = aiTiers ? aiTiers[tier as 'S' | 'M' | 'L'].length : '…';
     return `${label} · ${count} layouts`;
   };
 
