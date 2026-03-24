@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Brain, AlertTriangle, TrendingUp, Server, Plug, Tag, Wrench, Package } from 'lucide-react';
+import { Brain, AlertTriangle, TrendingUp, Server, Wrench, ChevronRight, ChevronDown } from 'lucide-react';
 import { CardTabs } from '@/components/CardTabs';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
 type Findings = {
   platform: { name: string; type: string; modernScore: number };
@@ -66,44 +68,33 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-function ScopeRow({ item, showEffort = true }: { item: ScopeItem; showEffort?: boolean }) {
-  return (
-    <div className="flex items-start justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
-      <div className="min-w-0">
-        <span className="text-xs font-medium">{item.name}</span>
-        {(item.role || item.purpose || item.type || item.reason) && (
-          <span className="text-xs text-muted-foreground ml-1.5">— {item.role || item.purpose || item.type || item.reason}</span>
-        )}
-        {item.note && (
-          <p className="text-[10px] text-muted-foreground mt-0.5">{item.note}</p>
-        )}
-      </div>
-      {showEffort && item.effort && (
-        <Badge variant="outline" className={`text-[10px] shrink-0 ${effortColors[item.effort] || ''}`}>
-          {item.effort}
-        </Badge>
-      )}
-    </div>
-  );
-}
-
 function FindingsTab({ findings, techCount, sources }: { findings: Findings; techCount: number; sources: string[] }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Server className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium text-sm">{findings.platform.name}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className="text-[10px]">{findings.platform.type}</Badge>
-            <Badge variant="outline" className={`text-[10px] ${ageColors[findings.stackAge] || ''}`}>{findings.stackAge}</Badge>
-            <Badge variant="outline" className={`text-[10px] ${complexityColors[findings.complexity] || ''}`}>{findings.complexity}</Badge>
-          </div>
+      <div className="flex items-center gap-4 flex-wrap">
+        <MetaStat value={findings.platform.modernScore} label="Modern Score" />
+        <MetaStatDivider />
+        <MetaStat value={techCount} label="Technologies" />
+        <MetaStatDivider />
+        <div className="flex items-center gap-1.5">
+          <Badge variant="outline" className="text-[10px]">{findings.platform.type}</Badge>
+          <Badge variant="outline" className={`text-[10px] ${ageColors[findings.stackAge] || ''}`}>{findings.stackAge}</Badge>
+          <Badge variant="outline" className={`text-[10px] ${complexityColors[findings.complexity] || ''}`}>{findings.complexity}</Badge>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[10px] text-muted-foreground mb-0.5">Modern Score</p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Sticky header — matches all other tables */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Platform</span>
+          <span className="w-24 text-center text-xs font-medium text-muted-foreground">Score</span>
+        </div>
+
+        <div className="flex items-center px-3 py-2 border-b border-border/50">
+          <div className="flex-1 flex items-center gap-2 min-w-0">
+            <Server className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs font-medium truncate">{findings.platform.name}</span>
+          </div>
           <div className="w-24">
             <ScoreBar score={findings.platform.modernScore} />
           </div>
@@ -149,100 +140,102 @@ function FindingsTab({ findings, techCount, sources }: { findings: Findings; tec
   );
 }
 
+type ScopeSection = {
+  key: string;
+  title: string;
+  items: ScopeItem[];
+  showEffort: boolean;
+};
+
 function ScopeTab({ scope }: { scope: Scope }) {
-  const hasPlugins = scope.plugins?.length > 0;
-  const hasThirdParty = scope.thirdPartyIntegrations?.length > 0;
-  const hasSpecial = scope.specialSetup?.length > 0;
-  const hasTags = scope.tagManagement?.manager;
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const sections: ScopeSection[] = [];
+  if (scope.platforms?.length > 0) sections.push({ key: 'platforms', title: 'Platforms', items: scope.platforms, showEffort: false });
+  if (scope.plugins?.length > 0) sections.push({ key: 'plugins', title: 'Plugins', items: scope.plugins, showEffort: true });
+  if (scope.thirdPartyIntegrations?.length > 0) sections.push({ key: 'thirdParty', title: 'Third-Party Integrations', items: scope.thirdPartyIntegrations, showEffort: true });
+  if (scope.specialSetup?.length > 0) sections.push({ key: 'specialSetup', title: 'Special Setup', items: scope.specialSetup, showEffort: true });
+
+  // Tag management as a virtual section
+  const tagItems: ScopeItem[] = [];
+  if (scope.tagManagement?.manager) {
+    tagItems.push({ name: scope.tagManagement.manager, role: 'Tag Manager', note: scope.tagManagement.coveredTags?.length ? `Covers: ${scope.tagManagement.coveredTags.join(', ')}` : undefined });
+  }
+  if (tagItems.length > 0) sections.splice(1, 0, { key: 'tagManagement', title: 'Tag Management', items: tagItems, showEffort: false });
+
+  const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
   return (
     <div className="space-y-4">
-      {/* Platforms */}
-      {scope.platforms?.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Server className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-xs font-medium">Platforms</p>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{scope.platforms.length}</Badge>
-          </div>
-          <div className="rounded-md border border-border px-3">
-            {scope.platforms.map((p, i) => (
-              <ScopeRow key={i} item={p} showEffort={false} />
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="flex items-center gap-4 flex-wrap">
+        <MetaStat value={totalItems} label="Scope Items" />
+        {sections.map((s, i) => (
+          <span key={s.key} className="contents">
+            <MetaStatDivider />
+            <MetaStat value={s.items.length} label={s.title} />
+          </span>
+        ))}
+      </div>
 
-      {/* Plugins */}
-      {hasPlugins && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Package className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-xs font-medium">Plugins</p>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{scope.plugins.length}</Badge>
-          </div>
-          <div className="rounded-md border border-border px-3">
-            {scope.plugins.map((p, i) => (
-              <ScopeRow key={i} item={p} />
-            ))}
-          </div>
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Sticky header — matches all other tables */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Technology</span>
+          <span className="w-[180px] text-xs font-medium text-muted-foreground">Description</span>
+          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Effort</span>
         </div>
-      )}
 
-      {/* Tag Management */}
-      {hasTags && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-xs font-medium">Tag Management</p>
-          </div>
-          <div className="rounded-md border border-border p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[10px]">{scope.tagManagement!.manager}</Badge>
-              <span className="text-[10px] text-muted-foreground">manages all tags below — no separate integration needed</span>
+        {sections.map((section) => {
+          const isCollapsed = collapsedSections.has(section.key);
+
+          return (
+            <div key={section.key}>
+              <button
+                onClick={() => toggleSection(section.key)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
+              >
+                {isCollapsed
+                  ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                }
+                <span className="text-xs font-semibold text-foreground">{section.title}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{section.items.length}</Badge>
+              </button>
+
+              {!isCollapsed && section.items.map((item, idx) => (
+                <div key={idx} className="flex items-center px-3 py-1.5 border-t border-border/50 hover:bg-muted/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium truncate">{item.name}</span>
+                    {item.note && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{item.note}</p>
+                    )}
+                  </div>
+                  <span className="w-[180px] text-xs text-muted-foreground truncate">
+                    {item.role || item.purpose || item.type || item.reason || '—'}
+                  </span>
+                  <span className="w-[70px] text-center">
+                    {section.showEffort && item.effort ? (
+                      <Badge variant="outline" className={`text-[10px] ${effortColors[item.effort] || ''}`}>
+                        {item.effort}
+                      </Badge>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
+                  </span>
+                </div>
+              ))}
             </div>
-            {scope.tagManagement!.coveredTags?.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {scope.tagManagement!.coveredTags.map((tag, i) => (
-                  <Badge key={i} variant="secondary" className="text-[10px] font-normal">{tag}</Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Third-Party Integrations */}
-      {hasThirdParty && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Plug className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-xs font-medium">Third-Party Integrations</p>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{scope.thirdPartyIntegrations.length}</Badge>
-          </div>
-          <div className="rounded-md border border-border px-3">
-            {scope.thirdPartyIntegrations.map((p, i) => (
-              <ScopeRow key={i} item={p} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Special Setup */}
-      {hasSpecial && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-xs font-medium">Special Setup</p>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{scope.specialSetup.length}</Badge>
-          </div>
-          <div className="rounded-md border border-border px-3">
-            {scope.specialSetup.map((p, i) => (
-              <ScopeRow key={i} item={p} />
-            ))}
-          </div>
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -260,7 +253,6 @@ export function TechAnalysisCard({ data, isLoading }: Props) {
   if (!data?.analysis) return null;
 
   const { analysis, techCount, sources } = data;
-  // backwards compat: old format had findings at top level
   const findings: Findings = (analysis as any).findings || {
     platform: (analysis as any).platform,
     highlights: (analysis as any).highlights,
@@ -283,7 +275,7 @@ export function TechAnalysisCard({ data, isLoading }: Props) {
           value: 'scope',
           label: 'Estimate Scope',
           icon: <Wrench className="h-3.5 w-3.5" />,
-          content: scope ? <ScopeTab scope={scope} /> : <p className="text-sm text-muted-foreground">Scope data not available.</p>,
+          content: scope ? <ScopeTab scope={scope} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>,
         },
       ]}
     />
