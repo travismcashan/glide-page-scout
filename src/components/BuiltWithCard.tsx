@@ -3,10 +3,24 @@ import { Code, CreditCard, ChevronRight, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
+function formatEpoch(epoch?: number): string {
+  if (!epoch) return '—';
+  // BuiltWith uses milliseconds
+  const d = new Date(epoch);
+  if (isNaN(d.getTime())) return '—';
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${month}/${year}`;
+}
+
 type Technology = {
   name: string;
   description?: string;
   link?: string;
+  firstDetected?: number;
+  lastDetected?: number;
+  tag?: string;
+  isPremium?: boolean;
 };
 
 type Credits = {
@@ -174,12 +188,14 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
         {/* Sticky header — matches all other tables */}
         <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
           <span className="flex-1 text-xs font-medium text-muted-foreground">Technology</span>
-          <span className="w-[150px] text-xs font-medium text-muted-foreground">Subcategory</span>
+          <span className="w-[120px] text-xs font-medium text-muted-foreground">Subcategory</span>
+          <span className="w-[80px] text-center text-xs font-medium text-muted-foreground">First Seen</span>
+          <span className="w-[80px] text-center text-xs font-medium text-muted-foreground">Last Seen</span>
+          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Tag</span>
         </div>
 
         {superGroupData.map((group) => {
           const isCollapsed = collapsedSections.has(group.label);
-          // Flatten all techs with their subcategory for tabular rows
           const rows = group.subcategories.flatMap(sub =>
             sub.techs.map(tech => ({ ...tech, subcategory: sub.name }))
           );
@@ -201,7 +217,10 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
               {!isCollapsed && rows.map((row, idx) => (
                 <div key={`${row.name}-${idx}`} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
                   <span className="flex-1 text-xs leading-5 truncate min-w-0">{row.name}</span>
-                  <span className="w-[150px] text-xs leading-5 text-muted-foreground truncate">{row.subcategory}</span>
+                  <span className="w-[120px] text-xs leading-5 text-muted-foreground truncate">{row.subcategory}</span>
+                  <span className="w-[80px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.firstDetected)}</span>
+                  <span className="w-[80px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.lastDetected)}</span>
+                  <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground truncate">{row.tag || '—'}</span>
                 </div>
               ))}
             </div>

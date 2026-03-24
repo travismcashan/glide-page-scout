@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     }
 
     // Extract and simplify tech categories
-    const technologies: { name: string; category: string; description?: string; link?: string }[] = [];
+    const technologies: { name: string; category: string; description?: string; link?: string; firstDetected?: number; lastDetected?: number; tag?: string; isPremium?: boolean }[] = [];
     const paths = data?.Results?.[0]?.Result?.Paths || [];
 
     for (const path of paths) {
@@ -97,19 +97,27 @@ Deno.serve(async (req) => {
             category: tech.Categories?.[0] || 'Other',
             description: tech.Description || undefined,
             link: tech.Link || undefined,
+            firstDetected: tech.FirstDetected || undefined,
+            lastDetected: tech.LastDetected || undefined,
+            tag: tech.Tag || undefined,
+            isPremium: tech.IsPremium ?? undefined,
           });
         }
       }
     }
 
     // Group by category
-    const grouped: Record<string, { name: string; description?: string; link?: string }[]> = {};
+    const grouped: Record<string, { name: string; description?: string; link?: string; firstDetected?: number; lastDetected?: number; tag?: string; isPremium?: boolean }[]> = {};
     for (const tech of technologies) {
       if (!grouped[tech.category]) grouped[tech.category] = [];
       grouped[tech.category].push({
         name: tech.name,
         description: tech.description,
         link: tech.link,
+        firstDetected: tech.firstDetected,
+        lastDetected: tech.lastDetected,
+        tag: tech.tag,
+        isPremium: tech.isPremium,
       });
     }
 
