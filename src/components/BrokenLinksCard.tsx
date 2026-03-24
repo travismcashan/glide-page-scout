@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, AlertTriangle, ArrowRight, XCircle, Clock, ExternalLink } from 'lucide-react';
+import { CardTabs } from '@/components/CardTabs';
+import { CheckCircle, ArrowRight, XCircle, Clock, ExternalLink } from 'lucide-react';
 
 type LinkResult = {
   url: string;
@@ -59,28 +58,29 @@ function LinkRow({ result }: { result: LinkResult }) {
   );
 }
 
+function LinkList({ results, emptyMessage }: { results: LinkResult[]; emptyMessage?: string }) {
+  if (results.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-4">{emptyMessage || 'None found.'}</p>
+    );
+  }
+  return (
+    <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-card">
+      {results.map((r, i) => <LinkRow key={i} result={r} />)}
+    </div>
+  );
+}
+
 export function BrokenLinksCard({ data }: { data: LinkCheckData }) {
   const { summary, results } = data;
 
   const okUrls = results.filter(r => r.statusCode >= 200 && r.statusCode < 300);
   const redirectUrls = results.filter(r => r.statusCode >= 300 && r.statusCode < 400);
   const brokenUrls = results.filter(r => r.statusCode >= 400 || r.statusCode === 0);
-
-  const defaultTab = brokenUrls.length > 0 ? 'broken' : redirectUrls.length > 0 ? 'redirects' : 'ok';
+  const brokenCount = summary.clientErrors + summary.serverErrors + summary.failures;
 
   return (
     <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-        <span><strong className="text-foreground">{summary.ok}</strong> OK</span>
-        <span>·</span>
-        <span><strong className="text-foreground">{summary.redirects}</strong> Redirects</span>
-        <span>·</span>
-        <span><strong className="text-foreground">{summary.clientErrors + summary.serverErrors + summary.failures}</strong> Broken</span>
-        <span>·</span>
-        <span><strong className="text-foreground">{summary.total}</strong> Checked</span>
-      </div>
-
       {/* Progress bar */}
       <div className="h-2 rounded-full bg-muted overflow-hidden flex">
         {summary.ok > 0 && (
@@ -89,54 +89,34 @@ export function BrokenLinksCard({ data }: { data: LinkCheckData }) {
         {summary.redirects > 0 && (
           <div className="h-full bg-yellow-500" style={{ width: `${(summary.redirects / summary.total) * 100}%` }} />
         )}
-        {(summary.clientErrors + summary.serverErrors + summary.failures) > 0 && (
-          <div className="h-full bg-destructive" style={{ width: `${((summary.clientErrors + summary.serverErrors + summary.failures) / summary.total) * 100}%` }} />
+        {brokenCount > 0 && (
+          <div className="h-full bg-destructive" style={{ width: `${(brokenCount / summary.total) * 100}%` }} />
         )}
       </div>
 
-      {/* Tabbed URL lists */}
-      <Tabs defaultValue={defaultTab}>
-        <TabsList>
-          <TabsTrigger value="broken" className="gap-1">
-            <XCircle className="h-3 w-3" /> Broken ({brokenUrls.length})
-          </TabsTrigger>
-          <TabsTrigger value="redirects" className="gap-1">
-            <ArrowRight className="h-3 w-3" /> Redirects ({redirectUrls.length})
-          </TabsTrigger>
-          <TabsTrigger value="ok" className="gap-1">
-            <CheckCircle className="h-3 w-3" /> OK ({okUrls.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="broken" className="mt-3">
-          {brokenUrls.length === 0 ? (
-            <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              No broken links found!
-            </div>
-          ) : (
-            <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-card">
-              {brokenUrls.map((r, i) => <LinkRow key={i} result={r} />)}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="redirects" className="mt-3">
-          {redirectUrls.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No redirects found.</p>
-          ) : (
-            <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-card">
-              {redirectUrls.map((r, i) => <LinkRow key={i} result={r} />)}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="ok" className="mt-3">
-          <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-card">
-            {okUrls.map((r, i) => <LinkRow key={i} result={r} />)}
-          </div>
-        </TabsContent>
-      </Tabs>
+      <CardTabs
+        defaultValue="broken"
+        tabs={[
+          {
+            value: 'broken',
+            label: `Broken (${brokenUrls.length})`,
+            icon: <XCircle className="h-3.5 w-3.5" />,
+            content: <LinkList results={brokenUrls} emptyMessage="No broken links found!" />,
+          },
+          {
+            value: 'redirects',
+            label: `Redirects (${redirectUrls.length})`,
+            icon: <ArrowRight className="h-3.5 w-3.5" />,
+            content: <LinkList results={redirectUrls} emptyMessage="No redirects found." />,
+          },
+          {
+            value: 'ok',
+            label: `OK (${okUrls.length})`,
+            icon: <CheckCircle className="h-3.5 w-3.5" />,
+            content: <LinkList results={okUrls} />,
+          },
+        ]}
+      />
     </div>
   );
 }
