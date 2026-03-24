@@ -228,7 +228,6 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   }, [aiTiers, aiLoading, templates, domain]);
 
   // Auto-run AI recommendations when templates are available and no saved tiers exist
-  const autoRunRef = useRef(false);
   useEffect(() => {
     if (!autoRunRef.current && !aiTiers && !aiLoading && templates.length > 0) {
       autoRunRef.current = true;
