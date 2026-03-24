@@ -1042,7 +1042,7 @@ export default function ResultsPage() {
 
               {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
               <SectionCard collapsed={allCollapsed} title="Navigation Structure — Header Sitemap" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={rerunButton('nav-structure', 'nav_structure', navLoading)}>
-                {(session as any)?.nav_structure ? <NavStructureCard data={(session as any).nav_structure} /> : null}
+                {(session as any)?.nav_structure ? <NavStructureCard data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} /> : null}
               </SectionCard>
               )}
 
@@ -1063,6 +1063,8 @@ export default function ResultsPage() {
                   navStructure={(session as any).nav_structure || null}
                   collapsed={allCollapsed}
                   persistedUrls={session.discovered_urls}
+                  pageTags={(session as any).page_tags}
+                  onPageTagChange={handlePageTagChange}
                   onUrlsPersist={async (urls) => {
                     await supabase.from('crawl_sessions').update({ discovered_urls: urls, linkcheck_data: null } as any).eq('id', session.id);
                     setDiscoveredUrls(urls);
@@ -1079,7 +1081,7 @@ export default function ResultsPage() {
 
               {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
               <SectionCard collapsed={allCollapsed} title="Content Types — Page Classification" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText="Classifying content types across discovered URLs..." error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
-                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} onDataChange={async (updated) => {
+                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} onDataChange={async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
                   fetchData();
                 }} /> : null}
