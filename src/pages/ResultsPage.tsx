@@ -1294,7 +1294,7 @@ export default function ResultsPage() {
                 className="relative text-base font-bold px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Globe className="h-4 w-4 mr-2" />
-                Results
+                Site Analysis
               </TabsTrigger>
               <TabsTrigger
                 value="ai-research"
