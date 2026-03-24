@@ -80,7 +80,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
         {contentTypes.length > 0 && (
           <>
             <MetaStatDivider />
-            <MetaStat value={contentTypes.length} label="Repeating Content Types" />
+            <MetaStat value={contentTypes.length} label="Repeating CPTs" />
           </>
         )}
       </div>
