@@ -157,20 +157,30 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
           </button>
         ) : null}
 
-        <span className={`text-sm ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
-          {item.label}
-        </span>
+        {item.url ? (
+          <a href={item.url} target="_blank" rel="noopener noreferrer"
+            className={`text-sm hover:underline ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}
+            onClick={(e) => e.stopPropagation()}>
+            {item.label}
+          </a>
+        ) : (
+          <span className={`text-sm ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
+            {item.label}
+          </span>
+        )}
 
         {hasChildren && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-1.5">{item.children!.length}</Badge>
         )}
 
         {item.url && (
-          <PageTemplateBadge
-            tag={pageTag}
-            onChange={onPageTagChange ? (t) => onPageTagChange(item.url!, t) : undefined}
-            readOnly={!onPageTagChange}
-          />
+          <span className="ml-1.5">
+            <PageTemplateBadge
+              tag={pageTag}
+              onChange={onPageTagChange ? (t) => onPageTagChange(item.url!, t) : undefined}
+              readOnly={!onPageTagChange}
+            />
+          </span>
         )}
 
         {item.url && (
