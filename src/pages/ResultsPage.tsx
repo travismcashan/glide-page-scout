@@ -1799,7 +1799,7 @@ export default function ResultsPage() {
           </TabsContent>
 
           {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
-            <TabsContent value="avoma" className="mt-0 space-y-6">
+            <TabsContent value="avoma" className="mt-6 space-y-6">
               <SectionCard
                 sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
                 icon={<Phone className="h-5 w-5 text-foreground" />}
