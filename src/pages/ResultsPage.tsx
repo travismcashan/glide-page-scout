@@ -266,15 +266,16 @@ export default function ResultsPage() {
   useEffect(() => {
     if (techAnalysisData || techAnalysisLoading || techAnalysisFailed) return;
     if (!session) return;
+    if (isIntegrationPaused('tech-analysis')) return;
     const bw = session.builtwith_data;
     const dz = (session as any).detectzestack_data;
     const wp = session.wappalyzer_data;
     // Need at least one source with data
     if (!bw && !dz && !wp) return;
-    // Wait until all active sources have finished (have data or are paused/failed)
-    const bwReady = !!bw || isIntegrationPaused('builtwith') || builtwithFailed;
-    const dzReady = !!dz || isIntegrationPaused('detectzestack') || detectzestackFailed;
-    const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed;
+    // Wait until all active sources have finished (have data, are paused, failed, or done loading)
+    const bwReady = !!bw || isIntegrationPaused('builtwith') || builtwithFailed || (!builtwithLoading && !bw);
+    const dzReady = !!dz || isIntegrationPaused('detectzestack') || detectzestackFailed || (!detectzestackLoading && !dz);
+    const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed || (!wappalyzerLoading && !wp);
     if (!bwReady || !dzReady || !wpReady) return;
 
     setTechAnalysisLoading(true);
@@ -288,7 +289,7 @@ export default function ResultsPage() {
       }
       setTechAnalysisLoading(false);
     }).catch((e) => { setTechAnalysisFailed(true); setError('tech-analysis', e?.message || 'AI tech analysis failed'); setTechAnalysisLoading(false); });
-  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed]);
+  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed, builtwithLoading, detectzestackLoading, wappalyzerLoading]);
 
 
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
