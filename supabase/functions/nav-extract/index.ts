@@ -107,7 +107,8 @@ Links found in the <footer> element. IMPORTANT: Only include footer links whose 
 - Ignore social media icon links, search buttons, login/signup buttons, and language selectors
 - Deduplicate items that appear in both desktop and mobile nav (same URL = same item)
 - For footer deduplication: compare by URL path, not label (same URL with different label = duplicate)
-- IMPORTANT: Normalize label casing. Many sites use CSS text-transform to show labels in ALL CAPS, but the underlying text is normal. If a label appears to be ALL CAPS (like "ABOUT US", "END-OF-LIFE CARE", "CONTACT"), convert it to Title Case ("About Us", "End-of-Life Care", "Contact"). Preserve genuine acronyms like FAQ, SEO, CRM, B2B, HIPAA, IT, HR, etc. Use your language understanding to distinguish between acronyms and regular words that were just styled uppercase.`
+- IMPORTANT: Normalize label casing. Many sites use CSS text-transform to show labels in ALL CAPS, but the underlying text is normal. If a label appears to be ALL CAPS (like "ABOUT US", "END-OF-LIFE CARE", "CONTACT"), convert it to Title Case ("About Us", "End-of-Life Care", "Contact"). Preserve genuine acronyms like FAQ, SEO, CRM, B2B, HIPAA, IT, HR, etc. Use your language understanding to distinguish between acronyms and regular words that were just styled uppercase.
+- IMPORTANT: Always include the Homepage as the FIRST item in the primary navigation array, with label "Home" and the base URL of the site. Most sites don't list "Home" explicitly in their nav bar — the logo serves as the homepage link — but you must always add it at the top. If a "Home" link already exists in the nav, keep it as-is in its original position and do NOT add a duplicate.`
           },
           {
             role: 'user',
