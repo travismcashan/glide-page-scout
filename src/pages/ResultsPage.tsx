@@ -1240,7 +1240,7 @@ export default function ResultsPage() {
         <div className="max-w-6xl mx-auto px-6 py-4 space-y-3">
           {/* Row 1: Large domain name + back button on the right */}
           <div className="flex items-center justify-between">
-            <h1 className="text-[2rem] font-bold tracking-tight text-foreground leading-tight">
+            <h1 className="text-base font-bold tracking-tight text-foreground">
               {session?.domain?.replace(/^www\./i, '')}
             </h1>
             <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="shrink-0 text-muted-foreground">
