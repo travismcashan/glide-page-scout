@@ -265,6 +265,21 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
         })}
       </div>
 
+      {/* How content types were identified */}
+      {Object.values(stats.bySource).some(c => c > 0) && (
+        <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+          <span>How content types were identified:</span>
+          {Object.entries(stats.bySource)
+            .filter(([, count]) => count > 0)
+            .map(([source, count]) => (
+              <span key={source} className="flex items-center gap-1">
+                <SourceBadge source={source} />
+                <span className="text-[10px] text-muted-foreground">{count}</span>
+              </span>
+            ))}
+        </div>
+      )}
+
       {/* Merge dialog */}
       <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
         <DialogContent className="sm:max-w-md">
