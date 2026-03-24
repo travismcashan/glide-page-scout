@@ -54,6 +54,7 @@ const integrations: Integration[] = [
 
   // ── 🔍 SEO & Search ──
   { name: 'SEMrush', id: 'semrush', description: 'Domain overview, organic keywords, and backlinks', secretKey: 'SEMRUSH_API_KEY', configured: true, category: 'seo', status: 'active' },
+  { name: 'Schema.org Validator', id: 'schema', description: 'Structured data analysis (JSON-LD, Microdata, RDFa) — detects schema types, validates required fields, and checks Google rich results eligibility. Free, no API key.', secretKey: '', configured: true, category: 'seo', status: 'active' },
   { name: 'Ahrefs', id: 'ahrefs', description: 'Deep backlink profiles and internal link architecture analysis — see if a site\'s information architecture matches its business goals', secretKey: '', configured: false, category: 'seo', status: 'coming-soon' },
 
   // ── 🎨 UX & Accessibility ──
@@ -86,7 +87,7 @@ const integrations: Integration[] = [
 
 
 const categoryLabels: Record<string, string> = {
-  architecture: '🗺️ Site Architecture',
+  architecture: '🔗 URL Analysis',
   analysis: '📊 Content Analysis',
   content: '📄 Content & Scraping',
   technology: '🔧 Technology Detection',
