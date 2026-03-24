@@ -78,18 +78,6 @@ export function BrokenLinksCard({ data }: { data: LinkCheckData }) {
 
   return (
     <div className="space-y-4">
-      {/* Progress bar */}
-      <div className="h-2 rounded-full bg-muted overflow-hidden flex">
-        {summary.ok > 0 && (
-          <div className="h-full bg-green-500" style={{ width: `${(summary.ok / summary.total) * 100}%` }} />
-        )}
-        {summary.redirects > 0 && (
-          <div className="h-full bg-yellow-500" style={{ width: `${(summary.redirects / summary.total) * 100}%` }} />
-        )}
-        {brokenCount > 0 && (
-          <div className="h-full bg-destructive" style={{ width: `${(brokenCount / summary.total) * 100}%` }} />
-        )}
-      </div>
 
       <CardTabs
         defaultValue="broken"
