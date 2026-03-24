@@ -1,6 +1,4 @@
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Link2, TrendingUp } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 
 type SemrushCardProps = {
   data: {

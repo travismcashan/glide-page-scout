@@ -1,5 +1,5 @@
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { FileText, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 
 type SitemapGroup = {
