@@ -1,6 +1,19 @@
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ChevronDown, ChevronUp, Merge } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 type ContentTypeSummary = {
   type: string;
@@ -51,27 +64,146 @@ function sourceBadge(source: string) {
   );
 }
 
-export function ContentTypesCard({ data }: { data: ContentTypesData }) {
+function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? urls : urls.slice(0, 2);
+  const hasMore = totalUrls > 2;
+
+  return (
+    <TooltipProvider>
+      <div className="flex flex-col gap-0.5 max-w-[400px]">
+        {visible.map((url) => (
+          <Tooltip key={url}>
+            <TooltipTrigger asChild>
+              <span className="text-[11px] font-mono text-muted-foreground truncate block cursor-default">
+                {(() => { try { return new URL(url).pathname; } catch { return url; } })()}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-md">
+              <p className="text-xs font-mono break-all">{url}</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+        {hasMore && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-0.5 cursor-pointer bg-transparent border-none p-0"
+          >
+            {expanded ? (
+              <>Show less <ChevronUp className="h-3 w-3" /></>
+            ) : (
+              <>+{totalUrls - 2} more <ChevronDown className="h-3 w-3" /></>
+            )}
+          </button>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeName, setMergeName] = useState('');
+  const [mergeMode, setMergeMode] = useState(false);
+
   if (!data?.summary?.length) {
     return <p className="text-sm text-muted-foreground">No content types detected.</p>;
   }
 
   const { summary, stats } = data;
 
+  const toggleSelect = (type: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  };
+
+  const handleMerge = () => {
+    if (!mergeName.trim() || selected.size < 2 || !onDataChange) return;
+
+    const selectedTypes = Array.from(selected);
+    const mergedRows = summary.filter(r => selectedTypes.includes(r.type));
+    const keptRows = summary.filter(r => !selectedTypes.includes(r.type));
+
+    const merged: ContentTypeSummary = {
+      type: mergeName.trim(),
+      count: mergedRows.reduce((s, r) => s + r.count, 0),
+      urls: mergedRows.flatMap(r => r.urls).slice(0, 10),
+      totalUrls: mergedRows.reduce((s, r) => s + r.totalUrls, 0),
+      confidence: {
+        high: mergedRows.reduce((s, r) => s + r.confidence.high, 0),
+        medium: mergedRows.reduce((s, r) => s + r.confidence.medium, 0),
+        low: mergedRows.reduce((s, r) => s + r.confidence.low, 0),
+      },
+    };
+
+    const newSummary = [...keptRows, merged].sort((a, b) => b.count - a.count);
+    onDataChange({
+      ...data,
+      summary: newSummary,
+      stats: { ...stats, uniqueTypes: newSummary.length },
+    });
+
+    setSelected(new Set());
+    setMergeName('');
+    setMergeOpen(false);
+    setMergeMode(false);
+  };
+
+  const openMergeDialog = () => {
+    // Pre-fill with the largest selected type's name
+    const selectedTypes = Array.from(selected);
+    const largest = summary
+      .filter(r => selectedTypes.includes(r.type))
+      .sort((a, b) => b.count - a.count)[0];
+    setMergeName(largest?.type || '');
+    setMergeOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       {/* Stats row */}
-      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-        <span><strong className="text-foreground">{stats.total}</strong> URLs analyzed</span>
-        <span>·</span>
-        <span><strong className="text-foreground">{stats.uniqueTypes}</strong> content types found</span>
-        {stats.ambiguousScanned > 0 && (
-          <>
-            <span>·</span>
-            <span><strong className="text-foreground">{stats.ambiguousScanned}</strong> pages scanned for HTML signals</span>
-          </>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{stats.total}</strong> URLs analyzed</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{stats.uniqueTypes}</strong> content types found</span>
+          {stats.ambiguousScanned > 0 && (
+            <>
+              <span>·</span>
+              <span><strong className="text-foreground">{stats.ambiguousScanned}</strong> pages scanned for HTML signals</span>
+            </>
+          )}
+        </div>
+        {onDataChange && (
+          <Button
+            variant={mergeMode ? 'secondary' : 'outline'}
+            size="sm"
+            className="text-xs h-7 gap-1"
+            onClick={() => {
+              setMergeMode(!mergeMode);
+              if (mergeMode) setSelected(new Set());
+            }}
+          >
+            <Merge className="h-3 w-3" />
+            {mergeMode ? 'Cancel' : 'Merge Types'}
+          </Button>
         )}
       </div>
+
+      {/* Merge action bar */}
+      {mergeMode && selected.size >= 2 && (
+        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border text-xs">
+          <span className="text-muted-foreground">{selected.size} types selected</span>
+          <Button size="sm" className="text-xs h-6 gap-1" onClick={openMergeDialog}>
+            <Merge className="h-3 w-3" /> Merge Selected
+          </Button>
+        </div>
+      )}
 
       {/* Detection source badges */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -90,6 +222,7 @@ export function ContentTypesCard({ data }: { data: ContentTypesData }) {
         <Table>
           <TableHeader>
             <TableRow>
+              {mergeMode && <TableHead className="w-[40px]" />}
               <TableHead className="text-xs">Content Type</TableHead>
               <TableHead className="text-xs text-right w-[60px]">Count</TableHead>
               <TableHead className="text-xs w-[80px]">Confidence</TableHead>
@@ -98,36 +231,55 @@ export function ContentTypesCard({ data }: { data: ContentTypesData }) {
           </TableHeader>
           <TableBody>
             {summary.map((row) => (
-              <TableRow key={row.type}>
+              <TableRow key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
+                {mergeMode && (
+                  <TableCell className="pr-0">
+                    <Checkbox
+                      checked={selected.has(row.type)}
+                      onCheckedChange={() => toggleSelect(row.type)}
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="text-sm font-medium">{row.type}</TableCell>
                 <TableCell className="text-sm text-right font-mono">{row.count}</TableCell>
                 <TableCell>{confidenceBadge(row.confidence)}</TableCell>
                 <TableCell>
-                  <TooltipProvider>
-                    <div className="flex flex-col gap-0.5 max-w-[400px]">
-                      {row.urls.slice(0, 2).map((url) => (
-                        <Tooltip key={url}>
-                          <TooltipTrigger asChild>
-                            <span className="text-[11px] font-mono text-muted-foreground truncate block cursor-default">
-                              {(() => { try { return new URL(url).pathname; } catch { return url; } })()}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-md">
-                            <p className="text-xs font-mono break-all">{url}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                      {row.totalUrls > 2 && (
-                        <span className="text-[10px] text-muted-foreground">+{row.totalUrls - 2} more</span>
-                      )}
-                    </div>
-                  </TooltipProvider>
+                  <ExpandableUrls urls={row.urls} totalUrls={row.totalUrls} />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Merge dialog */}
+      <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Merge Content Types</DialogTitle>
+            <DialogDescription>
+              Combine {selected.size} types into one. Choose a name for the merged type.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from(selected).map(t => (
+                <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
+              ))}
+            </div>
+            <Input
+              placeholder="Merged type name"
+              value={mergeName}
+              onChange={(e) => setMergeName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleMerge()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMergeOpen(false)}>Cancel</Button>
+            <Button onClick={handleMerge} disabled={!mergeName.trim()}>Merge</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

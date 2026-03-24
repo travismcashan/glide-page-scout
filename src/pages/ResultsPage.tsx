@@ -1057,7 +1057,10 @@ export default function ResultsPage() {
 
               {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
               <SectionCard collapsed={allCollapsed} title="Content Types — Page Classification" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText="Classifying content types across discovered URLs..." error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
-                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} /> : null}
+                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} onDataChange={async (updated) => {
+                  await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
+                  fetchData();
+                }} /> : null}
               </SectionCard>
               )}
 
