@@ -606,6 +606,33 @@ export default function ResultsPage() {
     }).catch((e) => { setNavFailed(true); setError('nav-structure', e?.message || 'Nav structure request failed'); setNavLoading(false); });
   }, [session, navLoading, navFailed, fetchData]);
 
+  // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
+  const [sitemapLoading, setSitemapLoading] = useState(false);
+  const [sitemapFailed, setSitemapFailed] = useState(false);
+  useEffect(() => {
+    if (!session || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
+    setSitemapLoading(true);
+    sitemapApi.parse(session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ sitemap_data: result } as any).eq('id', session.id);
+        clearError('sitemap');
+        // Feed sitemap hints upstream
+        if (result.contentTypeHints?.length) {
+          setSitemapHints(result.contentTypeHints);
+        }
+        fetchData();
+      } else { setSitemapFailed(true); setError('sitemap', result.error || 'Sitemap parsing failed'); }
+      setSitemapLoading(false);
+    }).catch((e) => { setSitemapFailed(true); setError('sitemap', e?.message || 'Sitemap parsing request failed'); setSitemapLoading(false); });
+  }, [session, sitemapLoading, sitemapFailed, fetchData]);
+
+  // Hydrate sitemapHints from persisted sitemap_data on load
+  useEffect(() => {
+    if (session?.sitemap_data?.contentTypeHints?.length && sitemapHints.length === 0) {
+      setSitemapHints(session.sitemap_data.contentTypeHints);
+    }
+  }, [session?.sitemap_data]);
+
   // Content Types classification (auto-run after URL discovery)
   const [contentTypesLoading, setContentTypesLoading] = useState(false);
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
