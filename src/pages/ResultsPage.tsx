@@ -822,24 +822,42 @@ export default function ResultsPage() {
         let industry: string | undefined;
         let industryConfidence: string | undefined;
 
-        for (let i = 0; i < totalBatches; i++) {
-          const batchUrls = allUrls.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
-          setAutoTagProgress(`${i + 1}/${totalBatches}`);
+        // Batch 1: detect industry
+        const firstBatchUrls = allUrls.slice(0, BATCH_SIZE);
+        setAutoTagProgress(`1/${totalBatches}`);
+        const firstResult = await autoTagPagesApi.classifyBatch(
+          firstBatchUrls, session.domain, homepageContent, navData,
+        );
+        if (firstResult.success && firstResult.pages?.length) {
+          allPages.push(...firstResult.pages);
+        }
+        if (firstResult.industry) {
+          industry = firstResult.industry;
+          industryConfidence = firstResult.industryConfidence;
+        }
 
-          const result = await autoTagPagesApi.classifyBatch(
-            batchUrls,
-            session.domain,
-            homepageContent,
-            navData,
-            i > 0 ? industry : undefined, // reuse detected industry for subsequent batches
-          );
-
-          if (result.success && result.pages?.length) {
-            allPages.push(...result.pages);
+        // Batches 2+: run in parallel with detected industry
+        if (totalBatches > 1) {
+          const remainingBatches: string[][] = [];
+          for (let i = 1; i < totalBatches; i++) {
+            remainingBatches.push(allUrls.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE));
           }
-          if (i === 0 && result.industry) {
-            industry = result.industry;
-            industryConfidence = result.industryConfidence;
+          let completed = 1;
+          const results = await Promise.allSettled(
+            remainingBatches.map(batchUrls =>
+              autoTagPagesApi.classifyBatch(
+                batchUrls, session.domain, homepageContent, navData, industry,
+              ).then(r => {
+                completed++;
+                setAutoTagProgress(`${completed}/${totalBatches}`);
+                return r;
+              })
+            )
+          );
+          for (const r of results) {
+            if (r.status === 'fulfilled' && r.value.success && r.value.pages?.length) {
+              allPages.push(...r.value.pages);
+            }
           }
         }
 
