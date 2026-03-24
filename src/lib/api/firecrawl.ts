@@ -558,12 +558,52 @@ export const sitemapApi = {
 };
 
 export const contentTypesApi = {
-  async classify(urls: string[], baseUrl: string, sitemapHints?: { label: string; urls: string[] }[]): Promise<{ success: boolean; summary?: any[]; classified?: any[]; stats?: any; error?: string }> {
-    const { data, error } = await supabase.functions.invoke('content-types', {
-      body: { urls, baseUrl, sitemapHints },
-    });
-    if (error) return { success: false, error: error.message };
-    return data;
+  async classifyPhased(
+    urls: string[],
+    baseUrl: string,
+    sitemapHints?: { label: string; urls: string[] }[],
+    onProgress?: (phase: string, detail: string) => void,
+  ): Promise<{ success: boolean; summary?: any[]; classified?: any[]; stats?: any; error?: string }> {
+    try {
+      // Phase 1: Grouping (instant)
+      onProgress?.('group', 'Grouping URLs by directory structure…');
+      const { data: groupData, error: groupErr } = await supabase.functions.invoke('content-types', {
+        body: { phase: 'group', urls, baseUrl },
+      });
+      if (groupErr || !groupData?.success) {
+        return { success: false, error: groupErr?.message || groupData?.error || 'Grouping failed' };
+      }
+
+      // Phase 2: HTML sampling
+      onProgress?.('sample', `Sampling HTML signals from ${groupData.groupCount} groups…`);
+      const { data: sampleData, error: sampleErr } = await supabase.functions.invoke('content-types', {
+        body: { phase: 'sample', urls, baseUrl, dirGroups: groupData.dirGroups },
+      });
+      if (sampleErr || !sampleData?.success) {
+        return { success: false, error: sampleErr?.message || sampleData?.error || 'HTML sampling failed' };
+      }
+
+      // Phase 3: AI classification
+      onProgress?.('classify', `AI classifying ${groupData.groupCount} content groups…`);
+      const { data: classifyData, error: classifyErr } = await supabase.functions.invoke('content-types', {
+        body: {
+          phase: 'classify',
+          urls,
+          baseUrl,
+          dirGroups: groupData.dirGroups,
+          htmlSignals: sampleData.htmlSignals,
+          sitemapHints,
+        },
+      });
+      if (classifyErr || !classifyData?.success) {
+        return { success: false, error: classifyErr?.message || classifyData?.error || 'AI classification failed' };
+      }
+
+      onProgress?.('done', 'Classification complete');
+      return classifyData;
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Content type classification failed' };
+    }
   },
 };
 

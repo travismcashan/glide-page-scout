@@ -633,21 +633,29 @@ export default function ResultsPage() {
     }
   }, [session?.sitemap_data]);
 
-  // Content Types classification (auto-run after URL discovery)
+  // Content Types classification (auto-run after URL discovery) — phased with progress
   const [contentTypesLoading, setContentTypesLoading] = useState(false);
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
+  const [contentTypesProgress, setContentTypesProgress] = useState('');
   useEffect(() => {
     if (!session || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
     setContentTypesLoading(true);
-    contentTypesApi.classify(effectiveDiscoveredUrls, session.base_url, sitemapHints.length > 0 ? sitemapHints : undefined).then(async (result) => {
+    setContentTypesProgress('Starting classification…');
+    contentTypesApi.classifyPhased(
+      effectiveDiscoveredUrls,
+      session.base_url,
+      sitemapHints.length > 0 ? sitemapHints : undefined,
+      (_phase, detail) => setContentTypesProgress(detail),
+    ).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
         clearError('content-types');
         fetchData();
       } else { setContentTypesFailed(true); setError('content-types', result.error || 'Content type classification failed'); }
       setContentTypesLoading(false);
-    }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); });
+      setContentTypesProgress('');
+    }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); setContentTypesProgress(''); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData]);
 
   // Auto-seed page tags using AI industry detection, with URL-pattern fallback
@@ -1180,7 +1188,7 @@ export default function ResultsPage() {
                )}
 
               {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
-              <SectionCard collapsed={allCollapsed} title="Repeating Content — Posts & CPTs" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText="Classifying content types across discovered URLs..." error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
+              <SectionCard collapsed={allCollapsed} title="Repeating Content — Posts & CPTs" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
                 {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} onDataChange={async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
                   fetchData();

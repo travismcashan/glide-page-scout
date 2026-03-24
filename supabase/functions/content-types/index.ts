@@ -4,16 +4,13 @@ const corsHeaders = {
 };
 
 /**
- * Three-Level Cascading Classification
+ * Three-Level Cascading Classification — Phased execution
  *
- * Level 1: TYPE — Page, Post, CPT, Archive, Search
- * Level 2: TEMPLATE — specific page purpose (Homepage, Blog Detail, etc.)
- * Level 3: REPEATING CONTENT — filtered view (Post + CPT only)
+ * Phase 1 (grouping):  URL-pattern grouping → returns dirGroups
+ * Phase 2 (sampling):  HTML signal extraction → returns htmlSignals
+ * Phase 3 (classify):  AI classification + final assembly → returns full result
  *
- * Phase 1: URL-pattern grouping
- * Phase 2: HTML signal extraction (Schema.org, WP body classes, OG)
- * Phase 3: AI analysis with Gemini — outputs baseType + template per group
- * Phase 4: Post-processing — CPT groups below 3 URLs demoted to Page
+ * Each phase is a separate call to avoid edge function timeouts.
  */
 
 type BaseType = 'Page' | 'Post' | 'CPT' | 'Archive' | 'Search';
@@ -45,8 +42,8 @@ const SINGLE_PAGE_SLUGS = new Set([
   'press', 'newsroom', 'media', 'investors', 'accessibility',
 ]);
 
-function groupByDirectory(urls: string[], baseUrl: string): Map<string, string[]> {
-  const groups = new Map<string, string[]>();
+function groupByDirectory(urls: string[], baseUrl: string): Record<string, string[]> {
+  const groups: Record<string, string[]> = {};
   let baseHost = '';
   try { baseHost = new URL(baseUrl).hostname; } catch { /* ignore */ }
 
@@ -61,8 +58,8 @@ function groupByDirectory(urls: string[], baseUrl: string): Map<string, string[]
         continue;
       }
       const dir = segments[0].toLowerCase();
-      if (!groups.has(dir)) groups.set(dir, []);
-      groups.get(dir)!.push(url);
+      if (!groups[dir]) groups[dir] = [];
+      groups[dir].push(url);
     } catch { /* skip bad URLs */ }
   }
 
@@ -147,7 +144,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { urls, baseUrl, sampleSize = 30, minCount = 3, sitemapHints } = await req.json();
+    const body = await req.json();
+    const { phase = 'all', urls, baseUrl, sampleSize = 20, minCount = 3, sitemapHints } = body;
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return new Response(
@@ -156,99 +154,127 @@ Deno.serve(async (req) => {
       );
     }
 
-    const classified: ClassifiedUrl[] = [];
-    const htmlSignals = new Map<string, { type: string; confidence: 'high' | 'medium'; source: string; baseType: BaseType }>();
+    // =====================================================================
+    // PHASE 1: URL grouping (instant)
+    // =====================================================================
+    if (phase === 'group') {
+      const dirGroups = groupByDirectory(urls, baseUrl);
+      const groupCount = Object.keys(dirGroups).length;
+      const totalGrouped = Object.values(dirGroups).reduce((s, g) => s + g.length, 0);
+      console.info(`Phase 1: ${groupCount} directory groups, ${totalGrouped} grouped URLs out of ${urls.length}`);
 
-    // Phase 1: Group by directory
-    const dirGroups = groupByDirectory(urls, baseUrl);
+      return new Response(
+        JSON.stringify({ success: true, phase: 'group', dirGroups, groupCount, totalGrouped }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
-    // Phase 2: Scrape a sample for HTML signals
-    const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (apiKey) {
-      const samplesToScrape: string[] = [];
-      for (const [, groupUrls] of dirGroups) {
-        if (groupUrls.length >= 2) {
-          samplesToScrape.push(...groupUrls.slice(0, 2));
+    // =====================================================================
+    // PHASE 2: HTML signal sampling
+    // =====================================================================
+    if (phase === 'sample') {
+      const dirGroups: Record<string, string[]> = body.dirGroups || groupByDirectory(urls, baseUrl);
+      const htmlSignals: Record<string, { type: string; confidence: 'high' | 'medium'; source: string; baseType: BaseType }> = {};
+
+      const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
+      if (apiKey) {
+        const samplesToScrape: string[] = [];
+        for (const groupUrls of Object.values(dirGroups)) {
+          if ((groupUrls as string[]).length >= 2) {
+            samplesToScrape.push(...(groupUrls as string[]).slice(0, 2));
+          }
         }
-      }
-      const finalSample = samplesToScrape.slice(0, sampleSize);
+        const finalSample = samplesToScrape.slice(0, sampleSize);
 
-      if (finalSample.length > 0) {
-        const scrapePromises = finalSample.map(async (url) => {
-          try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 15000);
-            const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url, formats: ['rawHtml'], onlyMainContent: false }),
-              signal: controller.signal,
+        if (finalSample.length > 0) {
+          // Process in batches of 5 to avoid overwhelming
+          const batchSize = 5;
+          for (let i = 0; i < finalSample.length; i += batchSize) {
+            const batch = finalSample.slice(i, i + batchSize);
+            const scrapePromises = batch.map(async (url) => {
+              try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 10000);
+                const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url, formats: ['rawHtml'], onlyMainContent: false }),
+                  signal: controller.signal,
+                });
+                clearTimeout(timeout);
+                if (!response.ok) { await response.text(); return null; }
+                const data = await response.json();
+                const html = data?.data?.rawHtml || data?.rawHtml || '';
+                if (!html) return null;
+                const result = classifyByHtml(html);
+                if (result) return { url, ...result };
+                return null;
+              } catch { return null; }
             });
-            clearTimeout(timeout);
-            if (!response.ok) return null;
-            const data = await response.json();
-            const html = data?.data?.rawHtml || data?.rawHtml || '';
-            if (!html) return null;
-            const result = classifyByHtml(html);
-            if (result) return { url, ...result };
-            return null;
-          } catch { return null; }
-        });
 
-        const results = await Promise.allSettled(scrapePromises);
-        for (const r of results) {
-          if (r.status === 'fulfilled' && r.value) {
-            htmlSignals.set(r.value.url, { type: r.value.type, confidence: r.value.confidence, source: r.value.source, baseType: r.value.baseType });
+            const results = await Promise.allSettled(scrapePromises);
+            for (const r of results) {
+              if (r.status === 'fulfilled' && r.value) {
+                htmlSignals[r.value.url] = { type: r.value.type, confidence: r.value.confidence, source: r.value.source, baseType: r.value.baseType };
+              }
+            }
           }
         }
       }
+
+      console.info(`Phase 2: ${Object.keys(htmlSignals).length} HTML signals from sampling`);
+
+      return new Response(
+        JSON.stringify({ success: true, phase: 'sample', htmlSignals, signalCount: Object.keys(htmlSignals).length }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
 
-    // Phase 3: AI classification with baseType + template
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    let aiGroups: Array<{ baseType: BaseType; cptName?: string; template: string; urls: string[]; confidence: 'high' | 'medium' }> = [];
+    // =====================================================================
+    // PHASE 3: AI classification + final assembly
+    // =====================================================================
+    if (phase === 'classify') {
+      const dirGroups: Record<string, string[]> = body.dirGroups || groupByDirectory(urls, baseUrl);
+      const htmlSignals: Record<string, { type: string; confidence: 'high' | 'medium'; source: string; baseType: BaseType }> = body.htmlSignals || {};
 
-    if (LOVABLE_API_KEY) {
-      try {
-        const dirSummary = Array.from(dirGroups.entries())
-          .filter(([, v]) => v.length >= 2)
-          .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 3).join(', ')}`)
-          .join('\n');
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      let aiGroups: Array<{ baseType: BaseType; cptName?: string; template: string; directoryPrefix: string; confidence: 'high' | 'medium' }> = [];
 
-        const htmlContext = Array.from(htmlSignals.entries())
-          .map(([url, sig]) => `${url} → ${sig.type} [${sig.baseType}] (via ${sig.source})`)
-          .join('\n');
+      if (LOVABLE_API_KEY) {
+        try {
+          const htmlContext = Object.entries(htmlSignals)
+            .map(([url, sig]) => `${url} → ${sig.type} [${sig.baseType}] (via ${sig.source})`)
+            .join('\n');
 
-        const topLevelPages: string[] = [];
-        let homepage = '';
-        for (const url of urls) {
-          try {
-            const parsed = new URL(url);
-            const segs = parsed.pathname.split('/').filter(Boolean);
-            if (segs.length === 0) { homepage = url; continue; }
-            if (segs.length === 1) topLevelPages.push(url);
-          } catch { /* skip */ }
-        }
+          let homepage = '';
+          const singleSegUrls: string[] = [];
+          for (const url of urls) {
+            try {
+              const segs = new URL(url).pathname.split('/').filter(Boolean);
+              if (segs.length === 0) { homepage = url; continue; }
+              if (segs.length === 1) singleSegUrls.push(url);
+            } catch { /* skip */ }
+          }
 
-        const sitemapContext = sitemapHints && Array.isArray(sitemapHints) && sitemapHints.length > 0
-          ? sitemapHints
-              .map((h: { label: string; urls: string[] }) => `Sitemap "${h.label}" (${h.urls.length} URLs) — samples: ${h.urls.slice(0, 3).join(', ')}`)
-              .join('\n')
-          : '';
+          const sitemapContext = sitemapHints && Array.isArray(sitemapHints) && sitemapHints.length > 0
+            ? sitemapHints
+                .map((h: { label: string; urls: string[] }) => `Sitemap "${h.label}" (${h.urls.length} URLs) — samples: ${h.urls.slice(0, 3).join(', ')}`)
+                .join('\n')
+            : '';
 
-        const systemPrompt = `You are a web content strategist classifying URLs by their WordPress content model type.
+          const systemPrompt = `You are a web content strategist classifying URLs by their WordPress content model type.
 
 Classify every URL into exactly ONE type:
 - **Page**: One-off pages with unique designs (About, Contact, Pricing, Services, Homepage, etc.)
 - **Post**: Blog/news articles in a date-based feed. Usually under /blog/, /news/, /articles/.
-- **CPT** (Custom Post Type): Detail pages from a repeating template with 3+ similar URLs. Examples: case studies, team members, products, portfolio items, locations. Provide the CPT name.
+- **CPT** (Custom Post Type): Detail pages from a repeating template with 3+ similar URLs. Examples: case studies, team members, products, portfolio items, locations, industries, services (when there are ${minCount}+ of them). Provide the CPT name.
 - **Archive**: Any list/index/category/tag page that aggregates other pages. Blog index, category pages, resource library pages.
 - **Search**: Site search results pages.
 
 Then assign a TEMPLATE name describing each page's purpose:
 - Page templates: Homepage, About, Pricing, Contact, Careers, Services, Solutions, Demo, Features, Platform, etc.
 - Post templates: Blog Detail
-- CPT templates: [CPT Name] Detail (e.g., "Case Study Detail", "Team Member Detail")
+- CPT templates: [CPT Name] Detail (e.g., "Case Study Detail", "Team Member Detail", "Industry Detail", "Service Detail")
 - Archive templates: Archive: [What it archives] (e.g., "Archive: Blog", "Archive: Case Studies")
 - Search templates: Search
 
@@ -258,25 +284,16 @@ CRITICAL RULES:
 3. Utility pages (privacy, terms, login, 404) are type Page.
 4. List/index pages are ALWAYS type Archive, not Page.
 5. Blog posts are type Post, NOT CPT — even if there are many.
-6. Individual service/solution sub-pages are Page unless there are ${minCount}+ with identical structure.
+6. Service and industry sub-pages with ${minCount}+ siblings ARE CPTs, not Pages.
+7. Each top-level directory with ${minCount}+ child URLs is likely a CPT.
 
 You MUST classify EVERY directory group and top-level page.`;
 
-        // Build compact directory listing — DON'T send all URLs to avoid output truncation
-        const dirListing = Array.from(dirGroups.entries())
-          .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 4).join(', ')}`)
-          .join('\n');
+          const dirListing = Object.entries(dirGroups)
+            .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 4).join(', ')}`)
+            .join('\n');
 
-        // Also list single-segment URLs (top-level pages)
-        const singleSegUrls: string[] = [];
-        for (const url of urls) {
-          try {
-            const segs = new URL(url).pathname.split('/').filter(Boolean);
-            if (segs.length === 1) singleSegUrls.push(url);
-          } catch { /* skip */ }
-        }
-
-        const userPrompt = `Analyze this website (${baseUrl}) and classify its URL structure.
+          const userPrompt = `Analyze this website (${baseUrl}) and classify its URL structure.
 
 IMPORTANT: Classify DIRECTORY GROUPS, not individual URLs. Each group shares a URL prefix.
 
@@ -295,201 +312,206 @@ ${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes conte
 For each directory group, classify the group as a whole. Return the DIRECTORY PREFIX (e.g., "/testing-services/", "/industry-solutions/", "/blog/") — NOT every individual URL.
 ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : ''}`;
 
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-pro',
-            tools: [{
-              type: 'function',
-              function: {
-                name: 'classify_urls',
-                description: 'Classify every URL with its WordPress content model type and template.',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    groups: {
-                      type: 'array',
-                      description: 'Groups classified by directory prefix or individual top-level URLs',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'], description: 'WordPress content model type' },
-                          cptName: { type: 'string', description: 'CPT name (required for CPT type, e.g. "Case Study", "Team Member", "Industry", "Service")' },
-                          template: { type: 'string', description: 'Template name describing the page purpose' },
-                          directoryPrefix: { type: 'string', description: 'The URL directory prefix for this group, e.g. "/blog/", "/testing-services/", "/team_members/". Use "/" for homepage.' },
-                          confidence: { type: 'string', enum: ['high', 'medium'], description: 'Classification confidence' },
+          const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              tools: [{
+                type: 'function',
+                function: {
+                  name: 'classify_urls',
+                  description: 'Classify URL directory groups with their WordPress content model type and template.',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      groups: {
+                        type: 'array',
+                        description: 'Groups classified by directory prefix or individual top-level URLs',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'], description: 'WordPress content model type' },
+                            cptName: { type: 'string', description: 'CPT name (required for CPT type, e.g. "Case Study", "Team Member", "Industry", "Service")' },
+                            template: { type: 'string', description: 'Template name describing the page purpose' },
+                            directoryPrefix: { type: 'string', description: 'The URL directory prefix for this group, e.g. "/blog/", "/testing-services/", "/team_members/". Use "/" for homepage.' },
+                            confidence: { type: 'string', enum: ['high', 'medium'], description: 'Classification confidence' },
+                          },
+                          required: ['baseType', 'template', 'directoryPrefix', 'confidence'],
+                          additionalProperties: false,
                         },
-                        required: ['baseType', 'template', 'directoryPrefix', 'confidence'],
-                        additionalProperties: false,
                       },
                     },
+                    required: ['groups'],
+                    additionalProperties: false,
                   },
-                  required: ['groups'],
-                  additionalProperties: false,
                 },
-              },
-            }],
-            tool_choice: { type: 'function', function: { name: 'classify_urls' } },
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
-            ],
-          }),
-        });
+              }],
+              tool_choice: { type: 'function', function: { name: 'classify_urls' } },
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+            }),
+          });
 
-        if (response.ok) {
-          const aiData = await response.json();
-          const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
-          if (toolCall?.function?.arguments) {
-            try {
-              const parsed = JSON.parse(toolCall.function.arguments);
-              if (parsed?.groups) {
-                aiGroups = parsed.groups;
-                console.info(`AI classified ${aiGroups.length} directory groups`);
+          if (response.ok) {
+            const aiData = await response.json();
+            const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
+            if (toolCall?.function?.arguments) {
+              try {
+                const parsed = JSON.parse(toolCall.function.arguments);
+                if (parsed?.groups) {
+                  aiGroups = parsed.groups;
+                  console.info(`Phase 3: AI classified ${aiGroups.length} directory groups`);
+                }
+              } catch (parseErr) {
+                console.error('Failed to parse AI response:', parseErr);
               }
-            } catch (parseErr) {
-              console.error('Failed to parse AI response:', parseErr);
             }
+          } else {
+            console.error('AI classification failed:', response.status, await response.text());
           }
+        } catch (e) {
+          console.error('AI classification error:', e);
+        }
+      }
+
+      // Build final classifications using directory prefix matching
+      const classified: ClassifiedUrl[] = [];
+
+      const sortedGroups = [...aiGroups].sort((a, b) =>
+        (b.directoryPrefix?.length || 0) - (a.directoryPrefix?.length || 0)
+      );
+
+      function findAiGroup(url: string): typeof aiGroups[0] | null {
+        try {
+          const pathname = new URL(url).pathname.toLowerCase();
+          for (const group of sortedGroups) {
+            const prefix = (group.directoryPrefix || '').toLowerCase().replace(/\/$/, '');
+            if (!prefix || prefix === '/') {
+              if (pathname === '/' || pathname === '') return group;
+              continue;
+            }
+            if (pathname.startsWith(prefix + '/') || pathname === prefix) return group;
+          }
+        } catch { /* skip */ }
+        return null;
+      }
+
+      for (const url of urls) {
+        const htmlSig = htmlSignals[url];
+        const aiGroup = findAiGroup(url);
+
+        if (aiGroup) {
+          const conf = htmlSig ? 'high' : (aiGroup.confidence || 'medium');
+          classified.push({
+            url,
+            contentType: aiGroup.cptName || aiGroup.template,
+            confidence: conf as 'high' | 'medium' | 'low',
+            source: htmlSig ? htmlSig.source : 'ai',
+            baseType: aiGroup.baseType as BaseType,
+            template: aiGroup.template,
+            cptName: aiGroup.cptName,
+          });
+        } else if (htmlSig) {
+          classified.push({
+            url,
+            contentType: htmlSig.type,
+            confidence: htmlSig.confidence,
+            source: htmlSig.source,
+            baseType: htmlSig.baseType,
+            template: htmlSig.type,
+          });
         } else {
-          console.error('AI classification failed:', response.status, await response.text());
+          classified.push({
+            url,
+            contentType: 'Uncategorized',
+            confidence: 'low',
+            source: 'url-pattern',
+            baseType: 'Page',
+            template: 'Page',
+          });
         }
-      } catch (e) {
-        console.error('AI classification error:', e);
       }
-    }
 
-    // Phase 4: Build final classifications
-    // Map URLs to AI groups by matching directory prefix
-
-    // Sort AI groups by prefix length descending so more specific matches win
-    const sortedGroups = [...aiGroups].sort((a, b) =>
-      (b.directoryPrefix?.length || 0) - (a.directoryPrefix?.length || 0)
-    );
-
-    function findAiGroup(url: string): typeof aiGroups[0] | null {
-      try {
-        const pathname = new URL(url).pathname.toLowerCase();
-        for (const group of sortedGroups) {
-          const prefix = (group.directoryPrefix || '').toLowerCase().replace(/\/$/, '');
-          if (!prefix || prefix === '/') {
-            // Homepage match — only exact match
-            if (pathname === '/' || pathname === '') return group;
-            continue;
-          }
-          if (pathname.startsWith(prefix + '/') || pathname === prefix) return group;
+      // Post-processing: CPT groups below minCount get demoted to Page
+      const cptCounts = new Map<string, number>();
+      for (const c of classified) {
+        if (c.baseType === 'CPT' && c.cptName) {
+          cptCounts.set(c.cptName, (cptCounts.get(c.cptName) || 0) + 1);
         }
-      } catch { /* skip */ }
-      return null;
-    }
-
-    for (const url of urls) {
-      const htmlSig = htmlSignals.get(url);
-      const aiGroup = findAiGroup(url);
-
-      if (aiGroup) {
-        const conf = htmlSig ? 'high' : (aiGroup.confidence || 'medium');
-        classified.push({
-          url,
-          contentType: aiGroup.cptName || aiGroup.template,
-          confidence: conf as 'high' | 'medium' | 'low',
-          source: htmlSig ? htmlSig.source : 'ai',
-          baseType: aiGroup.baseType as BaseType,
-          template: aiGroup.template,
-          cptName: aiGroup.cptName,
-        });
-      } else if (htmlSig) {
-        classified.push({
-          url,
-          contentType: htmlSig.type,
-          confidence: htmlSig.confidence,
-          source: htmlSig.source,
-          baseType: htmlSig.baseType,
-          template: htmlSig.type,
-        });
-      } else {
-        classified.push({
-          url,
-          contentType: 'Uncategorized',
-          confidence: 'low',
-          source: 'url-pattern',
-          baseType: 'Page',
-          template: 'Page',
-        });
       }
-    }
-
-    // Post-processing: CPT groups below minCount get demoted to Page
-    const cptCounts = new Map<string, number>();
-    for (const c of classified) {
-      if (c.baseType === 'CPT' && c.cptName) {
-        cptCounts.set(c.cptName, (cptCounts.get(c.cptName) || 0) + 1);
+      for (const c of classified) {
+        if (c.baseType === 'CPT' && c.cptName && (cptCounts.get(c.cptName) || 0) < minCount) {
+          c.baseType = 'Page';
+          c.contentType = c.template;
+          c.cptName = undefined;
+        }
       }
-    }
-    for (const c of classified) {
-      if (c.baseType === 'CPT' && c.cptName && (cptCounts.get(c.cptName) || 0) < minCount) {
-        c.baseType = 'Page';
-        c.contentType = c.template;
-        c.cptName = undefined;
+
+      // Build summary
+      const typeCounts: Record<string, { count: number; urls: string[]; confidence: Record<string, number>; baseType: BaseType; cptName?: string }> = {};
+      for (const c of classified) {
+        if (!typeCounts[c.contentType]) {
+          typeCounts[c.contentType] = { count: 0, urls: [], confidence: { high: 0, medium: 0, low: 0 }, baseType: c.baseType, cptName: c.cptName };
+        }
+        typeCounts[c.contentType].count++;
+        typeCounts[c.contentType].urls.push(c.url);
+        typeCounts[c.contentType].confidence[c.confidence]++;
       }
-    }
 
-    // Build summary — group by contentType
-    const typeCounts: Record<string, { count: number; urls: string[]; confidence: Record<string, number>; baseType: BaseType; cptName?: string }> = {};
-    for (const c of classified) {
-      if (!typeCounts[c.contentType]) {
-        typeCounts[c.contentType] = { count: 0, urls: [], confidence: { high: 0, medium: 0, low: 0 }, baseType: c.baseType, cptName: c.cptName };
-      }
-      typeCounts[c.contentType].count++;
-      typeCounts[c.contentType].urls.push(c.url);
-      typeCounts[c.contentType].confidence[c.confidence]++;
-    }
+      const typeOrder: Record<BaseType, number> = { Post: 0, CPT: 1, Archive: 2, Search: 3, Page: 4 };
+      const summary = Object.entries(typeCounts)
+        .sort(([a, aData], [b, bData]) => {
+          if (a === 'Uncategorized') return 1;
+          if (b === 'Uncategorized') return -1;
+          const orderDiff = (typeOrder[aData.baseType] || 4) - (typeOrder[bData.baseType] || 4);
+          if (orderDiff !== 0) return orderDiff;
+          return bData.count - aData.count;
+        })
+        .map(([type, data]) => ({
+          type,
+          count: data.count,
+          urls: data.urls,
+          totalUrls: data.urls.length,
+          confidence: data.confidence,
+          baseType: data.baseType,
+          cptName: data.cptName,
+        }));
 
-    // Sort: repeating content first (Post/CPT by count desc), then archives, then pages, Uncategorized last
-    const typeOrder: Record<BaseType, number> = { Post: 0, CPT: 1, Archive: 2, Search: 3, Page: 4 };
-    const summary = Object.entries(typeCounts)
-      .sort(([a, aData], [b, bData]) => {
-        if (a === 'Uncategorized') return 1;
-        if (b === 'Uncategorized') return -1;
-        const orderDiff = (typeOrder[aData.baseType] || 4) - (typeOrder[bData.baseType] || 4);
-        if (orderDiff !== 0) return orderDiff;
-        return bData.count - aData.count;
-      })
-      .map(([type, data]) => ({
-        type,
-        count: data.count,
-        urls: data.urls,
-        totalUrls: data.urls.length,
-        confidence: data.confidence,
-        baseType: data.baseType,
-        cptName: data.cptName,
-      }));
+      const realTypes = summary.filter(s => s.type !== 'Uncategorized');
 
-    const realTypes = summary.filter(s => s.type !== 'Uncategorized');
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        summary,
-        classified,
-        stats: {
-          total: urls.length,
-          bySource: {
-            'url-pattern': classified.filter(c => c.source === 'url-pattern').length,
-            'schema-org': classified.filter(c => c.source === 'schema-org').length,
-            'meta-tags': classified.filter(c => c.source === 'meta-tags').length,
-            'css-classes': classified.filter(c => c.source === 'css-classes').length,
-            'ai': classified.filter(c => c.source === 'ai').length,
+      return new Response(
+        JSON.stringify({
+          success: true,
+          phase: 'classify',
+          summary,
+          classified,
+          stats: {
+            total: urls.length,
+            bySource: {
+              'url-pattern': classified.filter(c => c.source === 'url-pattern').length,
+              'schema-org': classified.filter(c => c.source === 'schema-org').length,
+              'meta-tags': classified.filter(c => c.source === 'meta-tags').length,
+              'css-classes': classified.filter(c => c.source === 'css-classes').length,
+              'ai': classified.filter(c => c.source === 'ai').length,
+            },
+            uniqueTypes: realTypes.length,
+            ambiguousScanned: Object.keys(htmlSignals).length,
           },
-          uniqueTypes: realTypes.length,
-          ambiguousScanned: htmlSignals.size,
-        },
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Default: return error for unknown phase
+    return new Response(
+      JSON.stringify({ success: false, error: `Unknown phase: ${phase}. Use "group", "sample", or "classify".` }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
     console.error('Content types error:', error);
