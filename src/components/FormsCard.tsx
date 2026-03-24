@@ -246,19 +246,17 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
 
   return (
     <div className="space-y-4">
-      {/* Meta stats */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <MetaStat value={summary.uniqueForms} label="Unique Forms" />
-        <MetaStatDivider />
-        <MetaStat value={summary.globalForms} label="Global Forms" />
-        <MetaStatDivider />
-        <MetaStat value={summary.uniqueForms - summary.globalForms} label="Page-Specific Forms" />
-        <MetaStatDivider />
-        <MetaStat value={summary.pagesWithForms} label="Pages with Forms" />
-      </div>
-
-      {/* Controls row */}
-      <div className="flex items-center justify-end flex-wrap gap-2">
+      {/* Meta stats + AI tier controls on one row */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-4 flex-wrap">
+          <MetaStat value={summary.uniqueForms} label="Unique Forms" />
+          <MetaStatDivider />
+          <MetaStat value={summary.globalForms} label="Global Forms" />
+          <MetaStatDivider />
+          <MetaStat value={summary.uniqueForms - summary.globalForms} label="Page-Specific Forms" />
+          <MetaStatDivider />
+          <MetaStat value={summary.pagesWithForms} label="Pages with Forms" />
+        </div>
         <div className="flex items-center gap-2">
           {aiTiers && (
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
