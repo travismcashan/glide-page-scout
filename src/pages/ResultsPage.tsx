@@ -810,6 +810,7 @@ export default function ResultsPage() {
   }, [session, fetchData]);
 
   const integrationList: { key: string; dbColumn: string }[] = [
+    { key: 'sitemap', dbColumn: 'sitemap_data' },
     { key: 'builtwith', dbColumn: 'builtwith_data' },
     { key: 'wappalyzer', dbColumn: 'wappalyzer_data' },
     { key: 'gtmetrix', dbColumn: 'gtmetrix_grade' },
@@ -867,6 +868,7 @@ export default function ResultsPage() {
     setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null;
     setAvomaFailed(false); setAvomaLoading(false);
     setNavFailed(false); setNavLoading(false);
+    setSitemapFailed(false); setSitemapLoading(false);
     await fetchData();
     setRerunningAll(false);
     toast.success('Re-running all integrations');
