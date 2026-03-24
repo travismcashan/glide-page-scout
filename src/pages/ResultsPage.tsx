@@ -1061,6 +1061,7 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
+              {session && shouldShowIntegration('screenshots', false) && (
                 <ScreenshotGallery
                   sessionId={session.id}
                   baseUrl={session.base_url}
