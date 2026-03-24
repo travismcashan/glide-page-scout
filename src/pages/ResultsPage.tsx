@@ -1067,17 +1067,35 @@ export default function ResultsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setAllCollapsed(!allCollapsed)}
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('view', 'shared');
+                navigator.clipboard.writeText(url.toString());
+                toast.success('View-only link copied to clipboard');
+              }}
               className="no-print"
-              title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
             >
-              {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
-              {allCollapsed ? 'Expand All' : 'Collapse All'}
+              <Share2 className="h-3.5 w-3.5 mr-1.5" />
+              Share
             </Button>
-            <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll} className="no-print">
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
-              Re-run All
-            </Button>
+            {!isSharedView && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAllCollapsed(!allCollapsed)}
+                  className="no-print"
+                  title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+                >
+                  {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
+                  {allCollapsed ? 'Expand All' : 'Collapse All'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll} className="no-print">
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
+                  Re-run All
+                </Button>
+              </>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="no-print">
