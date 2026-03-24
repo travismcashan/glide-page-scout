@@ -874,6 +874,7 @@ export default function ResultsPage() {
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
+      'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
