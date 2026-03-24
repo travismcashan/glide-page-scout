@@ -4,6 +4,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const BATCH_SIZE = 100;
 
 function normalizeUrl(u: string): string {
   try {
@@ -76,6 +77,168 @@ const INDUSTRY_PRESETS: Record<string, string[]> = {
   ],
 };
 
+const industryList = Object.keys(INDUSTRY_PRESETS);
+
+function buildSystemPrompt(knownIndustry?: string): string {
+  const industryInstruction = knownIndustry
+    ? `The website's industry has already been detected as "${knownIndustry}". Use this industry for template assignment.`
+    : `Detect the website's INDUSTRY from these options:\n${industryList.map(i => `- ${i}`).join('\n')}`;
+
+  return `You are an expert at classifying websites by industry and assigning page template types using a WordPress-inspired content model.
+
+Your job:
+1. ${knownIndustry ? `Use the pre-detected industry: "${knownIndustry}".` : 'Detect the website\'s INDUSTRY.'}
+2. Classify each URL with a baseType (Page, Post, CPT, Archive, Search) and a template name.
+
+baseType definitions:
+- **Page**: One-off pages with unique designs (Homepage, About, Pricing, Contact, etc.)
+- **Post**: Blog/news articles in a date-based feed
+- **CPT**: Custom Post Type detail pages — repeating template with 3+ similar URLs (case studies, team members, products)
+- **Archive**: List/index/category pages that aggregate other pages
+- **Search**: Site search results pages
+
+${industryInstruction}
+
+Template assignment rules:
+- Use the industry-appropriate template names. Templates per industry:
+${industryList.map(i => `  ${i}: ${INDUSTRY_PRESETS[i].join(', ')}`).join('\n')}
+- You may use ANY template name that fits.
+- Use "List" suffix for archive/index pages (these are Archive type), "Detail" for individual items.
+- Utility pages (Privacy Policy, Terms, Login, 404): type Page.
+- Blog posts: type Post with template "Blog Detail".
+- CPT entries: type CPT with template "[Name] Detail" and provide cptName.
+- List/index pages: type Archive with template "Archive: [Name]" or "[Name] List".
+
+You MUST classify EVERY URL provided.`;
+}
+
+async function classifyBatch(
+  aiKey: string,
+  urlBatch: string[],
+  domain: string,
+  homepageContent: string,
+  navSummary: string,
+  knownIndustry?: string,
+): Promise<{ industry: string; industry_confidence: string; pages: any[] }> {
+  const systemPrompt = buildSystemPrompt(knownIndustry);
+
+  const response = await fetch(AI_GATEWAY_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${aiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: `Domain: ${domain || 'unknown'}
+
+Homepage content (first 3000 chars):
+${(homepageContent || '').substring(0, 3000)}
+
+${navSummary}
+
+URLs to classify (${urlBatch.length} URLs):
+${urlBatch.join('\n')}`,
+        },
+      ],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'classify_pages',
+            description: 'Detect the industry and assign a baseType + template to each URL.',
+            parameters: {
+              type: 'object',
+              properties: {
+                industry: {
+                  type: 'string',
+                  description: 'The detected industry/vertical for this website',
+                },
+                industry_confidence: {
+                  type: 'string',
+                  enum: ['high', 'medium', 'low'],
+                },
+                pages: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      url: { type: 'string', description: 'Exact URL from input' },
+                      baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'] },
+                      template: { type: 'string', description: 'Template name for this page' },
+                      cptName: { type: 'string', description: 'CPT name if baseType is CPT' },
+                    },
+                    required: ['url', 'baseType', 'template'],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ['industry', 'industry_confidence', 'pages'],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: 'function', function: { name: 'classify_pages' } },
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error(`[auto-tag] AI error for batch: ${response.status}`, errText.slice(0, 300));
+    if (response.status === 429) throw new Error('RATE_LIMIT');
+    throw new Error(`AI returned ${response.status}`);
+  }
+
+  const aiText = await response.text();
+  let aiData: any;
+  try {
+    aiData = JSON.parse(aiText);
+  } catch {
+    console.error('[auto-tag] Truncated AI response, length:', aiText.length, 'tail:', aiText.slice(-200));
+    // Attempt to salvage truncated tool_call arguments
+    const argMatch = aiText.match(/"arguments"\s*:\s*"([\s\S]+)/);
+    if (argMatch) {
+      console.log('[auto-tag] Attempting to salvage truncated response...');
+    }
+    return { industry: knownIndustry || 'Generic / Other', industry_confidence: 'low', pages: [] };
+  }
+
+  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) {
+    return { industry: knownIndustry || 'Generic / Other', industry_confidence: 'low', pages: [] };
+  }
+
+  try {
+    return JSON.parse(toolCall.function.arguments);
+  } catch {
+    // Try to fix truncated JSON in arguments
+    let args = toolCall.function.arguments;
+    // Remove trailing incomplete object
+    const lastComplete = args.lastIndexOf('}');
+    if (lastComplete > 0) {
+      args = args.substring(0, lastComplete + 1);
+      // Close the array and outer object if needed
+      const openBrackets = (args.match(/\[/g) || []).length - (args.match(/\]/g) || []).length;
+      const openBraces = (args.match(/\{/g) || []).length - (args.match(/\}/g) || []).length;
+      for (let i = 0; i < openBrackets; i++) args += ']';
+      for (let i = 0; i < openBraces; i++) args += '}';
+      try {
+        const repaired = JSON.parse(args);
+        console.log(`[auto-tag] Repaired truncated args, got ${repaired.pages?.length || 0} pages`);
+        return repaired;
+      } catch {
+        console.error('[auto-tag] Could not repair truncated arguments');
+      }
+    }
+    return { industry: knownIndustry || 'Generic / Other', industry_confidence: 'low', pages: [] };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -107,145 +270,43 @@ Deno.serve(async (req) => {
     }
     const dedupedUrls = Array.from(normalizedMap.values());
 
-    const industryList = Object.keys(INDUSTRY_PRESETS);
-
     const navSummary = navStructure
-      ? `Navigation structure:\n${JSON.stringify(navStructure, null, 1).substring(0, 3000)}`
+      ? `Navigation structure:\n${JSON.stringify(navStructure, null, 1).substring(0, 2000)}`
       : '';
 
-    const systemPrompt = `You are an expert at classifying websites by industry and assigning page template types using a WordPress-inspired content model.
+    // Split into batches
+    const batches: string[][] = [];
+    for (let i = 0; i < dedupedUrls.length; i += BATCH_SIZE) {
+      batches.push(dedupedUrls.slice(i, i + BATCH_SIZE));
+    }
 
-Your job:
-1. Detect the website's INDUSTRY.
-2. Classify each URL with a baseType (Page, Post, CPT, Archive, Search) and a template name.
+    console.log(`[auto-tag] Classifying ${dedupedUrls.length} URLs in ${batches.length} batch(es) for domain: ${domain}`);
 
-baseType definitions:
-- **Page**: One-off pages with unique designs (Homepage, About, Pricing, Contact, etc.)
-- **Post**: Blog/news articles in a date-based feed
-- **CPT**: Custom Post Type detail pages — repeating template with 3+ similar URLs (case studies, team members, products)
-- **Archive**: List/index/category pages that aggregate other pages
-- **Search**: Site search results pages
+    // First batch: detect industry
+    const firstResult = await classifyBatch(aiKey, batches[0], domain, homepageContent || '', navSummary);
+    const industry = firstResult.industry || 'Generic / Other';
+    const industryConfidence = firstResult.industry_confidence || 'low';
+    const allPages: any[] = [...(firstResult.pages || [])];
 
-Industry options:
-${industryList.map(i => `- ${i}`).join('\n')}
+    console.log(`[auto-tag] Batch 1/${batches.length}: industry="${industry}" (${industryConfidence}), ${firstResult.pages?.length || 0} pages`);
 
-Template assignment rules:
-- Use the industry-appropriate template names. Templates per industry:
-${industryList.map(i => `  ${i}: ${INDUSTRY_PRESETS[i].join(', ')}`).join('\n')}
-- You may use ANY template name that fits.
-- Use "List" suffix for archive/index pages (these are Archive type), "Detail" for individual items.
-- Utility pages (Privacy Policy, Terms, Login, 404): type Page.
-- Blog posts: type Post with template "Blog Detail".
-- CPT entries: type CPT with template "[Name] Detail" and provide cptName.
-- List/index pages: type Archive with template "Archive: [Name]" or "[Name] List".
-
-You MUST classify EVERY URL provided.`;
-
-    const urlsForAI = dedupedUrls.slice(0, 150);
-
-    console.log(`[auto-tag] Classifying ${urlsForAI.length} URLs for domain: ${domain}`);
-
-    const response = await fetch(AI_GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${aiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: `Domain: ${domain || 'unknown'}
-
-Homepage content (first 4000 chars):
-${(homepageContent || '').substring(0, 4000)}
-
-${navSummary}
-
-URLs to classify:
-${urlsForAI.join('\n')}`,
-          },
-        ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'classify_pages',
-              description: 'Detect the industry and assign a baseType + template to each URL.',
-              parameters: {
-                type: 'object',
-                properties: {
-                  industry: {
-                    type: 'string',
-                    description: 'The detected industry/vertical for this website',
-                  },
-                  industry_confidence: {
-                    type: 'string',
-                    enum: ['high', 'medium', 'low'],
-                  },
-                  pages: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        url: { type: 'string', description: 'Exact URL from input' },
-                        baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'] },
-                        template: { type: 'string', description: 'Template name for this page' },
-                        cptName: { type: 'string', description: 'CPT name if baseType is CPT' },
-                      },
-                      required: ['url', 'baseType', 'template'],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ['industry', 'industry_confidence', 'pages'],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: 'function', function: { name: 'classify_pages' } },
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('AI error:', response.status, errText);
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Rate limit exceeded, please try again shortly.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    // Subsequent batches: reuse detected industry, run in parallel (max 2 concurrent)
+    if (batches.length > 1) {
+      const remainingBatches = batches.slice(1);
+      // Process 2 at a time to avoid rate limits
+      for (let i = 0; i < remainingBatches.length; i += 2) {
+        const chunk = remainingBatches.slice(i, i + 2);
+        const results = await Promise.allSettled(
+          chunk.map(batch => classifyBatch(aiKey, batch, domain, homepageContent || '', navSummary, industry))
         );
-      }
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI classification failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const aiText = await response.text();
-    let aiData: any;
-    try {
-      aiData = JSON.parse(aiText);
-    } catch (e) {
-      console.error('Failed to parse AI gateway response, length:', aiText.length, 'tail:', aiText.slice(-200));
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI response was truncated or malformed' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-
-    let result = { industry: 'Generic / Other', industry_confidence: 'low', pages: [] as any[] };
-
-    if (toolCall?.function?.arguments) {
-      try {
-        result = JSON.parse(toolCall.function.arguments);
-      } catch (e) {
-        console.error('Failed to parse tool_call arguments:', e, 'raw:', toolCall.function.arguments?.slice(-200));
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value.pages) {
+            allPages.push(...r.value.pages);
+            console.log(`[auto-tag] Batch: +${r.value.pages.length} pages`);
+          } else if (r.status === 'rejected') {
+            console.error(`[auto-tag] Batch failed:`, r.reason?.message);
+          }
+        }
       }
     }
 
@@ -256,9 +317,11 @@ ${urlsForAI.join('\n')}`,
     }
 
     const matchedPages: { url: string; baseType: string; template: string; cptName?: string }[] = [];
-    for (const page of (result.pages || [])) {
+    const seen = new Set<string>();
+    for (const page of allPages) {
       const url = urls.includes(page.url) ? page.url : inputNormMap.get(normalizeUrl(page.url));
-      if (url) {
+      if (url && !seen.has(url)) {
+        seen.add(url);
         matchedPages.push({
           url,
           baseType: page.baseType || 'Page',
@@ -268,23 +331,25 @@ ${urlsForAI.join('\n')}`,
       }
     }
 
-    console.log(`[auto-tag] Industry: ${result.industry} (${result.industry_confidence}), tagged ${matchedPages.length}/${urls.length} URLs`);
+    console.log(`[auto-tag] Industry: ${industry} (${industryConfidence}), tagged ${matchedPages.length}/${urls.length} URLs across ${batches.length} batch(es)`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        industry: result.industry,
-        industryConfidence: result.industry_confidence,
+        industry,
+        industryConfidence: industryConfidence,
         pages: matchedPages,
-        presetTemplates: INDUSTRY_PRESETS[result.industry] || INDUSTRY_PRESETS['Generic / Other'],
+        presetTemplates: INDUSTRY_PRESETS[industry] || INDUSTRY_PRESETS['Generic / Other'],
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error in auto-tag-pages:', error);
+    const msg = error instanceof Error ? error.message : 'Failed to classify pages';
+    const status = msg === 'RATE_LIMIT' ? 429 : 500;
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to classify pages' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: false, error: msg === 'RATE_LIMIT' ? 'Rate limit exceeded, please try again shortly.' : msg }),
+      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
