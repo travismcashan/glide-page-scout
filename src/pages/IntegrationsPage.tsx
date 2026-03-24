@@ -85,17 +85,19 @@ const integrations: Integration[] = [
 
 
 const categoryLabels: Record<string, string> = {
+  architecture: '🗺️ Site Architecture',
+  analysis: '📊 Content Analysis',
+  content: '📄 Content & Scraping',
   technology: '🔧 Technology Detection',
   performance: '⚡ Performance & Sustainability',
   seo: '🔍 SEO & Search',
-  content: '📄 Content & Scraping',
   ux: '🎨 UX & Accessibility',
   security: '🛡️ Security & Compliance',
   intelligence: '📊 Competitive Intelligence',
   enrichment: '🧲 Enrichment & Prospecting',
 };
 
-const categoryOrder = ['technology', 'performance', 'seo', 'content', 'ux', 'security', 'intelligence', 'enrichment'];
+const categoryOrder = ['architecture', 'analysis', 'content', 'technology', 'performance', 'seo', 'ux', 'security', 'intelligence', 'enrichment'];
 
 type CreditInfo = { available?: string; used?: string; remaining?: string };
 
