@@ -106,6 +106,8 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
   const [mergeMode, setMergeMode] = useState(false);
+  const [editingType, setEditingType] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   if (!data?.summary?.length) {
     return <p className="text-sm text-muted-foreground">No content types detected.</p>;
@@ -120,6 +122,17 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
       else next.add(type);
       return next;
     });
+  };
+
+  const handleRename = (oldType: string) => {
+    const newName = editValue.trim();
+    if (!newName || newName === oldType || !onDataChange) {
+      setEditingType(null);
+      return;
+    }
+    const newSummary = summary.map(r => r.type === oldType ? { ...r, type: newName } : r);
+    onDataChange({ ...data, summary: newSummary });
+    setEditingType(null);
   };
 
   const handleMerge = () => {
@@ -240,7 +253,32 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
                     />
                   </TableCell>
                 )}
-                <TableCell className="text-sm font-medium">{row.type}</TableCell>
+                <TableCell className="text-sm font-medium">
+                  {editingType === row.type ? (
+                    <Input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleRename(row.type)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRename(row.type);
+                        if (e.key === 'Escape') setEditingType(null);
+                      }}
+                      className="h-6 text-sm px-1.5 py-0 w-40"
+                      autoFocus
+                    />
+                  ) : (
+                    <span
+                      className={onDataChange ? 'cursor-pointer hover:text-primary hover:underline' : ''}
+                      onClick={() => {
+                        if (!onDataChange) return;
+                        setEditingType(row.type);
+                        setEditValue(row.type);
+                      }}
+                    >
+                      {row.type}
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm text-right font-mono">{row.count}</TableCell>
                 <TableCell>{confidenceBadge(row.confidence)}</TableCell>
                 <TableCell>
