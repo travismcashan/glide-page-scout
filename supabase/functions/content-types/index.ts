@@ -4,17 +4,16 @@ const corsHeaders = {
 };
 
 /**
- * Content Type Classification
- * 
- * Phase 1: URL-pattern based classification (all URLs)
- * Phase 2: AI classification for ambiguous URLs (scrapes a sample)
+ * Content Type Classification — v2
+ *
+ * Focuses on identifying REPEATING content types (custom post types / templates
+ * with multiple entries) rather than labelling every individual page.
+ *
+ * Phase 1: URL-pattern grouping to find repeating directory structures
+ * Phase 2: HTML signal extraction on a sample (Schema.org, body classes, OG)
+ * Phase 3: AI analysis using the best model to identify true content types
+ * Phase 4: Post-processing — demote types with < minCount URLs
  */
-
-type ContentType = {
-  type: string;
-  confidence: 'high' | 'medium' | 'low';
-  source: 'url-pattern' | 'schema-org' | 'meta-tags' | 'css-classes' | 'ai';
-};
 
 type ClassifiedUrl = {
   url: string;
@@ -23,108 +22,63 @@ type ClassifiedUrl = {
   source: string;
 };
 
-// URL path patterns → content types
-const urlPatterns: [RegExp, string][] = [
-  [/\/blog(s)?\//i, 'Blog Post'],
-  [/\/article(s)?\//i, 'Article'],
-  [/\/news\//i, 'News / Press'],
-  [/\/press(-|\/)release/i, 'Press Release'],
-  [/\/press\//i, 'News / Press'],
-  [/\/media\//i, 'News / Press'],
-  [/\/case(-|_)?stud(y|ies)\//i, 'Case Study'],
-  [/\/customer(-|_)?stor(y|ies)\//i, 'Case Study'],
-  [/\/success(-|_)?stor(y|ies)\//i, 'Case Study'],
-  [/\/webinar(s)?\//i, 'Webinar'],
-  [/\/event(s)?\//i, 'Event'],
-  [/\/podcast(s)?\//i, 'Podcast'],
-  [/\/episode(s)?\//i, 'Podcast'],
-  [/\/white(-|_)?paper(s)?\//i, 'White Paper'],
-  [/\/ebook(s)?\//i, 'eBook'],
-  [/\/e-book(s)?\//i, 'eBook'],
-  [/\/guide(s)?\//i, 'Guide'],
-  [/\/how(-|_)?to\//i, 'Guide'],
-  [/\/tutorial(s)?\//i, 'Tutorial'],
-  [/\/resource(s)?\//i, 'Resource'],
-  [/\/download(s)?\//i, 'Resource'],
-  [/\/product(s)?\//i, 'Product'],
-  [/\/shop\//i, 'Product'],
-  [/\/store\//i, 'Product'],
-  [/\/collection(s)?\//i, 'Product Collection'],
-  [/\/categor(y|ies)\//i, 'Category'],
-  [/\/solution(s)?\//i, 'Solution'],
-  [/\/service(s)?\//i, 'Service'],
-  [/\/feature(s)?\//i, 'Feature'],
-  [/\/platform\//i, 'Platform'],
-  [/\/pricing/i, 'Pricing'],
-  [/\/plan(s)?$/i, 'Pricing'],
-  [/\/about(-us)?$/i, 'About'],
-  [/\/team$/i, 'About'],
-  [/\/career(s)?/i, 'Careers'],
-  [/\/job(s)?\//i, 'Careers'],
-  [/\/contact(-us)?$/i, 'Contact'],
-  [/\/faq(s)?$/i, 'FAQ'],
-  [/\/help\//i, 'Help / Support'],
-  [/\/support\//i, 'Help / Support'],
-  [/\/knowledge(-|_)?base\//i, 'Knowledge Base'],
-  [/\/doc(s|umentation)?\//i, 'Documentation'],
-  [/\/api\//i, 'Documentation'],
-  [/\/legal\//i, 'Legal'],
-  [/\/privacy/i, 'Legal'],
-  [/\/terms/i, 'Legal'],
-  [/\/cookie/i, 'Legal'],
-  [/\/partner(s)?\//i, 'Partner'],
-  [/\/integration(s)?\//i, 'Integration'],
-  [/\/testimonial(s)?\//i, 'Testimonial'],
-  [/\/review(s)?\//i, 'Review'],
-  [/\/video(s)?\//i, 'Video'],
-  [/\/gallery\//i, 'Gallery'],
-  [/\/portfolio\//i, 'Portfolio'],
-  [/\/landing\//i, 'Landing Page'],
-  [/\/lp\//i, 'Landing Page'],
-  [/\/demo$/i, 'Landing Page'],
-  [/\/report(s)?\//i, 'Report'],
-  [/\/research\//i, 'Research'],
-  [/\/infographic(s)?\//i, 'Infographic'],
-  [/\/comparison\//i, 'Comparison'],
-  [/\/vs\//i, 'Comparison'],
-  [/\/alternative(s)?\//i, 'Comparison'],
-  [/\/changelog/i, 'Changelog'],
-  [/\/release(-|_)?note(s)?\//i, 'Changelog'],
-  [/\/communit(y|ies)\//i, 'Community'],
-  [/\/forum(s)?\//i, 'Community'],
-];
+// ---------------------------------------------------------------------------
+// Phase 1 helpers — group URLs by their directory prefix
+// ---------------------------------------------------------------------------
 
-function classifyByUrl(url: string): ContentType | null {
-  try {
-    const parsed = new URL(url);
-    const path = parsed.pathname;
+/** Known single-page slugs that should never form a content type */
+const SINGLE_PAGE_SLUGS = new Set([
+  'about', 'about-us', 'contact', 'contact-us', 'careers', 'jobs',
+  'pricing', 'plans', 'faq', 'faqs', 'privacy', 'privacy-policy',
+  'terms', 'terms-of-service', 'terms-and-conditions', 'cookie-policy',
+  'legal', 'disclaimer', 'sitemap', 'login', 'signin', 'sign-in',
+  'signup', 'sign-up', 'register', 'forgot-password', 'reset-password',
+  'dashboard', 'account', 'settings', 'profile', 'cart', 'checkout',
+  '404', 'search', 'thank-you', 'thanks', 'confirmation', 'unsubscribe',
+  'demo', 'request-demo', 'get-started', 'getting-started', 'home',
+  'team', 'our-team', 'leadership', 'mission', 'values', 'culture',
+  'press', 'newsroom', 'media', 'investors', 'accessibility',
+]);
 
-    // Homepage
-    if (path === '/' || path === '') {
-      return { type: 'Homepage', confidence: 'high', source: 'url-pattern' };
-    }
+/**
+ * Group URLs by their first path segment (directory).
+ * Returns groups of 2+ URLs sharing the same directory.
+ */
+function groupByDirectory(urls: string[], baseUrl: string): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  let baseHost = '';
+  try { baseHost = new URL(baseUrl).hostname; } catch { /* ignore */ }
 
-    for (const [pattern, type] of urlPatterns) {
-      if (pattern.test(path)) {
-        return { type, confidence: 'high', source: 'url-pattern' };
+  for (const url of urls) {
+    try {
+      const parsed = new URL(url);
+      // Skip off-domain
+      if (baseHost && parsed.hostname !== baseHost) continue;
+
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      if (segments.length === 0) continue; // homepage
+      if (segments.length === 1) {
+        // Top-level page — skip known singles
+        if (SINGLE_PAGE_SLUGS.has(segments[0].toLowerCase())) continue;
+        // Could still be a type index page, skip for now
+        continue;
       }
-    }
-
-    // Check depth — single-segment paths are likely top-level pages
-    const segments = path.split('/').filter(Boolean);
-    if (segments.length === 1) {
-      return { type: 'Page', confidence: 'low', source: 'url-pattern' };
-    }
-
-    return null;
-  } catch {
-    return null;
+      // Use first segment as group key
+      const dir = segments[0].toLowerCase();
+      if (!groups.has(dir)) groups.set(dir, []);
+      groups.get(dir)!.push(url);
+    } catch { /* skip bad URLs */ }
   }
+
+  return groups;
 }
 
-// Extract content type signals from HTML
-function classifyByHtml(html: string): ContentType | null {
-  // 1. Schema.org JSON-LD
+// ---------------------------------------------------------------------------
+// Phase 2 — HTML signal extraction
+// ---------------------------------------------------------------------------
+
+function classifyByHtml(html: string): { type: string; confidence: 'high' | 'medium'; source: string } | null {
+  // Schema.org JSON-LD
   const jsonLdMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
   if (jsonLdMatches) {
     for (const match of jsonLdMatches) {
@@ -134,144 +88,56 @@ function classifyByHtml(html: string): ContentType | null {
         const schemaType = data['@type'] || (Array.isArray(data['@graph']) ? data['@graph'][0]?.['@type'] : null);
         if (schemaType) {
           const typeMap: Record<string, string> = {
-            'BlogPosting': 'Blog Post',
-            'NewsArticle': 'News / Press',
-            'Article': 'Article',
-            'Product': 'Product',
-            'Event': 'Event',
-            'FAQPage': 'FAQ',
-            'HowTo': 'Guide',
-            'Recipe': 'Recipe',
-            'Course': 'Course',
-            'VideoObject': 'Video',
-            'PodcastEpisode': 'Podcast',
-            'WebPage': 'Page',
-            'AboutPage': 'About',
-            'ContactPage': 'Contact',
-            'CollectionPage': 'Category',
-            'ItemList': 'Category',
-            'SoftwareApplication': 'Product',
-            'Service': 'Service',
-            'Review': 'Review',
-            'Organization': 'About',
+            'BlogPosting': 'Blog Post', 'NewsArticle': 'News Article', 'Article': 'Article',
+            'Product': 'Product', 'Event': 'Event', 'HowTo': 'Guide', 'Recipe': 'Recipe',
+            'Course': 'Course', 'VideoObject': 'Video', 'PodcastEpisode': 'Podcast Episode',
+            'SoftwareApplication': 'Product', 'Service': 'Service', 'Review': 'Review',
+            'CollectionPage': 'Collection', 'ItemList': 'Collection',
           };
+          // Skip generic page types — they don't help
+          if (['WebPage', 'AboutPage', 'ContactPage', 'FAQPage', 'Organization'].includes(schemaType)) continue;
           const mapped = typeMap[schemaType];
-          if (mapped && mapped !== 'Page') {
-            return { type: mapped, confidence: 'high', source: 'schema-org' };
-          }
+          if (mapped) return { type: mapped, confidence: 'high', source: 'schema-org' };
         }
-      } catch { /* skip invalid JSON-LD */ }
+      } catch { /* skip */ }
     }
   }
 
-  // 2. Meta tags / Open Graph
-  const ogTypeMatch = html.match(/<meta[^>]*property="og:type"[^>]*content="([^"]*)"[^>]*>/i);
-  if (ogTypeMatch) {
-    const ogType = ogTypeMatch[1].toLowerCase();
-    const ogMap: Record<string, string> = {
-      'article': 'Article',
-      'blog': 'Blog Post',
-      'product': 'Product',
-      'video': 'Video',
-      'music': 'Media',
-      'profile': 'Profile',
-    };
-    if (ogMap[ogType]) {
-      return { type: ogMap[ogType], confidence: 'medium', source: 'meta-tags' };
-    }
-  }
-
-  // Article section meta
-  const sectionMatch = html.match(/<meta[^>]*property="article:section"[^>]*content="([^"]*)"[^>]*>/i);
-  if (sectionMatch) {
-    return { type: `Article (${sectionMatch[1]})`, confidence: 'medium', source: 'meta-tags' };
-  }
-
-  // Detect WordPress for confidence boosting
-  const isWordPress = /<meta[^>]*name="generator"[^>]*content="WordPress[^"]*"/i.test(html) 
-    || /\/wp-content\//i.test(html) 
-    || /\/wp-includes\//i.test(html);
-
-  // 3. Body/CSS class patterns
+  // WordPress body classes — look for CPT patterns
   const bodyMatch = html.match(/<body[^>]*class="([^"]*)"[^>]*>/i);
   if (bodyMatch) {
     const classes = bodyMatch[1].toLowerCase();
-    const wpConfidence = isWordPress ? 'high' : 'medium';
-    
-    const classPatterns: [RegExp, string][] = [
-      // WordPress core post types
-      [/\bsingle-post\b|blog-post|post-template/, 'Blog Post'],
-      [/\bsingle-page\b/, 'Page'],
-      [/\bhome\b/, 'Homepage'],
-      [/\bblog\b/, 'Blog Index'],
-      [/\bsearch\b/, 'Search'],
-      [/\berror404\b/, 'Error Page'],
-      [/\bcategory\b/, 'Category'],
-      [/\btag\b/, 'Tag Archive'],
-      [/\bauthor\b/, 'Author Archive'],
-      [/\bdate\b/, 'Date Archive'],
-      [/\barchive\b/, 'Archive'],
-      [/\battachment\b/, 'Attachment'],
-      
-      // WordPress page templates
-      [/page-template-landing/, 'Landing Page'],
-      [/page-template-contact/, 'Contact'],
-      [/page-template-about/, 'About'],
-      [/page-template-faq/, 'FAQ'],
-      [/page-template-pricing/, 'Pricing'],
-      [/page-template-careers/, 'Careers'],
-      [/page-template-full[_-]?width/, 'Page'],
-      [/page-template-sidebar/, 'Page'],
-      
-      // WooCommerce
-      [/\bsingle-product\b|product-template/, 'Product'],
-      [/\bwoocommerce\b.*\barchive\b|post-type-archive-product/, 'Product Category'],
-      [/\bwoocommerce-cart\b/, 'Cart'],
-      [/\bwoocommerce-checkout\b/, 'Checkout'],
-      [/\bwoocommerce-account\b/, 'Account'],
-      
-      // Common WordPress CPTs
-      [/single-case[_-]?study/, 'Case Study'],
-      [/single-testimonial/, 'Testimonial'],
-      [/single-team/, 'Team Member'],
-      [/single-portfolio/, 'Portfolio'],
-      [/single-event/, 'Event'],
-      [/single-resource/, 'Resource'],
-      [/single-webinar/, 'Webinar'],
-      [/single-podcast/, 'Podcast'],
-      [/single-video/, 'Video'],
-      [/single-whitepaper|single-white[_-]paper/, 'White Paper'],
-      [/single-ebook|single-e[_-]book/, 'eBook'],
-      [/single-guide/, 'Guide'],
-      [/single-partner/, 'Partner'],
-      [/single-integration/, 'Integration'],
-      [/single-service/, 'Service'],
-      [/single-solution/, 'Solution'],
-      [/single-feature/, 'Feature'],
-      [/single-press[_-]?release/, 'Press Release'],
-      [/single-news/, 'News / Press'],
-      [/single-faq/, 'FAQ'],
-      [/single-location/, 'Location'],
-      [/single-career|single-job/, 'Careers'],
-      [/single-course|single-lesson/, 'Course'],
-      
-      // CPT archives
-      [/post-type-archive-case[_-]?study/, 'Case Study Archive'],
-      [/post-type-archive-event/, 'Event Archive'],
-      [/post-type-archive-resource/, 'Resource Archive'],
-      [/post-type-archive-portfolio/, 'Portfolio Archive'],
-      [/post-type-archive-team/, 'Team Archive'],
-      [/post-type-archive/, 'Archive'],
-    ];
-    for (const [pattern, type] of classPatterns) {
-      if (pattern.test(classes)) {
-        return { type, confidence: wpConfidence, source: 'css-classes' };
-      }
+    // Look for single-{cpt} patterns which indicate a custom post type
+    const cptMatch = classes.match(/\bsingle-([a-z][a-z0-9_-]+)\b/);
+    if (cptMatch && !['post', 'page', 'attachment'].includes(cptMatch[1])) {
+      // Format CPT name nicely
+      const name = cptMatch[1].replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return { type: name, confidence: 'high', source: 'css-classes' };
     }
+    // Archive patterns
+    const archiveMatch = classes.match(/\bpost-type-archive-([a-z][a-z0-9_-]+)\b/);
+    if (archiveMatch && !['post', 'page'].includes(archiveMatch[1])) {
+      const name = archiveMatch[1].replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return { type: name, confidence: 'high', source: 'css-classes' };
+    }
+    // Blog posts
+    if (/\bsingle-post\b/.test(classes)) return { type: 'Blog Post', confidence: 'high', source: 'css-classes' };
+  }
+
+  // OG type
+  const ogMatch = html.match(/<meta[^>]*property="og:type"[^>]*content="([^"]*)"[^>]*>/i);
+  if (ogMatch) {
+    const ogType = ogMatch[1].toLowerCase();
+    if (ogType === 'article') return { type: 'Article', confidence: 'medium', source: 'meta-tags' };
+    if (ogType === 'product') return { type: 'Product', confidence: 'medium', source: 'meta-tags' };
   }
 
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Main handler
+// ---------------------------------------------------------------------------
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -279,7 +145,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { urls, baseUrl, sampleSize = 20 } = await req.json();
+    const { urls, baseUrl, sampleSize = 30, minCount = 3 } = await req.json();
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return new Response(
@@ -288,87 +154,113 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Phase 1: URL pattern classification
     const classified: ClassifiedUrl[] = [];
-    const ambiguous: string[] = [];
+    const htmlSignals = new Map<string, { type: string; confidence: 'high' | 'medium'; source: string }>();
 
-    for (const url of urls) {
-      const result = classifyByUrl(url);
-      if (result && result.confidence !== 'low') {
-        classified.push({ url, contentType: result.type, confidence: result.confidence, source: result.source });
-      } else {
-        // Mark as ambiguous for Phase 2
-        ambiguous.push(url);
-        if (result) {
-          classified.push({ url, contentType: result.type, confidence: result.confidence, source: result.source });
-        } else {
-          classified.push({ url, contentType: 'Uncategorized', confidence: 'low', source: 'url-pattern' });
-        }
-      }
-    }
+    // Phase 1: Group by directory to find repeating patterns
+    const dirGroups = groupByDirectory(urls, baseUrl);
 
-    // Phase 2: Scrape a sample of ambiguous URLs and classify by HTML
+    // Phase 2: Scrape a sample for HTML signals
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (apiKey && ambiguous.length > 0) {
-      const sample = ambiguous.slice(0, Math.min(sampleSize, ambiguous.length));
-      
-      const scrapePromises = sample.map(async (url) => {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 15000);
-          
-          const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              url,
-              formats: ['rawHtml'],
-              onlyMainContent: false,
-            }),
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeout);
-          
-          if (!response.ok) return null;
-          const data = await response.json();
-          const html = data?.data?.rawHtml || data?.rawHtml || '';
-          if (!html) return null;
-
-          const htmlResult = classifyByHtml(html);
-          if (htmlResult) {
-            return { url, ...htmlResult };
-          }
-          return null;
-        } catch {
-          return null;
+    if (apiKey) {
+      // Pick a sample across different directories
+      const samplesToScrape: string[] = [];
+      for (const [, groupUrls] of dirGroups) {
+        if (groupUrls.length >= 2) {
+          // Take up to 2 from each directory group
+          samplesToScrape.push(...groupUrls.slice(0, 2));
         }
-      });
+      }
+      const finalSample = samplesToScrape.slice(0, sampleSize);
 
-      const htmlResults = await Promise.allSettled(scrapePromises);
-      
-      for (const result of htmlResults) {
-        if (result.status === 'fulfilled' && result.value) {
-          const { url, type, confidence, source } = result.value;
-          // Update the classified entry
-          const idx = classified.findIndex(c => c.url === url);
-          if (idx !== -1) {
-            classified[idx] = { url, contentType: type, confidence, source };
+      if (finalSample.length > 0) {
+        const scrapePromises = finalSample.map(async (url) => {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
+            const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url, formats: ['rawHtml'], onlyMainContent: false }),
+              signal: controller.signal,
+            });
+            clearTimeout(timeout);
+            if (!response.ok) return null;
+            const data = await response.json();
+            const html = data?.data?.rawHtml || data?.rawHtml || '';
+            if (!html) return null;
+            const result = classifyByHtml(html);
+            if (result) return { url, ...result };
+            return null;
+          } catch { return null; }
+        });
+
+        const results = await Promise.allSettled(scrapePromises);
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) {
+            htmlSignals.set(r.value.url, { type: r.value.type, confidence: r.value.confidence, source: r.value.source });
           }
         }
       }
     }
 
-    // Phase 3: AI classification for remaining uncategorized (if many)
-    const stillUncategorized = classified.filter(c => c.contentType === 'Uncategorized' || c.confidence === 'low');
+    // Phase 3: AI classification — send ALL URLs + directory groups + HTML signals to the best model
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    if (LOVABLE_API_KEY && stillUncategorized.length > 0 && stillUncategorized.length <= 200) {
+    let aiClassifications = new Map<string, string>();
+
+    if (LOVABLE_API_KEY) {
       try {
-        const urlList = stillUncategorized.map(c => c.url).join('\n');
+        // Build context for AI
+        const dirSummary = Array.from(dirGroups.entries())
+          .filter(([, v]) => v.length >= 2)
+          .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 3).join(', ')}`)
+          .join('\n');
+
+        const htmlContext = Array.from(htmlSignals.entries())
+          .map(([url, sig]) => `${url} → ${sig.type} (via ${sig.source})`)
+          .join('\n');
+
+        // Identify homepage and top-level single pages
+        const topLevelPages: string[] = [];
+        let homepage = '';
+        for (const url of urls) {
+          try {
+            const parsed = new URL(url);
+            const segs = parsed.pathname.split('/').filter(Boolean);
+            if (segs.length === 0) { homepage = url; continue; }
+            if (segs.length === 1) topLevelPages.push(url);
+          } catch { /* skip */ }
+        }
+
+        const allUrlsList = urls.join('\n');
+
+        const systemPrompt = `You are a web content strategist analyzing a website to identify its CONTENT TYPES (also known as Custom Post Types or repeating page templates).
+
+CRITICAL RULES:
+1. A "content type" is a REPEATING template used for multiple similar pages. Examples: Blog Posts, Case Studies, Products, Team Members, Resources, Locations.
+2. Individual pages are NOT content types. Pages like Homepage, About, Pricing, Contact, Careers, Privacy Policy, Terms — these are individual pages, not content types. Do NOT classify them.
+3. A valid content type MUST have at least ${minCount} pages using that template.
+4. Focus on the URL STRUCTURE: pages sharing a common directory prefix (e.g., /blog/*, /case-studies/*, /products/*) are likely the same content type.
+5. Name content types using their singular form where appropriate (e.g., "Blog Post" not "Blog Posts", "Case Study" not "Case Studies").
+6. If a URL group is clearly just a section with sub-pages (like /solutions/enterprise, /solutions/smb), that's a section with individual pages, NOT a content type — unless there are many similar detail pages.
+7. Return ONLY URLs that belong to a genuine repeating content type. Skip everything else.`;
+
+        const userPrompt = `Analyze this website (${baseUrl}) and identify the repeating content types.
+
+ALL URLs on the site:
+${allUrlsList}
+
+Directory groups with 2+ URLs:
+${dirSummary || '(none detected)'}
+
+HTML signals detected:
+${htmlContext || '(none detected)'}
+
+Homepage: ${homepage || 'not found'}
+Top-level pages: ${topLevelPages.join(', ') || 'none'}
+
+Identify ONLY genuine repeating content types. For each URL that belongs to a content type, classify it. Skip individual/one-off pages entirely.`;
+
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -376,41 +268,39 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
+            model: 'google/gemini-2.5-pro',
             tools: [{
               type: 'function',
               function: {
-                name: 'classify_urls',
-                description: 'Classify URLs by content type based on their path structure and naming conventions',
+                name: 'classify_content_types',
+                description: 'Classify URLs that belong to repeating content types. Only include URLs that are part of a genuine content type with multiple entries.',
                 parameters: {
                   type: 'object',
                   properties: {
-                    classifications: {
+                    contentTypes: {
                       type: 'array',
+                      description: 'List of identified content types with their URLs',
                       items: {
                         type: 'object',
                         properties: {
-                          url: { type: 'string' },
-                          contentType: { type: 'string', description: 'Content type like Blog Post, Product, Case Study, Landing Page, About, Legal, Resource, etc.' },
+                          name: { type: 'string', description: 'Content type name (singular form, e.g., "Blog Post", "Case Study")' },
+                          urls: { type: 'array', items: { type: 'string' }, description: 'URLs belonging to this content type' },
+                          confidence: { type: 'string', enum: ['high', 'medium'], description: 'Classification confidence' },
                         },
-                        required: ['url', 'contentType'],
+                        required: ['name', 'urls', 'confidence'],
+                        additionalProperties: false,
                       },
                     },
                   },
-                  required: ['classifications'],
+                  required: ['contentTypes'],
+                  additionalProperties: false,
                 },
               },
             }],
-            tool_choice: { type: 'function', function: { name: 'classify_urls' } },
+            tool_choice: { type: 'function', function: { name: 'classify_content_types' } },
             messages: [
-              {
-                role: 'system',
-                content: `You are a web content strategist. Classify each URL into a content type. Common types: Blog Post, Article, Case Study, Product, Service, Landing Page, About, Contact, FAQ, Legal, Careers, News / Press, Resource, Guide, Documentation, Help / Support, Event, Webinar, Podcast, Video, Partner, Integration, Comparison, Pricing, Page. Base URL: ${baseUrl}`,
-              },
-              {
-                role: 'user',
-                content: `Classify these URLs by content type:\n${urlList}`,
-              },
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
             ],
           }),
         });
@@ -420,23 +310,45 @@ Deno.serve(async (req) => {
           const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall?.function?.arguments) {
             const parsed = JSON.parse(toolCall.function.arguments);
-            if (parsed?.classifications) {
-              for (const c of parsed.classifications) {
-                const idx = classified.findIndex(x => x.url === c.url);
-                if (idx !== -1 && (classified[idx].contentType === 'Uncategorized' || classified[idx].confidence === 'low')) {
-                  classified[idx] = { url: c.url, contentType: c.contentType, confidence: 'medium', source: 'ai' };
+            if (parsed?.contentTypes) {
+              for (const ct of parsed.contentTypes) {
+                // Enforce minimum count
+                if (ct.urls && ct.urls.length >= minCount) {
+                  for (const url of ct.urls) {
+                    aiClassifications.set(url, ct.name);
+                  }
                 }
               }
             }
           }
+        } else {
+          console.error('AI classification failed:', response.status, await response.text());
         }
       } catch (e) {
-        console.error('AI classification failed:', e);
-        // Non-fatal — keep existing classifications
+        console.error('AI classification error:', e);
       }
     }
 
-    // Build summary
+    // Phase 4: Build final classifications
+    // Priority: HTML signals > AI > skip (uncategorized)
+    const classifiedUrls = new Set<string>();
+
+    for (const url of urls) {
+      const htmlSig = htmlSignals.get(url);
+      const aiType = aiClassifications.get(url);
+
+      if (htmlSig) {
+        classified.push({ url, contentType: htmlSig.type, confidence: htmlSig.confidence, source: htmlSig.source });
+        classifiedUrls.add(url);
+      } else if (aiType) {
+        classified.push({ url, contentType: aiType, confidence: 'medium', source: 'ai' });
+        classifiedUrls.add(url);
+      } else {
+        classified.push({ url, contentType: 'Uncategorized', confidence: 'low', source: 'url-pattern' });
+      }
+    }
+
+    // Post-processing: enforce minimum count threshold
     const typeCounts: Record<string, { count: number; urls: string[]; confidence: Record<string, number> }> = {};
     for (const c of classified) {
       if (!typeCounts[c.contentType]) {
@@ -447,16 +359,46 @@ Deno.serve(async (req) => {
       typeCounts[c.contentType].confidence[c.confidence]++;
     }
 
-    // Sort by count descending
-    const summary = Object.entries(typeCounts)
-      .sort(([, a], [, b]) => b.count - a.count)
+    // Demote types below threshold (except Uncategorized)
+    for (const [type, data] of Object.entries(typeCounts)) {
+      if (type !== 'Uncategorized' && data.count < minCount) {
+        // Move these URLs to Uncategorized
+        for (const c of classified) {
+          if (c.contentType === type) {
+            c.contentType = 'Uncategorized';
+            c.confidence = 'low';
+          }
+        }
+      }
+    }
+
+    // Rebuild summary after demotions
+    const finalCounts: Record<string, { count: number; urls: string[]; confidence: Record<string, number> }> = {};
+    for (const c of classified) {
+      if (!finalCounts[c.contentType]) {
+        finalCounts[c.contentType] = { count: 0, urls: [], confidence: { high: 0, medium: 0, low: 0 } };
+      }
+      finalCounts[c.contentType].count++;
+      finalCounts[c.contentType].urls.push(c.url);
+      finalCounts[c.contentType].confidence[c.confidence]++;
+    }
+
+    // Sort: real content types first (by count desc), Uncategorized last
+    const summary = Object.entries(finalCounts)
+      .sort(([a, aData], [b, bData]) => {
+        if (a === 'Uncategorized') return 1;
+        if (b === 'Uncategorized') return -1;
+        return bData.count - aData.count;
+      })
       .map(([type, data]) => ({
         type,
         count: data.count,
-        urls: data.urls, // all URLs
+        urls: data.urls,
         totalUrls: data.urls.length,
         confidence: data.confidence,
       }));
+
+    const realTypes = summary.filter(s => s.type !== 'Uncategorized');
 
     return new Response(
       JSON.stringify({
@@ -472,8 +414,8 @@ Deno.serve(async (req) => {
             'css-classes': classified.filter(c => c.source === 'css-classes').length,
             'ai': classified.filter(c => c.source === 'ai').length,
           },
-          uniqueTypes: summary.length,
-          ambiguousScanned: Math.min(ambiguous.length, sampleSize),
+          uniqueTypes: realTypes.length,
+          ambiguousScanned: htmlSignals.size,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -481,7 +423,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Content types error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to classify content types' }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
