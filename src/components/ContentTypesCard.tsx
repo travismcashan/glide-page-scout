@@ -207,15 +207,8 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           ))}
       </div>
 
-      {/* Summary table with expandable rows */}
+      {/* Expandable rows */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 grid grid-cols-[auto_1fr_60px_80px_80px] text-xs font-medium text-muted-foreground border-b border-border">
-          {mergeMode && <div className="px-3 py-1.5 w-[40px]" />}
-          <div className="px-3 py-1.5">Content Type</div>
-          <div className="px-3 py-1.5 text-center">Type</div>
-          <div className="px-3 py-1.5 text-right">Count</div>
-          <div className="px-3 py-1.5">Confidence</div>
-        </div>
         {summary.map((row) => {
           const isExpanded = expandedTypes.has(row.type);
           const typeUrls = urlsByType[row.type] || [];
@@ -227,24 +220,31 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
           return (
             <div key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
-              <div
-                className="grid grid-cols-[auto_1fr_60px_80px_80px] items-center border-t border-border bg-muted/40 hover:bg-muted/60 cursor-pointer transition-colors"
+              {/* Collapsible header — unified style */}
+              <button
+                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 cursor-pointer transition-colors text-left border-t border-border first:border-t-0"
                 onClick={() => setExpandedTypes(prev => { const next = new Set(prev); if (isExpanded) next.delete(row.type); else next.add(row.type); return next; })}
               >
-                <div className="flex items-center gap-1 px-3 py-1.5">
-                  {mergeMode && (
-                    <Checkbox
-                      checked={selected.has(row.type)}
-                      onCheckedChange={(e) => { e; toggleSelect(row.type); }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  )}
-                  {isExpanded
-                    ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  }
-                </div>
-                <div className="px-1 py-1.5 text-sm font-medium">
+                {mergeMode && (
+                  <Checkbox
+                    checked={selected.has(row.type)}
+                    onCheckedChange={(e) => { e; toggleSelect(row.type); }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
+                {isExpanded
+                  ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                }
+                <span
+                  className={`text-xs font-medium text-muted-foreground flex-1 ${onDataChange ? 'hover:text-primary hover:underline' : ''}`}
+                  onClick={(e) => {
+                    if (!onDataChange) return;
+                    e.stopPropagation();
+                    setEditingType(row.type);
+                    setEditValue(row.type);
+                  }}
+                >
                   {editingType === row.type ? (
                     <Input
                       value={editValue}
@@ -254,34 +254,22 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                         if (e.key === 'Enter') handleRename(row.type);
                         if (e.key === 'Escape') setEditingType(null);
                       }}
-                      className="h-6 text-sm px-1.5 py-0 w-40"
+                      className="h-6 text-xs px-1.5 py-0 w-40"
                       autoFocus
                       onClick={(e) => e.stopPropagation()}
                     />
-                  ) : (
-                    <span
-                      className={onDataChange ? 'hover:text-primary hover:underline' : ''}
-                      onClick={(e) => {
-                        if (!onDataChange) return;
-                        e.stopPropagation();
-                        setEditingType(row.type);
-                        setEditValue(row.type);
-                      }}
-                    >
-                      {row.type}
-                    </span>
-                  )}
-                </div>
-                <div className="px-3 py-1.5 text-center">
-                  {row.baseType && (
-                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[row.baseType] || ''}`}>
-                      {row.baseType}
-                    </Badge>
-                  )}
-                </div>
-                <div className="px-3 py-1.5 text-sm text-right font-mono">{row.count}</div>
-                <div className="px-3 py-1.5"><ConfidenceBadge conf={row.confidence} /></div>
-              </div>
+                  ) : row.type}
+                </span>
+                {row.baseType && (
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${baseTypeStyles[row.baseType] || ''}`}>
+                    {row.baseType}
+                  </Badge>
+                )}
+                <ConfidenceBadge conf={row.confidence} />
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{row.count}</Badge>
+              </button>
+
+              {/* Expanded content */}
               {isExpanded && (
                 <div className="border-t border-border/50 bg-card py-1">
                   <ExpandableUrlRows
@@ -292,7 +280,6 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                     navMap={navMap}
                     pageTags={pageTags}
                     onPageTagChange={onPageTagChange}
-                   
                   />
                 </div>
               )}
