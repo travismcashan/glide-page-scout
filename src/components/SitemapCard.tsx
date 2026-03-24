@@ -58,13 +58,13 @@ export function SitemapCard({ data, globalInnerExpand = null }: Props) {
       {/* Summary stats */}
       {stats && (
         <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground">{stats.sitemapsFound}</strong> Sitemap{stats.sitemapsFound !== 1 ? 's' : ''}</span>
+          <span><strong className="text-foreground text-sm">{stats.sitemapsFound}</strong> Sitemap{stats.sitemapsFound !== 1 ? 's' : ''}</span>
           <span>·</span>
-          <span><strong className="text-foreground">{stats.totalUrls.toLocaleString()}</strong> Total URLs</span>
+          <span><strong className="text-foreground text-sm">{stats.totalUrls.toLocaleString()}</strong> Total URLs</span>
           {stats.contentTypeHintsCount > 0 && (
             <>
               <span>·</span>
-              <span><strong className="text-foreground">{stats.contentTypeHintsCount}</strong> Content Type Hint{stats.contentTypeHintsCount !== 1 ? 's' : ''}</span>
+              <span><strong className="text-foreground text-sm">{stats.contentTypeHintsCount}</strong> Content Type Hint{stats.contentTypeHintsCount !== 1 ? 's' : ''}</span>
             </>
           )}
         </div>

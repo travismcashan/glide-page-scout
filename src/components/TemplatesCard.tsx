@@ -199,11 +199,11 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
     <div className="space-y-4">
       {/* Summary */}
       <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-        <span><strong className="text-foreground">{totalTemplates}</strong> Unique Templates</span>
+        <span><strong className="text-foreground text-sm">{totalTemplates}</strong> Unique Templates</span>
         <span>·</span>
-        <span><strong className="text-foreground">{designCount}</strong> Custom Design</span>
+        <span><strong className="text-foreground text-sm">{designCount}</strong> Custom Design</span>
         <span>·</span>
-        <span><strong className="text-foreground">{blockBuiltCount}</strong> Block-Built</span>
+        <span><strong className="text-foreground text-sm">{blockBuiltCount}</strong> Block-Built</span>
       </div>
 
       {/* Controls */}

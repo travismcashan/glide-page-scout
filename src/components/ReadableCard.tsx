@@ -179,8 +179,8 @@ export function ReadableCard({ data }: { data: ReadableData }) {
         </div>
         {(data.readingTime || data.speakingTime) && (
           <div className="flex gap-4 mt-4 text-sm text-muted-foreground">
-            {data.readingTime && <span>📖 Reading time: <strong className="text-foreground">{data.readingTime}</strong></span>}
-            {data.speakingTime && <span>🗣️ Speaking time: <strong className="text-foreground">{data.speakingTime}</strong></span>}
+            {data.readingTime && <span>📖 Reading time: <strong className="text-foreground text-sm">{data.readingTime}</strong></span>}
+            {data.speakingTime && <span>🗣️ Speaking time: <strong className="text-foreground text-sm">{data.speakingTime}</strong></span>}
           </div>
         )}
       </TabsContent>
