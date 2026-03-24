@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
-import { Code, CreditCard, ChevronRight, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Code, CreditCard, ChevronRight, ChevronDown, EyeOff, Eye } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
 function formatEpoch(epoch?: number): string {
