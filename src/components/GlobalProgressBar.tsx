@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { Check, Loader2, AlertTriangle, Pause } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { Check, Loader2, AlertTriangle } from 'lucide-react';
+
 
 type IntegrationStep = {
   key: string;
