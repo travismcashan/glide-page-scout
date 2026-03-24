@@ -321,8 +321,8 @@ export const NavStructureCard = forwardRef<NavStructureCardHandle, NavStructureC
       <div className="space-y-4">
         <div className="flex items-center gap-4 flex-wrap">
           <MetaStat value={totalCount} label="Total Unique Links" />
-          {primary.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(primary)} label="Primary" /></>}
-          {secondary.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(secondary)} label="Secondary" /></>}
+          {primary.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(primary)} label="Primary Nav" /></>}
+          {secondary.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(secondary)} label="Secondary Nav" /></>}
           {footer.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(footer)} label="Footer Only" /></>}
         </div>
 
