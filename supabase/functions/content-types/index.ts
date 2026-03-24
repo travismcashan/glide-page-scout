@@ -478,25 +478,31 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
           let contentType = aiGroup.cptName || aiGroup.template;
           let template = aiGroup.template;
 
-          // Split Archive groups: if an Archive group has many child URLs,
-          // the index page stays Archive but individual detail pages become Post
+          // Split true content archives: if an Archive group has many child URLs,
+          // the index page stays Archive but individual detail pages can become Post.
+          // IMPORTANT: taxonomy/meta/pagination archives must ALWAYS stay Archive.
           if (baseType === 'Archive' && aiGroup.directoryPrefix) {
             const prefix = aiGroup.directoryPrefix.toLowerCase().replace(/\/$/, '');
             const groupCount = groupUrlCounts.get(prefix) || 0;
-            
-            if (groupCount >= 3) {
+            const archiveName = (template || '').replace(/^Archive:\s*/i, '').trim().toLowerCase();
+
+            const isTaxonomyOrMetaArchive = [
+              'tag', 'tags', 'author', 'authors', 'category', 'categories', 'topic', 'topics',
+              'pagination', 'page', 'property search', 'search', 'taxonomy'
+            ].some(term => prefix.includes(`/${term}`) || prefix === term || archiveName.includes(term));
+
+            if (groupCount >= 3 && !isTaxonomyOrMetaArchive) {
               // Check if this URL is the index page or a detail page
               try {
                 const pathname = new URL(url).pathname.toLowerCase().replace(/\/$/, '');
                 const isIndexPage = pathname === prefix || pathname === prefix + '/index';
-                
-                if (!isIndexPage) {
-                  // This is a detail page within an archive — reclassify as Post
+                const isPaginationPage = /\/page\/\d+$/.test(pathname) || /[?&]page=\d+/i.test(url);
+
+                if (!isIndexPage && !isPaginationPage) {
+                  // This is a detail page within a real content archive — reclassify as Post
                   baseType = 'Post';
-                  // Derive a post type name from the archive template
-                  const archiveName = (template || '').replace(/^Archive:\s*/i, '').trim();
-                  contentType = archiveName ? `${archiveName} Post` : 'Blog Post';
-                  template = archiveName ? `${archiveName} Detail` : 'Blog Detail';
+                  contentType = archiveName ? `${archiveName.replace(/\b\w/g, c => c.toUpperCase())} Post` : 'Blog Post';
+                  template = archiveName ? `${archiveName.replace(/\b\w/g, c => c.toUpperCase())} Detail` : 'Blog Detail';
                 }
               } catch { /* skip */ }
             }
