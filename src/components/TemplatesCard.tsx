@@ -220,6 +220,19 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
 
+  const [collapsedTableSections, setCollapsedTableSections] = useState<Set<string>>(new Set());
+  const toggleTableSection = (key: string) => {
+    setCollapsedTableSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const hasTierSelection = activeTier && activeTier !== 'All' && aiTiers;
+  const recommendedTemplates = hasTierSelection ? templates.filter(t => !excluded.has(t.name)) : [];
+  const notIncludedTemplates = hasTierSelection ? templates.filter(t => excluded.has(t.name)) : [];
+
   const tierLabel = (tier: TierKey) => {
     if (tier === 'All') return 'All';
     const labels = { S: 'Small', M: 'Medium', L: 'Large' };
