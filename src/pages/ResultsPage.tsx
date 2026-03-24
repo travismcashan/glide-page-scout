@@ -120,6 +120,7 @@ export default function ResultsPage() {
   const [observatoryLoading, setObservatoryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
+  const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
   // Error tracking per integration
   const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
