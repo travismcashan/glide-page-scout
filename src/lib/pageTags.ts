@@ -166,21 +166,17 @@ export function autoSeedPageTags(
 
     const contentType = ctMap.get(key);
 
-    // 1. Homepage → custom
-    if (pathname === '/' || pathname === '') {
-      map[key] = { template: 'custom', label: 'Homepage' };
+    // 1. Known custom page patterns (includes homepage)
+    const customMatch = CUSTOM_PATTERNS.find(([p]) => p.test(pathname));
+    if (customMatch) {
+      map[key] = { template: 'custom', label: customMatch[1] };
       continue;
     }
 
-    // 2. Known custom page patterns
-    if (CUSTOM_PATTERNS.some(p => p.test(pathname))) {
-      map[key] = { template: 'custom' };
-      continue;
-    }
-
-    // 3. Known toolkit patterns
-    if (TOOLKIT_PATTERNS.some(p => p.test(pathname))) {
-      map[key] = { template: 'toolkit' };
+    // 2. Known toolkit patterns
+    const toolkitMatch = TOOLKIT_PATTERNS.find(([p]) => p.test(pathname));
+    if (toolkitMatch) {
+      map[key] = { template: 'toolkit', label: toolkitMatch[1] };
       continue;
     }
 
