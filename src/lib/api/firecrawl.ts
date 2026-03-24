@@ -623,3 +623,13 @@ export const autoTagPagesApi = {
     return data;
   },
 };
+
+export const formsDetectApi = {
+  async detect(urls: string[], domain: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    const { data, error } = await supabase.functions.invoke('forms-detect', {
+      body: { urls, domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
