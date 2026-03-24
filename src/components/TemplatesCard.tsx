@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { PageTagsMap } from '@/lib/pageTags';
 import { normalizeTagKey, getTemplateCategory } from '@/lib/pageTags';
+import ReactMarkdown from 'react-markdown';
 
 const TIER_KEYS = ['S', 'M', 'L', 'All'] as const;
 type TierKey = (typeof TIER_KEYS)[number];
