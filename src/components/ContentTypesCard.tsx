@@ -13,7 +13,7 @@ import { ExpandableUrlRows, type NavTag } from '@/components/content-types/Expan
 import type { ContentTypesData, ClassifiedUrl, BaseType } from '@/components/content-types/types';
 import { rebuildSummary } from '@/components/content-types/types';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
-import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
+import { getPageTag, normalizeTagKey, type PageTagsMap, type PageTag } from '@/lib/pageTags';
 
 export { type ContentTypesData } from '@/components/content-types/types';
 
