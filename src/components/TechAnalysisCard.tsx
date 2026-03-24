@@ -169,7 +169,7 @@ function ScopeTab({ scope }: { scope: Scope }) {
   if (scope.tagManagement?.manager) {
     tagItems.push({ name: scope.tagManagement.manager, role: 'Tag Manager', note: scope.tagManagement.coveredTags?.length ? `Covers: ${scope.tagManagement.coveredTags.join(', ')}` : undefined });
   }
-  if (tagItems.length > 0) sections.splice(1, 0, { key: 'tagManagement', title: 'Tag Management', items: tagItems, showEffort: false });
+  if (tagItems.length > 0) sections.push({ key: 'tagManagement', title: 'Tag Management', items: tagItems, showEffort: false });
 
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
