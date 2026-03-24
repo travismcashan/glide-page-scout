@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
-import { Code, CreditCard, ChevronRight, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Code, CreditCard, ChevronRight, ChevronDown, EyeOff, Eye } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
 function formatEpoch(epoch?: number): string {
@@ -143,6 +144,7 @@ function buildSuperGroups(grouped: Record<string, Technology[]>): SuperGroupData
 
 export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [hideOld, setHideOld] = useState(false);
 
   const toggleSection = (key: string) => {
     setCollapsedSections(prev => {
@@ -152,6 +154,35 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
     });
   };
 
+  const hasCredits = credits && (credits.remaining != null || credits.available != null);
+  const allSuperGroups = useMemo(() => grouped ? buildSuperGroups(grouped) : [], [grouped]);
+
+  const maxLastDetected = useMemo(() => {
+    let max = 0;
+    for (const g of allSuperGroups) {
+      for (const sub of g.subcategories) {
+        for (const t of sub.techs) {
+          if (t.lastDetected && t.lastDetected > max) max = t.lastDetected;
+        }
+      }
+    }
+    return max;
+  }, [allSuperGroups]);
+
+  const superGroupData = useMemo(() => {
+    if (!hideOld || !maxLastDetected) return allSuperGroups;
+    return allSuperGroups.map(g => ({
+      ...g,
+      subcategories: g.subcategories.map(sub => ({
+        ...sub,
+        techs: sub.techs.filter(t => t.lastDetected && t.lastDetected >= maxLastDetected),
+      })).filter(sub => sub.techs.length > 0),
+      totalTechs: g.subcategories.reduce((sum, sub) => sum + sub.techs.filter(t => t.lastDetected && t.lastDetected >= maxLastDetected).length, 0),
+    })).filter(g => g.totalTechs > 0);
+  }, [allSuperGroups, hideOld, maxLastDetected]);
+
+  const visibleCount = superGroupData.reduce((sum, g) => sum + g.totalTechs, 0);
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-2">
@@ -160,9 +191,6 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
       </div>
     );
   }
-
-  const hasCredits = credits && (credits.remaining != null || credits.available != null);
-  const superGroupData = grouped ? buildSuperGroups(grouped) : [];
 
   if (!grouped || totalCount === 0) {
     return <p className="text-sm text-muted-foreground">No technologies detected for this domain.</p>;
@@ -179,9 +207,20 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
       )}
 
       <div className="flex items-center gap-4 flex-wrap">
-        <MetaStat value={totalCount} label="Technologies" />
+        <MetaStat value={visibleCount} label="Technologies" />
         <MetaStatDivider />
         <MetaStat value={superGroupData.length} label="Categories" />
+        <div className="ml-auto">
+          <Button
+            variant={hideOld ? 'secondary' : 'outline'}
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={() => setHideOld(!hideOld)}
+          >
+            {hideOld ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            {hideOld ? 'Show all' : 'Hide old technologies'}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
