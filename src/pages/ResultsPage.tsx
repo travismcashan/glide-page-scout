@@ -138,6 +138,7 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState('raw-data');
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
@@ -1237,20 +1238,13 @@ export default function ResultsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-6 py-4 space-y-3">
-          {/* Row 1: Large domain name + back button on the right */}
-          <div className="flex items-center justify-between">
-            <h1 className="text-base font-bold tracking-tight text-foreground">
-              {session?.domain?.replace(/^www\./i, '')}
-            </h1>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="shrink-0 text-muted-foreground">
-              <ArrowLeft className="h-4 w-4 mr-1.5" />
-              Back
-            </Button>
-          </div>
-          {/* Row 2: URL, date, and action buttons */}
+        <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <h1 className="text-base font-bold tracking-tight text-foreground">
+                {session?.domain?.replace(/^www\./i, '')}
+              </h1>
+              <span>·</span>
               <span>{session?.base_url}</span>
               {session?.created_at && (
                 <>
@@ -1262,86 +1256,10 @@ export default function ResultsPage() {
                 </>
               )}
             </div>
-            <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const url = new URL(window.location.href);
-                url.searchParams.set('view', 'shared');
-                navigator.clipboard.writeText(url.toString());
-                toast.success('View-only link copied to clipboard');
-              }}
-              className="no-print"
-            >
-              <Share2 className="h-3.5 w-3.5 mr-1.5" />
-              Share
+            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="shrink-0 text-muted-foreground">
+              <ArrowLeft className="h-4 w-4 mr-1.5" />
+              Back
             </Button>
-            {!isSharedView && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAllCollapsed(!allCollapsed)}
-                  className="no-print"
-                  title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
-                >
-                  {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
-                  {allCollapsed ? 'Expand All' : 'Collapse All'}
-                </Button>
-                <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll} className="no-print">
-                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
-                  Re-run All
-                </Button>
-              </>
-            )}
-            {!isSharedView && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="no-print">
-                    <Download className="h-3.5 w-3.5 mr-1.5" />
-                    Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {(session?.deep_research_data?.report || session?.observations_data) && (
-                    <>
-                      <DropdownMenuLabel className="text-xs text-muted-foreground">Reports</DropdownMenuLabel>
-                      {session?.deep_research_data?.report && (
-                        <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
-                          <Brain className="h-3.5 w-3.5 mr-1.5" />
-                          Deep Research PDF
-                        </DropdownMenuItem>
-                      )}
-                      {session?.observations_data && (
-                        <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                          <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-                          Observations & Insights PDF
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">Single File</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => exportAsPdf()}>
-                    Export as PDF (Print)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
-                    Export as JSON
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
-                    Export as Markdown
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">Multiple Files</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => session && exportAsZip(session, pages)}>
-                    <Layers className="h-3.5 w-3.5 mr-1.5" />
-                    Export as ZIP (one file per integration)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            </div>
           </div>
         </div>
       </header>
@@ -1350,32 +1268,134 @@ export default function ResultsPage() {
       {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} />}
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        <Tabs defaultValue="raw-data" className="w-full">
-          <TabsList className="w-full justify-start h-auto bg-transparent p-0 rounded-none mb-0 gap-0 border-b border-border">
-            <TabsTrigger
-              value="raw-data"
-              className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
-            >
-              <Globe className="h-4 w-4 mr-2" />
-              Results
-            </TabsTrigger>
-            <TabsTrigger
-              value="ai-research"
-              className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
-            >
-              <Brain className="h-4 w-4 mr-2" />
-              AI Research
-            </TabsTrigger>
-            {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex items-end justify-between border-b border-border">
+            <TabsList className="h-auto bg-transparent p-0 rounded-none mb-0 gap-0">
               <TabsTrigger
-                value="avoma"
+                value="raw-data"
                 className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
               >
-                <Phone className="h-4 w-4 mr-2" />
-                Avoma Calls
+                <Globe className="h-4 w-4 mr-2" />
+                Results
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger
+                value="ai-research"
+                className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                AI Research
+              </TabsTrigger>
+              {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
+                <TabsTrigger
+                  value="avoma"
+                  className="relative text-sm font-medium px-5 py-2.5 rounded-none rounded-t-md border border-transparent bg-transparent data-[state=active]:border-border data-[state=active]:border-b-background data-[state=active]:bg-background data-[state=active]:-mb-px data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground transition-all shadow-none"
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Avoma Calls
+                </TabsTrigger>
+              )}
+            </TabsList>
+
+            {/* Tab-specific action buttons */}
+            <div className="flex items-center gap-2 pb-2 no-print">
+              {activeTab === 'raw-data' && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('view', 'shared');
+                      navigator.clipboard.writeText(url.toString());
+                      toast.success('View-only link copied to clipboard');
+                    }}
+                  >
+                    <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                    Share
+                  </Button>
+                  {!isSharedView && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAllCollapsed(!allCollapsed)}
+                        title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+                      >
+                        {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
+                        {allCollapsed ? 'Expand All' : 'Collapse All'}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll}>
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
+                        Re-run All
+                      </Button>
+                    </>
+                  )}
+                  {!isSharedView && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          Export
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        {(session?.deep_research_data?.report || session?.observations_data) && (
+                          <>
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">Reports</DropdownMenuLabel>
+                            {session?.deep_research_data?.report && (
+                              <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                                <Brain className="h-3.5 w-3.5 mr-1.5" />
+                                Deep Research PDF
+                              </DropdownMenuItem>
+                            )}
+                            {session?.observations_data && (
+                              <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
+                                <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
+                                Observations & Insights PDF
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">Single File</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => exportAsPdf()}>
+                          Export as PDF (Print)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
+                          Export as JSON
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
+                          Export as Markdown
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">Multiple Files</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => session && exportAsZip(session, pages)}>
+                          <Layers className="h-3.5 w-3.5 mr-1.5" />
+                          Export as ZIP (one file per integration)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </>
+              )}
+              {activeTab === 'ai-research' && !isSharedView && (
+                <>
+                  {session?.deep_research_data?.report && (
+                    <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Deep Research PDF
+                    </Button>
+                  )}
+                  {session?.observations_data && (
+                    <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Observations PDF
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
 
           <TabsContent value="raw-data" className="mt-6 space-y-8">
 
