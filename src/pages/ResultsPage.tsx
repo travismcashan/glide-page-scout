@@ -792,6 +792,7 @@ export default function ResultsPage() {
 
   // IMPORTANT: Wait for content_types_data and nav_structure to be available (or failed) before running
   const [autoTagging, setAutoTagging] = useState(false);
+  const [autoTagProgress, setAutoTagProgress] = useState('');
   const autoTagTriedRef = useRef(false);
 
   const contentTypesReady = !!(session as any)?.content_types_data || contentTypesFailed;
@@ -814,17 +815,40 @@ export default function ResultsPage() {
         const homepageContent = homePage?.raw_content?.substring(0, 4000) || '';
         const navData = (session as any).nav_structure;
 
-        const result = await autoTagPagesApi.classify(
-          effectiveDiscoveredUrls,
-          session.domain,
-          homepageContent,
-          navData,
-        );
+        const BATCH_SIZE = autoTagPagesApi.BATCH_SIZE;
+        const allUrls = effectiveDiscoveredUrls;
+        const totalBatches = Math.ceil(allUrls.length / BATCH_SIZE);
+        const allPages: { url: string; template: string; baseType?: string; cptName?: string }[] = [];
+        let industry: string | undefined;
+        let industryConfidence: string | undefined;
 
-        if (result.success && result.pages?.length) {
+        for (let i = 0; i < totalBatches; i++) {
+          const batchUrls = allUrls.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+          setAutoTagProgress(`${i + 1}/${totalBatches}`);
+
+          const result = await autoTagPagesApi.classifyBatch(
+            batchUrls,
+            session.domain,
+            homepageContent,
+            navData,
+            i > 0 ? industry : undefined, // reuse detected industry for subsequent batches
+          );
+
+          if (result.success && result.pages?.length) {
+            allPages.push(...result.pages);
+          }
+          if (i === 0 && result.industry) {
+            industry = result.industry;
+            industryConfidence = result.industryConfidence;
+          }
+        }
+
+        setAutoTagProgress('');
+
+        if (allPages.length > 0) {
           // Build PageTagsMap from AI results (now with baseType)
           const tagMap: PageTagsMap = {};
-          for (const page of result.pages) {
+          for (const page of allPages) {
             const key = page.url.toLowerCase().replace(/\/$/, '');
             tagMap[key] = {
               template: page.template,
@@ -838,8 +862,8 @@ export default function ResultsPage() {
           const merged = autoSeedPageTags(tagMap, effectiveDiscoveredUrls, classified, session.base_url);
 
           await supabase.from('crawl_sessions').update({ page_tags: merged } as any).eq('id', session.id);
-          if (result.industry) {
-            console.log(`[auto-tag] Industry: ${result.industry} (${result.industryConfidence})`);
+          if (industry) {
+            console.log(`[auto-tag] Industry: ${industry} (${industryConfidence})`);
           }
           fetchData();
         } else {
@@ -863,6 +887,7 @@ export default function ResultsPage() {
         }
       } finally {
         setAutoTagging(false);
+        setAutoTagProgress('');
       }
     };
 
