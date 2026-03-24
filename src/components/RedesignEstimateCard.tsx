@@ -101,7 +101,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
             : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           }
           <span className="text-xs font-semibold text-foreground flex-1">Base Types</span>
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{baseTypeCounts.length}</Badge>
+          
         </button>
         {!collapsedSections.has('base-types') && (
           <div>
@@ -126,7 +126,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
                 : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               }
               <span className="text-xs font-semibold text-foreground flex-1">Repeating Content</span>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{totalRepeating}</Badge>
+              
             </button>
             {!collapsedSections.has('repeating') && (
               <div>
