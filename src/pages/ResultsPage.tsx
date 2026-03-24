@@ -1054,14 +1054,15 @@ export default function ResultsPage() {
 
           <TabsContent value="raw-data" className="mt-0 space-y-8">
 
-        {/* ══════ 🗺️ Site Architecture ══════ */}
+        {/* ══════ 🔗 URL Analysis ══════ */}
         {(
           (session && shouldShowIntegration('sitemap', !!session.sitemap_data)) ||
           (session && shouldShowIntegration('url-discovery', !!session.discovered_urls)) ||
-          shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure)
+          shouldShowIntegration('httpstatus', !!session?.httpstatus_data) ||
+          shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0)
         ) && (
           <div>
-            <h2 className="text-sm font-semibold mb-3">🗺️ Site Architecture</h2>
+            <h2 className="text-sm font-semibold mb-3">🔗 URL Analysis</h2>
             <div className="space-y-6">
               {session && shouldShowIntegration('sitemap', !!session.sitemap_data) && (
                 <SectionCard collapsed={allCollapsed} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={rerunButton('sitemap', 'sitemap_data', sitemapLoading)}>
@@ -1099,9 +1100,17 @@ export default function ResultsPage() {
                 />
               )}
 
-              {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
-              <SectionCard collapsed={allCollapsed} title="Navigation Structure — Header Sitemap" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={rerunButton('nav-structure', 'nav_structure', navLoading)}>
-                {(session as any)?.nav_structure ? <NavStructureCard data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} /> : null}
+              {shouldShowIntegration('httpstatus', !!session?.httpstatus_data) && (
+              <SectionCard collapsed={allCollapsed} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)}>
+                {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0) && (
+              <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${effectiveDiscoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
+                {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && effectiveDiscoveredUrls.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
+                ) : null}
               </SectionCard>
               )}
             </div>
@@ -1110,12 +1119,21 @@ export default function ResultsPage() {
 
         {/* ══════ 📊 Content Analysis ══════ */}
         {(
+          shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) ||
           (session && (session as any)?.page_tags) ||
-          shouldShowIntegration('content-types', !!(session as any)?.content_types_data)
+          shouldShowIntegration('content-types', !!(session as any)?.content_types_data) ||
+          shouldShowIntegration('content', pages.length > 0) ||
+          shouldShowIntegration('readable', !!(session as any)?.readable_data)
         ) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">📊 Content Analysis</h2>
             <div className="space-y-6">
+              {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
+              <SectionCard collapsed={allCollapsed} title="Navigation Structure — Header Sitemap" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={rerunButton('nav-structure', 'nav_structure', navLoading)}>
+                {(session as any)?.nav_structure ? <NavStructureCard data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} /> : null}
+              </SectionCard>
+              )}
+
               {session && (session as any)?.page_tags && (
               <SectionCard collapsed={allCollapsed} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />}>
                 <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} />
@@ -1129,29 +1147,6 @@ export default function ResultsPage() {
                   fetchData();
                 }} /> : null}
               </SectionCard>
-              )}
-
-              {session && (session as any)?.page_tags && (
-              <SectionCard collapsed={allCollapsed} title="Unique Templates" icon={<Layers className="h-5 w-5 text-foreground" />}>
-                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} />
-              </SectionCard>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ══════ 📄 Content & Scraping ══════ */}
-        {(shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data) || shouldShowIntegration('schema', !!session?.schema_data)) && (
-          <div>
-            <h2 className="text-sm font-semibold mb-3">📄 Content & Scraping</h2>
-            <div className="space-y-6">
-              {session && shouldShowIntegration('screenshots', false) && (
-                <ScreenshotGallery
-                  sessionId={session.id}
-                  baseUrl={session.base_url}
-                  discoveredUrls={discoveredUrls}
-                  collapsed={allCollapsed}
-                />
               )}
 
               {session && shouldShowIntegration('content', pages.length > 0) && (
@@ -1176,11 +1171,31 @@ export default function ResultsPage() {
                 {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
               </SectionCard>
               )}
+            </div>
+          </div>
+        )}
 
-              {shouldShowIntegration('schema', !!session?.schema_data) && (
-              <SectionCard collapsed={allCollapsed} title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)}>
-                {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
+        {/* ══════ 🎨 Design Analysis ══════ */}
+        {(
+          (session && (session as any)?.page_tags) ||
+          shouldShowIntegration('screenshots', false)
+        ) && (
+          <div>
+            <h2 className="text-sm font-semibold mb-3">🎨 Design Analysis</h2>
+            <div className="space-y-6">
+              {session && (session as any)?.page_tags && (
+              <SectionCard collapsed={allCollapsed} title="Unique Templates" icon={<Layers className="h-5 w-5 text-foreground" />}>
+                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} />
               </SectionCard>
+              )}
+
+              {session && shouldShowIntegration('screenshots', false) && (
+                <ScreenshotGallery
+                  sessionId={session.id}
+                  baseUrl={session.base_url}
+                  discoveredUrls={discoveredUrls}
+                  collapsed={allCollapsed}
+                />
               )}
             </div>
           </div>
@@ -1253,13 +1268,19 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔍 SEO & Search ══════ */}
-        {shouldShowIntegration('semrush', !!session?.semrush_data) && (
+        {(shouldShowIntegration('semrush', !!session?.semrush_data) || shouldShowIntegration('schema', !!session?.schema_data)) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">🔍 SEO & Search</h2>
             <div className="space-y-6">
               {shouldShowIntegration('semrush', !!session?.semrush_data) && (
               <SectionCard collapsed={allCollapsed} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)}>
                 {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('schema', !!session?.schema_data) && (
+              <SectionCard collapsed={allCollapsed} title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)}>
+                {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
               </SectionCard>
               )}
             </div>
@@ -1299,7 +1320,7 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🛡️ Security & Compliance ══════ */}
-        {(shouldShowIntegration('observatory', !!session?.observatory_data) || shouldShowIntegration('ssllabs', !!session?.ssllabs_data) || shouldShowIntegration('httpstatus', !!session?.httpstatus_data) || shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0)) && (
+        {(shouldShowIntegration('observatory', !!session?.observatory_data) || shouldShowIntegration('ssllabs', !!session?.ssllabs_data)) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">🛡️ Security & Compliance</h2>
             <div className="space-y-6">
@@ -1312,20 +1333,6 @@ export default function ResultsPage() {
               {shouldShowIntegration('ssllabs', !!session?.ssllabs_data) && (
               <SectionCard collapsed={allCollapsed} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading)}>
                 {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
-              </SectionCard>
-              )}
-
-              {shouldShowIntegration('httpstatus', !!session?.httpstatus_data) && (
-              <SectionCard collapsed={allCollapsed} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)}>
-                {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
-              </SectionCard>
-              )}
-
-              {shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0) && (
-              <SectionCard collapsed={allCollapsed} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${effectiveDiscoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
-                {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && effectiveDiscoveredUrls.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
-                ) : null}
               </SectionCard>
               )}
             </div>
