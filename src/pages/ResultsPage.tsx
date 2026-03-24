@@ -1025,7 +1025,7 @@ export default function ResultsPage() {
               )}
 
         {/* ══════ 📄 Content & Scraping ══════ */}
-        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
+        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('content-types', !!(session as any)?.content_types_data) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">📄 Content & Scraping</h2>
             <div className="space-y-6">
@@ -1053,9 +1053,14 @@ export default function ResultsPage() {
                     fetchData();
                   }}
                 />
+               )}
+
+              {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
+              <SectionCard collapsed={allCollapsed} title="Content Types — Page Classification" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText="Classifying content types across discovered URLs..." error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
+                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} /> : null}
+              </SectionCard>
               )}
 
-              {session && shouldShowIntegration('screenshots', false) && (
                 <ScreenshotGallery
                   sessionId={session.id}
                   baseUrl={session.base_url}
