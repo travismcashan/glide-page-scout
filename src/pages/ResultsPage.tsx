@@ -779,7 +779,17 @@ export default function ResultsPage() {
     }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); setContentTypesProgress(''); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData]);
 
-  // Auto-seed page tags using AI industry detection, with URL-pattern fallback
+  // Auto-run forms detection after content types and nav structure are ready
+  useEffect(() => {
+    if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
+    if (effectiveDiscoveredUrls.length === 0) return;
+    if (!contentTypesFailed && !(session as any).content_types_data) return;
+    if (!navFailed && !(session as any).nav_structure) return;
+    formsAutoRunRef.current = true;
+    runFormsDetection();
+  }, [session, formsLoading, formsFailed, effectiveDiscoveredUrls, runFormsDetection, contentTypesFailed, navFailed]);
+
+
   // IMPORTANT: Wait for content_types_data and nav_structure to be available (or failed) before running
   const [autoTagging, setAutoTagging] = useState(false);
   const autoTagTriedRef = useRef(false);
