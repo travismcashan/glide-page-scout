@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
-import { getTemplateCategory, TEMPLATE_OPTIONS, type PageTag, type TemplateCategory } from '@/lib/pageTags';
+import { getTemplateCategory, getTemplateOptions, addCustomTemplate, type PageTag, type TemplateCategory } from '@/lib/pageTags';
 
 const categoryStyles: Record<TemplateCategory, string> = {
   custom: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20',
@@ -60,7 +60,8 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
 
   const submitCustomName = () => {
     const trimmed = customName.trim();
-    if (trimmed && onChange) {
+    if (trimmed && onChange && addingCategory) {
+      addCustomTemplate(trimmed, addingCategory);
       onChange(trimmed);
       setOpen(false);
       setAddingCategory(null);
@@ -88,7 +89,7 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
 
       {open && interactive && (
         <div className="absolute z-50 top-full mt-1 left-0 bg-popover border border-border rounded-md shadow-md py-1 min-w-[200px] max-h-[360px] overflow-y-auto">
-          {TEMPLATE_OPTIONS.map((group) => (
+          {getTemplateOptions().map((group) => (
             <div key={group.category}>
               <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {group.label}
