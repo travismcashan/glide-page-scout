@@ -107,6 +107,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const [collapsedTableSections, setCollapsedTableSections] = useState<Set<string>>(new Set());
+  const autoRunRef = useRef(false);
 
   // Expose rerun function to parent
   useEffect(() => {
