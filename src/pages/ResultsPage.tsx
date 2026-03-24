@@ -1419,7 +1419,7 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          <TabsContent value="raw-data" className="mt-6 space-y-8">
+          <TabsContent value="raw-data" className="mt-8 space-y-8">
 
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(
@@ -1776,7 +1776,7 @@ export default function ResultsPage() {
 
           </TabsContent>
 
-          <TabsContent value="ai-research" className="mt-6 space-y-6">
+          <TabsContent value="ai-research" className="mt-8 space-y-6">
             {session && (
               <>
                 <SectionCard
@@ -1799,7 +1799,7 @@ export default function ResultsPage() {
           </TabsContent>
 
           {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
-            <TabsContent value="avoma" className="mt-6 space-y-6">
+            <TabsContent value="avoma" className="mt-8 space-y-6">
               <SectionCard
                 sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
                 icon={<Phone className="h-5 w-5 text-foreground" />}
