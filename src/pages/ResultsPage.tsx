@@ -640,7 +640,7 @@ export default function ResultsPage() {
     fetchData();
   }, [session, fetchData]);
 
-
+  useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
     const processPage = async (page: CrawlPage) => {
