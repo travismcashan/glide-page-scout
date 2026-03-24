@@ -1377,7 +1377,7 @@ export default function ResultsPage() {
             )}
           </TabsList>
 
-          <TabsContent value="raw-data" className="mt-0 space-y-8">
+          <TabsContent value="raw-data" className="mt-6 space-y-8">
 
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(
