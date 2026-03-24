@@ -182,13 +182,54 @@ For each tier, list ONLY form types that need custom design. Everything not list
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
     let result = { S: [] as string[], M: [] as string[], L: [] as string[], reasoning: '', reasoning_S: '', reasoning_M: '', reasoning_L: '' };
+
+    // Fuzzy match AI-returned form names to actual form names
+    function matchFormName(aiName: string, validNames: string[]): string | null {
+      // Exact match first
+      if (validNames.includes(aiName)) return aiName;
+      // Case-insensitive match
+      const lower = aiName.toLowerCase().trim();
+      const ciMatch = validNames.find(v => v.toLowerCase().trim() === lower);
+      if (ciMatch) return ciMatch;
+      // Substring match: AI name contains valid name or vice versa
+      const subMatch = validNames.find(v =>
+        lower.includes(v.toLowerCase().trim()) || v.toLowerCase().trim().includes(lower)
+      );
+      if (subMatch) return subMatch;
+      // Normalized word overlap (>50% of words match)
+      const aiWords = new Set(lower.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean));
+      let bestScore = 0;
+      let bestMatch: string | null = null;
+      for (const v of validNames) {
+        const vWords = v.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
+        const overlap = vWords.filter(w => aiWords.has(w)).length;
+        const score = overlap / Math.max(aiWords.size, vWords.length);
+        if (score > 0.5 && score > bestScore) {
+          bestScore = score;
+          bestMatch = v;
+        }
+      }
+      return bestMatch;
+    }
+
+    function matchTier(aiNames: string[], validNames: string[]): string[] {
+      const matched: string[] = [];
+      const used = new Set<string>();
+      for (const name of aiNames) {
+        const m = matchFormName(name, validNames.filter(v => !used.has(v)));
+        if (m) { matched.push(m); used.add(m); }
+        else console.warn(`[recommend-forms] Could not match AI form name: "${name}"`);
+      }
+      return matched;
+    }
+
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
-        const validNames = new Set(validFormTypes);
-        result.S = (parsed.S || []).filter((n: string) => validNames.has(n));
-        result.M = (parsed.M || []).filter((n: string) => validNames.has(n));
-        result.L = (parsed.L || []).filter((n: string) => validNames.has(n));
+        console.log(`[recommend-forms] AI returned S:${parsed.S?.length}, M:${parsed.M?.length}, L:${parsed.L?.length}`, JSON.stringify({ S: parsed.S, M: parsed.M, L: parsed.L }));
+        result.S = matchTier(parsed.S || [], validFormTypes);
+        result.M = matchTier(parsed.M || [], validFormTypes);
+        result.L = matchTier(parsed.L || [], validFormTypes);
         result.reasoning = parsed.reasoning || '';
         result.reasoning_S = parsed.reasoning_S || '';
         result.reasoning_M = parsed.reasoning_M || '';
