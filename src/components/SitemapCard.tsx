@@ -91,14 +91,8 @@ export function SitemapCard({ data }: Props) {
                 ) : (
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 )}
-                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="text-xs font-mono leading-5 truncate flex-1">{filename}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 bg-primary/5 text-primary border-primary/20">
-                  {group.label}
-                </Badge>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {group.urls.length} URL{group.urls.length !== 1 ? 's' : ''}
-                </span>
+                <span className="text-xs font-medium text-muted-foreground flex-1 truncate">{filename}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{group.urls.length}</Badge>
               </button>
               {isExpanded && (
                 <div className="max-h-[200px] overflow-y-auto border-t border-border bg-card">

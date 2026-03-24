@@ -366,9 +366,8 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
                   ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 }
-                {section.icon}
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section.title}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1 shrink-0">{linkCount}</Badge>
+                <span className="text-xs font-medium text-muted-foreground flex-1">{section.title}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{linkCount}</Badge>
               </button>
 
               {/* Section content */}
