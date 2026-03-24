@@ -1116,6 +1116,7 @@ export default function ResultsPage() {
       : 'pending' as const,
   })) : [];
 
+  const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
     if (isSharedView) return null;
     return (
       <div className="flex items-center gap-1">
