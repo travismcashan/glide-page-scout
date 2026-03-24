@@ -458,19 +458,57 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
         return null;
       }
 
+      // Count URLs per AI group to detect Archive groups that are really blog/post collections
+      const groupUrlCounts = new Map<string, number>();
+      for (const url of urls) {
+        const aiGroup = findAiGroup(url);
+        if (aiGroup?.directoryPrefix) {
+          const key = aiGroup.directoryPrefix.toLowerCase().replace(/\/$/, '');
+          groupUrlCounts.set(key, (groupUrlCounts.get(key) || 0) + 1);
+        }
+      }
+
       for (const url of urls) {
         const htmlSig = htmlSignals[url];
         const aiGroup = findAiGroup(url);
 
         if (aiGroup) {
+          let baseType = aiGroup.baseType as BaseType;
+          let contentType = aiGroup.cptName || aiGroup.template;
+          let template = aiGroup.template;
+
+          // Split Archive groups: if an Archive group has many child URLs,
+          // the index page stays Archive but individual detail pages become Post
+          if (baseType === 'Archive' && aiGroup.directoryPrefix) {
+            const prefix = aiGroup.directoryPrefix.toLowerCase().replace(/\/$/, '');
+            const groupCount = groupUrlCounts.get(prefix) || 0;
+            
+            if (groupCount >= 3) {
+              // Check if this URL is the index page or a detail page
+              try {
+                const pathname = new URL(url).pathname.toLowerCase().replace(/\/$/, '');
+                const isIndexPage = pathname === prefix || pathname === prefix + '/index';
+                
+                if (!isIndexPage) {
+                  // This is a detail page within an archive — reclassify as Post
+                  baseType = 'Post';
+                  // Derive a post type name from the archive template
+                  const archiveName = (template || '').replace(/^Archive:\s*/i, '').trim();
+                  contentType = archiveName ? `${archiveName} Post` : 'Blog Post';
+                  template = archiveName ? `${archiveName} Detail` : 'Blog Detail';
+                }
+              } catch { /* skip */ }
+            }
+          }
+
           const conf = htmlSig ? 'high' : (aiGroup.confidence || 'medium');
           classified.push({
             url,
-            contentType: aiGroup.cptName || aiGroup.template,
+            contentType,
             confidence: conf as 'high' | 'medium' | 'low',
             source: htmlSig ? htmlSig.source : 'ai',
-            baseType: aiGroup.baseType as BaseType,
-            template: aiGroup.template,
+            baseType,
+            template,
             cptName: aiGroup.cptName,
           });
         } else if (htmlSig) {
