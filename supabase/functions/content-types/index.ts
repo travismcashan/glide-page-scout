@@ -345,9 +345,14 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
           const aiData = await response.json();
           const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall?.function?.arguments) {
-            const parsed = JSON.parse(toolCall.function.arguments);
-            if (parsed?.groups) {
-              aiGroups = parsed.groups;
+            try {
+              const parsed = JSON.parse(toolCall.function.arguments);
+              if (parsed?.groups) {
+                aiGroups = parsed.groups;
+                console.info(`AI classified ${aiGroups.length} directory groups`);
+              }
+            } catch (parseErr) {
+              console.error('Failed to parse AI response:', parseErr);
             }
           }
         } else {
@@ -359,14 +364,27 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
     }
 
     // Phase 4: Build final classifications
-    // Priority: AI groups (with HTML signal override for individual URLs) > fallback
+    // Map URLs to AI groups by matching directory prefix
 
-    // Build a map from AI results
-    const aiUrlMap = new Map<string, { baseType: BaseType; template: string; cptName?: string; confidence: 'high' | 'medium' }>();
-    for (const group of aiGroups) {
-      for (const url of (group.urls || [])) {
-        aiUrlMap.set(url, { baseType: group.baseType, template: group.template, cptName: group.cptName, confidence: group.confidence });
-      }
+    // Sort AI groups by prefix length descending so more specific matches win
+    const sortedGroups = [...aiGroups].sort((a, b) =>
+      (b.directoryPrefix?.length || 0) - (a.directoryPrefix?.length || 0)
+    );
+
+    function findAiGroup(url: string): typeof aiGroups[0] | null {
+      try {
+        const pathname = new URL(url).pathname.toLowerCase();
+        for (const group of sortedGroups) {
+          const prefix = (group.directoryPrefix || '').toLowerCase().replace(/\/$/, '');
+          if (!prefix || prefix === '/') {
+            // Homepage match — only exact match
+            if (pathname === '/' || pathname === '') return group;
+            continue;
+          }
+          if (pathname.startsWith(prefix + '/') || pathname === prefix) return group;
+        }
+      } catch { /* skip */ }
+      return null;
     }
 
     for (const url of urls) {
