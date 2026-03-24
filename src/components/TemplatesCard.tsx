@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { PageTagsMap } from '@/lib/pageTags';
 import { normalizeTagKey, getTemplateCategory } from '@/lib/pageTags';
+import ReactMarkdown from 'react-markdown';
 
 const TIER_KEYS = ['S', 'M', 'L', 'All'] as const;
 type TierKey = (typeof TIER_KEYS)[number];
@@ -54,6 +55,9 @@ interface AiTiers {
   M: string[];
   L: string[];
   reasoning: string;
+  reasoning_S?: string;
+  reasoning_M?: string;
+  reasoning_L?: string;
 }
 
 function TemplateRow({ t, isExcluded, toggleExcluded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void }) {
@@ -368,12 +372,24 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
         </table>
       </div>
 
-      {/* AI reasoning footer */}
-      {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
-        <p className="text-xs text-muted-foreground italic border-l-2 border-primary/30 pl-2">
-          {aiTiers.reasoning}
-        </p>
-      )}
+      {/* AI reasoning footer — per-tier */}
+      {aiTiers && activeTier && activeTier !== 'All' && (() => {
+        const tierReasoning = activeTier === 'S' ? aiTiers.reasoning_S : activeTier === 'M' ? aiTiers.reasoning_M : aiTiers.reasoning_L;
+        const hasContent = tierReasoning || aiTiers.reasoning;
+        if (!hasContent) return null;
+        return (
+          <div className="space-y-2 border-l-2 border-primary/30 pl-3">
+            {aiTiers.reasoning && (
+              <p className="text-xs text-muted-foreground font-medium">{aiTiers.reasoning}</p>
+            )}
+            {tierReasoning && (
+              <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+                <ReactMarkdown>{tierReasoning}</ReactMarkdown>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -120,10 +120,22 @@ For each tier, list ONLY template names that need custom design. Everything not 
                   },
                   reasoning: {
                     type: 'string',
-                    description: 'Brief explanation of the design strategy and why certain templates were grouped together or excluded',
+                    description: 'Brief overall design strategy summary (1-2 sentences)',
+                  },
+                  reasoning_S: {
+                    type: 'string',
+                    description: 'Markdown-formatted explanation for the Small tier: why these ~5 templates were chosen, what trade-offs were made. Use **bold** for template names.',
+                  },
+                  reasoning_M: {
+                    type: 'string',
+                    description: 'Markdown-formatted explanation for the Medium tier: what was added beyond Small and why. Use **bold** for template names.',
+                  },
+                  reasoning_L: {
+                    type: 'string',
+                    description: 'Markdown-formatted explanation for the Large tier: what was added beyond Medium and why. Use **bold** for template names.',
                   },
                 },
-                required: ['S', 'M', 'L', 'reasoning'],
+                required: ['S', 'M', 'L', 'reasoning', 'reasoning_S', 'reasoning_M', 'reasoning_L'],
                 additionalProperties: false,
               },
             },
@@ -157,16 +169,18 @@ For each tier, list ONLY template names that need custom design. Everything not 
     const aiData = await response.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    let result = { S: [] as string[], M: [] as string[], L: [] as string[], reasoning: '' };
+    let result = { S: [] as string[], M: [] as string[], L: [] as string[], reasoning: '', reasoning_S: '', reasoning_M: '', reasoning_L: '' };
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
-        // Validate template names match input
         const validNames = new Set((templates as TemplateInfo[]).map(t => t.name));
         result.S = (parsed.S || []).filter((n: string) => validNames.has(n));
         result.M = (parsed.M || []).filter((n: string) => validNames.has(n));
         result.L = (parsed.L || []).filter((n: string) => validNames.has(n));
         result.reasoning = parsed.reasoning || '';
+        result.reasoning_S = parsed.reasoning_S || '';
+        result.reasoning_M = parsed.reasoning_M || '';
+        result.reasoning_L = parsed.reasoning_L || '';
       } catch (e) {
         console.error('Failed to parse AI response:', e);
       }
