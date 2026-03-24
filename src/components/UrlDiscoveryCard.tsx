@@ -29,6 +29,14 @@ type NavStructureData = {
 
 type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
 
+const navWeight: Record<string, number> = { primary: 4, secondary: 2, footer: 1 };
+
+function navSortScore(url: string, navMap: Map<string, NavTag[]>): number {
+  const tags = navMap.get(url.toLowerCase().replace(/\/$/, '')) || [];
+  if (!tags.length) return 0;
+  return tags.reduce((sum, t) => sum + (navWeight[t.type] || 0), 0);
+}
+
 function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
   const map = new Map<string, NavTag[]>();
   if (!nav) return map;
@@ -191,7 +199,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     '2xx': sorted.filter((u) => {
       const s = statusMap.get(u);
       return s != null && s >= 200 && s < 300;
-    }),
+    }).sort((a, b) => navSortScore(b, navMap) - navSortScore(a, navMap)),
     '3xx': sorted.filter((u) => {
       const s = statusMap.get(u);
       return s != null && s >= 300 && s < 400;
