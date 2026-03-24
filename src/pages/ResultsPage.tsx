@@ -1355,7 +1355,7 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Design Analysis</h2>
             <div className="space-y-6">
               {session && (session as any)?.page_tags && (
-              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Design Analysis (Recommended Layouts)" icon={<Layers className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('templates', 'template_tiers', templatesRerunning)}>
+              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis (Recommended Layouts)" icon={<Layers className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('templates', 'template_tiers', templatesRerunning)}>
                 <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
               </SectionCard>
               )}
