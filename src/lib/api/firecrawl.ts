@@ -538,3 +538,13 @@ export const navExtractApi = {
     return data;
   },
 };
+
+export const contentTypesApi = {
+  async classify(urls: string[], baseUrl: string): Promise<{ success: boolean; summary?: any[]; classified?: any[]; stats?: any; error?: string }> {
+    const { data, error } = await supabase.functions.invoke('content-types', {
+      body: { urls, baseUrl },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};

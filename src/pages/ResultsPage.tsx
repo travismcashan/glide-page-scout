@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -44,6 +44,7 @@ function shouldShowIntegration(key: string, hasData: boolean): boolean {
 import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
+import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import {
@@ -94,6 +95,7 @@ type CrawlSession = {
   gtmetrix_test_id: string | null;
   deep_research_data: any | null;
   observations_data: any | null;
+  content_types_data: any | null;
 };
 
 
@@ -599,6 +601,23 @@ export default function ResultsPage() {
     }).catch((e) => { setNavFailed(true); setError('nav-structure', e?.message || 'Nav structure request failed'); setNavLoading(false); });
   }, [session, navLoading, navFailed, fetchData]);
 
+  // Content Types classification (auto-run after URL discovery)
+  const [contentTypesLoading, setContentTypesLoading] = useState(false);
+  const [contentTypesFailed, setContentTypesFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
+    if (!effectiveDiscoveredUrls.length) return;
+    setContentTypesLoading(true);
+    contentTypesApi.classify(effectiveDiscoveredUrls, session.base_url).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
+        clearError('content-types');
+        fetchData();
+      } else { setContentTypesFailed(true); setError('content-types', result.error || 'Content type classification failed'); }
+      setContentTypesLoading(false);
+    }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); });
+  }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData]);
+
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
@@ -672,6 +691,7 @@ export default function ResultsPage() {
       yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
       'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null; },
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
+      'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
@@ -697,6 +717,7 @@ export default function ResultsPage() {
     { key: 'ocean', dbColumn: 'ocean_data' },
     { key: 'semrush', dbColumn: 'semrush_data' },
     { key: 'nav-structure', dbColumn: 'nav_structure' },
+    { key: 'content-types', dbColumn: 'content_types_data' },
   ];
 
   const [rerunningAll, setRerunningAll] = useState(false);
@@ -1004,7 +1025,7 @@ export default function ResultsPage() {
               )}
 
         {/* ══════ 📄 Content & Scraping ══════ */}
-        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
+        {((shouldShowIntegration('url-discovery', !!session?.discovered_urls) && session) || shouldShowIntegration('content-types', !!(session as any)?.content_types_data) || shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) || shouldShowIntegration('screenshots', false) || shouldShowIntegration('content', pages.length > 0) || shouldShowIntegration('readable', !!(session as any)?.readable_data)) && (
           <div>
             <h2 className="text-sm font-semibold mb-3">📄 Content & Scraping</h2>
             <div className="space-y-6">
@@ -1032,6 +1053,12 @@ export default function ResultsPage() {
                     fetchData();
                   }}
                 />
+               )}
+
+              {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
+              <SectionCard collapsed={allCollapsed} title="Content Types — Page Classification" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText="Classifying content types across discovered URLs..." error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={rerunButton('content-types', 'content_types_data', contentTypesLoading)}>
+                {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} /> : null}
+              </SectionCard>
               )}
 
               {session && shouldShowIntegration('screenshots', false) && (
