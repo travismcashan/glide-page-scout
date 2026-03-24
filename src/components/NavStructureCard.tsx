@@ -131,11 +131,18 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 }) {
   const defaultExpanded = depth < 2;
   const [localToggle, setLocalToggle] = useState<boolean | null>(null);
+  const [lastGlobal, setLastGlobal] = useState<boolean | null | undefined>(globalExpand);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
   const isBold = depth === 0 || hasChildren || !item.url;
 
-  const expanded = globalExpand !== null && globalExpand !== undefined ? globalExpand : localToggle !== null ? localToggle : defaultExpanded;
+  // Reset local override when global signal changes
+  if (globalExpand !== lastGlobal) {
+    setLastGlobal(globalExpand);
+    setLocalToggle(null);
+  }
+
+  const expanded = localToggle !== null ? localToggle : globalExpand !== null && globalExpand !== undefined ? globalExpand : defaultExpanded;
 
   return (
     <div>
