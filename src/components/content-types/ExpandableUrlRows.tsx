@@ -37,13 +37,13 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
 
   return (
     <TooltipProvider>
-      <div className="space-y-0.5">
+      <div>
         {visible.map((item) => {
           let pathname: string;
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
           const pageTag = getPageTag(pageTags, item.url);
           return (
-            <div key={item.url} className="flex items-center px-3 py-1.5 hover:bg-muted/20 transition-colors group border-t border-border">
+            <div key={item.url} className="flex items-center px-3 py-1 hover:bg-muted/20 transition-colors group border-t border-border/50">
               {/* Left: URL */}
               <div className="flex items-center flex-1 min-w-0 gap-2">
                 <Tooltip>

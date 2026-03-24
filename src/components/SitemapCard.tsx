@@ -108,7 +108,7 @@ export function SitemapCard({ data }: Props) {
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-6 py-1.5 text-xs font-mono leading-5 text-muted-foreground hover:text-primary hover:underline hover:bg-muted/20 transition-colors border-t border-border first:border-t-0"
+                      className="flex items-center gap-2 px-6 py-1 text-xs font-mono leading-5 text-muted-foreground hover:text-primary hover:underline hover:bg-muted/20 transition-colors border-t border-border/50 first:border-t-0"
                     >
                       <span className="truncate flex-1">{url}</span>
                       <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100" />

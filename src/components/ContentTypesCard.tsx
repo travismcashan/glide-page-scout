@@ -283,7 +283,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                 <div className="px-3 py-1.5"><ConfidenceBadge conf={row.confidence} /></div>
               </div>
               {isExpanded && (
-                <div className="border-t border-border bg-card py-2">
+                <div className="border-t border-border/50 bg-card py-1">
                   <ExpandableUrlRows
                     urls={displayUrls}
                     allTypes={allTypes}
