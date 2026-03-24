@@ -107,7 +107,6 @@ export function FormsCard({ data }: Props) {
         {/* Sticky header — matches Nav/Content/Sitemaps cards */}
         <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
           <span className="flex-1 text-xs font-medium text-muted-foreground">Form</span>
-          <span className="w-[90px] text-center text-xs font-medium text-muted-foreground">Type</span>
           <span className="w-[90px] text-center text-xs font-medium text-muted-foreground">Platform</span>
           <span className="w-[50px] text-center text-xs font-medium text-muted-foreground">Fields</span>
           <span className="w-[50px] text-right text-xs font-medium text-muted-foreground">Pages</span>
@@ -196,11 +195,6 @@ function FormRow({ form, index, isExpanded, onToggle }: { form: FormEntry; index
         </div>
 
         {/* Right columns */}
-        <span className="w-[90px] flex justify-center">
-          <Badge variant="outline" className={`${typeColors[form.formType] || ''} text-[10px] px-1.5 py-0`}>
-            {form.formType}
-          </Badge>
-        </span>
         <span className="w-[90px] flex justify-center">
           <Badge variant="outline" className={`${platformColors[form.platform || 'Native'] || platformColors.Native} text-[10px] px-1.5 py-0`}>
             {form.platform || 'Native'}
