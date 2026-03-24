@@ -55,26 +55,26 @@ export function SemrushCard({ data, isLoading }: SemrushCardProps) {
   return (
     <div className="space-y-4">
       {usOverview && (
-        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()}</strong> Organic Keywords</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()}</strong> Organic Traffic</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Ad', 'Adwords Keywords')).toLocaleString()}</strong> Paid Keywords</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Rk', 'Rank')).toLocaleString()}</strong> Rank</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <MetaStat value={Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()} label="Organic Keywords" />
+          <MetaStatDivider />
+          <MetaStat value={Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()} label="Organic Traffic" />
+          <MetaStatDivider />
+          <MetaStat value={Number(getVal(usOverview, 'Ad', 'Adwords Keywords')).toLocaleString()} label="Paid Keywords" />
+          <MetaStatDivider />
+          <MetaStat value={Number(getVal(usOverview, 'Rk', 'Rank')).toLocaleString()} label="Rank" />
         </div>
       )}
 
       {data.backlinks && (
-        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground text-sm">{Number(data.backlinks.total || 0).toLocaleString()}</strong> Backlinks</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{Number(data.backlinks.domains_num || 0).toLocaleString()}</strong> Domains</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{Number(data.backlinks.follows_num || 0).toLocaleString()}</strong> Follow</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{Number(data.backlinks.nofollows_num || 0).toLocaleString()}</strong> Nofollow</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <MetaStat value={Number(data.backlinks.total || 0).toLocaleString()} label="Backlinks" />
+          <MetaStatDivider />
+          <MetaStat value={Number(data.backlinks.domains_num || 0).toLocaleString()} label="Domains" />
+          <MetaStatDivider />
+          <MetaStat value={Number(data.backlinks.follows_num || 0).toLocaleString()} label="Follow" />
+          <MetaStatDivider />
+          <MetaStat value={Number(data.backlinks.nofollows_num || 0).toLocaleString()} label="Nofollow" />
         </div>
       )}
 

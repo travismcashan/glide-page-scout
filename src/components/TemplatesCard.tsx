@@ -275,12 +275,12 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
     <div className="space-y-4">
       {/* Summary + Controls on same row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground text-sm">{totalTemplates}</strong> Unique Templates</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{designCount}</strong> Custom Design</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{blockBuiltCount}</strong> Block-Built</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <MetaStat value={totalTemplates} label="Unique Templates" />
+          <MetaStatDivider />
+          <MetaStat value={designCount} label="Custom Design" />
+          <MetaStatDivider />
+          <MetaStat value={blockBuiltCount} label="Block-Built" />
         </div>
         <div className="flex items-center gap-2">
           {!aiTiers && !aiLoading && (
