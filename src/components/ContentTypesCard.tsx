@@ -164,7 +164,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
     });
   }, [allSummary]);
 
-  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(summary.slice(0, 5).map(s => s.type) || []));
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(summary.map(s => s.type)));
 
   useEffect(() => {
     if (globalInnerExpand === true) {
