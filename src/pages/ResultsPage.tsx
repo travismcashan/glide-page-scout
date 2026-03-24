@@ -1079,7 +1079,43 @@ export default function ResultsPage() {
     prevLoadingRef.current = { ...loadingMap };
   });
 
-  const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
+  // Build ordered integration steps for global progress bar
+  const integrationSteps = session ? [
+    { key: 'sitemap', label: 'Sitemaps', loading: sitemapLoading, failed: sitemapFailed, data: session.sitemap_data, paused: isIntegrationPaused('sitemap') },
+    { key: 'builtwith', label: 'BuiltWith', loading: builtwithLoading, failed: builtwithFailed, data: session.builtwith_data, paused: isIntegrationPaused('builtwith') },
+    { key: 'wappalyzer', label: 'Wappalyzer', loading: wappalyzerLoading, failed: wappalyzerFailed, data: session.wappalyzer_data, paused: isIntegrationPaused('wappalyzer') },
+    { key: 'detectzestack', label: 'DetectZeStack', loading: detectzestackLoading, failed: detectzestackFailed, data: (session as any).detectzestack_data, paused: isIntegrationPaused('detectzestack') },
+    { key: 'tech-analysis', label: 'Tech Analysis', loading: techAnalysisLoading, failed: techAnalysisFailed, data: techAnalysisData, paused: isIntegrationPaused('tech-analysis') },
+    { key: 'semrush', label: 'SEMrush', loading: semrushLoading, failed: semrushFailed, data: session.semrush_data, paused: isIntegrationPaused('semrush') },
+    { key: 'httpstatus', label: 'HTTP Status', loading: httpstatusLoading, failed: httpstatusFailed, data: session.httpstatus_data, paused: isIntegrationPaused('httpstatus') },
+    { key: 'psi', label: 'PageSpeed', loading: psiLoading, failed: psiFailed, data: session.psi_data, paused: isIntegrationPaused('psi') },
+    { key: 'gtmetrix', label: 'GTmetrix', loading: runningGtmetrix, failed: gtmetrixFailed, data: session.gtmetrix_grade, paused: isIntegrationPaused('gtmetrix') },
+    { key: 'carbon', label: 'Carbon', loading: carbonLoading, failed: carbonFailed, data: session.carbon_data, paused: isIntegrationPaused('carbon') },
+    { key: 'crux', label: 'CrUX', loading: cruxLoading, failed: cruxFailed || cruxNoData, data: session.crux_data, paused: isIntegrationPaused('crux') },
+    { key: 'wave', label: 'WAVE', loading: waveLoading, failed: waveFailed, data: session.wave_data, paused: isIntegrationPaused('wave') },
+    { key: 'w3c', label: 'W3C', loading: w3cLoading, failed: w3cFailed, data: session.w3c_data, paused: isIntegrationPaused('w3c') },
+    { key: 'schema', label: 'Schema', loading: schemaLoading, failed: schemaFailed, data: session.schema_data, paused: isIntegrationPaused('schema') },
+    { key: 'readable', label: 'Readable', loading: readableLoading, failed: readableFailed, data: (session as any).readable_data, paused: isIntegrationPaused('readable') },
+    { key: 'observatory', label: 'Observatory', loading: observatoryLoading, failed: observatoryFailed, data: session.observatory_data, paused: isIntegrationPaused('observatory') },
+    { key: 'ssllabs', label: 'SSL Labs', loading: ssllabsLoading, failed: ssllabsFailed, data: session.ssllabs_data, paused: isIntegrationPaused('ssllabs') },
+    { key: 'yellowlab', label: 'Yellow Lab', loading: yellowlabLoading, failed: yellowlabFailed, data: (session as any).yellowlab_data, paused: isIntegrationPaused('yellowlab') },
+    { key: 'ocean', label: 'Ocean.io', loading: oceanLoading, failed: oceanFailed, data: session.ocean_data, paused: isIntegrationPaused('ocean') },
+    { key: 'nav-structure', label: 'Nav Structure', loading: navLoading, failed: navFailed, data: (session as any).nav_structure, paused: isIntegrationPaused('nav-structure') },
+    { key: 'content-types', label: 'Content Types', loading: contentTypesLoading, failed: contentTypesFailed, data: (session as any).content_types_data, paused: isIntegrationPaused('content-types') },
+    { key: 'link-checker', label: 'Link Checker', loading: linkcheckLoading, failed: linkcheckFailed, data: session.linkcheck_data, paused: isIntegrationPaused('link-checker') },
+    { key: 'forms', label: 'Forms', loading: formsLoading, failed: formsFailed, data: (session as any).forms_data, paused: isIntegrationPaused('forms') },
+    { key: 'page-tags', label: 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
+    { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
+  ].map(s => ({
+    key: s.key,
+    label: s.label,
+    status: s.paused ? 'paused' as const
+      : s.data ? 'done' as const
+      : s.failed ? 'failed' as const
+      : s.loading ? 'loading' as const
+      : 'pending' as const,
+  })) : [];
+
     if (isSharedView) return null;
     return (
       <div className="flex items-center gap-1">
