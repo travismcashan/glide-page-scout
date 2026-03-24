@@ -14,11 +14,11 @@ export function MetaStat({ value, label }: MetaStatProps) {
   const line2 = words.slice(mid).join(' ');
 
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-2xl font-semibold text-foreground leading-none tracking-tight">
+    <div className="flex items-center gap-2">
+      <span className="text-4xl font-semibold text-foreground leading-none tracking-tight">
         {value}
       </span>
-      <span className="text-[10px] leading-tight text-muted-foreground">
+      <span className="text-xs leading-tight text-muted-foreground">
         {line1}
         {line2 && <br />}
         {line2}
