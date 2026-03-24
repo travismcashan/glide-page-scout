@@ -1326,13 +1326,6 @@ export default function ResultsPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {session?.status === 'analyzing' ? (
-              <Badge variant="secondary">Analyzing</Badge>
-            ) : session?.status === 'completed' ? (
-              <Badge variant="default">Complete</Badge>
-            ) : pages.length > 0 ? (
-              <Badge variant="secondary">{progress}% — {completedCount}/{pages.length} scraped</Badge>
-            ) : null}
             </div>
           </div>
         </div>
