@@ -1,45 +1,31 @@
 
-# Three-Level Cascading Classification System — IMPLEMENTED
 
-## The Cascade
+## Content Audit — Template Curation
 
-```text
-Level 1: TYPE (WordPress content model)
-├── Page        — one-off pages (green badges)
-├── Post        — blog/news entries (amber badges)
-├── CPT         — custom post type detail pages, 3+ similar URLs (violet badges)
-├── Archive     — all list/index pages (sky blue badges)
-└── Search      — search results (gray badges)
+### Problem
+The Level 2 unique template count includes toolkit pages (Privacy Policy, Terms, FAQ, etc.) that would never be custom-designed in a redesign. The count is inflated and the user needs a way to curate which templates actually require custom design work.
 
-Level 2: TEMPLATE (page purpose)
-├── Page →    Homepage, About, Pricing, Contact, Careers, Services, etc.
-├── Post →    Blog Detail
-├── CPT →     Case Study Detail, Work Detail, Team Member Detail, etc.
-├── Archive → Archive: Blog, Archive: Case Studies, Blog List, etc.
-└── Search →  Search
+### Solution
+Add a **"Design" toggle column** to the Level 2 table. Each template row gets a clickable toggle indicating whether it requires custom design. Toolkit templates (Privacy Policy, Terms, Search, 404, etc.) default to **off**; everything else defaults to **on**. The summary count updates to show **"X of Y templates require custom design"**.
 
-Level 3: REPEATING CONTENT (filtered view in ContentTypesCard)
-└── Only Post + CPT types shown
-    ├── Blog Posts (Post)
-    ├── Case Studies (CPT)
-    ├── Work Items (CPT)
-    └── Team Members (CPT)
-```
+### How it works
 
-## What Was Changed
+1. **Add local state** (`excludedTemplates: Set<string>`) to track which templates the user has toggled off. Auto-seed it with known toolkit templates from the existing `TOOLKIT_TEMPLATES` set in `pageTags.ts`.
 
-### Edge Functions
-- **`content-types/index.ts`**: Rewrote AI prompt to output `baseType` (Page|Post|CPT|Archive|Search) + `template` + `cptName` per URL group. CPT groups below 3 URLs demoted to Page.
-- **`auto-tag-pages/index.ts`**: Updated to output `baseType`, `template`, and `cptName` per URL alongside industry detection.
+2. **Add a "Design" column** to the Level 2 table with a small toggle or checkbox per row. Clicking it moves the template in/out of the excluded set.
 
-### Types
-- **`content-types/types.ts`**: Added `BaseType`, `baseType`, `template`, `cptName` fields to `ClassifiedUrl` and `ContentTypeSummary`.
-- **`src/lib/pageTags.ts`**: Added `BaseType` and `baseType`/`cptName` to `PageTag`. Added `getTemplateCategoryFromBaseType()`. Updated `autoSeedPageTags()` to use baseType from classifier. Updated `getPageTagsSummary()` with per-type counts.
+3. **Update the summary line** to show two numbers: total templates and the filtered "design templates" count (e.g., "14 unique templates, 10 require custom design").
 
-### UI
-- **`PageTemplateBadge.tsx`**: Now shows dual badges — `[Type]` (Level 1, color-coded) + `[Template]` (Level 2, clickable).
-- **`ContentTypesCard.tsx`**: Renamed to "Repeating Content — Posts & CPTs". Filters to only show Post + CPT entries. Added Type column with colored badge.
-- **`ResultsPage.tsx`**: Updated section title, wired `baseType`/`cptName` from auto-tag results into `PageTagsMap`.
+4. **Visual distinction**: Excluded rows get a muted/strikethrough style so it's clear they're not counted toward the design effort.
 
-### API
-- **`firecrawl.ts`**: Updated `autoTagPagesApi` return type to include `baseType` and `cptName`.
+5. **Persist via callback**: Add an optional `onExcludedChange` prop so the parent can store the exclusion set in the session if desired (future enhancement).
+
+### Files to change
+- **`src/components/RedesignEstimateCard.tsx`** — Add `excludedTemplates` state, auto-seed from toolkit detection, add Design column with toggles, update summary, style excluded rows.
+
+### Technical details
+- Use the existing `getTemplateCategory()` from `pageTags.ts` to detect toolkit templates for auto-seeding (category === 'toolkit' defaults to excluded).
+- The toggle is a simple `Switch` or `Checkbox` component from the existing UI library.
+- The summary becomes: `"14 unique templates · 10 custom design · 4 block-built"`.
+- Excluded rows render with `opacity-50` and strikethrough on the template name.
+
