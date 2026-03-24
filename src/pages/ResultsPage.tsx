@@ -1368,7 +1368,7 @@ export default function ResultsPage() {
             {session && (
               <>
                 <SectionCard
-                  title="Gemini Deep Research"
+                  sectionId="deep-research" persistedCollapsed={isSectionCollapsed("deep-research")} onCollapseChange={toggleSection} title="Gemini Deep Research"
                   icon={<Brain className="h-5 w-5 text-foreground" />}
                   collapsed={allCollapsed}
                 >
@@ -1376,7 +1376,7 @@ export default function ResultsPage() {
                 </SectionCard>
 
                 <SectionCard
-                  title="Observations & Insights"
+                  sectionId="observations" persistedCollapsed={isSectionCollapsed("observations")} onCollapseChange={toggleSection} title="Observations & Insights"
                   icon={<Lightbulb className="h-5 w-5 text-foreground" />}
                   collapsed={allCollapsed}
                 >
@@ -1389,7 +1389,7 @@ export default function ResultsPage() {
           {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
             <TabsContent value="avoma" className="mt-0 space-y-6">
               <SectionCard
-                title="Avoma — Call Intelligence"
+                sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
                 icon={<Phone className="h-5 w-5 text-foreground" />}
                 loading={avomaLoading && !(session as any)?.avoma_data}
                 loadingText="Searching Avoma for meetings with @domain attendees..."
