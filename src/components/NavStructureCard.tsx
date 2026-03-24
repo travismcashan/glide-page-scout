@@ -101,7 +101,7 @@ function buildTreePrefix(parentLines: boolean[], isLast: boolean, isFirst: boole
   return prefix;
 }
 
-function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTags, onPageTagChange }: { item: NavItem; depth?: number; isLast?: boolean; parentLines?: boolean[]; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
+function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentLines = [], pageTags, onPageTagChange }: { item: NavItem; depth?: number; isLast?: boolean; isFirst?: boolean; parentLines?: boolean[]; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
