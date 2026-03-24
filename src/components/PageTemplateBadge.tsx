@@ -82,7 +82,7 @@ export function PageTemplateBadge({ tag, onChange, readOnly, hideBaseType }: Pro
   return (
     <div ref={ref} className="relative shrink-0 flex items-center gap-1">
       {/* Base Type badge (Level 1) */}
-      {baseType && (
+      {!hideBaseType && baseType && (
         <Badge
           variant="outline"
           className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[baseType]} cursor-default`}
