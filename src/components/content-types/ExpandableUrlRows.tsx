@@ -9,16 +9,12 @@ import type { ClassifiedUrl } from './types';
 
 export type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
 
-const navBadgeClass: Record<string, string> = {
-  primary: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-  secondary: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
-  footer: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
-};
-
-const navBadgeLabel: Record<string, string> = {
-  primary: 'Primary',
-  secondary: 'Secondary',
-  footer: 'Footer',
+const baseTypeStyles: Record<string, string> = {
+  Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  Post: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  CPT: 'bg-violet-500/10 text-violet-600 border-violet-500/30',
+  Archive: 'bg-sky-500/10 text-sky-600 border-sky-500/30',
+  Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
 };
 
 interface ExpandableUrlRowsProps {
@@ -45,51 +41,61 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
         {visible.map((item) => {
           let pathname: string;
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
-          const navKey = item.url.toLowerCase().replace(/\/$/, '');
-          const navTags = navMap?.get(navKey) || [];
-          const uniqueNavTypes = [...new Set(navTags.map(t => t.type))];
           const pageTag = getPageTag(pageTags, item.url);
           return (
-            <div key={item.url} className="flex items-center gap-2 py-1 px-3 rounded hover:bg-muted/30 group">
-              <PageTemplateBadge
-                tag={pageTag}
-                onChange={onPageTagChange ? (t) => onPageTagChange(item.url, t) : undefined}
-                readOnly={!onPageTagChange}
-              />
-              {uniqueNavTypes.map((type) => (
-                <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
-                  {navBadgeLabel[type]}
-                </Badge>
-              ))}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] font-mono text-muted-foreground truncate flex-1 min-w-0 hover:text-primary hover:underline"
-                  >
-                    {pathname}
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-md">
-                  <p className="text-xs font-mono break-all">{item.url}</p>
-                </TooltipContent>
-              </Tooltip>
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity shrink-0"
-              >
-                <ExternalLink className="h-3 w-3" />
-              </a>
+            <div key={item.url} className="flex items-center py-1 px-3 rounded hover:bg-muted/30 group">
+              {/* Left: URL */}
+              <div className="flex items-center flex-1 min-w-0 gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-mono text-muted-foreground truncate min-w-0 hover:text-primary hover:underline"
+                    >
+                      {pathname}
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-md">
+                    <p className="text-xs font-mono break-all">{item.url}</p>
+                  </TooltipContent>
+                </Tooltip>
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity shrink-0"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+
+              {/* Right: Type | Template columns */}
+              <div className="flex items-center gap-0 shrink-0">
+                <span className="w-[70px] flex justify-center">
+                  {pageTag?.baseType && (
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[pageTag.baseType] || ''}`}>
+                      {pageTag.baseType}
+                    </Badge>
+                  )}
+                </span>
+                <span className="w-[120px] flex justify-center">
+                  <PageTemplateBadge
+                    tag={pageTag}
+                    onChange={onPageTagChange ? (t) => onPageTagChange(item.url, t) : undefined}
+                    readOnly={!onPageTagChange}
+                    hideBaseType
+                  />
+                </span>
+              </div>
+
               {!readOnly && onChangeType && (
                 <Select
                   value={item.contentType}
                   onValueChange={(val) => onChangeType(item.url, val)}
                 >
-                  <SelectTrigger className="h-6 text-[10px] w-[140px] shrink-0 px-2 py-0">
+                  <SelectTrigger className="h-6 text-[10px] w-[140px] shrink-0 px-2 py-0 ml-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
