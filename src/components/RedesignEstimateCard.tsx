@@ -134,10 +134,9 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
               <div>
                 {contentTypes.map((ct) => (
                   <div key={ct.type} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
-                    <span className="text-xs font-mono leading-5 text-muted-foreground flex-1 truncate">{ct.type}</span>
-                    {ct.baseType && (
-                      <Badge variant="outline" className={`${baseTypeColors[ct.baseType] || ''} text-[10px] px-1.5 py-0 mr-2`}>{ct.baseType}</Badge>
-                    )}
+                    <span className="text-xs font-mono leading-5 text-muted-foreground flex-1 truncate">
+                      {ct.type}{ct.baseType ? ` (${ct.baseType})` : ''}
+                    </span>
                     <span className="text-xs text-muted-foreground font-mono">{ct.count}</span>
                   </div>
                 ))}
