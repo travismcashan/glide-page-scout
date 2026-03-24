@@ -1,6 +1,4 @@
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Link2, TrendingUp } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 
 type SemrushCardProps = {
   data: {
@@ -56,37 +54,27 @@ export function SemrushCard({ data, isLoading }: SemrushCardProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Search className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium">SEMrush Domain Analysis</span>
-      </div>
-
-      {/* Overview stats */}
       {usOverview && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Organic Keywords', keys: ['Or', 'Organic Keywords'] },
-            { label: 'Organic Traffic', keys: ['Ot', 'Organic Traffic'] },
-            { label: 'Paid Keywords', keys: ['Ad', 'Adwords Keywords'] },
-            { label: 'Rank', keys: ['Rk', 'Rank'] },
-          ].map(({ label, keys }) => (
-            <div key={label} className="bg-muted rounded-lg p-3">
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-lg font-semibold">{Number(getVal(usOverview, ...keys)).toLocaleString()}</p>
-            </div>
-          ))}
+        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()}</strong> Organic Keywords</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()}</strong> Organic Traffic</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Ad', 'Adwords Keywords')).toLocaleString()}</strong> Paid Keywords</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Rk', 'Rank')).toLocaleString()}</strong> Rank</span>
         </div>
       )}
 
-      {/* Backlinks summary */}
       {data.backlinks && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link2 className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Backlinks:</span>
-          <Badge variant="secondary">{Number(data.backlinks.total || 0).toLocaleString()} total</Badge>
-          <Badge variant="outline">{Number(data.backlinks.domains_num || 0).toLocaleString()} domains</Badge>
-          <Badge variant="outline">{Number(data.backlinks.follows_num || 0).toLocaleString()} follow</Badge>
-          <Badge variant="outline">{Number(data.backlinks.nofollows_num || 0).toLocaleString()} nofollow</Badge>
+        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{Number(data.backlinks.total || 0).toLocaleString()}</strong> Backlinks</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{Number(data.backlinks.domains_num || 0).toLocaleString()}</strong> Domains</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{Number(data.backlinks.follows_num || 0).toLocaleString()}</strong> Follow</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{Number(data.backlinks.nofollows_num || 0).toLocaleString()}</strong> Nofollow</span>
         </div>
       )}
 
