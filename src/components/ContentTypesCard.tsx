@@ -155,14 +155,28 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   }, [rawSummary, pageTags]);
 
   // Level 3 filter: only show Post + CPT (repeating content)
+  // Also use pageTags to demote groups where most URLs are actually Archive/taxonomy
   const summary = useMemo(() => {
     return allSummary.filter(s => {
-      if (s.baseType === 'Post' || s.baseType === 'CPT') return true;
+      if (s.baseType === 'Post' || s.baseType === 'CPT') {
+        // If we have pageTags, check if this group is actually mostly taxonomy/archive pages
+        if (pageTags && s.urls.length > 0) {
+          let archiveCount = 0;
+          for (const url of s.urls) {
+            const key = normalizeTagKey(url);
+            const tag = pageTags[key];
+            if (tag?.baseType === 'Archive') archiveCount++;
+          }
+          // If 80%+ of URLs in this "CPT/Post" group are actually Archive pages, filter it out
+          if (archiveCount / s.urls.length >= 0.8) return false;
+        }
+        return true;
+      }
       // Fallback for legacy data without baseType — keep non-Uncategorized items that have 3+ URLs
       if (!s.baseType && s.type !== 'Uncategorized' && s.count >= 3) return true;
       return false;
     });
-  }, [allSummary]);
+  }, [allSummary, pageTags]);
 
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(summary.map(s => s.type)));
 
