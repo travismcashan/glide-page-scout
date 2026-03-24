@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, Globe, FileText, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 
 interface FormEntry {
   fingerprint: string;
@@ -123,7 +123,7 @@ export function FormsCard({ data }: Props) {
                 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               }
-              <Globe className="h-3.5 w-3.5 shrink-0 text-primary" />
+              
               <span className="text-xs font-semibold text-foreground">Global Forms</span>
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{globalForms.length}</Badge>
             </button>
@@ -144,7 +144,7 @@ export function FormsCard({ data }: Props) {
                 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               }
-              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              
               <span className="text-xs font-semibold text-foreground">Page-Specific Forms</span>
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{pageForms.length}</Badge>
             </button>
@@ -189,7 +189,6 @@ function FormRow({ form, index, isExpanded, onToggle }: { form: FormEntry; index
             : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           }
           <span className="text-xs font-medium text-foreground truncate">{form.formType}</span>
-          {form.isGlobal && <Badge variant="outline" className="text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">global</Badge>}
           {form.hasFileUpload && <Badge variant="outline" className="text-[9px] px-1 py-0">📎 upload</Badge>}
           {form.hasCaptcha && <Badge variant="outline" className="text-[9px] px-1 py-0">🛡 captcha</Badge>}
         </div>
