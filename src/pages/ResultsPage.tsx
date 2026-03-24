@@ -803,6 +803,7 @@ export default function ResultsPage() {
       'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null; },
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
+      'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
