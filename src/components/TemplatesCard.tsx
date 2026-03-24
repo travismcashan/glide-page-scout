@@ -136,7 +136,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
     }
   }, [aiTiers, autoSelected, activeTier, templates]);
 
-
+  const { templates, totalTemplates } = useMemo(() => {
     const templateMap: Record<string, { count: number; baseType?: string; urls: string[] }> = {};
 
     if (pageTags) {
