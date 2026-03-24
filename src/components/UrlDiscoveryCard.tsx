@@ -76,6 +76,7 @@ type Props = {
   onUrlsPersist?: (urls: string[]) => void;
   pageTags?: PageTagsMap | null;
   onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
+  onPageLabelChange?: (url: string, label: string) => void;
 };
 
 function statusBadgeClass(code: number): string {

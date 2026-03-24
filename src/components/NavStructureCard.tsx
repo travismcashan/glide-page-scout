@@ -236,10 +236,10 @@ export function NavStructureCard({ data, pageTags, onPageTagChange, onPageLabelC
         </div>
       </div>
 
-      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} pageTags={pageTags} onPageTagChange={onPageTagChange} onPageLabelChange={onPageLabelChange} />
 
       {secondary.length > 0 && (
-        <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+        <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} pageTags={pageTags} onPageTagChange={onPageTagChange} onPageLabelChange={onPageLabelChange} />
       )}
 
       <NavSection
@@ -249,6 +249,7 @@ export function NavStructureCard({ data, pageTags, onPageTagChange, onPageLabelC
         emptyText="No unique footer links — all footer items match the header navigation."
         pageTags={pageTags}
         onPageTagChange={onPageTagChange}
+        onPageLabelChange={onPageLabelChange}
       />
     </div>
   );
