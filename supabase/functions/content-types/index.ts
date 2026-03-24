@@ -395,7 +395,7 @@ Deno.serve(async (req) => {
       .map(([type, data]) => ({
         type,
         count: data.count,
-        urls: data.urls.slice(0, 5), // top 5 examples
+        urls: data.urls, // all URLs
         totalUrls: data.urls.length,
         confidence: data.confidence,
       }));
