@@ -1,59 +1,95 @@
 
 
-## Glide Sales Prep Tool — Site Crawler & Content Analyzer
+# Unified Page Template Taxonomy System
 
-A tool for your agency's sales process that crawls a prospect's website, extracts content outlines of key pages, and captures full-page screenshots — all saved for future reference.
+## The Problem
 
-### Core Workflow
+Right now, **content types**, **URL discovery**, and **nav structure** each show URLs independently with no shared understanding of what kind of page each URL represents. You want a single, consistent tagging layer that lets you classify any URL — from any view — into your mental model:
 
-1. **Enter a URL** — Paste a prospect's website URL into a clean input form
-2. **Discover Pages** — The tool uses Firecrawl's Map feature to find all site URLs, then auto-detects primary navigation pages and presents them in a checklist
-3. **Select & Crawl** — Review the auto-selected pages, add/remove as needed, then hit "Crawl" to scrape content and capture screenshots
-4. **View Results** — Each page displayed as a card with its content outline and full-page screenshot
-5. **Save & Export** — Results saved to your history; export as a downloadable report
+```text
+Page Template Types
+├── Custom Pages        (block-built, unique design — Homepage, About, Pricing)
+├── Template Pages      (CPT-driven list/detail — Blog, Case Studies, Resources)
+│   ├── List Page       (archive/index)
+│   └── Detail Page     (single post)
+└── Toolkit Pages       (default content layout — Privacy, Terms, generic pages)
+```
 
-### Page Discovery
+And sometimes a page blurs the line (e.g., a Services page that's mostly toolkit but has a few custom blocks).
 
-- Uses Firecrawl **Map** to quickly discover all URLs on the site
-- Auto-identifies primary navigation pages (filters out blog posts, utility pages, etc.)
-- Presents a checklist UI where you can toggle pages on/off before crawling
+## Proposed Architecture
 
-### Content Extraction
+### 1. Shared Page Tags Store
 
-- Each selected page scraped via Firecrawl with markdown output
-- **Two viewing modes** you can toggle between:
-  - **Raw Text** — The page content as extracted, in reading order
-  - **AI-Structured Outline** — Lovable AI rewrites the content into a clean content outline with headings, sections, and key messaging summarized (great for sales prep)
+A single `pageTags` map stored on the crawl session (new `page_tags` JSONB column on `crawl_sessions`). Structure:
 
-### Full-Page Screenshots
+```text
+{
+  "https://example.com/":          { template: "custom",   label: "Homepage" },
+  "https://example.com/blog/":     { template: "template", variant: "list",   contentType: "Blog" },
+  "https://example.com/blog/foo/": { template: "template", variant: "detail", contentType: "Blog" },
+  "https://example.com/privacy/":  { template: "toolkit" },
+  "https://example.com/services/": { template: "custom",   notes: "Mostly toolkit + custom hero" }
+}
+```
 
-- Uses **Thum.io API** with the `fullpage` parameter to capture entire page screenshots (top to bottom)
-- Screenshots displayed inline alongside content for each page
-- High-resolution PNG output
+- **`template`**: `custom` | `template` | `toolkit` — your three tiers
+- **`variant`** (optional): `list` | `detail` — for template pages
+- **`contentType`** (optional): links to the content type classification (e.g., "Blog", "Case Studies")
+- **`label`** / **`notes`** (optional): freeform annotation
 
-### Results Dashboard
+### 2. Auto-Seeding from Content Types
 
-- **Card layout** per page — page title, URL, content outline (with raw/AI toggle), and full-page screenshot
-- Expandable/collapsible cards for easy scanning
-- Overall site summary at the top
+When the content types integration runs, it already classifies URLs. We auto-seed `pageTags` by mapping:
+- URLs with content types like "Blog Post", "Case Study" → `template` + `detail` + that content type
+- URLs matching list patterns (`/blog/`, `/resources/`) → `template` + `list`
+- Everything else defaults to `toolkit`
+- Homepage always gets `custom`
 
-### History & Export
+Users then promote toolkit pages to custom or adjust as needed — the AI gives a starting point, not a final answer.
 
-- All crawl results saved to a **Supabase database** with timestamps
-- **History page** to browse past crawls by domain/date
-- **Export** results as a downloadable report (printable HTML/PDF-style layout)
+### 3. Unified Badge in All Views
 
-### Backend Architecture
+A small colored pill appears on every URL row across nav structure, URL discovery, and content types:
 
-- **Firecrawl connector** for site mapping and content scraping (via edge functions)
-- **Thum.io edge function** for screenshot generation (API key stored as a secret)
-- **Lovable AI edge function** for content outline restructuring
-- **Supabase database** tables for crawl history, pages, and results
-- **Lovable Cloud** for backend infrastructure
+```text
+[Custom]    — green
+[Template]  — blue  (with "List" or "Detail" sub-badge when set)
+[Toolkit]   — gray
+```
 
-### Pages
+These badges sit alongside the existing Primary/Secondary/Footer nav badges.
 
-1. **Home / Crawl** — URL input, page discovery, and crawl trigger
-2. **Results** — View crawl results with content and screenshots
-3. **History** — Browse and revisit past crawls
+### 4. Tagging UI
+
+- **Inline**: Click a badge on any URL row to cycle or pick from a dropdown (`Custom` / `Template` / `Toolkit`)
+- **Bulk**: In content types, tagging a whole content type group tags all its URLs (e.g., mark all "Blog Post" URLs as `template:detail`)
+- **Nav structure**: Tag an entire nav section's children at once
+
+### 5. Integration with Estimates
+
+The `pageTags` data feeds into project scoping context. The AI research and observations cards can reference counts like "12 custom pages, 3 template types (blog, case studies, resources), 45 toolkit pages" to inform effort estimates.
+
+## Technical Plan
+
+### Database
+- Add `page_tags` JSONB column to `crawl_sessions`
+
+### New Shared Module
+- Create `src/lib/pageTags.ts` — types, helpers, auto-seed logic, badge component
+- Export a `PageTemplateBadge` component and a `usePageTags` hook that reads/writes from session state
+
+### Component Updates
+- **UrlDiscoveryCard**: Add `PageTemplateBadge` per URL row, clickable to change
+- **ContentTypesCard / ExpandableUrlRows**: Add `PageTemplateBadge` per URL, plus bulk-tag button on each content type group header
+- **NavStructureCard**: Add `PageTemplateBadge` on each nav item that has a URL
+- **ResultsPage**: Thread `pageTags` state through all three cards, persist on change
+
+### Auto-Seed Logic
+- Runs after content types completes
+- Homepage → `custom`
+- URLs in a recognized content type → `template:detail`
+- URLs matching `/{type}/` pattern with no slug → `template:list`
+- Remaining → `toolkit`
+- Never overwrites manual tags
 
