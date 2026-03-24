@@ -949,6 +949,7 @@ export default function ResultsPage() {
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
       'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
+      'page-tags': () => { setAutoTagging(false); autoTagTriedRef.current = false; },
       'forms': () => {
         setFormsFailed(false); setFormsLoading(false); formsAutoRunRef.current = false;
         formsRerunFnRef.current?.();
