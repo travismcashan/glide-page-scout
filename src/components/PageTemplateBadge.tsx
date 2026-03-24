@@ -55,8 +55,10 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
   const pageLabel = tag.label || tag.contentType;
   const interactive = !readOnly && onChange;
 
+  const templateName = tag.label || tag.contentType || (tag.variant ? variantLabel[tag.variant] : null);
+
   return (
-    <div ref={ref} className="relative shrink-0">
+    <div ref={ref} className="relative shrink-0 flex items-center gap-1">
       <Badge
         variant="outline"
         className={`text-[10px] px-1.5 py-0 ${style} ${interactive ? 'cursor-pointer' : ''}`}
@@ -66,8 +68,16 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
           setOpen(!open);
         }}
       >
-        {typeLabel}{variant ? ` · ${variant}` : ''}{pageLabel ? ` · ${pageLabel}` : ''}
+        {typeLabel}{tag.variant ? ` · ${variantLabel[tag.variant]}` : ''}
       </Badge>
+      {templateName && (
+        <Badge
+          variant="outline"
+          className="text-[10px] px-1.5 py-0 bg-muted/50 text-muted-foreground border-border"
+        >
+          {templateName}
+        </Badge>
+      )}
       {open && interactive && (
         <div className="absolute z-50 top-full mt-1 left-0 bg-popover border border-border rounded-md shadow-md py-1 min-w-[160px]">
           {OPTIONS.map((opt) => {
