@@ -184,6 +184,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
   const [error, setError] = useState<string | null>(null);
   const [cachedResults, setCachedResults] = useState<LinkCheckResult[] | null>(null);
   const paused = isIntegrationPaused('url-discovery');
+  const linkCheckerPaused = isIntegrationPaused('link-checker');
 
   useEffect(() => {
     if (linkCheckResults && linkCheckResults.length > 0) {
@@ -206,6 +207,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
   }, [discoveryDone, isMapping, paused, persistedUrls]);
 
   const effectiveResults = linkCheckResults ?? linkCheckStreaming ?? cachedResults ?? [];
+  const hasLinkCheckData = effectiveResults.length > 0 || linkCheckLoading;
   const statusMap = new Map<string, number>();
   for (const result of effectiveResults) {
     statusMap.set(result.url, result.statusCode);
@@ -355,7 +357,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
               </div>
             )}
             <CardTabs
-              defaultValue="ok"
+              defaultValue={hasLinkCheckData ? 'ok' : 'all'}
               tabs={[
                 { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} /> },
                 {
@@ -363,7 +365,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
                   label: `Pending (${buckets.pending.length})`,
                   icon: <Clock className="h-3.5 w-3.5 text-muted-foreground" />,
                   content: <UrlList urls={buckets.pending} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} emptyText="All URLs have been checked." />,
-                  visible: buckets.pending.length > 0,
+                  visible: hasLinkCheckData && buckets.pending.length > 0,
                 },
                 { value: 'ok', label: `OK (${buckets.ok.length})`, icon: <CheckCircle className="h-3.5 w-3.5 text-green-500" />, content: <UrlList urls={buckets.ok} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets.ok.length > 0 },
                 { value: 'redirects', label: `Redirects (${buckets.redirects.length})`, icon: <ArrowRight className="h-3.5 w-3.5 text-yellow-500" />, content: <UrlList urls={buckets.redirects} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets.redirects.length > 0 },
