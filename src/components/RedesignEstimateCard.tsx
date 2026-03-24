@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { PageTagsMap } from '@/lib/pageTags';
-import { normalizeTagKey } from '@/lib/pageTags';
+import { normalizeTagKey, getTemplateCategory } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
 const baseTypeColors: Record<string, string> = {
@@ -87,6 +88,9 @@ function TableSection({ title, columns, colAligns, rows }: {
 }
 
 export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure }: Props) {
+  const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
+  const [seeded, setSeeded] = useState(false);
+
   const { baseTypeCounts, templates, contentTypes, totalTemplates } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
     const templateMap: Record<string, { count: number; baseType?: string; urls: string[] }> = {};
