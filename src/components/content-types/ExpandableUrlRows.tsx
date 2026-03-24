@@ -43,7 +43,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
           const pageTag = getPageTag(pageTags, item.url);
           return (
-            <div key={item.url} className="flex items-center px-3 py-1 hover:bg-muted/20 transition-colors group border-t border-border/50">
+            <div key={item.url} className="flex items-center px-3 hover:bg-muted/20 transition-colors group border-t border-border/50" style={{ height: '28px' }}>
               {/* Left: URL */}
               <div className="flex items-center flex-1 min-w-0 gap-2">
                 <Tooltip>
@@ -74,7 +74,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
                     value={item.contentType}
                     onValueChange={(val) => onChangeType(item.url, val)}
                   >
-                    <SelectTrigger className="h-6 text-[10px] w-[120px] shrink-0 px-2 py-0">
+                    <SelectTrigger className="h-5 text-[10px] w-[120px] shrink-0 px-2 py-0 opacity-0 group-hover:opacity-100 transition-opacity border-dashed">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
