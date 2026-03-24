@@ -155,7 +155,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
       {/* Stats row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-4 flex-wrap">
-          <MetaStat value={repeatingCount} label="Repeating URLs" />
+          <MetaStat value={repeatingCount} label="Total URLs" />
           <MetaStatDivider />
           <MetaStat value={summary.length} label="Content Types" />
           <MetaStatDivider />
