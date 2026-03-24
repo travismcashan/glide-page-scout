@@ -108,11 +108,6 @@ function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number
             Show less <ChevronUp className="h-3 w-3" />
           </button>
         )}
-        {totalUrls > urls.length && visibleCount >= urls.length && (
-          <span className="text-[10px] text-muted-foreground mt-0.5">
-            Showing {urls.length} of {totalUrls} URLs
-          </span>
-        )}
       </div>
     </TooltipProvider>
   );
