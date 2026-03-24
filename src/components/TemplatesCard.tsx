@@ -377,19 +377,26 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
       {/* AI reasoning footer — per-tier */}
       {aiTiers && activeTier && activeTier !== 'All' && (() => {
-        const tierReasoning = activeTier === 'S' ? aiTiers.reasoning_S : activeTier === 'M' ? aiTiers.reasoning_M : aiTiers.reasoning_L;
-        const hasContent = tierReasoning || aiTiers.reasoning;
-        if (!hasContent) return null;
+        // Build cumulative reasoning: S shows S, M shows S+M, L shows S+M+L
+        const sections: { label: string; content: string }[] = [];
+        if (aiTiers.reasoning_S) sections.push({ label: 'Small Tier', content: aiTiers.reasoning_S });
+        if (activeTier !== 'S' && aiTiers.reasoning_M) sections.push({ label: 'Medium Additions', content: aiTiers.reasoning_M });
+        if (activeTier === 'L' && aiTiers.reasoning_L) sections.push({ label: 'Large Additions', content: aiTiers.reasoning_L });
+        if (sections.length === 0 && aiTiers.reasoning) sections.push({ label: 'Strategy', content: aiTiers.reasoning });
+        if (sections.length === 0) return null;
         return (
-          <div className="space-y-2 border-l-2 border-primary/30 pl-3">
+          <div className="space-y-3 border-l-2 border-primary/30 pl-3">
             {aiTiers.reasoning && (
               <p className="text-xs text-muted-foreground font-medium">{aiTiers.reasoning}</p>
             )}
-            {tierReasoning && (
-              <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
-                <ReactMarkdown>{tierReasoning}</ReactMarkdown>
+            {sections.map((s, i) => (
+              <div key={i} className="space-y-1">
+                <p className="text-[11px] font-semibold text-foreground">{s.label}</p>
+                <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+                  <ReactMarkdown>{s.content}</ReactMarkdown>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         );
       })()}
