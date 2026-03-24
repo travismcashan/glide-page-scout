@@ -1239,7 +1239,7 @@ export default function ResultsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="px-6">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-7xl font-light tracking-tight text-foreground">
