@@ -379,9 +379,9 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       {aiTiers && activeTier && activeTier !== 'All' && (() => {
         // Build cumulative reasoning: S shows S, M shows S+M, L shows S+M+L
         const sections: { label: string; content: string }[] = [];
-        if (aiTiers.reasoning_S) sections.push({ label: 'Small Tier', content: aiTiers.reasoning_S });
-        if (activeTier !== 'S' && aiTiers.reasoning_M) sections.push({ label: 'Medium Additions', content: aiTiers.reasoning_M });
-        if (activeTier === 'L' && aiTiers.reasoning_L) sections.push({ label: 'Large Additions', content: aiTiers.reasoning_L });
+        if (aiTiers.reasoning_S) sections.push({ label: 'Small', content: aiTiers.reasoning_S });
+        if (activeTier !== 'S' && aiTiers.reasoning_M) sections.push({ label: 'Medium', content: aiTiers.reasoning_M });
+        if (activeTier === 'L' && aiTiers.reasoning_L) sections.push({ label: 'Large', content: aiTiers.reasoning_L });
         if (sections.length === 0 && aiTiers.reasoning) sections.push({ label: 'Strategy', content: aiTiers.reasoning });
         if (sections.length === 0) return null;
         return (
@@ -391,7 +391,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
             )}
             {sections.map((s, i) => (
               <div key={i} className="space-y-1">
-                <p className="text-[11px] font-semibold text-foreground">{s.label}</p>
+                <p className="text-xs font-semibold text-foreground">{s.label}</p>
                 <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
                   <ReactMarkdown>{s.content}</ReactMarkdown>
                 </div>
