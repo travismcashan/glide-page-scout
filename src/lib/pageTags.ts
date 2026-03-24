@@ -1,19 +1,84 @@
-// Unified Page Template Taxonomy System
-
-export type PageTemplateType = 'custom' | 'template' | 'toolkit';
-export type PageTemplateVariant = 'list' | 'detail';
+// Simplified Page Template Taxonomy System
+// Each URL gets a single "template" name (e.g., "Homepage", "Blog List", "Privacy Policy")
+// The category (custom/template/toolkit) is derived for color-coding purposes.
 
 export interface PageTag {
-  template: PageTemplateType;
-  variant?: PageTemplateVariant;
-  contentType?: string;
-  label?: string;
+  template: string;       // e.g. "Homepage", "About", "Blog List", "Blog Detail", "Privacy Policy"
+  contentType?: string;   // from content classification
   notes?: string;
 }
 
 export type PageTagsMap = Record<string, PageTag>;
 
-/** Normalize URL key for consistent lookups */
+// ── Template category derivation ──
+
+export type TemplateCategory = 'custom' | 'template' | 'toolkit';
+
+const CUSTOM_TEMPLATES = new Set([
+  'Homepage', 'About', 'Pricing', 'Contact', 'Demo',
+  'Services', 'Solutions', 'Platform', 'Product', 'Features',
+  'How It Works', 'Why Us', 'Partners', 'Integrations',
+]);
+
+const TEMPLATE_TEMPLATES = new Set([
+  'Blog List', 'Blog Detail', 'Case Study List', 'Case Study Detail',
+  'Resource List', 'Resource Detail', 'News List', 'News Detail',
+  'Event List', 'Event Detail', 'Podcast List', 'Podcast Detail',
+  'Webinar List', 'Webinar Detail', 'Video List', 'Video Detail',
+  'Press List', 'Press Detail', 'Career List', 'Career Detail',
+  'Job List', 'Job Detail', 'Team List', 'Team Detail',
+  'Portfolio List', 'Portfolio Detail', 'Project List', 'Project Detail',
+  'Guide List', 'Guide Detail', 'FAQ List', 'FAQ Detail',
+  'Help List', 'Help Detail', 'Docs List', 'Docs Detail',
+  'Documentation List', 'Documentation Detail',
+]);
+
+const TOOLKIT_TEMPLATES = new Set([
+  'Privacy Policy', 'Terms', 'Cookie Policy', 'Legal', 'Disclaimer',
+  'Accessibility', 'Sitemap', 'Search', 'Login', 'Sign Up', 'Register', '404',
+]);
+
+/** Derive color category from template name */
+export function getTemplateCategory(template: string): TemplateCategory {
+  if (CUSTOM_TEMPLATES.has(template)) return 'custom';
+  if (TEMPLATE_TEMPLATES.has(template)) return 'template';
+  if (TOOLKIT_TEMPLATES.has(template)) return 'toolkit';
+  // Heuristic: if it ends with "List" or "Detail", it's a template
+  if (/\bList$/i.test(template) || /\bDetail$/i.test(template)) return 'template';
+  return 'toolkit';
+}
+
+/** All known template names, grouped by category */
+export const TEMPLATE_OPTIONS: { category: TemplateCategory; label: string; templates: string[] }[] = [
+  {
+    category: 'custom',
+    label: 'Custom Pages',
+    templates: [...CUSTOM_TEMPLATES].sort(),
+  },
+  {
+    category: 'template',
+    label: 'Template Pages',
+    templates: [
+      'Blog List', 'Blog Detail',
+      'Case Study List', 'Case Study Detail',
+      'Resource List', 'Resource Detail',
+      'News List', 'News Detail',
+      'Event List', 'Event Detail',
+      'Career List', 'Career Detail',
+      'Portfolio List', 'Portfolio Detail',
+      'Guide List', 'Guide Detail',
+      'Docs List', 'Docs Detail',
+    ],
+  },
+  {
+    category: 'toolkit',
+    label: 'Toolkit Pages',
+    templates: [...TOOLKIT_TEMPLATES].sort(),
+  },
+];
+
+// ── URL normalization ──
+
 export function normalizeTagKey(url: string): string {
   try {
     const parsed = new URL(url);
@@ -23,77 +88,52 @@ export function normalizeTagKey(url: string): string {
   }
 }
 
-/** Get a page tag for a URL */
+// ── CRUD helpers ──
+
 export function getPageTag(tags: PageTagsMap | null | undefined, url: string): PageTag | undefined {
   if (!tags) return undefined;
   return tags[normalizeTagKey(url)];
 }
 
-/** Set a page tag for a URL, returns new map */
 export function setPageTag(tags: PageTagsMap | null | undefined, url: string, tag: PageTag): PageTagsMap {
   const map = { ...(tags || {}) };
   map[normalizeTagKey(url)] = tag;
   return map;
 }
 
-/** Set template type for a URL, preserving other fields */
 export function setPageTemplate(
   tags: PageTagsMap | null | undefined,
   url: string,
-  template: PageTemplateType,
-  variant?: PageTemplateVariant
+  template: string,
 ): PageTagsMap {
   const key = normalizeTagKey(url);
   const existing = tags?.[key];
-  const newTag: PageTag = { ...existing, template };
-  if (variant) newTag.variant = variant;
-  else if (template !== 'template') delete newTag.variant;
-  return { ...(tags || {}), [key]: newTag };
+  return { ...(tags || {}), [key]: { ...existing, template } };
 }
 
-/** Bulk-set template for multiple URLs */
-export function bulkSetTemplate(
-  tags: PageTagsMap | null | undefined,
-  urls: string[],
-  template: PageTemplateType,
-  variant?: PageTemplateVariant,
-  contentType?: string
-): PageTagsMap {
-  const map = { ...(tags || {}) };
-  for (const url of urls) {
-    const key = normalizeTagKey(url);
-    const existing = map[key];
-    const newTag: PageTag = { ...existing, template };
-    if (variant) newTag.variant = variant;
-    if (contentType) newTag.contentType = contentType;
-    map[key] = newTag;
-  }
-  return map;
-}
+// ── Auto-seed logic ──
 
-// ── List patterns for auto-detection ──
-
-const LIST_PATTERNS = [
-  /^\/blog\/?$/i,
-  /^\/resources\/?$/i,
-  /^\/case-studies\/?$/i,
-  /^\/news\/?$/i,
-  /^\/articles\/?$/i,
-  /^\/events\/?$/i,
-  /^\/podcasts?\/?$/i,
-  /^\/webinars?\/?$/i,
-  /^\/videos?\/?$/i,
-  /^\/press\/?$/i,
-  /^\/careers?\/?$/i,
-  /^\/jobs?\/?$/i,
-  /^\/team\/?$/i,
-  /^\/portfolio\/?$/i,
-  /^\/projects?\/?$/i,
-  /^\/guides?\/?$/i,
-  /^\/faqs?\/?$/i,
-  /^\/help\/?$/i,
-  /^\/docs?\/?$/i,
-  /^\/documentation\/?$/i,
+const LIST_PATTERNS: Array<[RegExp, string]> = [
+  [/^\/blog\/?$/i, 'Blog List'],
+  [/^\/resources\/?$/i, 'Resource List'],
+  [/^\/case-studies\/?$/i, 'Case Study List'],
+  [/^\/news\/?$/i, 'News List'],
+  [/^\/articles?\/?$/i, 'Blog List'],
+  [/^\/events?\/?$/i, 'Event List'],
+  [/^\/podcasts?\/?$/i, 'Podcast List'],
+  [/^\/webinars?\/?$/i, 'Webinar List'],
+  [/^\/videos?\/?$/i, 'Video List'],
+  [/^\/press\/?$/i, 'Press List'],
+  [/^\/careers?\/?$/i, 'Career List'],
+  [/^\/jobs?\/?$/i, 'Job List'],
+  [/^\/team\/?$/i, 'Team List'],
+  [/^\/portfolio\/?$/i, 'Portfolio List'],
+  [/^\/projects?\/?$/i, 'Project List'],
+  [/^\/guides?\/?$/i, 'Guide List'],
+  [/^\/faqs?\/?$/i, 'FAQ List'],
+  [/^\/help\/?$/i, 'Help List'],
+  [/^\/docs?\/?$/i, 'Docs List'],
+  [/^\/documentation\/?$/i, 'Documentation List'],
 ];
 
 const CUSTOM_PATTERNS: Array<[RegExp, string]> = [
@@ -128,18 +168,27 @@ const TOOLKIT_PATTERNS: Array<[RegExp, string]> = [
   [/^\/register/i, 'Register'],
 ];
 
-/** Content type names that suggest template detail pages */
-const TEMPLATE_CONTENT_TYPES = [
-  'blog post', 'article', 'case study', 'resource', 'news',
-  'event', 'podcast', 'webinar', 'video', 'press release',
-  'guide', 'whitepaper', 'ebook', 'documentation', 'help article',
-  'career', 'job listing', 'team member', 'portfolio item', 'project',
+/** Map from content type keyword to detail template name */
+const CONTENT_TYPE_TO_DETAIL: Array<[string, string]> = [
+  ['blog post', 'Blog Detail'], ['article', 'Blog Detail'],
+  ['case study', 'Case Study Detail'], ['resource', 'Resource Detail'],
+  ['news', 'News Detail'], ['event', 'Event Detail'],
+  ['podcast', 'Podcast Detail'], ['webinar', 'Webinar Detail'],
+  ['video', 'Video Detail'], ['press release', 'Press Detail'],
+  ['guide', 'Guide Detail'], ['whitepaper', 'Resource Detail'],
+  ['ebook', 'Resource Detail'], ['documentation', 'Docs Detail'],
+  ['help article', 'Help Detail'], ['career', 'Career Detail'],
+  ['job listing', 'Job Detail'], ['team member', 'Team Detail'],
+  ['portfolio item', 'Portfolio Detail'], ['project', 'Project Detail'],
 ];
 
-/**
- * Auto-seed page tags from discovered URLs and content types data.
- * Never overwrites existing manual tags.
- */
+/** Derive list parent pattern from pathname */
+const LIST_PARENT_PATTERNS = LIST_PATTERNS.map(([regex, template]) => {
+  // Extract the base path from the regex, e.g. /blog/ -> "blog"
+  const base = regex.source.replace(/[\^\/\?\$\\]/g, '').replace(/i$/, '').toLowerCase();
+  return { base, template: template.replace(' List', ' Detail') };
+});
+
 export function autoSeedPageTags(
   existingTags: PageTagsMap | null | undefined,
   urls: string[],
@@ -148,7 +197,6 @@ export function autoSeedPageTags(
 ): PageTagsMap {
   const map = { ...(existingTags || {}) };
 
-  // Build a content type lookup
   const ctMap = new Map<string, string>();
   if (contentTypesClassified) {
     for (const c of contentTypesClassified) {
@@ -158,7 +206,6 @@ export function autoSeedPageTags(
 
   for (const url of urls) {
     const key = normalizeTagKey(url);
-    // Don't overwrite existing tags
     if (map[key]) continue;
 
     let pathname: string;
@@ -166,64 +213,68 @@ export function autoSeedPageTags(
 
     const contentType = ctMap.get(key);
 
-    // 1. Known custom page patterns (includes homepage)
+    // 1. Custom page patterns
     const customMatch = CUSTOM_PATTERNS.find(([p]) => p.test(pathname));
     if (customMatch) {
-      map[key] = { template: 'custom', label: customMatch[1] };
+      map[key] = { template: customMatch[1] };
       continue;
     }
 
-    // 2. Known toolkit patterns
+    // 2. Toolkit patterns
     const toolkitMatch = TOOLKIT_PATTERNS.find(([p]) => p.test(pathname));
     if (toolkitMatch) {
-      map[key] = { template: 'toolkit', label: toolkitMatch[1] };
+      map[key] = { template: toolkitMatch[1] };
       continue;
     }
 
-    // 4. List page patterns
-    if (LIST_PATTERNS.some(p => p.test(pathname))) {
-      map[key] = { template: 'template', variant: 'list', contentType: contentType || undefined };
+    // 3. List page patterns
+    const listMatch = LIST_PATTERNS.find(([p]) => p.test(pathname));
+    if (listMatch) {
+      map[key] = { template: listMatch[1], contentType: contentType || undefined };
       continue;
     }
 
-    // 5. If content type matches a template type → detail
-    if (contentType && TEMPLATE_CONTENT_TYPES.some(t => contentType.toLowerCase().includes(t))) {
-      map[key] = { template: 'template', variant: 'detail', contentType };
-      continue;
-    }
-
-    // 6. Heuristic: if URL has 3+ path segments and a parent matches a list pattern
-    const segments = pathname.split('/').filter(Boolean);
-    if (segments.length >= 2) {
-      const parentPath = '/' + segments[0] + '/';
-      if (LIST_PATTERNS.some(p => p.test('/' + segments[0]))) {
-        map[key] = { template: 'template', variant: 'detail', contentType: contentType || undefined };
+    // 4. Content type → detail template
+    if (contentType) {
+      const detailMatch = CONTENT_TYPE_TO_DETAIL.find(([keyword]) =>
+        contentType.toLowerCase().includes(keyword)
+      );
+      if (detailMatch) {
+        map[key] = { template: detailMatch[1], contentType };
         continue;
       }
     }
 
-    // 7. Default → toolkit
-    map[key] = { template: 'toolkit' };
+    // 5. Parent path heuristic for detail pages
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length >= 2) {
+      const parentMatch = LIST_PARENT_PATTERNS.find(p => segments[0].toLowerCase() === p.base);
+      if (parentMatch) {
+        map[key] = { template: parentMatch.template, contentType: contentType || undefined };
+        continue;
+      }
+    }
+
+    // 6. Default → generic toolkit
+    map[key] = { template: 'Toolkit' };
   }
 
   return map;
 }
 
-/** Get summary counts from page tags */
+/** Get summary counts by category */
 export function getPageTagsSummary(tags: PageTagsMap | null | undefined): {
   custom: number;
-  templateList: number;
-  templateDetail: number;
+  template: number;
   toolkit: number;
   total: number;
 } {
-  if (!tags) return { custom: 0, templateList: 0, templateDetail: 0, toolkit: 0, total: 0 };
+  if (!tags) return { custom: 0, template: 0, toolkit: 0, total: 0 };
   const values = Object.values(tags);
   return {
-    custom: values.filter(t => t.template === 'custom').length,
-    templateList: values.filter(t => t.template === 'template' && t.variant === 'list').length,
-    templateDetail: values.filter(t => t.template === 'template' && t.variant === 'detail').length,
-    toolkit: values.filter(t => t.template === 'toolkit').length,
+    custom: values.filter(t => getTemplateCategory(t.template) === 'custom').length,
+    template: values.filter(t => getTemplateCategory(t.template) === 'template').length,
+    toolkit: values.filter(t => getTemplateCategory(t.template) === 'toolkit').length,
     total: values.length,
   };
 }

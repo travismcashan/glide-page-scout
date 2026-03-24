@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
-import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
+import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
 import type { ClassifiedUrl } from './types';
 
 export type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
@@ -28,11 +28,10 @@ interface ExpandableUrlRowsProps {
   readOnly?: boolean;
   navMap?: Map<string, NavTag[]>;
   pageTags?: PageTagsMap | null;
-  onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
-  onPageLabelChange?: (url: string, label: string) => void;
+  onPageTagChange?: (url: string, template: string) => void;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, onPageLabelChange }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
   const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);
@@ -54,8 +53,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
             <div key={item.url} className="flex items-center gap-2 py-1 px-3 rounded hover:bg-muted/30 group">
               <PageTemplateBadge
                 tag={pageTag}
-                onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url, t, v) : undefined}
-                onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(item.url, l) : undefined}
+                onChange={onPageTagChange ? (t) => onPageTagChange(item.url, t) : undefined}
                 readOnly={!onPageTagChange}
               />
               {uniqueNavTypes.map((type) => (
