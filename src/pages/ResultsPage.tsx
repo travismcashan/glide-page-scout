@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -19,6 +19,7 @@ import { SemrushCard } from '@/components/SemrushCard';
 import { PageSpeedCard } from '@/components/PageSpeedCard';
 import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { DetectZeStackCard } from '@/components/DetectZeStackCard';
+import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
 import { CruxCard } from '@/components/CruxCard';
 import { LighthouseAccessibilityCard, extractPsiAccessibility } from '@/components/LighthouseAccessibilityCard';
@@ -258,7 +259,38 @@ export default function ResultsPage() {
     }).catch((e) => { setDetectzestackFailed(true); setError('detectzestack', e?.message || 'DetectZeStack request failed'); setDetectzestackLoading(false); });
   }, [session, detectzestackLoading, detectzestackFailed, fetchData]);
 
-  // GTmetrix
+  // AI Tech Analysis — runs after at least one tech source has data
+  const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
+  const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
+  const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
+  useEffect(() => {
+    if (techAnalysisData || techAnalysisLoading || techAnalysisFailed) return;
+    if (!session) return;
+    const bw = session.builtwith_data;
+    const dz = (session as any).detectzestack_data;
+    const wp = session.wappalyzer_data;
+    // Need at least one source with data
+    if (!bw && !dz && !wp) return;
+    // Wait until all active sources have finished (have data or are paused/failed)
+    const bwReady = !!bw || isIntegrationPaused('builtwith') || builtwithFailed;
+    const dzReady = !!dz || isIntegrationPaused('detectzestack') || detectzestackFailed;
+    const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed;
+    if (!bwReady || !dzReady || !wpReady) return;
+
+    setTechAnalysisLoading(true);
+    techAnalysisApi.analyze(bw, dz, wp, session.domain).then((result) => {
+      if (result.success) {
+        setTechAnalysisData({ analysis: result.analysis, techCount: result.techCount, sourceCount: result.sourceCount, sources: result.sources });
+        clearError('tech-analysis');
+      } else {
+        setTechAnalysisFailed(true);
+        setError('tech-analysis', result.error || 'AI tech analysis failed');
+      }
+      setTechAnalysisLoading(false);
+    }).catch((e) => { setTechAnalysisFailed(true); setError('tech-analysis', e?.message || 'AI tech analysis failed'); setTechAnalysisLoading(false); });
+  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed]);
+
+
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
     if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
@@ -1397,6 +1429,13 @@ export default function ResultsPage() {
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
+              {/* AI Tech Analysis — merged card */}
+              {(techAnalysisData || techAnalysisLoading) && (
+              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']}>
+                <TechAnalysisCard data={techAnalysisData} isLoading={techAnalysisLoading} />
+              </SectionCard>
+              )}
+
               {shouldShowIntegration('builtwith', !!session?.builtwith_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="builtwith" persistedCollapsed={isSectionCollapsed("builtwith")} onCollapseChange={toggleSection} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)}>
                 {session?.builtwith_data ? (

@@ -650,3 +650,20 @@ export const formsDetectApi = {
     return data;
   },
 };
+
+export const techAnalysisApi = {
+  async analyze(builtwithData: any, detectzestackData: any, wappalyzerData: any, domain: string): Promise<{
+    success: boolean;
+    analysis?: any;
+    techCount?: number;
+    sourceCount?: number;
+    sources?: string[];
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('tech-analysis', {
+      body: { builtwithData, detectzestackData, wappalyzerData, domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
