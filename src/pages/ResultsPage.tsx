@@ -1284,18 +1284,22 @@ export default function ResultsPage() {
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex items-end justify-between border-b-2 border-foreground/30">
-            <TabsList className="h-auto bg-transparent p-0 rounded-none mb-0 gap-0">
+          <div className="relative flex items-end justify-between">
+            {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground/30 z-0" />
+            <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
               <TabsTrigger
                 value="raw-data"
-                className="relative text-base font-bold px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all shadow-none"
+                style={activeTab === 'raw-data' ? { borderBottom: 'none', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)' } : undefined}
+                className="relative text-base font-bold px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Globe className="h-4 w-4 mr-2" />
                 Results
               </TabsTrigger>
               <TabsTrigger
                 value="ai-research"
-                className="relative text-base font-bold px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all shadow-none"
+                style={activeTab === 'ai-research' ? { borderBottom: 'none', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)' } : undefined}
+                className="relative text-base font-bold px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
@@ -1303,7 +1307,8 @@ export default function ResultsPage() {
               {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
                 <TabsTrigger
                   value="avoma"
-                  className="relative text-base font-bold px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent data-[state=active]:border-foreground/30 data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:-mb-[2px] data-[state=active]:pb-[calc(0.625rem+2px)] data-[state=active]:z-10 text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none transition-all shadow-none"
+                  style={activeTab === 'avoma' ? { borderBottom: 'none', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)' } : undefined}
+                  className="relative text-base font-bold px-5 py-2.5 rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
                   <Phone className="h-4 w-4 mr-2" />
                   Avoma Calls
