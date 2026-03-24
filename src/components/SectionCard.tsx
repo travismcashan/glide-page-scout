@@ -17,11 +17,24 @@ type SectionCardProps = {
   /** External collapse control — when provided, overrides internal state */
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  /** Unique section identifier for persisting collapse state */
+  sectionId?: string;
+  /** Callback when collapse state changes (for persistence) */
+  onCollapseChange?: (sectionId: string, collapsed: boolean) => void;
+  /** Persisted collapse state from localStorage */
+  persistedCollapsed?: boolean | undefined;
 };
 
-export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, headerExtra, collapsed: controlledCollapsed, onToggleCollapse }: SectionCardProps) {
-  const [internalCollapsed, setInternalCollapsed] = useState(false);
-  const [hasOverride, setHasOverride] = useState(false);
+export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, headerExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed }: SectionCardProps) {
+  const [internalCollapsed, setInternalCollapsed] = useState(() => {
+    // Initialize from persisted state if available
+    if (persistedCollapsed !== undefined) return persistedCollapsed;
+    return false;
+  });
+  const [hasOverride, setHasOverride] = useState(() => {
+    // If we have persisted state, start with override so global toggle doesn't stomp it
+    return persistedCollapsed !== undefined;
+  });
 
   // When the global toggle changes, reset any local override
   useEffect(() => {
@@ -33,13 +46,18 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
   const isCollapsed = hasOverride ? internalCollapsed : (controlledCollapsed ?? internalCollapsed);
 
   const handleToggle = () => {
+    const newCollapsed = !isCollapsed;
     if (onToggleCollapse) {
       onToggleCollapse();
     } else if (controlledCollapsed !== undefined) {
       setHasOverride(true);
-      setInternalCollapsed(!isCollapsed);
+      setInternalCollapsed(newCollapsed);
     } else {
-      setInternalCollapsed(!internalCollapsed);
+      setInternalCollapsed(newCollapsed);
+    }
+    // Persist the change
+    if (sectionId && onCollapseChange) {
+      onCollapseChange(sectionId, newCollapsed);
     }
   };
 
