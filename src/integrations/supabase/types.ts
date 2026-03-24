@@ -116,6 +116,7 @@ export type Database = {
           created_at: string
           crux_data: Json | null
           deep_research_data: Json | null
+          detectzestack_data: Json | null
           discovered_urls: Json | null
           domain: string
           forms_data: Json | null
@@ -156,6 +157,7 @@ export type Database = {
           created_at?: string
           crux_data?: Json | null
           deep_research_data?: Json | null
+          detectzestack_data?: Json | null
           discovered_urls?: Json | null
           domain: string
           forms_data?: Json | null
@@ -196,6 +198,7 @@ export type Database = {
           created_at?: string
           crux_data?: Json | null
           deep_research_data?: Json | null
+          detectzestack_data?: Json | null
           discovered_urls?: Json | null
           domain?: string
           forms_data?: Json | null
