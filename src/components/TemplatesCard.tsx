@@ -75,6 +75,7 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
   const [aiLoading, setAiLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [collapsedTableSections, setCollapsedTableSections] = useState<Set<string>>(new Set());
 
   // Rotate loading messages
   useEffect(() => {
@@ -220,7 +221,6 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
 
-  const [collapsedTableSections, setCollapsedTableSections] = useState<Set<string>>(new Set());
   const toggleTableSection = (key: string) => {
     setCollapsedTableSections(prev => {
       const next = new Set(prev);
