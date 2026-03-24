@@ -1776,7 +1776,7 @@ export default function ResultsPage() {
 
           </TabsContent>
 
-          <TabsContent value="ai-research" className="mt-0 space-y-6">
+          <TabsContent value="ai-research" className="mt-6 space-y-6">
             {session && (
               <>
                 <SectionCard
