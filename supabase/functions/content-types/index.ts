@@ -260,23 +260,40 @@ CRITICAL RULES:
 5. Blog posts are type Post, NOT CPT — even if there are many.
 6. Individual service/solution sub-pages are Page unless there are ${minCount}+ with identical structure.
 
-You MUST classify EVERY URL provided.`;
+You MUST classify EVERY directory group and top-level page.`;
 
-        const userPrompt = `Analyze this website (${baseUrl}) and classify every URL.
+        // Build compact directory listing — DON'T send all URLs to avoid output truncation
+        const dirListing = Array.from(dirGroups.entries())
+          .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 4).join(', ')}`)
+          .join('\n');
 
-ALL URLs:
-${urls.join('\n')}
+        // Also list single-segment URLs (top-level pages)
+        const singleSegUrls: string[] = [];
+        for (const url of urls) {
+          try {
+            const segs = new URL(url).pathname.split('/').filter(Boolean);
+            if (segs.length === 1) singleSegUrls.push(url);
+          } catch { /* skip */ }
+        }
 
-Directory groups with 2+ URLs:
-${dirSummary || '(none)'}
+        const userPrompt = `Analyze this website (${baseUrl}) and classify its URL structure.
 
-HTML signals:
+IMPORTANT: Classify DIRECTORY GROUPS, not individual URLs. Each group shares a URL prefix.
+
+Homepage: ${homepage || 'not found'}
+
+Top-level pages (single-segment): 
+${singleSegUrls.join('\n') || 'none'}
+
+Directory groups:
+${dirListing || '(none)'}
+
+HTML signals from sampled pages:
 ${htmlContext || '(none)'}
 
-${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes by content type):\n${sitemapContext}\n` : ''}Homepage: ${homepage || 'not found'}
-Top-level pages: ${topLevelPages.join(', ') || 'none'}
-
-Classify every URL with its type and template.${sitemapContext ? ' Sitemap groupings are the strongest signal — use them.' : ''}`;
+${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes content by type):\n${sitemapContext}\n` : ''}
+For each directory group, classify the group as a whole. Return the DIRECTORY PREFIX (e.g., "/testing-services/", "/industry-solutions/", "/blog/") — NOT every individual URL.
+${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : ''}`;
 
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -296,17 +313,17 @@ Classify every URL with its type and template.${sitemapContext ? ' Sitemap group
                   properties: {
                     groups: {
                       type: 'array',
-                      description: 'Groups of URLs sharing the same type and template',
+                      description: 'Groups classified by directory prefix or individual top-level URLs',
                       items: {
                         type: 'object',
                         properties: {
                           baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'], description: 'WordPress content model type' },
-                          cptName: { type: 'string', description: 'CPT name (required for CPT type, e.g. "Case Study", "Team Member")' },
+                          cptName: { type: 'string', description: 'CPT name (required for CPT type, e.g. "Case Study", "Team Member", "Industry", "Service")' },
                           template: { type: 'string', description: 'Template name describing the page purpose' },
-                          urls: { type: 'array', items: { type: 'string' }, description: 'URLs in this group' },
+                          directoryPrefix: { type: 'string', description: 'The URL directory prefix for this group, e.g. "/blog/", "/testing-services/", "/team_members/". Use "/" for homepage.' },
                           confidence: { type: 'string', enum: ['high', 'medium'], description: 'Classification confidence' },
                         },
-                        required: ['baseType', 'template', 'urls', 'confidence'],
+                        required: ['baseType', 'template', 'directoryPrefix', 'confidence'],
                         additionalProperties: false,
                       },
                     },
@@ -328,9 +345,14 @@ Classify every URL with its type and template.${sitemapContext ? ' Sitemap group
           const aiData = await response.json();
           const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall?.function?.arguments) {
-            const parsed = JSON.parse(toolCall.function.arguments);
-            if (parsed?.groups) {
-              aiGroups = parsed.groups;
+            try {
+              const parsed = JSON.parse(toolCall.function.arguments);
+              if (parsed?.groups) {
+                aiGroups = parsed.groups;
+                console.info(`AI classified ${aiGroups.length} directory groups`);
+              }
+            } catch (parseErr) {
+              console.error('Failed to parse AI response:', parseErr);
             }
           }
         } else {
@@ -342,31 +364,43 @@ Classify every URL with its type and template.${sitemapContext ? ' Sitemap group
     }
 
     // Phase 4: Build final classifications
-    // Priority: AI groups (with HTML signal override for individual URLs) > fallback
+    // Map URLs to AI groups by matching directory prefix
 
-    // Build a map from AI results
-    const aiUrlMap = new Map<string, { baseType: BaseType; template: string; cptName?: string; confidence: 'high' | 'medium' }>();
-    for (const group of aiGroups) {
-      for (const url of (group.urls || [])) {
-        aiUrlMap.set(url, { baseType: group.baseType, template: group.template, cptName: group.cptName, confidence: group.confidence });
-      }
+    // Sort AI groups by prefix length descending so more specific matches win
+    const sortedGroups = [...aiGroups].sort((a, b) =>
+      (b.directoryPrefix?.length || 0) - (a.directoryPrefix?.length || 0)
+    );
+
+    function findAiGroup(url: string): typeof aiGroups[0] | null {
+      try {
+        const pathname = new URL(url).pathname.toLowerCase();
+        for (const group of sortedGroups) {
+          const prefix = (group.directoryPrefix || '').toLowerCase().replace(/\/$/, '');
+          if (!prefix || prefix === '/') {
+            // Homepage match — only exact match
+            if (pathname === '/' || pathname === '') return group;
+            continue;
+          }
+          if (pathname.startsWith(prefix + '/') || pathname === prefix) return group;
+        }
+      } catch { /* skip */ }
+      return null;
     }
 
     for (const url of urls) {
       const htmlSig = htmlSignals.get(url);
-      const aiResult = aiUrlMap.get(url);
+      const aiGroup = findAiGroup(url);
 
-      if (aiResult) {
-        // Use AI result, but boost confidence with HTML signal if matching
-        const conf = htmlSig ? 'high' : aiResult.confidence;
+      if (aiGroup) {
+        const conf = htmlSig ? 'high' : (aiGroup.confidence || 'medium');
         classified.push({
           url,
-          contentType: aiResult.cptName || aiResult.template,
-          confidence: conf,
+          contentType: aiGroup.cptName || aiGroup.template,
+          confidence: conf as 'high' | 'medium' | 'low',
           source: htmlSig ? htmlSig.source : 'ai',
-          baseType: aiResult.baseType,
-          template: aiResult.template,
-          cptName: aiResult.cptName,
+          baseType: aiGroup.baseType as BaseType,
+          template: aiGroup.template,
+          cptName: aiGroup.cptName,
         });
       } else if (htmlSig) {
         classified.push({
@@ -378,7 +412,6 @@ Classify every URL with its type and template.${sitemapContext ? ' Sitemap group
           template: htmlSig.type,
         });
       } else {
-        // Unclassified — default to Page
         classified.push({
           url,
           contentType: 'Uncategorized',
