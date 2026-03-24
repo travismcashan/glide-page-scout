@@ -259,7 +259,38 @@ export default function ResultsPage() {
     }).catch((e) => { setDetectzestackFailed(true); setError('detectzestack', e?.message || 'DetectZeStack request failed'); setDetectzestackLoading(false); });
   }, [session, detectzestackLoading, detectzestackFailed, fetchData]);
 
-  // GTmetrix
+  // AI Tech Analysis — runs after at least one tech source has data
+  const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
+  const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
+  const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
+  useEffect(() => {
+    if (techAnalysisData || techAnalysisLoading || techAnalysisFailed) return;
+    if (!session) return;
+    const bw = session.builtwith_data;
+    const dz = (session as any).detectzestack_data;
+    const wp = session.wappalyzer_data;
+    // Need at least one source with data
+    if (!bw && !dz && !wp) return;
+    // Wait until all active sources have finished (have data or are paused/failed)
+    const bwReady = !!bw || isIntegrationPaused('builtwith') || builtwithFailed;
+    const dzReady = !!dz || isIntegrationPaused('detectzestack') || detectzestackFailed;
+    const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed;
+    if (!bwReady || !dzReady || !wpReady) return;
+
+    setTechAnalysisLoading(true);
+    techAnalysisApi.analyze(bw, dz, wp, session.domain).then((result) => {
+      if (result.success) {
+        setTechAnalysisData({ analysis: result.analysis, techCount: result.techCount, sourceCount: result.sourceCount, sources: result.sources });
+        clearError('tech-analysis');
+      } else {
+        setTechAnalysisFailed(true);
+        setError('tech-analysis', result.error || 'AI tech analysis failed');
+      }
+      setTechAnalysisLoading(false);
+    }).catch((e) => { setTechAnalysisFailed(true); setError('tech-analysis', e?.message || 'AI tech analysis failed'); setTechAnalysisLoading(false); });
+  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed]);
+
+
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
     if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
