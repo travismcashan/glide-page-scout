@@ -124,15 +124,15 @@ For each tier, list ONLY template names that need custom design. Everything not 
                   },
                   reasoning_S: {
                     type: 'string',
-                    description: 'Markdown-formatted explanation for the Small tier: why these ~5 templates were chosen, what trade-offs were made. Use **bold** for template names.',
+                    description: 'Markdown-formatted explanation for the Small tier: why these ~5 templates were chosen, what trade-offs were made. Use **bold** for template names. This is the foundational tier.',
                   },
                   reasoning_M: {
                     type: 'string',
-                    description: 'Markdown-formatted explanation for the Medium tier: what was added beyond Small and why. Use **bold** for template names.',
+                    description: 'Markdown-formatted explanation for ONLY the templates added in Medium beyond Small. Do NOT repeat Small tier reasoning. Explain what new templates were added and why they matter. Use **bold** for template names.',
                   },
                   reasoning_L: {
                     type: 'string',
-                    description: 'Markdown-formatted explanation for the Large tier: what was added beyond Medium and why. Use **bold** for template names.',
+                    description: 'Markdown-formatted explanation for ONLY the templates added in Large beyond Medium. Do NOT repeat Small or Medium tier reasoning. Explain what new templates were added and why. Use **bold** for template names.',
                   },
                 },
                 required: ['S', 'M', 'L', 'reasoning', 'reasoning_S', 'reasoning_M', 'reasoning_L'],
