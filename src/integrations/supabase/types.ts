@@ -124,6 +124,7 @@ export type Database = {
           gtmetrix_test_id: string | null
           httpstatus_data: Json | null
           id: string
+          integration_durations: Json | null
           linkcheck_data: Json | null
           nav_structure: Json | null
           observations_data: Json | null
@@ -162,6 +163,7 @@ export type Database = {
           gtmetrix_test_id?: string | null
           httpstatus_data?: Json | null
           id?: string
+          integration_durations?: Json | null
           linkcheck_data?: Json | null
           nav_structure?: Json | null
           observations_data?: Json | null
@@ -200,6 +202,7 @@ export type Database = {
           gtmetrix_test_id?: string | null
           httpstatus_data?: Json | null
           id?: string
+          integration_durations?: Json | null
           linkcheck_data?: Json | null
           nav_structure?: Json | null
           observations_data?: Json | null
