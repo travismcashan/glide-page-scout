@@ -1,6 +1,5 @@
-import { Badge } from '@/components/ui/badge';
 import { CardTabs } from '@/components/CardTabs';
-import { CheckCircle, ArrowRight, XCircle, Clock, ExternalLink } from 'lucide-react';
+import { CheckCircle, ArrowRight, XCircle, ExternalLink } from 'lucide-react';
 
 type LinkResult = {
   url: string;
@@ -22,51 +21,49 @@ type LinkCheckData = {
   results: LinkResult[];
 };
 
-function statusBadgeClass(code: number): string {
-  if (code >= 200 && code < 300) return 'bg-green-500/10 text-green-600 border-green-500/30';
-  if (code >= 300 && code < 400) return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30';
-  if (code >= 400) return 'bg-destructive/10 text-destructive border-destructive/30';
-  return 'bg-muted text-muted-foreground border-border';
-}
-
-function LinkRow({ result }: { result: LinkResult }) {
-  return (
-    <div className="flex items-center gap-3 py-2 px-3 border-b border-border last:border-0">
-      <Badge variant="outline" className={`text-[11px] px-1.5 py-0 font-mono shrink-0 ${statusBadgeClass(result.statusCode)}`}>
-        {result.statusCode || 'ERR'}
-      </Badge>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-mono truncate text-foreground">{result.url}</p>
-        {result.redirectUrl && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-            <ArrowRight className="h-3 w-3 shrink-0" />
-            <span className="truncate">{result.redirectUrl}</span>
-          </div>
-        )}
-        {result.error && (
-          <p className="text-xs text-destructive mt-0.5">{result.error}</p>
-        )}
-      </div>
-      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-        <Clock className="h-3 w-3" />
-        <span>{result.responseTimeMs}ms</span>
-      </div>
-      <a href={result.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground">
-        <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-    </div>
-  );
-}
-
-function LinkList({ results, emptyMessage }: { results: LinkResult[]; emptyMessage?: string }) {
+function LinkList({ results, emptyMessage, showRedirect }: { results: LinkResult[]; emptyMessage?: string; showRedirect?: boolean }) {
   if (results.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-4">{emptyMessage || 'None found.'}</p>
+      <p className="text-sm text-muted-foreground py-4 text-center italic">{emptyMessage || 'None found.'}</p>
     );
   }
   return (
     <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-card">
-      {results.map((r, i) => <LinkRow key={i} result={r} />)}
+      <table className="w-full text-sm table-fixed">
+        <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+          <tr className="text-left">
+            <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground">URL</th>
+            {showRedirect && (
+              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground">Redirects To</th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {results.map((r, i) => (
+            <tr key={i} className="border-t border-border/50 hover:bg-muted/20 transition-colors group">
+              <td className="px-3 py-1">
+                <div className="flex items-center gap-1 min-w-0">
+                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono leading-5 truncate text-muted-foreground hover:text-primary hover:underline">
+                    {r.url}
+                  </a>
+                  {r.error && (
+                    <span className="text-[10px] text-destructive shrink-0">({r.error})</span>
+                  )}
+                </div>
+              </td>
+              {showRedirect && (
+                <td className="px-3 py-1">
+                  {r.redirectUrl ? (
+                    <a href={r.redirectUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-mono leading-5 truncate block text-muted-foreground hover:text-primary hover:underline">
+                      {r.redirectUrl}
+                    </a>
+                  ) : null}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -107,7 +104,7 @@ export function BrokenLinksCard({ data }: { data: LinkCheckData }) {
             value: 'redirects',
             label: `Redirects (${redirectUrls.length})`,
             icon: <ArrowRight className="h-3.5 w-3.5" />,
-            content: <LinkList results={redirectUrls} emptyMessage="No redirects found." />,
+            content: <LinkList results={redirectUrls} emptyMessage="No redirects found." showRedirect />,
           },
           {
             value: 'ok',
