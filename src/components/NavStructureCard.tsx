@@ -316,11 +316,11 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span>{totalCount} total unique links</span>
-          {primary.length > 0 && <span>· {countLinks(primary)} primary</span>}
-          {secondary.length > 0 && <span>· {countLinks(secondary)} secondary</span>}
-          {footer.length > 0 && <span>· {countLinks(footer)} footer-only</span>}
+        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{totalCount}</strong> Total Unique Links</span>
+          {primary.length > 0 && <><span>·</span><span><strong className="text-foreground">{countLinks(primary)}</strong> Primary</span></>}
+          {secondary.length > 0 && <><span>·</span><span><strong className="text-foreground">{countLinks(secondary)}</strong> Secondary</span></>}
+          {footer.length > 0 && <><span>·</span><span><strong className="text-foreground">{countLinks(footer)}</strong> Footer Only</span></>}
         </div>
         <div className="flex items-center gap-1.5">
           <Button variant="ghost" size="sm" onClick={() => setGlobalExpand(true)} className="h-7 text-xs gap-1 px-2">
