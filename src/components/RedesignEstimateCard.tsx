@@ -287,9 +287,6 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
     </div>
   );
 }
-    return <p className="text-sm text-muted-foreground">No page classification data available yet. Run URL Discovery and Content Types first.</p>;
-  }
-
   const totalPages = Object.keys(pageTags).length;
 
   return (
