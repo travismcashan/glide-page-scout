@@ -57,9 +57,21 @@ function groupByDirectory(urls: string[], baseUrl: string): Record<string, strin
         if (SINGLE_PAGE_SLUGS.has(segments[0].toLowerCase())) continue;
         continue;
       }
-      const dir = segments[0].toLowerCase();
-      if (!groups[dir]) groups[dir] = [];
-      groups[dir].push(url);
+      // Group by deepest meaningful prefix (up to 2 levels)
+      // e.g., /testing-services/package-testing/drop/ → "testing-services/package-testing"
+      // e.g., /industry-solutions/medical-device/ → "industry-solutions/medical-device" 
+      // e.g., /blog/my-post/ → "blog"
+      const dir1 = segments[0].toLowerCase();
+      const dir2 = segments.length >= 3 ? `${dir1}/${segments[1].toLowerCase()}` : dir1;
+      
+      // Add to both first-level and second-level groups
+      if (!groups[dir1]) groups[dir1] = [];
+      groups[dir1].push(url);
+      
+      if (dir2 !== dir1) {
+        if (!groups[dir2]) groups[dir2] = [];
+        groups[dir2].push(url);
+      }
     } catch { /* skip bad URLs */ }
   }
 
