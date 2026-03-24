@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Loader2, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import type { PageTagsMap } from '@/lib/pageTags';
 import { normalizeTagKey, getTemplateCategory } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
-const TIER_SIZES = { S: 5, M: 10, L: 15, All: Infinity } as const;
-type TierKey = keyof typeof TIER_SIZES;
+const TIER_KEYS = ['S', 'M', 'L', 'All'] as const;
+type TierKey = (typeof TIER_KEYS)[number];
 
 const baseTypeColors: Record<string, string> = {
   Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
@@ -17,14 +20,8 @@ const baseTypeColors: Record<string, string> = {
   Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
 };
 
-// Priority order for sorting templates: Page first (custom pages are most important for redesign),
-// then Archive (list pages), then Post/CPT (repeating), then Search/toolkit last.
 const baseTypePriority: Record<string, number> = {
-  Page: 0,
-  Archive: 1,
-  CPT: 2,
-  Post: 3,
-  Search: 4,
+  Page: 0, Archive: 1, CPT: 2, Post: 3, Search: 4,
 };
 
 interface NavItem {
@@ -37,9 +34,9 @@ interface Props {
   pageTags: PageTagsMap | null;
   contentTypesData: ContentTypesData | null;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
+  domain?: string;
 }
 
-/** Collect all URLs from a nav tree */
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
   const urls = new Set<string>();
   if (!items) return urls;
@@ -91,10 +88,19 @@ function TableSection({ title, columns, colAligns, rows }: {
   );
 }
 
-export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure }: Props) {
+interface AiTiers {
+  S: string[];
+  M: string[];
+  L: string[];
+  reasoning: string;
+}
+
+export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure, domain }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
+  const [aiTiers, setAiTiers] = useState<AiTiers | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const { baseTypeCounts, templates, contentTypes, totalTemplates } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
@@ -113,52 +119,37 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
       }
     }
 
-    // Collect nav URLs by section
     const primaryNavUrls = collectNavUrls(navStructure?.primary);
     const secondaryNavUrls = collectNavUrls(navStructure?.secondary);
     const footerNavUrls = collectNavUrls(navStructure?.footer);
 
     const getNavSection = (urls: string[]): 'Primary' | 'Secondary' | 'Footer' | null => {
-      for (const u of urls) {
-        const key = normalizeTagKey(u);
-        if (primaryNavUrls.has(key)) return 'Primary';
-      }
-      for (const u of urls) {
-        const key = normalizeTagKey(u);
-        if (secondaryNavUrls.has(key)) return 'Secondary';
-      }
-      for (const u of urls) {
-        const key = normalizeTagKey(u);
-        if (footerNavUrls.has(key)) return 'Footer';
-      }
+      for (const u of urls) { if (primaryNavUrls.has(normalizeTagKey(u))) return 'Primary'; }
+      for (const u of urls) { if (secondaryNavUrls.has(normalizeTagKey(u))) return 'Secondary'; }
+      for (const u of urls) { if (footerNavUrls.has(normalizeTagKey(u))) return 'Footer'; }
       return null;
     };
 
     const navPriority: Record<string, number> = { Primary: 0, Secondary: 1, Footer: 2 };
 
-    // Sort by base type first (Page → Archive → CPT → Post → Search), then nav section, then count
     const sortedTemplates = Object.entries(templateMap)
-      .map(([name, data]) => {
-        const navSection = getNavSection(data.urls);
-        return { name, ...data, navSection };
-      })
+      .map(([name, data]) => ({
+        name,
+        ...data,
+        navSection: getNavSection(data.urls),
+      }))
       .sort((a, b) => {
-        // Homepage always first
         if (a.name === 'Homepage') return -1;
         if (b.name === 'Homepage') return 1;
-        // Base type priority first
         const pa = baseTypePriority[a.baseType || 'Page'] ?? 5;
         const pb = baseTypePriority[b.baseType || 'Page'] ?? 5;
         if (pa !== pb) return pa - pb;
-        // Then by nav section
         const na = a.navSection ? navPriority[a.navSection] ?? 3 : 4;
         const nb = b.navSection ? navPriority[b.navSection] ?? 3 : 4;
         if (na !== nb) return na - nb;
-        // Then by count desc
         return b.count - a.count;
       });
 
-    // Content types: only Post and CPT
     const ctList: { type: string; count: number; baseType?: string }[] = [];
     if (contentTypesData?.summary) {
       for (const s of contentTypesData.summary) {
@@ -185,8 +176,38 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
     setSeeded(true);
   }
 
+  const fetchAiRecommendations = useCallback(async () => {
+    if (aiTiers || aiLoading || templates.length === 0) return;
+    setAiLoading(true);
+    try {
+      const payload = {
+        domain: domain || 'unknown',
+        templates: templates.map(t => ({
+          name: t.name,
+          baseType: t.baseType || 'Page',
+          urlCount: t.count,
+          navSection: t.navSection,
+        })),
+      };
+
+      const { data, error } = await supabase.functions.invoke('recommend-templates', { body: payload });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'AI analysis failed');
+
+      const tiers = data.tiers as AiTiers;
+      setAiTiers(tiers);
+      toast.success('AI recommendations ready');
+    } catch (err) {
+      console.error('AI recommend error:', err);
+      toast.error('Failed to get AI recommendations');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [aiTiers, aiLoading, templates, domain]);
+
   const toggleExcluded = (name: string) => {
-    setActiveTier(null); // manual override clears tier
+    setActiveTier(null);
     setExcluded(prev => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
@@ -201,13 +222,43 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
       return;
     }
     setActiveTier(tier);
-    const limit = TIER_SIZES[tier];
-    const newExcluded = new Set<string>();
-    templates.forEach((t, i) => {
-      if (i >= limit) newExcluded.add(t.name);
-    });
-    setExcluded(newExcluded);
+
+    if (tier === 'All') {
+      setExcluded(new Set());
+      return;
+    }
+
+    // If we have AI tiers, use them
+    if (aiTiers) {
+      const included = new Set(aiTiers[tier as 'S' | 'M' | 'L']);
+      const newExcluded = new Set<string>();
+      for (const t of templates) {
+        if (!included.has(t.name)) newExcluded.add(t.name);
+      }
+      setExcluded(newExcluded);
+      return;
+    }
+
+    // Fallback: fetch AI recommendations first
+    fetchAiRecommendations();
   };
+
+  // When AI tiers arrive and a tier is active, apply it
+  const applyPendingTier = useCallback(() => {
+    if (aiTiers && activeTier && activeTier !== 'All') {
+      const included = new Set(aiTiers[activeTier as 'S' | 'M' | 'L']);
+      const newExcluded = new Set<string>();
+      for (const t of templates) {
+        if (!included.has(t.name)) newExcluded.add(t.name);
+      }
+      setExcluded(newExcluded);
+    }
+  }, [aiTiers, activeTier, templates]);
+
+  // Apply pending tier when aiTiers arrives
+  useMemo(() => {
+    applyPendingTier();
+  }, [applyPendingTier]);
 
   if (!pageTags || Object.keys(pageTags).length === 0) {
     return <p className="text-sm text-muted-foreground">No page classification data available yet. Run URL Discovery and Content Types first.</p>;
@@ -216,6 +267,12 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
   const totalPages = Object.keys(pageTags).length;
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
+
+  const tierLabel = (tier: TierKey) => {
+    if (tier === 'All') return 'All';
+    if (aiTiers) return `${tier} (${aiTiers[tier as 'S' | 'M' | 'L'].length})`;
+    return tier === 'S' ? 'S (~5)' : tier === 'M' ? 'M (~10)' : 'L (~15)';
+  };
 
   return (
     <div className="space-y-6">
@@ -251,16 +308,39 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
             {`Level 2 — Unique Templates (${totalTemplates})`}
           </h4>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Preset:</span>
+            {aiLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            {!aiTiers && !aiLoading && (
+              <button
+                onClick={fetchAiRecommendations}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                <Sparkles className="h-3 w-3" />
+                AI Recommend
+              </button>
+            )}
+            {aiTiers && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" />
+                AI
+              </span>
+            )}
             <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
-              {(Object.keys(TIER_SIZES) as TierKey[]).map(tier => (
-                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
-                  {tier === 'All' ? 'All' : `${tier} (${TIER_SIZES[tier]})`}
+              {TIER_KEYS.map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+                  {tierLabel(tier)}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
           </div>
         </div>
+
+        {/* AI reasoning */}
+        {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
+          <p className="text-xs text-muted-foreground mb-2 italic border-l-2 border-primary/30 pl-2">
+            {aiTiers.reasoning}
+          </p>
+        )}
+
         <div className="border border-border rounded-md overflow-hidden">
           <table className="w-full text-sm table-fixed">
             <thead>
