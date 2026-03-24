@@ -335,7 +335,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                       autoFocus
                       onClick={(e) => e.stopPropagation()}
                     />
-                  ) : `${row.type}${row.baseType ? ` (${row.baseType === 'Archive' ? 'Archive — i.e. list pages' : row.baseType === 'Search' ? 'Search — i.e. query strings' : row.baseType})` : ''}`}
+                  ) : `${row.type}${row.baseType ? ` (${row.baseType === 'Archive' ? 'Taxonomy' : row.baseType === 'Search' ? 'Search — i.e. query strings' : row.baseType})` : ''}`}
                 </span>
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{row.count}</Badge>
               </button>

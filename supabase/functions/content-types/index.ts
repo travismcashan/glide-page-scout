@@ -280,7 +280,7 @@ Classify each DIRECTORY GROUP into exactly ONE type:
 - **Page**: One-off pages with unique designs. Only for directories with 1-2 child URLs or utility pages.
 - **Post**: Blog/news articles in a date-based feed. Usually under /blog/, /news/, /articles/.
 - **CPT** (Custom Post Type): ANY directory group with ${minCount}+ child URLs that follow a repeating template. This includes services, industries, solutions, test standards, team members, case studies, products, portfolio items, locations, resources, etc. Provide the CPT name.
-- **Archive**: The top-level index/list page of a CPT or blog section (e.g., /blog/ with no slug, /services/ as a listing page).
+- **Archive / Taxonomy**: Taxonomy and meta pages — tag pages, author pages, category pages, pagination pages (/page/2/, /page/3/), and list/index pages for CPT or blog sections. These are NOT CPTs even if there are many of them. They do not need custom design templates.
 - **Search**: Site search results pages.
 
 Then assign a TEMPLATE name:
@@ -314,7 +314,7 @@ Additional rules:
 3. A single index/listing page at a directory root (e.g., /services/ itself with no child slug) is Archive.
 4. Only truly unique one-off pages (About, Contact, Careers) are Page type.
 5. When in doubt between Page and CPT for a group with ${minCount}+ URLs, ALWAYS choose CPT.
-6. **TAXONOMY ARCHIVES are Archive, NOT CPT.** Directories like /tag/, /tags/, /author/, /authors/, /category/, /categories/, /topics/ are taxonomy term listing pages — they list posts filtered by a term. Even if they have many child URLs, they are Archive (template: "Archive: Tags", "Archive: Authors", etc.), NOT CPT. In WordPress these are built-in taxonomy archives, not custom post types.
+6. **TAXONOMY & PAGINATION pages are ALWAYS Archive, NEVER CPT.** This includes: /tag/*, /tags/*, /author/*, /authors/*, /category/*, /categories/*, /topics/*, and pagination like /page/2/, /page/3/, or ?page=2. Even if a directory has many child URLs matching these patterns, classify as Archive. These are meta/navigation pages, not content that needs custom design.
 
 You MUST classify EVERY directory group.`;
 
