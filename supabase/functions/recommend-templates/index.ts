@@ -62,22 +62,29 @@ Deno.serve(async (req) => {
       .map(t => `- "${t.name}" (${t.baseType}, ${t.urlCount} URLs${t.navSection ? `, in ${t.navSection} nav` : ''})`)
       .join('\n');
 
-    const tierSizes = { S: 5, M: 10, L: 15 };
+    // Calculate dynamic tier ranges based on total non-toolkit template count
+    const total = templates.length;
+    const third = Math.round(total / 3);
+    const sRange = { min: Math.max(2, third - 1), max: third + 1 };
+    const mRange = { min: Math.max(sRange.max + 1, third * 2 - 2), max: third * 2 + 1 };
+    const lRange = { min: Math.max(mRange.max + 1, total - 3), max: total };
+
+    const tierSizes = { S: sRange, M: mRange, L: lRange };
     const requestedTier = tier && tierSizes[tier as keyof typeof tierSizes] ? tier : null;
 
     const userPrompt = `Website domain: ${domain || 'unknown'}
 
-Here are all ${templates.length} unique page templates found on this site:
+Here are all ${total} unique page templates found on this site:
 ${templateList}
 
 ${requestedTier
-  ? `Recommend exactly which templates should get CUSTOM DESIGN for a "${requestedTier}" tier (target ~${tierSizes[requestedTier as keyof typeof tierSizes]} templates). Pick only the ones that truly need unique design work.`
-  : `For each tier, recommend which templates should get custom design:
-- S tier (~5 templates): The absolute essentials — if you could only design 5 pages
-- M tier (~10 templates): A solid redesign covering all key experiences  
-- L tier (~15 templates): Comprehensive — all pages that benefit from custom design
+  ? `Recommend exactly which templates should get CUSTOM DESIGN for a "${requestedTier}" tier (target ${tierSizes[requestedTier as keyof typeof tierSizes].min}–${tierSizes[requestedTier as keyof typeof tierSizes].max} templates). Pick only the ones that truly need unique design work.`
+  : `There are ${total} total templates. For each tier, recommend which templates should get custom design using ranges relative to this site's size:
+- S tier (${sRange.min}–${sRange.max} templates): The absolute essentials — the minimum viable set of custom-designed pages
+- M tier (${mRange.min}–${mRange.max} templates): A solid redesign covering all key experiences  
+- L tier (${lRange.min}–${lRange.max} templates): Comprehensive — all pages that genuinely benefit from custom design
 
-For each tier, list ONLY template names that need custom design. Everything not listed is "block-built" (assembled from generic components).`
+For each tier, list ONLY template names that need custom design. Everything not listed is "block-built" (assembled from generic components). Choose the exact count within each range that feels right for this specific site.`
 }`;
 
     console.log(`[recommend-templates] Analyzing ${templates.length} templates for ${domain}, tier=${requestedTier || 'all'}`);
