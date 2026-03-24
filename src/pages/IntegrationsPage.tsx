@@ -36,7 +36,7 @@ const integrations: Integration[] = [
   // ── 📄 Content & Scraping ──
   { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'content', status: 'active' },
-  { name: 'Firecrawl', id: 'firecrawl', description: 'Web scraping, content extraction, and sitemap discovery', secretKey: 'FIRECRAWL_API_KEY', configured: true, category: 'content', status: 'active' },
+  
   { name: 'Thum.io', id: 'thumio', description: 'Full-page website screenshots', secretKey: 'THUMIO_SECRET_KEY', configured: true, category: 'content', status: 'active' },
   { name: 'Readable.com', id: 'readable', description: 'Content readability scoring — Flesch-Kincaid, Gunning Fog, SMOG, Coleman-Liau, keyword density, and grade-level analysis', secretKey: 'READABLE_API_KEY', configured: true, category: 'content', status: 'active' },
   { name: 'Schema.org Validator', id: 'schema', description: 'Structured data analysis (JSON-LD, Microdata, RDFa) — detects schema types, validates required fields, and checks Google rich results eligibility. Free, no API key.', secretKey: '', configured: true, category: 'content', status: 'active' },
