@@ -120,8 +120,8 @@ const navBadgeLabel: Record<string, string> = {
   footer: 'Footer',
 };
 
-const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }>(
-  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range', pageTags, onPageTagChange }, ref) => {
+const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void; onPageLabelChange?: (url: string, label: string) => void }>(
+  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range', pageTags, onPageTagChange, onPageLabelChange }, ref) => {
     if (!urls.length) {
       return <p className="text-sm text-muted-foreground italic py-4 text-center">{emptyText}</p>;
     }
@@ -150,6 +150,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
               <PageTemplateBadge
                 tag={pageTag}
                 onChange={onPageTagChange ? (t, v) => onPageTagChange(url, t, v) : undefined}
+                onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(url, l) : undefined}
                 readOnly={!onPageTagChange}
               />
               {uniqueTypes.map((type) => (
