@@ -67,12 +67,21 @@ const typeColors: Record<string, string> = {
 
 export function FormsCard({ data }: Props) {
   const [expandedForms, setExpandedForms] = useState<Set<number>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const { forms, summary } = data;
 
   const toggleForm = (idx: number) => {
     setExpandedForms(prev => {
       const next = new Set(prev);
       if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
+
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group); else next.add(group);
       return next;
     });
   };
@@ -112,16 +121,20 @@ export function FormsCard({ data }: Props) {
             {/* Global forms section */}
             {globalForms.length > 0 && (
               <>
-                <tr>
+                <tr className="cursor-pointer" onClick={() => toggleGroup('global')}>
                   <td colSpan={6} className="p-0">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors">
+                      {collapsedGroups.has('global')
+                        ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      }
                       <Globe className="h-3.5 w-3.5 shrink-0 text-primary" />
                       <span className="text-xs font-semibold text-foreground">Global Forms</span>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{globalForms.length}</Badge>
                     </div>
                   </td>
                 </tr>
-                {globalForms.map((form, i) => (
+                {!collapsedGroups.has('global') && globalForms.map((form, i) => (
                   <FormRow key={`g-${i}`} form={form} index={i} isExpanded={expandedForms.has(i)} onToggle={() => toggleForm(i)} />
                 ))}
               </>
@@ -130,16 +143,20 @@ export function FormsCard({ data }: Props) {
             {/* Page-specific forms */}
             {pageForms.length > 0 && (
               <>
-                <tr>
+                <tr className="cursor-pointer" onClick={() => toggleGroup('page')}>
                   <td colSpan={6} className="p-0">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 border-t border-border">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 border-t border-border hover:bg-muted/60 transition-colors">
+                      {collapsedGroups.has('page')
+                        ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      }
                       <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span className="text-xs font-semibold text-foreground">Page-Specific Forms</span>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{pageForms.length}</Badge>
                     </div>
                   </td>
                 </tr>
-                {pageForms.map((form, i) => {
+                {!collapsedGroups.has('page') && pageForms.map((form, i) => {
                   const idx = globalForms.length + i;
                   return <FormRow key={`p-${i}`} form={form} index={idx} isExpanded={expandedForms.has(idx)} onToggle={() => toggleForm(idx)} />;
                 })}
