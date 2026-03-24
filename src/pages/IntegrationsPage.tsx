@@ -40,7 +40,7 @@ const integrations: Integration[] = [
   // ── 🎨 Design Analysis ──
   { name: 'Page Templates', id: 'auto-tag-pages', description: 'AI-powered template classification — assigns Custom, Template, or Toolkit badges to every URL based on industry-aware layout detection', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active' },
-  { name: 'Thum.io', id: 'thumio', description: 'Full-page website screenshots', secretKey: 'THUMIO_SECRET_KEY', configured: true, category: 'content', status: 'active' },
+  
 
   // ── 🔧 Technology Detection ──
   { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true },
