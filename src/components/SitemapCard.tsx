@@ -48,17 +48,15 @@ export function SitemapCard({ data }: Props) {
     <div className="space-y-4">
       {/* Summary stats */}
       {stats && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <Badge variant="secondary" className="text-xs">
-            {stats.sitemapsFound} sitemap{stats.sitemapsFound !== 1 ? 's' : ''}
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            {stats.totalUrls.toLocaleString()} total URLs
-          </Badge>
+        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{stats.sitemapsFound}</strong> Sitemap{stats.sitemapsFound !== 1 ? 's' : ''}</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{stats.totalUrls.toLocaleString()}</strong> Total URLs</span>
           {stats.contentTypeHintsCount > 0 && (
-            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30">
-              {stats.contentTypeHintsCount} content type hint{stats.contentTypeHintsCount !== 1 ? 's' : ''}
-            </Badge>
+            <>
+              <span>·</span>
+              <span><strong className="text-foreground">{stats.contentTypeHintsCount}</strong> Content Type Hint{stats.contentTypeHintsCount !== 1 ? 's' : ''}</span>
+            </>
           )}
         </div>
       )}

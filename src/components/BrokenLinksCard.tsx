@@ -71,25 +71,14 @@ export function BrokenLinksCard({ data }: { data: LinkCheckData }) {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="flex flex-wrap gap-3">
-        <div className="flex items-center gap-1.5">
-          <CheckCircle className="h-4 w-4 text-green-500" />
-          <span className="text-sm font-medium text-foreground">{summary.ok}</span>
-          <span className="text-xs text-muted-foreground">OK</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <ArrowRight className="h-4 w-4 text-yellow-500" />
-          <span className="text-sm font-medium text-foreground">{summary.redirects}</span>
-          <span className="text-xs text-muted-foreground">Redirects</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <XCircle className="h-4 w-4 text-destructive" />
-          <span className="text-sm font-medium text-foreground">{summary.clientErrors + summary.serverErrors + summary.failures}</span>
-          <span className="text-xs text-muted-foreground">Broken</span>
-        </div>
-        <div className="ml-auto">
-          <Badge variant="secondary" className="text-xs">{summary.total} checked</Badge>
-        </div>
+      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+        <span><strong className="text-foreground">{summary.ok}</strong> OK</span>
+        <span>·</span>
+        <span><strong className="text-foreground">{summary.redirects}</strong> Redirects</span>
+        <span>·</span>
+        <span><strong className="text-foreground">{summary.clientErrors + summary.serverErrors + summary.failures}</strong> Broken</span>
+        <span>·</span>
+        <span><strong className="text-foreground">{summary.total}</strong> Checked</span>
       </div>
 
       {/* Progress bar */}

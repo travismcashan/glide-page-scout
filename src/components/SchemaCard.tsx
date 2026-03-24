@@ -27,36 +27,26 @@ export function SchemaCard({ data }: { data: SchemaData }) {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
         {hasSchemas ? (
-          <Badge variant="outline" className="gap-1.5 text-xs">
-            <FileJson className="h-3 w-3" />
-            {summary.totalSchemas} schema{summary.totalSchemas !== 1 ? 's' : ''} found
-          </Badge>
+          <span><strong className="text-foreground">{summary.totalSchemas}</strong> Schema{summary.totalSchemas !== 1 ? 's' : ''} Found</span>
         ) : (
-          <Badge variant="destructive" className="gap-1.5 text-xs">
-            <XCircle className="h-3 w-3" />
-            No structured data found
-          </Badge>
+          <span className="text-destructive"><strong>No Structured Data Found</strong></span>
         )}
         {summary.jsonLdCount > 0 && (
-          <Badge variant="secondary" className="text-xs">JSON-LD: {summary.jsonLdCount}</Badge>
+          <><span>·</span><span><strong className="text-foreground">{summary.jsonLdCount}</strong> JSON-LD</span></>
         )}
         {summary.microdataCount > 0 && (
-          <Badge variant="secondary" className="text-xs">Microdata: {summary.microdataCount}</Badge>
+          <><span>·</span><span><strong className="text-foreground">{summary.microdataCount}</strong> Microdata</span></>
         )}
         {summary.rdfaCount > 0 && (
-          <Badge variant="secondary" className="text-xs">RDFa: {summary.rdfaCount}</Badge>
+          <><span>·</span><span><strong className="text-foreground">{summary.rdfaCount}</strong> RDFa</span></>
         )}
         {summary.errorCount > 0 && (
-          <Badge variant="destructive" className="gap-1 text-xs">
-            <XCircle className="h-3 w-3" /> {summary.errorCount} error{summary.errorCount !== 1 ? 's' : ''}
-          </Badge>
+          <><span>·</span><span className="text-destructive"><strong>{summary.errorCount}</strong> Error{summary.errorCount !== 1 ? 's' : ''}</span></>
         )}
         {summary.warningCount > 0 && (
-          <Badge className="gap-1 text-xs bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30">
-            <AlertTriangle className="h-3 w-3" /> {summary.warningCount} warning{summary.warningCount !== 1 ? 's' : ''}
-          </Badge>
+          <><span>·</span><span className="text-yellow-600 dark:text-yellow-400"><strong>{summary.warningCount}</strong> Warning{summary.warningCount !== 1 ? 's' : ''}</span></>
         )}
       </div>
 
