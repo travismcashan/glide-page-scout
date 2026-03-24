@@ -1265,6 +1265,22 @@ export default function ResultsPage() {
                 {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
               </SectionCard>
               )}
+
+              {shouldShowIntegration('forms', !!(session as any)?.forms_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Detection" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)}>
+                {(session as any)?.forms_data ? (
+                  <FormsCard data={(session as any).forms_data} />
+                ) : !formsLoading ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
+                    <Button variant="outline" size="sm" onClick={runFormsDetection} disabled={formsLoading}>
+                      <Search className="h-3.5 w-3.5 mr-1.5" />
+                      Detect Forms
+                    </Button>
+                  </div>
+                ) : null}
+              </SectionCard>
+              )}
             </div>
           </div>
         )}
