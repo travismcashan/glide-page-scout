@@ -8,13 +8,37 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ConfidenceBadge, SourceBadge } from '@/components/content-types/ConfidenceBadge';
-import { ExpandableUrlRows } from '@/components/content-types/ExpandableUrlRows';
+import { ExpandableUrlRows, type NavTag } from '@/components/content-types/ExpandableUrlRows';
 import type { ContentTypesData, ClassifiedUrl } from '@/components/content-types/types';
 import { rebuildSummary } from '@/components/content-types/types';
 
 export { type ContentTypesData } from '@/components/content-types/types';
 
-export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void }) {
+type NavItem = { label: string; url?: string | null; children?: NavItem[] };
+type NavStructureData = { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[]; items?: NavItem[] } | null;
+
+function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
+  const map = new Map<string, NavTag[]>();
+  if (!nav) return map;
+  const walk = (items: NavItem[] | undefined, type: 'primary' | 'secondary' | 'footer') => {
+    if (!items) return;
+    for (const item of items) {
+      if (item.url) {
+        const key = item.url.toLowerCase().replace(/\/$/, '');
+        const existing = map.get(key) || [];
+        existing.push({ type, label: item.label });
+        map.set(key, existing);
+      }
+      if (item.children) walk(item.children, type);
+    }
+  };
+  walk(nav.primary, 'primary');
+  walk(nav.secondary, 'secondary');
+  walk(nav.footer, 'footer');
+  return map;
+}
+
+export function ContentTypesCard({ data, onDataChange, navStructure }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
