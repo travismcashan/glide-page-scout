@@ -1235,28 +1235,31 @@ export default function ResultsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-6xl mx-auto space-y-3">
+          {/* Row 1: Large domain name */}
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
-              <h1 className="font-semibold text-lg">{session?.domain}</h1>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{session?.base_url}</span>
-                {session?.created_at && (
-                  <>
-                    <span>·</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {session?.domain?.replace(/^www\./i, '')}
+            </h1>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Row 2: URL, date, and action buttons */}
+          <div className="flex items-center justify-between pl-11">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{session?.base_url}</span>
+              {session?.created_at && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -1329,6 +1332,7 @@ export default function ResultsPage() {
             ) : pages.length > 0 ? (
               <Badge variant="secondary">{progress}% — {completedCount}/{pages.length} scraped</Badge>
             ) : null}
+            </div>
           </div>
         </div>
       </header>
