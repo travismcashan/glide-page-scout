@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Globe, RefreshCw, Loader2, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { firecrawlApi, sitemapApi } from '@/lib/api/firecrawl';
+import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
 import { SectionCard } from '@/components/SectionCard';
 import { CardTabs } from '@/components/CardTabs';
