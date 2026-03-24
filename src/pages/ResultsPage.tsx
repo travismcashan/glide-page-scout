@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2 } from 'lucide-react';
+import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
@@ -1251,10 +1252,29 @@ export default function ResultsPage() {
                 </span>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="shrink-0 text-muted-foreground mt-2">
-              <ArrowLeft className="h-4 w-4 mr-1.5" />
-              Back
-            </Button>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground mt-2">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-64 p-0">
+                <nav className="flex flex-col gap-1 p-4 pt-12">
+                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/')}>
+                    <Search className="h-5 w-5" />
+                    New Search
+                  </Button>
+                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/history')}>
+                    <History className="h-5 w-5" />
+                    History
+                  </Button>
+                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/integrations')}>
+                    <Settings className="h-5 w-5" />
+                    Integrations
+                  </Button>
+                </nav>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
