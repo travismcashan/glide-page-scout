@@ -43,7 +43,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
           const pageTag = getPageTag(pageTags, item.url);
           return (
-            <div key={item.url} className="flex items-center px-3 py-1.5 hover:bg-muted/30 transition-colors group">
+            <div key={item.url} className="flex items-center px-3 py-1.5 hover:bg-muted/20 transition-colors group">
               {/* Left: URL */}
               <div className="flex items-center flex-1 min-w-0 gap-2">
                 <Tooltip>

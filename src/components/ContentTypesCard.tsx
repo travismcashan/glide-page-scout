@@ -228,7 +228,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           return (
             <div key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
               <div
-                className="grid grid-cols-[auto_1fr_60px_80px_80px] items-center border-t border-border hover:bg-muted/30 cursor-pointer transition-colors"
+                className="grid grid-cols-[auto_1fr_60px_80px_80px] items-center border-t border-border bg-muted/40 hover:bg-muted/60 cursor-pointer transition-colors"
                 onClick={() => setExpandedTypes(prev => { const next = new Set(prev); if (isExpanded) next.delete(row.type); else next.add(row.type); return next; })}
               >
                 <div className="flex items-center gap-1 px-3 py-1.5">
@@ -283,7 +283,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                 <div className="px-3 py-1.5"><ConfidenceBadge conf={row.confidence} /></div>
               </div>
               {isExpanded && (
-                <div className="border-t border-border bg-muted/20 py-2">
+                <div className="border-t border-border bg-card py-2">
                   <ExpandableUrlRows
                     urls={displayUrls}
                     allTypes={allTypes}
