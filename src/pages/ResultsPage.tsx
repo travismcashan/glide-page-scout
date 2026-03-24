@@ -643,10 +643,8 @@ export default function ResultsPage() {
   const [linkcheckProgress, setLinkcheckProgress] = useState<{ checked: number; total: number } | null>(null);
   const [linkcheckStreamingResults, setLinkcheckStreamingResults] = useState<{ url: string; statusCode: number }[] | null>(null);
   const linkcheckRunningRef = useRef(false);
-  const lastLinkcheckKeyRef = useRef<string | null>(null);
   const linkcheckAbortRef = useRef<AbortController | null>(null);
   const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
-  const effectiveLinkcheckKey = session ? `${session.id}:${effectiveDiscoveredUrls.join('|')}` : null;
 
   const stopLinkcheck = useCallback(async () => {
     linkcheckAbortRef.current?.abort();
@@ -654,17 +652,17 @@ export default function ResultsPage() {
 
   useEffect(() => {
     if (!session || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
-    if (!effectiveLinkcheckKey) return;
-    if (linkcheckRunningRef.current || lastLinkcheckKeyRef.current === effectiveLinkcheckKey) return;
+    if (linkcheckRunningRef.current) return;
     linkcheckRunningRef.current = true;
-    lastLinkcheckKeyRef.current = effectiveLinkcheckKey;
+    // Snapshot URLs at start so mid-run URL changes don't cause issues
+    const urlsToCheck = [...effectiveDiscoveredUrls];
     const abortController = new AbortController();
     linkcheckAbortRef.current = abortController;
     setLinkcheckLoading(true);
     setLinkcheckStreamingResults(null);
-    setLinkcheckProgress({ checked: 0, total: effectiveDiscoveredUrls.length });
+    setLinkcheckProgress({ checked: 0, total: urlsToCheck.length });
     linkCheckerApi.check(
-      effectiveDiscoveredUrls,
+      urlsToCheck,
       (checked, total) => { setLinkcheckProgress({ checked, total }); },
       (partialResults) => { setLinkcheckStreamingResults(partialResults); },
       abortController.signal,
@@ -674,13 +672,13 @@ export default function ResultsPage() {
         clearError('link-checker');
         setLinkcheckStreamingResults(null);
         await fetchData();
-      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); lastLinkcheckKeyRef.current = null; }
+      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
       linkcheckAbortRef.current = null;
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; lastLinkcheckKeyRef.current = null; linkcheckAbortRef.current = null; });
-  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, effectiveLinkcheckKey, fetchData]);
+    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
+  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData]);
 
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
@@ -991,7 +989,7 @@ export default function ResultsPage() {
       schema: () => { setSchemaFailed(false); setSchemaLoading(false); },
       readable: () => { setReadableFailed(false); setReadableLoading(false); },
       yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
-      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null; },
+      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false; },
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
@@ -1067,7 +1065,7 @@ export default function ResultsPage() {
     setSchemaFailed(false); setSchemaLoading(false);
     setReadableFailed(false); setReadableLoading(false);
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
-    setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null;
+    setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false;
     setAvomaFailed(false); setAvomaLoading(false);
     setNavFailed(false); setNavLoading(false);
     setSitemapFailed(false); setSitemapLoading(false);
@@ -1406,7 +1404,7 @@ export default function ResultsPage() {
                     setLinkcheckFailed(false);
                     setLinkcheckLoading(false);
                     linkcheckRunningRef.current = false;
-                    lastLinkcheckKeyRef.current = null;
+                    linkcheckRunningRef.current = false;
                     setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
                     fetchData();
