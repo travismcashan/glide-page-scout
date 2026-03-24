@@ -753,14 +753,18 @@ export default function ResultsPage() {
     }
   }, [session, formsLoading, effectiveDiscoveredUrls, fetchData]);
 
-  // Auto-run forms detection after discovered URLs are available
+  // Auto-run forms detection after content types and nav structure are ready
   const formsAutoRunRef = useRef(false);
   useEffect(() => {
     if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
     if (effectiveDiscoveredUrls.length === 0) return;
+    // Wait for content types and nav structure to finish (or fail) before running forms
+    const ctReady = !!(session as any).content_types_data || contentTypesFailed;
+    const navDone = !!(session as any).nav_structure || navFailed;
+    if (!ctReady || !navDone) return;
     formsAutoRunRef.current = true;
     runFormsDetection();
-  }, [session, formsLoading, formsFailed, effectiveDiscoveredUrls, runFormsDetection]);
+  }, [session, formsLoading, formsFailed, effectiveDiscoveredUrls, runFormsDetection, contentTypesFailed, navFailed]);
 
   const [contentTypesLoading, setContentTypesLoading] = useState(false);
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
