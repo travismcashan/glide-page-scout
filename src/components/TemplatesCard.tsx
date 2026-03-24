@@ -87,11 +87,11 @@ const LOADING_MESSAGES = [
   'Counting unique layouts with abacuses…',
 ];
 
-export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
+export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
-  const [aiTiers, setAiTiers] = useState<AiTiers | null>(null);
+  const [aiTiers, setAiTiers] = useState<AiTiers | null>(savedTiers || null);
   const [aiLoading, setAiLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
