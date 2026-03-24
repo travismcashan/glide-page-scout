@@ -262,21 +262,38 @@ CRITICAL RULES:
 
 You MUST classify EVERY URL provided.`;
 
-        const userPrompt = `Analyze this website (${baseUrl}) and classify every URL.
+        // Build compact directory listing — DON'T send all URLs to avoid output truncation
+        const dirListing = Array.from(dirGroups.entries())
+          .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 4).join(', ')}`)
+          .join('\n');
 
-ALL URLs:
-${urls.join('\n')}
+        // Also list single-segment URLs (top-level pages)
+        const singleSegUrls: string[] = [];
+        for (const url of urls) {
+          try {
+            const segs = new URL(url).pathname.split('/').filter(Boolean);
+            if (segs.length === 1) singleSegUrls.push(url);
+          } catch { /* skip */ }
+        }
 
-Directory groups with 2+ URLs:
-${dirSummary || '(none)'}
+        const userPrompt = `Analyze this website (${baseUrl}) and classify its URL structure.
 
-HTML signals:
+IMPORTANT: Classify DIRECTORY GROUPS, not individual URLs. Each group shares a URL prefix.
+
+Homepage: ${homepage || 'not found'}
+
+Top-level pages (single-segment): 
+${singleSegUrls.join('\n') || 'none'}
+
+Directory groups:
+${dirListing || '(none)'}
+
+HTML signals from sampled pages:
 ${htmlContext || '(none)'}
 
-${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes by content type):\n${sitemapContext}\n` : ''}Homepage: ${homepage || 'not found'}
-Top-level pages: ${topLevelPages.join(', ') || 'none'}
-
-Classify every URL with its type and template.${sitemapContext ? ' Sitemap groupings are the strongest signal — use them.' : ''}`;
+${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes content by type):\n${sitemapContext}\n` : ''}
+For each directory group, classify the group as a whole. Return the DIRECTORY PREFIX (e.g., "/testing-services/", "/industry-solutions/", "/blog/") — NOT every individual URL.
+${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : ''}`;
 
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
