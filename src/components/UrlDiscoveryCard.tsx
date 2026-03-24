@@ -128,40 +128,44 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
     }
 
     return (
-      <div ref={ref} className="space-y-0 max-h-[300px] overflow-y-auto rounded-lg border border-border bg-card">
-        {urls.map((url) => {
-          const status = statusMap.get(url);
-          const isPending = status == null;
-          const navKey = url.toLowerCase().replace(/\/$/, '');
-          const tags = navMap.get(navKey) || [];
-          const uniqueTypes = [...new Set(tags.map(t => t.type))];
-          const pageTag = getPageTag(pageTags, url);
+      <div ref={ref} className="max-h-[300px] overflow-y-auto rounded-lg border border-border bg-card">
+        <table className="w-full text-sm table-fixed">
+          <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+            <tr className="text-left">
+              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground">URL</th>
+              <th className="px-2 py-1.5 font-medium text-xs text-muted-foreground text-center w-[70px]">Type</th>
+              <th className="px-2 py-1.5 font-medium text-xs text-muted-foreground text-center w-[120px]">Template</th>
+            </tr>
+          </thead>
+          <tbody>
+            {urls.map((url) => {
+              const pageTag = getPageTag(pageTags, url);
 
-          return (
-            <div key={url} className="flex items-center gap-2 px-3 py-1.5 border-b border-border last:border-0">
-              {isPending ? (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-                  Pending
-                </Badge>
-              ) : (
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono shrink-0 ${statusBadgeClass(status)}`}>
-                  {status}
-                </Badge>
-              )}
-              <PageTemplateBadge
-                tag={pageTag}
-                onChange={onPageTagChange ? (t) => onPageTagChange(url, t) : undefined}
-                readOnly={!onPageTagChange}
-              />
-              {uniqueTypes.map((type) => (
-                <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
-                  {navBadgeLabel[type]}
-                </Badge>
-              ))}
-              <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-mono truncate text-muted-foreground flex-1 hover:text-primary hover:underline">{url}</a>
-            </div>
-          );
-        })}
+              return (
+                <tr key={url} className="border-t border-border hover:bg-muted/30 transition-colors group">
+                  <td className="px-3 py-1.5">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-mono truncate block text-muted-foreground hover:text-primary hover:underline">{url}</a>
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    {pageTag?.baseType && (
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[pageTag.baseType] || ''}`}>
+                        {pageTag.baseType}
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    <PageTemplateBadge
+                      tag={pageTag}
+                      onChange={onPageTagChange ? (t) => onPageTagChange(url, t) : undefined}
+                      readOnly={!onPageTagChange}
+                      hideBaseType
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     );
   },
