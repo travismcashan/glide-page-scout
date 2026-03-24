@@ -131,11 +131,18 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 }) {
   const defaultExpanded = depth < 2;
   const [localToggle, setLocalToggle] = useState<boolean | null>(null);
+  const [lastGlobal, setLastGlobal] = useState<boolean | null | undefined>(globalExpand);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
   const isBold = depth === 0 || hasChildren || !item.url;
 
-  const expanded = globalExpand !== null && globalExpand !== undefined ? globalExpand : localToggle !== null ? localToggle : defaultExpanded;
+  // Reset local override when global signal changes
+  if (globalExpand !== lastGlobal) {
+    setLastGlobal(globalExpand);
+    setLocalToggle(null);
+  }
+
+  const expanded = localToggle !== null ? localToggle : globalExpand !== null && globalExpand !== undefined ? globalExpand : defaultExpanded;
 
   return (
     <div>
@@ -145,7 +152,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
         </span>
 
         {hasChildren ? (
-          <button onClick={() => setLocalToggle(prev => !(prev ?? expanded))} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
+          <button onClick={() => setLocalToggle(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
         ) : null}
@@ -211,7 +218,7 @@ function NavSection({ title, icon, items, emptyText, globalExpand, pageTags, onP
       {items.length > 0 ? (
         <div className="border border-border rounded-lg p-2 bg-muted/20">
           {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}-${globalExpand}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       ) : emptyText ? (
