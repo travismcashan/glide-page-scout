@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -18,6 +18,7 @@ import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
 import { PageSpeedCard } from '@/components/PageSpeedCard';
 import { WappalyzerCard } from '@/components/WappalyzerCard';
+import { DetectZeStackCard } from '@/components/DetectZeStackCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
 import { CruxCard } from '@/components/CruxCard';
 import { LighthouseAccessibilityCard, extractPsiAccessibility } from '@/components/LighthouseAccessibilityCard';
@@ -123,6 +124,7 @@ export default function ResultsPage() {
   const [semrushLoading, setSemrushLoading] = useState(false);
   const [psiLoading, setPsiLoading] = useState(false);
   const [wappalyzerLoading, setWappalyzerLoading] = useState(false);
+  const [detectzestackLoading, setDetectzestackLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
   const [cruxLoading, setCruxLoading] = useState(false);
   const [waveLoading, setWaveLoading] = useState(false);
@@ -240,6 +242,21 @@ export default function ResultsPage() {
       setWappalyzerLoading(false);
     }).catch((e) => { setWappalyzerFailed(true); setError('wappalyzer', e?.message || 'Wappalyzer request failed'); setWappalyzerLoading(false); });
   }, [session, wappalyzerLoading, wappalyzerFailed, fetchData]);
+
+  // DetectZeStack
+  const [detectzestackFailed, setDetectzestackFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).detectzestack_data || detectzestackLoading || detectzestackFailed || isIntegrationPaused('detectzestack')) return;
+    setDetectzestackLoading(true);
+    detectzestackApi.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ detectzestack_data: { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth } } as any).eq('id', session.id);
+        clearError('detectzestack');
+        fetchData();
+      } else { setDetectzestackFailed(true); setError('detectzestack', result.error || 'DetectZeStack returned an error'); }
+      setDetectzestackLoading(false);
+    }).catch((e) => { setDetectzestackFailed(true); setError('detectzestack', e?.message || 'DetectZeStack request failed'); setDetectzestackLoading(false); });
+  }, [session, detectzestackLoading, detectzestackFailed, fetchData]);
 
   // GTmetrix
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
@@ -861,6 +878,7 @@ export default function ResultsPage() {
       semrush: () => { setSemrushFailed(false); setSemrushLoading(false); },
       psi: () => { setPsiFailed(false); setPsiLoading(false); },
       wappalyzer: () => { setWappalyzerFailed(false); setWappalyzerLoading(false); },
+      detectzestack: () => { setDetectzestackFailed(false); setDetectzestackLoading(false); },
       gtmetrix: () => { setGtmetrixFailed(false); setRunningGtmetrix(false); },
       carbon: () => { setCarbonFailed(false); setCarbonLoading(false); },
       crux: () => { setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); },
@@ -894,6 +912,7 @@ export default function ResultsPage() {
     { key: 'sitemap', dbColumn: 'sitemap_data' },
     { key: 'builtwith', dbColumn: 'builtwith_data' },
     { key: 'wappalyzer', dbColumn: 'wappalyzer_data' },
+    { key: 'detectzestack', dbColumn: 'detectzestack_data' },
     { key: 'gtmetrix', dbColumn: 'gtmetrix_grade' },
     { key: 'psi', dbColumn: 'psi_data' },
     { key: 'crux', dbColumn: 'crux_data' },
@@ -934,6 +953,7 @@ export default function ResultsPage() {
     setSemrushFailed(false); setSemrushLoading(false);
     setPsiFailed(false); setPsiLoading(false);
     setWappalyzerFailed(false); setWappalyzerLoading(false);
+    setDetectzestackFailed(false); setDetectzestackLoading(false);
     setGtmetrixFailed(false); setRunningGtmetrix(false);
     setCarbonFailed(false); setCarbonLoading(false);
     setCruxFailed(false); setCruxNoData(false); setCruxLoading(false);
@@ -969,7 +989,7 @@ export default function ResultsPage() {
   const prevLoadingRef = useRef<Record<string, boolean>>({});
   const loadingMap: Record<string, boolean> = {
     builtwith: builtwithLoading, semrush: semrushLoading, psi: psiLoading,
-    wappalyzer: wappalyzerLoading, carbon: carbonLoading, crux: cruxLoading,
+    wappalyzer: wappalyzerLoading, detectzestack: detectzestackLoading, carbon: carbonLoading, crux: cruxLoading,
     wave: waveLoading, observatory: observatoryLoading, ocean: oceanLoading,
     ssllabs: ssllabsLoading, httpstatus: httpstatusLoading, w3c: w3cLoading,
     schema: schemaLoading, readable: readableLoading, yellowlab: yellowlabLoading,
@@ -1373,7 +1393,7 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔧 Technology Detection ══════ */}
-        {(shouldShowIntegration('builtwith', !!session?.builtwith_data) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data)) && (
+        {(shouldShowIntegration('builtwith', !!session?.builtwith_data) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
@@ -1383,6 +1403,14 @@ export default function ResultsPage() {
                   <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
                 ) : !builtwithLoading && !builtwithFailed ? (
                   <p className="text-sm text-muted-foreground">Technology detection will run automatically.</p>
+                ) : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="detectzestack" persistedCollapsed={isSectionCollapsed("detectzestack")} onCollapseChange={toggleSection} title="DetectZeStack — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={detectzestackLoading && !(session as any)?.detectzestack_data} loadingText="Running DetectZeStack detection..." error={detectzestackFailed} errorText={integrationErrors.detectzestack} headerExtra={rerunButton('detectzestack', 'detectzestack_data', detectzestackLoading)}>
+                {(session as any)?.detectzestack_data ? (
+                  <DetectZeStackCard data={(session as any).detectzestack_data} />
                 ) : null}
               </SectionCard>
               )}
