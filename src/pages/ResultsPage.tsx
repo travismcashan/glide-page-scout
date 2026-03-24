@@ -620,7 +620,27 @@ export default function ResultsPage() {
     }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData]);
 
+  // Auto-seed page tags after content types are available
   useEffect(() => {
+    if (!session || !effectiveDiscoveredUrls.length) return;
+    // Only auto-seed if page_tags is empty/null
+    if ((session as any).page_tags && Object.keys((session as any).page_tags).length > 0) return;
+    const ctData = (session as any).content_types_data;
+    const classified = ctData?.classified || [];
+    const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
+    if (Object.keys(seeded).length > 0) {
+      supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id).then(() => fetchData());
+    }
+  }, [session?.id, (session as any)?.content_types_data, effectiveDiscoveredUrls.length]);
+
+  const handlePageTagChange = useCallback(async (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => {
+    if (!session) return;
+    const updated = setPageTemplate((session as any).page_tags, url, template, variant);
+    await supabase.from('crawl_sessions').update({ page_tags: updated } as any).eq('id', session.id);
+    fetchData();
+  }, [session, fetchData]);
+
+
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
     if (pending.length === 0) return;
     const processPage = async (page: CrawlPage) => {
