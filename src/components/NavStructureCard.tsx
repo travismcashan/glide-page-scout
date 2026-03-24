@@ -154,7 +154,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 
   return (
     <div>
-      <div className="flex items-center px-3 py-1.5 hover:bg-muted/20 transition-colors group border-t border-border first:border-t-0">
+      <div className="flex items-center px-3 py-1.5 hover:bg-muted/20 transition-colors group border-t border-border">
         {/* Left: tree + label */}
         <div className="flex items-center flex-1 min-w-0">
           <span className="font-mono text-xs leading-5 text-foreground/50 whitespace-pre select-none shrink-0">
