@@ -234,40 +234,6 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
   );
 }
 
-function NavSection({ title, icon, items, emptyText, globalExpand, pageTags, onPageTagChange }: {
-  title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string;
-  globalExpand?: boolean | null; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void;
-}) {
-  if (!items.length && !emptyText) return null;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        {icon}
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h4>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1">{items.length}</Badge>
-      </div>
-      {items.length > 0 ? (
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
-            <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
-            <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
-            <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
-            <span className="w-[16px]" />
-          </div>
-          <div>
-            {items.map((item, idx) => (
-              <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
-            ))}
-          </div>
-        </div>
-      ) : emptyText ? (
-        <p className="text-xs text-muted-foreground italic pl-6">{emptyText}</p>
-      ) : null}
-    </div>
-  );
-}
-
 function countLinks(items: NavItem[]): number {
   let count = 0;
   for (const item of items) {
@@ -277,15 +243,23 @@ function countLinks(items: NavItem[]): number {
   return count;
 }
 
+type SectionDef = {
+  key: string;
+  title: string;
+  icon: React.ReactNode;
+  items: NavItem[];
+  emptyText?: string;
+};
+
 export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
   const [copiedFormat, setCopiedFormat] = useState<'md' | 'rich' | null>(null);
   const [globalExpand, setGlobalExpand] = useState<boolean | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const rawPrimary = data.primary || data.items || [];
   const rawSecondary = data.secondary || [];
   const rawFooter = data.footer || [];
 
-  // Infer nesting for flat section headers
   const primary = inferNesting(rawPrimary);
   const secondary = inferNesting(rawSecondary);
   const footer = inferNesting(rawFooter);
@@ -295,6 +269,20 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
   }
 
   const totalCount = data.totalLinks || (countLinks(primary) + countLinks(secondary) + countLinks(footer));
+
+  const sections: SectionDef[] = [
+    { key: 'primary', title: 'Primary Navigation', icon: <Navigation className="h-3.5 w-3.5 text-muted-foreground" />, items: primary },
+    ...(secondary.length > 0 ? [{ key: 'secondary', title: 'Secondary Navigation', icon: <PanelTop className="h-3.5 w-3.5 text-muted-foreground" />, items: secondary }] : []),
+    { key: 'footer', title: 'Footer Only (unique pages)', icon: <Menu className="h-3.5 w-3.5 text-muted-foreground" />, items: footer, emptyText: 'No unique footer links — all footer items match the header navigation.' },
+  ];
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const copyMarkdown = async () => {
     const md = toMarkdown(primary, secondary, footer);
@@ -326,7 +314,7 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span>{totalCount} total unique links</span>
@@ -354,21 +342,51 @@ export function NavStructureCard({ data, pageTags, onPageTagChange }: { data: Na
         </div>
       </div>
 
-      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Sticky header */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
+          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
+          <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
+          <span className="w-[16px]" />
+        </div>
 
-      {secondary.length > 0 && (
-        <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
-      )}
+        {sections.map((section) => {
+          const isCollapsed = collapsedSections.has(section.key);
+          const linkCount = countLinks(section.items);
 
-      <NavSection
-        title="Footer Only (unique pages)"
-        icon={<Menu className="h-3.5 w-3.5 text-muted-foreground" />}
-        items={footer}
-        emptyText="No unique footer links — all footer items match the header navigation."
-        globalExpand={globalExpand}
-        pageTags={pageTags}
-        onPageTagChange={onPageTagChange}
-      />
+          return (
+            <div key={section.key}>
+              {/* Section header — collapsible */}
+              <button
+                onClick={() => toggleSection(section.key)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
+              >
+                {isCollapsed
+                  ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                }
+                {section.icon}
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section.title}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1 shrink-0">{linkCount}</Badge>
+              </button>
+
+              {/* Section content */}
+              {!isCollapsed && (
+                section.items.length > 0 ? (
+                  <div>
+                    {section.items.map((item, idx) => (
+                      <NavTreeItem key={`${section.key}-${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === section.items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+                    ))}
+                  </div>
+                ) : section.emptyText ? (
+                  <p className="text-xs text-muted-foreground italic px-3 py-2">{section.emptyText}</p>
+                ) : null
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
