@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertTriangle, PauseCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 type SectionCardProps = {
   title: string;
@@ -12,6 +13,8 @@ type SectionCardProps = {
   error?: boolean;
   errorText?: string;
   paused?: boolean;
+  /** Called when the user toggles the pause switch on the results page */
+  onTogglePause?: () => void;
   /** Extra content shown in the header bar (right side) */
   headerExtra?: React.ReactNode;
   /** External collapse control — when provided, overrides internal state */
@@ -25,18 +28,16 @@ type SectionCardProps = {
   persistedCollapsed?: boolean | undefined;
 };
 
-export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, headerExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed }: SectionCardProps) {
+export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed }: SectionCardProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
-    // Initialize from persisted state if available
     if (persistedCollapsed !== undefined) return persistedCollapsed;
+    if (paused) return true;
     return false;
   });
   const [hasOverride, setHasOverride] = useState(() => {
-    // If we have persisted state, start with override so global toggle doesn't stomp it
     return persistedCollapsed !== undefined;
   });
 
-  // When the global toggle changes, reset any local override
   useEffect(() => {
     if (controlledCollapsed !== undefined) {
       setHasOverride(false);
@@ -46,6 +47,7 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
   const isCollapsed = hasOverride ? internalCollapsed : (controlledCollapsed ?? internalCollapsed);
 
   const handleToggle = () => {
+    if (paused) return;
     const newCollapsed = !isCollapsed;
     if (onToggleCollapse) {
       onToggleCollapse();
@@ -55,24 +57,33 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
     } else {
       setInternalCollapsed(newCollapsed);
     }
-    // Persist the change
     if (sectionId && onCollapseChange) {
       onCollapseChange(sectionId, newCollapsed);
     }
   };
 
   return (
-    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-60' : ''}`}>
+    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-50' : ''}`}>
       <div
-        className="px-4 py-2.5 border-b border-border flex items-center gap-2.5 cursor-pointer select-none hover:bg-muted/30 transition-colors"
+        className={`px-4 py-2.5 border-b border-border flex items-center gap-2.5 select-none transition-colors ${paused ? 'cursor-default' : 'cursor-pointer hover:bg-muted/30'}`}
         onClick={handleToggle}
       >
         <div className="p-1.5 rounded-md bg-muted">{icon}</div>
         <h2 className="text-base font-semibold">{title}</h2>
         {headerExtra && !paused && <div className="ml-auto" onClick={e => e.stopPropagation()}>{headerExtra}</div>}
-        {paused && (
+        {paused && onTogglePause && (
+          <div className="ml-auto flex items-center gap-2" onClick={e => e.stopPropagation()}>
+            <span className="text-xs text-muted-foreground">Off</span>
+            <Switch
+              checked={false}
+              onCheckedChange={() => onTogglePause()}
+              className="data-[state=unchecked]:bg-destructive"
+            />
+          </div>
+        )}
+        {paused && !onTogglePause && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto gap-0.5">
-            <PauseCircle className="h-3 w-3" /> Paused
+            Paused
           </Badge>
         )}
         {error && !paused && (
@@ -80,15 +91,15 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
             <AlertTriangle className="h-3 w-3 mr-0.5" /> Error
           </Badge>
         )}
-        <div className={`shrink-0 ${headerExtra || paused || error ? '' : 'ml-auto'}`}>
-          {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
-        </div>
+        {!paused && (
+          <div className={`shrink-0 ${headerExtra || error ? '' : 'ml-auto'}`}>
+            {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+          </div>
+        )}
       </div>
-      {!isCollapsed && (
+      {!isCollapsed && !paused && (
         <div className="p-6">
-          {paused ? (
-            <p className="text-sm text-muted-foreground py-2">This integration is paused. Enable it on the Integrations page to run it.</p>
-          ) : loading ? (
+          {loading ? (
             <div className="flex items-center gap-2 text-muted-foreground py-4">
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               <span className="text-sm">{loadingText || 'Loading...'}</span>

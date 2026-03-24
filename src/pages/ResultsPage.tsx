@@ -41,9 +41,10 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 
-/** Always show all integrations — paused ones appear collapsed with a toggle */
-function shouldShowIntegration(_key: string, _hasData: boolean): boolean {
-  return true;
+/** Show integration if it has data, is active, or user toggled "Show All" */
+function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean): boolean {
+  if (showAll) return true;
+  return hasData || !isIntegrationPaused(key);
 }
 import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
@@ -139,6 +140,7 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
+  const [showAllIntegrations, setShowAllIntegrations] = useState(true);
   const [activeTab, setActiveTab] = useState('raw-data');
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
@@ -207,7 +209,7 @@ export default function ResultsPage() {
       }
       setBuiltwithLoading(false);
     }).catch((e) => { setBuiltwithFailed(true); setError('builtwith', e?.message || 'BuiltWith request failed'); setBuiltwithLoading(false); });
-  }, [session, builtwithLoading, builtwithFailed, fetchData
+  }, [session, builtwithLoading, builtwithFailed, fetchData, pauseVersion]);
   // SEMrush
   const [semrushFailed, setSemrushFailed] = useState(false);
   useEffect(() => {
@@ -224,7 +226,7 @@ export default function ResultsPage() {
       }
       setSemrushLoading(false);
     }).catch((e) => { setSemrushFailed(true); setError('semrush', e?.message || 'SEMrush request failed'); setSemrushLoading(false); });
-  }, [session, semrushLoading, semrushFailed, fetchData
+  }, [session, semrushLoading, semrushFailed, fetchData, pauseVersion]);
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
@@ -238,7 +240,7 @@ export default function ResultsPage() {
       } else { setPsiFailed(true); setError('psi', result.error || 'PageSpeed Insights returned an error'); }
       setPsiLoading(false);
     }).catch((e) => { setPsiFailed(true); setError('psi', e?.message || 'PageSpeed request failed'); setPsiLoading(false); });
-  }, [session, psiLoading, psiFailed, fetchData
+  }, [session, psiLoading, psiFailed, fetchData, pauseVersion]);
   // Wappalyzer
   const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
   useEffect(() => {
@@ -252,7 +254,7 @@ export default function ResultsPage() {
       } else { setWappalyzerFailed(true); setError('wappalyzer', result.error || 'Wappalyzer returned an error'); }
       setWappalyzerLoading(false);
     }).catch((e) => { setWappalyzerFailed(true); setError('wappalyzer', e?.message || 'Wappalyzer request failed'); setWappalyzerLoading(false); });
-  }, [session, wappalyzerLoading, wappalyzerFailed, fetchData
+  }, [session, wappalyzerLoading, wappalyzerFailed, fetchData, pauseVersion]);
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
@@ -266,7 +268,7 @@ export default function ResultsPage() {
       } else { setDetectzestackFailed(true); setError('detectzestack', result.error || 'DetectZeStack returned an error'); }
       setDetectzestackLoading(false);
     }).catch((e) => { setDetectzestackFailed(true); setError('detectzestack', e?.message || 'DetectZeStack request failed'); setDetectzestackLoading(false); });
-  }, [session, detectzestackLoading, detectzestackFailed, fetchData
+  }, [session, detectzestackLoading, detectzestackFailed, fetchData, pauseVersion]);
   // AI Tech Analysis — runs after at least one tech source has data
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
@@ -308,7 +310,7 @@ export default function ResultsPage() {
       }
       setTechAnalysisLoading(false);
     }).catch((e) => { setTechAnalysisFailed(true); setError('tech-analysis', e?.message || 'AI tech analysis failed'); setTechAnalysisLoading(false); });
-  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed, builtwithLoading, detectzestackLoading, wappalyzerLoading
+  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed, builtwithLoading, detectzestackLoading, wappalyzerLoading, pauseVersion]);
 
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
@@ -322,7 +324,7 @@ export default function ResultsPage() {
       } else { setGtmetrixFailed(true); setError('gtmetrix', result.error || 'GTmetrix returned an error'); }
       setRunningGtmetrix(false);
     }).catch((e) => { setGtmetrixFailed(true); setError('gtmetrix', e?.message || 'GTmetrix request failed'); setRunningGtmetrix(false); });
-  }, [session, runningGtmetrix, gtmetrixFailed, fetchData
+  }, [session, runningGtmetrix, gtmetrixFailed, fetchData, pauseVersion]);
   // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
@@ -336,7 +338,7 @@ export default function ResultsPage() {
       } else { setCarbonFailed(true); setError('carbon', result.error || 'Website Carbon returned an error'); }
       setCarbonLoading(false);
     }).catch((e) => { setCarbonFailed(true); setError('carbon', e?.message || 'Website Carbon request failed'); setCarbonLoading(false); });
-  }, [session, carbonLoading, carbonFailed, fetchData
+  }, [session, carbonLoading, carbonFailed, fetchData, pauseVersion]);
   // CrUX
   const [cruxFailed, setCruxFailed] = useState(false);
   const [cruxNoData, setCruxNoData] = useState(false);
@@ -353,7 +355,7 @@ export default function ResultsPage() {
       } else { setCruxFailed(true); setError('crux', result.error || 'CrUX returned an error'); }
       setCruxLoading(false);
     }).catch((e) => { setCruxFailed(true); setError('crux', e?.message || 'CrUX request failed'); setCruxLoading(false); });
-  }, [session, cruxLoading, cruxFailed, cruxNoData, fetchData
+  }, [session, cruxLoading, cruxFailed, cruxNoData, fetchData, pauseVersion]);
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
   useEffect(() => {
@@ -367,7 +369,7 @@ export default function ResultsPage() {
       } else { setWaveFailed(true); setError('wave', result.error || 'WAVE returned an error'); }
       setWaveLoading(false);
     }).catch((e) => { setWaveFailed(true); setError('wave', e?.message || 'WAVE request failed'); setWaveLoading(false); });
-  }, [session, waveLoading, waveFailed, fetchData
+  }, [session, waveLoading, waveFailed, fetchData, pauseVersion]);
   // Mozilla Observatory
   const [observatoryFailed, setObservatoryFailed] = useState(false);
   useEffect(() => {
@@ -381,7 +383,7 @@ export default function ResultsPage() {
       } else { setObservatoryFailed(true); setError('observatory', result.error || 'Observatory returned an error'); }
       setObservatoryLoading(false);
     }).catch((e) => { setObservatoryFailed(true); setError('observatory', e?.message || 'Observatory request failed'); setObservatoryLoading(false); });
-  }, [session, observatoryLoading, observatoryFailed, fetchData
+  }, [session, observatoryLoading, observatoryFailed, fetchData, pauseVersion]);
   // Ocean.io
   const [oceanLoading, setOceanLoading] = useState(false);
   const [oceanFailed, setOceanFailed] = useState(false);
@@ -396,7 +398,7 @@ export default function ResultsPage() {
       } else { setOceanFailed(true); setError('ocean', result.error || 'Ocean.io returned an error'); }
       setOceanLoading(false);
     }).catch((e) => { setOceanFailed(true); setError('ocean', e?.message || 'Ocean.io request failed'); setOceanLoading(false); });
-  }, [session, oceanLoading, oceanFailed, fetchData
+  }, [session, oceanLoading, oceanFailed, fetchData, pauseVersion]);
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
   const [avomaFailed, setAvomaFailed] = useState(false);
@@ -416,7 +418,7 @@ export default function ResultsPage() {
       } else { setAvomaFailed(true); setError('avoma', result.error || 'Avoma returned an error'); }
       setAvomaLoading(false);
     }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
-  }, [session, avomaLoading, avomaFailed, fetchData
+  }, [session, avomaLoading, avomaFailed, fetchData, pauseVersion]);
   // Apollo.io contact enrichment (manual search, persisted)
   const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
   const [apolloLoading, setApolloLoading] = useState(false);
@@ -529,7 +531,7 @@ export default function ResultsPage() {
       } else { setHttpstatusFailed(true); setError('httpstatus', result.error || 'httpstatus.io returned an error'); }
       setHttpstatusLoading(false);
     }).catch((e) => { setHttpstatusFailed(true); setError('httpstatus', e?.message || 'httpstatus.io request failed'); setHttpstatusLoading(false); });
-  }, [session, httpstatusLoading, httpstatusFailed, fetchData
+  }, [session, httpstatusLoading, httpstatusFailed, fetchData, pauseVersion]);
   // W3C HTML/CSS Validation
   const [w3cLoading, setW3cLoading] = useState(false);
   const [w3cFailed, setW3cFailed] = useState(false);
@@ -544,7 +546,7 @@ export default function ResultsPage() {
       } else { setW3cFailed(true); setError('w3c', result.error || 'W3C validation failed'); }
       setW3cLoading(false);
     }).catch((e) => { setW3cFailed(true); setError('w3c', e?.message || 'W3C validation request failed'); setW3cLoading(false); });
-  }, [session, w3cLoading, w3cFailed, fetchData
+  }, [session, w3cLoading, w3cFailed, fetchData, pauseVersion]);
   // Schema.org / Rich Results
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaFailed, setSchemaFailed] = useState(false);
@@ -559,7 +561,7 @@ export default function ResultsPage() {
       } else { setSchemaFailed(true); setError('schema', result.error || 'Schema validation failed'); }
       setSchemaLoading(false);
     }).catch((e) => { setSchemaFailed(true); setError('schema', e?.message || 'Schema validation request failed'); setSchemaLoading(false); });
-  }, [session, schemaLoading, schemaFailed, fetchData
+  }, [session, schemaLoading, schemaFailed, fetchData, pauseVersion]);
   // Readable.com
   const [readableLoading, setReadableLoading] = useState(false);
   const [readableFailed, setReadableFailed] = useState(false);
@@ -574,7 +576,7 @@ export default function ResultsPage() {
       } else { setReadableFailed(true); setError('readable', result.error || 'Readable.com returned an error'); }
       setReadableLoading(false);
     }).catch((e) => { setReadableFailed(true); setError('readable', e?.message || 'Readable.com request failed'); setReadableLoading(false); });
-  }, [session, readableLoading, readableFailed, fetchData
+  }, [session, readableLoading, readableFailed, fetchData, pauseVersion]);
   // Yellow Lab Tools (client-side polling like SSL Labs)
   const [yellowlabLoading, setYellowlabLoading] = useState(false);
   const [yellowlabFailed, setYellowlabFailed] = useState(false);
@@ -629,7 +631,7 @@ export default function ResultsPage() {
         setYellowlabLoading(false);
       }
     })();
-  }, [session, yellowlabLoading, yellowlabFailed, fetchData
+  }, [session, yellowlabLoading, yellowlabFailed, fetchData, pauseVersion]);
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
@@ -671,7 +673,7 @@ export default function ResultsPage() {
       linkcheckRunningRef.current = false;
       linkcheckAbortRef.current = null;
     }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
-  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData
+  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
   const [navFailed, setNavFailed] = useState(false);
@@ -686,7 +688,7 @@ export default function ResultsPage() {
       } else { setNavFailed(true); setError('nav-structure', result.error || 'Nav structure extraction failed'); }
       setNavLoading(false);
     }).catch((e) => { setNavFailed(true); setError('nav-structure', e?.message || 'Nav structure request failed'); setNavLoading(false); });
-  }, [session, navLoading, navFailed, fetchData
+  }, [session, navLoading, navFailed, fetchData, pauseVersion]);
   // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapFailed, setSitemapFailed] = useState(false);
@@ -705,7 +707,7 @@ export default function ResultsPage() {
       } else { setSitemapFailed(true); setError('sitemap', result.error || 'Sitemap parsing failed'); }
       setSitemapLoading(false);
     }).catch((e) => { setSitemapFailed(true); setError('sitemap', e?.message || 'Sitemap parsing request failed'); setSitemapLoading(false); });
-  }, [session, sitemapLoading, sitemapFailed, fetchData
+  }, [session, sitemapLoading, sitemapFailed, fetchData, pauseVersion]);
   // Hydrate sitemapHints from persisted sitemap_data on load
   useEffect(() => {
     if (session?.sitemap_data?.contentTypeHints?.length && sitemapHints.length === 0) {
@@ -765,7 +767,7 @@ export default function ResultsPage() {
       setContentTypesLoading(false);
       setContentTypesProgress('');
     }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); setContentTypesProgress(''); });
-  }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData
+  }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
     if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
@@ -774,7 +776,7 @@ export default function ResultsPage() {
     if (!navFailed && !(session as any).nav_structure) return;
     formsAutoRunRef.current = true;
     runFormsDetection();
-  }, [session, formsLoading, formsFailed, effectiveDiscoveredUrls, runFormsDetection, contentTypesFailed, navFailed
+  }, [session, formsLoading, formsFailed, effectiveDiscoveredUrls, runFormsDetection, contentTypesFailed, navFailed, pauseVersion]);
 
   // IMPORTANT: Wait for content_types_data and nav_structure to be available (or failed) before running
   const [autoTagging, setAutoTagging] = useState(false);
@@ -1288,7 +1290,7 @@ export default function ResultsPage() {
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
               </TabsTrigger>
-              {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
+              {shouldShowIntegration('avoma', !!(session as any, showAllIntegrations)?.avoma_data) && (
                 <TabsTrigger
                   value="avoma"
                   style={activeTab === 'avoma' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
@@ -1333,6 +1335,16 @@ export default function ResultsPage() {
                       <Button variant="ghost" size="sm" className="gap-1 px-2" onClick={rerunAll} disabled={rerunningAll}>
                         <RefreshCw className={`h-3.5 w-3.5 ${rerunningAll ? 'animate-spin' : ''}`} />
                         Re-run All
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 px-2"
+                        onClick={() => setShowAllIntegrations(!showAllIntegrations)}
+                        title={showAllIntegrations ? 'Hide paused integrations' : 'Show all integrations including paused'}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {showAllIntegrations ? 'Active Only' : 'Show All'}
                       </Button>
                     </>
                   )}
@@ -1407,21 +1419,21 @@ export default function ResultsPage() {
 
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(
-          (session && shouldShowIntegration('sitemap', !!session.sitemap_data)) ||
-          (session && shouldShowIntegration('url-discovery', !!session.discovered_urls)) ||
-          shouldShowIntegration('httpstatus', !!session?.httpstatus_data) ||
-          shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0)
+          (session && shouldShowIntegration('sitemap', !!session.sitemap_data, showAllIntegrations)) ||
+          (session && shouldShowIntegration('url-discovery', !!session.discovered_urls, showAllIntegrations)) ||
+          shouldShowIntegration('httpstatus', !!session?.httpstatus_data, showAllIntegrations) ||
+          shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0, showAllIntegrations)
         ) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">URL Analysis</h2>
             <div className="space-y-6">
-              {session && shouldShowIntegration('sitemap', !!session.sitemap_data) && (
-                <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('sitemap') && !session.sitemap_data} onTogglePause={() => handleTogglePause('sitemap')}>} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('sitemap', 'sitemap_data', sitemapLoading)}{session.sitemap_data && innerExpandToggle(sitemapInnerExpand, setSitemapInnerExpand)}</div>}>
+              {session && shouldShowIntegration('sitemap', !!session.sitemap_data, showAllIntegrations) && (
+                <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('sitemap', 'sitemap_data', sitemapLoading)}{session.sitemap_data && innerExpandToggle(sitemapInnerExpand, setSitemapInnerExpand)}</div>} paused={isIntegrationPaused('sitemap') && !session.sitemap_data} onTogglePause={() => handleTogglePause('sitemap')}>
                   {session.sitemap_data ? <SitemapCard data={session.sitemap_data} globalInnerExpand={sitemapInnerExpand} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} /> : null}
                 </SectionCard>
               )}
 
-              {session && shouldShowIntegration('url-discovery', !!session.discovered_urls) && (
+              {session && shouldShowIntegration('url-discovery', !!session.discovered_urls, showAllIntegrations) && (
                 <UrlDiscoveryCard
                   baseUrl={session.base_url}
                   onUrlsDiscovered={setDiscoveredUrls}
@@ -1451,14 +1463,14 @@ export default function ResultsPage() {
                 />
               )}
 
-              {shouldShowIntegration('httpstatus', !!session?.httpstatus_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="httpstatus" persistedCollapsed={isSectionCollapsed("httpstatus")} onCollapseChange={toggleSection} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('httpstatus') && !session?.httpstatus_data} onTogglePause={() => handleTogglePause('httpstatus')}>} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)}>
+              {shouldShowIntegration('httpstatus', !!session?.httpstatus_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="httpstatus" persistedCollapsed={isSectionCollapsed("httpstatus")} onCollapseChange={toggleSection} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)} paused={isIntegrationPaused('httpstatus') && !session?.httpstatus_data} onTogglePause={() => handleTogglePause('httpstatus')}>
                 {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0) && (
-              <SectionCard collapsed={allCollapsed} sectionId="link-checker" persistedCollapsed={isSectionCollapsed("link-checker")} onCollapseChange={toggleSection} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('link-checker') && !session?.linkcheck_data} onTogglePause={() => handleTogglePause('link-checker')}>} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${effectiveDiscoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} paused={isIntegrationPaused('link-checker') && !session?.linkcheck_data} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)}>
+              {shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="link-checker" persistedCollapsed={isSectionCollapsed("link-checker")} onCollapseChange={toggleSection} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${effectiveDiscoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)} paused={isIntegrationPaused('link-checker') && !session?.linkcheck_data} onTogglePause={() => handleTogglePause('link-checker')}>
                 {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && effectiveDiscoveredUrls.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
                 ) : !linkcheckLoading ? (
@@ -1472,12 +1484,12 @@ export default function ResultsPage() {
 
         {/* ══════ 📊 Content Analysis ══════ */}
         {(
-          shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) ||
+          shouldShowIntegration('nav-structure', !!(session as any, showAllIntegrations)?.nav_structure) ||
           (session && (session as any)?.page_tags) ||
-          shouldShowIntegration('content-types', !!(session as any)?.content_types_data) ||
-          shouldShowIntegration('content', pages.length > 0) ||
-          shouldShowIntegration('readable', !!(session as any)?.readable_data) ||
-          shouldShowIntegration('forms', !!(session as any)?.forms_data)
+          shouldShowIntegration('content-types', !!(session as any, showAllIntegrations)?.content_types_data) ||
+          shouldShowIntegration('content', pages.length > 0, showAllIntegrations) ||
+          shouldShowIntegration('readable', !!(session as any, showAllIntegrations)?.readable_data) ||
+          shouldShowIntegration('forms', !!(session as any, showAllIntegrations)?.forms_data)
         ) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">Content Analysis</h2>
@@ -1490,8 +1502,8 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('content-types', !!(session as any)?.content_types_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="content-types" persistedCollapsed={isSectionCollapsed("content-types")} onCollapseChange={toggleSection} title="Bulk Content (Posts & CPTs)" icon={<Layers className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('content-types') && !(session as any)?.content_types_data} onTogglePause={() => handleTogglePause('content-types')}>} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('content-types', 'content_types_data', contentTypesLoading)}{(session as any)?.content_types_data && innerExpandToggle(contentTypesInnerExpand, setContentTypesInnerExpand)}</div>}>
+              {shouldShowIntegration('content-types', !!(session as any, showAllIntegrations)?.content_types_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="content-types" persistedCollapsed={isSectionCollapsed("content-types")} onCollapseChange={toggleSection} title="Bulk Content (Posts & CPTs)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('content-types', 'content_types_data', contentTypesLoading)}{(session as any)?.content_types_data && innerExpandToggle(contentTypesInnerExpand, setContentTypesInnerExpand)}</div>} paused={isIntegrationPaused('content-types') && !(session as any)?.content_types_data} onTogglePause={() => handleTogglePause('content-types')}>
                 {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={isSharedView ? undefined : handlePageTagChange} globalInnerExpand={contentTypesInnerExpand} onDataChange={isSharedView ? undefined : async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
                   fetchData();
@@ -1499,13 +1511,13 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure) && (
-              <SectionCard collapsed={allCollapsed} sectionId="nav-structure" persistedCollapsed={isSectionCollapsed("nav-structure")} onCollapseChange={toggleSection} title="Site Navigation" icon={<Navigation className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('nav-structure') && !(session as any)?.nav_structure} onTogglePause={() => handleTogglePause('nav-structure')}>} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={<div className="flex items-center gap-1.5">{!isSharedView && (session as any)?.nav_structure && <><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyMarkdown()} title="Copy as Markdown"><Copy className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyRichText()} title="Copy as Rich Text"><FileText className="h-3.5 w-3.5" /></Button></>}{rerunButton('nav-structure', 'nav_structure', navLoading)}{(session as any)?.nav_structure && innerExpandToggle(navInnerExpand, setNavInnerExpand)}</div>}>
+              {shouldShowIntegration('nav-structure', !!(session as any, showAllIntegrations)?.nav_structure) && (
+              <SectionCard collapsed={allCollapsed} sectionId="nav-structure" persistedCollapsed={isSectionCollapsed("nav-structure")} onCollapseChange={toggleSection} title="Site Navigation" icon={<Navigation className="h-5 w-5 text-foreground" />} loading={navLoading && !(session as any)?.nav_structure} loadingText="Extracting navigation structure from header..." error={navFailed} errorText={integrationErrors['nav-structure']} headerExtra={<div className="flex items-center gap-1.5">{!isSharedView && (session as any)?.nav_structure && <><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyMarkdown()} title="Copy as Markdown"><Copy className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navRef.current?.copyRichText()} title="Copy as Rich Text"><FileText className="h-3.5 w-3.5" /></Button></>}{rerunButton('nav-structure', 'nav_structure', navLoading)}{(session as any)?.nav_structure && innerExpandToggle(navInnerExpand, setNavInnerExpand)}</div>} paused={isIntegrationPaused('nav-structure') && !(session as any)?.nav_structure} onTogglePause={() => handleTogglePause('nav-structure')}>
                 {(session as any)?.nav_structure ? <NavStructureCard ref={navRef} data={(session as any).nav_structure} pageTags={(session as any).page_tags} onPageTagChange={isSharedView ? undefined : handlePageTagChange} globalInnerExpand={navInnerExpand} /> : null}
               </SectionCard>
               )}
 
-              {session && shouldShowIntegration('content', pages.length > 0) && (
+              {session && shouldShowIntegration('content', pages.length > 0, showAllIntegrations) && (
                 <ContentSectionCard
                   pages={pages}
                   sessionId={session.id}
@@ -1522,14 +1534,14 @@ export default function ResultsPage() {
                 />
               )}
 
-              {shouldShowIntegration('readable', !!(session as any)?.readable_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="readable" persistedCollapsed={isSectionCollapsed("readable")} onCollapseChange={toggleSection} title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('readable') && !(session as any)?.readable_data} onTogglePause={() => handleTogglePause('readable')}>} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable} headerExtra={rerunButton('readable', 'readable_data', readableLoading)}>
+              {shouldShowIntegration('readable', !!(session as any, showAllIntegrations)?.readable_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="readable" persistedCollapsed={isSectionCollapsed("readable")} onCollapseChange={toggleSection} title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable} headerExtra={rerunButton('readable', 'readable_data', readableLoading)} paused={isIntegrationPaused('readable') && !(session as any)?.readable_data} onTogglePause={() => handleTogglePause('readable')}>
                 {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('forms', !!(session as any)?.forms_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Analysis (Form Recommendations)" icon={<FileText className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('forms') && !(session as any)?.forms_data} onTogglePause={() => handleTogglePause('forms')}>} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)}>
+              {shouldShowIntegration('forms', !!(session as any, showAllIntegrations)?.forms_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Analysis (Form Recommendations)" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)} paused={isIntegrationPaused('forms') && !(session as any)?.forms_data} onTogglePause={() => handleTogglePause('forms')}>
                 {(session as any)?.forms_data ? (
                   <FormsCard data={(session as any).forms_data} domain={(session as any).domain} savedTiers={(session as any).forms_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { formsRerunFnRef.current = fn; }} />
                 ) : !formsLoading && !isSharedView ? (
@@ -1560,7 +1572,7 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {session && shouldShowIntegration('screenshots', false) && (
+              {session && shouldShowIntegration('screenshots', false, showAllIntegrations) && (
                 <ScreenshotGallery
                   sessionId={session.id}
                   baseUrl={session.base_url}
@@ -1573,13 +1585,13 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔧 Technology Detection ══════ */}
-        {(shouldShowIntegration('builtwith', !!session?.builtwith_data) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data)) && (
+        {(shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data, showAllIntegrations) || shouldShowIntegration('detectzestack', !!(session as any, showAllIntegrations)?.detectzestack_data)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
               {/* AI Tech Analysis — merged card */}
               {(techAnalysisData || techAnalysisLoading || session?.tech_analysis_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('tech-analysis') && !(session as any)?.tech_analysis_data} onTogglePause={() => handleTogglePause('tech-analysis')}>} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} headerExtra={
+              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} paused={isIntegrationPaused('tech-analysis') && !(session as any)?.tech_analysis_data} onTogglePause={() => handleTogglePause('tech-analysis')} headerExtra={
                 !isSharedView ? (
                   <Button variant="ghost" size="icon" className="h-7 w-7" disabled={techAnalysisLoading} onClick={async () => {
                     setTechAnalysisData(null);
@@ -1596,8 +1608,8 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('builtwith', !!session?.builtwith_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="builtwith" persistedCollapsed={isSectionCollapsed("builtwith")} onCollapseChange={toggleSection} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('builtwith') && !session?.builtwith_data} onTogglePause={() => handleTogglePause('builtwith')}>} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)}>
+              {shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="builtwith" persistedCollapsed={isSectionCollapsed("builtwith")} onCollapseChange={toggleSection} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)} paused={isIntegrationPaused('builtwith') && !session?.builtwith_data} onTogglePause={() => handleTogglePause('builtwith')}>
                 {session?.builtwith_data ? (
                   <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
                 ) : !builtwithLoading && !builtwithFailed ? (
@@ -1606,16 +1618,16 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="detectzestack" persistedCollapsed={isSectionCollapsed("detectzestack")} onCollapseChange={toggleSection} title="DetectZeStack — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('detectzestack') && !(session as any)?.detectzestack_data} onTogglePause={() => handleTogglePause('detectzestack')}>} loading={detectzestackLoading && !(session as any)?.detectzestack_data} loadingText="Running DetectZeStack detection..." error={detectzestackFailed} errorText={integrationErrors.detectzestack} headerExtra={rerunButton('detectzestack', 'detectzestack_data', detectzestackLoading)}>
+              {shouldShowIntegration('detectzestack', !!(session as any, showAllIntegrations)?.detectzestack_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="detectzestack" persistedCollapsed={isSectionCollapsed("detectzestack")} onCollapseChange={toggleSection} title="DetectZeStack — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={detectzestackLoading && !(session as any)?.detectzestack_data} loadingText="Running DetectZeStack detection..." error={detectzestackFailed} errorText={integrationErrors.detectzestack} headerExtra={rerunButton('detectzestack', 'detectzestack_data', detectzestackLoading)} paused={isIntegrationPaused('detectzestack') && !(session as any)?.detectzestack_data} onTogglePause={() => handleTogglePause('detectzestack')}>
                 {(session as any)?.detectzestack_data ? (
                   <DetectZeStackCard data={(session as any).detectzestack_data} />
                 ) : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="wappalyzer" persistedCollapsed={isSectionCollapsed("wappalyzer")} onCollapseChange={toggleSection} title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('wappalyzer') && !session?.wappalyzer_data} onTogglePause={() => handleTogglePause('wappalyzer')}>} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer} headerExtra={rerunButton('wappalyzer', 'wappalyzer_data', wappalyzerLoading)}>
+              {shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="wappalyzer" persistedCollapsed={isSectionCollapsed("wappalyzer")} onCollapseChange={toggleSection} title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer} headerExtra={rerunButton('wappalyzer', 'wappalyzer_data', wappalyzerLoading)} paused={isIntegrationPaused('wappalyzer') && !session?.wappalyzer_data} onTogglePause={() => handleTogglePause('wappalyzer')}>
                 {session?.wappalyzer_data ? (
                   <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
                 ) : null}
@@ -1626,38 +1638,38 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ ⚡ Performance & Sustainability ══════ */}
-        {(shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade) || shouldShowIntegration('psi', !!session?.psi_data) || shouldShowIntegration('crux', !!session?.crux_data) || shouldShowIntegration('yellowlab', !!(session as any)?.yellowlab_data) || shouldShowIntegration('carbon', !!session?.carbon_data)) && (
+        {(shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade, showAllIntegrations) || shouldShowIntegration('psi', !!session?.psi_data, showAllIntegrations) || shouldShowIntegration('crux', !!session?.crux_data, showAllIntegrations) || shouldShowIntegration('yellowlab', !!(session as any, showAllIntegrations)?.yellowlab_data) || shouldShowIntegration('carbon', !!session?.carbon_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">Performance & Sustainability</h2>
             <div className="space-y-6">
-              {shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade) && (
-              <SectionCard collapsed={allCollapsed} sectionId="gtmetrix" persistedCollapsed={isSectionCollapsed("gtmetrix")} onCollapseChange={toggleSection} title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('gtmetrix') && !session?.gtmetrix_grade} onTogglePause={() => handleTogglePause('gtmetrix')}>} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)}>
+              {shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="gtmetrix" persistedCollapsed={isSectionCollapsed("gtmetrix")} onCollapseChange={toggleSection} title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)} paused={isIntegrationPaused('gtmetrix') && !session?.gtmetrix_grade} onTogglePause={() => handleTogglePause('gtmetrix')}>
                 <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
               </SectionCard>
               )}
 
-              {shouldShowIntegration('psi', !!session?.psi_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="psi" persistedCollapsed={isSectionCollapsed("psi")} onCollapseChange={toggleSection} title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('psi') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi')}>} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} headerExtra={rerunButton('psi', 'psi_data', psiLoading)}>
+              {shouldShowIntegration('psi', !!session?.psi_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="psi" persistedCollapsed={isSectionCollapsed("psi")} onCollapseChange={toggleSection} title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} headerExtra={rerunButton('psi', 'psi_data', psiLoading)} paused={isIntegrationPaused('psi') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi')}>
                 {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('crux', !!session?.crux_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="crux" persistedCollapsed={isSectionCollapsed("crux")} onCollapseChange={toggleSection} title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('crux') && !session?.crux_data} onTogglePause={() => handleTogglePause('crux')}>} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} headerExtra={rerunButton('crux', 'crux_data', cruxLoading)}>
+              {shouldShowIntegration('crux', !!session?.crux_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="crux" persistedCollapsed={isSectionCollapsed("crux")} onCollapseChange={toggleSection} title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} headerExtra={rerunButton('crux', 'crux_data', cruxLoading)} paused={isIntegrationPaused('crux') && !session?.crux_data} onTogglePause={() => handleTogglePause('crux')}>
                 {session?.crux_data ? (
                   <CruxCard data={session.crux_data} isLoading={false} />
                 ) : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('yellowlab', !!(session as any)?.yellowlab_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="yellowlab" persistedCollapsed={isSectionCollapsed("yellowlab")} onCollapseChange={toggleSection} title="Yellow Lab Tools — Front-End Quality" icon={<Gauge className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('yellowlab') && !(session as any)?.yellowlab_data} onTogglePause={() => handleTogglePause('yellowlab')}>} loading={yellowlabLoading && !(session as any)?.yellowlab_data} loadingText="Running Yellow Lab Tools audit (this may take 1-2 minutes)..." error={yellowlabFailed} errorText={integrationErrors.yellowlab} headerExtra={rerunButton('yellowlab', 'yellowlab_data', yellowlabLoading)}>
+              {shouldShowIntegration('yellowlab', !!(session as any, showAllIntegrations)?.yellowlab_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="yellowlab" persistedCollapsed={isSectionCollapsed("yellowlab")} onCollapseChange={toggleSection} title="Yellow Lab Tools — Front-End Quality" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={yellowlabLoading && !(session as any)?.yellowlab_data} loadingText="Running Yellow Lab Tools audit (this may take 1-2 minutes)..." error={yellowlabFailed} errorText={integrationErrors.yellowlab} headerExtra={rerunButton('yellowlab', 'yellowlab_data', yellowlabLoading)} paused={isIntegrationPaused('yellowlab') && !(session as any)?.yellowlab_data} onTogglePause={() => handleTogglePause('yellowlab')}>
                 {(session as any)?.yellowlab_data ? <YellowLabCard data={(session as any).yellowlab_data} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('carbon', !!session?.carbon_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="carbon" persistedCollapsed={isSectionCollapsed("carbon")} onCollapseChange={toggleSection} title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('carbon') && !session?.carbon_data} onTogglePause={() => handleTogglePause('carbon')}>} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} headerExtra={rerunButton('carbon', 'carbon_data', carbonLoading)}>
+              {shouldShowIntegration('carbon', !!session?.carbon_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="carbon" persistedCollapsed={isSectionCollapsed("carbon")} onCollapseChange={toggleSection} title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} headerExtra={rerunButton('carbon', 'carbon_data', carbonLoading)} paused={isIntegrationPaused('carbon') && !session?.carbon_data} onTogglePause={() => handleTogglePause('carbon')}>
                 {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
               </SectionCard>
               )}
@@ -1666,18 +1678,18 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔍 SEO & Search ══════ */}
-        {(shouldShowIntegration('semrush', !!session?.semrush_data) || shouldShowIntegration('schema', !!session?.schema_data)) && (
+        {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">SEO & Search</h2>
             <div className="space-y-6">
-              {shouldShowIntegration('semrush', !!session?.semrush_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="semrush" persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('semrush') && !session?.semrush_data} onTogglePause={() => handleTogglePause('semrush')}>} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)}>
+              {shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="semrush" persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)} paused={isIntegrationPaused('semrush') && !session?.semrush_data} onTogglePause={() => handleTogglePause('semrush')}>
                 {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('schema', !!session?.schema_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="schema" persistedCollapsed={isSectionCollapsed("schema")} onCollapseChange={toggleSection} title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('schema') && !session?.schema_data} onTogglePause={() => handleTogglePause('schema')}>} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)}>
+              {shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="schema" persistedCollapsed={isSectionCollapsed("schema")} onCollapseChange={toggleSection} title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)} paused={isIntegrationPaused('schema') && !session?.schema_data} onTogglePause={() => handleTogglePause('schema')}>
                 {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
               </SectionCard>
               )}
@@ -1686,12 +1698,12 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🎨 UX & Accessibility ══════ */}
-        {(shouldShowIntegration('psi-accessibility', !!session?.psi_data) || shouldShowIntegration('wave', !!session?.wave_data) || shouldShowIntegration('w3c', !!session?.w3c_data)) && (
+        {(shouldShowIntegration('psi-accessibility', !!session?.psi_data, showAllIntegrations) || shouldShowIntegration('wave', !!session?.wave_data, showAllIntegrations) || shouldShowIntegration('w3c', !!session?.w3c_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">UX & Accessibility</h2>
             <div className="space-y-6">
-              {shouldShowIntegration('psi-accessibility', !!session?.psi_data) && shouldShowIntegration('psi', !!session?.psi_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="psi-accessibility" persistedCollapsed={isSectionCollapsed("psi-accessibility")} onCollapseChange={toggleSection} title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('psi-accessibility') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi-accessibility')}>} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse...">
+              {shouldShowIntegration('psi-accessibility', !!session?.psi_data, showAllIntegrations) && shouldShowIntegration('psi', !!session?.psi_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="psi-accessibility" persistedCollapsed={isSectionCollapsed("psi-accessibility")} onCollapseChange={toggleSection} title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi-accessibility')}>
                 {session?.psi_data ? (
                   <LighthouseAccessibilityCard data={extractPsiAccessibility(session.psi_data)} isLoading={false} />
                 ) : !psiLoading && psiFailed ? (
@@ -1702,14 +1714,14 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('wave', !!session?.wave_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="wave" persistedCollapsed={isSectionCollapsed("wave")} onCollapseChange={toggleSection} title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('wave') && !session?.wave_data} onTogglePause={() => handleTogglePause('wave')}>} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} headerExtra={rerunButton('wave', 'wave_data', waveLoading)}>
+              {shouldShowIntegration('wave', !!session?.wave_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="wave" persistedCollapsed={isSectionCollapsed("wave")} onCollapseChange={toggleSection} title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} headerExtra={rerunButton('wave', 'wave_data', waveLoading)} paused={isIntegrationPaused('wave') && !session?.wave_data} onTogglePause={() => handleTogglePause('wave')}>
                 {session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('w3c', !!session?.w3c_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="w3c" persistedCollapsed={isSectionCollapsed("w3c")} onCollapseChange={toggleSection} title="W3C — HTML & CSS Validation" icon={<Code className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('w3c') && !session?.w3c_data} onTogglePause={() => handleTogglePause('w3c')}>} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)}>
+              {shouldShowIntegration('w3c', !!session?.w3c_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="w3c" persistedCollapsed={isSectionCollapsed("w3c")} onCollapseChange={toggleSection} title="W3C — HTML & CSS Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)} paused={isIntegrationPaused('w3c') && !session?.w3c_data} onTogglePause={() => handleTogglePause('w3c')}>
                 {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
               </SectionCard>
               )}
@@ -1718,18 +1730,18 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🛡️ Security & Compliance ══════ */}
-        {(shouldShowIntegration('observatory', !!session?.observatory_data) || shouldShowIntegration('ssllabs', !!session?.ssllabs_data)) && (
+        {(shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations) || shouldShowIntegration('ssllabs', !!session?.ssllabs_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">Security & Compliance</h2>
             <div className="space-y-6">
-              {shouldShowIntegration('observatory', !!session?.observatory_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="observatory" persistedCollapsed={isSectionCollapsed("observatory")} onCollapseChange={toggleSection} title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('observatory') && !session?.observatory_data} onTogglePause={() => handleTogglePause('observatory')}>} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)}>
+              {shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="observatory" persistedCollapsed={isSectionCollapsed("observatory")} onCollapseChange={toggleSection} title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)} paused={isIntegrationPaused('observatory') && !session?.observatory_data} onTogglePause={() => handleTogglePause('observatory')}>
                 {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('ssllabs', !!session?.ssllabs_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="ssllabs" persistedCollapsed={isSectionCollapsed("ssllabs")} onCollapseChange={toggleSection} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('ssllabs') && !session?.ssllabs_data} onTogglePause={() => handleTogglePause('ssllabs')}>} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading)}>
+              {shouldShowIntegration('ssllabs', !!session?.ssllabs_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="ssllabs" persistedCollapsed={isSectionCollapsed("ssllabs")} onCollapseChange={toggleSection} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading)} paused={isIntegrationPaused('ssllabs') && !session?.ssllabs_data} onTogglePause={() => handleTogglePause('ssllabs')}>
                 {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
               </SectionCard>
               )}
@@ -1738,18 +1750,18 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🧲 Enrichment & Prospecting ══════ */}
-        {(shouldShowIntegration('ocean', !!session?.ocean_data) || shouldShowIntegration('apollo', !!session?.apollo_data)) && (
+        {(shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-16 mb-6 first:mt-0">Enrichment & Prospecting</h2>
             <div className="space-y-6">
-              {shouldShowIntegration('ocean', !!session?.ocean_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)}>
+              {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
                 {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('apollo', !!session?.apollo_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" / paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>}>
+              {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations) && (
+              <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
                 <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
               </SectionCard>
               )}
@@ -1782,7 +1794,7 @@ export default function ResultsPage() {
             )}
           </TabsContent>
 
-          {shouldShowIntegration('avoma', !!(session as any)?.avoma_data) && (
+          {shouldShowIntegration('avoma', !!(session as any, showAllIntegrations)?.avoma_data) && (
             <TabsContent value="avoma" className="mt-8 space-y-6">
               <SectionCard
                 sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
