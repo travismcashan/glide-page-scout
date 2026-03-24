@@ -243,6 +243,21 @@ export default function ResultsPage() {
     }).catch((e) => { setWappalyzerFailed(true); setError('wappalyzer', e?.message || 'Wappalyzer request failed'); setWappalyzerLoading(false); });
   }, [session, wappalyzerLoading, wappalyzerFailed, fetchData]);
 
+  // DetectZeStack
+  const [detectzestackFailed, setDetectzestackFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).detectzestack_data || detectzestackLoading || detectzestackFailed || isIntegrationPaused('detectzestack')) return;
+    setDetectzestackLoading(true);
+    detectzestackApi.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ detectzestack_data: { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth } } as any).eq('id', session.id);
+        clearError('detectzestack');
+        fetchData();
+      } else { setDetectzestackFailed(true); setError('detectzestack', result.error || 'DetectZeStack returned an error'); }
+      setDetectzestackLoading(false);
+    }).catch((e) => { setDetectzestackFailed(true); setError('detectzestack', e?.message || 'DetectZeStack request failed'); setDetectzestackLoading(false); });
+  }, [session, detectzestackLoading, detectzestackFailed, fetchData]);
+
   // GTmetrix
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
