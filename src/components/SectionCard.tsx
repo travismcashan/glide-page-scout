@@ -64,11 +64,11 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
   return (
     <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-60' : ''}`}>
       <div
-        className="px-6 py-4 border-b border-border flex items-center gap-3 cursor-pointer select-none hover:bg-muted/30 transition-colors"
+        className="px-4 py-2.5 border-b border-border flex items-center gap-2.5 cursor-pointer select-none hover:bg-muted/30 transition-colors"
         onClick={handleToggle}
       >
-        <div className="p-2 rounded-lg bg-muted">{icon}</div>
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <div className="p-1.5 rounded-md bg-muted">{icon}</div>
+        <h2 className="text-sm font-semibold">{title}</h2>
         {headerExtra && !paused && <div className="ml-auto" onClick={e => e.stopPropagation()}>{headerExtra}</div>}
         {paused && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto gap-0.5">
