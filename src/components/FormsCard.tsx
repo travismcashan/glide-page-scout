@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, Globe, FileText } from 'lucide-react';
+import { ChevronDown, ChevronRight, Globe, FileText, ExternalLink } from 'lucide-react';
 
 interface FormEntry {
   fingerprint: string;
@@ -86,13 +86,12 @@ export function FormsCard({ data }: Props) {
     });
   };
 
-  // Separate global vs page-specific forms
   const globalForms = forms.filter(f => f.isGlobal);
   const pageForms = forms.filter(f => !f.isGlobal);
 
   return (
     <div className="space-y-4">
-      {/* Summary stats */}
+      {/* Meta stats — unified pattern */}
       <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
         <span><strong className="text-foreground text-sm">{summary.uniqueForms}</strong> Unique Forms</span>
         <span>·</span>
@@ -103,75 +102,63 @@ export function FormsCard({ data }: Props) {
         <span><strong className="text-foreground text-sm">{summary.pagesScraped}</strong> Pages Scanned</span>
       </div>
 
-      {/* Forms table */}
-
+      {/* Div-based card matching other integration cards */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <table className="w-full text-sm table-fixed">
-          <thead>
-            <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-8"></th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Form</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center w-28">Type</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center w-28">Platform</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center w-16">Fields</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right w-16">Pages</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Global forms section */}
-            {globalForms.length > 0 && (
-              <>
-                <tr className="cursor-pointer" onClick={() => toggleGroup('global')}>
-                  <td colSpan={6} className="p-0">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors">
-                      {collapsedGroups.has('global')
-                        ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      }
-                      <Globe className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      <span className="text-xs font-semibold text-foreground">Global Forms</span>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{globalForms.length}</Badge>
-                    </div>
-                  </td>
-                </tr>
-                {!collapsedGroups.has('global') && globalForms.map((form, i) => (
-                  <FormRow key={`g-${i}`} form={form} index={i} isExpanded={expandedForms.has(i)} onToggle={() => toggleForm(i)} />
-                ))}
-              </>
-            )}
+        {/* Sticky header — matches Nav/Content/Sitemaps cards */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Form</span>
+          <span className="w-[90px] text-center text-xs font-medium text-muted-foreground">Type</span>
+          <span className="w-[90px] text-center text-xs font-medium text-muted-foreground">Platform</span>
+          <span className="w-[50px] text-center text-xs font-medium text-muted-foreground">Fields</span>
+          <span className="w-[50px] text-right text-xs font-medium text-muted-foreground">Pages</span>
+        </div>
 
-            {/* Page-specific forms */}
-            {pageForms.length > 0 && (
-              <>
-                <tr className="cursor-pointer" onClick={() => toggleGroup('page')}>
-                  <td colSpan={6} className="p-0">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/40 border-t border-border hover:bg-muted/60 transition-colors">
-                      {collapsedGroups.has('page')
-                        ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      }
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-foreground">Page-Specific Forms</span>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{pageForms.length}</Badge>
-                    </div>
-                  </td>
-                </tr>
-                {!collapsedGroups.has('page') && pageForms.map((form, i) => {
-                  const idx = globalForms.length + i;
-                  return <FormRow key={`p-${i}`} form={form} index={idx} isExpanded={expandedForms.has(idx)} onToggle={() => toggleForm(idx)} />;
-                })}
-              </>
-            )}
+        {/* Global forms section */}
+        {globalForms.length > 0 && (
+          <div>
+            <button
+              onClick={() => toggleGroup('global')}
+              className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border first:border-t-0"
+            >
+              {collapsedGroups.has('global')
+                ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              }
+              <Globe className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span className="text-xs font-semibold text-foreground">Global Forms</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{globalForms.length}</Badge>
+            </button>
+            {!collapsedGroups.has('global') && globalForms.map((form, i) => (
+              <FormRow key={`g-${i}`} form={form} index={i} isExpanded={expandedForms.has(i)} onToggle={() => toggleForm(i)} />
+            ))}
+          </div>
+        )}
 
-            {forms.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  No forms detected on scanned pages.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {/* Page-specific forms */}
+        {pageForms.length > 0 && (
+          <div>
+            <button
+              onClick={() => toggleGroup('page')}
+              className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
+            >
+              {collapsedGroups.has('page')
+                ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              }
+              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="text-xs font-semibold text-foreground">Page-Specific Forms</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{pageForms.length}</Badge>
+            </button>
+            {!collapsedGroups.has('page') && pageForms.map((form, i) => {
+              const idx = globalForms.length + i;
+              return <FormRow key={`p-${i}`} form={form} index={idx} isExpanded={expandedForms.has(idx)} onToggle={() => toggleForm(idx)} />;
+            })}
+          </div>
+        )}
+
+        {forms.length === 0 && (
+          <p className="text-xs text-muted-foreground italic px-3 py-6 text-center">No forms detected on scanned pages.</p>
+        )}
       </div>
 
       {/* Platform breakdown below table */}
@@ -189,79 +176,79 @@ export function FormsCard({ data }: Props) {
 
 function FormRow({ form, index, isExpanded, onToggle }: { form: FormEntry; index: number; isExpanded: boolean; onToggle: () => void }) {
   return (
-    <>
-      <tr className="border-t border-border/50 hover:bg-muted/20 transition-colors cursor-pointer" onClick={onToggle}>
-        <td className="px-3 py-1 text-center">
+    <div>
+      {/* Row — matches height/spacing of other card rows */}
+      <div
+        className="flex items-center px-3 hover:bg-muted/20 transition-colors cursor-pointer group border-t border-border/50"
+        style={{ height: '28px' }}
+        onClick={onToggle}
+      >
+        {/* Left: Form name */}
+        <div className="flex items-center flex-1 min-w-0 gap-2">
           {isExpanded
-            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground inline-block" />
-            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground inline-block" />
+            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           }
-        </td>
-        <td className="px-3 py-1 text-xs text-foreground">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{form.formType}</span>
-            {form.isGlobal && <Badge variant="outline" className="text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">global</Badge>}
-            {form.hasFileUpload && <Badge variant="outline" className="text-[9px] px-1 py-0">📎 upload</Badge>}
-            {form.hasCaptcha && <Badge variant="outline" className="text-[9px] px-1 py-0">🛡 captcha</Badge>}
-          </div>
-        </td>
-        <td className="px-3 py-1 text-center">
+          <span className="text-xs font-medium text-foreground truncate">{form.formType}</span>
+          {form.isGlobal && <Badge variant="outline" className="text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">global</Badge>}
+          {form.hasFileUpload && <Badge variant="outline" className="text-[9px] px-1 py-0">📎 upload</Badge>}
+          {form.hasCaptcha && <Badge variant="outline" className="text-[9px] px-1 py-0">🛡 captcha</Badge>}
+        </div>
+
+        {/* Right columns */}
+        <span className="w-[90px] flex justify-center">
           <Badge variant="outline" className={`${typeColors[form.formType] || ''} text-[10px] px-1.5 py-0`}>
             {form.formType}
           </Badge>
-        </td>
-        <td className="px-3 py-1 text-center">
+        </span>
+        <span className="w-[90px] flex justify-center">
           <Badge variant="outline" className={`${platformColors[form.platform || 'Native'] || platformColors.Native} text-[10px] px-1.5 py-0`}>
             {form.platform || 'Native'}
           </Badge>
-        </td>
-        <td className="px-3 py-1 text-center text-xs text-muted-foreground">{form.fieldCount}</td>
-        <td className="px-3 py-1 text-right text-xs text-muted-foreground">{form.pageCount}</td>
-      </tr>
+        </span>
+        <span className="w-[50px] text-center text-xs text-muted-foreground">{form.fieldCount}</span>
+        <span className="w-[50px] text-right text-xs text-muted-foreground">{form.pageCount}</span>
+      </div>
 
       {/* Expanded detail */}
       {isExpanded && (
-        <tr className="bg-muted/10">
-          <td></td>
-          <td colSpan={5} className="px-3 py-2">
-            <div className="space-y-2 text-xs">
-              {form.description && (
-                <div>
-                  <span className="font-medium text-foreground">Description: </span>
-                  <span className="text-muted-foreground">{form.description}</span>
-                </div>
-              )}
-              {form.fieldNames.length > 0 && (
-                <div>
-                  <span className="font-medium text-foreground">Fields: </span>
-                  <span className="text-muted-foreground">{form.fieldNames.join(', ')}</span>
-                </div>
-              )}
-              {form.action && form.method !== 'EMBED' && (
-                <div>
-                  <span className="font-medium text-foreground">Action: </span>
-                  <span className="text-muted-foreground font-mono">{form.method} {form.action || '(self)'}</span>
-                </div>
-              )}
-              <div>
-                <span className="font-medium text-foreground">Found on: </span>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {form.pages.slice(0, 10).map((page, i) => {
-                    let path: string;
-                    try { path = new URL(page).pathname; } catch { path = page; }
-                    return (
-                      <a key={i} href={page} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary hover:underline font-mono">
-                        {path}
-                      </a>
-                    );
-                  })}
-                  {form.pages.length > 10 && <span className="text-muted-foreground text-[11px]">+{form.pages.length - 10} more</span>}
-                </div>
-              </div>
+        <div className="bg-muted/10 px-3 py-2 ml-8 space-y-2 text-xs border-t border-border/30">
+          {form.description && (
+            <div>
+              <span className="font-medium text-foreground">Description: </span>
+              <span className="text-muted-foreground">{form.description}</span>
             </div>
-          </td>
-        </tr>
+          )}
+          {form.fieldNames.length > 0 && (
+            <div>
+              <span className="font-medium text-foreground">Fields: </span>
+              <span className="text-muted-foreground">{form.fieldNames.join(', ')}</span>
+            </div>
+          )}
+          {form.action && form.method !== 'EMBED' && (
+            <div>
+              <span className="font-medium text-foreground">Action: </span>
+              <span className="text-muted-foreground font-mono">{form.method} {form.action || '(self)'}</span>
+            </div>
+          )}
+          <div>
+            <span className="font-medium text-foreground">Found on: </span>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {form.pages.slice(0, 10).map((page, i) => {
+                let path: string;
+                try { path = new URL(page).pathname; } catch { path = page; }
+                return (
+                  <a key={i} href={page} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary hover:underline font-mono inline-flex items-center gap-0.5">
+                    {path}
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                );
+              })}
+              {form.pages.length > 10 && <span className="text-muted-foreground text-[11px]">+{form.pages.length - 10} more</span>}
+            </div>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
