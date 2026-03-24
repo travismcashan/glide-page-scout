@@ -60,7 +60,8 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
 
   const submitCustomName = () => {
     const trimmed = customName.trim();
-    if (trimmed && onChange) {
+    if (trimmed && onChange && addingCategory) {
+      addCustomTemplate(trimmed, addingCategory);
       onChange(trimmed);
       setOpen(false);
       setAddingCategory(null);
