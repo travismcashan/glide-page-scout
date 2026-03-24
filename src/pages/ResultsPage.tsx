@@ -786,13 +786,21 @@ export default function ResultsPage() {
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData]);
 
   // Auto-seed page tags using AI industry detection, with URL-pattern fallback
+  // IMPORTANT: Wait for content_types_data and nav_structure to be available (or failed) before running
   const [autoTagging, setAutoTagging] = useState(false);
+  const autoTagTriedRef = useRef(false);
+
+  const contentTypesReady = !!(session as any)?.content_types_data || contentTypesFailed;
+  const navReady = !!(session as any)?.nav_structure || navFailed;
+  const prerequisitesReady = contentTypesReady && navReady && effectiveDiscoveredUrls.length > 0;
+
   useEffect(() => {
-    if (!session || !effectiveDiscoveredUrls.length || autoTagging) return;
+    if (!session || !prerequisitesReady || autoTagging || autoTagTriedRef.current) return;
     // Only auto-seed if page_tags is empty/null
     if ((session as any).page_tags && Object.keys((session as any).page_tags).length > 0) return;
 
     const runAutoTag = async () => {
+      autoTagTriedRef.current = true;
       setAutoTagging(true);
       try {
         // Gather homepage content from scraped pages if available
@@ -855,7 +863,7 @@ export default function ResultsPage() {
     };
 
     runAutoTag();
-  }, [session?.id, effectiveDiscoveredUrls.length]);
+  }, [session?.id, prerequisitesReady, autoTagging]);
 
   const handlePageTagChange = useCallback(async (url: string, template: string) => {
     if (!session) return;
