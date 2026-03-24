@@ -192,7 +192,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   }
 
   if (summary.length === 0) {
-    return <p className="text-sm text-muted-foreground">No repeating content (Posts or CPTs) detected. All URLs appear to be one-off pages.</p>;
+    return <p className="text-sm text-muted-foreground">No bulk content (Posts or CPTs) detected. All URLs appear to be one-off pages.</p>;
   }
 
   const toggleSelect = (type: string) => {
