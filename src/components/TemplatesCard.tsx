@@ -54,6 +54,24 @@ interface AiTiers {
   reasoning: string;
 }
 
+function TemplateRow({ t, isExcluded, toggleExcluded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void }) {
+  return (
+    <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
+      <td className="px-3 py-1 text-center">
+        <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+      </td>
+      <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>{t.name}</td>
+      <td className="px-3 py-1 text-center">
+        {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}
+      </td>
+      <td className="px-3 py-1 text-center text-muted-foreground">
+        {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
+      </td>
+      <td className="px-3 py-1 text-right text-xs text-muted-foreground">{t.count}</td>
+    </tr>
+  );
+}
+
 const LOADING_MESSAGES = [
   'Dispatching design pigeons…',
   'Garden gnomes are analyzing layouts…',
