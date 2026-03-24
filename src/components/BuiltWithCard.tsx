@@ -157,29 +157,26 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
   const hasCredits = credits && (credits.remaining != null || credits.available != null);
   const allSuperGroups = useMemo(() => grouped ? buildSuperGroups(grouped) : [], [grouped]);
 
-  const maxLastDetected = useMemo(() => {
-    let max = 0;
-    for (const g of allSuperGroups) {
-      for (const sub of g.subcategories) {
-        for (const t of sub.techs) {
-          if (t.lastDetected && t.lastDetected > max) max = t.lastDetected;
-        }
-      }
-    }
-    return max;
-  }, [allSuperGroups]);
+  // "Current" = lastDetected within the last 6 months from now
+  const recencyCutoff = useMemo(() => {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return sixMonthsAgo.getTime();
+  }, []);
+
+  const isCurrent = (t: Technology) => !!(t.lastDetected && t.lastDetected >= recencyCutoff);
 
   const superGroupData = useMemo(() => {
-    if (!hideOld || !maxLastDetected) return allSuperGroups;
+    if (!hideOld) return allSuperGroups;
     return allSuperGroups.map(g => ({
       ...g,
       subcategories: g.subcategories.map(sub => ({
         ...sub,
-        techs: sub.techs.filter(t => t.lastDetected && t.lastDetected >= maxLastDetected),
+        techs: sub.techs.filter(isCurrent),
       })).filter(sub => sub.techs.length > 0),
-      totalTechs: g.subcategories.reduce((sum, sub) => sum + sub.techs.filter(t => t.lastDetected && t.lastDetected >= maxLastDetected).length, 0),
+      totalTechs: g.subcategories.reduce((sum, sub) => sum + sub.techs.filter(isCurrent).length, 0),
     })).filter(g => g.totalTechs > 0);
-  }, [allSuperGroups, hideOld, maxLastDetected]);
+  }, [allSuperGroups, hideOld, recencyCutoff]);
 
   const visibleCount = superGroupData.reduce((sum, g) => sum + g.totalTechs, 0);
 
