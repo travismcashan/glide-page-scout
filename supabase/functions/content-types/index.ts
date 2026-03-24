@@ -313,17 +313,17 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
                   properties: {
                     groups: {
                       type: 'array',
-                      description: 'Groups of URLs sharing the same type and template',
+                      description: 'Groups classified by directory prefix or individual top-level URLs',
                       items: {
                         type: 'object',
                         properties: {
                           baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'], description: 'WordPress content model type' },
-                          cptName: { type: 'string', description: 'CPT name (required for CPT type, e.g. "Case Study", "Team Member")' },
+                          cptName: { type: 'string', description: 'CPT name (required for CPT type, e.g. "Case Study", "Team Member", "Industry", "Service")' },
                           template: { type: 'string', description: 'Template name describing the page purpose' },
-                          urls: { type: 'array', items: { type: 'string' }, description: 'URLs in this group' },
+                          directoryPrefix: { type: 'string', description: 'The URL directory prefix for this group, e.g. "/blog/", "/testing-services/", "/team_members/". Use "/" for homepage.' },
                           confidence: { type: 'string', enum: ['high', 'medium'], description: 'Classification confidence' },
                         },
-                        required: ['baseType', 'template', 'urls', 'confidence'],
+                        required: ['baseType', 'template', 'directoryPrefix', 'confidence'],
                         additionalProperties: false,
                       },
                     },
