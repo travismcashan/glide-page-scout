@@ -152,7 +152,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
         </span>
 
         {hasChildren ? (
-          <button onClick={() => setLocalToggle(prev => !(prev ?? expanded))} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
+          <button onClick={() => setLocalToggle(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
         ) : null}
