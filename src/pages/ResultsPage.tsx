@@ -786,13 +786,21 @@ export default function ResultsPage() {
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData]);
 
   // Auto-seed page tags using AI industry detection, with URL-pattern fallback
+  // IMPORTANT: Wait for content_types_data and nav_structure to be available (or failed) before running
   const [autoTagging, setAutoTagging] = useState(false);
+  const autoTagTriedRef = useRef(false);
+
+  const contentTypesReady = !!(session as any)?.content_types_data || contentTypesFailed;
+  const navReady = !!(session as any)?.nav_structure || navFailed;
+  const prerequisitesReady = contentTypesReady && navReady && effectiveDiscoveredUrls.length > 0;
+
   useEffect(() => {
-    if (!session || !effectiveDiscoveredUrls.length || autoTagging) return;
+    if (!session || !prerequisitesReady || autoTagging || autoTagTriedRef.current) return;
     // Only auto-seed if page_tags is empty/null
     if ((session as any).page_tags && Object.keys((session as any).page_tags).length > 0) return;
 
     const runAutoTag = async () => {
+      autoTagTriedRef.current = true;
       setAutoTagging(true);
       try {
         // Gather homepage content from scraped pages if available
@@ -855,7 +863,7 @@ export default function ResultsPage() {
     };
 
     runAutoTag();
-  }, [session?.id, effectiveDiscoveredUrls.length]);
+  }, [session?.id, prerequisitesReady, autoTagging]);
 
   const handlePageTagChange = useCallback(async (url: string, template: string) => {
     if (!session) return;
@@ -941,6 +949,7 @@ export default function ResultsPage() {
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
       'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
+      'page-tags': () => { setAutoTagging(false); autoTagTriedRef.current = false; },
       'forms': () => {
         setFormsFailed(false); setFormsLoading(false); formsAutoRunRef.current = false;
         formsRerunFnRef.current?.();
@@ -1240,6 +1249,33 @@ export default function ResultsPage() {
           </div>
         </div>
       </header>
+
+      {/* Global tagging progress banner */}
+      {session && !isSharedView && !(session as any).page_tags && effectiveDiscoveredUrls.length > 0 && (
+        <div className="border-b border-border bg-muted/40">
+          <div className="max-w-6xl mx-auto px-6 py-2.5 flex items-center gap-3">
+            {autoTagging ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Page tagging in progress</span>
+                  {' — '}classifying {effectiveDiscoveredUrls.length} URLs by template type…
+                </span>
+              </>
+            ) : !prerequisitesReady ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Waiting for prerequisites</span>
+                  {' — '}page tagging will start after
+                  {!contentTypesReady && !navReady ? ' content classification and nav extraction' : !contentTypesReady ? ' content classification' : ' nav extraction'}
+                  {' '}complete
+                </span>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         <Tabs defaultValue="raw-data" className="w-full">
