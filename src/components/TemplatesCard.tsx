@@ -293,11 +293,11 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       {/* Summary + Controls on same row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-4 flex-wrap">
-          <MetaStat value={totalTemplates} label="Unique Templates" />
+          <MetaStat value={totalTemplates} label="Total Templates" />
           <MetaStatDivider />
-          <MetaStat value={designCount} label="Custom Design" />
+          <MetaStat value={designCount} label="Custom Templates" />
           <MetaStatDivider />
-          <MetaStat value={blockBuiltCount} label="Block-Built" />
+          <MetaStat value={blockBuiltCount} label="Block-Built Pages" />
         </div>
         <div className="flex items-center gap-2">
           {!aiTiers && !aiLoading && (
