@@ -128,6 +128,9 @@ export default function ResultsPage() {
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
+  // Timing tracking per integration
+  const integrationStartTimes = useRef<Record<string, number>>({});
+  const [integrationDurations, setIntegrationDurations] = useState<Record<string, number>>({});
   // Error tracking per integration
   const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
   const setError = (key: string, msg: string) => setIntegrationErrors(prev => ({ ...prev, [key]: msg }));
@@ -897,17 +900,59 @@ export default function ResultsPage() {
     fetchData();
   }, [session, fetchData]);
 
+  // Track loading → done transitions for timing
+  const prevLoadingRef = useRef<Record<string, boolean>>({});
+  const loadingMap: Record<string, boolean> = {
+    builtwith: builtwithLoading, semrush: semrushLoading, psi: psiLoading,
+    wappalyzer: wappalyzerLoading, carbon: carbonLoading, crux: cruxLoading,
+    wave: waveLoading, observatory: observatoryLoading, ocean: oceanLoading,
+    ssllabs: ssllabsLoading, httpstatus: httpstatusLoading, w3c: w3cLoading,
+    schema: schemaLoading, readable: readableLoading, yellowlab: yellowlabLoading,
+    'link-checker': linkcheckLoading, 'nav-structure': navLoading,
+    sitemap: sitemapLoading, 'content-types': contentTypesLoading,
+    gtmetrix: runningGtmetrix, avoma: avomaLoading,
+  };
+
+  useEffect(() => {
+    const prev = prevLoadingRef.current;
+    for (const [key, isLoading] of Object.entries(loadingMap)) {
+      if (prev[key] === undefined && isLoading) {
+        // First load — started
+        integrationStartTimes.current[key] = Date.now();
+      } else if (prev[key] && !isLoading) {
+        // Was loading, now done
+        const start = integrationStartTimes.current[key];
+        if (start) {
+          setIntegrationDurations(d => ({ ...d, [key]: Math.round((Date.now() - start) / 1000) }));
+          delete integrationStartTimes.current[key];
+        }
+      } else if (!prev[key] && isLoading) {
+        // Just started loading
+        integrationStartTimes.current[key] = Date.now();
+      }
+    }
+    prevLoadingRef.current = { ...loadingMap };
+  });
+
   const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7"
-      disabled={isLoading}
-      onClick={() => key === 'gtmetrix' ? rerunGtmetrix() : rerunIntegration(key, dbColumn)}
-      title="Run again"
-    >
-      <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-    </Button>
+    <div className="flex items-center gap-1.5">
+      {integrationDurations[key] != null && !isLoading && (
+        <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]}s</span>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        disabled={isLoading}
+        onClick={() => {
+          setIntegrationDurations(d => { const next = { ...d }; delete next[key]; return next; });
+          key === 'gtmetrix' ? rerunGtmetrix() : rerunIntegration(key, dbColumn);
+        }}
+        title="Run again"
+      >
+        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+      </Button>
+    </div>
   );
 
   const generateOutline = async (page: CrawlPage) => {
