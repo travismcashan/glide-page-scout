@@ -298,6 +298,16 @@ For example:
 - /resources/ with 18 URLs → CPT (cptName: "Resource")
 - /team_members/ with 4 URLs → CPT (cptName: "Team Member")
 
+CRITICAL RULE FOR NESTED DIRECTORIES:
+**Sub-directories under a parent CPT directory are SUBCATEGORIES, not separate CPTs.**
+In WordPress, this would be ONE custom post type with taxonomy terms (categories).
+For example, if /testing-services/ is a CPT:
+- /testing-services/material-analysis/ → same CPT "Testing Service" (subcategory: Material Analysis)
+- /testing-services/reliability/ → same CPT "Testing Service" (subcategory: Reliability)
+- /testing-services/package-testing/ → same CPT "Testing Service" (subcategory: Package Testing)
+All sub-directories should use the SAME cptName as the parent.
+The parent directory itself (e.g., /testing-services/) is an Archive for that CPT.
+
 Additional rules:
 1. The homepage (/) is ALWAYS Page with template Homepage.
 2. Blog/news posts are Post, not CPT.
