@@ -646,11 +646,15 @@ export default function ResultsPage() {
         );
 
         if (result.success && result.pages?.length) {
-          // Build PageTagsMap from AI results
+          // Build PageTagsMap from AI results (now with baseType)
           const tagMap: PageTagsMap = {};
           for (const page of result.pages) {
             const key = page.url.toLowerCase().replace(/\/$/, '');
-            tagMap[key] = { template: page.template };
+            tagMap[key] = {
+              template: page.template,
+              baseType: page.baseType || undefined,
+              cptName: page.cptName || undefined,
+            };
           }
           // Fill any remaining URLs with pattern-based fallback
           const ctData = (session as any).content_types_data;
