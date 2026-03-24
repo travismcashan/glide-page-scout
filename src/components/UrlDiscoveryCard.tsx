@@ -75,8 +75,7 @@ type Props = {
   persistedUrls?: string[] | null;
   onUrlsPersist?: (urls: string[]) => void;
   pageTags?: PageTagsMap | null;
-  onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
-  onPageLabelChange?: (url: string, label: string) => void;
+  onPageTagChange?: (url: string, template: string) => void;
 };
 
 function statusBadgeClass(code: number): string {
@@ -120,8 +119,8 @@ const navBadgeLabel: Record<string, string> = {
   footer: 'Footer',
 };
 
-const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void; onPageLabelChange?: (url: string, label: string) => void }>(
-  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range', pageTags, onPageTagChange, onPageLabelChange }, ref) => {
+const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<string, number>; navMap: Map<string, NavTag[]>; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }>(
+  ({ urls, statusMap, navMap, emptyText = 'No URLs in this range', pageTags, onPageTagChange }, ref) => {
     if (!urls.length) {
       return <p className="text-sm text-muted-foreground italic py-4 text-center">{emptyText}</p>;
     }
@@ -149,8 +148,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
               )}
               <PageTemplateBadge
                 tag={pageTag}
-                onChange={onPageTagChange ? (t, v) => onPageTagChange(url, t, v) : undefined}
-                onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(url, l) : undefined}
+                onChange={onPageTagChange ? (t) => onPageTagChange(url, t) : undefined}
                 readOnly={!onPageTagChange}
               />
               {uniqueTypes.map((type) => (
