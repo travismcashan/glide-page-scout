@@ -414,6 +414,31 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
       // Build final classifications using directory prefix matching
       const classified: ClassifiedUrl[] = [];
 
+      // Post-processing: merge child directory CPTs into their parent CPT
+      // e.g., if AI classified /testing-services/ as CPT "Testing Service" and 
+      // /testing-services/material-analysis/ as CPT "Material Analysis",
+      // merge the child into the parent's cptName
+      for (const group of aiGroups) {
+        if (group.baseType !== 'CPT' || !group.directoryPrefix) continue;
+        const childPrefix = group.directoryPrefix.replace(/\/$/, '').toLowerCase();
+        const segments = childPrefix.split('/').filter(Boolean);
+        if (segments.length < 2) continue; // not a nested directory
+        
+        // Find parent group (first-level directory)
+        const parentPrefix = '/' + segments[0];
+        const parentGroup = aiGroups.find(g => 
+          g.directoryPrefix && 
+          g.directoryPrefix.replace(/\/$/, '').toLowerCase() === parentPrefix &&
+          (g.baseType === 'CPT' || g.baseType === 'Archive')
+        );
+        
+        if (parentGroup && parentGroup.cptName) {
+          // Merge child into parent's CPT name
+          group.cptName = parentGroup.cptName;
+          group.template = parentGroup.template || `${parentGroup.cptName} Detail`;
+        }
+      }
+
       const sortedGroups = [...aiGroups].sort((a, b) =>
         (b.directoryPrefix?.length || 0) - (a.directoryPrefix?.length || 0)
       );
