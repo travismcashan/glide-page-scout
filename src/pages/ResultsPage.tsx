@@ -386,6 +386,9 @@ export default function ResultsPage() {
   const [templatesRerunning, setTemplatesRerunning] = useState(false);
   const templatesRerunFnRef = useRef<(() => void) | null>(null);
 
+  // Forms rerun support
+  const formsRerunFnRef = useRef<(() => void) | null>(null);
+
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
   const [ssllabsFailed, setSsllabsFailed] = useState(false);
   const ssllabsPollingRef = useRef(false);
