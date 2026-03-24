@@ -87,7 +87,7 @@ export function PageTemplateBadge({ tag, onChange, readOnly, hideBaseType }: Pro
           variant="outline"
           className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[baseType]} cursor-default`}
         >
-          {baseType}
+          {baseType === 'Archive' ? 'Archive (i.e. list pages)' : baseType === 'Search' ? 'Search (i.e. query strings)' : baseType}
         </Badge>
       )}
       {/* Template badge (Level 2) */}
