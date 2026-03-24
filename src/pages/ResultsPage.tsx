@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -49,6 +49,7 @@ import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { SitemapCard } from '@/components/SitemapCard';
 import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { TemplatesCard } from '@/components/TemplatesCard';
+import { FormsCard } from '@/components/FormsCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -103,6 +104,7 @@ type CrawlSession = {
   content_types_data: any | null;
   page_tags: PageTagsMap | null;
   sitemap_data: any | null;
+  forms_data: any | null;
 };
 
 
@@ -645,7 +647,35 @@ export default function ResultsPage() {
     }
   }, [session?.sitemap_data]);
 
-  // Content Types classification (auto-run after URL discovery) — phased with progress
+  // Forms Detection (manual trigger — scrapes pages via Firecrawl)
+  const [formsLoading, setFormsLoading] = useState(false);
+  const [formsFailed, setFormsFailed] = useState(false);
+  const runFormsDetection = useCallback(async () => {
+    if (!session || formsLoading) return;
+    setFormsLoading(true);
+    setFormsFailed(false);
+    clearError('forms');
+    try {
+      const urls = effectiveDiscoveredUrls.length > 0 ? effectiveDiscoveredUrls : [session.base_url];
+      const result = await formsDetectApi.detect(urls, session.domain);
+      if (result.success && result.data) {
+        await supabase.from('crawl_sessions').update({ forms_data: result.data } as any).eq('id', session.id);
+        clearError('forms');
+        fetchData();
+        toast.success(`Found ${result.data.summary?.uniqueForms || 0} unique forms`);
+      } else {
+        setFormsFailed(true);
+        setError('forms', result.error || 'Forms detection failed');
+      }
+    } catch (e: any) {
+      setFormsFailed(true);
+      setError('forms', e?.message || 'Forms detection request failed');
+    } finally {
+      setFormsLoading(false);
+    }
+  }, [session, formsLoading, effectiveDiscoveredUrls, fetchData]);
+
+
   const [contentTypesLoading, setContentTypesLoading] = useState(false);
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
   const [contentTypesProgress, setContentTypesProgress] = useState('');
@@ -1187,7 +1217,8 @@ export default function ResultsPage() {
           (session && (session as any)?.page_tags) ||
           shouldShowIntegration('content-types', !!(session as any)?.content_types_data) ||
           shouldShowIntegration('content', pages.length > 0) ||
-          shouldShowIntegration('readable', !!(session as any)?.readable_data)
+          shouldShowIntegration('readable', !!(session as any)?.readable_data) ||
+          shouldShowIntegration('forms', !!(session as any)?.forms_data)
         ) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Content Analysis</h2>
@@ -1233,6 +1264,22 @@ export default function ResultsPage() {
               {shouldShowIntegration('readable', !!(session as any)?.readable_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="readable" persistedCollapsed={isSectionCollapsed("readable")} onCollapseChange={toggleSection} title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable} headerExtra={rerunButton('readable', 'readable_data', readableLoading)}>
                 {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('forms', !!(session as any)?.forms_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Detection" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)}>
+                {(session as any)?.forms_data ? (
+                  <FormsCard data={(session as any).forms_data} />
+                ) : !formsLoading ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
+                    <Button variant="outline" size="sm" onClick={runFormsDetection} disabled={formsLoading}>
+                      <Search className="h-3.5 w-3.5 mr-1.5" />
+                      Detect Forms
+                    </Button>
+                  </div>
+                ) : null}
               </SectionCard>
               )}
             </div>

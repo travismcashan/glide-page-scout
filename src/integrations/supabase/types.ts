@@ -118,6 +118,7 @@ export type Database = {
           deep_research_data: Json | null
           discovered_urls: Json | null
           domain: string
+          forms_data: Json | null
           gtmetrix_grade: string | null
           gtmetrix_scores: Json | null
           gtmetrix_test_id: string | null
@@ -155,6 +156,7 @@ export type Database = {
           deep_research_data?: Json | null
           discovered_urls?: Json | null
           domain: string
+          forms_data?: Json | null
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
           gtmetrix_test_id?: string | null
@@ -192,6 +194,7 @@ export type Database = {
           deep_research_data?: Json | null
           discovered_urls?: Json | null
           domain?: string
+          forms_data?: Json | null
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
           gtmetrix_test_id?: string | null
