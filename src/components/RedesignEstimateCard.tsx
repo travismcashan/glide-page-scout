@@ -134,6 +134,9 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
         return { name, ...data, navSection };
       })
       .sort((a, b) => {
+        // Homepage always first
+        if (a.name === 'Homepage') return -1;
+        if (b.name === 'Homepage') return 1;
         // Base type priority first
         const pa = baseTypePriority[a.baseType || 'Page'] ?? 5;
         const pb = baseTypePriority[b.baseType || 'Page'] ?? 5;
