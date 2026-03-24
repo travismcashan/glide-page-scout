@@ -29,9 +29,10 @@ interface ExpandableUrlRowsProps {
   navMap?: Map<string, NavTag[]>;
   pageTags?: PageTagsMap | null;
   onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
+  onPageLabelChange?: (url: string, label: string) => void;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, onPageLabelChange }: ExpandableUrlRowsProps) {
   const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);
@@ -51,6 +52,17 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           const pageTag = getPageTag(pageTags, item.url);
           return (
             <div key={item.url} className="flex items-center gap-2 py-1 px-3 rounded hover:bg-muted/30 group">
+              <PageTemplateBadge
+                tag={pageTag}
+                onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url, t, v) : undefined}
+                onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(item.url, l) : undefined}
+                readOnly={!onPageTagChange}
+              />
+              {uniqueNavTypes.map((type) => (
+                <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
+                  {navBadgeLabel[type]}
+                </Badge>
+              ))}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <a
@@ -66,16 +78,6 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
                   <p className="text-xs font-mono break-all">{item.url}</p>
                 </TooltipContent>
               </Tooltip>
-              <PageTemplateBadge
-                tag={pageTag}
-                onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url, t, v) : undefined}
-                readOnly={!onPageTagChange}
-              />
-              {uniqueNavTypes.map((type) => (
-                <Badge key={type} variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${navBadgeClass[type]}`}>
-                  {navBadgeLabel[type]}
-                </Badge>
-              ))}
               <a
                 href={item.url}
                 target="_blank"
