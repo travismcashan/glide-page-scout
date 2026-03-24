@@ -1298,7 +1298,7 @@ export default function ResultsPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="ai-research"
-                style={activeTab === 'ai-research' ? { borderBottom: 'none', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)' } : undefined}
+                style={activeTab === 'ai-research' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
                 className="relative text-base font-bold px-5 py-2.5 rounded-t-lg border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Brain className="h-4 w-4 mr-2" />
