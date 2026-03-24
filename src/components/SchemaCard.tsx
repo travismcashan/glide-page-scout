@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { CardTabs } from '@/components/CardTabs';
 import { AlertTriangle, CheckCircle2, XCircle, Code, Star, FileJson, Tag } from 'lucide-react';
 

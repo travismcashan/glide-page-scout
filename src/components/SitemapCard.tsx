@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';

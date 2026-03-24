@@ -1,4 +1,5 @@
 import { Loader2, Search } from 'lucide-react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
 type SemrushCardProps = {
   data: {

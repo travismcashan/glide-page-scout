@@ -1,4 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';

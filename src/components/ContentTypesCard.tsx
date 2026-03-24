@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

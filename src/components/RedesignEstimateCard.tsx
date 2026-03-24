@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
