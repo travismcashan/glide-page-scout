@@ -260,7 +260,7 @@ CRITICAL RULES:
 5. Blog posts are type Post, NOT CPT — even if there are many.
 6. Individual service/solution sub-pages are Page unless there are ${minCount}+ with identical structure.
 
-You MUST classify EVERY URL provided.`;
+You MUST classify EVERY directory group and top-level page.`;
 
         // Build compact directory listing — DON'T send all URLs to avoid output truncation
         const dirListing = Array.from(dirGroups.entries())
