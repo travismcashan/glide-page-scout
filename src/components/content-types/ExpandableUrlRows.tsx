@@ -44,23 +44,8 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           const pageTag = getPageTag(pageTags, item.url);
           return (
             <div key={item.url} className="flex items-center px-3 py-1 hover:bg-muted/20 transition-colors group border-t border-border/50">
-              {/* Left: Reassign dropdown + URL */}
+              {/* Left: URL */}
               <div className="flex items-center flex-1 min-w-0 gap-2">
-                {!readOnly && onChangeType && (
-                  <Select
-                    value={item.contentType}
-                    onValueChange={(val) => onChangeType(item.url, val)}
-                  >
-                    <SelectTrigger className="h-6 text-[10px] w-[120px] shrink-0 px-2 py-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allTypes.map(t => (
-                        <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <a
@@ -84,6 +69,21 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
                 >
                   <ExternalLink className="h-3 w-3" />
                 </a>
+                {!readOnly && onChangeType && (
+                  <Select
+                    value={item.contentType}
+                    onValueChange={(val) => onChangeType(item.url, val)}
+                  >
+                    <SelectTrigger className="h-6 text-[10px] w-[120px] shrink-0 px-2 py-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allTypes.map(t => (
+                        <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Right: Type | Template columns — aligned with all other tables */}
