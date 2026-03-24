@@ -45,7 +45,7 @@ export function getTemplateCategory(template: string): TemplateCategory {
   if (TOOLKIT_TEMPLATES.has(template)) return 'toolkit';
   // Heuristic: if it ends with "List" or "Detail", it's a template
   if (/\bList$/i.test(template) || /\bDetail$/i.test(template)) return 'template';
-  return 'toolkit';
+  return 'custom';
 }
 
 /** All known template names, grouped by category */
