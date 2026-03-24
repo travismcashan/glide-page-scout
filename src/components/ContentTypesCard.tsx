@@ -124,6 +124,17 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
     });
   };
 
+  const handleRename = (oldType: string) => {
+    const newName = editValue.trim();
+    if (!newName || newName === oldType || !onDataChange) {
+      setEditingType(null);
+      return;
+    }
+    const newSummary = summary.map(r => r.type === oldType ? { ...r, type: newName } : r);
+    onDataChange({ ...data, summary: newSummary });
+    setEditingType(null);
+  };
+
   const handleMerge = () => {
     if (!mergeName.trim() || selected.size < 2 || !onDataChange) return;
 
