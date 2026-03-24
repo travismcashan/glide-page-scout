@@ -1,70 +1,46 @@
 
 
-## Unified Data List Design System
+## Meta Stats Design System Unification
 
 ### Problem
-Four components display URL/page lists with inconsistent patterns:
-- **Navigation Structure**: `bg-muted/20` container, inline header row, tree items with no scroll container
-- **XML Sitemaps**: `bg-card` (white) container, clickable rows act as headers, expanded content in `bg-muted/30`
-- **Discovered URLs**: `bg-card` table with sticky `bg-muted/80` thead, inside tabs
-- **Repeating Content**: Grid-based layout, no bg on header, expanded rows in `bg-muted/10`
+Each integration card uses a different style for its summary/meta row:
+- **SitemapCard**: Badge capsules (`Badge variant="secondary"`)
+- **BrokenLinksCard**: Colored icons + `text-sm` numbers + Badge capsule for total
+- **SchemaCard**: Multiple Badge capsules (outline, secondary, destructive variants)
+- **SemrushCard**: Large grid stat boxes (`text-lg font-semibold`) + Badge capsules for backlinks
+- **NavStructureCard, ContentTypesCard, RedesignEstimateCard, TemplatesCard**: Already use the inline text pattern (`<strong>N</strong> Label · <strong>N</strong> Label`)
 
-### Unified Pattern
-
-Every data list will follow this structure:
+### Standardized Pattern
+Adopt the inline text pattern as the universal meta style since it's already the most common:
 
 ```text
-┌─────────────────────────────────────────────┐
-│  Sticky header row (bg-muted/80)            │  <- consistent across all
-│  Column1  |  Column2  |  Column3            │
-├─────────────────────────────────────────────┤
-│  Data rows (bg-card, hover:bg-muted/30)     │
-│  ...                                        │
-│  Expandable section (bg-muted/20)           │  <- when needed
-│  ...                                        │
-└─────────────────────────────────────────────┘
+<strong class="text-foreground">35</strong> Total Unique Links · <strong>text-foreground">20</strong> Primary
 ```
 
-**Design tokens (shared)**:
-- **Container**: `rounded-lg border border-border bg-card overflow-hidden`
-- **Header row**: `sticky top-0 bg-muted/80 backdrop-blur-sm` with `text-xs font-medium text-muted-foreground` and `px-3 py-1.5`
-- **Data rows**: `border-t border-border hover:bg-muted/30 transition-colors` with `px-3 py-1.5`
-- **Expanded sub-rows**: `bg-muted/20 border-t border-border`
-- **Text**: `text-xs font-mono leading-5 text-muted-foreground` for all URLs/titles
-- **Max height**: `max-h-[300px] overflow-y-auto` on scroll containers
+Container: `flex items-center gap-3 flex-wrap text-xs text-muted-foreground`
+Numbers: `<strong className="text-foreground">{value}</strong>`
+Separators: `<span>·</span>`
+Labels: Title Case, plain text
 
-### Files to Change
+### Cards to Update
 
-1. **`src/components/NavStructureCard.tsx`**
-   - Replace the per-section `border border-border rounded-lg bg-muted/20` with `bg-card`
-   - Use the shared header style (`bg-muted/80 backdrop-blur-sm`) for the column headers
-   - Wrap tree content in a scrollable container matching discovered URLs
+1. **SitemapCard** (lines 50-63) — Replace Badge capsules with inline text stats: `<strong>3</strong> Sitemaps · <strong>1,200</strong> Total URLs · <strong>5</strong> Content Type Hints`
 
-2. **`src/components/SitemapCard.tsx`**
-   - Add a sticky header row (Sitemap | Label | URLs) above the expandable rows
-   - Change parent row bg to match data row pattern (no special white treatment)
-   - Change expanded URL list bg from `bg-muted/30` to `bg-muted/20`
+2. **BrokenLinksCard** (lines 74-93) — Replace colored-icon summary with inline text stats: `<strong>45</strong> OK · <strong>3</strong> Redirects · <strong>2</strong> Broken · <strong>50</strong> Checked`. Keep the progress bar below as-is (it's a visual element, not meta text).
 
-3. **`src/components/UrlDiscoveryCard.tsx`**
-   - Already closest to the target pattern; minor tweaks to ensure header uses `bg-muted/80 backdrop-blur-sm` consistently (already does)
-   - Confirm row padding matches `px-3 py-1.5`
+3. **SchemaCard** (lines 30-61) — Replace Badge capsules with inline text stats: `<strong>5</strong> Schemas Found · <strong>3</strong> JSON-LD · <strong>1</strong> Microdata · <strong>2</strong> Errors · <strong>1</strong> Warning`. For error/warning counts, keep the text colored (text-destructive / text-yellow-600) but use inline text, not badges.
 
-4. **`src/components/ContentTypesCard.tsx`**
-   - Replace grid-based layout with `<table>` or keep grid but apply shared container/header styles
-   - Header: `bg-muted/80 backdrop-blur-sm` instead of bare border-b
-   - Expanded section: `bg-muted/20` instead of `bg-muted/10`
+4. **SemrushCard** (lines 59-91) — Replace the title row ("SEMrush Domain Analysis") and large grid stat boxes with inline text meta: `<strong>1,234</strong> Organic Keywords · <strong>5,678</strong> Organic Traffic · <strong>50</strong> Paid Keywords · <strong>1,000</strong> Rank`. Replace the backlinks Badge row with inline text: `<strong>10,000</strong> Backlinks · <strong>500</strong> Domains · <strong>8,000</strong> Follow · <strong>2,000</strong> Nofollow`.
 
-5. **`src/components/content-types/ExpandableUrlRows.tsx`**
-   - Ensure row padding and hover styles match the shared pattern (`px-3 py-1.5`, `hover:bg-muted/30`)
+### Cards Already Consistent (no changes needed)
+- NavStructureCard
+- ContentTypesCard
+- RedesignEstimateCard
+- TemplatesCard
 
-### Summary of Visual Consistency
-
-| Element | Before (mixed) | After (unified) |
-|---------|----------------|-----------------|
-| Container bg | `bg-muted/20`, `bg-card`, none | `bg-card` everywhere |
-| Header bg | `border-b`, `bg-muted/80`, none | `bg-muted/80 backdrop-blur-sm` |
-| Row hover | `hover:bg-muted/50`, `/30` | `hover:bg-muted/30` |
-| Expanded bg | `bg-muted/10`, `/30` | `bg-muted/20` |
-| Text style | mixed sizes/fonts | `text-xs font-mono leading-5` |
-| Row padding | mixed | `px-3 py-1.5` |
+### Files to Edit
+- `src/components/SitemapCard.tsx`
+- `src/components/BrokenLinksCard.tsx`
+- `src/components/SchemaCard.tsx`
+- `src/components/SemrushCard.tsx`
 
