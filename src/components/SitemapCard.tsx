@@ -65,6 +65,11 @@ export function SitemapCard({ data }: Props) {
 
       {/* Sitemap tree */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">Sitemap</span>
+          <span className="w-[80px] text-center text-xs font-medium text-muted-foreground">Label</span>
+          <span className="w-[70px] text-right text-xs font-medium text-muted-foreground">URLs</span>
+        </div>
         {groups.map((group) => {
           const isExpanded = expandedGroups.has(group.sitemapUrl);
           const filename = (() => {
@@ -79,7 +84,7 @@ export function SitemapCard({ data }: Props) {
             <div key={group.sitemapUrl} className="border-b border-border last:border-0">
               <button
                 onClick={() => toggleGroup(group.sitemapUrl)}
-                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/30 transition-colors text-left"
               >
                 {isExpanded ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -87,7 +92,7 @@ export function SitemapCard({ data }: Props) {
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 )}
                 <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="text-sm font-mono truncate flex-1">{filename}</span>
+                <span className="text-xs font-mono leading-5 truncate flex-1">{filename}</span>
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 bg-primary/5 text-primary border-primary/20">
                   {group.label}
                 </Badge>
@@ -96,14 +101,14 @@ export function SitemapCard({ data }: Props) {
                 </span>
               </button>
               {isExpanded && (
-                <div className="max-h-[200px] overflow-y-auto border-t border-border bg-muted/30">
+                <div className="max-h-[200px] overflow-y-auto border-t border-border bg-muted/20">
                   {group.urls.map((url) => (
                     <a
                       key={url}
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-6 py-1 text-xs font-mono text-muted-foreground hover:text-primary hover:underline hover:bg-muted/50 transition-colors"
+                      className="flex items-center gap-2 px-6 py-1.5 text-xs font-mono leading-5 text-muted-foreground hover:text-primary hover:underline hover:bg-muted/30 transition-colors"
                     >
                       <span className="truncate flex-1">{url}</span>
                       <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100" />

@@ -154,7 +154,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 
   return (
     <div>
-      <div className="flex items-center py-1 px-2 rounded-md hover:bg-muted/50 transition-colors group">
+      <div className="flex items-center px-3 py-1.5 hover:bg-muted/30 transition-colors group border-t border-border first:border-t-0">
         {/* Left: tree + label */}
         <div className="flex items-center flex-1 min-w-0">
           <span className="font-mono text-xs leading-5 text-foreground/50 whitespace-pre select-none shrink-0">
@@ -248,14 +248,14 @@ function NavSection({ title, icon, items, emptyText, globalExpand, pageTags, onP
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1">{items.length}</Badge>
       </div>
       {items.length > 0 ? (
-        <div className="border border-border rounded-lg bg-muted/20">
-          <div className="flex items-center px-2 py-1.5 border-b border-border">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
             <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
             <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
             <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
             <span className="w-[16px]" />
           </div>
-          <div className="p-2 pt-0">
+          <div className="max-h-[300px] overflow-y-auto">
             {items.map((item, idx) => (
               <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
             ))}
