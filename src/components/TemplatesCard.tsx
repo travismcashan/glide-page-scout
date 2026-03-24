@@ -60,13 +60,16 @@ interface AiTiers {
   reasoning_L?: string;
 }
 
-function TemplateRow({ t, isExcluded, toggleExcluded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void }) {
+function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean }) {
   return (
     <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
       <td className="px-3 py-1 text-center">
         <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
       </td>
-      <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>{t.name}</td>
+      <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>
+        {t.name}
+        {isManuallyAdded && <Badge variant="outline" className="ml-2 text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">added</Badge>}
+      </td>
       <td className="px-3 py-1 text-center">
         {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}
       </td>
@@ -207,7 +210,6 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   }, [aiTiers, aiLoading, templates, domain]);
 
   const toggleExcluded = (name: string) => {
-    setActiveTier(null);
     setExcluded(prev => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name); else next.add(name);
@@ -256,6 +258,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   };
 
   const hasTierSelection = activeTier && activeTier !== 'All' && aiTiers;
+  const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const recommendedTemplates = hasTierSelection ? templates.filter(t => !excluded.has(t.name)) : [];
   const notIncludedTemplates = hasTierSelection ? templates.filter(t => excluded.has(t.name)) : [];
 
@@ -340,7 +343,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                   </td>
                 </tr>
                 {!collapsedTableSections.has('recommended') && recommendedTemplates.map((t, i) => (
-                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} />
+                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
                 ))}
 
                 {/* Not included section */}
