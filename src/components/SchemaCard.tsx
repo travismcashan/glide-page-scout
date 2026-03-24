@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { CardTabs } from '@/components/CardTabs';
 import { AlertTriangle, CheckCircle2, XCircle, Code, Star, FileJson, Tag } from 'lucide-react';
 
@@ -27,26 +28,26 @@ export function SchemaCard({ data }: { data: SchemaData }) {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 flex-wrap">
         {hasSchemas ? (
-          <span><strong className="text-foreground text-sm">{summary.totalSchemas}</strong> Schema{summary.totalSchemas !== 1 ? 's' : ''} Found</span>
+          <MetaStat value={summary.totalSchemas} label={summary.totalSchemas !== 1 ? 'Schemas Found' : 'Schema Found'} />
         ) : (
-          <span className="text-destructive"><strong>No Structured Data Found</strong></span>
+          <span className="text-destructive text-xs"><strong>No Structured Data Found</strong></span>
         )}
         {summary.jsonLdCount > 0 && (
-          <><span>·</span><span><strong className="text-foreground text-sm">{summary.jsonLdCount}</strong> JSON-LD</span></>
+          <><MetaStatDivider /><MetaStat value={summary.jsonLdCount} label="JSON-LD" /></>
         )}
         {summary.microdataCount > 0 && (
-          <><span>·</span><span><strong className="text-foreground text-sm">{summary.microdataCount}</strong> Microdata</span></>
+          <><MetaStatDivider /><MetaStat value={summary.microdataCount} label="Microdata" /></>
         )}
         {summary.rdfaCount > 0 && (
-          <><span>·</span><span><strong className="text-foreground text-sm">{summary.rdfaCount}</strong> RDFa</span></>
+          <><MetaStatDivider /><MetaStat value={summary.rdfaCount} label="RDFa" /></>
         )}
         {summary.errorCount > 0 && (
-          <><span>·</span><span className="text-destructive"><strong>{summary.errorCount}</strong> Error{summary.errorCount !== 1 ? 's' : ''}</span></>
+          <><MetaStatDivider /><span className="text-destructive text-xs"><strong>{summary.errorCount}</strong> Error{summary.errorCount !== 1 ? 's' : ''}</span></>
         )}
         {summary.warningCount > 0 && (
-          <><span>·</span><span className="text-yellow-600 dark:text-yellow-400"><strong>{summary.warningCount}</strong> Warning{summary.warningCount !== 1 ? 's' : ''}</span></>
+          <><MetaStatDivider /><span className="text-yellow-600 dark:text-yellow-400 text-xs"><strong>{summary.warningCount}</strong> Warning{summary.warningCount !== 1 ? 's' : ''}</span></>
         )}
       </div>
 

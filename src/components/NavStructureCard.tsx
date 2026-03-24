@@ -1,4 +1,5 @@
 import { useState, forwardRef, useImperativeHandle } from 'react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -318,11 +319,11 @@ export const NavStructureCard = forwardRef<NavStructureCardHandle, NavStructureC
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground text-sm">{totalCount}</strong> Total Unique Links</span>
-          {primary.length > 0 && <><span>·</span><span><strong className="text-foreground text-sm">{countLinks(primary)}</strong> Primary</span></>}
-          {secondary.length > 0 && <><span>·</span><span><strong className="text-foreground text-sm">{countLinks(secondary)}</strong> Secondary</span></>}
-          {footer.length > 0 && <><span>·</span><span><strong className="text-foreground text-sm">{countLinks(footer)}</strong> Footer Only</span></>}
+        <div className="flex items-center gap-4 flex-wrap">
+          <MetaStat value={totalCount} label="Total Unique Links" />
+          {primary.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(primary)} label="Primary" /></>}
+          {secondary.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(secondary)} label="Secondary" /></>}
+          {footer.length > 0 && <><MetaStatDivider /><MetaStat value={countLinks(footer)} label="Footer Only" /></>}
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">

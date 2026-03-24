@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
 interface FormEntry {
   fingerprint: string;
@@ -92,14 +93,14 @@ export function FormsCard({ data }: Props) {
   return (
     <div className="space-y-4">
       {/* Meta stats — unified pattern */}
-      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-        <span><strong className="text-foreground text-sm">{summary.uniqueForms}</strong> Unique Forms</span>
-        <span>·</span>
-        <span><strong className="text-foreground text-sm">{summary.globalForms}</strong> Global</span>
-        <span>·</span>
-        <span><strong className="text-foreground text-sm">{summary.pagesWithForms}</strong> Pages with Forms</span>
-        <span>·</span>
-        <span><strong className="text-foreground text-sm">{summary.pagesScraped}</strong> Pages Scanned</span>
+      <div className="flex items-center gap-4 flex-wrap">
+        <MetaStat value={summary.uniqueForms} label="Unique Forms" />
+        <MetaStatDivider />
+        <MetaStat value={summary.globalForms} label="Global" />
+        <MetaStatDivider />
+        <MetaStat value={summary.pagesWithForms} label="Pages with Forms" />
+        <MetaStatDivider />
+        <MetaStat value={summary.pagesScraped} label="Pages Scanned" />
       </div>
 
       {/* Div-based card matching other integration cards */}

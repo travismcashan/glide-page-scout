@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -153,12 +154,12 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
     <div className="space-y-4">
       {/* Stats row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground text-sm">{repeatingCount}</strong> Repeating URLs</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{summary.length}</strong> Content Types</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{stats.total}</strong> Total URLs Analyzed</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <MetaStat value={repeatingCount} label="Repeating URLs" />
+          <MetaStatDivider />
+          <MetaStat value={summary.length} label="Content Types" />
+          <MetaStatDivider />
+          <MetaStat value={stats.total} label="Total URLs Analyzed" />
         </div>
         {onDataChange && (
           <Button

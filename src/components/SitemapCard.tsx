@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
@@ -69,14 +70,14 @@ export function SitemapCard({ data, globalInnerExpand = null, pageTags, onPageTa
     <div className="space-y-4">
       {/* Summary stats */}
       {stats && (
-        <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground text-sm">{stats.sitemapsFound}</strong> Sitemap{stats.sitemapsFound !== 1 ? 's' : ''}</span>
-          <span>·</span>
-          <span><strong className="text-foreground text-sm">{stats.totalUrls.toLocaleString()}</strong> Total URLs</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <MetaStat value={stats.sitemapsFound} label={stats.sitemapsFound !== 1 ? 'Sitemaps' : 'Sitemap'} />
+          <MetaStatDivider />
+          <MetaStat value={stats.totalUrls.toLocaleString()} label="Total URLs" />
           {stats.contentTypeHintsCount > 0 && (
             <>
-              <span>·</span>
-              <span><strong className="text-foreground text-sm">{stats.contentTypeHintsCount}</strong> Content Type Hint{stats.contentTypeHintsCount !== 1 ? 's' : ''}</span>
+              <MetaStatDivider />
+              <MetaStat value={stats.contentTypeHintsCount} label={stats.contentTypeHintsCount !== 1 ? 'Content Type Hints' : 'Content Type Hint'} />
             </>
           )}
         </div>

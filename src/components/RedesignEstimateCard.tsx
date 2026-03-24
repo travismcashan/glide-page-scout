@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
@@ -72,14 +73,14 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-        <span><strong className="text-foreground text-sm">{totalPages}</strong> Total URLs</span>
-        <span>·</span>
-        <span><strong className="text-foreground text-sm">{baseTypeCounts.length}</strong> Base Types</span>
+      <div className="flex items-center gap-4 flex-wrap">
+        <MetaStat value={totalPages} label="Total URLs" />
+        <MetaStatDivider />
+        <MetaStat value={baseTypeCounts.length} label="Base Types" />
         {contentTypes.length > 0 && (
           <>
-            <span>·</span>
-            <span><strong className="text-foreground text-sm">{contentTypes.length}</strong> Repeating Content Types</span>
+            <MetaStatDivider />
+            <MetaStat value={contentTypes.length} label="Repeating Content Types" />
           </>
         )}
       </div>
