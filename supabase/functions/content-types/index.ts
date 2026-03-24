@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { urls, baseUrl, sampleSize = 30, minCount = 3 } = await req.json();
+    const { urls, baseUrl, sampleSize = 30, minCount = 3, sitemapHints } = await req.json();
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return new Response(
