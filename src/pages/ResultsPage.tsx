@@ -1301,8 +1301,9 @@ export default function ResultsPage() {
               {activeTab === 'raw-data' && (
                 <>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
+                    className="gap-1 px-2"
                     onClick={() => {
                       const url = new URL(window.location.href);
                       url.searchParams.set('view', 'shared');
@@ -1310,22 +1311,23 @@ export default function ResultsPage() {
                       toast.success('View-only link copied to clipboard');
                     }}
                   >
-                    <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                    <Share2 className="h-3.5 w-3.5" />
                     Share
                   </Button>
                   {!isSharedView && (
                     <>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
+                        className="gap-1 px-2"
                         onClick={() => setAllCollapsed(!allCollapsed)}
                         title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
                       >
-                        {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
+                        {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5" /> : <ChevronsDownUp className="h-3.5 w-3.5" />}
                         {allCollapsed ? 'Expand All' : 'Collapse All'}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={rerunAll} disabled={rerunningAll}>
-                        <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
+                      <Button variant="ghost" size="sm" className="gap-1 px-2" onClick={rerunAll} disabled={rerunningAll}>
+                        <RefreshCw className={`h-3.5 w-3.5 ${rerunningAll ? 'animate-spin' : ''}`} />
                         Re-run All
                       </Button>
                     </>
@@ -1333,8 +1335,8 @@ export default function ResultsPage() {
                   {!isSharedView && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                        <Button variant="ghost" size="sm" className="gap-1 px-2">
+                          <Download className="h-3.5 w-3.5" />
                           Export
                         </Button>
                       </DropdownMenuTrigger>
