@@ -150,10 +150,10 @@ function ExpandableRow({ row }: { row: RowData }) {
 
   return (
     <div
-      className="flex items-start px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors cursor-default"
+      className="flex items-start gap-3 px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors cursor-default"
       onClick={isLong ? () => setExpanded(!expanded) : undefined}
     >
-      <span className="w-[150px] shrink-0 text-xs leading-5 truncate">{row.name}</span>
+      <span className="w-[180px] shrink-0 text-xs leading-5 truncate">{row.name}</span>
       <span className="w-[110px] shrink-0 text-xs leading-5 text-muted-foreground truncate">{row.subcategory}</span>
       <span className="w-[70px] shrink-0 text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.firstDetected)}</span>
       <span className="w-[70px] shrink-0 text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.lastDetected)}</span>
@@ -245,8 +245,8 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         {/* Sticky header — matches all other tables */}
-        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
-          <span className="w-[150px] shrink-0 text-xs font-medium text-muted-foreground">Technology</span>
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center gap-3 px-3 py-1.5 border-b border-border">
+          <span className="w-[180px] shrink-0 text-xs font-medium text-muted-foreground">Technology</span>
           <span className="w-[110px] shrink-0 text-xs font-medium text-muted-foreground">Subcategory</span>
           <span className="w-[70px] shrink-0 text-center text-xs font-medium text-muted-foreground">First Seen</span>
           <span className="w-[70px] shrink-0 text-center text-xs font-medium text-muted-foreground">Last Seen</span>
