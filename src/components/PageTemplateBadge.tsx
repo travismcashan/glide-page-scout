@@ -27,9 +27,10 @@ interface Props {
   tag?: PageTag;
   onChange?: (template: string) => void;
   readOnly?: boolean;
+  hideBaseType?: boolean;
 }
 
-export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
+export function PageTemplateBadge({ tag, onChange, readOnly, hideBaseType }: Props) {
   const [open, setOpen] = useState(false);
   const [addingCategory, setAddingCategory] = useState<TemplateCategory | null>(null);
   const [customName, setCustomName] = useState('');
