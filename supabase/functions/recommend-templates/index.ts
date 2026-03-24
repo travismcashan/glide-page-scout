@@ -135,7 +135,7 @@ For each tier, list ONLY template names that need custom design. Everything not 
                     description: 'Markdown-formatted explanation for the Large tier: what was added beyond Medium and why. Use **bold** for template names.',
                   },
                 },
-                required: ['S', 'M', 'L', 'reasoning'],
+                required: ['S', 'M', 'L', 'reasoning', 'reasoning_S', 'reasoning_M', 'reasoning_L'],
                 additionalProperties: false,
               },
             },
