@@ -15,7 +15,7 @@ export function MetaStat({ value, label }: MetaStatProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-4xl font-semibold text-foreground leading-none tracking-tight">
+      <span className="text-4xl font-light text-foreground leading-none tracking-tight">
         {value}
       </span>
       <span className="text-xs leading-tight text-muted-foreground">
