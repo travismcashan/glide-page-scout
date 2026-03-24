@@ -94,20 +94,8 @@ export function FormsCard({ data }: Props) {
         <span><strong className="text-foreground text-sm">{summary.pagesScraped}</strong> Pages Scanned</span>
       </div>
 
-      {/* Platform breakdown */}
-      {Object.keys(summary.platforms).length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {Object.entries(summary.platforms)
-            .sort(([, a], [, b]) => b - a)
-            .map(([platform, count]) => (
-              <Badge key={platform} variant="outline" className={`${platformColors[platform] || platformColors.Native} text-[10px] px-1.5 py-0`}>
-                {platform} ({count})
-              </Badge>
-            ))}
-        </div>
-      )}
-
       {/* Forms table */}
+
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm table-fixed">
           <thead>
@@ -168,6 +156,16 @@ export function FormsCard({ data }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* Platform breakdown below table */}
+      {Object.keys(summary.platforms).length > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          Platforms detected: {Object.entries(summary.platforms)
+            .sort(([, a], [, b]) => b - a)
+            .map(([platform, count]) => `${platform} (${count})`)
+            .join(', ')}
+        </p>
+      )}
     </div>
   );
 }
@@ -189,7 +187,6 @@ function FormRow({ form, index, isExpanded, onToggle }: { form: FormEntry; index
             {form.hasFileUpload && <Badge variant="outline" className="text-[9px] px-1 py-0">📎 upload</Badge>}
             {form.hasCaptcha && <Badge variant="outline" className="text-[9px] px-1 py-0">🛡 captcha</Badge>}
           </div>
-          {form.description && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{form.description}</p>}
         </td>
         <td className="px-3 py-1 text-center">
           <Badge variant="outline" className={`${typeColors[form.formType] || ''} text-[10px] px-1.5 py-0`}>
@@ -211,6 +208,12 @@ function FormRow({ form, index, isExpanded, onToggle }: { form: FormEntry; index
           <td></td>
           <td colSpan={5} className="px-3 py-2">
             <div className="space-y-2 text-xs">
+              {form.description && (
+                <div>
+                  <span className="font-medium text-foreground">Description: </span>
+                  <span className="text-muted-foreground">{form.description}</span>
+                </div>
+              )}
               {form.fieldNames.length > 0 && (
                 <div>
                   <span className="font-medium text-foreground">Fields: </span>
