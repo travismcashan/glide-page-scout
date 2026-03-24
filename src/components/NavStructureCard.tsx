@@ -255,7 +255,7 @@ function NavSection({ title, icon, items, emptyText, globalExpand, pageTags, onP
             <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
             <span className="w-[16px]" />
           </div>
-          <div className="max-h-[300px] overflow-y-auto">
+          <div>
             {items.map((item, idx) => (
               <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
             ))}
