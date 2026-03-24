@@ -1336,6 +1336,16 @@ export default function ResultsPage() {
                         <RefreshCw className={`h-3.5 w-3.5 ${rerunningAll ? 'animate-spin' : ''}`} />
                         Re-run All
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 px-2"
+                        onClick={() => setShowAllIntegrations(!showAllIntegrations)}
+                        title={showAllIntegrations ? 'Hide paused integrations' : 'Show all integrations including paused'}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {showAllIntegrations ? 'Active Only' : 'Show All'}
+                      </Button>
                     </>
                   )}
                   {!isSharedView && (
