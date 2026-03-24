@@ -382,6 +382,9 @@ export default function ResultsPage() {
     setApolloLoading(false);
   };
 
+  // Unique Templates rerun support
+  const [templatesRerunning, setTemplatesRerunning] = useState(false);
+  const templatesRerunFnRef = useRef<(() => void) | null>(null);
 
   const [ssllabsLoading, setSsllabsLoading] = useState(false);
   const [ssllabsFailed, setSsllabsFailed] = useState(false);
@@ -871,6 +874,7 @@ export default function ResultsPage() {
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
+      'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
@@ -1342,8 +1346,8 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Design Analysis</h2>
             <div className="space-y-6">
               {session && (session as any)?.page_tags && (
-              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Unique Templates" icon={<Layers className="h-5 w-5 text-foreground" />}>
-                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} />
+              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Unique Templates" icon={<Layers className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('templates', 'template_tiers', templatesRerunning)}>
+                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
               </SectionCard>
               )}
 

@@ -37,6 +37,8 @@ interface Props {
   domain?: string;
   savedTiers?: AiTiers | null;
   onTiersChange?: (tiers: AiTiers) => void;
+  onRerunRequest?: (rerunFn: () => void) => void;
+  isRerunning?: boolean;
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
@@ -95,7 +97,7 @@ const LOADING_MESSAGES = [
   'Counting unique layouts with abacuses…',
 ];
 
-export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange }: Props) {
+export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
@@ -105,6 +107,19 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const [collapsedTableSections, setCollapsedTableSections] = useState<Set<string>>(new Set());
+  const autoRunRef = useRef(false);
+
+  // Expose rerun function to parent
+  useEffect(() => {
+    if (onRerunRequest) {
+      onRerunRequest(() => {
+        setAiTiers(null);
+        setAutoSelected(false);
+        setActiveTier(null);
+        autoRunRef.current = false;
+      });
+    }
+  }, [onRerunRequest]);
 
   // Rotate loading messages
   useEffect(() => {
@@ -213,7 +228,6 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   }, [aiTiers, aiLoading, templates, domain]);
 
   // Auto-run AI recommendations when templates are available and no saved tiers exist
-  const autoRunRef = useRef(false);
   useEffect(() => {
     if (!autoRunRef.current && !aiTiers && !aiLoading && templates.length > 0) {
       autoRunRef.current = true;
