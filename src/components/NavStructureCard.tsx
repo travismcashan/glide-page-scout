@@ -34,12 +34,12 @@ function itemsToMarkdown(items: NavItem[], depth: number = 0): string {
 function toMarkdown(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): string {
   const sections: string[] = [];
 
-  if (secondary.length > 0) {
-    sections.push(`## Secondary Navigation\n\n${itemsToMarkdown(secondary)}`);
-  }
-
   if (primary.length > 0) {
     sections.push(`## Primary Navigation\n\n${itemsToMarkdown(primary)}`);
+  }
+
+  if (secondary.length > 0) {
+    sections.push(`## Secondary Navigation\n\n${itemsToMarkdown(secondary)}`);
   }
 
   if (footer.length > 0) {
@@ -67,12 +67,12 @@ function itemsToHtml(items: NavItem[], depth: number = 0): string {
 function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): string {
   const sections: string[] = [];
 
-  if (secondary.length > 0) {
-    sections.push(`<h3>Secondary Navigation</h3><ul>${itemsToHtml(secondary)}</ul>`);
-  }
-
   if (primary.length > 0) {
     sections.push(`<h3>Primary Navigation</h3><ul>${itemsToHtml(primary)}</ul>`);
+  }
+
+  if (secondary.length > 0) {
+    sections.push(`<h3>Secondary Navigation</h3><ul>${itemsToHtml(secondary)}</ul>`);
   }
 
   if (footer.length > 0) {
@@ -225,11 +225,11 @@ export function NavStructureCard({ data }: { data: NavStructureData }) {
         </div>
       </div>
 
+      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} />
+
       {secondary.length > 0 && (
         <NavSection title="Secondary Navigation" icon={<PanelTop className="h-3.5 w-3.5 text-muted-foreground" />} items={secondary} />
       )}
-
-      <NavSection title="Primary Navigation" icon={<Navigation className="h-3.5 w-3.5 text-muted-foreground" />} items={primary} />
 
       <NavSection
         title="Footer Only (unique pages)"
