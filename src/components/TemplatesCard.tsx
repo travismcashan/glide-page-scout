@@ -33,6 +33,8 @@ interface Props {
   pageTags: PageTagsMap | null;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
   domain?: string;
+  savedTiers?: AiTiers | null;
+  onTiersChange?: (tiers: AiTiers) => void;
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
