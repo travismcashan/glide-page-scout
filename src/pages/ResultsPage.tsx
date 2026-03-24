@@ -1241,7 +1241,7 @@ export default function ResultsPage() {
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <h1 className="text-base font-bold tracking-tight text-foreground">
+              <h1 className="text-4xl font-bold tracking-tight text-foreground">
                 {session?.domain?.replace(/^www\./i, '')}
               </h1>
               <span>·</span>
