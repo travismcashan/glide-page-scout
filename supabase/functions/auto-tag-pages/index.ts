@@ -141,7 +141,7 @@ ${industryList.map(i => `  ${i}: ${INDUSTRY_PRESETS[i].join(', ')}`).join('\n')}
 
 You MUST classify EVERY URL provided.`;
 
-    const urlsForAI = dedupedUrls.slice(0, 300);
+    const urlsForAI = dedupedUrls.slice(0, 150);
 
     console.log(`[auto-tag] Classifying ${urlsForAI.length} URLs for domain: ${domain}`);
 
@@ -225,7 +225,18 @@ ${urlsForAI.join('\n')}`,
       );
     }
 
-    const aiData = await response.json();
+    const aiText = await response.text();
+    let aiData: any;
+    try {
+      aiData = JSON.parse(aiText);
+    } catch (e) {
+      console.error('Failed to parse AI gateway response, length:', aiText.length, 'tail:', aiText.slice(-200));
+      return new Response(
+        JSON.stringify({ success: false, error: 'AI response was truncated or malformed' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
     let result = { industry: 'Generic / Other', industry_confidence: 'low', pages: [] as any[] };
@@ -234,7 +245,7 @@ ${urlsForAI.join('\n')}`,
       try {
         result = JSON.parse(toolCall.function.arguments);
       } catch (e) {
-        console.error('Failed to parse AI response:', e);
+        console.error('Failed to parse tool_call arguments:', e, 'raw:', toolCall.function.arguments?.slice(-200));
       }
     }
 
