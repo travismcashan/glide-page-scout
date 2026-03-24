@@ -1199,7 +1199,7 @@ export default function ResultsPage() {
 
               {session && (session as any)?.page_tags && (
               <SectionCard collapsed={allCollapsed} title="Redesign Estimate" icon={<Layers className="h-5 w-5 text-foreground" />}>
-                <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} />
+                <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} navStructure={(session as any).nav_structure} />
               </SectionCard>
               )}
 
