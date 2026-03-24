@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Globe, RefreshCw, Loader2, Square, CheckCircle, ArrowRight, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Globe, RefreshCw, Loader2, Square, CheckCircle, ArrowRight, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { isIntegrationPaused } from '@/lib/integrationState';
