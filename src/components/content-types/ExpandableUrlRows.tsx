@@ -1,17 +1,33 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ClassifiedUrl } from './types';
+
+type NavTag = { type: 'primary' | 'secondary' | 'footer'; label: string };
+
+const navBadgeClass: Record<string, string> = {
+  primary: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
+  secondary: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+  footer: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+};
+
+const navBadgeLabel: Record<string, string> = {
+  primary: 'Primary',
+  secondary: 'Secondary',
+  footer: 'Footer',
+};
 
 interface ExpandableUrlRowsProps {
   urls: ClassifiedUrl[];
   allTypes: string[];
   onChangeType?: (url: string, newType: string) => void;
   readOnly?: boolean;
+  navMap?: Map<string, NavTag[]>;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap }: ExpandableUrlRowsProps) {
   const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);
