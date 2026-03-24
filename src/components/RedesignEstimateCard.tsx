@@ -63,17 +63,14 @@ export function RedesignEstimateCard({ pageTags, contentTypesData }: Props) {
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="flex items-baseline gap-3 flex-wrap">
-        <span className="text-2xl font-bold text-foreground">{totalPages}</span>
-        <span className="text-sm text-muted-foreground">total URLs</span>
-        <span className="text-sm text-muted-foreground">·</span>
-        <span className="text-2xl font-bold text-foreground">{baseTypeCounts.length}</span>
-        <span className="text-sm text-muted-foreground">base types</span>
+      <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+        <span><strong className="text-foreground">{totalPages}</strong> Total URLs</span>
+        <span>·</span>
+        <span><strong className="text-foreground">{baseTypeCounts.length}</strong> Base Types</span>
         {contentTypes.length > 0 && (
           <>
-            <span className="text-sm text-muted-foreground">·</span>
-            <span className="text-2xl font-bold text-foreground">{contentTypes.length}</span>
-            <span className="text-sm text-muted-foreground">repeating content types</span>
+            <span>·</span>
+            <span><strong className="text-foreground">{contentTypes.length}</strong> Repeating Content Types</span>
           </>
         )}
       </div>
