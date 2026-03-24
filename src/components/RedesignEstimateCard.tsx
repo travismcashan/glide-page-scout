@@ -127,21 +127,21 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
 
     const navPriority: Record<string, number> = { Primary: 0, Secondary: 1, Footer: 2 };
 
-    // Sort by importance: in-nav first (primary > secondary > footer), then by baseType priority, then by count desc
+    // Sort by base type first (Page → Archive → CPT → Post → Search), then nav section, then count
     const sortedTemplates = Object.entries(templateMap)
       .map(([name, data]) => {
         const navSection = getNavSection(data.urls);
         return { name, ...data, navSection };
       })
       .sort((a, b) => {
-        // In-nav templates first, ordered by nav section
-        const na = a.navSection ? navPriority[a.navSection] ?? 3 : 4;
-        const nb = b.navSection ? navPriority[b.navSection] ?? 3 : 4;
-        if (na !== nb) return na - nb;
-        // Then by base type priority
+        // Base type priority first
         const pa = baseTypePriority[a.baseType || 'Page'] ?? 5;
         const pb = baseTypePriority[b.baseType || 'Page'] ?? 5;
         if (pa !== pb) return pa - pb;
+        // Then by nav section
+        const na = a.navSection ? navPriority[a.navSection] ?? 3 : 4;
+        const nb = b.navSection ? navPriority[b.navSection] ?? 3 : 4;
+        if (na !== nb) return na - nb;
         // Then by count desc
         return b.count - a.count;
       });
