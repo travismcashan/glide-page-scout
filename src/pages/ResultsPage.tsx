@@ -1133,6 +1133,7 @@ export default function ResultsPage() {
     { key: 'link-checker', label: 'Link Checker', loading: linkcheckLoading, failed: linkcheckFailed, data: session.linkcheck_data, paused: isIntegrationPaused('link-checker') },
     { key: 'forms', label: 'Forms', loading: formsLoading, failed: formsFailed, data: (session as any).forms_data, paused: isIntegrationPaused('forms') },
     { key: 'page-tags', label: autoTagProgress ? `Page Tagging (${autoTagProgress})` : 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
+    { key: 'templates', label: 'Templates', loading: templatesRerunning || (autoTagging && !(session as any).template_tiers), failed: false, data: (session as any).template_tiers, paused: false },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
   ].map(s => ({
     key: s.key,
@@ -1497,9 +1498,11 @@ export default function ResultsPage() {
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Design Analysis</h2>
             <div className="space-y-6">
-              {session && (session as any)?.page_tags && (
-              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis (Recommended Layouts)" icon={<Layers className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('templates', 'template_tiers', templatesRerunning)}>
-                <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
+              {session && (
+              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis (Recommended Layouts)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? rerunButton('templates', 'template_tiers', templatesRerunning) : undefined}>
+                {(session as any)?.page_tags ? (
+                  <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
+                ) : null}
               </SectionCard>
               )}
 
