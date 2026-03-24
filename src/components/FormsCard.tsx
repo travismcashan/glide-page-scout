@@ -260,12 +260,7 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
       </div>
 
       {/* Controls row */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-4 flex-wrap">
-          <MetaStat value={designCount} label="Custom Forms" />
-          <MetaStatDivider />
-          <MetaStat value={blockBuiltCount} label="Block-Built Forms" />
-        </div>
+      <div className="flex items-center justify-end flex-wrap gap-2">
         <div className="flex items-center gap-2">
           {aiTiers && (
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
