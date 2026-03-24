@@ -197,13 +197,11 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
       {/* Expandable rows */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
-        {/* Sticky header */}
-        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center gap-2 px-3 py-1.5 border-b border-border">
-          <span className="w-[18px] shrink-0" />
-          <span className="flex-1 text-xs font-medium text-muted-foreground">Content Type</span>
-          <span className="w-[60px] text-center text-xs font-medium text-muted-foreground">Base Type</span>
-          <span className="w-[52px] text-center text-xs font-medium text-muted-foreground">Confidence</span>
-          <span className="w-[36px] text-center text-xs font-medium text-muted-foreground">URLs</span>
+        {/* Sticky header — matches other tables */}
+        <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">URL</span>
+          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
+          <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
         </div>
         {summary.map((row) => {
           const isExpanded = expandedTypes.has(row.type);
@@ -254,14 +252,8 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
                       autoFocus
                       onClick={(e) => e.stopPropagation()}
                     />
-                  ) : row.type}
+                  ) : `${row.type}${row.baseType ? ` (${row.baseType})` : ''}`}
                 </span>
-                {row.baseType && (
-                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${baseTypeStyles[row.baseType] || ''}`}>
-                    {row.baseType}
-                  </Badge>
-                )}
-                <ConfidenceBadge conf={row.confidence} />
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{row.count}</Badge>
               </button>
 
