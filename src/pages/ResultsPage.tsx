@@ -989,7 +989,7 @@ export default function ResultsPage() {
       schema: () => { setSchemaFailed(false); setSchemaLoading(false); },
       readable: () => { setReadableFailed(false); setReadableLoading(false); },
       yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
-      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null; },
+      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false; },
       'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
       'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
       'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
@@ -1065,7 +1065,7 @@ export default function ResultsPage() {
     setSchemaFailed(false); setSchemaLoading(false);
     setReadableFailed(false); setReadableLoading(false);
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
-    setLinkcheckFailed(false); setLinkcheckLoading(false); lastLinkcheckKeyRef.current = null;
+    setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false;
     setAvomaFailed(false); setAvomaLoading(false);
     setNavFailed(false); setNavLoading(false);
     setSitemapFailed(false); setSitemapLoading(false);
@@ -1404,7 +1404,7 @@ export default function ResultsPage() {
                     setLinkcheckFailed(false);
                     setLinkcheckLoading(false);
                     linkcheckRunningRef.current = false;
-                    lastLinkcheckKeyRef.current = null;
+                    linkcheckRunningRef.current = false;
                     setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
                     fetchData();
