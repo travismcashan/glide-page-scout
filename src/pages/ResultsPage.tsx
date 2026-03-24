@@ -107,6 +107,7 @@ type CrawlSession = {
   page_tags: PageTagsMap | null;
   sitemap_data: any | null;
   forms_data: any | null;
+  tech_analysis_data: any | null;
 };
 
 
