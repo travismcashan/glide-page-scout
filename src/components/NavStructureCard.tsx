@@ -327,10 +327,9 @@ export const NavStructureCard = forwardRef<NavStructureCardHandle, NavStructureC
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
-            <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
+            <span className="flex-1 text-xs font-medium text-muted-foreground">URL</span>
             <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
             <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
-            <span className="w-[16px]" />
           </div>
 
           {sections.map((section) => {
