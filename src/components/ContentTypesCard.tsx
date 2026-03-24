@@ -23,15 +23,10 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
   const [editValue, setEditValue] = useState('');
   const [expandedType, setExpandedType] = useState<string | null>(null);
 
-  if (!data?.summary?.length) {
-    return <p className="text-sm text-muted-foreground">No content types detected.</p>;
-  }
-
-  const { summary, stats } = data;
-  const classified = data.classified || [];
+  const { summary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
+  const classified = data?.classified || [];
   const allTypes = useMemo(() => summary.map(s => s.type), [summary]);
 
-  // Build a lookup of classified URLs per type
   const urlsByType = useMemo(() => {
     const map: Record<string, ClassifiedUrl[]> = {};
     for (const c of classified) {
@@ -40,6 +35,10 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
     }
     return map;
   }, [classified]);
+
+  if (!data?.summary?.length) {
+    return <p className="text-sm text-muted-foreground">No content types detected.</p>;
+  }
 
   const toggleSelect = (type: string) => {
     setSelected(prev => {
