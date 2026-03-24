@@ -199,7 +199,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, linkCheckResults, 
     '2xx': sorted.filter((u) => {
       const s = statusMap.get(u);
       return s != null && s >= 200 && s < 300;
-    }),
+    }).sort((a, b) => navSortScore(b, navMap) - navSortScore(a, navMap)),
     '3xx': sorted.filter((u) => {
       const s = statusMap.get(u);
       return s != null && s >= 300 && s < 400;
