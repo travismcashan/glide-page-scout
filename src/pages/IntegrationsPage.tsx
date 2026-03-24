@@ -27,11 +27,11 @@ const integrations: Integration[] = [
   // ── 🔗 URL Analysis ──
   { name: 'XML Sitemaps', id: 'sitemap', description: 'Parse and analyze XML sitemaps — discover all indexed URLs, nested sitemap structures, and lastmod dates', secretKey: '', configured: true, category: 'architecture', status: 'active' },
   { name: 'URL Discovery', id: 'url-discovery', description: 'Firecrawl-powered sitemap mapping — discovers all pages on a domain', secretKey: '', configured: true, category: 'architecture', status: 'active' },
-  { name: 'Navigation Structure', id: 'nav-structure', description: 'AI-powered extraction of the primary header navigation — builds a hierarchical sitemap from the actual menu structure, not a full crawl', secretKey: '', configured: true, category: 'architecture', status: 'active' },
   { name: 'httpstatus.io', id: 'httpstatus', description: 'HTTP redirect chain analysis — follow every hop, see status codes, latency, TLS validity, and page metadata', secretKey: 'HTTPSTATUS_API_KEY', configured: true, category: 'architecture', status: 'active' },
   { name: 'Broken Link Checker', id: 'link-checker', description: 'HEAD-request scan of all discovered URLs — flags broken links, redirects, and server errors. Free, no API key.', secretKey: '', configured: true, category: 'architecture', status: 'active' },
 
   // ── 📊 Content Analysis ──
+  { name: 'Navigation Structure', id: 'nav-structure', description: 'AI-powered extraction of the primary header navigation — builds a hierarchical sitemap from the actual menu structure, not a full crawl', secretKey: '', configured: true, category: 'analysis', status: 'active' },
   { name: 'Content Types', id: 'content-types', description: 'Classifies all discovered URLs into content types (Blog, Product, Case Study, etc.) using URL patterns, Schema.org, meta tags, CSS classes, and AI', secretKey: '', configured: true, category: 'analysis', status: 'active' },
   
   { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'analysis', status: 'active' },
