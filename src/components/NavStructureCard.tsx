@@ -3,7 +3,8 @@ import { ChevronRight, ChevronDown, ExternalLink, Navigation, Menu, PanelTop, Co
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-
+import { PageTemplateBadge } from '@/components/PageTemplateBadge';
+import { getPageTag, type PageTagsMap, type PageTemplateType, type PageTemplateVariant } from '@/lib/pageTags';
 
 type NavItem = {
   label: string;
@@ -86,9 +87,10 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 
 // ── Components ──
 
-function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
+function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: NavItem; depth?: number; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
+  const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
 
   return (
     <div>
@@ -111,6 +113,14 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
         )}
 
         {item.url && (
+          <PageTemplateBadge
+            tag={pageTag}
+            onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url!, t, v) : undefined}
+            readOnly={!onPageTagChange}
+          />
+        )}
+
+        {item.url && (
           <a href={item.url} target="_blank" rel="noopener noreferrer"
             className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
             onClick={(e) => e.stopPropagation()}>
@@ -122,7 +132,7 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
       {hasChildren && expanded && (
         <div>
           {item.children!.map((child, idx) => (
-            <NavTreeItem key={`${child.label}-${idx}`} item={child} depth={depth + 1} />
+            <NavTreeItem key={`${child.label}-${idx}`} item={child} depth={depth + 1} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       )}
@@ -130,7 +140,7 @@ function NavTreeItem({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   );
 }
 
-function NavSection({ title, icon, items, emptyText }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string }) {
+function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }: { title: string; icon: React.ReactNode; items: NavItem[]; emptyText?: string; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void }) {
   if (!items.length && !emptyText) return null;
 
   return (
