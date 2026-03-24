@@ -1,117 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronDown, ChevronUp, Merge } from 'lucide-react';
+import { ChevronDown, ChevronRight, Merge } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { ConfidenceBadge, SourceBadge } from '@/components/content-types/ConfidenceBadge';
+import { ExpandableUrlRows } from '@/components/content-types/ExpandableUrlRows';
+import type { ContentTypesData, ClassifiedUrl } from '@/components/content-types/types';
+import { rebuildSummary } from '@/components/content-types/types';
 
-type ContentTypeSummary = {
-  type: string;
-  count: number;
-  urls: string[];
-  totalUrls: number;
-  confidence: { high: number; medium: number; low: number };
-};
-
-type ContentTypesData = {
-  summary: ContentTypeSummary[];
-  stats: {
-    total: number;
-    bySource: Record<string, number>;
-    uniqueTypes: number;
-    ambiguousScanned: number;
-  };
-};
-
-function confidenceBadge(conf: { high: number; medium: number; low: number }) {
-  const total = conf.high + conf.medium + conf.low;
-  if (total === 0) return null;
-  const pct = Math.round((conf.high / total) * 100);
-  if (pct >= 80) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 border-green-500/30">High</Badge>;
-  if (pct >= 40) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-yellow-500/10 text-yellow-600 border-yellow-500/30">Medium</Badge>;
-  return <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-orange-500/10 text-orange-600 border-orange-500/30">Low</Badge>;
-}
-
-function sourceBadge(source: string) {
-  const styles: Record<string, string> = {
-    'url-pattern': 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-    'schema-org': 'bg-purple-500/10 text-purple-600 border-purple-500/30',
-    'meta-tags': 'bg-teal-500/10 text-teal-600 border-teal-500/30',
-    'css-classes': 'bg-orange-500/10 text-orange-600 border-orange-500/30',
-    'ai': 'bg-pink-500/10 text-pink-600 border-pink-500/30',
-  };
-  const labels: Record<string, string> = {
-    'url-pattern': 'URL Pattern',
-    'schema-org': 'Schema.org',
-    'meta-tags': 'Meta Tags',
-    'css-classes': 'CSS Classes',
-    'ai': 'AI',
-  };
-  return (
-    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${styles[source] || ''}`}>
-      {labels[source] || source}
-    </Badge>
-  );
-}
-
-function ExpandableUrls({ urls, totalUrls }: { urls: string[]; totalUrls: number }) {
-  const INITIAL = 5;
-  const STEP = 10;
-  const [visibleCount, setVisibleCount] = useState(INITIAL);
-  const visible = urls.slice(0, visibleCount);
-  const hasMore = visibleCount < urls.length;
-  const remaining = urls.length - visibleCount;
-
-  return (
-    <TooltipProvider>
-      <div className="flex flex-col gap-0.5 max-w-[400px]">
-        {visible.map((url) => (
-          <Tooltip key={url}>
-            <TooltipTrigger asChild>
-              <a href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-mono text-muted-foreground truncate block cursor-pointer hover:text-primary hover:underline">
-                {(() => { try { return new URL(url).pathname; } catch { return url; } })()}
-              </a>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-md">
-              <p className="text-xs font-mono break-all">{url}</p>
-            </TooltipContent>
-          </Tooltip>
-        ))}
-        {hasMore && (
-          <button
-            onClick={() => setVisibleCount(prev => Math.min(prev + STEP, urls.length))}
-            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-0.5 cursor-pointer bg-transparent border-none p-0"
-          >
-            +{Math.min(remaining, STEP)} more{remaining > STEP ? ` (${remaining} left)` : ''} <ChevronDown className="h-3 w-3" />
-          </button>
-        )}
-        {!hasMore && totalUrls > urls.length && (
-          <span className="text-[10px] text-muted-foreground mt-0.5">
-            {totalUrls - urls.length} more URLs not loaded — re-run to refresh
-          </span>
-        )}
-        {visibleCount > INITIAL && (
-          <button
-            onClick={() => setVisibleCount(INITIAL)}
-            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-0.5 cursor-pointer bg-transparent border-none p-0"
-          >
-            Show less <ChevronUp className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-    </TooltipProvider>
-  );
-}
+export { type ContentTypesData } from '@/components/content-types/types';
 
 export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -120,59 +21,58 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
   const [mergeMode, setMergeMode] = useState(false);
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [expandedType, setExpandedType] = useState<string | null>(null);
+
+  const { summary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
+  const classified = data?.classified || [];
+  const allTypes = useMemo(() => summary.map(s => s.type), [summary]);
+
+  const urlsByType = useMemo(() => {
+    const map: Record<string, ClassifiedUrl[]> = {};
+    for (const c of classified) {
+      if (!map[c.contentType]) map[c.contentType] = [];
+      map[c.contentType].push(c);
+    }
+    return map;
+  }, [classified]);
 
   if (!data?.summary?.length) {
     return <p className="text-sm text-muted-foreground">No content types detected.</p>;
   }
 
-  const { summary, stats } = data;
-
   const toggleSelect = (type: string) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
+      if (next.has(type)) next.delete(type); else next.add(type);
       return next;
     });
   };
 
   const handleRename = (oldType: string) => {
     const newName = editValue.trim();
-    if (!newName || newName === oldType || !onDataChange) {
-      setEditingType(null);
-      return;
-    }
-    const newSummary = summary.map(r => r.type === oldType ? { ...r, type: newName } : r);
-    onDataChange({ ...data, summary: newSummary });
+    if (!newName || newName === oldType || !onDataChange) { setEditingType(null); return; }
+    const newClassified = classified.map(c => c.contentType === oldType ? { ...c, contentType: newName } : c);
+    const newSummary = rebuildSummary(newClassified);
+    onDataChange({ ...data, summary: newSummary, classified: newClassified, stats: { ...stats, uniqueTypes: newSummary.length } });
     setEditingType(null);
+    if (expandedType === oldType) setExpandedType(newName);
+  };
+
+  const handleChangeUrlType = (url: string, newType: string) => {
+    if (!onDataChange) return;
+    const newClassified = classified.map(c => c.url === url ? { ...c, contentType: newType } : c);
+    const newSummary = rebuildSummary(newClassified);
+    onDataChange({ ...data, summary: newSummary, classified: newClassified, stats: { ...stats, uniqueTypes: newSummary.length } });
   };
 
   const handleMerge = () => {
     if (!mergeName.trim() || selected.size < 2 || !onDataChange) return;
-
     const selectedTypes = Array.from(selected);
-    const mergedRows = summary.filter(r => selectedTypes.includes(r.type));
-    const keptRows = summary.filter(r => !selectedTypes.includes(r.type));
-
-    const merged: ContentTypeSummary = {
-      type: mergeName.trim(),
-      count: mergedRows.reduce((s, r) => s + r.count, 0),
-      urls: mergedRows.flatMap(r => r.urls).slice(0, 10),
-      totalUrls: mergedRows.reduce((s, r) => s + r.totalUrls, 0),
-      confidence: {
-        high: mergedRows.reduce((s, r) => s + r.confidence.high, 0),
-        medium: mergedRows.reduce((s, r) => s + r.confidence.medium, 0),
-        low: mergedRows.reduce((s, r) => s + r.confidence.low, 0),
-      },
-    };
-
-    const newSummary = [...keptRows, merged].sort((a, b) => b.count - a.count);
-    onDataChange({
-      ...data,
-      summary: newSummary,
-      stats: { ...stats, uniqueTypes: newSummary.length },
-    });
-
+    const newClassified = classified.map(c =>
+      selectedTypes.includes(c.contentType) ? { ...c, contentType: mergeName.trim() } : c
+    );
+    const newSummary = rebuildSummary(newClassified);
+    onDataChange({ ...data, summary: newSummary, classified: newClassified, stats: { ...stats, uniqueTypes: newSummary.length } });
     setSelected(new Set());
     setMergeName('');
     setMergeOpen(false);
@@ -180,11 +80,8 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
   };
 
   const openMergeDialog = () => {
-    // Pre-fill with the largest selected type's name
     const selectedTypes = Array.from(selected);
-    const largest = summary
-      .filter(r => selectedTypes.includes(r.type))
-      .sort((a, b) => b.count - a.count)[0];
+    const largest = summary.filter(r => selectedTypes.includes(r.type)).sort((a, b) => b.count - a.count)[0];
     setMergeName(largest?.type || '');
     setMergeOpen(true);
   };
@@ -209,10 +106,7 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
             variant={mergeMode ? 'secondary' : 'outline'}
             size="sm"
             className="text-xs h-7 gap-1"
-            onClick={() => {
-              setMergeMode(!mergeMode);
-              if (mergeMode) setSelected(new Set());
-            }}
+            onClick={() => { setMergeMode(!mergeMode); if (mergeMode) setSelected(new Set()); }}
           >
             <Merge className="h-3 w-3" />
             {mergeMode ? 'Cancel' : 'Merge Types'}
@@ -236,36 +130,50 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
           .filter(([, count]) => count > 0)
           .map(([source, count]) => (
             <span key={source} className="flex items-center gap-1">
-              {sourceBadge(source)}
+              <SourceBadge source={source} />
               <span className="text-[10px] text-muted-foreground">{count}</span>
             </span>
           ))}
       </div>
 
-      {/* Summary table */}
+      {/* Summary table with expandable rows */}
       <div className="rounded-lg border border-border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {mergeMode && <TableHead className="w-[40px]" />}
-              <TableHead className="text-xs">Content Type</TableHead>
-              <TableHead className="text-xs text-right w-[60px]">Count</TableHead>
-              <TableHead className="text-xs w-[80px]">Confidence</TableHead>
-              <TableHead className="text-xs">Example URLs</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {summary.map((row) => (
-              <TableRow key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
-                {mergeMode && (
-                  <TableCell className="pr-0">
+        <div className="grid grid-cols-[auto_1fr_60px_80px] text-xs font-medium text-muted-foreground border-b border-border">
+          {mergeMode && <div className="px-3 py-2.5 w-[40px]" />}
+          <div className="px-3 py-2.5">Content Type</div>
+          <div className="px-3 py-2.5 text-right">Count</div>
+          <div className="px-3 py-2.5">Confidence</div>
+        </div>
+        {summary.map((row) => {
+          const isExpanded = expandedType === row.type;
+          const typeUrls = urlsByType[row.type] || [];
+          const hasClassified = typeUrls.length > 0;
+          // Fallback: if no classified data, build from summary urls
+          const fallbackUrls: ClassifiedUrl[] = !hasClassified
+            ? row.urls.map(u => ({ url: u, contentType: row.type, confidence: 'medium' as const, source: '' }))
+            : [];
+          const displayUrls = hasClassified ? typeUrls : fallbackUrls;
+
+          return (
+            <div key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
+              <div
+                className="grid grid-cols-[auto_1fr_60px_80px] items-center border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
+                onClick={() => setExpandedType(isExpanded ? null : row.type)}
+              >
+                <div className="flex items-center gap-1 px-3 py-2.5">
+                  {mergeMode && (
                     <Checkbox
                       checked={selected.has(row.type)}
-                      onCheckedChange={() => toggleSelect(row.type)}
+                      onCheckedChange={(e) => { e; toggleSelect(row.type); }}
+                      onClick={(e) => e.stopPropagation()}
                     />
-                  </TableCell>
-                )}
-                <TableCell className="text-sm font-medium">
+                  )}
+                  {isExpanded
+                    ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  }
+                </div>
+                <div className="px-1 py-2.5 text-sm font-medium">
                   {editingType === row.type ? (
                     <Input
                       value={editValue}
@@ -277,12 +185,14 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
                       }}
                       className="h-6 text-sm px-1.5 py-0 w-40"
                       autoFocus
+                      onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
                     <span
-                      className={onDataChange ? 'cursor-pointer hover:text-primary hover:underline' : ''}
-                      onClick={() => {
+                      className={onDataChange ? 'hover:text-primary hover:underline' : ''}
+                      onClick={(e) => {
                         if (!onDataChange) return;
+                        e.stopPropagation();
                         setEditingType(row.type);
                         setEditValue(row.type);
                       }}
@@ -290,16 +200,23 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
                       {row.type}
                     </span>
                   )}
-                </TableCell>
-                <TableCell className="text-sm text-right font-mono">{row.count}</TableCell>
-                <TableCell>{confidenceBadge(row.confidence)}</TableCell>
-                <TableCell>
-                  <ExpandableUrls urls={row.urls} totalUrls={row.totalUrls} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </div>
+                <div className="px-3 py-2.5 text-sm text-right font-mono">{row.count}</div>
+                <div className="px-3 py-2.5"><ConfidenceBadge conf={row.confidence} /></div>
+              </div>
+              {isExpanded && (
+                <div className="border-b border-border bg-muted/10 py-2">
+                  <ExpandableUrlRows
+                    urls={displayUrls}
+                    allTypes={allTypes}
+                    onChangeType={onDataChange ? handleChangeUrlType : undefined}
+                    readOnly={!onDataChange}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Merge dialog */}
