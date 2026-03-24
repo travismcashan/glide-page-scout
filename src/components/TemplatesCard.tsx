@@ -54,6 +54,9 @@ interface AiTiers {
   M: string[];
   L: string[];
   reasoning: string;
+  reasoning_S?: string;
+  reasoning_M?: string;
+  reasoning_L?: string;
 }
 
 function TemplateRow({ t, isExcluded, toggleExcluded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void }) {
