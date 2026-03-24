@@ -29,10 +29,9 @@ interface ExpandableUrlRowsProps {
   navMap?: Map<string, NavTag[]>;
   pageTags?: PageTagsMap | null;
   onPageTagChange?: (url: string, template: string) => void;
-  onPageLabelChange?: (url: string, label: string) => void;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, onPageLabelChange }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
   const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);

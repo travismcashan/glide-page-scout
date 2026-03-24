@@ -115,8 +115,7 @@ function NavTreeItem({ item, depth = 0, pageTags, onPageTagChange }: { item: Nav
         {item.url && (
           <PageTemplateBadge
             tag={pageTag}
-            onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url!, t, v) : undefined}
-            onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(item.url!, l) : undefined}
+            onChange={onPageTagChange ? (t) => onPageTagChange(item.url!, t) : undefined}
             readOnly={!onPageTagChange}
           />
         )}
