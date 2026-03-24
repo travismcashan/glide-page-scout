@@ -108,24 +108,26 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
             </div>
           );
         })}
-        <div className="flex items-center gap-3 px-3">
-          {hasMore && (
-            <button
-              onClick={() => setVisibleCount(prev => Math.min(prev + STEP, urls.length))}
-              className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-0.5 cursor-pointer bg-transparent border-none p-0"
-            >
-              +{Math.min(remaining, STEP)} more{remaining > STEP ? ` (${remaining} left)` : ''} <ChevronDown className="h-3 w-3" />
-            </button>
-          )}
-          {visibleCount > INITIAL && (
-            <button
-              onClick={() => setVisibleCount(INITIAL)}
-              className="text-[10px] text-primary hover:underline flex items-center gap-0.5 mt-0.5 cursor-pointer bg-transparent border-none p-0"
-            >
-              Show less <ChevronUp className="h-3 w-3" />
-            </button>
-          )}
-        </div>
+        {urls.length > INITIAL && (
+          <div className="flex items-center gap-3 px-3 py-0.5">
+            {hasMore && (
+              <button
+                onClick={() => setVisibleCount(urls.length)}
+                className="text-[10px] text-primary hover:underline flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
+              >
+                Show all ({urls.length}) <ChevronDown className="h-3 w-3" />
+              </button>
+            )}
+            {visibleCount > INITIAL && (
+              <button
+                onClick={() => setVisibleCount(INITIAL)}
+                className="text-[10px] text-primary hover:underline flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
+              >
+                Show less <ChevronUp className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );
