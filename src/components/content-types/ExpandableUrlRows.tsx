@@ -29,9 +29,10 @@ interface ExpandableUrlRowsProps {
   navMap?: Map<string, NavTag[]>;
   pageTags?: PageTagsMap | null;
   onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
+  onPageLabelChange?: (url: string, label: string) => void;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, onPageLabelChange }: ExpandableUrlRowsProps) {
   const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);
@@ -69,6 +70,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
               <PageTemplateBadge
                 tag={pageTag}
                 onChange={onPageTagChange ? (t, v) => onPageTagChange(item.url, t, v) : undefined}
+                onLabelChange={onPageLabelChange ? (l) => onPageLabelChange(item.url, l) : undefined}
                 readOnly={!onPageTagChange}
               />
               {uniqueNavTypes.map((type) => (
