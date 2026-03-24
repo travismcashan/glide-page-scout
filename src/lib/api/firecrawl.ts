@@ -625,7 +625,7 @@ export const contentTypesApi = {
 };
 
 export const autoTagPagesApi = {
-  BATCH_SIZE: 100,
+  BATCH_SIZE: 150,
 
   async classifyBatch(urls: string[], domain: string, homepageContent?: string, navStructure?: any, knownIndustry?: string): Promise<{
     success: boolean;
