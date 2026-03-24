@@ -22,7 +22,6 @@ Deno.serve(async (req) => {
     // Build a concise tech inventory from all sources
     const allTechs = new Map<string, { sources: string[]; category: string; version?: string; confidence?: number }>();
 
-    // BuiltWith
     if (builtwithData?.grouped) {
       for (const [cat, techs] of Object.entries(builtwithData.grouped)) {
         for (const t of techs as any[]) {
@@ -36,7 +35,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // DetectZeStack
     if (detectzestackData?.grouped) {
       for (const [cat, techs] of Object.entries(detectzestackData.grouped)) {
         for (const t of techs as any[]) {
@@ -53,7 +51,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Wappalyzer
     if (wappalyzerData?.grouped) {
       for (const [cat, techs] of Object.entries(wappalyzerData.grouped)) {
         for (const t of techs as any[]) {
@@ -67,7 +64,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Build concise summary for AI
     const techList = Array.from(allTechs.entries()).map(([name, info]) => {
       let line = `${name} (${info.category})`;
       if (info.version) line += ` v${info.version}`;
@@ -81,20 +77,48 @@ Deno.serve(async (req) => {
       wappalyzerData?.grouped ? 'Wappalyzer' : null,
     ].filter(Boolean);
 
-    const systemPrompt = `You are a senior web technology analyst at a digital agency. You've been given a merged tech stack detected across ${sourceCount.length} source(s) (${sourceCount.join(', ')}) for the domain "${domain}".
+    const systemPrompt = `You are a senior web technology analyst at a digital agency preparing a website redesign estimate. You've been given a merged tech stack detected across ${sourceCount.length} source(s) (${sourceCount.join(', ')}) for the domain "${domain}".
 
-Provide a concise, actionable analysis in this exact JSON structure. Do NOT wrap in markdown code fences.
+Return a JSON object with TWO sections. Do NOT wrap in markdown code fences.
 
 {
-  "platform": { "name": "e.g. WordPress on WP Engine", "type": "CMS|eCommerce|Custom|SaaS|Static", "modernScore": 1-10 },
-  "highlights": ["3-5 key findings about their stack — what stands out, what's outdated, what's strong"],
-  "risks": ["2-4 technical risks or concerns based on detected technologies"],
-  "recommendations": ["3-5 specific, actionable recommendations for a redesign"],
-  "stackAge": "modern|aging|legacy",
-  "complexity": "simple|moderate|complex|enterprise"
+  "findings": {
+    "platform": { "name": "e.g. WordPress on WP Engine", "type": "CMS|eCommerce|Custom|SaaS|Static", "modernScore": 1-10 },
+    "highlights": ["3-5 key findings about their stack — what stands out, what's outdated, what's strong"],
+    "risks": ["2-4 technical risks or concerns based on detected technologies"],
+    "stackAge": "modern|aging|legacy",
+    "complexity": "simple|moderate|complex|enterprise"
+  },
+  "scope": {
+    "platforms": [
+      { "name": "e.g. WordPress", "role": "CMS", "note": "optional brief note" },
+      { "name": "e.g. WP Engine", "role": "Hosting", "note": "optional" }
+    ],
+    "plugins": [
+      { "name": "e.g. Gravity Forms", "purpose": "Form builder", "effort": "low|medium|high" },
+      { "name": "e.g. Yoast SEO", "purpose": "SEO management", "effort": "low|medium|high" }
+    ],
+    "tagManagement": {
+      "manager": "e.g. Google Tag Manager",
+      "coveredTags": ["Google Analytics", "LinkedIn Ads", "etc — tags managed via the tag manager, no separate integration needed"]
+    },
+    "thirdPartyIntegrations": [
+      { "name": "e.g. Salesforce", "type": "CRM|Payment|Newsletter|Chat|Booking|Auth|Search|Other", "effort": "low|medium|high", "note": "brief scope note" }
+    ],
+    "specialSetup": [
+      { "name": "e.g. reCAPTCHA", "reason": "Requires API key setup and form integration", "effort": "low|medium|high" }
+    ]
+  }
 }
 
-Be specific and reference actual detected technologies. Focus on what matters for a website redesign project.`;
+IMPORTANT RULES for the scope section:
+- "platforms" = the core hosting/CMS/eCommerce platforms the redesign will be built on
+- "plugins" = CMS plugins (WordPress plugins, Shopify apps, etc.) that need to be configured
+- "tagManagement" = if a tag manager exists, list it ONCE and put all analytics/tracking/ad tags under "coveredTags" — do NOT list each tag as a separate integration
+- "thirdPartyIntegrations" = external services requiring human setup (CRM, payment, newsletter, live chat, booking, SSO, etc.)
+- "specialSetup" = things requiring special technical configuration (CAPTCHA, SSO/SAML, CDN, custom API integrations)
+- effort: "low" = config only, "medium" = some dev work, "high" = significant custom development
+- Be specific — reference actual detected technologies, not generic categories`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -129,7 +153,6 @@ Be specific and reference actual detected technologies. Focus on what matters fo
     const aiData = await response.json();
     const content = aiData.choices?.[0]?.message?.content || '';
 
-    // Parse JSON from response (strip markdown fences if present)
     let analysis: any;
     try {
       const cleaned = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
