@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -54,12 +54,43 @@ interface AiTiers {
   reasoning: string;
 }
 
+const LOADING_MESSAGES = [
+  'Dispatching design pigeons…',
+  'Garden gnomes are analyzing layouts…',
+  'Measuring whitespace with tiny rulers…',
+  'Consulting the font gods…',
+  'Debating hero section strategies…',
+  'Sorting templates by vibes…',
+  'Pixel-peeping every page…',
+  'Asking the AI which pages spark joy…',
+  'Running templates through the taste machine…',
+  'Counting unique layouts with abacuses…',
+];
+
 export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
   const [aiTiers, setAiTiers] = useState<AiTiers | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
+  const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Rotate loading messages
+  useEffect(() => {
+    if (aiLoading) {
+      let idx = Math.floor(Math.random() * LOADING_MESSAGES.length);
+      setLoadingMsg(LOADING_MESSAGES[idx]);
+      loadingInterval.current = setInterval(() => {
+        idx = (idx + 1) % LOADING_MESSAGES.length;
+        setLoadingMsg(LOADING_MESSAGES[idx]);
+      }, 3000);
+    } else if (loadingInterval.current) {
+      clearInterval(loadingInterval.current);
+      loadingInterval.current = null;
+    }
+    return () => { if (loadingInterval.current) clearInterval(loadingInterval.current); };
+  }, [aiLoading]);
 
   const { templates, totalTemplates } = useMemo(() => {
     const templateMap: Record<string, { count: number; baseType?: string; urls: string[] }> = {};
@@ -208,7 +239,6 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
 
       {/* Controls */}
       <div className="flex items-center justify-end gap-2">
-        {aiLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         {!aiTiers && !aiLoading && (
           <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
             <Sparkles className="h-3 w-3" /> AI Recommend
@@ -227,6 +257,14 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
           ))}
         </ToggleGroup>
       </div>
+
+      {/* AI Loading indicator */}
+      {aiLoading && (
+        <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border border-border animate-in fade-in">
+          <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+          <span className="text-xs text-muted-foreground">{loadingMsg}</span>
+        </div>
+      )}
 
       {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
         <p className="text-xs text-muted-foreground italic border-l-2 border-primary/30 pl-2">
