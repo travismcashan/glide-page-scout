@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { urls, homepageContent, navStructure, domain } = await req.json();
+    const { urls, homepageContent, navStructure, domain, knownIndustry } = await req.json();
 
     if (!urls?.length) {
       return new Response(
@@ -283,7 +283,7 @@ Deno.serve(async (req) => {
     console.log(`[auto-tag] Classifying ${dedupedUrls.length} URLs in ${batches.length} batch(es) for domain: ${domain}`);
 
     // First batch: detect industry
-    const firstResult = await classifyBatch(aiKey, batches[0], domain, homepageContent || '', navSummary);
+    const firstResult = await classifyBatch(aiKey, batches[0], domain, homepageContent || '', navSummary, knownIndustry || undefined);
     const industry = firstResult.industry || 'Generic / Other';
     const industryConfidence = firstResult.industry_confidence || 'low';
     const allPages: any[] = [...(firstResult.pages || [])];

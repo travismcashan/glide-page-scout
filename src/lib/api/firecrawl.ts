@@ -625,7 +625,9 @@ export const contentTypesApi = {
 };
 
 export const autoTagPagesApi = {
-  async classify(urls: string[], domain: string, homepageContent?: string, navStructure?: any): Promise<{
+  BATCH_SIZE: 100,
+
+  async classifyBatch(urls: string[], domain: string, homepageContent?: string, navStructure?: any, knownIndustry?: string): Promise<{
     success: boolean;
     industry?: string;
     industryConfidence?: string;
@@ -634,10 +636,22 @@ export const autoTagPagesApi = {
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('auto-tag-pages', {
-      body: { urls, domain, homepageContent, navStructure },
+      body: { urls, domain, homepageContent, navStructure, knownIndustry },
     });
     if (error) return { success: false, error: error.message };
     return data;
+  },
+
+  /** Legacy single-call method kept for compatibility */
+  async classify(urls: string[], domain: string, homepageContent?: string, navStructure?: any): Promise<{
+    success: boolean;
+    industry?: string;
+    industryConfidence?: string;
+    pages?: { url: string; template: string; baseType?: string; cptName?: string }[];
+    presetTemplates?: string[];
+    error?: string;
+  }> {
+    return this.classifyBatch(urls, domain, homepageContent, navStructure);
   },
 };
 
