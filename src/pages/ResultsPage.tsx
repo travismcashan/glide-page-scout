@@ -150,7 +150,14 @@ export default function ResultsPage() {
       supabase.from('crawl_sessions').select('*').eq('id', sessionId).single(),
       supabase.from('crawl_pages').select('*').eq('session_id', sessionId),
     ]);
-    if (sessionRes.data) setSession(sessionRes.data as unknown as CrawlSession);
+    if (sessionRes.data) {
+      const sessionData = sessionRes.data as any;
+      setSession(sessionData as unknown as CrawlSession);
+      // Restore persisted integration durations
+      if (sessionData.integration_durations && typeof sessionData.integration_durations === 'object') {
+        setIntegrationDurations(prev => ({ ...sessionData.integration_durations, ...prev }));
+      }
+    }
     if (pagesRes.data) {
       setPages(pagesRes.data as unknown as CrawlPage[]);
       if (pagesRes.data.length > 0 && expandedPages.size === 0) {
