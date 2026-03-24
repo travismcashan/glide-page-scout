@@ -87,16 +87,21 @@ function toHtml(primary: NavItem[], secondary: NavItem[], footer: NavItem[]): st
 
 // ── Components ──
 
-function buildTreePrefix(parentLines: boolean[], isLast: boolean): string {
+function buildTreePrefix(parentLines: boolean[], isLast: boolean, isFirst: boolean): string {
   let prefix = '';
   for (const showLine of parentLines) {
     prefix += showLine ? '│   ' : '    ';
   }
-  prefix += isLast ? '└── ' : '├── ';
+  if (isFirst && parentLines.length === 0) {
+    // First root item: no vertical above, just horizontal down
+    prefix += isLast ? '─── ' : '┌── ';
+  } else {
+    prefix += isLast ? '└── ' : '├── ';
+  }
   return prefix;
 }
 
-function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTags, onPageTagChange }: { item: NavItem; depth?: number; isLast?: boolean; parentLines?: boolean[]; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
+function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentLines = [], pageTags, onPageTagChange }: { item: NavItem; depth?: number; isLast?: boolean; isFirst?: boolean; parentLines?: boolean[]; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = item.children && item.children.length > 0;
   const pageTag = item.url ? getPageTag(pageTags, item.url) : undefined;
@@ -109,7 +114,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
       >
         {/* Tree prefix using monospace box-drawing characters */}
         <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
-          {buildTreePrefix(parentLines, isLast)}
+          {buildTreePrefix(parentLines, isLast, isFirst)}
         </span>
 
         {hasChildren ? (
@@ -175,7 +180,7 @@ function NavSection({ title, icon, items, emptyText, pageTags, onPageTagChange }
       {items.length > 0 ? (
         <div className="border border-border rounded-lg p-2 bg-muted/20">
           {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isLast={idx === items.length - 1} parentLines={[]} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} pageTags={pageTags} onPageTagChange={onPageTagChange} />
           ))}
         </div>
       ) : emptyText ? (
