@@ -1,12 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
-import { getTemplateCategory, getTemplateOptions, addCustomTemplate, type PageTag, type TemplateCategory } from '@/lib/pageTags';
+import { getTemplateCategory, getTemplateCategoryFromBaseType, getTemplateOptions, addCustomTemplate, type PageTag, type TemplateCategory, type BaseType } from '@/lib/pageTags';
 
 const categoryStyles: Record<TemplateCategory, string> = {
   custom: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20',
   template: 'bg-sky-500/10 text-sky-600 border-sky-500/30 hover:bg-sky-500/20',
   toolkit: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30 hover:bg-zinc-500/20',
+};
+
+const baseTypeStyles: Record<BaseType, string> = {
+  Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  Post: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  CPT: 'bg-violet-500/10 text-violet-600 border-violet-500/30',
+  Archive: 'bg-sky-500/10 text-sky-600 border-sky-500/30',
+  Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
 };
 
 const categoryLabels: Record<TemplateCategory, string> = {
@@ -49,8 +57,9 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
 
   if (!tag) return null;
 
-  const category = getTemplateCategory(tag.template);
-  const style = categoryStyles[category];
+  const baseType = tag.baseType;
+  const category = baseType ? getTemplateCategoryFromBaseType(baseType) : getTemplateCategory(tag.template);
+  const style = baseType ? (baseTypeStyles[baseType] || categoryStyles[category]) : categoryStyles[category];
   const interactive = !readOnly && onChange;
 
   const handleAddCustom = (cat: TemplateCategory) => {
@@ -70,7 +79,17 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
   };
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <div ref={ref} className="relative shrink-0 flex items-center gap-1">
+      {/* Base Type badge (Level 1) */}
+      {baseType && (
+        <Badge
+          variant="outline"
+          className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[baseType]} cursor-default`}
+        >
+          {baseType}
+        </Badge>
+      )}
+      {/* Template badge (Level 2) */}
       <Badge
         variant="outline"
         className={`text-[10px] px-1.5 py-0 ${style} ${interactive ? 'cursor-pointer' : ''}`}
@@ -112,7 +131,6 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
                 );
               })}
 
-              {/* Add custom entry for this category */}
               {addingCategory === group.category ? (
                 <div className="px-2 py-1.5 flex items-center gap-1.5">
                   <input
