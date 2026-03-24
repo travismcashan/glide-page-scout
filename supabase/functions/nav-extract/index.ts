@@ -257,15 +257,52 @@ Links found in the <footer> element. IMPORTANT: Only include footer links whose 
       );
     }
 
-    console.log(`Navigation extracted: ${navStructure.totalLinks} total links | Primary: ${navStructure.primary?.length} | Secondary: ${navStructure.secondary?.length} | Footer (unique): ${navStructure.footer?.length}`);
+    // Server-side dedup: ensure secondary and footer don't repeat primary URLs
+    function collectUrls(items: any[]): Set<string> {
+      const urls = new Set<string>();
+      for (const item of items) {
+        if (item.url) urls.add(item.url.toLowerCase().replace(/\/$/, ''));
+        if (item.children) {
+          for (const child of item.children) {
+            if (child.url) urls.add(child.url.toLowerCase().replace(/\/$/, ''));
+            if (child.children) {
+              for (const gc of child.children) {
+                if (gc.url) urls.add(gc.url.toLowerCase().replace(/\/$/, ''));
+              }
+            }
+          }
+        }
+      }
+      return urls;
+    }
+
+    function filterItems(items: any[], excludeUrls: Set<string>): any[] {
+      return items.filter((item: any) => {
+        if (!item.url) return true; // keep section headers
+        return !excludeUrls.has(item.url.toLowerCase().replace(/\/$/, ''));
+      }).map((item: any) => ({
+        ...item,
+        children: item.children ? filterItems(item.children, excludeUrls) : undefined,
+      }));
+    }
+
+    const primaryUrls = collectUrls(navStructure.primary || []);
+    const dedupedSecondary = filterItems(navStructure.secondary || [], primaryUrls);
+    const secondaryUrls = collectUrls(dedupedSecondary);
+    const allHeaderUrls = new Set([...primaryUrls, ...secondaryUrls]);
+    const dedupedFooter = filterItems(navStructure.footer || [], allHeaderUrls);
+
+    const totalLinks = primaryUrls.size + collectUrls(dedupedSecondary).size + collectUrls(dedupedFooter).size;
+
+    console.log(`Navigation extracted: ${totalLinks} total links | Primary: ${navStructure.primary?.length} | Secondary: ${dedupedSecondary.length} | Footer (unique): ${dedupedFooter.length}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         primary: navStructure.primary || [],
-        secondary: navStructure.secondary || [],
-        footer: navStructure.footer || [],
-        totalLinks: navStructure.totalLinks || 0,
+        secondary: dedupedSecondary,
+        footer: dedupedFooter,
+        totalLinks,
         // Keep backward compat
         items: navStructure.primary || [],
       }),
