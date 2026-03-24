@@ -1332,6 +1332,7 @@ export default function ResultsPage() {
             ) : pages.length > 0 ? (
               <Badge variant="secondary">{progress}% — {completedCount}/{pages.length} scraped</Badge>
             ) : null}
+            </div>
           </div>
         </div>
       </header>
