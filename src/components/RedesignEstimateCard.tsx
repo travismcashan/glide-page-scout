@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { PageTagsMap } from '@/lib/pageTags';
-import { normalizeTagKey } from '@/lib/pageTags';
+import { normalizeTagKey, getTemplateCategory } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
 const baseTypeColors: Record<string, string> = {
@@ -87,6 +88,9 @@ function TableSection({ title, columns, colAligns, rows }: {
 }
 
 export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure }: Props) {
+  const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
+  const [seeded, setSeeded] = useState(false);
+
   const { baseTypeCounts, templates, contentTypes, totalTemplates } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
     const templateMap: Record<string, { count: number; baseType?: string; urls: string[] }> = {};
@@ -167,20 +171,47 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
     };
   }, [pageTags, contentTypesData, navStructure]);
 
+  // Auto-seed excluded set from toolkit templates on first data load
+  if (!seeded && templates.length > 0) {
+    const toolkitNames = new Set(
+      templates.filter(t => getTemplateCategory(t.name) === 'toolkit').map(t => t.name)
+    );
+    if (toolkitNames.size > 0) setExcluded(toolkitNames);
+    setSeeded(true);
+  }
+
+  const toggleExcluded = (name: string) => {
+    setExcluded(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
   if (!pageTags || Object.keys(pageTags).length === 0) {
     return <p className="text-sm text-muted-foreground">No page classification data available yet. Run URL Discovery and Content Types first.</p>;
   }
 
   const totalPages = Object.keys(pageTags).length;
+  const designCount = templates.filter(t => !excluded.has(t.name)).length;
+  const blockBuiltCount = totalTemplates - designCount;
 
   return (
     <div className="space-y-6">
       {/* Summary */}
       <div className="flex items-baseline gap-3 flex-wrap">
         <span className="text-2xl font-bold text-foreground">{totalTemplates}</span>
-        <span className="text-sm text-muted-foreground">unique templates across</span>
+        <span className="text-sm text-muted-foreground">unique templates</span>
+        <span className="text-sm text-muted-foreground">·</span>
+        <span className="text-2xl font-bold text-foreground">{designCount}</span>
+        <span className="text-sm text-muted-foreground">custom design</span>
+        <span className="text-sm text-muted-foreground">·</span>
+        <span className="text-lg font-semibold text-muted-foreground">{blockBuiltCount}</span>
+        <span className="text-sm text-muted-foreground">block-built</span>
+        <span className="text-sm text-muted-foreground">·</span>
         <span className="text-2xl font-bold text-foreground">{totalPages}</span>
-        <span className="text-sm text-muted-foreground">discovered URLs</span>
+        <span className="text-sm text-muted-foreground">URLs</span>
       </div>
 
       {/* Level 1 — Base Types */}
@@ -194,19 +225,48 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
       />
 
       {/* Level 2 — Unique Templates */}
-      <TableSection
-        title={`Level 2 — Unique Templates (${totalTemplates})`}
-        columns={['Template', 'Type', 'Nav', 'URLs']}
-        colAligns={['left', 'center', 'center', 'right']}
-        rows={templates.map((t) => ({
-          cells: [
-            t.name,
-            t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null,
-            t.navSection ? <span className="text-xs text-muted-foreground">{t.navSection}</span> : null,
-            t.count,
-          ],
-        }))}
-      />
+      <div>
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          {`Level 2 — Unique Templates (${totalTemplates})`}
+        </h4>
+        <div className="border border-border rounded-md overflow-hidden">
+          <table className="w-full text-sm table-fixed">
+            <thead>
+              <tr className="bg-muted/50 text-left">
+                <th className="px-3 py-2 font-medium text-muted-foreground w-10 text-center">Design</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground text-left">Template</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground text-center">Type</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground text-center">Nav</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground text-right">URLs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {templates.map((t, i) => {
+                const isExcluded = excluded.has(t.name);
+                return (
+                  <tr key={i} className={`border-t border-border transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/30'}`}>
+                    <td className="px-3 py-1.5 text-center">
+                      <Checkbox
+                        checked={!isExcluded}
+                        onCheckedChange={() => toggleExcluded(t.name)}
+                        className="mx-auto"
+                      />
+                    </td>
+                    <td className={`px-3 py-1.5 font-medium text-foreground ${isExcluded ? 'line-through' : ''}`}>{t.name}</td>
+                    <td className="px-3 py-1.5 text-center text-muted-foreground">
+                      {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}
+                    </td>
+                    <td className="px-3 py-1.5 text-center text-muted-foreground">
+                      {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">{t.count}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Level 3 — Repeating Content Types (Post & CPT only) */}
       {contentTypes.length > 0 && (
