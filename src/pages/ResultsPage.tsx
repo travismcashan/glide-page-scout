@@ -974,9 +974,9 @@ export default function ResultsPage() {
   const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
     if (isSharedView) return null;
     return (
-      <>
+      <div className="flex items-center gap-1">
         {integrationDurations[key] != null && !isLoading && (
-          <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]}s</span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]} seconds</span>
         )}
         <Button
           variant="ghost"
@@ -991,7 +991,7 @@ export default function ResultsPage() {
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
-      </>
+      </div>
     );
   };
 
