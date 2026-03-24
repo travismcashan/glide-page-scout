@@ -356,19 +356,18 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
               </div>
             )}
             <CardTabs
-              defaultValue={hasLinkCheckData ? 'ok' : 'all'}
+              defaultValue="ok"
               tabs={[
-                { value: 'all', label: `All (${buckets.all.length})`, content: <UrlList urls={buckets.all} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} /> },
+                { value: 'ok', label: `OK (${buckets.ok.length})`, icon: <CheckCircle className="h-3.5 w-3.5 text-green-500" />, content: <UrlList urls={buckets.ok} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} emptyText="No OK links yet." /> },
+                { value: 'redirects', label: `Redirects (${buckets.redirects.length})`, icon: <ArrowRight className="h-3.5 w-3.5 text-yellow-500" />, content: <UrlList urls={buckets.redirects} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} emptyText="No redirects found." /> },
+                { value: 'broken', label: `Broken (${buckets.broken.length})`, icon: <XCircle className="h-3.5 w-3.5 text-destructive" />, content: <UrlList urls={buckets.broken} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} emptyText="No broken links found." /> },
                 {
                   value: 'pending',
                   label: `Pending (${buckets.pending.length})`,
                   icon: <Clock className="h-3.5 w-3.5 text-muted-foreground" />,
                   content: <UrlList urls={buckets.pending} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} emptyText="All URLs have been checked." />,
-                  visible: hasLinkCheckData && buckets.pending.length > 0,
+                  visible: buckets.pending.length > 0,
                 },
-                { value: 'ok', label: `OK (${buckets.ok.length})`, icon: <CheckCircle className="h-3.5 w-3.5 text-green-500" />, content: <UrlList urls={buckets.ok} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets.ok.length > 0 },
-                { value: 'redirects', label: `Redirects (${buckets.redirects.length})`, icon: <ArrowRight className="h-3.5 w-3.5 text-yellow-500" />, content: <UrlList urls={buckets.redirects} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets.redirects.length > 0 },
-                { value: 'broken', label: `Broken (${buckets.broken.length})`, icon: <XCircle className="h-3.5 w-3.5 text-destructive" />, content: <UrlList urls={buckets.broken} statusMap={statusMap} navMap={navMap} pageTags={pageTags} onPageTagChange={onPageTagChange} />, visible: buckets.broken.length > 0 },
               ]}
             />
           </div>
