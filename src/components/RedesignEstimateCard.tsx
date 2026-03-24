@@ -246,9 +246,21 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
 
       {/* Level 2 — Unique Templates */}
       <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          {`Level 2 — Unique Templates (${totalTemplates})`}
-        </h4>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {`Level 2 — Unique Templates (${totalTemplates})`}
+          </h4>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Preset:</span>
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
+              {(Object.keys(TIER_SIZES) as TierKey[]).map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
+                  {tier === 'All' ? 'All' : `${tier} (${TIER_SIZES[tier]})`}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </div>
         <div className="border border-border rounded-md overflow-hidden">
           <table className="w-full text-sm table-fixed">
             <thead>
