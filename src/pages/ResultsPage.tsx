@@ -971,26 +971,29 @@ export default function ResultsPage() {
     prevLoadingRef.current = { ...loadingMap };
   });
 
-  const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => (
-    <>
-      {integrationDurations[key] != null && !isLoading && (
-        <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]}s</span>
-      )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7"
-        disabled={isLoading}
-        onClick={() => {
-          setIntegrationDurations(d => { const next = { ...d }; delete next[key]; return next; });
-          key === 'gtmetrix' ? rerunGtmetrix() : rerunIntegration(key, dbColumn);
-        }}
-        title="Run again"
-      >
-        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-      </Button>
-    </>
-  );
+  const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
+    if (isSharedView) return null;
+    return (
+      <>
+        {integrationDurations[key] != null && !isLoading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]}s</span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={isLoading}
+          onClick={() => {
+            setIntegrationDurations(d => { const next = { ...d }; delete next[key]; return next; });
+            key === 'gtmetrix' ? rerunGtmetrix() : rerunIntegration(key, dbColumn);
+          }}
+          title="Run again"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
+      </>
+    );
+  };
 
   const innerExpandToggle = (expanded: boolean | null, setExpanded: React.Dispatch<React.SetStateAction<boolean | null>>) => (
     <Button
