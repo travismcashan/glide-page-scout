@@ -56,25 +56,25 @@ export function SemrushCard({ data, isLoading }: SemrushCardProps) {
     <div className="space-y-4">
       {usOverview && (
         <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()}</strong> Organic Keywords</span>
+          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()}</strong> Organic Keywords</span>
           <span>·</span>
-          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()}</strong> Organic Traffic</span>
+          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()}</strong> Organic Traffic</span>
           <span>·</span>
-          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Ad', 'Adwords Keywords')).toLocaleString()}</strong> Paid Keywords</span>
+          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Ad', 'Adwords Keywords')).toLocaleString()}</strong> Paid Keywords</span>
           <span>·</span>
-          <span><strong className="text-foreground">{Number(getVal(usOverview, 'Rk', 'Rank')).toLocaleString()}</strong> Rank</span>
+          <span><strong className="text-foreground text-sm">{Number(getVal(usOverview, 'Rk', 'Rank')).toLocaleString()}</strong> Rank</span>
         </div>
       )}
 
       {data.backlinks && (
         <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-          <span><strong className="text-foreground">{Number(data.backlinks.total || 0).toLocaleString()}</strong> Backlinks</span>
+          <span><strong className="text-foreground text-sm">{Number(data.backlinks.total || 0).toLocaleString()}</strong> Backlinks</span>
           <span>·</span>
-          <span><strong className="text-foreground">{Number(data.backlinks.domains_num || 0).toLocaleString()}</strong> Domains</span>
+          <span><strong className="text-foreground text-sm">{Number(data.backlinks.domains_num || 0).toLocaleString()}</strong> Domains</span>
           <span>·</span>
-          <span><strong className="text-foreground">{Number(data.backlinks.follows_num || 0).toLocaleString()}</strong> Follow</span>
+          <span><strong className="text-foreground text-sm">{Number(data.backlinks.follows_num || 0).toLocaleString()}</strong> Follow</span>
           <span>·</span>
-          <span><strong className="text-foreground">{Number(data.backlinks.nofollows_num || 0).toLocaleString()}</strong> Nofollow</span>
+          <span><strong className="text-foreground text-sm">{Number(data.backlinks.nofollows_num || 0).toLocaleString()}</strong> Nofollow</span>
         </div>
       )}
 

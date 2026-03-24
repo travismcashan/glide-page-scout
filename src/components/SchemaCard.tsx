@@ -29,18 +29,18 @@ export function SchemaCard({ data }: { data: SchemaData }) {
       {/* Summary bar */}
       <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
         {hasSchemas ? (
-          <span><strong className="text-foreground">{summary.totalSchemas}</strong> Schema{summary.totalSchemas !== 1 ? 's' : ''} Found</span>
+          <span><strong className="text-foreground text-sm">{summary.totalSchemas}</strong> Schema{summary.totalSchemas !== 1 ? 's' : ''} Found</span>
         ) : (
           <span className="text-destructive"><strong>No Structured Data Found</strong></span>
         )}
         {summary.jsonLdCount > 0 && (
-          <><span>·</span><span><strong className="text-foreground">{summary.jsonLdCount}</strong> JSON-LD</span></>
+          <><span>·</span><span><strong className="text-foreground text-sm">{summary.jsonLdCount}</strong> JSON-LD</span></>
         )}
         {summary.microdataCount > 0 && (
-          <><span>·</span><span><strong className="text-foreground">{summary.microdataCount}</strong> Microdata</span></>
+          <><span>·</span><span><strong className="text-foreground text-sm">{summary.microdataCount}</strong> Microdata</span></>
         )}
         {summary.rdfaCount > 0 && (
-          <><span>·</span><span><strong className="text-foreground">{summary.rdfaCount}</strong> RDFa</span></>
+          <><span>·</span><span><strong className="text-foreground text-sm">{summary.rdfaCount}</strong> RDFa</span></>
         )}
         {summary.errorCount > 0 && (
           <><span>·</span><span className="text-destructive"><strong>{summary.errorCount}</strong> Error{summary.errorCount !== 1 ? 's' : ''}</span></>

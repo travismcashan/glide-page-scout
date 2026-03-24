@@ -188,7 +188,7 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
       {hasCredits && (
         <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
           <CreditCard className="h-3.5 w-3.5 shrink-0" />
-          <span>Credits: <strong className="text-foreground">{credits.remaining ?? '?'}</strong> remaining of {credits.available ?? '?'}</span>
+          <span>Credits: <strong className="text-foreground text-sm">{credits.remaining ?? '?'}</strong> remaining of {credits.available ?? '?'}</span>
           {credits.used && <span>({credits.used} used)</span>}
         </div>
       )}

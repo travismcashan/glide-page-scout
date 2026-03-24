@@ -70,15 +70,15 @@ export function ContextPreview({ session, pages, documents, screenshotCount: ext
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <span>Crawl context: <strong className="text-foreground">{totalChars.toLocaleString()}</strong> chars (~{estTokens.toLocaleString()} tokens)</span>
-        {docChars > 0 && <span>Attached docs: <strong className="text-foreground">{docChars.toLocaleString()}</strong> chars (~{Math.round(docChars / 4).toLocaleString()} tokens)</span>}
-        <span>Combined: ~<strong className="text-foreground">{Math.round((totalChars + docChars) / 4).toLocaleString()}</strong> / 100K tokens</span>
+        <span>Crawl context: <strong className="text-foreground text-sm">{totalChars.toLocaleString()}</strong> chars (~{estTokens.toLocaleString()} tokens)</span>
+        {docChars > 0 && <span>Attached docs: <strong className="text-foreground text-sm">{docChars.toLocaleString()}</strong> chars (~{Math.round(docChars / 4).toLocaleString()} tokens)</span>}
+        <span>Combined: ~<strong className="text-foreground text-sm">{Math.round((totalChars + docChars) / 4).toLocaleString()}</strong> / 100K tokens</span>
       </div>
 
       {screenshotsIncluded > 0 && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Image className="h-3.5 w-3.5 text-primary" />
-          <span><strong className="text-foreground">{screenshotsIncluded}</strong> page screenshot{screenshotsIncluded !== 1 ? 's' : ''} will be sent as images for visual analysis</span>
+          <span><strong className="text-foreground text-sm">{screenshotsIncluded}</strong> page screenshot{screenshotsIncluded !== 1 ? 's' : ''} will be sent as images for visual analysis</span>
           {screenshotCount > 10 && <span className="text-muted-foreground/60">(capped at 10 of {screenshotCount})</span>}
         </div>
       )}

@@ -73,13 +73,13 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
     <div className="space-y-4">
       {/* Summary */}
       <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-        <span><strong className="text-foreground">{totalPages}</strong> Total URLs</span>
+        <span><strong className="text-foreground text-sm">{totalPages}</strong> Total URLs</span>
         <span>·</span>
-        <span><strong className="text-foreground">{baseTypeCounts.length}</strong> Base Types</span>
+        <span><strong className="text-foreground text-sm">{baseTypeCounts.length}</strong> Base Types</span>
         {contentTypes.length > 0 && (
           <>
             <span>·</span>
-            <span><strong className="text-foreground">{contentTypes.length}</strong> Repeating Content Types</span>
+            <span><strong className="text-foreground text-sm">{contentTypes.length}</strong> Repeating Content Types</span>
           </>
         )}
       </div>

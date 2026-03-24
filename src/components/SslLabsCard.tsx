@@ -108,9 +108,9 @@ function OverviewTab({ data }: { data: SslLabsData }) {
         <div className="rounded-lg border border-border p-3">
           <p className="text-xs font-medium mb-1.5">HSTS Policy</p>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span>Max-Age: <strong className="text-foreground">{ep.hstsPolicy.maxAge != null ? `${Math.round(ep.hstsPolicy.maxAge / 86400)}d` : '—'}</strong></span>
-            <span>Subdomains: <strong className="text-foreground">{ep.hstsPolicy.includeSubDomains ? 'Yes' : 'No'}</strong></span>
-            <span>Preload: <strong className="text-foreground">{ep.hstsPolicy.preload ? 'Yes' : 'No'}</strong></span>
+            <span>Max-Age: <strong className="text-foreground text-sm">{ep.hstsPolicy.maxAge != null ? `${Math.round(ep.hstsPolicy.maxAge / 86400)}d` : '—'}</strong></span>
+            <span>Subdomains: <strong className="text-foreground text-sm">{ep.hstsPolicy.includeSubDomains ? 'Yes' : 'No'}</strong></span>
+            <span>Preload: <strong className="text-foreground text-sm">{ep.hstsPolicy.preload ? 'Yes' : 'No'}</strong></span>
           </div>
         </div>
       )}
