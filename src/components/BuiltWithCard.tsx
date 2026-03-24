@@ -7,6 +7,10 @@ type Technology = {
   name: string;
   description?: string;
   link?: string;
+  firstDetected?: number;
+  lastDetected?: number;
+  tag?: string;
+  isPremium?: boolean;
 };
 
 type Credits = {
