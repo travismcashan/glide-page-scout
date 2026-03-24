@@ -108,7 +108,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
           <div>
             {baseTypeCounts.map(([type, count]) => (
               <div key={type} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
-                <span className="text-xs font-mono leading-5 text-muted-foreground flex-1">{type}</span>
+                <span className="text-xs font-mono leading-5 text-muted-foreground flex-1">{type === 'Archive' ? 'Taxonomy' : type}</span>
                 <span className="text-xs text-muted-foreground font-mono">{count}</span>
               </div>
             ))}
