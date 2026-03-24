@@ -126,7 +126,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
                 ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               }
-              <span className="text-xs font-semibold text-foreground">Repeating Content</span>
+              <span className="text-xs font-semibold text-foreground">Bulk Content</span>
               
             </button>
             {!collapsedSections.has('repeating') && (
