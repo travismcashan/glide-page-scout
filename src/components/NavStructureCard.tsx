@@ -154,10 +154,10 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 
   return (
     <div>
-      <div className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group">
+      <div className="flex items-center py-1 px-2 rounded-md hover:bg-muted/50 transition-colors group">
         {/* Left: tree + label */}
         <div className="flex items-center flex-1 min-w-0">
-          <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
+          <span className="font-mono text-xs leading-5 text-foreground/50 whitespace-pre select-none shrink-0">
             {buildTreePrefix(parentLines, isLast, isFirst)}
           </span>
 
@@ -169,12 +169,12 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
 
           {item.url ? (
             <a href={item.url} target="_blank" rel="noopener noreferrer"
-              className={`text-sm hover:underline truncate ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}
+              className={`text-xs font-mono leading-5 hover:underline truncate ${isBold ? 'font-bold text-foreground' : 'text-muted-foreground'}`}
               onClick={(e) => e.stopPropagation()}>
               {item.label}
             </a>
           ) : (
-            <span className={`text-sm truncate ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
+            <span className={`text-xs leading-5 truncate ${isBold ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
               {item.label}
             </span>
           )}
