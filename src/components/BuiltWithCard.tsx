@@ -141,6 +141,29 @@ function buildSuperGroups(grouped: Record<string, Technology[]>): SuperGroupData
 
   return result;
 }
+type RowData = Technology & { subcategory: string };
+
+function ExpandableRow({ row }: { row: RowData }) {
+  const [expanded, setExpanded] = useState(false);
+  const desc = row.description || '—';
+  const isLong = desc.length > 60;
+
+  return (
+    <div
+      className="flex items-start px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors cursor-default"
+      onClick={isLong ? () => setExpanded(!expanded) : undefined}
+    >
+      <span className="w-[150px] shrink-0 text-xs leading-5 truncate">{row.name}</span>
+      <span className="w-[110px] shrink-0 text-xs leading-5 text-muted-foreground truncate">{row.subcategory}</span>
+      <span className="w-[70px] shrink-0 text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.firstDetected)}</span>
+      <span className="w-[70px] shrink-0 text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.lastDetected)}</span>
+      <span className="w-[70px] shrink-0 text-center text-xs leading-5 text-muted-foreground">{row.tag || '—'}</span>
+      <span className={`flex-1 text-xs leading-5 text-muted-foreground min-w-0 ${expanded ? '' : 'truncate'} ${isLong ? 'cursor-pointer' : ''}`}>
+        {desc}
+      </span>
+    </div>
+  );
+}
 
 export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -223,12 +246,12 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         {/* Sticky header — matches all other tables */}
         <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
-          <span className="w-[120px] text-xs font-medium text-muted-foreground">Technology</span>
-          <span className="w-[100px] text-xs font-medium text-muted-foreground">Subcategory</span>
-          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">First Seen</span>
-          <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Last Seen</span>
-          <span className="w-[50px] text-center text-xs font-medium text-muted-foreground">Tag</span>
-          <span className="flex-1 text-xs font-medium text-muted-foreground">Description</span>
+          <span className="w-[150px] shrink-0 text-xs font-medium text-muted-foreground">Technology</span>
+          <span className="w-[110px] shrink-0 text-xs font-medium text-muted-foreground">Subcategory</span>
+          <span className="w-[70px] shrink-0 text-center text-xs font-medium text-muted-foreground">First Seen</span>
+          <span className="w-[70px] shrink-0 text-center text-xs font-medium text-muted-foreground">Last Seen</span>
+          <span className="w-[70px] shrink-0 text-center text-xs font-medium text-muted-foreground">Tag</span>
+          <span className="flex-1 text-xs font-medium text-muted-foreground min-w-0">Description</span>
         </div>
 
         {superGroupData.map((group) => {
@@ -252,14 +275,7 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
               </button>
 
               {!isCollapsed && rows.map((row, idx) => (
-                <div key={`${row.name}-${idx}`} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
-                  <span className="w-[120px] text-xs leading-5 truncate">{row.name}</span>
-                  <span className="w-[100px] text-xs leading-5 text-muted-foreground truncate">{row.subcategory}</span>
-                  <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.firstDetected)}</span>
-                  <span className="w-[70px] text-center text-xs leading-5 text-muted-foreground">{formatEpoch(row.lastDetected)}</span>
-                  <span className="w-[50px] text-center text-xs leading-5 text-muted-foreground truncate">{row.tag || '—'}</span>
-                  <span className="flex-1 text-xs leading-5 text-muted-foreground truncate min-w-0" title={row.description}>{row.description || '—'}</span>
-                </div>
+                <ExpandableRow key={`${row.name}-${idx}`} row={row} />
               ))}
             </div>
           );
