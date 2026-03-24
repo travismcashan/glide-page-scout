@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { PageTagsMap } from '@/lib/pageTags';
 import { normalizeTagKey, getTemplateCategory } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
+
+const TIER_SIZES = { S: 5, M: 10, L: 15, All: Infinity } as const;
+type TierKey = keyof typeof TIER_SIZES;
 
 const baseTypeColors: Record<string, string> = {
   Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
