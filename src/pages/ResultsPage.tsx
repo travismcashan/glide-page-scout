@@ -1445,9 +1445,11 @@ export default function ResultsPage() {
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Content Analysis</h2>
             <div className="space-y-6">
-              {session && (session as any)?.page_tags && (
-              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} headerExtra={<div className="flex items-center gap-1.5">{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div>}>
-                <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} globalInnerExpand={redesignInnerExpand} />
+              {session && (
+              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
+                {(session as any)?.page_tags ? (
+                  <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} globalInnerExpand={redesignInnerExpand} />
+                ) : null}
               </SectionCard>
               )}
 
@@ -1509,10 +1511,7 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🎨 Design Analysis ══════ */}
-        {(
-          (session && (session as any)?.page_tags) ||
-          shouldShowIntegration('screenshots', false)
-        ) && (
+        {session && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Design Analysis</h2>
             <div className="space-y-6">
