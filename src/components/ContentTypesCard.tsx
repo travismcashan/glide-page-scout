@@ -95,20 +95,35 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
     if (Object.keys(reassign).length === 0) return rawSummary;
 
-    // Rebuild summary: merge reassigned URLs into existing groups or create new ones
+    // Rebuild summary: merge reassigned URLs into existing groups.
+    // First try exact type match, then fall back to matching by baseType (e.g. Post→Post).
     const newSummary = rawSummary
       .filter(s => s !== uncatGroup)
       .map(s => {
-        const extra = reassign[s.type];
-        if (extra) {
+        // Exact name match
+        const exactMatch = reassign[s.type];
+        if (exactMatch) {
           const merged = {
             ...s,
-            urls: [...s.urls, ...extra.urls],
-            count: s.count + extra.urls.length,
-            totalUrls: s.totalUrls + extra.urls.length,
+            urls: [...s.urls, ...exactMatch.urls],
+            count: s.count + exactMatch.urls.length,
+            totalUrls: s.totalUrls + exactMatch.urls.length,
           };
           delete reassign[s.type];
           return merged;
+        }
+        // baseType match: merge Post-tagged URLs into existing Post group, etc.
+        for (const [ct, info] of Object.entries(reassign)) {
+          if (s.baseType === info.baseType && s.baseType !== 'Page') {
+            const merged = {
+              ...s,
+              urls: [...s.urls, ...info.urls],
+              count: s.count + info.urls.length,
+              totalUrls: s.totalUrls + info.urls.length,
+            };
+            delete reassign[ct];
+            return merged;
+          }
         }
         return s;
       });
