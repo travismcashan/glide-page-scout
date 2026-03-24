@@ -245,6 +245,20 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
   useMemo(() => { applyPendingTier(); }, [applyPendingTier]);
 
+  // Auto-select the best tier based on template count
+  useEffect(() => {
+    if (aiTiers && !autoSelected && !activeTier) {
+      const designTemplates = templates.filter(t => getTemplateCategory(t.name) !== 'toolkit');
+      const count = designTemplates.length;
+      let bestTier: 'S' | 'M' | 'L';
+      if (count <= 8) bestTier = 'S';
+      else if (count <= 18) bestTier = 'M';
+      else bestTier = 'L';
+      setAutoSelected(true);
+      applyTier(bestTier);
+    }
+  }, [aiTiers, autoSelected, activeTier, templates]);
+
   if (!pageTags || Object.keys(pageTags).length === 0) {
     return <p className="text-sm text-muted-foreground">No page classification data available yet.</p>;
   }
