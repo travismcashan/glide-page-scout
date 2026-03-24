@@ -112,6 +112,7 @@ export type Database = {
           base_url: string
           builtwith_data: Json | null
           carbon_data: Json | null
+          content_types_data: Json | null
           created_at: string
           crux_data: Json | null
           deep_research_data: Json | null
@@ -145,6 +146,7 @@ export type Database = {
           base_url: string
           builtwith_data?: Json | null
           carbon_data?: Json | null
+          content_types_data?: Json | null
           created_at?: string
           crux_data?: Json | null
           deep_research_data?: Json | null
@@ -178,6 +180,7 @@ export type Database = {
           base_url?: string
           builtwith_data?: Json | null
           carbon_data?: Json | null
+          content_types_data?: Json | null
           created_at?: string
           crux_data?: Json | null
           deep_research_data?: Json | null
