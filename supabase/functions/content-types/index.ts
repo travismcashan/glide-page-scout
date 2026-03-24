@@ -298,6 +298,16 @@ For example:
 - /resources/ with 18 URLs → CPT (cptName: "Resource")
 - /team_members/ with 4 URLs → CPT (cptName: "Team Member")
 
+CRITICAL RULE FOR NESTED DIRECTORIES:
+**Sub-directories under a parent CPT directory are SUBCATEGORIES, not separate CPTs.**
+In WordPress, this would be ONE custom post type with taxonomy terms (categories).
+For example, if /testing-services/ is a CPT:
+- /testing-services/material-analysis/ → same CPT "Testing Service" (subcategory: Material Analysis)
+- /testing-services/reliability/ → same CPT "Testing Service" (subcategory: Reliability)
+- /testing-services/package-testing/ → same CPT "Testing Service" (subcategory: Package Testing)
+All sub-directories should use the SAME cptName as the parent.
+The parent directory itself (e.g., /testing-services/) is an Archive for that CPT.
+
 Additional rules:
 1. The homepage (/) is ALWAYS Page with template Homepage.
 2. Blog/news posts are Post, not CPT.
@@ -403,6 +413,31 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
 
       // Build final classifications using directory prefix matching
       const classified: ClassifiedUrl[] = [];
+
+      // Post-processing: merge child directory CPTs into their parent CPT
+      // e.g., if AI classified /testing-services/ as CPT "Testing Service" and 
+      // /testing-services/material-analysis/ as CPT "Material Analysis",
+      // merge the child into the parent's cptName
+      for (const group of aiGroups) {
+        if (group.baseType !== 'CPT' || !group.directoryPrefix) continue;
+        const childPrefix = group.directoryPrefix.replace(/\/$/, '').toLowerCase();
+        const segments = childPrefix.split('/').filter(Boolean);
+        if (segments.length < 2) continue; // not a nested directory
+        
+        // Find parent group (first-level directory)
+        const parentPrefix = '/' + segments[0];
+        const parentGroup = aiGroups.find(g => 
+          g.directoryPrefix && 
+          g.directoryPrefix.replace(/\/$/, '').toLowerCase() === parentPrefix &&
+          (g.baseType === 'CPT' || g.baseType === 'Archive')
+        );
+        
+        if (parentGroup && parentGroup.cptName) {
+          // Merge child into parent's CPT name
+          group.cptName = parentGroup.cptName;
+          group.template = parentGroup.template || `${parentGroup.cptName} Detail`;
+        }
+      }
 
       const sortedGroups = [...aiGroups].sort((a, b) =>
         (b.directoryPrefix?.length || 0) - (a.directoryPrefix?.length || 0)
