@@ -184,6 +184,7 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
   const [error, setError] = useState<string | null>(null);
   const [cachedResults, setCachedResults] = useState<LinkCheckResult[] | null>(null);
   const paused = isIntegrationPaused('url-discovery');
+  const linkCheckerPaused = isIntegrationPaused('link-checker');
 
   useEffect(() => {
     if (linkCheckResults && linkCheckResults.length > 0) {
