@@ -652,7 +652,7 @@ export default function ResultsPage() {
             const key = page.url.toLowerCase().replace(/\/$/, '');
             tagMap[key] = {
               template: page.template,
-              baseType: page.baseType || undefined,
+              baseType: (page.baseType as any) || undefined,
               cptName: page.cptName || undefined,
             };
           }
