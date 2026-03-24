@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { PageTagsMap } from '@/lib/pageTags';
@@ -54,6 +54,24 @@ interface AiTiers {
   reasoning: string;
 }
 
+function TemplateRow({ t, isExcluded, toggleExcluded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void }) {
+  return (
+    <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
+      <td className="px-3 py-1 text-center">
+        <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+      </td>
+      <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>{t.name}</td>
+      <td className="px-3 py-1 text-center">
+        {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}
+      </td>
+      <td className="px-3 py-1 text-center text-muted-foreground">
+        {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
+      </td>
+      <td className="px-3 py-1 text-right text-xs text-muted-foreground">{t.count}</td>
+    </tr>
+  );
+}
+
 const LOADING_MESSAGES = [
   'Dispatching design pigeons…',
   'Garden gnomes are analyzing layouts…',
@@ -75,6 +93,7 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
   const [aiLoading, setAiLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [collapsedTableSections, setCollapsedTableSections] = useState<Set<string>>(new Set());
 
   // Rotate loading messages
   useEffect(() => {
@@ -220,6 +239,18 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
 
+  const toggleTableSection = (key: string) => {
+    setCollapsedTableSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const hasTierSelection = activeTier && activeTier !== 'All' && aiTiers;
+  const recommendedTemplates = hasTierSelection ? templates.filter(t => !excluded.has(t.name)) : [];
+  const notIncludedTemplates = hasTierSelection ? templates.filter(t => excluded.has(t.name)) : [];
+
   const tierLabel = (tier: TierKey) => {
     if (tier === 'All') return 'All';
     const labels = { S: 'Small', M: 'Medium', L: 'Large' };
@@ -269,13 +300,7 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
         </div>
       )}
 
-      {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
-        <p className="text-xs text-muted-foreground italic border-l-2 border-primary/30 pl-2">
-          {aiTiers.reasoning}
-        </p>
-      )}
-
-      {/* Templates table */}
+      {/* Templates table — sectioned when a tier is active */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm table-fixed">
           <thead>
@@ -288,27 +313,63 @@ export function TemplatesCard({ pageTags, navStructure, domain }: Props) {
             </tr>
           </thead>
           <tbody>
-            {templates.map((t, i) => {
-              const isExcluded = excluded.has(t.name);
-              return (
-                <tr key={i} className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
-                  <td className="px-3 py-1 text-center">
-                    <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+            {hasTierSelection ? (
+              <>
+                {/* Recommended section */}
+                <tr>
+                  <td colSpan={5} className="p-0">
+                    <button
+                      onClick={() => toggleTableSection('recommended')}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+                    >
+                      {collapsedTableSections.has('recommended')
+                        ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      }
+                      <span className="text-xs font-semibold text-foreground">Recommended Layouts</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{recommendedTemplates.length}</Badge>
+                    </button>
                   </td>
-                  <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>{t.name}</td>
-                  <td className="px-3 py-1 text-center">
-                    {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}
-                  </td>
-                  <td className="px-3 py-1 text-center text-muted-foreground">
-                    {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
-                  </td>
-                  <td className="px-3 py-1 text-right text-xs text-muted-foreground">{t.count}</td>
                 </tr>
-              );
-            })}
+                {!collapsedTableSections.has('recommended') && recommendedTemplates.map((t, i) => (
+                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} />
+                ))}
+
+                {/* Not included section */}
+                <tr>
+                  <td colSpan={5} className="p-0">
+                    <button
+                      onClick={() => toggleTableSection('not-included')}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
+                    >
+                      {collapsedTableSections.has('not-included')
+                        ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      }
+                      <span className="text-xs font-semibold text-foreground">Layouts Not Included</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{notIncludedTemplates.length}</Badge>
+                    </button>
+                  </td>
+                </tr>
+                {!collapsedTableSections.has('not-included') && notIncludedTemplates.map((t, i) => (
+                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
+                ))}
+              </>
+            ) : (
+              templates.map((t, i) => (
+                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} />
+              ))
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* AI reasoning footer */}
+      {aiTiers?.reasoning && activeTier && activeTier !== 'All' && (
+        <p className="text-xs text-muted-foreground italic border-l-2 border-primary/30 pl-2">
+          {aiTiers.reasoning}
+        </p>
+      )}
     </div>
   );
 }
