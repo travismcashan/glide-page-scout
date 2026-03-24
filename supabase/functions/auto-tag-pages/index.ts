@@ -14,7 +14,7 @@ function normalizeUrl(u: string): string {
   }
 }
 
-// Industry-specific template presets — the AI picks one and maps URLs accordingly
+// Industry-specific template presets
 const INDUSTRY_PRESETS: Record<string, string[]> = {
   'B2B SaaS / Tech': [
     'Homepage', 'Product', 'Features', 'Pricing', 'Platform', 'Solutions', 'Integrations',
@@ -113,25 +113,33 @@ Deno.serve(async (req) => {
       ? `Navigation structure:\n${JSON.stringify(navStructure, null, 1).substring(0, 3000)}`
       : '';
 
-    const systemPrompt = `You are an expert at classifying websites by industry and assigning page template types.
+    const systemPrompt = `You are an expert at classifying websites by industry and assigning page template types using a WordPress-inspired content model.
 
 Your job:
-1. Detect the website's INDUSTRY from the homepage content, navigation, domain, and URL patterns.
-2. Assign each URL a single "template" label that best describes its page type.
+1. Detect the website's INDUSTRY.
+2. Classify each URL with a baseType (Page, Post, CPT, Archive, Search) and a template name.
 
-Industry options (pick the closest match):
+baseType definitions:
+- **Page**: One-off pages with unique designs (Homepage, About, Pricing, Contact, etc.)
+- **Post**: Blog/news articles in a date-based feed
+- **CPT**: Custom Post Type detail pages — repeating template with 3+ similar URLs (case studies, team members, products)
+- **Archive**: List/index/category pages that aggregate other pages
+- **Search**: Site search results pages
+
+Industry options:
 ${industryList.map(i => `- ${i}`).join('\n')}
 
 Template assignment rules:
-- Use the industry-appropriate template names. For the detected industry, here are typical templates:
+- Use the industry-appropriate template names. Templates per industry:
 ${industryList.map(i => `  ${i}: ${INDUSTRY_PRESETS[i].join(', ')}`).join('\n')}
-- You may use ANY template name that fits — you're not limited to the preset list.
-- Be specific: "Service Detail" not just "Services" for individual service pages.
-- Use "List" suffix for index/archive pages, "Detail" for individual items.
-- Assign "Uncategorized" only if truly ambiguous.
-- Common utility pages: Privacy Policy, Terms, Cookie Policy, Sitemap, 404, Login, Search.
+- You may use ANY template name that fits.
+- Use "List" suffix for archive/index pages (these are Archive type), "Detail" for individual items.
+- Utility pages (Privacy Policy, Terms, Login, 404): type Page.
+- Blog posts: type Post with template "Blog Detail".
+- CPT entries: type CPT with template "[Name] Detail" and provide cptName.
+- List/index pages: type Archive with template "Archive: [Name]" or "[Name] List".
 
-You MUST classify EVERY URL provided. Return the exact URL strings as given.`;
+You MUST classify EVERY URL provided.`;
 
     const urlsForAI = dedupedUrls.slice(0, 300);
 
@@ -156,7 +164,7 @@ ${(homepageContent || '').substring(0, 4000)}
 
 ${navSummary}
 
-URLs to classify (assign a template to each):
+URLs to classify:
 ${urlsForAI.join('\n')}`,
           },
         ],
@@ -165,7 +173,7 @@ ${urlsForAI.join('\n')}`,
             type: 'function',
             function: {
               name: 'classify_pages',
-              description: 'Detect the industry and assign a template label to each URL.',
+              description: 'Detect the industry and assign a baseType + template to each URL.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -176,17 +184,18 @@ ${urlsForAI.join('\n')}`,
                   industry_confidence: {
                     type: 'string',
                     enum: ['high', 'medium', 'low'],
-                    description: 'Confidence in the industry detection',
                   },
                   pages: {
                     type: 'array',
                     items: {
                       type: 'object',
                       properties: {
-                        url: { type: 'string', description: 'Exact URL from the input list' },
+                        url: { type: 'string', description: 'Exact URL from input' },
+                        baseType: { type: 'string', enum: ['Page', 'Post', 'CPT', 'Archive', 'Search'] },
                         template: { type: 'string', description: 'Template name for this page' },
+                        cptName: { type: 'string', description: 'CPT name if baseType is CPT' },
                       },
-                      required: ['url', 'template'],
+                      required: ['url', 'baseType', 'template'],
                       additionalProperties: false,
                     },
                   },
@@ -235,17 +244,16 @@ ${urlsForAI.join('\n')}`,
       inputNormMap.set(normalizeUrl(u), u);
     }
 
-    const matchedPages: { url: string; template: string }[] = [];
+    const matchedPages: { url: string; baseType: string; template: string; cptName?: string }[] = [];
     for (const page of (result.pages || [])) {
-      // Exact match first
-      if (urls.includes(page.url)) {
-        matchedPages.push(page);
-        continue;
-      }
-      // Normalized match
-      const original = inputNormMap.get(normalizeUrl(page.url));
-      if (original) {
-        matchedPages.push({ url: original, template: page.template });
+      const url = urls.includes(page.url) ? page.url : inputNormMap.get(normalizeUrl(page.url));
+      if (url) {
+        matchedPages.push({
+          url,
+          baseType: page.baseType || 'Page',
+          template: page.template,
+          cptName: page.cptName,
+        });
       }
     }
 
