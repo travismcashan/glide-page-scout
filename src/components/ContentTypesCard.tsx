@@ -106,6 +106,8 @@ export function ContentTypesCard({ data, onDataChange }: { data: ContentTypesDat
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
   const [mergeMode, setMergeMode] = useState(false);
+  const [editingType, setEditingType] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   if (!data?.summary?.length) {
     return <p className="text-sm text-muted-foreground">No content types detected.</p>;
