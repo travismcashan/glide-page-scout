@@ -1429,6 +1429,13 @@ export default function ResultsPage() {
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
+              {/* AI Tech Analysis — merged card */}
+              {(techAnalysisData || techAnalysisLoading) && (
+              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']}>
+                <TechAnalysisCard data={techAnalysisData} isLoading={techAnalysisLoading} />
+              </SectionCard>
+              )}
+
               {shouldShowIntegration('builtwith', !!session?.builtwith_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="builtwith" persistedCollapsed={isSectionCollapsed("builtwith")} onCollapseChange={toggleSection} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)}>
                 {session?.builtwith_data ? (
