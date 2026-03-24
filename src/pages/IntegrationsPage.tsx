@@ -46,6 +46,7 @@ const integrations: Integration[] = [
   { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true },
   { name: 'Wappalyzer', id: 'wappalyzer', description: 'Real-time technology profiling with version detection', secretKey: 'WAPPALYZER_API_KEY', configured: true, category: 'technology', status: 'active' },
   { name: 'DetectZeStack', id: 'detectzestack', description: 'Technology detection via RapidAPI — 100 free lookups/month', secretKey: 'RAPIDAPI_KEY', configured: true, category: 'technology', status: 'active' },
+  { name: 'AI Tech Analysis', id: 'tech-analysis', description: 'AI-powered merged analysis of all tech sources — identifies platform, risks, and redesign recommendations', secretKey: '', configured: true, category: 'technology', status: 'active' },
 
   // ── ⚡ Performance & Sustainability ──
   { name: 'GTmetrix', id: 'gtmetrix', description: 'Lighthouse performance audits and Web Vitals', secretKey: 'GTMETRIX_API_KEY', configured: true, category: 'performance', status: 'active' },
