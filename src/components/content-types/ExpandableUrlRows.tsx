@@ -41,6 +41,9 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
         {visible.map((item) => {
           let pathname: string;
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
+          const navKey = item.url.toLowerCase().replace(/\/$/, '');
+          const navTags = navMap?.get(navKey) || [];
+          const uniqueNavTypes = [...new Set(navTags.map(t => t.type))];
           return (
             <div key={item.url} className="flex items-center gap-2 py-1 px-3 rounded hover:bg-muted/30 group">
               <Tooltip>
