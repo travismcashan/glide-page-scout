@@ -684,6 +684,14 @@ export default function ResultsPage() {
     }
   }, [session, formsLoading, effectiveDiscoveredUrls, fetchData]);
 
+  // Auto-run forms detection after discovered URLs are available
+  const formsAutoRunRef = useRef(false);
+  useEffect(() => {
+    if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
+    if (effectiveDiscoveredUrls.length === 0) return;
+    formsAutoRunRef.current = true;
+    runFormsDetection();
+  }, [session, formsLoading, formsFailed, effectiveDiscoveredUrls, runFormsDetection]);
 
   const [contentTypesLoading, setContentTypesLoading] = useState(false);
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
