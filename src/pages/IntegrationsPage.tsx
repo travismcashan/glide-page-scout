@@ -33,11 +33,12 @@ const integrations: Integration[] = [
 
   // ── 📊 Content Analysis ──
   { name: 'Content Types', id: 'content-types', description: 'Classifies all discovered URLs into content types (Blog, Product, Case Study, etc.) using URL patterns, Schema.org, meta tags, CSS classes, and AI', secretKey: '', configured: true, category: 'analysis', status: 'active' },
-  { name: 'Page Templates', id: 'auto-tag-pages', description: 'AI-powered template classification — assigns Custom, Template, or Toolkit badges to every URL based on industry-aware layout detection', secretKey: '', configured: true, category: 'analysis', status: 'active' },
+  
   { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'analysis', status: 'active' },
   { name: 'Readable.com', id: 'readable', description: 'Content readability scoring — Flesch-Kincaid, Gunning Fog, SMOG, Coleman-Liau, keyword density, and grade-level analysis', secretKey: 'READABLE_API_KEY', configured: true, category: 'analysis', status: 'active' },
 
-  // ── 📄 Content & Scraping ──
+  // ── 🎨 Design Analysis ──
+  { name: 'Page Templates', id: 'auto-tag-pages', description: 'AI-powered template classification — assigns Custom, Template, or Toolkit badges to every URL based on industry-aware layout detection', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active' },
   { name: 'Thum.io', id: 'thumio', description: 'Full-page website screenshots', secretKey: 'THUMIO_SECRET_KEY', configured: true, category: 'content', status: 'active' },
 
@@ -88,7 +89,7 @@ const integrations: Integration[] = [
 const categoryLabels: Record<string, string> = {
   architecture: '🔗 URL Analysis',
   analysis: '📊 Content Analysis',
-  content: '📄 Content & Scraping',
+  content: '🎨 Design Analysis',
   technology: '🔧 Technology Detection',
   performance: '⚡ Performance & Sustainability',
   seo: '🔍 SEO & Search',
