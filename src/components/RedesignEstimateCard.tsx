@@ -94,6 +94,7 @@ function TableSection({ title, columns, colAligns, rows }: {
 export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
+  const [activeTier, setActiveTier] = useState<TierKey | null>(null);
 
   const { baseTypeCounts, templates, contentTypes, totalTemplates } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
@@ -185,12 +186,27 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure 
   }
 
   const toggleExcluded = (name: string) => {
+    setActiveTier(null); // manual override clears tier
     setExcluded(prev => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
+  };
+
+  const applyTier = (tier: TierKey) => {
+    if (activeTier === tier) {
+      setActiveTier(null);
+      return;
+    }
+    setActiveTier(tier);
+    const limit = TIER_SIZES[tier];
+    const newExcluded = new Set<string>();
+    templates.forEach((t, i) => {
+      if (i >= limit) newExcluded.add(t.name);
+    });
+    setExcluded(newExcluded);
   };
 
   if (!pageTags || Object.keys(pageTags).length === 0) {
