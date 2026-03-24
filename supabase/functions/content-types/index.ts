@@ -187,27 +187,85 @@ function classifyByHtml(html: string): ContentType | null {
     return { type: `Article (${sectionMatch[1]})`, confidence: 'medium', source: 'meta-tags' };
   }
 
+  // Detect WordPress for confidence boosting
+  const isWordPress = /<meta[^>]*name="generator"[^>]*content="WordPress[^"]*"/i.test(html) 
+    || /\/wp-content\//i.test(html) 
+    || /\/wp-includes\//i.test(html);
+
   // 3. Body/CSS class patterns
   const bodyMatch = html.match(/<body[^>]*class="([^"]*)"[^>]*>/i);
   if (bodyMatch) {
     const classes = bodyMatch[1].toLowerCase();
+    const wpConfidence = isWordPress ? 'high' : 'medium';
+    
     const classPatterns: [RegExp, string][] = [
-      [/single-post|blog-post|post-template/, 'Blog Post'],
-      [/single-product|product-template/, 'Product'],
+      // WordPress core post types
+      [/\bsingle-post\b|blog-post|post-template/, 'Blog Post'],
+      [/\bsingle-page\b/, 'Page'],
+      [/\bhome\b/, 'Homepage'],
+      [/\bblog\b/, 'Blog Index'],
+      [/\bsearch\b/, 'Search'],
+      [/\berror404\b/, 'Error Page'],
+      [/\bcategory\b/, 'Category'],
+      [/\btag\b/, 'Tag Archive'],
+      [/\bauthor\b/, 'Author Archive'],
+      [/\bdate\b/, 'Date Archive'],
+      [/\barchive\b/, 'Archive'],
+      [/\battachment\b/, 'Attachment'],
+      
+      // WordPress page templates
       [/page-template-landing/, 'Landing Page'],
       [/page-template-contact/, 'Contact'],
       [/page-template-about/, 'About'],
-      [/archive|category|tag-/, 'Category'],
-      [/single-case.?study/, 'Case Study'],
+      [/page-template-faq/, 'FAQ'],
+      [/page-template-pricing/, 'Pricing'],
+      [/page-template-careers/, 'Careers'],
+      [/page-template-full[_-]?width/, 'Page'],
+      [/page-template-sidebar/, 'Page'],
+      
+      // WooCommerce
+      [/\bsingle-product\b|product-template/, 'Product'],
+      [/\bwoocommerce\b.*\barchive\b|post-type-archive-product/, 'Product Category'],
+      [/\bwoocommerce-cart\b/, 'Cart'],
+      [/\bwoocommerce-checkout\b/, 'Checkout'],
+      [/\bwoocommerce-account\b/, 'Account'],
+      
+      // Common WordPress CPTs
+      [/single-case[_-]?study/, 'Case Study'],
+      [/single-testimonial/, 'Testimonial'],
+      [/single-team/, 'Team Member'],
+      [/single-portfolio/, 'Portfolio'],
       [/single-event/, 'Event'],
       [/single-resource/, 'Resource'],
       [/single-webinar/, 'Webinar'],
       [/single-podcast/, 'Podcast'],
+      [/single-video/, 'Video'],
+      [/single-whitepaper|single-white[_-]paper/, 'White Paper'],
+      [/single-ebook|single-e[_-]book/, 'eBook'],
+      [/single-guide/, 'Guide'],
+      [/single-partner/, 'Partner'],
+      [/single-integration/, 'Integration'],
+      [/single-service/, 'Service'],
+      [/single-solution/, 'Solution'],
+      [/single-feature/, 'Feature'],
+      [/single-press[_-]?release/, 'Press Release'],
+      [/single-news/, 'News / Press'],
+      [/single-faq/, 'FAQ'],
+      [/single-location/, 'Location'],
+      [/single-career|single-job/, 'Careers'],
+      [/single-course|single-lesson/, 'Course'],
+      
+      // CPT archives
+      [/post-type-archive-case[_-]?study/, 'Case Study Archive'],
+      [/post-type-archive-event/, 'Event Archive'],
+      [/post-type-archive-resource/, 'Resource Archive'],
+      [/post-type-archive-portfolio/, 'Portfolio Archive'],
+      [/post-type-archive-team/, 'Team Archive'],
       [/post-type-archive/, 'Archive'],
     ];
     for (const [pattern, type] of classPatterns) {
       if (pattern.test(classes)) {
-        return { type, confidence: 'medium', source: 'css-classes' };
+        return { type, confidence: wpConfidence, source: 'css-classes' };
       }
     }
   }
