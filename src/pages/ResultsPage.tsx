@@ -107,6 +107,7 @@ type CrawlSession = {
   page_tags: PageTagsMap | null;
   sitemap_data: any | null;
   forms_data: any | null;
+  tech_analysis_data: any | null;
 };
 
 
@@ -263,26 +264,37 @@ export default function ResultsPage() {
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
   const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
+
+  // Load persisted tech analysis data from session
+  useEffect(() => {
+    if (session?.tech_analysis_data && !techAnalysisData) {
+      setTechAnalysisData(session.tech_analysis_data);
+    }
+  }, [session]);
+
   useEffect(() => {
     if (techAnalysisData || techAnalysisLoading || techAnalysisFailed) return;
     if (!session) return;
     if (isIntegrationPaused('tech-analysis')) return;
+    // Skip if already persisted
+    if (session.tech_analysis_data) return;
     const bw = session.builtwith_data;
     const dz = (session as any).detectzestack_data;
     const wp = session.wappalyzer_data;
-    // Need at least one source with data
     if (!bw && !dz && !wp) return;
-    // Wait until all active sources have finished (have data, are paused, failed, or done loading)
     const bwReady = !!bw || isIntegrationPaused('builtwith') || builtwithFailed || (!builtwithLoading && !bw);
     const dzReady = !!dz || isIntegrationPaused('detectzestack') || detectzestackFailed || (!detectzestackLoading && !dz);
     const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed || (!wappalyzerLoading && !wp);
     if (!bwReady || !dzReady || !wpReady) return;
 
     setTechAnalysisLoading(true);
-    techAnalysisApi.analyze(bw, dz, wp, session.domain).then((result) => {
+    techAnalysisApi.analyze(bw, dz, wp, session.domain).then(async (result) => {
       if (result.success) {
-        setTechAnalysisData({ analysis: result.analysis, techCount: result.techCount, sourceCount: result.sourceCount, sources: result.sources });
+        const data = { analysis: result.analysis, techCount: result.techCount, sourceCount: result.sourceCount, sources: result.sources };
+        setTechAnalysisData(data);
         clearError('tech-analysis');
+        // Persist to database
+        await supabase.from('crawl_sessions').update({ tech_analysis_data: data } as any).eq('id', session.id);
       } else {
         setTechAnalysisFailed(true);
         setError('tech-analysis', result.error || 'AI tech analysis failed');
@@ -1431,8 +1443,20 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground/80 mt-12 mb-6 first:mt-0">Technology Detection</h2>
             <div className="space-y-6">
               {/* AI Tech Analysis — merged card */}
-              {(techAnalysisData || techAnalysisLoading) && (
-              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']}>
+              {(techAnalysisData || techAnalysisLoading || session?.tech_analysis_data) && (
+              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} headerExtra={
+                !isSharedView ? (
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={techAnalysisLoading} onClick={async () => {
+                    setTechAnalysisData(null);
+                    setTechAnalysisFailed(false);
+                    clearError('tech-analysis');
+                    if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
+                    fetchData();
+                  }} title="Run again">
+                    <RefreshCw className={`h-3.5 w-3.5 ${techAnalysisLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                ) : null
+              }>
                 <TechAnalysisCard data={techAnalysisData} isLoading={techAnalysisLoading} />
               </SectionCard>
               )}
