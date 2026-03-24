@@ -57,9 +57,21 @@ function groupByDirectory(urls: string[], baseUrl: string): Record<string, strin
         if (SINGLE_PAGE_SLUGS.has(segments[0].toLowerCase())) continue;
         continue;
       }
-      const dir = segments[0].toLowerCase();
-      if (!groups[dir]) groups[dir] = [];
-      groups[dir].push(url);
+      // Group by deepest meaningful prefix (up to 2 levels)
+      // e.g., /testing-services/package-testing/drop/ → "testing-services/package-testing"
+      // e.g., /industry-solutions/medical-device/ → "industry-solutions/medical-device" 
+      // e.g., /blog/my-post/ → "blog"
+      const dir1 = segments[0].toLowerCase();
+      const dir2 = segments.length >= 3 ? `${dir1}/${segments[1].toLowerCase()}` : dir1;
+      
+      // Add to both first-level and second-level groups
+      if (!groups[dir1]) groups[dir1] = [];
+      groups[dir1].push(url);
+      
+      if (dir2 !== dir1) {
+        if (!groups[dir2]) groups[dir2] = [];
+        groups[dir2].push(url);
+      }
     } catch { /* skip bad URLs */ }
   }
 
@@ -262,34 +274,43 @@ Deno.serve(async (req) => {
                 .join('\n')
             : '';
 
-          const systemPrompt = `You are a web content strategist classifying URLs by their WordPress content model type.
+          const systemPrompt = `You are a web content strategist classifying URL directory groups by their WordPress content model type.
 
-Classify every URL into exactly ONE type:
-- **Page**: One-off pages with unique designs (About, Contact, Pricing, Services, Homepage, etc.)
+Classify each DIRECTORY GROUP into exactly ONE type:
+- **Page**: One-off pages with unique designs. Only for directories with 1-2 child URLs or utility pages.
 - **Post**: Blog/news articles in a date-based feed. Usually under /blog/, /news/, /articles/.
-- **CPT** (Custom Post Type): Detail pages from a repeating template with 3+ similar URLs. Examples: case studies, team members, products, portfolio items, locations, industries, services (when there are ${minCount}+ of them). Provide the CPT name.
-- **Archive**: Any list/index/category/tag page that aggregates other pages. Blog index, category pages, resource library pages.
+- **CPT** (Custom Post Type): ANY directory group with ${minCount}+ child URLs that follow a repeating template. This includes services, industries, solutions, test standards, team members, case studies, products, portfolio items, locations, resources, etc. Provide the CPT name.
+- **Archive**: The top-level index/list page of a CPT or blog section (e.g., /blog/ with no slug, /services/ as a listing page).
 - **Search**: Site search results pages.
 
-Then assign a TEMPLATE name describing each page's purpose:
-- Page templates: Homepage, About, Pricing, Contact, Careers, Services, Solutions, Demo, Features, Platform, etc.
+Then assign a TEMPLATE name:
+- Page templates: Homepage, About, Pricing, Contact, Careers, etc.
 - Post templates: Blog Detail
-- CPT templates: [CPT Name] Detail (e.g., "Case Study Detail", "Team Member Detail", "Industry Detail", "Service Detail")
-- Archive templates: Archive: [What it archives] (e.g., "Archive: Blog", "Archive: Case Studies")
-- Search templates: Search
+- CPT templates: [CPT Name] Detail (e.g., "Service Detail", "Industry Detail", "Test Standard Detail", "Team Member Detail")
+- Archive templates: Archive: [What] (e.g., "Archive: Blog", "Archive: Services")
 
-CRITICAL RULES:
-1. A CPT MUST have at least ${minCount} similar URLs. If fewer, classify as Page.
-2. The homepage is ALWAYS type Page with template Homepage.
-3. Utility pages (privacy, terms, login, 404) are type Page.
-4. List/index pages are ALWAYS type Archive, not Page.
-5. Blog posts are type Post, NOT CPT — even if there are many.
-6. Service and industry sub-pages with ${minCount}+ siblings ARE CPTs, not Pages.
-7. Each top-level directory with ${minCount}+ child URLs is likely a CPT.
+THE MOST IMPORTANT RULE — READ CAREFULLY:
+**If a directory group has ${minCount} or more child URLs, it is ALMOST CERTAINLY a CPT, not a Page.**
+For example:
+- /testing-services/ with 34 URLs → CPT (cptName: "Testing Service")
+- /industry-solutions/ with 23 URLs → CPT (cptName: "Industry Solution")  
+- /test-standards/ with 8 URLs → CPT (cptName: "Test Standard")
+- /resources/ with 18 URLs → CPT (cptName: "Resource")
+- /team_members/ with 4 URLs → CPT (cptName: "Team Member")
 
-You MUST classify EVERY directory group and top-level page.`;
+Additional rules:
+1. The homepage (/) is ALWAYS Page with template Homepage.
+2. Blog/news posts are Post, not CPT.
+3. A single index/listing page at a directory root (e.g., /services/ itself with no child slug) is Archive.
+4. Only truly unique one-off pages (About, Contact, Careers) are Page type.
+5. When in doubt between Page and CPT for a group with ${minCount}+ URLs, ALWAYS choose CPT.
 
-          const dirListing = Object.entries(dirGroups)
+You MUST classify EVERY directory group.`;
+
+          // Build directory listing — show both top-level and sub-directory groups
+          const dirEntries = Object.entries(dirGroups);
+          // Filter: only show groups that add info (skip sub-dirs if they ARE the top-level)
+          const dirListing = dirEntries
             .map(([dir, v]) => `/${dir}/ (${v.length} URLs) — samples: ${v.slice(0, 4).join(', ')}`)
             .join('\n');
 
