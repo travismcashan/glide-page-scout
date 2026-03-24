@@ -122,19 +122,6 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
     return () => { if (loadingInterval.current) clearInterval(loadingInterval.current); };
   }, [aiLoading]);
 
-  // Auto-select the best tier based on template count
-  useEffect(() => {
-    if (aiTiers && !autoSelected && !activeTier) {
-      const designTemplates = templates.filter(t => getTemplateCategory(t.name) !== 'toolkit');
-      const count = designTemplates.length;
-      let bestTier: 'S' | 'M' | 'L';
-      if (count <= 8) bestTier = 'S';
-      else if (count <= 18) bestTier = 'M';
-      else bestTier = 'L';
-      setAutoSelected(true);
-      applyTier(bestTier);
-    }
-  }, [aiTiers, autoSelected, activeTier, templates]);
 
   const { templates, totalTemplates } = useMemo(() => {
     const templateMap: Record<string, { count: number; baseType?: string; urls: string[] }> = {};
