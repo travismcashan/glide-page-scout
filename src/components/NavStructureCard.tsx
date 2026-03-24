@@ -107,18 +107,15 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
                 style={{ position: 'relative' }}
               >
                 {showLine && (
-                  <span className="absolute left-[9px] top-0 bottom-0 w-px bg-emerald-600/40" />
+                  <span className="absolute left-[9px] top-0 bottom-0 w-px bg-accent/40" />
                 )}
               </span>
             ))}
             <span className="inline-flex items-center w-5 shrink-0 relative">
-              {/* vertical line going up */}
-              <span className="absolute left-[9px] top-0 h-1/2 w-px bg-emerald-600/40" />
-              {/* horizontal branch */}
-              <span className="absolute left-[9px] top-1/2 w-[10px] h-px bg-emerald-600/40" />
-              {/* vertical line going down (only if not last) */}
+              <span className="absolute left-[9px] top-0 h-1/2 w-px bg-accent/40" />
+              <span className="absolute left-[9px] top-1/2 w-[10px] h-px bg-accent/40" />
               {!isLast && (
-                <span className="absolute left-[9px] top-1/2 bottom-0 w-px bg-emerald-600/40" />
+                <span className="absolute left-[9px] top-1/2 bottom-0 w-px bg-accent/40" />
               )}
             </span>
           </div>
