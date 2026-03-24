@@ -258,13 +258,13 @@ export default function IntegrationsPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-4xl mx-auto px-6 py-8 space-y-12">
         {grouped.map(({ category, label, items }) => {
           const catActiveCount = items.filter(i => !pausedSet.has(i.id)).length;
           const catAllOn = catActiveCount === items.length;
           return (
           <div key={category}>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-end justify-between mb-4">
               <h2 className="text-3xl font-light tracking-tight text-foreground/80">{label}</h2>
               <Button
                 variant="ghost"
