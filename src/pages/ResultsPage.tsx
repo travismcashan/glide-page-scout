@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
+import { useSectionCollapse } from '@/hooks/use-section-collapse';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
