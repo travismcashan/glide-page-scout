@@ -31,7 +31,7 @@ interface ExpandableUrlRowsProps {
   onPageTagChange?: (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => void;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
   const INITIAL = 5;
   const STEP = 10;
   const [visibleCount, setVisibleCount] = useState(INITIAL);
@@ -48,6 +48,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           const navKey = item.url.toLowerCase().replace(/\/$/, '');
           const navTags = navMap?.get(navKey) || [];
           const uniqueNavTypes = [...new Set(navTags.map(t => t.type))];
+          const pageTag = getPageTag(pageTags, item.url);
           return (
             <div key={item.url} className="flex items-center gap-2 py-1 px-3 rounded hover:bg-muted/30 group">
               <Tooltip>
