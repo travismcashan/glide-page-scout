@@ -85,6 +85,7 @@ export function SitemapCard({ data }: Props) {
               <button
                 onClick={() => toggleGroup(group.sitemapUrl)}
                 className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+              >
                 {isExpanded ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 ) : (
