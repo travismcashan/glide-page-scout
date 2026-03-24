@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN forms_tiers jsonb DEFAULT NULL;
