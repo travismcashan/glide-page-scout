@@ -100,6 +100,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
   const [aiTiers, setAiTiers] = useState<AiTiers | null>(savedTiers || null);
+  const [autoSelected, setAutoSelected] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
