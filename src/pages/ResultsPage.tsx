@@ -47,7 +47,7 @@ import { SectionCard } from '@/components/SectionCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
-import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, type PageTemplateType, type PageTemplateVariant, getPageTagsSummary } from '@/lib/pageTags';
+import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -633,19 +633,9 @@ export default function ResultsPage() {
     }
   }, [session?.id, (session as any)?.content_types_data, effectiveDiscoveredUrls.length]);
 
-  const handlePageTagChange = useCallback(async (url: string, template: PageTemplateType, variant?: PageTemplateVariant) => {
+  const handlePageTagChange = useCallback(async (url: string, template: string) => {
     if (!session) return;
-    const updated = setPageTemplate((session as any).page_tags, url, template, variant);
-    await supabase.from('crawl_sessions').update({ page_tags: updated } as any).eq('id', session.id);
-    fetchData();
-  }, [session, fetchData]);
-
-  const handlePageLabelChange = useCallback(async (url: string, label: string) => {
-    if (!session) return;
-    const tags = (session as any).page_tags as PageTagsMap | null;
-    const existing = getPageTag(tags, url);
-    const newTag: PageTag = { ...existing, template: existing?.template || 'toolkit', label };
-    const updated = setPageTag(tags, url, newTag);
+    const updated = setPageTemplate((session as any).page_tags, url, template);
     await supabase.from('crawl_sessions').update({ page_tags: updated } as any).eq('id', session.id);
     fetchData();
   }, [session, fetchData]);
