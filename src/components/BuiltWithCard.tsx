@@ -154,19 +154,9 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 text-muted-foreground py-2">
-        <Code className="h-4 w-4 animate-pulse" />
-        <span className="text-sm">Detecting technology stack...</span>
-      </div>
-    );
-  }
-
   const hasCredits = credits && (credits.remaining != null || credits.available != null);
-  const allSuperGroups = grouped ? buildSuperGroups(grouped) : [];
+  const allSuperGroups = useMemo(() => grouped ? buildSuperGroups(grouped) : [], [grouped]);
 
-  // Find the most recent lastDetected across all techs to determine "current"
   const maxLastDetected = useMemo(() => {
     let max = 0;
     for (const g of allSuperGroups) {
@@ -179,7 +169,6 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
     return max;
   }, [allSuperGroups]);
 
-  // Filter: keep only techs whose lastDetected matches the max (i.e. still on site)
   const superGroupData = useMemo(() => {
     if (!hideOld || !maxLastDetected) return allSuperGroups;
     return allSuperGroups.map(g => ({
@@ -193,6 +182,15 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
   }, [allSuperGroups, hideOld, maxLastDetected]);
 
   const visibleCount = superGroupData.reduce((sum, g) => sum + g.totalTechs, 0);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground py-2">
+        <Code className="h-4 w-4 animate-pulse" />
+        <span className="text-sm">Detecting technology stack...</span>
+      </div>
+    );
+  }
 
   if (!grouped || totalCount === 0) {
     return <p className="text-sm text-muted-foreground">No technologies detected for this domain.</p>;
