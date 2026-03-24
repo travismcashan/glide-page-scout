@@ -108,7 +108,7 @@ function NavTreeItem({ item, depth = 0, isLast = false, parentLines = [], pageTa
         className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
       >
         {/* Tree prefix using monospace box-drawing characters */}
-        <span className="font-mono text-sm text-primary/60 whitespace-pre select-none shrink-0">
+        <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
           {buildTreePrefix(parentLines, isLast)}
         </span>
 
