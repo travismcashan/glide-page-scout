@@ -1239,24 +1239,19 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-background">
       <header className="px-6">
         <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-start justify-between">
+            <div>
               <h1 className="text-4xl font-bold tracking-tight text-foreground">
                 {session?.domain?.replace(/^www\./i, '')}
               </h1>
-              <span>·</span>
-              <span>{session?.base_url}</span>
               {session?.created_at && (
-                <>
-                  <span>·</span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
-                  </span>
-                </>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                  <Clock className="h-3 w-3" />
+                  {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
+                </span>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="shrink-0 text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="shrink-0 text-muted-foreground mt-2">
               <ArrowLeft className="h-4 w-4 mr-1.5" />
               Back
             </Button>
