@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -120,6 +120,7 @@ export default function ResultsPage() {
   const [observatoryLoading, setObservatoryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
+  const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
   // Error tracking per integration
   const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
@@ -610,7 +611,7 @@ export default function ResultsPage() {
     if (!session || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
     setContentTypesLoading(true);
-    contentTypesApi.classify(effectiveDiscoveredUrls, session.base_url).then(async (result) => {
+    contentTypesApi.classify(effectiveDiscoveredUrls, session.base_url, sitemapHints.length > 0 ? sitemapHints : undefined).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
         clearError('content-types');
@@ -1110,6 +1111,7 @@ export default function ResultsPage() {
                 <UrlDiscoveryCard
                   baseUrl={session.base_url}
                   onUrlsDiscovered={setDiscoveredUrls}
+                  onSitemapHints={setSitemapHints}
                   linkCheckResults={session.linkcheck_data?.results || null}
                   linkCheckStreaming={linkcheckStreamingResults}
                   linkCheckLoading={linkcheckLoading}

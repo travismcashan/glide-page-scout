@@ -539,10 +539,28 @@ export const navExtractApi = {
   },
 };
 
+export const sitemapApi = {
+  async parse(baseUrl: string): Promise<{
+    success: boolean;
+    found?: boolean;
+    urls?: string[];
+    groups?: { sitemapUrl: string; label: string; urls: string[] }[];
+    contentTypeHints?: { label: string; urls: string[]; sitemapUrl: string }[];
+    stats?: { totalUrls: number; sitemapsFound: number; contentTypeHintsCount: number };
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('sitemap-parse', {
+      body: { baseUrl },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
+
 export const contentTypesApi = {
-  async classify(urls: string[], baseUrl: string): Promise<{ success: boolean; summary?: any[]; classified?: any[]; stats?: any; error?: string }> {
+  async classify(urls: string[], baseUrl: string, sitemapHints?: { label: string; urls: string[] }[]): Promise<{ success: boolean; summary?: any[]; classified?: any[]; stats?: any; error?: string }> {
     const { data, error } = await supabase.functions.invoke('content-types', {
-      body: { urls, baseUrl },
+      body: { urls, baseUrl, sitemapHints },
     });
     if (error) return { success: false, error: error.message };
     return data;

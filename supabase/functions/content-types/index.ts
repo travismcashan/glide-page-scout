@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { urls, baseUrl, sampleSize = 30, minCount = 3 } = await req.json();
+    const { urls, baseUrl, sampleSize = 30, minCount = 3, sitemapHints } = await req.json();
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return new Response(
@@ -245,6 +245,13 @@ CRITICAL RULES:
 6. If a URL group is clearly just a section with sub-pages (like /solutions/enterprise, /solutions/smb), that's a section with individual pages, NOT a content type — unless there are many similar detail pages.
 7. Return ONLY URLs that belong to a genuine repeating content type. Skip everything else.`;
 
+        // Build sitemap hints context
+        const sitemapContext = sitemapHints && Array.isArray(sitemapHints) && sitemapHints.length > 0
+          ? sitemapHints
+              .map((h: { label: string; urls: string[] }) => `Sitemap "${h.label}" (${h.urls.length} URLs) — samples: ${h.urls.slice(0, 3).join(', ')}`)
+              .join('\n')
+          : '';
+
         const userPrompt = `Analyze this website (${baseUrl}) and identify the repeating content types.
 
 ALL URLs on the site:
@@ -256,10 +263,10 @@ ${dirSummary || '(none detected)'}
 HTML signals detected:
 ${htmlContext || '(none detected)'}
 
-Homepage: ${homepage || 'not found'}
+${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes URLs by content type in separate sitemaps):\n${sitemapContext}\n` : ''}Homepage: ${homepage || 'not found'}
 Top-level pages: ${topLevelPages.join(', ') || 'none'}
 
-Identify ONLY genuine repeating content types. For each URL that belongs to a content type, classify it. Skip individual/one-off pages entirely.`;
+Identify ONLY genuine repeating content types. For each URL that belongs to a content type, classify it. Skip individual/one-off pages entirely.${sitemapContext ? ' Pay special attention to the XML sitemap groupings — they are the strongest signal of content types as they come directly from the CMS configuration.' : ''}`;
 
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
