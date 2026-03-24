@@ -24,7 +24,7 @@ type Integration = {
 };
 
 const integrations: Integration[] = [
-  // ── 🗺️ Site Architecture ──
+  // ── 🔗 URL Analysis ──
   { name: 'XML Sitemaps', id: 'sitemap', description: 'Parse and analyze XML sitemaps — discover all indexed URLs, nested sitemap structures, and lastmod dates', secretKey: '', configured: true, category: 'architecture', status: 'active' },
   { name: 'URL Discovery', id: 'url-discovery', description: 'Firecrawl-powered sitemap mapping — discovers all pages on a domain', secretKey: '', configured: true, category: 'architecture', status: 'active' },
   { name: 'Navigation Structure', id: 'nav-structure', description: 'AI-powered extraction of the primary header navigation — builds a hierarchical sitemap from the actual menu structure, not a full crawl', secretKey: '', configured: true, category: 'architecture', status: 'active' },
@@ -32,14 +32,12 @@ const integrations: Integration[] = [
   // ── 📊 Content Analysis ──
   { name: 'Content Types', id: 'content-types', description: 'Classifies all discovered URLs into content types (Blog, Product, Case Study, etc.) using URL patterns, Schema.org, meta tags, CSS classes, and AI', secretKey: '', configured: true, category: 'analysis', status: 'active' },
   { name: 'Page Templates', id: 'auto-tag-pages', description: 'AI-powered template classification — assigns Custom, Template, or Toolkit badges to every URL based on industry-aware layout detection', secretKey: '', configured: true, category: 'analysis', status: 'active' },
+  { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'analysis', status: 'active' },
+  { name: 'Readable.com', id: 'readable', description: 'Content readability scoring — Flesch-Kincaid, Gunning Fog, SMOG, Coleman-Liau, keyword density, and grade-level analysis', secretKey: 'READABLE_API_KEY', configured: true, category: 'analysis', status: 'active' },
 
   // ── 📄 Content & Scraping ──
   { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active' },
-  { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'content', status: 'active' },
-  
   { name: 'Thum.io', id: 'thumio', description: 'Full-page website screenshots', secretKey: 'THUMIO_SECRET_KEY', configured: true, category: 'content', status: 'active' },
-  { name: 'Readable.com', id: 'readable', description: 'Content readability scoring — Flesch-Kincaid, Gunning Fog, SMOG, Coleman-Liau, keyword density, and grade-level analysis', secretKey: 'READABLE_API_KEY', configured: true, category: 'content', status: 'active' },
-  { name: 'Schema.org Validator', id: 'schema', description: 'Structured data analysis (JSON-LD, Microdata, RDFa) — detects schema types, validates required fields, and checks Google rich results eligibility. Free, no API key.', secretKey: '', configured: true, category: 'content', status: 'active' },
 
   // ── 🔧 Technology Detection ──
   { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true },
