@@ -6,6 +6,14 @@ import { toast } from 'sonner';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
 import { getPageTag, type PageTagsMap } from '@/lib/pageTags';
 
+const baseTypeStyles: Record<string, string> = {
+  Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  Post: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  CPT: 'bg-violet-500/10 text-violet-600 border-violet-500/30',
+  Archive: 'bg-sky-500/10 text-sky-600 border-sky-500/30',
+  Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
+};
+
 type NavItem = {
   label: string;
   url?: string | null;
@@ -147,45 +155,59 @@ function NavTreeItem({ item, depth = 0, isLast = false, isFirst = false, parentL
   return (
     <div>
       <div className="flex items-center py-0.5 px-2 rounded-md hover:bg-muted/50 transition-colors group">
-        <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
-          {buildTreePrefix(parentLines, isLast, isFirst)}
-        </span>
-
-        {hasChildren ? (
-          <button onClick={() => setLocalToggle(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
-            {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-          </button>
-        ) : null}
-
-        {item.url ? (
-          <a href={item.url} target="_blank" rel="noopener noreferrer"
-            className={`text-sm hover:underline ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}
-            onClick={(e) => e.stopPropagation()}>
-            {item.label}
-          </a>
-        ) : (
-          <span className={`text-sm ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
-            {item.label}
+        {/* Left: tree + label */}
+        <div className="flex items-center flex-1 min-w-0">
+          <span className="font-mono text-sm text-foreground/50 whitespace-pre select-none shrink-0">
+            {buildTreePrefix(parentLines, isLast, isFirst)}
           </span>
-        )}
 
-        {hasChildren && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-1.5">{item.children!.length}</Badge>
-        )}
+          {hasChildren ? (
+            <button onClick={() => setLocalToggle(!expanded)} className="p-0.5 rounded hover:bg-muted shrink-0 mr-1">
+              {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+            </button>
+          ) : null}
+
+          {item.url ? (
+            <a href={item.url} target="_blank" rel="noopener noreferrer"
+              className={`text-sm hover:underline truncate ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}
+              onClick={(e) => e.stopPropagation()}>
+              {item.label}
+            </a>
+          ) : (
+            <span className={`text-sm truncate ${isBold ? 'font-bold text-foreground' : 'text-foreground/80'}`}>
+              {item.label}
+            </span>
+          )}
+
+          {hasChildren && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-1.5 shrink-0">{item.children!.length}</Badge>
+          )}
+        </div>
+
+        {/* Right: Type | Template columns */}
+        <div className="flex items-center gap-0 shrink-0">
+          <span className="w-[70px] flex justify-center">
+            {pageTag?.baseType && (
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[pageTag.baseType] || ''}`}>
+                {pageTag.baseType}
+              </Badge>
+            )}
+          </span>
+          <span className="w-[120px] flex justify-center">
+            {item.url && (
+              <PageTemplateBadge
+                tag={pageTag}
+                onChange={onPageTagChange ? (t) => onPageTagChange(item.url!, t) : undefined}
+                readOnly={!onPageTagChange}
+                hideBaseType
+              />
+            )}
+          </span>
+        </div>
 
         {item.url && (
-          <span className="ml-1.5">
-            <PageTemplateBadge
-              tag={pageTag}
-              onChange={onPageTagChange ? (t) => onPageTagChange(item.url!, t) : undefined}
-              readOnly={!onPageTagChange}
-            />
-          </span>
-        )}
-
-        {item.url && (
           <a href={item.url} target="_blank" rel="noopener noreferrer"
-            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+            className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary shrink-0"
             onClick={(e) => e.stopPropagation()}>
             <ExternalLink className="h-3 w-3" />
           </a>
@@ -226,10 +248,18 @@ function NavSection({ title, icon, items, emptyText, globalExpand, pageTags, onP
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1">{items.length}</Badge>
       </div>
       {items.length > 0 ? (
-        <div className="border border-border rounded-lg p-2 bg-muted/20">
-          {items.map((item, idx) => (
-            <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
-          ))}
+        <div className="border border-border rounded-lg bg-muted/20">
+          <div className="flex items-center px-2 py-1.5 border-b border-border">
+            <span className="flex-1 text-xs font-medium text-muted-foreground">Page</span>
+            <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
+            <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
+            <span className="w-[16px]" />
+          </div>
+          <div className="p-2 pt-0">
+            {items.map((item, idx) => (
+              <NavTreeItem key={`${item.label}-${idx}`} item={item} depth={0} isFirst={idx === 0} isLast={idx === items.length - 1} parentLines={[]} globalExpand={globalExpand} pageTags={pageTags} onPageTagChange={onPageTagChange} />
+            ))}
+          </div>
         </div>
       ) : emptyText ? (
         <p className="text-xs text-muted-foreground italic pl-6">{emptyText}</p>

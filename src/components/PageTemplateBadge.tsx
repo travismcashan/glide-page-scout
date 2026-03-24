@@ -27,9 +27,10 @@ interface Props {
   tag?: PageTag;
   onChange?: (template: string) => void;
   readOnly?: boolean;
+  hideBaseType?: boolean;
 }
 
-export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
+export function PageTemplateBadge({ tag, onChange, readOnly, hideBaseType }: Props) {
   const [open, setOpen] = useState(false);
   const [addingCategory, setAddingCategory] = useState<TemplateCategory | null>(null);
   const [customName, setCustomName] = useState('');
@@ -81,7 +82,7 @@ export function PageTemplateBadge({ tag, onChange, readOnly }: Props) {
   return (
     <div ref={ref} className="relative shrink-0 flex items-center gap-1">
       {/* Base Type badge (Level 1) */}
-      {baseType && (
+      {!hideBaseType && baseType && (
         <Badge
           variant="outline"
           className={`text-[10px] px-1.5 py-0 ${baseTypeStyles[baseType]} cursor-default`}
