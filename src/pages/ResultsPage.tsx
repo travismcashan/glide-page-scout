@@ -139,6 +139,7 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
+  const [showAllIntegrations, setShowAllIntegrations] = useState(true);
   const [activeTab, setActiveTab] = useState('raw-data');
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
