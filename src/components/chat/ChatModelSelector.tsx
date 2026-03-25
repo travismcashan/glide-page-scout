@@ -55,6 +55,15 @@ const VERSIONS: Record<ModelProvider, ModelOption[]> = {
     { id: 'perplexity-sonar-reasoning', label: 'Sonar Reasoning', provider: 'perplexity', description: 'Built-in chain-of-thought', tier: 'powerful', reasoning: NO_REASONING },
   ],
 };
+// Flatten for lookup
+export const MODEL_OPTIONS: ModelOption[] = Object.values(VERSIONS).flat();
+
+const REASONING_OPTIONS: { value: ReasoningEffort; label: string; icon: typeof Zap }[] = [
+  { value: 'none', label: 'None', icon: Zap },
+  { value: 'low', label: 'Light', icon: Zap },
+  { value: 'medium', label: 'Standard', icon: Brain },
+  { value: 'high', label: 'Deep', icon: Sparkles },
+];
 
 const TIER_COLORS: Record<string, string> = {
   fast: 'text-emerald-500',
@@ -74,8 +83,7 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   const selectedModel = MODEL_OPTIONS.find(m => m.id === model) || VERSIONS.gemini[2];
   const selectedProvider = PROVIDERS.find(p => p.id === selectedModel.provider) || PROVIDERS[0];
   const versionsForProvider = VERSIONS[selectedModel.provider];
-  const allowedReasoning = PROVIDER_REASONING[selectedModel.provider];
-  const reasoningOptions = REASONING_OPTIONS.filter(r => allowedReasoning.includes(r.value));
+  const reasoningOptions = REASONING_OPTIONS.filter(r => selectedModel.reasoning.includes(r.value));
   const selectedReasoning = reasoningOptions.find(r => r.value === reasoning) || reasoningOptions[0];
 
   const PROVIDER_DEFAULTS: Record<ModelProvider, string> = {
@@ -86,9 +94,18 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   };
 
   const handleProviderChange = (provider: ModelProvider) => {
-    onModelChange(PROVIDER_DEFAULTS[provider]);
-    // Reset reasoning if current level isn't supported by new provider
-    if (!PROVIDER_REASONING[provider].includes(reasoning)) {
+    const defaultId = PROVIDER_DEFAULTS[provider];
+    const defaultModel = MODEL_OPTIONS.find(m => m.id === defaultId);
+    onModelChange(defaultId);
+    if (defaultModel && !defaultModel.reasoning.includes(reasoning)) {
+      onReasoningChange('none');
+    }
+  };
+
+  const handleVersionChange = (modelId: string) => {
+    const newModel = MODEL_OPTIONS.find(m => m.id === modelId);
+    onModelChange(modelId);
+    if (newModel && !newModel.reasoning.includes(reasoning)) {
       onReasoningChange('none');
     }
   };
