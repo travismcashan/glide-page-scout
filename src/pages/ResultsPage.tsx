@@ -1346,14 +1346,6 @@ export default function ResultsPage() {
                 <Globe className="h-4 w-4 mr-2" />
                 Site Analysis
               </TabsTrigger>
-              <TabsTrigger
-                value="ai-research"
-                style={activeTab === 'ai-research' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-bold px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
-              >
-                <Brain className="h-4 w-4 mr-2" />
-                AI Research
-              </TabsTrigger>
               {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations)) && (
                 <TabsTrigger
                   value="prospecting"
@@ -1364,6 +1356,14 @@ export default function ResultsPage() {
                   Prospecting
                 </TabsTrigger>
               )}
+              <TabsTrigger
+                value="ai-research"
+                style={activeTab === 'ai-research' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                className="relative text-base font-bold px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                AI Research
+              </TabsTrigger>
             </TabsList>
 
             {/* Unified actions dropdown */}
