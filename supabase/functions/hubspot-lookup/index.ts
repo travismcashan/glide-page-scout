@@ -116,36 +116,45 @@ serve(async (req) => {
       { type: 'tasks', properties: ['hs_task_subject', 'hs_task_body', 'hs_task_status', 'hs_task_priority', 'hs_timestamp'] },
     ];
 
-    // Fetch engagements for the first company (or first few contacts)
-    const targetId = companyIds[0] || contactIds[0];
-    const targetType = companyIds[0] ? 'companies' : 'contacts';
+    // Fetch engagements from the company AND all contacts, deduplicating by ID
+    const seenEngIds = new Set<string>();
 
-    if (targetId) {
+    async function fetchEngagementsFor(objectType: string, objectId: string) {
       for (const eng of engagementTypes) {
         try {
-          // Get associations
           const assocRes = await hubspotFetch(
-            `/crm/v4/objects/${targetType}/${targetId}/associations/${eng.type}`,
+            `/crm/v4/objects/${objectType}/${objectId}/associations/${eng.type}`,
             HUBSPOT_ACCESS_TOKEN
           );
-          const engIds = (assocRes.results || []).map((a: any) => a.toObjectId).slice(0, 25);
+          const newIds = (assocRes.results || [])
+            .map((a: any) => String(a.toObjectId))
+            .filter((id: string) => !seenEngIds.has(`${eng.type}-${id}`));
+          
+          if (newIds.length === 0) continue;
+          newIds.forEach((id: string) => seenEngIds.add(`${eng.type}-${id}`));
 
-          if (engIds.length > 0) {
-            const batchRes = await hubspotFetch(`/crm/v3/objects/${eng.type}/batch/read`, HUBSPOT_ACCESS_TOKEN, 'POST', {
-              inputs: engIds.map((id: string) => ({ id })),
-              properties: eng.properties,
-            });
-            const items = (batchRes.results || []).map((item: any) => ({
-              id: item.id,
-              type: eng.type,
-              ...item.properties,
-            }));
-            engagements.push(...items);
-          }
+          const batchRes = await hubspotFetch(`/crm/v3/objects/${eng.type}/batch/read`, HUBSPOT_ACCESS_TOKEN, 'POST', {
+            inputs: newIds.slice(0, 50).map((id: string) => ({ id })),
+            properties: eng.properties,
+          });
+          const items = (batchRes.results || []).map((item: any) => ({
+            id: item.id,
+            type: eng.type,
+            ...item.properties,
+          }));
+          engagements.push(...items);
         } catch (e) {
-          console.error(`[hubspot] Error fetching ${eng.type}: ${e.message}`);
+          console.error(`[hubspot] Error fetching ${eng.type} for ${objectType}/${objectId}: ${e.message}`);
         }
       }
+    }
+
+    // Fetch from company first, then all contacts
+    if (companyIds[0]) {
+      await fetchEngagementsFor('companies', companyIds[0]);
+    }
+    for (const cid of contactIds.slice(0, 10)) {
+      await fetchEngagementsFor('contacts', cid);
     }
 
     // Sort engagements by timestamp descending
