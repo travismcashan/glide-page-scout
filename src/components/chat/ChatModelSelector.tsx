@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity';
+export type ModelProvider = 'gemini' | 'gpt' | 'claude';
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
 
 export type ModelOption = {
