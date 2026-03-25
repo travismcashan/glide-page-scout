@@ -203,11 +203,25 @@ export default function ResultsPage() {
     });
   }, [fetchData]);
 
+  // ── Integration trigger refs (prevent duplicate API calls during React re-renders) ──
+  const builtwithTriggeredRef = useRef(false);
+  const semrushTriggeredRef = useRef(false);
+  const psiTriggeredRef = useRef(false);
+  const wappalyzerTriggeredRef = useRef(false);
+  const detectzestackTriggeredRef = useRef(false);
+  const gtmetrixTriggeredRef = useRef(false);
+  const carbonTriggeredRef = useRef(false);
+  const cruxTriggeredRef = useRef(false);
+  const waveTriggeredRef = useRef(false);
+  const observatoryTriggeredRef = useRef(false);
+
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
   const [builtwithCredits, setBuiltwithCredits] = useState<{ available?: string | null; used?: string | null; remaining?: string | null } | null>(null);
   useEffect(() => {
     if (!session || session.builtwith_data || builtwithLoading || builtwithFailed || isIntegrationPaused('builtwith')) return;
+    if (builtwithTriggeredRef.current) return;
+    builtwithTriggeredRef.current = true;
     setBuiltwithLoading(true);
     builtwithApi.lookup(session.domain).then(async (result) => {
       if (result.credits) setBuiltwithCredits(result.credits);
@@ -226,6 +240,8 @@ export default function ResultsPage() {
   const [semrushFailed, setSemrushFailed] = useState(false);
   useEffect(() => {
     if (!session || session.semrush_data || semrushLoading || semrushFailed || isIntegrationPaused('semrush')) return;
+    if (semrushTriggeredRef.current) return;
+    semrushTriggeredRef.current = true;
     setSemrushLoading(true);
     semrushApi.domainOverview(session.domain).then(async (result) => {
       if (result.success) {
@@ -243,6 +259,8 @@ export default function ResultsPage() {
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
     if (!session || session.psi_data || psiLoading || psiFailed || isIntegrationPaused('psi')) return;
+    if (psiTriggeredRef.current) return;
+    psiTriggeredRef.current = true;
     setPsiLoading(true);
     pagespeedApi.analyze(session.base_url).then(async (result) => {
       if (result.success) {
@@ -257,6 +275,8 @@ export default function ResultsPage() {
   const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
   useEffect(() => {
     if (!session || session.wappalyzer_data || wappalyzerLoading || wappalyzerFailed || isIntegrationPaused('wappalyzer')) return;
+    if (wappalyzerTriggeredRef.current) return;
+    wappalyzerTriggeredRef.current = true;
     setWappalyzerLoading(true);
     wappalyzerApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
@@ -271,6 +291,8 @@ export default function ResultsPage() {
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
     if (!session || (session as any).detectzestack_data || detectzestackLoading || detectzestackFailed || isIntegrationPaused('detectzestack')) return;
+    if (detectzestackTriggeredRef.current) return;
+    detectzestackTriggeredRef.current = true;
     setDetectzestackLoading(true);
     detectzestackApi.lookup(session.domain).then(async (result) => {
       if (result.success) {
@@ -327,6 +349,8 @@ export default function ResultsPage() {
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
     if (!session || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
+    if (gtmetrixTriggeredRef.current) return;
+    gtmetrixTriggeredRef.current = true;
     setRunningGtmetrix(true);
     gtmetrixApi.runTest(session.base_url).then(async (result) => {
       if (result.success) {
@@ -341,6 +365,8 @@ export default function ResultsPage() {
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
     if (!session || session.carbon_data || carbonLoading || carbonFailed || isIntegrationPaused('carbon')) return;
+    if (carbonTriggeredRef.current) return;
+    carbonTriggeredRef.current = true;
     setCarbonLoading(true);
     websiteCarbonApi.check(session.base_url).then(async (result) => {
       if (result.success) {
@@ -356,6 +382,8 @@ export default function ResultsPage() {
   const [cruxNoData, setCruxNoData] = useState(false);
   useEffect(() => {
     if (!session || session.crux_data || cruxLoading || cruxFailed || cruxNoData || isIntegrationPaused('crux')) return;
+    if (cruxTriggeredRef.current) return;
+    cruxTriggeredRef.current = true;
     setCruxLoading(true);
     cruxApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
@@ -372,6 +400,8 @@ export default function ResultsPage() {
   const [waveFailed, setWaveFailed] = useState(false);
   useEffect(() => {
     if (!session || session.wave_data || waveLoading || waveFailed || isIntegrationPaused('wave')) return;
+    if (waveTriggeredRef.current) return;
+    waveTriggeredRef.current = true;
     setWaveLoading(true);
     waveApi.scan(session.base_url).then(async (result) => {
       if (result.success) {
@@ -386,6 +416,8 @@ export default function ResultsPage() {
   const [observatoryFailed, setObservatoryFailed] = useState(false);
   useEffect(() => {
     if (!session || session.observatory_data || observatoryLoading || observatoryFailed || isIntegrationPaused('observatory')) return;
+    if (observatoryTriggeredRef.current) return;
+    observatoryTriggeredRef.current = true;
     setObservatoryLoading(true);
     observatoryApi.scan(session.domain).then(async (result) => {
       if (result.success) {
@@ -399,8 +431,11 @@ export default function ResultsPage() {
   // Ocean.io
   const [oceanLoading, setOceanLoading] = useState(false);
   const [oceanFailed, setOceanFailed] = useState(false);
+  const oceanTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
+    if (oceanTriggeredRef.current) return;
+    oceanTriggeredRef.current = true;
     setOceanLoading(true);
     oceanApi.enrich(session.domain).then(async (result) => {
       if (result.success) {
@@ -414,8 +449,11 @@ export default function ResultsPage() {
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
   const [avomaFailed, setAvomaFailed] = useState(false);
+  const avomaTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
+    if (avomaTriggeredRef.current) return;
+    avomaTriggeredRef.current = true;
     setAvomaLoading(true);
     // Prefer Apollo contact email for Avoma search, fallback to domain
     const apolloEmail = session.apollo_data?.email;
@@ -434,8 +472,11 @@ export default function ResultsPage() {
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
   const [hubspotFailed, setHubspotFailed] = useState(false);
+  const hubspotTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || (session as any).hubspot_data || hubspotLoading || hubspotFailed || isIntegrationPaused('hubspot')) return;
+    if (hubspotTriggeredRef.current) return;
+    hubspotTriggeredRef.current = true;
     setHubspotLoading(true);
     hubspotApi.lookup(session.domain).then(async (result) => {
       if (result.success) {
@@ -1015,17 +1056,20 @@ export default function ResultsPage() {
     clearError(key);
     // Reset failed flags & polling refs so useEffect re-triggers
     const resetMap: Record<string, () => void> = {
-      builtwith: () => { setBuiltwithFailed(false); setBuiltwithLoading(false); },
-      semrush: () => { setSemrushFailed(false); setSemrushLoading(false); },
-      psi: () => { setPsiFailed(false); setPsiLoading(false); },
-      wappalyzer: () => { setWappalyzerFailed(false); setWappalyzerLoading(false); },
-      detectzestack: () => { setDetectzestackFailed(false); setDetectzestackLoading(false); },
-      gtmetrix: () => { setGtmetrixFailed(false); setRunningGtmetrix(false); },
-      carbon: () => { setCarbonFailed(false); setCarbonLoading(false); },
-      crux: () => { setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); },
-      wave: () => { setWaveFailed(false); setWaveLoading(false); },
-      observatory: () => { setObservatoryFailed(false); setObservatoryLoading(false); },
-      ocean: () => { setOceanFailed(false); setOceanLoading(false); },
+      builtwith: () => { setBuiltwithFailed(false); setBuiltwithLoading(false); builtwithTriggeredRef.current = false; },
+      semrush: () => { setSemrushFailed(false); setSemrushLoading(false); semrushTriggeredRef.current = false; },
+      psi: () => { setPsiFailed(false); setPsiLoading(false); psiTriggeredRef.current = false; },
+      wappalyzer: () => { setWappalyzerFailed(false); setWappalyzerLoading(false); wappalyzerTriggeredRef.current = false; },
+      detectzestack: () => { setDetectzestackFailed(false); setDetectzestackLoading(false); detectzestackTriggeredRef.current = false; },
+      gtmetrix: () => { setGtmetrixFailed(false); setRunningGtmetrix(false); gtmetrixTriggeredRef.current = false; },
+      carbon: () => { setCarbonFailed(false); setCarbonLoading(false); carbonTriggeredRef.current = false; },
+      crux: () => { setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); cruxTriggeredRef.current = false; },
+      wave: () => { setWaveFailed(false); setWaveLoading(false); waveTriggeredRef.current = false; },
+      observatory: () => { setObservatoryFailed(false); setObservatoryLoading(false); observatoryTriggeredRef.current = false; },
+      ocean: () => { setOceanFailed(false); setOceanLoading(false); oceanTriggeredRef.current = false; },
+      avoma: () => { setAvomaFailed(false); setAvomaLoading(false); avomaTriggeredRef.current = false; },
+      hubspot: () => { setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false; },
+      apollo: () => { setApolloLoading(false); apolloAutoTriggered.current = false; },
       ssllabs: () => { setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false; },
       httpstatus: () => { setHttpstatusFailed(false); setHttpstatusLoading(false); },
       w3c: () => { setW3cFailed(false); setW3cLoading(false); },
