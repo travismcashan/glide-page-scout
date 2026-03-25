@@ -73,6 +73,7 @@ import { TemplatesCard } from '@/components/TemplatesCard';
 import { FormsCard } from '@/components/FormsCard';
 import { GlobalProgressBar } from '@/components/GlobalProgressBar';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
+import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
@@ -2123,21 +2124,33 @@ export default function ResultsPage() {
 
           <TabsContent value="knowledge" className="mt-8">
             {session && (
-              <SectionCard
-                sectionId="knowledge-chat" persistedCollapsed={isSectionCollapsed("knowledge-chat")} onCollapseChange={toggleSection} title="Knowledge Chat"
-                icon={<BookOpen className="h-5 w-5 text-foreground" />}
-                collapsed={allCollapsed}
-                headerExtra={
-                  <ChatModelSelector
-                    model={chatModel}
-                    reasoning={chatReasoning}
-                    onModelChange={setChatModel}
-                    onReasoningChange={setChatReasoning}
-                  />
-                }
-              >
-                <KnowledgeChatCard session={session} pages={scrapedPages} selectedModel={chatModel} reasoning={chatReasoning} />
-              </SectionCard>
+              <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+                {/* Document Library sidebar */}
+                <div className="border rounded-lg p-4 h-[700px]">
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    Document Library
+                  </h3>
+                  <DocumentLibrary sessionId={session.id} />
+                </div>
+
+                {/* Chat */}
+                <SectionCard
+                  sectionId="knowledge-chat" persistedCollapsed={isSectionCollapsed("knowledge-chat")} onCollapseChange={toggleSection} title="Knowledge Chat"
+                  icon={<BookOpen className="h-5 w-5 text-foreground" />}
+                  collapsed={allCollapsed}
+                  headerExtra={
+                    <ChatModelSelector
+                      model={chatModel}
+                      reasoning={chatReasoning}
+                      onModelChange={setChatModel}
+                      onReasoningChange={setChatReasoning}
+                    />
+                  }
+                >
+                  <KnowledgeChatCard session={session} pages={scrapedPages} selectedModel={chatModel} reasoning={chatReasoning} />
+                </SectionCard>
+              </div>
             )}
           </TabsContent>
         </Tabs>
