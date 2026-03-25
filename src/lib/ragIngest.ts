@@ -41,28 +41,47 @@ export async function autoIngestIntegrations(
   sessionId: string,
   sessionData: Record<string, any>
 ): Promise<{ ingested: number; skipped: number }> {
-  // Get already-ingested source keys
+  // Get already-ingested source keys with their creation timestamps
   const { data: existing } = await supabase
     .from('knowledge_documents')
-    .select('source_key')
+    .select('source_key, created_at')
     .eq('session_id', sessionId)
     .eq('source_type', 'integration');
 
-  const existingKeys = new Set((existing || []).map((d: any) => d.source_key));
+  const existingMap = new Map<string, string>();
+  for (const d of (existing || []) as any[]) {
+    if (d.source_key) existingMap.set(d.source_key, d.created_at);
+  }
 
-  // Collect documents to ingest
+  // Integration timestamps tell us when each integration last ran
+  const integrationTimestamps: Record<string, string> = sessionData.integration_timestamps || {};
+
+  // Collect documents to ingest (new or updated since last indexed)
   const docsToIngest: { name: string; content: string; source_type: string; source_key: string }[] = [];
 
   for (const [key, docName] of Object.entries(INTEGRATION_DOC_NAMES)) {
-    if (existingKeys.has(key)) continue;
-
     const data = sessionData[key];
     if (!data) continue;
-    // Skip error sentinels
     if (typeof data === 'object' && data._error) continue;
 
     const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-    if (content.length < 50) continue; // Skip trivially small data
+    if (content.length < 50) continue;
+
+    const existingCreatedAt = existingMap.get(key);
+    if (existingCreatedAt) {
+      // Only re-ingest if the integration ran after the document was indexed
+      const integrationRanAt = integrationTimestamps[key];
+      if (!integrationRanAt || new Date(integrationRanAt) <= new Date(existingCreatedAt)) {
+        continue; // Already up-to-date
+      }
+      // Delete the stale document so re-ingest replaces it
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('source_key', key)
+        .eq('source_type', 'integration');
+    }
 
     docsToIngest.push({
       name: docName,
@@ -73,7 +92,7 @@ export async function autoIngestIntegrations(
   }
 
   if (docsToIngest.length === 0) {
-    return { ingested: 0, skipped: existingKeys.size };
+    return { ingested: 0, skipped: existingMap.size };
   }
 
   try {
