@@ -50,6 +50,7 @@ function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean):
 import { AvomaCard } from '@/components/AvomaCard';
 import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
+import { SortedIntegrationList } from '@/components/SortedIntegrationList';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { SitemapCard } from '@/components/SitemapCard';
 import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
@@ -1468,7 +1469,7 @@ export default function ResultsPage() {
         ) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">URL Analysis</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {session && shouldShowIntegration('sitemap', !!session.sitemap_data, showAllIntegrations) && (
                 <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('sitemap', 'sitemap_data', sitemapLoading)}{session.sitemap_data && innerExpandToggle(sitemapInnerExpand, setSitemapInnerExpand)}</div>} paused={isIntegrationPaused('sitemap') && !session.sitemap_data} onTogglePause={() => handleTogglePause('sitemap')}>
                   {session.sitemap_data ? <SitemapCard data={session.sitemap_data} globalInnerExpand={sitemapInnerExpand} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} /> : null}
@@ -1520,7 +1521,7 @@ export default function ResultsPage() {
                 ) : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1535,7 +1536,7 @@ export default function ResultsPage() {
         ) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">Content Analysis</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {session && (
               <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
                 {(session as any)?.page_tags ? (
@@ -1597,7 +1598,7 @@ export default function ResultsPage() {
                 ) : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1605,7 +1606,7 @@ export default function ResultsPage() {
         {session && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">Design Analysis</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {session && (
               <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis (Recommended Layouts)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? rerunButton('templates', 'template_tiers', templatesRerunning) : undefined}>
                 {(session as any)?.page_tags ? (
@@ -1622,7 +1623,7 @@ export default function ResultsPage() {
                   collapsed={allCollapsed}
                 />
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1630,7 +1631,7 @@ export default function ResultsPage() {
         {(shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data, showAllIntegrations) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">Technology Detection</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {/* AI Tech Analysis — merged card */}
               {(techAnalysisData || techAnalysisLoading || session?.tech_analysis_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} paused={isIntegrationPaused('tech-analysis') && !(session as any)?.tech_analysis_data} onTogglePause={() => handleTogglePause('tech-analysis')} headerExtra={
@@ -1675,7 +1676,7 @@ export default function ResultsPage() {
                 ) : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1683,7 +1684,7 @@ export default function ResultsPage() {
         {(shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade, showAllIntegrations) || shouldShowIntegration('psi', !!session?.psi_data, showAllIntegrations) || shouldShowIntegration('crux', !!session?.crux_data, showAllIntegrations) || shouldShowIntegration('yellowlab', !!(session as any)?.yellowlab_data, showAllIntegrations) || shouldShowIntegration('carbon', !!session?.carbon_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">Performance & Sustainability</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade, showAllIntegrations) && (
               <SectionCard collapsed={allCollapsed} sectionId="gtmetrix" persistedCollapsed={isSectionCollapsed("gtmetrix")} onCollapseChange={toggleSection} title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)} paused={isIntegrationPaused('gtmetrix') && !session?.gtmetrix_grade} onTogglePause={() => handleTogglePause('gtmetrix')}>
                 <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
@@ -1715,7 +1716,7 @@ export default function ResultsPage() {
                 {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1723,7 +1724,7 @@ export default function ResultsPage() {
         {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">SEO & Search</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations) && (
               <SectionCard collapsed={allCollapsed} sectionId="semrush" persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)} paused={isIntegrationPaused('semrush') && !session?.semrush_data} onTogglePause={() => handleTogglePause('semrush')}>
                 {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
@@ -1735,7 +1736,7 @@ export default function ResultsPage() {
                 {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1743,7 +1744,7 @@ export default function ResultsPage() {
         {(shouldShowIntegration('psi-accessibility', !!session?.psi_data, showAllIntegrations) || shouldShowIntegration('wave', !!session?.wave_data, showAllIntegrations) || shouldShowIntegration('w3c', !!session?.w3c_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">UX & Accessibility</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('psi-accessibility', !!session?.psi_data, showAllIntegrations) && shouldShowIntegration('psi', !!session?.psi_data, showAllIntegrations) && (
               <SectionCard collapsed={allCollapsed} sectionId="psi-accessibility" persistedCollapsed={isSectionCollapsed("psi-accessibility")} onCollapseChange={toggleSection} title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi-accessibility')}>
                 {session?.psi_data ? (
@@ -1767,7 +1768,7 @@ export default function ResultsPage() {
                 {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1775,7 +1776,7 @@ export default function ResultsPage() {
         {(shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations) || shouldShowIntegration('ssllabs', !!session?.ssllabs_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">Security & Compliance</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations) && (
               <SectionCard collapsed={allCollapsed} sectionId="observatory" persistedCollapsed={isSectionCollapsed("observatory")} onCollapseChange={toggleSection} title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)} paused={isIntegrationPaused('observatory') && !session?.observatory_data} onTogglePause={() => handleTogglePause('observatory')}>
                 {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
@@ -1787,7 +1788,7 @@ export default function ResultsPage() {
                 {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1795,7 +1796,7 @@ export default function ResultsPage() {
         {(shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations)) && (
           <div>
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">Enrichment & Prospecting</h2>
-            <div className="space-y-6">
+            <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) && (
               <SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
                 {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
@@ -1807,7 +1808,7 @@ export default function ResultsPage() {
                 <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
