@@ -683,15 +683,17 @@ export default function ResultsPage() {
   const [httpstatusFailed, setHttpstatusFailed] = useState(false);
   useEffect(() => {
     if (!session || session.httpstatus_data || httpstatusLoading || httpstatusFailed || isIntegrationPaused('httpstatus')) return;
+    if (httpstatusTriggeredRef.current) return;
+    httpstatusTriggeredRef.current = true;
     setHttpstatusLoading(true);
     httpstatusApi.check(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ httpstatus_data: result } as any).eq('id', session.id);
         clearError('httpstatus');
         fetchData();
-      } else { setHttpstatusFailed(true); setError('httpstatus', result.error || 'httpstatus.io returned an error'); }
+      } else { const msg = result.error || 'httpstatus.io returned an error'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); }
       setHttpstatusLoading(false);
-    }).catch((e) => { setHttpstatusFailed(true); setError('httpstatus', e?.message || 'httpstatus.io request failed'); setHttpstatusLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'httpstatus.io request failed'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); setHttpstatusLoading(false); });
   }, [session, httpstatusLoading, httpstatusFailed, fetchData, pauseVersion]);
   // W3C HTML/CSS Validation
   const [w3cLoading, setW3cLoading] = useState(false);
