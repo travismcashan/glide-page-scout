@@ -104,6 +104,95 @@
   }
 }
 
+/* Rich chat prose styling */
+.chat-prose {
+  @apply text-sm leading-relaxed;
+}
+
+.chat-prose h1,
+.chat-prose h2,
+.chat-prose h3,
+.chat-prose h4 {
+  @apply font-semibold tracking-tight;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.chat-prose h3 {
+  @apply text-[0.9rem] font-semibold mt-5 mb-2 pb-1;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.chat-prose h4 {
+  @apply text-[0.825rem] font-semibold mt-4 mb-1.5 text-muted-foreground;
+}
+
+.chat-prose p {
+  @apply my-2 leading-[1.7];
+}
+
+.chat-prose ul,
+.chat-prose ol {
+  @apply my-2 pl-5 space-y-1;
+}
+
+.chat-prose li {
+  @apply leading-[1.65];
+}
+
+.chat-prose li::marker {
+  @apply text-muted-foreground/60;
+}
+
+.chat-prose strong {
+  @apply font-semibold text-foreground;
+}
+
+.chat-prose blockquote {
+  @apply my-3 pl-3 border-l-2 border-primary/30 text-muted-foreground italic;
+}
+
+.chat-prose code:not(pre code) {
+  @apply text-[0.8rem] px-1.5 py-0.5 rounded-md bg-primary/8 text-primary font-medium;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chat-prose pre {
+  @apply my-3 rounded-lg bg-foreground/5 p-3 overflow-x-auto;
+}
+
+.chat-prose pre code {
+  @apply text-[0.78rem] leading-[1.6] bg-transparent p-0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chat-prose hr {
+  @apply my-4 border-border/50;
+}
+
+.chat-prose table {
+  @apply my-3 w-full text-[0.8rem] border-collapse;
+}
+
+.chat-prose th {
+  @apply text-left font-semibold text-muted-foreground pb-1.5 border-b border-border;
+}
+
+.chat-prose td {
+  @apply py-1.5 pr-3 border-b border-border/40;
+}
+
+.chat-prose a {
+  @apply text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary/70 transition-colors;
+}
+
+.chat-prose > *:first-child {
+  @apply !mt-0;
+}
+
+.chat-prose > *:last-child {
+  @apply !mb-0;
+}
+
 /* Print styles for PDF export */
 @media print {
   body {
