@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
-export type ModelProvider = 'gemini' | 'gpt';
+export type ModelProvider = 'gemini' | 'gpt' | 'claude';
 
 export type ModelOption = {
   id: string;
@@ -30,6 +30,10 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { id: 'google/gemini-3-flash-preview', label: 'Flash 3.0', provider: 'gemini', description: 'Latest fast model', tier: 'balanced' },
   { id: 'google/gemini-2.5-pro', label: 'Pro 2.5', provider: 'gemini', description: 'Best reasoning', tier: 'powerful' },
   { id: 'google/gemini-3.1-pro-preview', label: 'Pro 3.1', provider: 'gemini', description: 'Latest flagship', tier: 'powerful' },
+  // Claude
+  { id: 'claude-haiku', label: 'Haiku', provider: 'claude', description: 'Fast & affordable', tier: 'fast' },
+  { id: 'claude-sonnet', label: 'Sonnet 4', provider: 'claude', description: 'Best balance', tier: 'balanced' },
+  { id: 'claude-opus', label: 'Opus 4', provider: 'claude', description: 'Most capable', tier: 'powerful' },
   // GPT
   { id: 'openai/gpt-5-nano', label: 'GPT-5 Nano', provider: 'gpt', description: 'Fast & efficient', tier: 'fast' },
   { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', provider: 'gpt', description: 'Balanced performance', tier: 'balanced' },
@@ -53,6 +57,7 @@ const TIER_COLORS: Record<string, string> = {
 const PROVIDER_LABELS: Record<ModelProvider, string> = {
   gemini: 'Gemini',
   gpt: 'GPT',
+  claude: 'Claude',
 };
 
 type Props = {
@@ -81,6 +86,21 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">Gemini</DropdownMenuLabel>
           {MODEL_OPTIONS.filter(m => m.provider === 'gemini').map(m => (
+            <DropdownMenuItem
+              key={m.id}
+              onClick={() => onModelChange(m.id)}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] ${TIER_COLORS[m.tier]}`}>●</span>
+                <span className="text-sm">{m.label}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">{m.description}</span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">Claude</DropdownMenuLabel>
+          {MODEL_OPTIONS.filter(m => m.provider === 'claude').map(m => (
             <DropdownMenuItem
               key={m.id}
               onClick={() => onModelChange(m.id)}
