@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
+import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 
 type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[] };
 
@@ -106,6 +107,8 @@ export function KnowledgeChatCard({ session, pages }: Props) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [selectedModel, setSelectedModel] = useState('google/gemini-3-flash-preview');
+  const [reasoning, setReasoning] = useState<ReasoningEffort>('none');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -223,6 +226,8 @@ export function KnowledgeChatCard({ session, pages }: Props) {
         body: JSON.stringify({
           messages: apiMessages,
           crawlContext,
+          model: selectedModel,
+          reasoning: reasoning !== 'none' ? reasoning : undefined,
         }),
       });
 
@@ -359,8 +364,16 @@ export function KnowledgeChatCard({ session, pages }: Props) {
 
   return (
     <div className="flex flex-col h-[600px]">
-      {/* Context stats */}
+      {/* Model selector + Context stats */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3 px-1">
+        <ChatModelSelector
+          model={selectedModel}
+          reasoning={reasoning}
+          onModelChange={setSelectedModel}
+          onReasoningChange={setReasoning}
+          disabled={isStreaming}
+        />
+        <span className="text-border">|</span>
         <BookOpen className="h-3.5 w-3.5" />
         <span>
           <strong className="text-foreground">{sourceCount}</strong> integration sources loaded
