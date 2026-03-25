@@ -45,9 +45,18 @@ Deno.serve(async (req) => {
       : `host=${encodeURIComponent(host)}&all=done`;
 
     const analyzeUrl = `${API_BASE}/analyze?${params}`;
-    const analyzeRes = await fetch(analyzeUrl, { headers: { email } });
+    
+    // Retry on transient errors (502, 503)
+    let analyzeRes: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      analyzeRes = await fetch(analyzeUrl, { headers: { email } });
+      if (analyzeRes.status !== 502 && analyzeRes.status !== 503) break;
+      console.log(`SSL Labs returned ${analyzeRes.status}, retry ${attempt + 1}/3`);
+      await analyzeRes.text(); // consume body
+      if (attempt < 2) await new Promise(r => setTimeout(r, 3000));
+    }
 
-    if (analyzeRes.status === 529) {
+    if (analyzeRes!.status === 529) {
       return new Response(JSON.stringify({
         success: true,
         status: 'OVERLOADED',
@@ -57,18 +66,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!analyzeRes.ok) {
-      const errBody = await analyzeRes.text();
-      console.error('SSL Labs error:', analyzeRes.status, errBody);
+    if (!analyzeRes!.ok) {
+      const errBody = await analyzeRes!.text();
+      console.error('SSL Labs error:', analyzeRes!.status, errBody);
+      const friendlyMsg = analyzeRes!.status === 502 || analyzeRes!.status === 503
+        ? 'SSL Labs is temporarily unavailable — try again in a few minutes'
+        : `SSL Labs API error (${analyzeRes!.status})`;
       return new Response(JSON.stringify({
         success: false,
-        error: `SSL Labs API error: ${analyzeRes.status}`,
+        error: friendlyMsg,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const result = await analyzeRes.json();
+    const result = await analyzeRes!.json();
 
     // If not ready yet, return the status so the client can poll
     if (result.status !== 'READY') {
