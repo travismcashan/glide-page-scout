@@ -166,9 +166,10 @@ serve(async (req) => {
 
     console.log(`[hubspot] Found ${engagements.length} engagements`);
 
-    // Fetch form submissions for contacts
+    // Fetch form submissions for contacts — only from our matched contacts
     let formSubmissions: any[] = [];
-    const formFieldsCache = new Map<string, Map<string, any[]>>(); // formId -> (submittedAt -> fields)
+    const contactEmails = new Set(contacts.map((c: any) => c.email?.toLowerCase()).filter(Boolean));
+    const formFieldsCache = new Map<string, any[]>(); // formId -> all submissions with fields+email
 
     for (const contactId of contactIds.slice(0, 10)) {
       try {
@@ -178,64 +179,53 @@ serve(async (req) => {
         );
         const subs = subRes?.['form-submissions'] || [];
         const contact = contacts.find((c: any) => c.id === contactId);
+        const contactEmail = contact?.email?.toLowerCase() || '';
+
         for (const sub of subs) {
           const formId = sub['form-id'];
 
-          // Fetch full submissions for this form (once per form, cached)
+          // Fetch submissions for this form once, cache results
           if (formId && !formFieldsCache.has(formId)) {
-            const fieldMap = new Map<string, any[]>();
+            let allSubs: any[] = [];
             try {
-            const submissionRes = await hubspotFetch(
+              const submissionRes = await hubspotFetch(
                 `/form-integrations/v1/submissions/forms/${formId}?limit=50`,
                 HUBSPOT_ACCESS_TOKEN
               );
-              for (const s of (submissionRes?.results || [])) {
+              allSubs = (submissionRes?.results || []).map((s: any) => {
                 const fields = (s.values || []).map((v: any) => ({
                   name: v.name || v.label || 'Unknown',
                   label: v.label || v.name || 'Unknown',
                   value: v.value || '',
                 })).filter((f: any) => f.value);
-                if (fields.length > 0) {
-                  // Store with submittedAt and the email from the submission for filtering
-                  const emailField = fields.find((f: any) => f.name === 'email' || f.name === 'Email');
-                  fieldMap.set(String(s.submittedAt), { fields, email: emailField?.value?.toLowerCase() || '' });
-                }
-              }
-              console.log(`[hubspot] Form ${formId}: fetched ${fieldMap.size} submissions with fields`);
+                const emailField = fields.find((f: any) => f.name.toLowerCase() === 'email');
+                return { submittedAt: s.submittedAt, fields, email: emailField?.value?.toLowerCase() || '' };
+              }).filter((s: any) => s.fields.length > 0);
+              console.log(`[hubspot] Form ${formId}: ${allSubs.length} submissions, ${allSubs.filter((s: any) => contactEmails.has(s.email)).length} from our contacts`);
             } catch (formErr) {
               console.error(`[hubspot] Error fetching form ${formId} submissions: ${formErr.message}`);
             }
-            formFieldsCache.set(formId, fieldMap);
+            formFieldsCache.set(formId, allSubs);
           }
 
-          // Match: first try email + timestamp, then timestamp only within 10s
+          // Only match submissions from THIS contact's email
           let fields: any[] = [];
-          const cachedMap = formId ? formFieldsCache.get(formId) : undefined;
-          const contactEmail = contact?.email?.toLowerCase() || '';
-          if (sub.timestamp && cachedMap && cachedMap.size > 0) {
-            // First pass: match by contact email AND closest timestamp
-            let bestDelta = Infinity;
-            for (const [ts, entry] of cachedMap) {
-              if (entry.email && contactEmail && entry.email === contactEmail) {
-                const delta = Math.abs(sub.timestamp - Number(ts));
+          const cached = formId ? formFieldsCache.get(formId) : undefined;
+          if (contactEmail && cached) {
+            const contactSubs = cached.filter((s: any) => s.email === contactEmail);
+            // Find closest by timestamp
+            if (sub.timestamp && contactSubs.length > 0) {
+              let bestDelta = Infinity;
+              for (const cs of contactSubs) {
+                const delta = Math.abs(sub.timestamp - cs.submittedAt);
                 if (delta < bestDelta) {
                   bestDelta = delta;
-                  fields = entry.fields;
+                  fields = cs.fields;
                 }
               }
+            } else if (contactSubs.length === 1) {
+              fields = contactSubs[0].fields;
             }
-            // Fallback: if no email match, use timestamp within 10s
-            if (fields.length === 0) {
-              bestDelta = Infinity;
-              for (const [ts, entry] of cachedMap) {
-                const delta = Math.abs(sub.timestamp - Number(ts));
-                if (delta < 10000 && delta < bestDelta) {
-                  bestDelta = delta;
-                  fields = entry.fields;
-                }
-              }
-            }
-            console.log(`[hubspot] Form ${formId} match for ${contactEmail}: delta=${bestDelta}ms, fields=${fields.length}`);
           }
 
           formSubmissions.push({
