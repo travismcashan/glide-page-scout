@@ -1255,7 +1255,7 @@ export default function ResultsPage() {
                  {session?.domain?.replace(/^www\./i, '')}
                </h1>
                {session?.created_at && (
-                 <div className="flex flex-col text-sm text-muted-foreground tabular-nums gap-0.5 self-end mb-1">
+                 <div className="flex flex-col text-sm text-muted-foreground tabular-nums gap-0.5 self-end mb-3">
                    <span className="flex items-center gap-1">
                      <Clock className="h-3 w-3" />
                      <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
