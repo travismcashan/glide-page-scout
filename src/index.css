@@ -117,13 +117,30 @@
   font-family: 'Space Grotesk', sans-serif;
 }
 
-.chat-prose h3 {
-  @apply text-[0.9rem] font-semibold mt-5 mb-2 pb-1;
+.chat-prose h1 {
+  @apply text-lg font-bold mt-5 mb-3 pb-1.5;
+  border-bottom: 2px solid hsl(var(--border));
+}
+
+.chat-prose h2 {
+  @apply text-base font-bold mt-5 mb-2 pb-1;
   border-bottom: 1px solid hsl(var(--border) / 0.5);
 }
 
+.chat-prose h3 {
+  @apply text-[0.9rem] font-semibold mt-4 mb-2;
+}
+
 .chat-prose h4 {
-  @apply text-[0.825rem] font-semibold mt-4 mb-1.5 text-muted-foreground;
+  @apply text-[0.825rem] font-semibold mt-3 mb-1.5 text-muted-foreground;
+}
+
+.chat-prose ul {
+  @apply my-2 pl-5 space-y-1 list-disc;
+}
+
+.chat-prose ol {
+  @apply my-2 pl-5 space-y-1 list-decimal;
 }
 
 .chat-prose p {
