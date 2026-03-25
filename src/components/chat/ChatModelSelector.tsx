@@ -16,6 +16,7 @@ export type ModelOption = {
   provider: ModelProvider;
   description: string;
   tier: 'fast' | 'balanced' | 'powerful';
+  reasoning: ReasoningEffort[];
 };
 
 const PROVIDERS: { id: ModelProvider; label: string }[] = [
@@ -25,32 +26,35 @@ const PROVIDERS: { id: ModelProvider; label: string }[] = [
   { id: 'perplexity', label: 'Perplexity' },
 ];
 
+const ALL_REASONING: ReasoningEffort[] = ['none', 'low', 'medium', 'high'];
+const THINKING_ONLY: ReasoningEffort[] = ['none', 'high'];
+const NO_REASONING: ReasoningEffort[] = ['none'];
+
 const VERSIONS: Record<ModelProvider, ModelOption[]> = {
   gemini: [
-    { id: 'google/gemini-2.5-flash-lite', label: 'Flash Lite', provider: 'gemini', description: 'Fastest, cheapest', tier: 'fast' },
-    { id: 'google/gemini-2.5-flash', label: 'Flash 2.5', provider: 'gemini', description: 'Fast & capable', tier: 'fast' },
-    { id: 'google/gemini-3-flash-preview', label: 'Flash 3.0', provider: 'gemini', description: 'Latest fast model', tier: 'balanced' },
-    { id: 'google/gemini-2.5-pro', label: 'Pro 2.5', provider: 'gemini', description: 'Best reasoning', tier: 'powerful' },
-    { id: 'google/gemini-3.1-pro-preview', label: 'Pro 3.1', provider: 'gemini', description: 'Latest flagship', tier: 'powerful' },
+    { id: 'google/gemini-2.5-flash-lite', label: 'Flash Lite', provider: 'gemini', description: 'Fastest, cheapest', tier: 'fast', reasoning: ALL_REASONING },
+    { id: 'google/gemini-2.5-flash', label: 'Flash 2.5', provider: 'gemini', description: 'Fast & capable', tier: 'fast', reasoning: ALL_REASONING },
+    { id: 'google/gemini-3-flash-preview', label: 'Flash 3.0', provider: 'gemini', description: 'Latest fast model', tier: 'balanced', reasoning: ALL_REASONING },
+    { id: 'google/gemini-2.5-pro', label: 'Pro 2.5', provider: 'gemini', description: 'Best reasoning', tier: 'powerful', reasoning: ALL_REASONING },
+    { id: 'google/gemini-3.1-pro-preview', label: 'Pro 3.1', provider: 'gemini', description: 'Latest flagship', tier: 'powerful', reasoning: ALL_REASONING },
   ],
   claude: [
-    { id: 'claude-haiku', label: 'Haiku', provider: 'claude', description: 'Fast & affordable', tier: 'fast' },
-    { id: 'claude-sonnet', label: 'Sonnet 4', provider: 'claude', description: 'Best balance', tier: 'balanced' },
-    { id: 'claude-opus', label: 'Opus 4', provider: 'claude', description: 'Most capable', tier: 'powerful' },
+    { id: 'claude-haiku', label: 'Haiku 4.5', provider: 'claude', description: 'Fast & affordable', tier: 'fast', reasoning: THINKING_ONLY },
+    { id: 'claude-sonnet', label: 'Sonnet 4', provider: 'claude', description: 'Best balance', tier: 'balanced', reasoning: THINKING_ONLY },
+    { id: 'claude-opus', label: 'Opus 4', provider: 'claude', description: 'Most capable', tier: 'powerful', reasoning: THINKING_ONLY },
   ],
   gpt: [
-    { id: 'openai/gpt-5-nano', label: 'Nano', provider: 'gpt', description: 'Fast & efficient', tier: 'fast' },
-    { id: 'openai/gpt-5-mini', label: 'Mini', provider: 'gpt', description: 'Balanced performance', tier: 'balanced' },
-    { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful' },
-    { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful' },
+    { id: 'openai/gpt-5-nano', label: 'Nano', provider: 'gpt', description: 'Fast & efficient', tier: 'fast', reasoning: ALL_REASONING },
+    { id: 'openai/gpt-5-mini', label: 'Mini', provider: 'gpt', description: 'Balanced performance', tier: 'balanced', reasoning: ALL_REASONING },
+    { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful', reasoning: ALL_REASONING },
+    { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful', reasoning: ALL_REASONING },
   ],
   perplexity: [
-    { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web search', tier: 'fast' },
-    { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step + citations', tier: 'balanced' },
-    { id: 'perplexity-sonar-reasoning', label: 'Sonar Reasoning', provider: 'perplexity', description: 'Chain-of-thought', tier: 'powerful' },
+    { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web search', tier: 'fast', reasoning: NO_REASONING },
+    { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step + citations', tier: 'balanced', reasoning: NO_REASONING },
+    { id: 'perplexity-sonar-reasoning', label: 'Sonar Reasoning', provider: 'perplexity', description: 'Built-in chain-of-thought', tier: 'powerful', reasoning: NO_REASONING },
   ],
 };
-
 // Flatten for lookup
 export const MODEL_OPTIONS: ModelOption[] = Object.values(VERSIONS).flat();
 
@@ -60,14 +64,6 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string; icon: typeof Z
   { value: 'medium', label: 'Standard', icon: Brain },
   { value: 'high', label: 'Deep', icon: Sparkles },
 ];
-
-// Which reasoning levels each provider supports
-const PROVIDER_REASONING: Record<ModelProvider, ReasoningEffort[]> = {
-  gemini: ['none', 'low', 'medium', 'high'],
-  gpt: ['none', 'low', 'medium', 'high'],
-  claude: ['none', 'high'],
-  perplexity: ['none'],
-};
 
 const TIER_COLORS: Record<string, string> = {
   fast: 'text-emerald-500',
@@ -87,8 +83,7 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   const selectedModel = MODEL_OPTIONS.find(m => m.id === model) || VERSIONS.gemini[2];
   const selectedProvider = PROVIDERS.find(p => p.id === selectedModel.provider) || PROVIDERS[0];
   const versionsForProvider = VERSIONS[selectedModel.provider];
-  const allowedReasoning = PROVIDER_REASONING[selectedModel.provider];
-  const reasoningOptions = REASONING_OPTIONS.filter(r => allowedReasoning.includes(r.value));
+  const reasoningOptions = REASONING_OPTIONS.filter(r => selectedModel.reasoning.includes(r.value));
   const selectedReasoning = reasoningOptions.find(r => r.value === reasoning) || reasoningOptions[0];
 
   const PROVIDER_DEFAULTS: Record<ModelProvider, string> = {
@@ -99,9 +94,18 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   };
 
   const handleProviderChange = (provider: ModelProvider) => {
-    onModelChange(PROVIDER_DEFAULTS[provider]);
-    // Reset reasoning if current level isn't supported by new provider
-    if (!PROVIDER_REASONING[provider].includes(reasoning)) {
+    const defaultId = PROVIDER_DEFAULTS[provider];
+    const defaultModel = MODEL_OPTIONS.find(m => m.id === defaultId);
+    onModelChange(defaultId);
+    if (defaultModel && !defaultModel.reasoning.includes(reasoning)) {
+      onReasoningChange('none');
+    }
+  };
+
+  const handleVersionChange = (modelId: string) => {
+    const newModel = MODEL_OPTIONS.find(m => m.id === modelId);
+    onModelChange(modelId);
+    if (newModel && !newModel.reasoning.includes(reasoning)) {
       onReasoningChange('none');
     }
   };
@@ -146,7 +150,7 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
           {versionsForProvider.map(m => (
             <DropdownMenuItem
               key={m.id}
-              onClick={() => onModelChange(m.id)}
+              onClick={() => handleVersionChange(m.id)}
               className={`flex items-center justify-between ${selectedModel.id === m.id ? 'bg-accent' : ''}`}
             >
               <div className="flex items-center gap-2">
