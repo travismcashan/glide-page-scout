@@ -177,12 +177,15 @@ serve(async (req) => {
       if (reason) addMatch(meeting, reason);
     }
 
-    // Paginate with early-stop: quit after 2 consecutive pages with no new matches
+    // Paginate with early-stop: quit after consecutive empty pages, but be more aggressive when few matches found
     let nextUrl = data.next || null;
     let pageCount = 1;
     let consecutiveEmpty = 0;
-    const prevCount = matchedMeetings.length;
-    while (nextUrl && pageCount < 20 && consecutiveEmpty < 4) {
+    while (nextUrl && pageCount < 15) {
+      // Early-stop: if we already have 5+ matches, stop after 2 empty pages
+      // If fewer matches, allow up to 5 empty pages to find older meetings
+      const emptyLimit = matchedMeetings.length >= 5 ? 2 : 5;
+      if (consecutiveEmpty >= emptyLimit) break;
       pageCount++;
       try {
         const pageRes = await fetch(nextUrl, {
