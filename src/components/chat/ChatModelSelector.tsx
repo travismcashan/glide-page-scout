@@ -81,10 +81,15 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   const selectedReasoning = REASONING_OPTIONS.find(r => r.value === reasoning) || REASONING_OPTIONS[0];
   const versionsForProvider = VERSIONS[selectedModel.provider];
 
+  const PROVIDER_DEFAULTS: Record<ModelProvider, string> = {
+    gemini: 'google/gemini-3-flash-preview',
+    claude: 'claude-opus',
+    gpt: 'openai/gpt-5',
+    perplexity: 'perplexity-sonar',
+  };
+
   const handleProviderChange = (provider: ModelProvider) => {
-    // Pick the first version of the new provider
-    const firstVersion = VERSIONS[provider][0];
-    onModelChange(firstVersion.id);
+    onModelChange(PROVIDER_DEFAULTS[provider]);
   };
 
   const btnClass = "h-auto px-2 py-0 text-base font-normal text-muted-foreground gap-1 hover:text-foreground";
