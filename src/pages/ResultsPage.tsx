@@ -1340,7 +1340,7 @@ export default function ResultsPage() {
                     <>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="gap-1 px-2" disabled={rerunningAll}>
+                          <Button variant="ghost" size="sm" className="gap-1 px-2 text-muted-foreground" disabled={rerunningAll}>
                             <RefreshCw className={`h-3.5 w-3.5 ${rerunningAll ? 'animate-spin' : ''}`} />
                             Re-run All
                           </Button>
@@ -1361,7 +1361,7 @@ export default function ResultsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="gap-1 px-2"
+                        className="gap-1 px-2 text-muted-foreground"
                         onClick={() => setShowAllIntegrations(!showAllIntegrations)}
                         title={showAllIntegrations ? 'Hide paused integrations' : 'Show all integrations including paused'}
                       >
@@ -1371,7 +1371,7 @@ export default function ResultsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="gap-1 px-2"
+                        className="gap-1 px-2 text-muted-foreground"
                         onClick={() => setAllCollapsed(!allCollapsed)}
                         title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
                       >
@@ -1383,7 +1383,7 @@ export default function ResultsPage() {
                   {!isSharedView && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-1 px-2">
+                        <Button variant="ghost" size="sm" className="gap-1 px-2 text-muted-foreground">
                           <Download className="h-3.5 w-3.5" />
                           Export
                         </Button>
@@ -1429,7 +1429,7 @@ export default function ResultsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1 px-2 ml-auto"
+                    className="gap-1 px-2 ml-auto text-muted-foreground"
                     onClick={() => {
                       const url = new URL(window.location.href);
                       url.searchParams.set('view', 'shared');
