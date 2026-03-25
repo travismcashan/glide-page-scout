@@ -21,6 +21,9 @@ type KnowledgeDocument = {
 type Props = {
   sessionId: string;
   onDocumentCountChange?: (count: number) => void;
+  refreshKey?: number;
+  onIngestIntegrations?: () => void;
+  ingesting?: boolean;
 };
 
 const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
