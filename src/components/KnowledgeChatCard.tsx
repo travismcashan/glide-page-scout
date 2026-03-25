@@ -354,8 +354,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
     <div className="flex flex-col h-[600px]">
       {/* Chat header */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3 px-1">
-        <BookOpen className="h-3.5 w-3.5" />
-        <span>RAG-powered · answers grounded in your indexed documents</span>
         {messages.length > 0 && (
           <Button
             variant="ghost"
