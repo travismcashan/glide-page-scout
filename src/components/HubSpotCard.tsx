@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Building2, Users, DollarSign, Mail, Phone, MapPin, Calendar, Briefcase, UserPlus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Building2, DollarSign, Mail, Phone, MapPin, Calendar, Briefcase, UserPlus, MessageSquare, PhoneCall, Video, StickyNote, CheckSquare, FileText, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { CardTabs } from './CardTabs';
@@ -14,7 +14,15 @@ type HubSpotData = {
   companies: any[];
   contacts: any[];
   deals: any[];
-  stats: { companiesCount: number; contactsCount: number; dealsCount: number };
+  engagements?: any[];
+  formSubmissions?: any[];
+  stats: {
+    companiesCount: number;
+    contactsCount: number;
+    dealsCount: number;
+    engagementsCount?: number;
+    formSubmissionsCount?: number;
+  };
 };
 
 function CompanyRow({ company }: { company: any }) {
@@ -100,13 +108,10 @@ function ContactRow({ contact, onEnrichWithApollo, isPrimary }: { contact: any; 
 function ContactsTab({ contacts, onEnrichWithApollo }: { contacts: any[]; onEnrichWithApollo?: (email: string, firstName?: string, lastName?: string) => void }) {
   if (contacts.length === 0) return <p className="text-sm text-muted-foreground">No contacts found.</p>;
 
-  // Sort: primary contact (most recent activity or first created) at top
   const sorted = [...contacts].sort((a, b) => {
-    // Prefer contacts with job titles (more senior/relevant)
     const aHasTitle = a.jobtitle ? 1 : 0;
     const bHasTitle = b.jobtitle ? 1 : 0;
     if (bHasTitle !== aHasTitle) return bHasTitle - aHasTitle;
-    // Then by most recently modified
     const aDate = a.lastmodifieddate ? new Date(a.lastmodifieddate).getTime() : 0;
     const bDate = b.lastmodifieddate ? new Date(b.lastmodifieddate).getTime() : 0;
     return bDate - aDate;
@@ -164,9 +169,175 @@ function DealsTab({ deals }: { deals: any[] }) {
   );
 }
 
+const engagementIcon: Record<string, any> = {
+  emails: Mail,
+  calls: PhoneCall,
+  meetings: Video,
+  notes: StickyNote,
+  tasks: CheckSquare,
+};
+
+const engagementLabel: Record<string, string> = {
+  emails: 'Email',
+  calls: 'Call',
+  meetings: 'Meeting',
+  notes: 'Note',
+  tasks: 'Task',
+};
+
+function getEngagementTitle(eng: any): string {
+  switch (eng.type) {
+    case 'emails': return eng.hs_email_subject || 'No subject';
+    case 'calls': return eng.hs_call_title || 'Phone call';
+    case 'meetings': return eng.hs_meeting_title || 'Meeting';
+    case 'notes': return (eng.hs_note_body || '').replace(/<[^>]*>/g, '').substring(0, 80) || 'Note';
+    case 'tasks': return eng.hs_task_subject || 'Task';
+    default: return 'Activity';
+  }
+}
+
+function getEngagementDetail(eng: any): string | null {
+  switch (eng.type) {
+    case 'emails': {
+      const dir = eng.hs_email_direction === 'INCOMING_EMAIL' ? '← Received' : '→ Sent';
+      const parts = [dir];
+      if (eng.hs_email_sender_email) parts.push(`from ${eng.hs_email_sender_email}`);
+      return parts.join(' ');
+    }
+    case 'calls': {
+      const parts: string[] = [];
+      if (eng.hs_call_direction) parts.push(eng.hs_call_direction === 'INBOUND' ? '← Inbound' : '→ Outbound');
+      if (eng.hs_call_duration) parts.push(`${Math.round(Number(eng.hs_call_duration) / 1000 / 60)}min`);
+      if (eng.hs_call_disposition) parts.push(eng.hs_call_disposition);
+      return parts.join(' · ') || null;
+    }
+    case 'meetings': {
+      if (eng.hs_meeting_outcome) return eng.hs_meeting_outcome;
+      return null;
+    }
+    case 'tasks': {
+      const parts: string[] = [];
+      if (eng.hs_task_status) parts.push(eng.hs_task_status);
+      if (eng.hs_task_priority) parts.push(`Priority: ${eng.hs_task_priority}`);
+      return parts.join(' · ') || null;
+    }
+    default: return null;
+  }
+}
+
+function EngagementsTab({ engagements }: { engagements: any[] }) {
+  const [showAll, setShowAll] = useState(false);
+
+  if (engagements.length === 0) return <p className="text-sm text-muted-foreground">No engagement history found.</p>;
+
+  // Group by type for summary
+  const typeCounts: Record<string, number> = {};
+  engagements.forEach(e => {
+    typeCounts[e.type] = (typeCounts[e.type] || 0) + 1;
+  });
+
+  const visible = showAll ? engagements : engagements.slice(0, 15);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(typeCounts).map(([type, count]) => {
+          const Icon = engagementIcon[type] || MessageSquare;
+          return (
+            <Badge key={type} variant="secondary" className="gap-1 text-xs">
+              <Icon className="h-3 w-3" />
+              {count} {engagementLabel[type] || type}{count !== 1 ? 's' : ''}
+            </Badge>
+          );
+        })}
+      </div>
+      <div className="space-y-1.5">
+        {visible.map((eng) => {
+          const Icon = engagementIcon[eng.type] || MessageSquare;
+          const title = getEngagementTitle(eng);
+          const detail = getEngagementDetail(eng);
+          const isIncoming = eng.hs_email_direction === 'INCOMING_EMAIL' || eng.hs_call_direction === 'INBOUND';
+
+          return (
+            <Card key={eng.id} className="p-2.5">
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 shrink-0">
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-medium truncate">{title}</p>
+                    {eng.type === 'emails' && (
+                      isIncoming
+                        ? <ArrowDownLeft className="h-3 w-3 text-blue-500 shrink-0" />
+                        : <ArrowUpRight className="h-3 w-3 text-green-500 shrink-0" />
+                    )}
+                  </div>
+                  {detail && <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>}
+                </div>
+                {eng.hs_timestamp && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                    {format(new Date(eng.hs_timestamp), 'MMM d, yyyy')}
+                  </span>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      {engagements.length > 15 && !showAll && (
+        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowAll(true)}>
+          Show all {engagements.length} activities
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function FormSubmissionsTab({ formSubmissions }: { formSubmissions: any[] }) {
+  if (formSubmissions.length === 0) return <p className="text-sm text-muted-foreground">No form submissions found.</p>;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground"><strong>{formSubmissions.length}</strong> form submission{formSubmissions.length !== 1 ? 's' : ''} found</p>
+      {formSubmissions.map((sub, i) => (
+        <Card key={sub.conversionId || i} className="p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <p className="text-sm font-medium truncate">{sub.formTitle}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                {sub.contactName && <span>{sub.contactName}</span>}
+                {sub.contactEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{sub.contactEmail}</span>}
+                {sub.pageUrl && (
+                  <a href={sub.pageUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-[200px]">
+                    {new URL(sub.pageUrl).pathname}
+                  </a>
+                )}
+              </div>
+            </div>
+            {sub.timestamp && (
+              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                {format(new Date(sub.timestamp), 'MMM d, yyyy')}
+              </span>
+            )}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export function HubSpotCard({ data, onEnrichWithApollo }: { data: HubSpotData; onEnrichWithApollo?: (email: string, firstName?: string, lastName?: string) => void }) {
+  const engagements = data.engagements || [];
+  const formSubmissions = data.formSubmissions || [];
+
   const tabs = [
     { value: 'contacts', label: `Contacts (${data.stats.contactsCount})`, content: <ContactsTab contacts={data.contacts} onEnrichWithApollo={onEnrichWithApollo} /> },
+    { value: 'engagements', label: `Activity (${data.stats.engagementsCount || engagements.length})`, content: <EngagementsTab engagements={engagements} />, visible: engagements.length > 0 || (data.stats.engagementsCount ?? 0) > 0 },
+    { value: 'forms', label: `Forms (${data.stats.formSubmissionsCount || formSubmissions.length})`, content: <FormSubmissionsTab formSubmissions={formSubmissions} />, visible: formSubmissions.length > 0 || (data.stats.formSubmissionsCount ?? 0) > 0 },
     { value: 'companies', label: `Companies (${data.stats.companiesCount})`, content: (
       <div className="space-y-2">
         {data.companies.length === 0 ? <p className="text-sm text-muted-foreground">No companies found.</p> : null}
