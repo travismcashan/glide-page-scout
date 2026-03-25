@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
+import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -407,7 +408,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
                     {msg.role === 'assistant' ? (
                       <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
                         <div className="chat-prose max-w-none">
-                          <ReactMarkdown>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
                         </div>
                       </Suspense>
                     ) : (
