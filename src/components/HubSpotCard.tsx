@@ -297,7 +297,7 @@ function ExpandableEngagement({ Icon, title, detail, isIncoming, timestamp, type
   );
 }
 
-
+function EngagementsTab({ engagements }: { engagements: any[] }) {
   const [showAll, setShowAll] = useState(false);
 
   if (engagements.length === 0) return <p className="text-sm text-muted-foreground">No engagement history found.</p>;
