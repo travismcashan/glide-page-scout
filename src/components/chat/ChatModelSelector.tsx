@@ -86,8 +86,10 @@ type Props = {
 export function ChatModelSelector({ model, reasoning, onModelChange, onReasoningChange, disabled }: Props) {
   const selectedModel = MODEL_OPTIONS.find(m => m.id === model) || VERSIONS.gemini[2];
   const selectedProvider = PROVIDERS.find(p => p.id === selectedModel.provider) || PROVIDERS[0];
-  const selectedReasoning = REASONING_OPTIONS.find(r => r.value === reasoning) || REASONING_OPTIONS[0];
   const versionsForProvider = VERSIONS[selectedModel.provider];
+  const allowedReasoning = PROVIDER_REASONING[selectedModel.provider];
+  const reasoningOptions = REASONING_OPTIONS.filter(r => allowedReasoning.includes(r.value));
+  const selectedReasoning = reasoningOptions.find(r => r.value === reasoning) || reasoningOptions[0];
 
   const PROVIDER_DEFAULTS: Record<ModelProvider, string> = {
     gemini: 'google/gemini-3-flash-preview',
@@ -98,6 +100,10 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
 
   const handleProviderChange = (provider: ModelProvider) => {
     onModelChange(PROVIDER_DEFAULTS[provider]);
+    // Reset reasoning if current level isn't supported by new provider
+    if (!PROVIDER_REASONING[provider].includes(reasoning)) {
+      onReasoningChange('none');
+    }
   };
 
   const btnClass = "h-auto px-2 py-0 text-base font-normal text-muted-foreground gap-1 hover:text-foreground";
