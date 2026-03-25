@@ -65,7 +65,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+  }, [fetchDocuments, refreshKey]);
 
   // Poll for processing documents
   useEffect(() => {
