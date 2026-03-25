@@ -1250,15 +1250,12 @@ export default function ResultsPage() {
       <header className="px-6">
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
            <div className="flex items-start justify-between">
-             <div className="flex items-baseline gap-4">
-               <h1 className="text-7xl font-light tracking-tight text-foreground">
+             <div className="flex items-center gap-4">
+               <h1 className="text-7xl font-light tracking-tight text-foreground leading-none">
                  {session?.domain?.replace(/^www\./i, '')}
                </h1>
-               {session?.base_url && (
-                 <span className="text-sm text-muted-foreground font-mono">{session.base_url}</span>
-               )}
                {session?.created_at && (
-                 <div className="flex flex-col text-[11px] text-muted-foreground tabular-nums leading-relaxed">
+                 <div className="flex flex-col justify-between self-stretch text-[11px] text-muted-foreground tabular-nums py-1">
                    <span className="flex items-center gap-1">
                      <Clock className="h-3 w-3" />
                      Created {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
