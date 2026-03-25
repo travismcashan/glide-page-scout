@@ -81,7 +81,6 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
     gemini: 'google/gemini-3-flash-preview',
     claude: 'claude-opus',
     gpt: 'openai/gpt-5',
-    perplexity: 'perplexity-sonar',
   };
 
   const handleProviderChange = (provider: ModelProvider) => {
