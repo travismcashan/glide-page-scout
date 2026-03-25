@@ -146,6 +146,58 @@ async function ragSearch(sessionId: string, query: string): Promise<string> {
   }
 }
 
+/**
+ * Perform web search via Perplexity Sonar to get grounded web results
+ */
+async function webSearch(query: string): Promise<string> {
+  const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!PERPLEXITY_API_KEY) {
+    console.warn('[knowledge-chat] PERPLEXITY_API_KEY not set, skipping web search');
+    return '';
+  }
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { role: 'system', content: 'Provide detailed, factual information with specific data points. Include source URLs when possible.' },
+          { role: 'user', content: query },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[knowledge-chat] Web search error:', response.status, await response.text());
+      return '';
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const citations = data.citations || [];
+
+    let webContext = '--- WEB SEARCH RESULTS ---\n\n';
+    webContext += content;
+    if (citations.length > 0) {
+      webContext += '\n\nSources:\n';
+      citations.forEach((url: string, i: number) => {
+        webContext += `[${i + 1}] ${url}\n`;
+      });
+    }
+
+    console.log(`[knowledge-chat] Web search returned ${content.length} chars, ${citations.length} citations`);
+    return webContext;
+  } catch (e) {
+    console.error('[knowledge-chat] Web search failed:', e);
+    return '';
+  }
+}
+
 async function handleClaudeRequest(
   claudeModelId: string,
   messages: any[],
