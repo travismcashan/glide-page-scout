@@ -91,9 +91,9 @@ serve(async (req) => {
     const companyHint = domainLower.split('.')[0];
 
     const now = new Date();
-    const sixMonthsAgo = new Date(now);
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const fromDate = sixMonthsAgo.toISOString();
+    const lookbackDate = new Date(now);
+    lookbackDate.setMonth(lookbackDate.getMonth() - 12);
+    const fromDate = lookbackDate.toISOString();
     const toDate = now.toISOString();
 
     console.log(`[avoma] Searching meetings for domain: ${domainLower} (company hint: "${companyHint}"), from: ${fromDate}, to: ${toDate}`);
@@ -180,7 +180,7 @@ serve(async (req) => {
     // Paginate up to 5 more pages
     let nextUrl = data.next || null;
     let pageCount = 1;
-    while (nextUrl && pageCount < 5) {
+    while (nextUrl && pageCount < 15) {
       pageCount++;
       try {
         const pageRes = await fetch(nextUrl, {
