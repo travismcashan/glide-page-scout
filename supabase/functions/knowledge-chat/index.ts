@@ -73,6 +73,79 @@ function buildContextBlock(crawlContext: string | undefined, documents: any[] | 
   return contextBlock;
 }
 
+/**
+ * Perform RAG search: embed the user query, find relevant chunks via pgvector
+ */
+async function ragSearch(sessionId: string, query: string): Promise<string> {
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) {
+    console.warn('[knowledge-chat] GEMINI_API_KEY not set, skipping RAG search');
+    return '';
+  }
+
+  try {
+    const embResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'models/gemini-embedding-001',
+          content: { parts: [{ text: query.slice(0, 4000) }] },
+          outputDimensionality: 768,
+        }),
+      }
+    );
+
+    if (!embResponse.ok) {
+      console.error('[knowledge-chat] RAG embedding error:', await embResponse.text());
+      return '';
+    }
+
+    const embData = await embResponse.json();
+    const queryEmbedding = embData.embedding?.values;
+    if (!queryEmbedding) return '';
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: matches, error } = await supabase.rpc('match_knowledge_chunks', {
+      p_session_id: sessionId,
+      p_embedding: `[${queryEmbedding.join(',')}]`,
+      p_match_count: 25,
+      p_match_threshold: 0.25,
+    });
+
+    if (error || !matches || matches.length === 0) {
+      if (error) console.error('[knowledge-chat] RAG search error:', error);
+      return '';
+    }
+
+    const docChunks = new Map<string, { name: string; sourceType: string; chunks: string[] }>();
+    for (const match of matches) {
+      const key = match.document_id;
+      if (!docChunks.has(key)) {
+        docChunks.set(key, { name: match.document_name, sourceType: match.source_type, chunks: [] });
+      }
+      docChunks.get(key)!.chunks.push(match.chunk_text);
+    }
+
+    let ragContext = '--- RETRIEVED KNOWLEDGE (most relevant chunks from indexed documents) ---\n\n';
+    for (const [, doc] of docChunks) {
+      ragContext += `=== ${doc.name} (${doc.sourceType}) ===\n`;
+      ragContext += doc.chunks.join('\n\n');
+      ragContext += '\n\n';
+    }
+
+    console.log(`[knowledge-chat] RAG retrieved ${matches.length} chunks from ${docChunks.size} documents`);
+    return ragContext;
+  } catch (e) {
+    console.error('[knowledge-chat] RAG search failed:', e);
+    return '';
+  }
+}
+
 async function handleClaudeRequest(
   claudeModelId: string,
   messages: any[],
