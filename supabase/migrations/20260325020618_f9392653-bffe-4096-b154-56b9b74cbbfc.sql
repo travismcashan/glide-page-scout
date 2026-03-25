@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN IF NOT EXISTS hubspot_data jsonb DEFAULT NULL;

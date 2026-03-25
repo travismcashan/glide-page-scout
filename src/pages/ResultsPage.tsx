@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi } from '@/lib/api/firecrawl';
 import { DeepResearchCard } from '@/components/DeepResearchCard';
 import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
@@ -49,6 +49,7 @@ function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, 
   return hasData || !isIntegrationPaused(key);
 }
 import { AvomaCard } from '@/components/AvomaCard';
+import { HubSpotCard } from '@/components/HubSpotCard';
 import { ApolloCard } from '@/components/ApolloCard';
 import { SectionCard } from '@/components/SectionCard';
 import { SortedIntegrationList } from '@/components/SortedIntegrationList';
@@ -428,6 +429,21 @@ export default function ResultsPage() {
       setAvomaLoading(false);
     }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
   }, [session, avomaLoading, avomaFailed, fetchData, pauseVersion]);
+  // HubSpot CRM lookup
+  const [hubspotLoading, setHubspotLoading] = useState(false);
+  const [hubspotFailed, setHubspotFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).hubspot_data || hubspotLoading || hubspotFailed || isIntegrationPaused('hubspot')) return;
+    setHubspotLoading(true);
+    hubspotApi.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
+        clearError('hubspot');
+        fetchData();
+      } else { setHubspotFailed(true); setError('hubspot', result.error || 'HubSpot returned an error'); }
+      setHubspotLoading(false);
+    }).catch((e) => { setHubspotFailed(true); setError('hubspot', e?.message || 'HubSpot request failed'); setHubspotLoading(false); });
+  }, [session, hubspotLoading, hubspotFailed, fetchData, pauseVersion]);
   // Apollo.io contact enrichment (manual search, persisted)
   const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
   const [apolloLoading, setApolloLoading] = useState(false);
@@ -1028,6 +1044,8 @@ export default function ResultsPage() {
     { key: 'semrush', dbColumn: 'semrush_data' },
     { key: 'nav-structure', dbColumn: 'nav_structure' },
     { key: 'content-types', dbColumn: 'content_types_data' },
+    { key: 'avoma', dbColumn: 'avoma_data' },
+    { key: 'hubspot', dbColumn: 'hubspot_data' },
   ];
 
   const [rerunningAll, setRerunningAll] = useState(false);
@@ -1066,6 +1084,7 @@ export default function ResultsPage() {
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
     setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false;
     setAvomaFailed(false); setAvomaLoading(false);
+    setHubspotFailed(false); setHubspotLoading(false);
     setNavFailed(false); setNavLoading(false);
     setSitemapFailed(false); setSitemapLoading(false);
     await fetchData();
@@ -1093,7 +1112,7 @@ export default function ResultsPage() {
     schema: schemaLoading, readable: readableLoading, yellowlab: yellowlabLoading,
     'link-checker': linkcheckLoading, 'nav-structure': navLoading,
     sitemap: sitemapLoading, 'content-types': contentTypesLoading,
-    gtmetrix: runningGtmetrix, avoma: avomaLoading,
+    gtmetrix: runningGtmetrix, avoma: avomaLoading, hubspot: hubspotLoading,
     forms: formsLoading, templates: templatesRerunning,
     'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
   };
@@ -1171,6 +1190,7 @@ export default function ResultsPage() {
     { key: 'page-tags', label: autoTagProgress ? `Page Tagging (${autoTagProgress})` : 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
     { key: 'templates', label: 'Templates', loading: templatesRerunning || (autoTagging && !(session as any).template_tiers), failed: false, data: (session as any).template_tiers, paused: false },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
+    { key: 'hubspot', label: 'HubSpot', loading: hubspotLoading, failed: hubspotFailed, data: (session as any).hubspot_data, paused: isIntegrationPaused('hubspot') },
   ].map(s => ({
     key: s.key,
     label: s.label,
@@ -1333,14 +1353,14 @@ export default function ResultsPage() {
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
               </TabsTrigger>
-              {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) && (
+              {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations)) && (
                 <TabsTrigger
-                  value="avoma"
-                  style={activeTab === 'avoma' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                  value="prospecting"
+                  style={activeTab === 'prospecting' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
                   className="relative text-base font-bold px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
-                  <Phone className="h-4 w-4 mr-2" />
-                  Avoma Calls
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Prospecting
                 </TabsTrigger>
               )}
             </TabsList>
@@ -1864,49 +1884,67 @@ export default function ResultsPage() {
             )}
           </TabsContent>
 
-          {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) && (
-            <TabsContent value="avoma" className="mt-8 space-y-6">
-              <SectionCard
-                sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
-                icon={<Phone className="h-5 w-5 text-foreground" />}
-                loading={avomaLoading && !(session as any)?.avoma_data}
-                loadingText="Searching Avoma for meetings with @domain attendees..."
-                error={avomaFailed}
-                errorText={integrationErrors.avoma}
-                headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
-                collapsed={allCollapsed}
-              >
-                {(session as any)?.avoma_data ? <AvomaCard
-                  data={(session as any).avoma_data}
-                  apolloEmail={session.apollo_data?.email || null}
-                  onSearchDomain={async (domain) => {
-                    setAvomaLoading(true);
-                    setAvomaFailed(false);
-                    try {
-                      const result = await avomaApi.lookup(domain);
-                      if (result.success) {
-                        await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
-                        clearError('avoma');
-                        fetchData();
-                      } else {
-                        setError('avoma', result.error || 'No results');
-                        await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
-                        fetchData();
+          {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations)) && (
+            <TabsContent value="prospecting" className="mt-8 space-y-6">
+              {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) && (
+                <SectionCard
+                  sectionId="hubspot" persistedCollapsed={isSectionCollapsed("hubspot")} onCollapseChange={toggleSection} title="HubSpot CRM"
+                  icon={<Building2 className="h-5 w-5 text-foreground" />}
+                  loading={hubspotLoading && !(session as any)?.hubspot_data}
+                  loadingText="Searching HubSpot for contacts, companies & deals..."
+                  error={hubspotFailed}
+                  errorText={integrationErrors.hubspot}
+                  headerExtra={rerunButton('hubspot', 'hubspot_data', hubspotLoading)}
+                  collapsed={allCollapsed}
+                  paused={isIntegrationPaused('hubspot') && !(session as any)?.hubspot_data}
+                  onTogglePause={() => handleTogglePause('hubspot')}
+                >
+                  {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} /> : null}
+                </SectionCard>
+              )}
+              {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) && (
+                <SectionCard
+                  sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
+                  icon={<Phone className="h-5 w-5 text-foreground" />}
+                  loading={avomaLoading && !(session as any)?.avoma_data}
+                  loadingText="Searching Avoma for meetings with @domain attendees..."
+                  error={avomaFailed}
+                  errorText={integrationErrors.avoma}
+                  headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
+                  collapsed={allCollapsed}
+                >
+                  {(session as any)?.avoma_data ? <AvomaCard
+                    data={(session as any).avoma_data}
+                    apolloEmail={session.apollo_data?.email || null}
+                    onSearchDomain={async (domain) => {
+                      setAvomaLoading(true);
+                      setAvomaFailed(false);
+                      try {
+                        const result = await avomaApi.lookup(domain);
+                        if (result.success) {
+                          await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
+                          clearError('avoma');
+                          fetchData();
+                        } else {
+                          setError('avoma', result.error || 'No results');
+                          await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
+                          fetchData();
+                        }
+                      } catch (e: any) {
+                        setError('avoma', e?.message || 'Search failed');
                       }
-                    } catch (e: any) {
-                      setError('avoma', e?.message || 'Search failed');
-                    }
-                    setAvomaLoading(false);
-                  }}
-                  onExcludedChange={async (excludedUuids) => {
-                    const current = (session as any).avoma_data;
-                    if (!current) return;
-                    const updated = { ...current, excludedMeetings: excludedUuids };
-                    await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
-                    fetchData();
-                  }}
-                /> : null}
-              </SectionCard>
+                      setAvomaLoading(false);
+                    }}
+                    onExcludedChange={async (excludedUuids) => {
+                      const current = (session as any).avoma_data;
+                      if (!current) return;
+                      const updated = { ...current, excludedMeetings: excludedUuids };
+                      await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
+                      fetchData();
+                    }}
+                  /> : null}
+                </SectionCard>
+              )}
             </TabsContent>
           )}
         </Tabs>

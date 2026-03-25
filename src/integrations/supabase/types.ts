@@ -125,6 +125,7 @@ export type Database = {
           gtmetrix_scores: Json | null
           gtmetrix_test_id: string | null
           httpstatus_data: Json | null
+          hubspot_data: Json | null
           id: string
           integration_durations: Json | null
           integration_timestamps: Json | null
@@ -168,6 +169,7 @@ export type Database = {
           gtmetrix_scores?: Json | null
           gtmetrix_test_id?: string | null
           httpstatus_data?: Json | null
+          hubspot_data?: Json | null
           id?: string
           integration_durations?: Json | null
           integration_timestamps?: Json | null
@@ -211,6 +213,7 @@ export type Database = {
           gtmetrix_scores?: Json | null
           gtmetrix_test_id?: string | null
           httpstatus_data?: Json | null
+          hubspot_data?: Json | null
           id?: string
           integration_durations?: Json | null
           integration_timestamps?: Json | null
