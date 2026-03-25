@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 type SectionCardProps = {
