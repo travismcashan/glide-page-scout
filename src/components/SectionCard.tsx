@@ -70,6 +70,19 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
         <h2 className="text-base font-semibold">{title}</h2>
         {titleExtra && !paused && <div onClick={e => e.stopPropagation()}>{titleExtra}</div>}
         {headerExtra && !paused && <div className="ml-auto" onClick={e => e.stopPropagation()}>{headerExtra}</div>}
+        {reportUrl && !paused && (
+          <a
+            href={reportUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-1 text-[11px] text-primary hover:underline shrink-0 ${!headerExtra ? 'ml-auto' : ''}`}
+            onClick={e => e.stopPropagation()}
+            title="View full report in a new window"
+          >
+            <span className="hidden sm:inline">View full report</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
         {paused && onTogglePause && (
           <div className="ml-auto flex items-center gap-2" onClick={e => e.stopPropagation()}>
             <span className="text-xs text-muted-foreground">Off</span>
@@ -91,7 +104,7 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
           </Badge>
         )}
         {!paused && (
-          <div className={`shrink-0 ${headerExtra || error ? '' : 'ml-auto'}`}>
+          <div className={`shrink-0 ${headerExtra || reportUrl || error ? '' : 'ml-auto'}`}>
             {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
           </div>
         )}
