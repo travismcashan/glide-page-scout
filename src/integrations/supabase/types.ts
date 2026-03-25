@@ -356,6 +356,45 @@ export type Database = {
           },
         ]
       }
+      knowledge_favorites: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          message_id: string | null
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_favorites_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_favorites_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_messages: {
         Row: {
           content: string
