@@ -42,7 +42,19 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 
-/** Show integration if it has data, is active, or user toggled "Show All" */
+/** Check if persisted data is a failure sentinel */
+function isErrorSentinel(data: any): boolean {
+  return data && typeof data === 'object' && data._error === true;
+}
+
+/** Return data only if it's real (not an error sentinel) */
+function realData<T>(data: T | null | undefined): T | null {
+  if (!data) return null;
+  if (isErrorSentinel(data)) return null;
+  return data;
+}
+
+/** Show integration if it has real (non-error) data, is active, or user toggled "Show All" */
 function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, sharedView?: boolean): boolean {
   if (sharedView) return hasData;
   if (showAll) return true;
@@ -169,6 +181,12 @@ export default function ResultsPage() {
   const setError = (key: string, msg: string) => setIntegrationErrors(prev => ({ ...prev, [key]: msg }));
   const clearError = (key: string) => setIntegrationErrors(prev => { const next = { ...prev }; delete next[key]; return next; });
 
+  /** Persist a failure sentinel to the DB so revisits don't re-trigger the integration */
+  const persistFailure = useCallback(async (dbColumn: string, errorMsg: string) => {
+    if (!sessionId) return;
+    await supabase.from('crawl_sessions').update({ [dbColumn]: { _error: true, message: errorMsg } } as any).eq('id', sessionId);
+  }, [sessionId]);
+
   /** Toggle an integration on from the results page — unpause it and bump version to trigger re-render & re-run */
   const handleTogglePause = useCallback(async (key: string) => {
     await toggleIntegrationPause(key);
@@ -189,6 +207,38 @@ export default function ResultsPage() {
       }
       if (sessionData.integration_timestamps && typeof sessionData.integration_timestamps === 'object') {
         setIntegrationTimestamps(prev => ({ ...sessionData.integration_timestamps, ...prev }));
+      }
+      // Restore failed states from persisted error sentinels
+      const errorColumns: [string, (v: boolean) => void, string][] = [
+        ['builtwith_data', setBuiltwithFailed, 'builtwith'],
+        ['semrush_data', setSemrushFailed, 'semrush'],
+        ['psi_data', setPsiFailed, 'psi'],
+        ['wappalyzer_data', setWappalyzerFailed, 'wappalyzer'],
+        ['detectzestack_data', setDetectzestackFailed, 'detectzestack'],
+        ['carbon_data', setCarbonFailed, 'carbon'],
+        ['crux_data', setCruxFailed, 'crux'],
+        ['wave_data', setWaveFailed, 'wave'],
+        ['observatory_data', setObservatoryFailed, 'observatory'],
+        ['ocean_data', setOceanFailed, 'ocean'],
+        ['ssllabs_data', setSsllabsFailed, 'ssllabs'],
+        ['httpstatus_data', setHttpstatusFailed, 'httpstatus'],
+        ['w3c_data', setW3cFailed, 'w3c'],
+        ['schema_data', setSchemaFailed, 'schema'],
+        ['readable_data', setReadableFailed, 'readable'],
+        ['yellowlab_data', setYellowlabFailed, 'yellowlab'],
+        ['linkcheck_data', setLinkcheckFailed, 'linkcheck'],
+        ['nav_structure', setNavFailed, 'nav-structure'],
+        ['content_types_data', setContentTypesFailed, 'content-types'],
+        ['avoma_data', setAvomaFailed, 'avoma'],
+        ['hubspot_data', setHubspotFailed, 'hubspot'],
+        ['tech_analysis_data', setTechAnalysisFailed, 'tech-analysis'],
+      ];
+      for (const [col, setFailed, key] of errorColumns) {
+        const val = sessionData[col];
+        if (val && typeof val === 'object' && val._error) {
+          setFailed(true);
+          setError(key, val.message || 'Previously failed');
+        }
       }
     }
     if (pagesRes.data) {
@@ -217,6 +267,13 @@ export default function ResultsPage() {
   const cruxTriggeredRef = useRef(false);
   const waveTriggeredRef = useRef(false);
   const observatoryTriggeredRef = useRef(false);
+  const httpstatusTriggeredRef = useRef(false);
+  const w3cTriggeredRef = useRef(false);
+  const schemaTriggeredRef = useRef(false);
+  const readableTriggeredRef = useRef(false);
+  const navTriggeredRef = useRef(false);
+  const sitemapTriggeredRef = useRef(false);
+  const contentTypesTriggeredRef = useRef(false);
 
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
@@ -234,10 +291,12 @@ export default function ResultsPage() {
         fetchData();
       } else {
         setBuiltwithFailed(true);
-        setError('builtwith', result.error || 'BuiltWith API returned an error');
+        const msg = result.error || 'BuiltWith API returned an error';
+        setError('builtwith', msg);
+        persistFailure('builtwith_data', msg);
       }
       setBuiltwithLoading(false);
-    }).catch((e) => { setBuiltwithFailed(true); setError('builtwith', e?.message || 'BuiltWith request failed'); setBuiltwithLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'BuiltWith request failed'; setBuiltwithFailed(true); setError('builtwith', msg); persistFailure('builtwith_data', msg); setBuiltwithLoading(false); });
   }, [session, builtwithLoading, builtwithFailed, fetchData, pauseVersion]);
   // SEMrush
   const [semrushFailed, setSemrushFailed] = useState(false);
@@ -253,10 +312,12 @@ export default function ResultsPage() {
         fetchData();
       } else {
         setSemrushFailed(true);
-        setError('semrush', result.error || 'SEMrush API returned an error');
+        const msg = result.error || 'SEMrush API returned an error';
+        setError('semrush', msg);
+        persistFailure('semrush_data', msg);
       }
       setSemrushLoading(false);
-    }).catch((e) => { setSemrushFailed(true); setError('semrush', e?.message || 'SEMrush request failed'); setSemrushLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'SEMrush request failed'; setSemrushFailed(true); setError('semrush', msg); persistFailure('semrush_data', msg); setSemrushLoading(false); });
   }, [session, semrushLoading, semrushFailed, fetchData, pauseVersion]);
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
@@ -270,9 +331,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ psi_data: { mobile: result.mobile, desktop: result.desktop } } as any).eq('id', session.id);
         clearError('psi');
         fetchData();
-      } else { setPsiFailed(true); setError('psi', result.error || 'PageSpeed Insights returned an error'); }
+      } else { const msg = result.error || 'PageSpeed Insights returned an error'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); }
       setPsiLoading(false);
-    }).catch((e) => { setPsiFailed(true); setError('psi', e?.message || 'PageSpeed request failed'); setPsiLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'PageSpeed request failed'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); setPsiLoading(false); });
   }, [session, psiLoading, psiFailed, fetchData, pauseVersion]);
   // Wappalyzer
   const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
@@ -286,9 +347,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ wappalyzer_data: { grouped: result.grouped, totalCount: result.totalCount, social: result.social } } as any).eq('id', session.id);
         clearError('wappalyzer');
         fetchData();
-      } else { setWappalyzerFailed(true); setError('wappalyzer', result.error || 'Wappalyzer returned an error'); }
+      } else { const msg = result.error || 'Wappalyzer returned an error'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); }
       setWappalyzerLoading(false);
-    }).catch((e) => { setWappalyzerFailed(true); setError('wappalyzer', e?.message || 'Wappalyzer request failed'); setWappalyzerLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Wappalyzer request failed'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); setWappalyzerLoading(false); });
   }, [session, wappalyzerLoading, wappalyzerFailed, fetchData, pauseVersion]);
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
@@ -302,18 +363,17 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ detectzestack_data: { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth } } as any).eq('id', session.id);
         clearError('detectzestack');
         fetchData();
-      } else { setDetectzestackFailed(true); setError('detectzestack', result.error || 'DetectZeStack returned an error'); }
+      } else { const msg = result.error || 'DetectZeStack returned an error'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); }
       setDetectzestackLoading(false);
-    }).catch((e) => { setDetectzestackFailed(true); setError('detectzestack', e?.message || 'DetectZeStack request failed'); setDetectzestackLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'DetectZeStack request failed'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); setDetectzestackLoading(false); });
   }, [session, detectzestackLoading, detectzestackFailed, fetchData, pauseVersion]);
   // AI Tech Analysis — runs after at least one tech source has data
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
   const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
 
-  // Load persisted tech analysis data from session
   useEffect(() => {
-    if (session?.tech_analysis_data && !techAnalysisData) {
+    if (session?.tech_analysis_data && !isErrorSentinel(session.tech_analysis_data) && !techAnalysisData) {
       setTechAnalysisData(session.tech_analysis_data);
     }
   }, [session]);
@@ -343,10 +403,12 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ tech_analysis_data: data } as any).eq('id', session.id);
       } else {
         setTechAnalysisFailed(true);
-        setError('tech-analysis', result.error || 'AI tech analysis failed');
+        const msg = result.error || 'AI tech analysis failed';
+        setError('tech-analysis', msg);
+        persistFailure('tech_analysis_data', msg);
       }
       setTechAnalysisLoading(false);
-    }).catch((e) => { setTechAnalysisFailed(true); setError('tech-analysis', e?.message || 'AI tech analysis failed'); setTechAnalysisLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'AI tech analysis failed'; setTechAnalysisFailed(true); setError('tech-analysis', msg); persistFailure('tech_analysis_data', msg); setTechAnalysisLoading(false); });
   }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed, builtwithLoading, detectzestackLoading, wappalyzerLoading, pauseVersion]);
 
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
@@ -360,9 +422,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ gtmetrix_grade: result.grade, gtmetrix_scores: result.scores, gtmetrix_test_id: result.testId } as any).eq('id', session.id);
         clearError('gtmetrix');
         fetchData();
-      } else { setGtmetrixFailed(true); setError('gtmetrix', result.error || 'GTmetrix returned an error'); }
+      } else { const msg = result.error || 'GTmetrix returned an error'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); }
       setRunningGtmetrix(false);
-    }).catch((e) => { setGtmetrixFailed(true); setError('gtmetrix', e?.message || 'GTmetrix request failed'); setRunningGtmetrix(false); });
+    }).catch((e) => { const msg = e?.message || 'GTmetrix request failed'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); setRunningGtmetrix(false); });
   }, [session, runningGtmetrix, gtmetrixFailed, fetchData, pauseVersion]);
   // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
@@ -376,9 +438,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ carbon_data: { green: result.green, bytes: result.bytes, cleanerThan: result.cleanerThan, statistics: result.statistics, rating: result.rating } } as any).eq('id', session.id);
         clearError('carbon');
         fetchData();
-      } else { setCarbonFailed(true); setError('carbon', result.error || 'Website Carbon returned an error'); }
+      } else { const msg = result.error || 'Website Carbon returned an error'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); }
       setCarbonLoading(false);
-    }).catch((e) => { setCarbonFailed(true); setError('carbon', e?.message || 'Website Carbon request failed'); setCarbonLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Website Carbon request failed'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); setCarbonLoading(false); });
   }, [session, carbonLoading, carbonFailed, fetchData, pauseVersion]);
   // CrUX
   const [cruxFailed, setCruxFailed] = useState(false);
@@ -395,9 +457,10 @@ export default function ResultsPage() {
         fetchData();
       } else if (result.noData) {
         setCruxNoData(true);
-      } else { setCruxFailed(true); setError('crux', result.error || 'CrUX returned an error'); }
+        persistFailure('crux_data', 'No CrUX data available for this site');
+      } else { const msg = result.error || 'CrUX returned an error'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); }
       setCruxLoading(false);
-    }).catch((e) => { setCruxFailed(true); setError('crux', e?.message || 'CrUX request failed'); setCruxLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'CrUX request failed'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); setCruxLoading(false); });
   }, [session, cruxLoading, cruxFailed, cruxNoData, fetchData, pauseVersion]);
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
@@ -411,9 +474,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ wave_data: { summary: result.summary, items: result.items, waveUrl: result.waveUrl, creditsRemaining: result.creditsRemaining, pageTitle: result.pageTitle } } as any).eq('id', session.id);
         clearError('wave');
         fetchData();
-      } else { setWaveFailed(true); setError('wave', result.error || 'WAVE returned an error'); }
+      } else { const msg = result.error || 'WAVE returned an error'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); }
       setWaveLoading(false);
-    }).catch((e) => { setWaveFailed(true); setError('wave', e?.message || 'WAVE request failed'); setWaveLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'WAVE request failed'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); setWaveLoading(false); });
   }, [session, waveLoading, waveFailed, fetchData, pauseVersion]);
   // Mozilla Observatory
   const [observatoryFailed, setObservatoryFailed] = useState(false);
@@ -427,9 +490,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ observatory_data: { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests, rawHeaders: result.rawHeaders || null, cspRaw: result.cspRaw || null, cspDirectives: result.cspDirectives || null, cookies: result.cookies || null } } as any).eq('id', session.id);
         clearError('observatory');
         fetchData();
-      } else { setObservatoryFailed(true); setError('observatory', result.error || 'Observatory returned an error'); }
+      } else { const msg = result.error || 'Observatory returned an error'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); }
       setObservatoryLoading(false);
-    }).catch((e) => { setObservatoryFailed(true); setError('observatory', e?.message || 'Observatory request failed'); setObservatoryLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Observatory request failed'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); setObservatoryLoading(false); });
   }, [session, observatoryLoading, observatoryFailed, fetchData, pauseVersion]);
   // Ocean.io
   const [oceanLoading, setOceanLoading] = useState(false);
@@ -445,9 +508,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
         clearError('ocean');
         fetchData();
-      } else { setOceanFailed(true); setError('ocean', result.error || 'Ocean.io returned an error'); }
+      } else { const msg = result.error || 'Ocean.io returned an error'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); }
       setOceanLoading(false);
-    }).catch((e) => { setOceanFailed(true); setError('ocean', e?.message || 'Ocean.io request failed'); setOceanLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Ocean.io request failed'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); setOceanLoading(false); });
   }, [session, oceanLoading, oceanFailed, fetchData, pauseVersion]);
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
@@ -468,9 +531,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
         fetchData();
-      } else { setAvomaFailed(true); setError('avoma', result.error || 'Avoma returned an error'); }
+      } else { const msg = result.error || 'Avoma returned an error'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); }
       setAvomaLoading(false);
-    }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); });
   }, [session, avomaLoading, avomaFailed, fetchData, pauseVersion]);
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
@@ -486,9 +549,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
         fetchData();
-      } else { setHubspotFailed(true); setError('hubspot', result.error || 'HubSpot returned an error'); }
+      } else { const msg = result.error || 'HubSpot returned an error'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); }
       setHubspotLoading(false);
-    }).catch((e) => { setHubspotFailed(true); setError('hubspot', e?.message || 'HubSpot request failed'); setHubspotLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'HubSpot request failed'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); setHubspotLoading(false); });
   }, [session, hubspotLoading, hubspotFailed, fetchData, pauseVersion]);
   // Apollo.io contact enrichment (manual search, persisted)
   const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
@@ -562,8 +625,10 @@ export default function ResultsPage() {
         // 1. Start the scan
         const startResult = await ssllabsApi.start(session.domain);
         if (!startResult.success) {
+          const msg = startResult.error || 'SSL Labs start failed';
           setSsllabsFailed(true);
-          setError('ssllabs', startResult.error || 'SSL Labs start failed');
+          setError('ssllabs', msg);
+          persistFailure('ssllabs_data', msg);
           setSsllabsLoading(false);
           return;
         }
@@ -582,8 +647,10 @@ export default function ResultsPage() {
           await new Promise(r => setTimeout(r, 10000));
           const pollResult = await ssllabsApi.poll(session.domain);
           if (!pollResult.success) {
+            const msg = pollResult.error || 'SSL Labs poll error';
             setSsllabsFailed(true);
-            setError('ssllabs', pollResult.error || 'SSL Labs poll error');
+            setError('ssllabs', msg);
+            persistFailure('ssllabs_data', msg);
             setSsllabsLoading(false);
             return;
           }
@@ -595,20 +662,26 @@ export default function ResultsPage() {
             return;
           }
           if (pollResult.status === 'ERROR') {
+            const msg = 'SSL Labs assessment failed';
             setSsllabsFailed(true);
-            setError('ssllabs', 'SSL Labs assessment failed');
+            setError('ssllabs', msg);
+            persistFailure('ssllabs_data', msg);
             setSsllabsLoading(false);
             return;
           }
           // Otherwise keep polling (DNS, IN_PROGRESS, OVERLOADED)
         }
         // Timed out after 5 min
+        const msg = 'SSL Labs scan timed out after 5 minutes — try again later';
         setSsllabsFailed(true);
-        setError('ssllabs', 'SSL Labs scan timed out after 5 minutes — try again later');
+        setError('ssllabs', msg);
+        persistFailure('ssllabs_data', msg);
         setSsllabsLoading(false);
       } catch (e: any) {
+        const msg = e?.message || 'SSL Labs request failed';
         setSsllabsFailed(true);
-        setError('ssllabs', e?.message || 'SSL Labs request failed');
+        setError('ssllabs', msg);
+        persistFailure('ssllabs_data', msg);
         setSsllabsLoading(false);
       }
     })();
@@ -619,60 +692,68 @@ export default function ResultsPage() {
   const [httpstatusFailed, setHttpstatusFailed] = useState(false);
   useEffect(() => {
     if (!session || session.httpstatus_data || httpstatusLoading || httpstatusFailed || isIntegrationPaused('httpstatus')) return;
+    if (httpstatusTriggeredRef.current) return;
+    httpstatusTriggeredRef.current = true;
     setHttpstatusLoading(true);
     httpstatusApi.check(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ httpstatus_data: result } as any).eq('id', session.id);
         clearError('httpstatus');
         fetchData();
-      } else { setHttpstatusFailed(true); setError('httpstatus', result.error || 'httpstatus.io returned an error'); }
+      } else { const msg = result.error || 'httpstatus.io returned an error'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); }
       setHttpstatusLoading(false);
-    }).catch((e) => { setHttpstatusFailed(true); setError('httpstatus', e?.message || 'httpstatus.io request failed'); setHttpstatusLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'httpstatus.io request failed'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); setHttpstatusLoading(false); });
   }, [session, httpstatusLoading, httpstatusFailed, fetchData, pauseVersion]);
   // W3C HTML/CSS Validation
   const [w3cLoading, setW3cLoading] = useState(false);
   const [w3cFailed, setW3cFailed] = useState(false);
   useEffect(() => {
     if (!session || session.w3c_data || w3cLoading || w3cFailed || isIntegrationPaused('w3c')) return;
+    if (w3cTriggeredRef.current) return;
+    w3cTriggeredRef.current = true;
     setW3cLoading(true);
     w3cApi.validate(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ w3c_data: result } as any).eq('id', session.id);
         clearError('w3c');
         fetchData();
-      } else { setW3cFailed(true); setError('w3c', result.error || 'W3C validation failed'); }
+      } else { const msg = result.error || 'W3C validation failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); }
       setW3cLoading(false);
-    }).catch((e) => { setW3cFailed(true); setError('w3c', e?.message || 'W3C validation request failed'); setW3cLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'W3C validation request failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); setW3cLoading(false); });
   }, [session, w3cLoading, w3cFailed, fetchData, pauseVersion]);
   // Schema.org / Rich Results
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaFailed, setSchemaFailed] = useState(false);
   useEffect(() => {
     if (!session || session.schema_data || schemaLoading || schemaFailed || isIntegrationPaused('schema')) return;
+    if (schemaTriggeredRef.current) return;
+    schemaTriggeredRef.current = true;
     setSchemaLoading(true);
     schemaApi.validate(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ schema_data: result } as any).eq('id', session.id);
         clearError('schema');
         fetchData();
-      } else { setSchemaFailed(true); setError('schema', result.error || 'Schema validation failed'); }
+      } else { const msg = result.error || 'Schema validation failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); }
       setSchemaLoading(false);
-    }).catch((e) => { setSchemaFailed(true); setError('schema', e?.message || 'Schema validation request failed'); setSchemaLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Schema validation request failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); setSchemaLoading(false); });
   }, [session, schemaLoading, schemaFailed, fetchData, pauseVersion]);
   // Readable.com
   const [readableLoading, setReadableLoading] = useState(false);
   const [readableFailed, setReadableFailed] = useState(false);
   useEffect(() => {
     if (!session || (session as any).readable_data || readableLoading || readableFailed || isIntegrationPaused('readable')) return;
+    if (readableTriggeredRef.current) return;
+    readableTriggeredRef.current = true;
     setReadableLoading(true);
     readableApi.score(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ readable_data: result } as any).eq('id', session.id);
         clearError('readable');
         fetchData();
-      } else { setReadableFailed(true); setError('readable', result.error || 'Readable.com returned an error'); }
+      } else { const msg = result.error || 'Readable.com returned an error'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); }
       setReadableLoading(false);
-    }).catch((e) => { setReadableFailed(true); setError('readable', e?.message || 'Readable.com request failed'); setReadableLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Readable.com request failed'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); setReadableLoading(false); });
   }, [session, readableLoading, readableFailed, fetchData, pauseVersion]);
   // Yellow Lab Tools (client-side polling like SSL Labs)
   const [yellowlabLoading, setYellowlabLoading] = useState(false);
@@ -687,8 +768,10 @@ export default function ResultsPage() {
       try {
         const startResult = await yellowlabApi.start(session.base_url);
         if (!startResult.success || !startResult.runId) {
+          const msg = startResult.error || 'Yellow Lab Tools start failed';
           setYellowlabFailed(true);
-          setError('yellowlab', startResult.error || 'Yellow Lab Tools start failed');
+          setError('yellowlab', msg);
+          persistFailure('yellowlab_data', msg);
           setYellowlabLoading(false);
           return;
         }
@@ -700,8 +783,10 @@ export default function ResultsPage() {
           await new Promise(r => setTimeout(r, 8000));
           const pollResult = await yellowlabApi.poll(runId);
           if (!pollResult.success) {
+            const msg = pollResult.error || 'Yellow Lab Tools poll error';
             setYellowlabFailed(true);
-            setError('yellowlab', pollResult.error || 'Yellow Lab Tools poll error');
+            setError('yellowlab', msg);
+            persistFailure('yellowlab_data', msg);
             setYellowlabLoading(false);
             return;
           }
@@ -713,18 +798,24 @@ export default function ResultsPage() {
             return;
           }
           if (pollResult.status === 'failed') {
+            const msg = (pollResult as any).error || 'Yellow Lab Tools could not analyze this page — the site may block automated testing';
             setYellowlabFailed(true);
-            setError('yellowlab', (pollResult as any).error || 'Yellow Lab Tools could not analyze this page — the site may block automated testing');
+            setError('yellowlab', msg);
+            persistFailure('yellowlab_data', msg);
             setYellowlabLoading(false);
             return;
           }
         }
+        const msg = 'Yellow Lab Tools timed out after 3 minutes';
         setYellowlabFailed(true);
-        setError('yellowlab', 'Yellow Lab Tools timed out after 3 minutes');
+        setError('yellowlab', msg);
+        persistFailure('yellowlab_data', msg);
         setYellowlabLoading(false);
       } catch (e: any) {
+        const msg = e?.message || 'Yellow Lab Tools request failed';
         setYellowlabFailed(true);
-        setError('yellowlab', e?.message || 'Yellow Lab Tools request failed');
+        setError('yellowlab', msg);
+        persistFailure('yellowlab_data', msg);
         setYellowlabLoading(false);
       }
     })();
@@ -764,33 +855,37 @@ export default function ResultsPage() {
         clearError('link-checker');
         setLinkcheckStreamingResults(null);
         await fetchData();
-      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
+      } else { const msg = result.error || 'Link checker returned an error'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
       linkcheckAbortRef.current = null;
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
+    }).catch((e) => { const msg = e?.message || 'Link checker request failed'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
   }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
   const [navFailed, setNavFailed] = useState(false);
   useEffect(() => {
     if (!session || (session as any).nav_structure || navLoading || navFailed || isIntegrationPaused('nav-structure')) return;
+    if (navTriggeredRef.current) return;
+    navTriggeredRef.current = true;
     setNavLoading(true);
     navExtractApi.extract(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ nav_structure: result } as any).eq('id', session.id);
         clearError('nav-structure');
         fetchData();
-      } else { setNavFailed(true); setError('nav-structure', result.error || 'Nav structure extraction failed'); }
+      } else { const msg = result.error || 'Nav structure extraction failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); }
       setNavLoading(false);
-    }).catch((e) => { setNavFailed(true); setError('nav-structure', e?.message || 'Nav structure request failed'); setNavLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Nav structure request failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); setNavLoading(false); });
   }, [session, navLoading, navFailed, fetchData, pauseVersion]);
   // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapFailed, setSitemapFailed] = useState(false);
   useEffect(() => {
     if (!session || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
+    if (sitemapTriggeredRef.current) return;
+    sitemapTriggeredRef.current = true;
     setSitemapLoading(true);
     sitemapApi.parse(session.base_url).then(async (result) => {
       if (result.success) {
@@ -801,9 +896,9 @@ export default function ResultsPage() {
           setSitemapHints(result.contentTypeHints);
         }
         fetchData();
-      } else { setSitemapFailed(true); setError('sitemap', result.error || 'Sitemap parsing failed'); }
+      } else { const msg = result.error || 'Sitemap parsing failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); }
       setSitemapLoading(false);
-    }).catch((e) => { setSitemapFailed(true); setError('sitemap', e?.message || 'Sitemap parsing request failed'); setSitemapLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Sitemap parsing request failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); setSitemapLoading(false); });
   }, [session, sitemapLoading, sitemapFailed, fetchData, pauseVersion]);
   // Hydrate sitemapHints from persisted sitemap_data on load
   useEffect(() => {
@@ -830,11 +925,15 @@ export default function ResultsPage() {
         toast.success(`Found ${result.data.summary?.uniqueForms || 0} unique forms`);
       } else {
         setFormsFailed(true);
-        setError('forms', result.error || 'Forms detection failed');
+        const msg = result.error || 'Forms detection failed';
+        setError('forms', msg);
+        persistFailure('forms_data', msg);
       }
     } catch (e: any) {
       setFormsFailed(true);
-      setError('forms', e?.message || 'Forms detection request failed');
+      const msg = e?.message || 'Forms detection request failed';
+      setError('forms', msg);
+      persistFailure('forms_data', msg);
     } finally {
       setFormsLoading(false);
     }
@@ -848,6 +947,8 @@ export default function ResultsPage() {
   useEffect(() => {
     if (!session || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
+    if (contentTypesTriggeredRef.current) return;
+    contentTypesTriggeredRef.current = true;
     setContentTypesLoading(true);
     setContentTypesProgress('Starting classification…');
     contentTypesApi.classifyPhased(
@@ -860,10 +961,10 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
         clearError('content-types');
         fetchData();
-      } else { setContentTypesFailed(true); setError('content-types', result.error || 'Content type classification failed'); }
+      } else { const msg = result.error || 'Content type classification failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); }
       setContentTypesLoading(false);
       setContentTypesProgress('');
-    }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); setContentTypesProgress(''); });
+    }).catch((e) => { const msg = e?.message || 'Content type classification request failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); setContentTypesLoading(false); setContentTypesProgress(''); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
@@ -1074,15 +1175,15 @@ export default function ResultsPage() {
       hubspot: () => { setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false; },
       apollo: () => { setApolloLoading(false); apolloAutoTriggered.current = false; },
       ssllabs: () => { setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false; },
-      httpstatus: () => { setHttpstatusFailed(false); setHttpstatusLoading(false); },
-      w3c: () => { setW3cFailed(false); setW3cLoading(false); },
-      schema: () => { setSchemaFailed(false); setSchemaLoading(false); },
-      readable: () => { setReadableFailed(false); setReadableLoading(false); },
+      httpstatus: () => { setHttpstatusFailed(false); setHttpstatusLoading(false); httpstatusTriggeredRef.current = false; },
+      w3c: () => { setW3cFailed(false); setW3cLoading(false); w3cTriggeredRef.current = false; },
+      schema: () => { setSchemaFailed(false); setSchemaLoading(false); schemaTriggeredRef.current = false; },
+      readable: () => { setReadableFailed(false); setReadableLoading(false); readableTriggeredRef.current = false; },
       yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
       'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false; },
-      'nav-structure': () => { setNavFailed(false); setNavLoading(false); },
-      'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); },
-      'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); },
+      'nav-structure': () => { setNavFailed(false); setNavLoading(false); navTriggeredRef.current = false; },
+      'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false; },
+      'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false; },
       'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
       'page-tags': () => { setAutoTagging(false); autoTagTriedRef.current = false; },
       'forms': () => {
@@ -1140,28 +1241,31 @@ export default function ResultsPage() {
     for (const { key } of integrationList) {
       clearError(key);
     }
-    setBuiltwithFailed(false); setBuiltwithLoading(false);
-    setSemrushFailed(false); setSemrushLoading(false);
-    setPsiFailed(false); setPsiLoading(false);
-    setWappalyzerFailed(false); setWappalyzerLoading(false);
-    setDetectzestackFailed(false); setDetectzestackLoading(false);
-    setGtmetrixFailed(false); setRunningGtmetrix(false);
-    setCarbonFailed(false); setCarbonLoading(false);
-    setCruxFailed(false); setCruxNoData(false); setCruxLoading(false);
-    setWaveFailed(false); setWaveLoading(false);
-    setObservatoryFailed(false); setObservatoryLoading(false);
-    setOceanFailed(false); setOceanLoading(false);
+    setBuiltwithFailed(false); setBuiltwithLoading(false); builtwithTriggeredRef.current = false;
+    setSemrushFailed(false); setSemrushLoading(false); semrushTriggeredRef.current = false;
+    setPsiFailed(false); setPsiLoading(false); psiTriggeredRef.current = false;
+    setWappalyzerFailed(false); setWappalyzerLoading(false); wappalyzerTriggeredRef.current = false;
+    setDetectzestackFailed(false); setDetectzestackLoading(false); detectzestackTriggeredRef.current = false;
+    setGtmetrixFailed(false); setRunningGtmetrix(false); gtmetrixTriggeredRef.current = false;
+    setCarbonFailed(false); setCarbonLoading(false); carbonTriggeredRef.current = false;
+    setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); cruxTriggeredRef.current = false;
+    setWaveFailed(false); setWaveLoading(false); waveTriggeredRef.current = false;
+    setObservatoryFailed(false); setObservatoryLoading(false); observatoryTriggeredRef.current = false;
+    setOceanFailed(false); setOceanLoading(false); oceanTriggeredRef.current = false;
     setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false;
-    setHttpstatusFailed(false); setHttpstatusLoading(false);
-    setW3cFailed(false); setW3cLoading(false);
-    setSchemaFailed(false); setSchemaLoading(false);
-    setReadableFailed(false); setReadableLoading(false);
+    setHttpstatusFailed(false); setHttpstatusLoading(false); httpstatusTriggeredRef.current = false;
+    setW3cFailed(false); setW3cLoading(false); w3cTriggeredRef.current = false;
+    setSchemaFailed(false); setSchemaLoading(false); schemaTriggeredRef.current = false;
+    setReadableFailed(false); setReadableLoading(false); readableTriggeredRef.current = false;
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
     setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false;
-    setAvomaFailed(false); setAvomaLoading(false);
-    setHubspotFailed(false); setHubspotLoading(false);
-    setNavFailed(false); setNavLoading(false);
-    setSitemapFailed(false); setSitemapLoading(false);
+    setAvomaFailed(false); setAvomaLoading(false); avomaTriggeredRef.current = false;
+    setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false;
+    setNavFailed(false); setNavLoading(false); navTriggeredRef.current = false;
+    setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false;
+    setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false;
+    setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null);
+    formsAutoRunRef.current = false; autoTagTriedRef.current = false;
     await fetchData();
     setRerunningAll(false);
     toast.success('Re-running all integrations');
