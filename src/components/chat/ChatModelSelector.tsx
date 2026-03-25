@@ -75,7 +75,12 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   const selectedModel = MODEL_OPTIONS.find(m => m.id === model) || VERSIONS.gemini[2];
   const selectedProvider = PROVIDERS.find(p => p.id === selectedModel.provider) || PROVIDERS[0];
   const versionsForProvider = VERSIONS[selectedModel.provider];
-  const reasoningOptions = REASONING_OPTIONS.filter(r => selectedModel.reasoning.includes(r.value));
+  const reasoningOptions = REASONING_OPTIONS
+    .filter(r => selectedModel.reasoning.includes(r.value))
+    .map(r => ({
+      ...r,
+      label: selectedModel.reasoningLabels?.[r.value] ?? r.label,
+    }));
   const selectedReasoning = reasoningOptions.find(r => r.value === reasoning) || reasoningOptions[0];
 
   const PROVIDER_DEFAULTS: Record<ModelProvider, string> = {
