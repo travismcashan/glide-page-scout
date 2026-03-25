@@ -148,6 +148,7 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
               <span className="text-[10px] text-muted-foreground">{m.description}</span>
             </DropdownMenuItem>
           ))}
+        </DropdownMenuContent>
       </DropdownMenu>
 
       {/* Reasoning selector */}
