@@ -26,7 +26,7 @@ type SectionCardProps = {
   reportUrl?: string;
 };
 
-export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed }: SectionCardProps) {
+export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed, reportUrl }: SectionCardProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
     if (persistedCollapsed !== undefined) return persistedCollapsed;
     if (paused) return true;
