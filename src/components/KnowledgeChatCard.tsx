@@ -472,34 +472,114 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
       {/* Input area */}
       <div className="border-t border-border pt-3 px-1">
-        <ChatFileUpload
-          attachments={attachments}
-          setAttachments={setAttachments}
+        {/* Attachment previews */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-1 pb-2">
+            {attachments.map((att, i) => (
+              <Badge
+                key={`${att.name}-${i}`}
+                variant="secondary"
+                className="gap-1 pl-1.5 pr-1 py-0.5 text-xs font-normal max-w-[200px]"
+              >
+                <FileText className="h-3 w-3 shrink-0" />
+                <span className="truncate">{att.name}</span>
+                {att.parsing ? (
+                  <Loader2 className="h-3 w-3 animate-spin shrink-0 ml-0.5" />
+                ) : (
+                  <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:text-destructive shrink-0">
+                    <span className="text-xs">×</span>
+                  </button>
+                )}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Textarea */}
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a follow-up..."
+          className="min-h-[44px] max-h-[120px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 px-1"
+          rows={1}
           disabled={isStreaming}
         />
-        <div className="flex gap-1 items-end">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={attachments.length > 0 ? "Add a message about these files..." : "Ask about this website's audit data..."}
-            className="min-h-[44px] max-h-[120px] resize-none text-sm"
-            rows={1}
+
+        {/* Toolbar row */}
+        <div className="flex items-center gap-1 pt-1 pb-1">
+          {/* + Upload button */}
+          <ChatFileUpload
+            attachments={attachments}
+            setAttachments={setAttachments}
             disabled={isStreaming}
           />
-          <Button
-            size="icon"
-            onClick={() => handleSend()}
-            disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
-            className="shrink-0 h-[44px] w-[44px]"
-          >
-            {isStreaming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+
+          {/* Sources selector */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs font-normal gap-1.5 rounded-full"
+                disabled={isStreaming}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Sources
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-44 p-2" align="start">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5">
+                  <Checkbox
+                    checked={searchSources.documents}
+                    onCheckedChange={(checked) =>
+                      setSearchSources(prev => ({ ...prev, documents: !!checked }))
+                    }
+                  />
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  Documents
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5">
+                  <Checkbox
+                    checked={searchSources.web}
+                    onCheckedChange={(checked) =>
+                      setSearchSources(prev => ({ ...prev, web: !!checked }))
+                    }
+                  />
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  Web
+                </label>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Model selector */}
+          <ChatModelSelector
+            model={selectedModel}
+            reasoning={reasoning}
+            onModelChange={onModelChange}
+            onReasoningChange={onReasoningChange}
+            disabled={isStreaming}
+          />
+
+          {/* Send button - pushed to the right */}
+          <div className="ml-auto">
+            <Button
+              size="icon"
+              onClick={() => handleSend()}
+              disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
+              className="shrink-0 h-8 w-8 rounded-full"
+            >
+              {isStreaming ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
