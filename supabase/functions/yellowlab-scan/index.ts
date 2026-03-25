@@ -48,7 +48,15 @@ Deno.serve(async (req) => {
       }
 
       if (statusCode === 'failed') {
-        const errorMessage = statusData.status?.error || statusData.status?.statusMessage || 'Yellow Lab Tools could not analyze this page';
+        const rawError = statusData.status?.error || statusData.status?.statusMessage || '';
+        let errorMessage: string;
+        if (rawError.includes('403') || rawError.includes('Forbidden')) {
+          errorMessage = 'This site blocked the automated scan — some websites restrict bot access';
+        } else if (rawError.includes('timeout') || rawError.includes('Timeout')) {
+          errorMessage = 'The scan timed out — the site may be too slow or unresponsive';
+        } else {
+          errorMessage = rawError || 'Yellow Lab Tools could not analyze this page';
+        }
         console.error('YLT run failed:', JSON.stringify(statusData.status));
         return new Response(JSON.stringify({ success: true, status: 'failed', runId, error: errorMessage }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
