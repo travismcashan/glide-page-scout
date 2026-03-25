@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Database, BookOpen } from 'lucide-react';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
@@ -29,27 +30,42 @@ export function KnowledgeTabContent({
   toggleSection,
   allCollapsed,
 }: Props) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [ingesting, setIngesting] = useState(false);
   const ingestTriggeredRef = useRef(false);
 
-  // Auto-ingest integration data when the Knowledge tab is first viewed
+  const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  const runIngest = useCallback(async () => {
+    setIngesting(true);
+    try {
+      const [integrationResult, pageCount] = await Promise.all([
+        autoIngestIntegrations(session.id, session),
+        scrapedPages.length > 0 ? autoIngestPages(session.id, scrapedPages) : Promise.resolve(0),
+      ]);
+      
+      const total = integrationResult.ingested + pageCount;
+      if (total > 0) {
+        toast.success(`Indexed ${total} document${total !== 1 ? 's' : ''} into knowledge base`);
+      } else if (integrationResult.skipped > 0) {
+        toast.info('All integration data already indexed');
+      } else {
+        toast.info('No integration data available to index');
+      }
+      triggerRefresh();
+    } catch (err) {
+      console.error('Ingest error:', err);
+      toast.error('Failed to ingest documents');
+    } finally {
+      setIngesting(false);
+    }
+  }, [session, scrapedPages, triggerRefresh]);
+
+  // Auto-ingest on first mount
   useEffect(() => {
     if (ingestTriggeredRef.current) return;
     ingestTriggeredRef.current = true;
-
-    // Fire and forget - don't block the UI
-    autoIngestIntegrations(session.id, session).then(result => {
-      if (result.ingested > 0) {
-        console.log(`[knowledge] Auto-ingested ${result.ingested} integration documents`);
-      }
-    });
-
-    if (scrapedPages.length > 0) {
-      autoIngestPages(session.id, scrapedPages).then(count => {
-        if (count > 0) {
-          console.log(`[knowledge] Auto-ingested ${count} scraped pages`);
-        }
-      });
-    }
+    runIngest();
   }, [session.id]);
 
   return (
@@ -60,7 +76,12 @@ export function KnowledgeTabContent({
           <Database className="h-4 w-4" />
           Document Library
         </h3>
-        <DocumentLibrary sessionId={session.id} />
+        <DocumentLibrary
+          sessionId={session.id}
+          refreshKey={refreshKey}
+          onIngestIntegrations={runIngest}
+          ingesting={ingesting}
+        />
       </div>
 
       {/* Chat */}
