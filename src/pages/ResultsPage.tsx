@@ -1332,10 +1332,26 @@ export default function ResultsPage() {
                         {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5" /> : <ChevronsDownUp className="h-3.5 w-3.5" />}
                         {allCollapsed ? 'Expand All' : 'Collapse All'}
                       </Button>
-                      <Button variant="ghost" size="sm" className="gap-1 px-2" onClick={rerunAll} disabled={rerunningAll}>
-                        <RefreshCw className={`h-3.5 w-3.5 ${rerunningAll ? 'animate-spin' : ''}`} />
-                        Re-run All
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-1 px-2" disabled={rerunningAll}>
+                            <RefreshCw className={`h-3.5 w-3.5 ${rerunningAll ? 'animate-spin' : ''}`} />
+                            Re-run All
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Re-run all integrations?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will clear all existing results and re-run every active integration from scratch. This may take several minutes.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={rerunAll}>Yes, re-run all</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                       <Button
                         variant="ghost"
                         size="sm"
