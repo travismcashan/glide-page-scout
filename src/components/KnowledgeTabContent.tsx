@@ -48,11 +48,8 @@ export function KnowledgeTabContent({
       const total = integrationResult.ingested + pageCount;
       if (total > 0) {
         toast.success(`Indexed ${total} document${total !== 1 ? 's' : ''} into knowledge base`);
-      } else if (integrationResult.skipped > 0) {
-        toast.info('All integration data already indexed');
-      } else {
-        toast.info('No integration data available to index');
       }
+      // Silently skip if everything is already indexed — no need to notify
       triggerRefresh();
     } catch (err) {
       console.error('Ingest error:', err);
