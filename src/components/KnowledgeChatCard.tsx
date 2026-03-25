@@ -408,7 +408,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
                     {msg.role === 'assistant' ? (
                       <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
                         <div className="chat-prose max-w-none">
-                          <ReactMarkdown>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
                         </div>
                       </Suspense>
                     ) : (
