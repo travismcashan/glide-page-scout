@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
+import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 
-type Message = { role: 'user' | 'assistant'; content: string; sources?: string[] };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[] };
 
 type SessionData = {
   id: string;
@@ -104,6 +105,7 @@ export function KnowledgeChatCard({ session, pages }: Props) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -149,19 +151,67 @@ export function KnowledgeChatCard({ session, pages }: Props) {
 
   const handleSend = useCallback(async (text?: string) => {
     const messageText = text || input.trim();
-    if (!messageText || isStreaming) return;
+    const currentAttachments = [...attachments];
+    const hasAttachments = currentAttachments.length > 0;
+    const hasParsing = currentAttachments.some(a => a.parsing);
 
-    const userMsg: Message = { role: 'user', content: messageText };
+    if ((!messageText && !hasAttachments) || isStreaming || hasParsing) return;
+
+    // Build message content - multimodal if images attached
+    const imageAttachments = currentAttachments.filter(a => a.type === 'image');
+    const textAttachments = currentAttachments.filter(a => a.type === 'text' || a.type === 'document');
+    const attachmentNames = currentAttachments.map(a => a.name);
+
+    // Build the content for the AI request
+    let messageContent: string | any[];
+    if (imageAttachments.length > 0) {
+      const parts: any[] = [];
+      // Add text attachments as context
+      if (textAttachments.length > 0) {
+        const textContext = textAttachments
+          .map(a => `--- Attached: ${a.name} ---\n${a.content}`)
+          .join('\n\n');
+        parts.push({ type: 'text', text: (messageText ? messageText + '\n\n' : '') + textContext });
+      } else if (messageText) {
+        parts.push({ type: 'text', text: messageText });
+      }
+      // Add images
+      for (const img of imageAttachments) {
+        parts.push({ type: 'image_url', image_url: { url: img.content } });
+      }
+      messageContent = parts;
+    } else if (textAttachments.length > 0) {
+      const textContext = textAttachments
+        .map(a => `--- Attached: ${a.name} ---\n${a.content}`)
+        .join('\n\n');
+      messageContent = (messageText ? messageText + '\n\n' : 'Please analyze the attached files:\n\n') + textContext;
+    } else {
+      messageContent = messageText;
+    }
+
+    // Display message shows just the text + attachment names
+    const displayContent = messageText || `Attached ${attachmentNames.join(', ')}`;
+    const userMsg: Message = { role: 'user', content: displayContent, attachmentNames };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
+    setAttachments([]);
     setIsStreaming(true);
     setIsThinking(true);
 
     // Save user message to DB
-    saveMessage('user', messageText);
+    saveMessage('user', typeof displayContent === 'string' ? displayContent : messageText);
 
     let assistantContent = '';
+
+    // Build the API messages - use multimodal content for the current message
+    const apiMessages = newMessages.map((m, i) => {
+      if (i === newMessages.length - 1) {
+        return { role: m.role, content: messageContent };
+      }
+      // For previous messages, just send text
+      return { role: m.role, content: typeof m.content === 'string' ? m.content : messageText };
+    });
 
     try {
       const resp = await fetch(CHAT_URL, {
@@ -171,7 +221,7 @@ export function KnowledgeChatCard({ session, pages }: Props) {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
           crawlContext,
         }),
       });
@@ -283,7 +333,7 @@ export function KnowledgeChatCard({ session, pages }: Props) {
 
     setIsStreaming(false);
     setIsThinking(false);
-  }, [input, messages, isStreaming, crawlContext, session.id]);
+  }, [input, messages, isStreaming, crawlContext, session.id, attachments]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -377,13 +427,24 @@ export function KnowledgeChatCard({ session, pages }: Props) {
                     }`}
                   >
                     {msg.role === 'assistant' ? (
-                      <Suspense fallback={<span>{msg.content}</span>}>
+                      <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
                         <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          <ReactMarkdown>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
                         </div>
                       </Suspense>
                     ) : (
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                      <>
+                        <span className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : ''}</span>
+                        {msg.attachmentNames && msg.attachmentNames.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {msg.attachmentNames.map((name, j) => (
+                              <Badge key={j} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-primary-foreground/20">
+                                📎 {name}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                     {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
                       <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
@@ -418,13 +479,18 @@ export function KnowledgeChatCard({ session, pages }: Props) {
 
       {/* Input area */}
       <div className="border-t border-border pt-3 px-1">
-        <div className="flex gap-2 items-end">
+        <ChatFileUpload
+          attachments={attachments}
+          setAttachments={setAttachments}
+          disabled={isStreaming}
+        />
+        <div className="flex gap-1 items-end">
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about this website's audit data..."
+            placeholder={attachments.length > 0 ? "Add a message about these files..." : "Ask about this website's audit data..."}
             className="min-h-[44px] max-h-[120px] resize-none text-sm"
             rows={1}
             disabled={isStreaming}
@@ -432,7 +498,7 @@ export function KnowledgeChatCard({ session, pages }: Props) {
           <Button
             size="icon"
             onClick={() => handleSend()}
-            disabled={!input.trim() || isStreaming}
+            disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
             className="shrink-0 h-[44px] w-[44px]"
           >
             {isStreaming ? (

@@ -33,7 +33,7 @@ serve(async (req) => {
     let contextBlock = '';
 
     if (crawlContext) {
-      const available = MAX_CHARS - 2000; // reserve space for system prompt + docs
+      const available = MAX_CHARS - 2000;
       contextBlock = crawlContext.length > available
         ? crawlContext.slice(0, available) + '\n\n[… context truncated to fit token limit]'
         : crawlContext;
@@ -63,10 +63,21 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 3. **Be specific**: Quote actual numbers, scores, grades, and findings from the data.
 4. **Be consultative**: Provide actionable recommendations when appropriate.
 5. **Cross-reference**: When multiple integrations provide related data, connect the dots to give a holistic picture.
+6. **File attachments**: When users attach files or images, analyze them in the context of the website audit. For images/screenshots, describe what you see and relate it to audit findings.
 
 If asked about something not covered by the available data, say so clearly rather than guessing.
 
 ${contextBlock ? `\n---\n\nHere is all the audit data gathered about this website:\n\n${contextBlock}` : '\nNo audit data is currently available for this session.'}`;
+
+    // Process messages - support multimodal content (images as base64 data URIs)
+    // Messages may have content as string or as array of content parts
+    const processedMessages = messages.map((msg: any) => {
+      // Already in multimodal format
+      if (Array.isArray(msg.content)) {
+        return msg;
+      }
+      return msg;
+    });
 
     console.log(`[knowledge-chat] Context length: ${contextBlock.length} chars (~${Math.round(contextBlock.length / 4)} tokens), Messages: ${messages.length}`);
 
@@ -80,7 +91,7 @@ ${contextBlock ? `\n---\n\nHere is all the audit data gathered about this websit
         model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
-          ...messages,
+          ...processedMessages,
         ],
         stream: true,
       }),
