@@ -2,14 +2,26 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
-import { type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[] };
 
@@ -33,6 +45,8 @@ type Props = {
   pages?: PageData[];
   selectedModel: string;
   reasoning: ReasoningEffort;
+  onModelChange: (model: string) => void;
+  onReasoningChange: (reasoning: ReasoningEffort) => void;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
@@ -92,13 +106,15 @@ function detectSources(text: string): string[] {
 
 // countSources removed — no longer displayed (RAG replaces full-context stats)
 
-export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
@@ -456,34 +472,114 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
 
       {/* Input area */}
       <div className="border-t border-border pt-3 px-1">
-        <ChatFileUpload
-          attachments={attachments}
-          setAttachments={setAttachments}
+        {/* Attachment previews */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-1 pb-2">
+            {attachments.map((att, i) => (
+              <Badge
+                key={`${att.name}-${i}`}
+                variant="secondary"
+                className="gap-1 pl-1.5 pr-1 py-0.5 text-xs font-normal max-w-[200px]"
+              >
+                <FileText className="h-3 w-3 shrink-0" />
+                <span className="truncate">{att.name}</span>
+                {att.parsing ? (
+                  <Loader2 className="h-3 w-3 animate-spin shrink-0 ml-0.5" />
+                ) : (
+                  <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:text-destructive shrink-0">
+                    <span className="text-xs">×</span>
+                  </button>
+                )}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Textarea */}
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a follow-up..."
+          className="min-h-[44px] max-h-[120px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 px-1"
+          rows={1}
           disabled={isStreaming}
         />
-        <div className="flex gap-1 items-end">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={attachments.length > 0 ? "Add a message about these files..." : "Ask about this website's audit data..."}
-            className="min-h-[44px] max-h-[120px] resize-none text-sm"
-            rows={1}
+
+        {/* Toolbar row */}
+        <div className="flex items-center gap-1 pt-1 pb-1">
+          {/* + Upload button */}
+          <ChatFileUpload
+            attachments={attachments}
+            setAttachments={setAttachments}
             disabled={isStreaming}
           />
-          <Button
-            size="icon"
-            onClick={() => handleSend()}
-            disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
-            className="shrink-0 h-[44px] w-[44px]"
-          >
-            {isStreaming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+
+          {/* Sources selector */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs font-normal gap-1.5 rounded-full"
+                disabled={isStreaming}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Sources
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-44 p-2" align="start">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5">
+                  <Checkbox
+                    checked={searchSources.documents}
+                    onCheckedChange={(checked) =>
+                      setSearchSources(prev => ({ ...prev, documents: !!checked }))
+                    }
+                  />
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  Documents
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5">
+                  <Checkbox
+                    checked={searchSources.web}
+                    onCheckedChange={(checked) =>
+                      setSearchSources(prev => ({ ...prev, web: !!checked }))
+                    }
+                  />
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  Web
+                </label>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Model selector */}
+          <ChatModelSelector
+            model={selectedModel}
+            reasoning={reasoning}
+            onModelChange={onModelChange}
+            onReasoningChange={onReasoningChange}
+            disabled={isStreaming}
+          />
+
+          {/* Send button - pushed to the right */}
+          <div className="ml-auto">
+            <Button
+              size="icon"
+              onClick={() => handleSend()}
+              disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
+              className="shrink-0 h-8 w-8 rounded-full"
+            >
+              {isStreaming ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

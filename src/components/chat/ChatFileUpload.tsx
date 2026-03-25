@@ -1,9 +1,15 @@
 import { useRef, useState } from 'react';
-import { Paperclip, X, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Plus, X, FileText, Image as ImageIcon, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export type ChatAttachment = {
   name: string;
@@ -137,49 +143,28 @@ export function ChatFileUpload({ attachments, setAttachments, disabled }: Props)
         }}
       />
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className="shrink-0 h-[44px] w-[44px] text-muted-foreground hover:text-foreground"
-        onClick={() => inputRef.current?.click()}
-        disabled={disabled || parsing}
-        title="Attach files"
-      >
-        {parsing ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Paperclip className="h-4 w-4" />
-        )}
-      </Button>
-
-      {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-1 pb-2">
-          {attachments.map((att, i) => (
-            <Badge
-              key={`${att.name}-${i}`}
-              variant="secondary"
-              className="gap-1 pl-1.5 pr-1 py-0.5 text-xs font-normal max-w-[200px]"
-            >
-              {att.type === 'image' ? (
-                <ImageIcon className="h-3 w-3 shrink-0" />
-              ) : (
-                <FileText className="h-3 w-3 shrink-0" />
-              )}
-              <span className="truncate">{att.name}</span>
-              {att.parsing ? (
-                <Loader2 className="h-3 w-3 animate-spin shrink-0 ml-0.5" />
-              ) : (
-                <button
-                  onClick={() => removeAttachment(i)}
-                  className="ml-0.5 hover:text-destructive shrink-0"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </Badge>
-          ))}
-        </div>
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="shrink-0 h-7 w-7 rounded-full"
+            disabled={disabled || parsing}
+          >
+            {parsing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-44">
+          <DropdownMenuItem onClick={() => inputRef.current?.click()} className="gap-2">
+            <Upload className="h-4 w-4" />
+            Upload files
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 }
