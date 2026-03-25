@@ -10,6 +10,7 @@ import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { ingestChatUploads } from '@/lib/ragIngest';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,7 @@ type Props = {
   reasoning: ReasoningEffort;
   onModelChange: (model: string) => void;
   onReasoningChange: (reasoning: ReasoningEffort) => void;
+  onDocumentsChanged?: () => void;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
