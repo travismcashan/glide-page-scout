@@ -302,11 +302,15 @@ serve(async (req) => {
     const contextBlock = buildContextBlock(crawlContext, documents);
     const systemPrompt = buildSystemPrompt(contextBlock);
     const isClaudeModel = model && model.startsWith('claude-');
+    const isPerplexityModel = model && model.startsWith('perplexity-');
+    const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
-    console.log(`[knowledge-chat] Provider: ${isClaudeModel ? 'Anthropic' : 'Gateway'}, Model: ${model || 'default'}, Reasoning: ${reasoning || 'none'}, Context: ${contextBlock.length} chars, Messages: ${messages.length}`);
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Reasoning: ${reasoning || 'none'}, Context: ${contextBlock.length} chars, Messages: ${messages.length}`);
 
     if (isClaudeModel) {
       return await handleClaudeRequest(model, messages, systemPrompt, reasoning);
+    } else if (isPerplexityModel) {
+      return await handlePerplexityRequest(model, messages, systemPrompt);
     } else {
       return await handleGatewayRequest(model || 'google/gemini-3-flash-preview', messages, systemPrompt, reasoning);
     }
