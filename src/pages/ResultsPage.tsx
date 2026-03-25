@@ -165,6 +165,7 @@ export default function ResultsPage() {
   const [chatModel, setChatModel] = useState('google/gemini-3-flash-preview');
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
+  const ragIngestTriggeredRef = useRef(false);
   const [activeTab, setActiveTab] = useState('raw-data');
   const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
