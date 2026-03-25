@@ -338,9 +338,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ wappalyzer_data: { grouped: result.grouped, totalCount: result.totalCount, social: result.social } } as any).eq('id', session.id);
         clearError('wappalyzer');
         fetchData();
-      } else { setWappalyzerFailed(true); setError('wappalyzer', result.error || 'Wappalyzer returned an error'); }
+      } else { const msg = result.error || 'Wappalyzer returned an error'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); }
       setWappalyzerLoading(false);
-    }).catch((e) => { setWappalyzerFailed(true); setError('wappalyzer', e?.message || 'Wappalyzer request failed'); setWappalyzerLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Wappalyzer request failed'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); setWappalyzerLoading(false); });
   }, [session, wappalyzerLoading, wappalyzerFailed, fetchData, pauseVersion]);
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
