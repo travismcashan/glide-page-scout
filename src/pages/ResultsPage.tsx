@@ -1332,32 +1332,8 @@ export default function ResultsPage() {
             <div className="flex items-center gap-2 pb-2 no-print">
               {activeTab === 'raw-data' && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1 px-2"
-                    onClick={() => {
-                      const url = new URL(window.location.href);
-                      url.searchParams.set('view', 'shared');
-                      navigator.clipboard.writeText(url.toString());
-                      toast.success('View-only link copied to clipboard');
-                    }}
-                  >
-                    <Share2 className="h-3.5 w-3.5" />
-                    Share
-                  </Button>
                   {!isSharedView && (
                     <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 px-2"
-                        onClick={() => setAllCollapsed(!allCollapsed)}
-                        title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
-                      >
-                        {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5" /> : <ChevronsDownUp className="h-3.5 w-3.5" />}
-                        {allCollapsed ? 'Expand All' : 'Collapse All'}
-                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="sm" className="gap-1 px-2" disabled={rerunningAll}>
@@ -1387,6 +1363,16 @@ export default function ResultsPage() {
                       >
                         <Eye className="h-3.5 w-3.5" />
                         {showAllIntegrations ? 'Active Only' : 'Show All'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 px-2"
+                        onClick={() => setAllCollapsed(!allCollapsed)}
+                        title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+                      >
+                        {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5" /> : <ChevronsDownUp className="h-3.5 w-3.5" />}
+                        {allCollapsed ? 'Expand All' : 'Collapse All'}
                       </Button>
                     </>
                   )}
@@ -1436,6 +1422,20 @@ export default function ResultsPage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 px-2 ml-auto"
+                    onClick={() => {
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('view', 'shared');
+                      navigator.clipboard.writeText(url.toString());
+                      toast.success('View-only link copied to clipboard');
+                    }}
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    Share
+                  </Button>
                 </>
               )}
               {activeTab === 'ai-research' && !isSharedView && (
