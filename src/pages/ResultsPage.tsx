@@ -616,8 +616,10 @@ export default function ResultsPage() {
         // 1. Start the scan
         const startResult = await ssllabsApi.start(session.domain);
         if (!startResult.success) {
+          const msg = startResult.error || 'SSL Labs start failed';
           setSsllabsFailed(true);
-          setError('ssllabs', startResult.error || 'SSL Labs start failed');
+          setError('ssllabs', msg);
+          persistFailure('ssllabs_data', msg);
           setSsllabsLoading(false);
           return;
         }
@@ -636,8 +638,10 @@ export default function ResultsPage() {
           await new Promise(r => setTimeout(r, 10000));
           const pollResult = await ssllabsApi.poll(session.domain);
           if (!pollResult.success) {
+            const msg = pollResult.error || 'SSL Labs poll error';
             setSsllabsFailed(true);
-            setError('ssllabs', pollResult.error || 'SSL Labs poll error');
+            setError('ssllabs', msg);
+            persistFailure('ssllabs_data', msg);
             setSsllabsLoading(false);
             return;
           }
@@ -649,20 +653,26 @@ export default function ResultsPage() {
             return;
           }
           if (pollResult.status === 'ERROR') {
+            const msg = 'SSL Labs assessment failed';
             setSsllabsFailed(true);
-            setError('ssllabs', 'SSL Labs assessment failed');
+            setError('ssllabs', msg);
+            persistFailure('ssllabs_data', msg);
             setSsllabsLoading(false);
             return;
           }
           // Otherwise keep polling (DNS, IN_PROGRESS, OVERLOADED)
         }
         // Timed out after 5 min
+        const msg = 'SSL Labs scan timed out after 5 minutes — try again later';
         setSsllabsFailed(true);
-        setError('ssllabs', 'SSL Labs scan timed out after 5 minutes — try again later');
+        setError('ssllabs', msg);
+        persistFailure('ssllabs_data', msg);
         setSsllabsLoading(false);
       } catch (e: any) {
+        const msg = e?.message || 'SSL Labs request failed';
         setSsllabsFailed(true);
-        setError('ssllabs', e?.message || 'SSL Labs request failed');
+        setError('ssllabs', msg);
+        persistFailure('ssllabs_data', msg);
         setSsllabsLoading(false);
       }
     })();
