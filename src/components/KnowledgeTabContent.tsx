@@ -14,7 +14,7 @@ type Props = {
   setChatModel: (m: string) => void;
   setChatReasoning: (r: ReasoningEffort) => void;
   isSectionCollapsed: (id: string) => boolean;
-  toggleSection: (id: string) => void;
+  toggleSection: (id: string, collapsed: boolean) => void;
   allCollapsed: boolean;
 };
 
