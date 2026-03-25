@@ -421,7 +421,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -430,13 +430,46 @@ serve(async (req) => {
       );
     }
 
-    const contextBlock = buildContextBlock(crawlContext, documents);
-    const systemPrompt = buildSystemPrompt(contextBlock);
+    // Extract the latest user message text for RAG query
+    const lastUserMsg = [...messages].reverse().find((m: any) => m.role === 'user');
+    const queryText = lastUserMsg
+      ? (typeof lastUserMsg.content === 'string'
+          ? lastUserMsg.content
+          : Array.isArray(lastUserMsg.content)
+            ? lastUserMsg.content.filter((p: any) => p.type === 'text').map((p: any) => p.text).join(' ')
+            : '')
+      : '';
+
+    // Hybrid context: RAG chunks (focused) + legacy crawlContext (fallback)
+    let ragContext = '';
+    if (session_id && queryText) {
+      ragContext = await ragSearch(session_id, queryText);
+    }
+
+    const legacyContext = buildContextBlock(crawlContext, documents);
+
+    // Combine: RAG chunks first (most relevant), then legacy context
+    let combinedContext = '';
+    if (ragContext) {
+      combinedContext = ragContext;
+      // Add truncated legacy context as supplementary background
+      const remainingBudget = 300_000 - ragContext.length;
+      if (legacyContext && remainingBudget > 10000) {
+        combinedContext += '\n\n--- FULL AUDIT DATA (supplementary) ---\n\n' +
+          (legacyContext.length > remainingBudget
+            ? legacyContext.slice(0, remainingBudget) + '\n\n[… truncated]'
+            : legacyContext);
+      }
+    } else {
+      combinedContext = legacyContext;
+    }
+
+    const systemPrompt = buildSystemPrompt(combinedContext);
     const isClaudeModel = model && model.startsWith('claude-');
     const isPerplexityModel = model && model.startsWith('perplexity-');
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Reasoning: ${reasoning || 'none'}, Context: ${contextBlock.length} chars, Messages: ${messages.length}`);
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Reasoning: ${reasoning || 'none'}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Legacy: ${legacyContext.length} chars, Messages: ${messages.length}`);
 
     if (isClaudeModel) {
       return await handleClaudeRequest(model, messages, systemPrompt, reasoning);
