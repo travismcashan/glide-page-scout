@@ -5,17 +5,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Map frontend Claude IDs to actual Anthropic model identifiers
-const CLAUDE_MODELS: Record<string, string> = {
-  'claude-haiku': 'claude-haiku-4-20250414',
-  'claude-sonnet': 'claude-sonnet-4-20250514',
-  'claude-opus': 'claude-opus-4-20250514',
+// Map frontend Claude IDs to actual Anthropic model identifiers and their max output tokens
+const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
+  'claude-haiku': { model: 'claude-haiku-4-5-20251001', maxOutput: 64000 },
+  'claude-sonnet': { model: 'claude-sonnet-4-20250514', maxOutput: 64000 },
+  'claude-opus': { model: 'claude-opus-4-20250514', maxOutput: 32000 },
 };
 
-// Claude extended thinking: on/off with a generous budget
-const CLAUDE_THINKING_BUDGETS: Record<string, number> = {
-  high: 32768,
-};
+// Claude extended thinking budget (used when reasoning=high)
+const CLAUDE_THINKING_BUDGET = 16384;
 
 const ALLOWED_GATEWAY_MODELS = [
   'google/gemini-2.5-flash-lite',
