@@ -603,19 +603,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <div className="max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
-                      {msg.thinking && (
-                        <ThinkingBlock thinking={msg.thinking} isStreaming={isStreaming && i === messages.length - 1 && !msg.content} />
-                      )}
-                      <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
-                        <div className="chat-prose max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
-                        </div>
-                      </Suspense>
-                      {isStreaming && i === messages.length - 1 && (
-                        <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
-                      )}
-                    </div>
+                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} />
                   )}
                 </div>
                 {/* Source badges for assistant messages */}
