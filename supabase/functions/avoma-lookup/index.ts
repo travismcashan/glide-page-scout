@@ -180,7 +180,7 @@ serve(async (req) => {
     // Paginate up to 5 more pages
     let nextUrl = data.next || null;
     let pageCount = 1;
-    while (nextUrl && pageCount < 5) {
+    while (nextUrl && pageCount < 15) {
       pageCount++;
       try {
         const pageRes = await fetch(nextUrl, {
