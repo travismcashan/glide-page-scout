@@ -289,24 +289,26 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
       loadingText="Mapping site URLs..."
       error={!!error}
       errorText={error || undefined}
-      headerExtra={
-        <div className="flex items-center gap-2">
+      titleExtra={
+        <>
           {discoveryDone && !error && <Badge variant="secondary">{allUrls.length} pages</Badge>}
           {isMapping && discoveryDone && <Badge variant="outline">Refreshing…</Badge>}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            disabled={isMapping}
-            onClick={() => {
-              setError(null);
-              startDiscovery();
-            }}
-            title="Re-discover URLs"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isMapping ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
+        </>
+      }
+      headerExtra={
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={isMapping}
+          onClick={() => {
+            setError(null);
+            startDiscovery();
+          }}
+          title="Re-discover URLs"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isMapping ? 'animate-spin' : ''}`} />
+        </Button>
       }
     >
       {discoveryDone && !error ? (
