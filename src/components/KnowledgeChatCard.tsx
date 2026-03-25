@@ -365,24 +365,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
 
   return (
     <div className="flex flex-col h-[600px]">
-      {/* Context stats */}
+      {/* Chat header */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3 px-1">
         <BookOpen className="h-3.5 w-3.5" />
-        <span>
-          <strong className="text-foreground">{sourceCount}</strong> integration sources loaded
-        </span>
-        <span>·</span>
-        <span>
-          <strong className="text-foreground">{(contextChars / 1000).toFixed(0)}K</strong> chars of context
-        </span>
-        {pages && pages.length > 0 && (
-          <>
-            <span>·</span>
-            <span>
-              <strong className="text-foreground">{pages.length}</strong> scraped pages
-            </span>
-          </>
-        )}
+        <span>RAG-powered · answers grounded in your indexed documents</span>
         {messages.length > 0 && (
           <Button
             variant="ghost"
