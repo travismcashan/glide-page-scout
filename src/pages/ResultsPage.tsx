@@ -1945,6 +1945,18 @@ export default function ResultsPage() {
               )}
             </TabsContent>
           )}
+
+          <TabsContent value="knowledge" className="mt-8">
+            {session && (
+              <SectionCard
+                sectionId="knowledge-chat" persistedCollapsed={isSectionCollapsed("knowledge-chat")} onCollapseChange={toggleSection} title="Knowledge Chat"
+                icon={<BookOpen className="h-5 w-5 text-foreground" />}
+                collapsed={allCollapsed}
+              >
+                <KnowledgeChatCard session={session} pages={scrapedPages} />
+              </SectionCard>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
     </div>
