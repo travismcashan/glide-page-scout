@@ -89,19 +89,7 @@ function detectSources(text: string): string[] {
   return found;
 }
 
-function countSources(session: SessionData): number {
-  const keys = [
-    'avoma_data', 'apollo_data', 'ocean_data', 'hubspot_data',
-    'semrush_data', 'psi_data', 'crux_data',
-    'builtwith_data', 'wappalyzer_data', 'detectzestack_data', 'tech_analysis_data',
-    'wave_data', 'observatory_data', 'ssllabs_data',
-    'httpstatus_data', 'linkcheck_data', 'w3c_data', 'schema_data',
-    'readable_data', 'carbon_data', 'yellowlab_data',
-    'nav_structure', 'content_types_data', 'sitemap_data',
-    'forms_data', 'page_tags', 'deep_research_data', 'observations_data',
-  ];
-  return keys.filter(k => !!session[k]).length + (session.gtmetrix_grade ? 1 : 0);
-}
+// countSources removed — no longer displayed (RAG replaces full-context stats)
 
 export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -115,8 +103,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
   const loadedSessionRef = useRef<string | null>(null);
 
   const crawlContext = buildCrawlContext(session, pages);
-  const sourceCount = countSources(session);
-  const contextChars = crawlContext.length;
 
   // Load chat history from DB
   useEffect(() => {
@@ -365,24 +351,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
 
   return (
     <div className="flex flex-col h-[600px]">
-      {/* Context stats */}
+      {/* Chat header */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3 px-1">
         <BookOpen className="h-3.5 w-3.5" />
-        <span>
-          <strong className="text-foreground">{sourceCount}</strong> integration sources loaded
-        </span>
-        <span>·</span>
-        <span>
-          <strong className="text-foreground">{(contextChars / 1000).toFixed(0)}K</strong> chars of context
-        </span>
-        {pages && pages.length > 0 && (
-          <>
-            <span>·</span>
-            <span>
-              <strong className="text-foreground">{pages.length}</strong> scraped pages
-            </span>
-          </>
-        )}
+        <span>RAG-powered · answers grounded in your indexed documents</span>
         {messages.length > 0 && (
           <Button
             variant="ghost"
