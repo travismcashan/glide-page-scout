@@ -2137,24 +2137,6 @@ export default function ResultsPage() {
                 toggleSection={toggleSection}
                 allCollapsed={allCollapsed}
               />
-
-                {/* Chat */}
-                <SectionCard
-                  sectionId="knowledge-chat" persistedCollapsed={isSectionCollapsed("knowledge-chat")} onCollapseChange={toggleSection} title="Knowledge Chat"
-                  icon={<BookOpen className="h-5 w-5 text-foreground" />}
-                  collapsed={allCollapsed}
-                  headerExtra={
-                    <ChatModelSelector
-                      model={chatModel}
-                      reasoning={chatReasoning}
-                      onModelChange={setChatModel}
-                      onReasoningChange={setChatReasoning}
-                    />
-                  }
-                >
-                  <KnowledgeChatCard session={session} pages={scrapedPages} selectedModel={chatModel} reasoning={chatReasoning} />
-                </SectionCard>
-              </div>
             )}
           </TabsContent>
         </Tabs>
