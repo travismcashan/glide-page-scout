@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, SlidersHorizontal, Copy, Check } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, SlidersHorizontal, Copy, Check, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -150,8 +150,11 @@ function UserBubbleContent({ content, attachmentNames }: { content: string; atta
   );
 }
 
-function UserBubbleWrapper({ content, attachmentNames }: { content: string; attachmentNames?: string[] }) {
+function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { content: string; attachmentNames?: string[]; onEdit: (newText: string) => void; disabled?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(content);
+  const editRef = useRef<HTMLTextAreaElement>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -159,15 +162,75 @@ function UserBubbleWrapper({ content, attachmentNames }: { content: string; atta
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const startEdit = () => {
+    setEditText(content);
+    setEditing(true);
+    setTimeout(() => editRef.current?.focus(), 50);
+  };
+
+  const submitEdit = () => {
+    const trimmed = editText.trim();
+    if (!trimmed || trimmed === content) {
+      setEditing(false);
+      return;
+    }
+    setEditing(false);
+    onEdit(trimmed);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitEdit();
+    }
+    if (e.key === 'Escape') {
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="max-w-[85%] w-full">
+        <Textarea
+          ref={editRef}
+          value={editText}
+          onChange={e => setEditText(e.target.value)}
+          onKeyDown={handleEditKeyDown}
+          className="min-h-[60px] text-sm"
+          rows={2}
+        />
+        <div className="flex gap-1.5 mt-1.5 justify-end">
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setEditing(false)}>
+            Cancel
+          </Button>
+          <Button size="sm" className="h-6 px-2 text-xs" onClick={submitEdit}>
+            Send
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="group relative max-w-[85%]">
-      <button
-        onClick={handleCopy}
-        className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground"
-        title="Copy prompt"
-      >
-        {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
-      </button>
+      <div className="absolute -left-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+        {!disabled && (
+          <button
+            onClick={startEdit}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+            title="Edit prompt"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <button
+          onClick={handleCopy}
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+          title="Copy prompt"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+      </div>
       <div className="bg-primary text-primary-foreground rounded-lg rounded-tr-none px-4 py-3 text-sm">
         <UserBubbleContent content={content} attachmentNames={attachmentNames} />
       </div>
@@ -429,6 +492,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     }
   };
 
+  const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
+    if (isStreaming) return;
+    // Truncate conversation to just before this message
+    const truncated = messages.slice(0, messageIndex);
+    setMessages(truncated);
+    // Delete old messages from DB and re-save truncated history
+    await supabase.from('knowledge_messages').delete().eq('session_id', session.id);
+    for (const m of truncated) {
+      await saveMessage(m.role, typeof m.content === 'string' ? m.content : '', m.sources || []);
+    }
+    // Send the edited message as a new message
+    handleSend(newText);
+  }, [messages, isStreaming, session.id, handleSend]);
+
   const clearChat = async () => {
     setMessages([]);
     setInput('');
@@ -491,7 +568,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <div key={i}>
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'user' ? (
-                    <UserBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} attachmentNames={msg.attachmentNames} />
+                    <UserBubbleWrapper
+                      content={typeof msg.content === 'string' ? msg.content : ''}
+                      attachmentNames={msg.attachmentNames}
+                      onEdit={(newText) => handleEditMessage(i, newText)}
+                      disabled={isStreaming}
+                    />
                   ) : (
                     <div className="max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
                       <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
