@@ -21,6 +21,9 @@ type KnowledgeDocument = {
 type Props = {
   sessionId: string;
   onDocumentCountChange?: (count: number) => void;
+  refreshKey?: number;
+  onIngestIntegrations?: () => void;
+  ingesting?: boolean;
 };
 
 const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
@@ -38,7 +41,7 @@ const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; 
   error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
 };
 
-export function DocumentLibrary({ sessionId, onDocumentCountChange }: Props) {
+export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, onIngestIntegrations, ingesting }: Props) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -62,7 +65,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange }: Props) {
 
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+  }, [fetchDocuments, refreshKey]);
 
   // Poll for processing documents
   useEffect(() => {
@@ -181,6 +184,22 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange }: Props) {
           )}
           {uploading ? 'Processing...' : 'Upload Documents'}
         </Button>
+        {onIngestIntegrations && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-1.5"
+            onClick={onIngestIntegrations}
+            disabled={ingesting || uploading}
+          >
+            {ingesting ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Database className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {ingesting ? 'Indexing...' : 'Index Integration Data'}
+          </Button>
+        )}
       </div>
 
       {/* Document list */}
