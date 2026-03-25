@@ -424,10 +424,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <div key={i}>
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-[85%] rounded-lg px-4 py-3 text-sm ${
+                    className={`max-w-[85%] px-4 py-3 text-sm ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-foreground'
+                        ? 'bg-primary text-primary-foreground rounded-lg rounded-tr-none'
+                        : 'rounded-lg text-foreground'
                     }`}
                   >
                     {msg.role === 'assistant' ? (
