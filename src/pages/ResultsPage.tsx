@@ -399,8 +399,11 @@ export default function ResultsPage() {
   // Ocean.io
   const [oceanLoading, setOceanLoading] = useState(false);
   const [oceanFailed, setOceanFailed] = useState(false);
+  const oceanTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
+    if (oceanTriggeredRef.current) return;
+    oceanTriggeredRef.current = true;
     setOceanLoading(true);
     oceanApi.enrich(session.domain).then(async (result) => {
       if (result.success) {
@@ -414,8 +417,11 @@ export default function ResultsPage() {
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
   const [avomaFailed, setAvomaFailed] = useState(false);
+  const avomaTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
+    if (avomaTriggeredRef.current) return;
+    avomaTriggeredRef.current = true;
     setAvomaLoading(true);
     // Prefer Apollo contact email for Avoma search, fallback to domain
     const apolloEmail = session.apollo_data?.email;
