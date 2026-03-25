@@ -153,6 +153,7 @@ export default function ResultsPage() {
   // Timing tracking per integration
   const integrationStartTimes = useRef<Record<string, number>>({});
   const [integrationDurations, setIntegrationDurations] = useState<Record<string, number>>({});
+  const [integrationTimestamps, setIntegrationTimestamps] = useState<Record<string, string>>({});
   // Error tracking per integration
   const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
   const [pauseVersion, setPauseVersion] = useState(0);
@@ -173,9 +174,12 @@ export default function ResultsPage() {
     if (sessionRes.data) {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
-      // Restore persisted integration durations
+      // Restore persisted integration durations & timestamps
       if (sessionData.integration_durations && typeof sessionData.integration_durations === 'object') {
         setIntegrationDurations(prev => ({ ...sessionData.integration_durations, ...prev }));
+      }
+      if (sessionData.integration_timestamps && typeof sessionData.integration_timestamps === 'object') {
+        setIntegrationTimestamps(prev => ({ ...sessionData.integration_timestamps, ...prev }));
       }
     }
     if (pagesRes.data) {
@@ -1098,11 +1102,18 @@ export default function ResultsPage() {
         const start = integrationStartTimes.current[key];
         if (start) {
           const duration = Math.round((Date.now() - start) / 1000);
+          const timestamp = new Date().toISOString();
           setIntegrationDurations(d => {
             const next = { ...d, [key]: duration };
-            // Persist to DB
             if (sessionId) {
               supabase.from('crawl_sessions').update({ integration_durations: next } as any).eq('id', sessionId).then();
+            }
+            return next;
+          });
+          setIntegrationTimestamps(t => {
+            const next = { ...t, [key]: timestamp };
+            if (sessionId) {
+              supabase.from('crawl_sessions').update({ integration_timestamps: next } as any).eq('id', sessionId).then();
             }
             return next;
           });
@@ -1157,8 +1168,13 @@ export default function ResultsPage() {
     if (isSharedView) return null;
     return (
       <div className="flex items-center gap-1">
+        {integrationTimestamps[key] && !isLoading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps[key]), 'MMM d, yyyy h:mm a')}`}>
+            {format(new Date(integrationTimestamps[key]), 'MMM d, h:mm a')}
+          </span>
+        )}
         {integrationDurations[key] != null && !isLoading && (
-          <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]} seconds</span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations[key]}s)</span>
         )}
         <Button
           variant="ghost"
