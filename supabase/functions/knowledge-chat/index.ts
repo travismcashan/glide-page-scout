@@ -473,7 +473,9 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources } = await req.json();
+    const useDocuments = sources?.documents !== false; // default true
+    const useWeb = sources?.web === true; // default false
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
