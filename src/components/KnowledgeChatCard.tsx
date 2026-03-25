@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
-import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 
 type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[] };
 
