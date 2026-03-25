@@ -108,16 +108,16 @@ export async function autoIngestIntegrations(
 
     if (!response.ok) {
       console.error('Auto-ingest failed:', await response.text());
-      return { ingested: 0, skipped: existingKeys.size };
+      return { ingested: 0, skipped: existingMap.size };
     }
 
     const result = await response.json();
     const readyCount = result.results?.filter((r: any) => r.status === 'ready').length || 0;
     console.log(`[auto-ingest] Ingested ${readyCount} integration documents for session ${sessionId}`);
-    return { ingested: readyCount, skipped: existingKeys.size };
+    return { ingested: readyCount, skipped: existingMap.size };
   } catch (err) {
     console.error('Auto-ingest error:', err);
-    return { ingested: 0, skipped: existingKeys.size };
+    return { ingested: 0, skipped: existingMap.size };
   }
 }
 
