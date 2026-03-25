@@ -4,36 +4,16 @@ import { toast } from 'sonner';
 import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
+import { supabase } from '@/integrations/supabase/client';
 
-type Message = { role: 'user' | 'assistant'; content: string };
+type Message = { role: 'user' | 'assistant'; content: string; sources?: string[] };
 
 type SessionData = {
   id: string;
   domain: string;
   base_url: string;
-  avoma_data?: any;
-  builtwith_data?: any;
-  semrush_data?: any;
-  psi_data?: any;
-  wappalyzer_data?: any;
-  ocean_data?: any;
-  carbon_data?: any;
-  wave_data?: any;
-  observatory_data?: any;
-  readable_data?: any;
-  crux_data?: any;
-  ssllabs_data?: any;
-  httpstatus_data?: any;
-  linkcheck_data?: any;
-  w3c_data?: any;
-  schema_data?: any;
-  yellowlab_data?: any;
-  gtmetrix_grade?: string | null;
-  gtmetrix_scores?: any;
-  apollo_data?: any;
   [key: string]: any;
 };
 
@@ -61,6 +41,50 @@ const SUGGESTED_QUESTIONS = [
   "Give me a high-level executive summary of all findings.",
 ];
 
+const SOURCE_LABELS: Record<string, string> = {
+  semrush: 'SEMrush', psi: 'PageSpeed', crux: 'CrUX', builtwith: 'BuiltWith',
+  wappalyzer: 'Wappalyzer', detectzestack: 'DetectZeStack', wave: 'WAVE',
+  observatory: 'Observatory', ssllabs: 'SSL Labs', httpstatus: 'HTTP Status',
+  linkcheck: 'Link Checker', w3c: 'W3C', schema: 'Schema', readable: 'Readable',
+  carbon: 'Carbon', yellowlab: 'Yellow Lab', gtmetrix: 'GTmetrix',
+  avoma: 'Avoma', apollo: 'Apollo', ocean: 'Ocean.io', hubspot: 'HubSpot',
+  nav: 'Navigation', sitemap: 'Sitemap', forms: 'Forms', content_types: 'Content Types',
+  tech_analysis: 'Tech Analysis', pages: 'Scraped Pages',
+};
+
+function detectSources(text: string): string[] {
+  const lower = text.toLowerCase();
+  const found: string[] = [];
+  const patterns: [string, string[]][] = [
+    ['semrush', ['semrush']],
+    ['psi', ['pagespeed', 'psi', 'lighthouse']],
+    ['crux', ['crux', 'chrome ux']],
+    ['builtwith', ['builtwith']],
+    ['wappalyzer', ['wappalyzer']],
+    ['detectzestack', ['detectzestack', 'zestack']],
+    ['wave', ['wave accessibility', 'wave scan', 'wave found', 'wave report']],
+    ['observatory', ['observatory', 'mozilla observatory']],
+    ['ssllabs', ['ssl labs', 'ssllabs', 'ssl grade']],
+    ['httpstatus', ['http status', 'httpstatus', 'redirect chain']],
+    ['linkcheck', ['link checker', 'broken link']],
+    ['w3c', ['w3c valid']],
+    ['schema', ['schema valid', 'structured data', 'json-ld']],
+    ['readable', ['readabil', 'flesch']],
+    ['carbon', ['website carbon', 'carbon footprint']],
+    ['yellowlab', ['yellow lab']],
+    ['gtmetrix', ['gtmetrix']],
+    ['avoma', ['avoma']],
+    ['apollo', ['apollo']],
+    ['ocean', ['ocean.io', 'ocean data']],
+    ['hubspot', ['hubspot']],
+    ['tech_analysis', ['tech analysis', 'technology analysis']],
+  ];
+  for (const [key, terms] of patterns) {
+    if (terms.some(t => lower.includes(t))) found.push(key);
+  }
+  return found;
+}
+
 function countSources(session: SessionData): number {
   const keys = [
     'avoma_data', 'apollo_data', 'ocean_data', 'semrush_data', 'psi_data',
@@ -75,19 +99,49 @@ export function KnowledgeChatCard({ session, pages }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const loadedSessionRef = useRef<string | null>(null);
 
   const crawlContext = buildCrawlContext(session, pages);
   const sourceCount = countSources(session);
   const contextChars = crawlContext.length;
+
+  // Load chat history from DB
+  useEffect(() => {
+    if (loadedSessionRef.current === session.id) return;
+    loadedSessionRef.current = session.id;
+    setLoadingHistory(true);
+    supabase
+      .from('knowledge_messages')
+      .select('role, content, sources')
+      .eq('session_id', session.id)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setMessages(data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content, sources: m.sources || [] })));
+        }
+        setLoadingHistory(false);
+      });
+  }, [session.id]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isThinking]);
+
+  const saveMessage = async (role: string, content: string, sources: string[] = []) => {
+    await supabase.from('knowledge_messages').insert({
+      session_id: session.id,
+      role,
+      content,
+      sources,
+    } as any);
+  };
 
   const handleSend = useCallback(async (text?: string) => {
     const messageText = text || input.trim();
@@ -98,6 +152,10 @@ export function KnowledgeChatCard({ session, pages }: Props) {
     setMessages(newMessages);
     setInput('');
     setIsStreaming(true);
+    setIsThinking(true);
+
+    // Save user message to DB
+    saveMessage('user', messageText);
 
     let assistantContent = '';
 
@@ -109,7 +167,7 @@ export function KnowledgeChatCard({ session, pages }: Props) {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          messages: newMessages,
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           crawlContext,
         }),
       });
@@ -125,12 +183,14 @@ export function KnowledgeChatCard({ session, pages }: Props) {
           toast.error(errorMsg);
         }
         setIsStreaming(false);
+        setIsThinking(false);
         return;
       }
 
       if (!resp.body) {
         toast.error('No response stream');
         setIsStreaming(false);
+        setIsThinking(false);
         return;
       }
 
@@ -159,17 +219,17 @@ export function KnowledgeChatCard({ session, pages }: Props) {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
+              if (isThinking) setIsThinking(false);
               assistantContent += content;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
-                if (last?.role === 'assistant') {
+                if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
                   return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent } : m);
                 }
                 return [...prev, { role: 'assistant', content: assistantContent }];
               });
             }
           } catch {
-            // Partial JSON — put it back
             textBuffer = line + '\n' + textBuffer;
             break;
           }
@@ -201,13 +261,25 @@ export function KnowledgeChatCard({ session, pages }: Props) {
           } catch { /* ignore */ }
         }
       }
+
+      // Detect sources and save assistant message
+      const sources = detectSources(assistantContent);
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant') {
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, sources } : m);
+        }
+        return prev;
+      });
+      saveMessage('assistant', assistantContent, sources);
     } catch (e: any) {
       console.error('Knowledge chat error:', e);
       toast.error(e?.message || 'Failed to get response');
     }
 
     setIsStreaming(false);
-  }, [input, messages, isStreaming, crawlContext]);
+    setIsThinking(false);
+  }, [input, messages, isStreaming, crawlContext, session.id]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -216,10 +288,20 @@ export function KnowledgeChatCard({ session, pages }: Props) {
     }
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
     setMessages([]);
     setInput('');
+    await supabase.from('knowledge_messages').delete().eq('session_id', session.id);
   };
+
+  if (loadingHistory) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading chat history...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[600px]">
@@ -256,7 +338,7 @@ export function KnowledgeChatCard({ session, pages }: Props) {
 
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-1 pb-3">
-        {messages.length === 0 ? (
+        {messages.length === 0 && !isThinking ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="h-6 w-6 text-muted-foreground" />
@@ -279,33 +361,54 @@ export function KnowledgeChatCard({ session, pages }: Props) {
             </div>
           </div>
         ) : (
-          messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-lg px-4 py-3 text-sm ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}
-              >
-                {msg.role === 'assistant' ? (
-                  <Suspense fallback={<span>{msg.content}</span>}>
-                    <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                  </Suspense>
-                ) : (
-                  <span className="whitespace-pre-wrap">{msg.content}</span>
-                )}
-                {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
-                  <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
+          <>
+            {messages.map((msg, i) => (
+              <div key={i}>
+                <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[85%] rounded-lg px-4 py-3 text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-foreground'
+                    }`}
+                  >
+                    {msg.role === 'assistant' ? (
+                      <Suspense fallback={<span>{msg.content}</span>}>
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      </Suspense>
+                    ) : (
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                    )}
+                    {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
+                      <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
+                    )}
+                  </div>
+                </div>
+                {/* Source badges for assistant messages */}
+                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !(isStreaming && i === messages.length - 1) && (
+                  <div className="flex items-center gap-1.5 mt-1.5 ml-1 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground">Sources:</span>
+                    {msg.sources.map(s => (
+                      <Badge key={s} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                        {SOURCE_LABELS[s] || s}
+                      </Badge>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
-          ))
+            ))}
+            {/* Thinking indicator */}
+            {isThinking && (
+              <div className="flex justify-start">
+                <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Analyzing your data...</span>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
