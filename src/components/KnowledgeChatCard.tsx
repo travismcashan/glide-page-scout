@@ -603,9 +603,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             {/* Thinking indicator */}
             {isThinking && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-2">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Analyzing your data...</span>
+                <div className="flex items-center gap-2.5 px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
+                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
+                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">Thinking…</span>
                 </div>
               </div>
             )}
