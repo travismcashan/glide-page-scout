@@ -704,7 +704,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} />
+                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')} isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')} />
                   )}
                 </div>
                 {/* Source badges for assistant messages */}
