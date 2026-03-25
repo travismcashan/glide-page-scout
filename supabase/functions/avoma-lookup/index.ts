@@ -217,57 +217,58 @@ serve(async (req) => {
     console.log(`[avoma] Found ${matchedMeetings.length} meetings matching "${domainLower}" (email: ${emailCount}, name: ${nameCount}, subject: ${subjectCount})`);
 
 
-    // Enrich top 10 with PREVIEW transcripts (50 segments) and insights
-    const enriched = [];
-    for (const meeting of matchedMeetings.slice(0, 10)) {
+    // Enrich top 10 with PREVIEW transcripts (50 segments) and insights — in parallel
+    const toEnrich = matchedMeetings.slice(0, 10);
+    const enrichedResults = await Promise.all(toEnrich.map(async (meeting) => {
       let transcript = null;
       let insights = null;
 
-      if (meeting.transcriptReady && meeting.transcriptionUuid) {
-        try {
-          const tRes = await fetch(`https://api.avoma.com/v1/transcriptions/${meeting.transcriptionUuid}/`, {
-            headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}` },
-          });
-          if (tRes.ok) {
-            const tData = await tRes.json();
-            const allSentences = parseTranscript(tData);
-            console.log(`[avoma] Meeting ${meeting.uuid}: parsed ${allSentences.length} transcript segments`);
-            transcript = {
-              sentences: allSentences.slice(0, 50),
-              totalSentences: allSentences.length,
-              truncated: allSentences.length > 50,
-            };
-          } else {
-            const errText = await tRes.text();
-            console.error(`[avoma] Transcript fetch error for ${meeting.transcriptionUuid}: ${tRes.status}`);
-          }
-        } catch (e) {
-          console.error(`[avoma] Transcript fetch exception: ${e.message}`);
-        }
+      const [tResult, iResult] = await Promise.allSettled([
+        meeting.transcriptReady && meeting.transcriptionUuid
+          ? fetch(`https://api.avoma.com/v1/transcriptions/${meeting.transcriptionUuid}/`, {
+              headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}` },
+            }).then(async (r) => {
+              if (!r.ok) { await r.text(); return null; }
+              return r.json();
+            }).catch(() => null)
+          : Promise.resolve(null),
+        meeting.notesReady
+          ? fetch(`https://api.avoma.com/v1/meetings/${meeting.uuid}/insights/`, {
+              headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}` },
+            }).then(async (r) => {
+              if (!r.ok) { await r.text(); return null; }
+              return r.json();
+            }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+
+      const tData = tResult.status === 'fulfilled' ? tResult.value : null;
+      if (tData) {
+        const allSentences = parseTranscript(tData);
+        console.log(`[avoma] Meeting ${meeting.uuid}: parsed ${allSentences.length} transcript segments`);
+        transcript = {
+          sentences: allSentences.slice(0, 50),
+          totalSentences: allSentences.length,
+          truncated: allSentences.length > 50,
+        };
       }
 
-      if (meeting.notesReady) {
-        try {
-          const iRes = await fetch(`https://api.avoma.com/v1/meetings/${meeting.uuid}/insights/`, {
-            headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}` },
-          });
-          if (iRes.ok) {
-            const iData = await iRes.json();
-            insights = {
-              aiNotes: (iData.ai_notes || []).map((n: any) => ({ text: n.text, noteType: n.note_type })),
-              keywords: iData.keywords?.popular?.slice(0, 20) || [],
-              speakers: iData.speakers || [],
-            };
-          } else { await iRes.text(); }
-        } catch { /* skip */ }
+      const iData = iResult.status === 'fulfilled' ? iResult.value : null;
+      if (iData) {
+        insights = {
+          aiNotes: (iData.ai_notes || []).map((n: any) => ({ text: n.text, noteType: n.note_type })),
+          keywords: iData.keywords?.popular?.slice(0, 20) || [],
+          speakers: iData.speakers || [],
+        };
       }
 
-      enriched.push({ ...meeting, transcript, insights, matchReason: matchReasons.get(meeting.uuid) || 'unknown' });
-    }
+      return { ...meeting, transcript, insights, matchReason: matchReasons.get(meeting.uuid) || 'unknown' };
+    }));
 
-    for (const meeting of matchedMeetings.slice(10)) {
-      enriched.push({ ...meeting, transcript: null, insights: null, matchReason: matchReasons.get(meeting.uuid) || 'unknown' });
-    }
+    const enriched = [
+      ...enrichedResults,
+      ...matchedMeetings.slice(10).map(m => ({ ...m, transcript: null, insights: null, matchReason: matchReasons.get(m.uuid) || 'unknown' })),
+    ];
 
     return new Response(JSON.stringify({
       success: true,
