@@ -1233,10 +1233,18 @@ export default function ResultsPage() {
                 {session?.domain?.replace(/^www\./i, '')}
               </h1>
               {session?.created_at && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                  <Clock className="h-3 w-3" />
-                  {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
-                </span>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Created {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
+                  </span>
+                  {session?.updated_at && session.updated_at !== session.created_at && (
+                    <span className="flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3" />
+                      Updated {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             <Sheet>
