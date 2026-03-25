@@ -573,6 +573,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     }
   };
 
+  const handleSaveNote = useCallback(async (content: string) => {
+    try {
+      const noteName = `Chat Note – ${new Date().toLocaleString()}`;
+      const { data, error } = await supabase.functions.invoke('rag-ingest', {
+        body: {
+          session_id: session.id,
+          documents: [{ name: noteName, content, source_type: 'chat_note' }],
+        },
+      });
+      if (error) throw error;
+      toast.success('Saved to document library');
+      if (onDocumentsChanged) onDocumentsChanged();
+    } catch (e: any) {
+      console.error('Save note error:', e);
+      toast.error('Failed to save note');
+    }
+  }, [session.id, onDocumentsChanged]);
+
   const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
     if (isStreaming) return;
     // Truncate conversation to just before this message
@@ -656,7 +674,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} />
+                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} />
                   )}
                 </div>
                 {/* Source badges for assistant messages */}
