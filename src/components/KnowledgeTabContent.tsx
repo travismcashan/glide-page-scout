@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Database, BookOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Database, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
-import { SectionCard } from '@/components/SectionCard';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 
@@ -103,24 +102,15 @@ export function KnowledgeTabContent({
       )}
 
       {/* Chat */}
-      <SectionCard
-        sectionId="knowledge-chat"
-        persistedCollapsed={isSectionCollapsed("knowledge-chat")}
-        onCollapseChange={toggleSection}
-        title="Knowledge Chat"
-        icon={<BookOpen className="h-5 w-5 text-foreground" />}
-        collapsed={allCollapsed}
-      >
-        <KnowledgeChatCard
-          session={session}
-          pages={scrapedPages}
-          selectedModel={chatModel}
-          reasoning={chatReasoning}
-          onModelChange={setChatModel}
-          onReasoningChange={setChatReasoning}
-          onDocumentsChanged={triggerRefresh}
-        />
-      </SectionCard>
+      <KnowledgeChatCard
+        session={session}
+        pages={scrapedPages}
+        selectedModel={chatModel}
+        reasoning={chatReasoning}
+        onModelChange={setChatModel}
+        onReasoningChange={setChatReasoning}
+        onDocumentsChanged={triggerRefresh}
+      />
     </div>
   );
 }
