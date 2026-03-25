@@ -494,28 +494,41 @@ serve(async (req) => {
             : '')
       : '';
 
-    // Hybrid context: RAG chunks (focused) + legacy crawlContext (fallback)
+    // Build context based on selected sources
     let ragContext = '';
-    if (session_id && queryText) {
-      ragContext = await ragSearch(session_id, queryText);
+    let webContext = '';
+
+    // Run document RAG and web search in parallel
+    const contextPromises: Promise<void>[] = [];
+
+    if (useDocuments && session_id && queryText) {
+      contextPromises.push(ragSearch(session_id, queryText).then(r => { ragContext = r; }));
+    }
+    if (useWeb && queryText) {
+      contextPromises.push(webSearch(queryText).then(r => { webContext = r; }));
     }
 
-    const legacyContext = buildContextBlock(crawlContext, documents);
+    await Promise.all(contextPromises);
 
-    // Combine: RAG chunks first (most relevant), then legacy context
+    const legacyContext = useDocuments ? buildContextBlock(crawlContext, documents) : '';
+
+    // Combine all context sources
     let combinedContext = '';
     if (ragContext) {
       combinedContext = ragContext;
-      // Add truncated legacy context as supplementary background
-      const remainingBudget = 300_000 - ragContext.length;
-      if (legacyContext && remainingBudget > 10000) {
+    }
+    if (webContext) {
+      combinedContext += (combinedContext ? '\n\n' : '') + webContext;
+    }
+    // Add truncated legacy context as supplementary background
+    if (legacyContext) {
+      const remainingBudget = 300_000 - combinedContext.length;
+      if (remainingBudget > 10000) {
         combinedContext += '\n\n--- FULL AUDIT DATA (supplementary) ---\n\n' +
           (legacyContext.length > remainingBudget
             ? legacyContext.slice(0, remainingBudget) + '\n\n[… truncated]'
             : legacyContext);
       }
-    } else {
-      combinedContext = legacyContext;
     }
 
     const systemPrompt = buildSystemPrompt(combinedContext);
