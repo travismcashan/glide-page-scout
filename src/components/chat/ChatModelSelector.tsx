@@ -61,6 +61,14 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string; icon: typeof Z
   { value: 'high', label: 'Deep', icon: Sparkles },
 ];
 
+// Which reasoning levels each provider supports
+const PROVIDER_REASONING: Record<ModelProvider, ReasoningEffort[]> = {
+  gemini: ['none', 'low', 'medium', 'high'],
+  gpt: ['none', 'low', 'medium', 'high'],
+  claude: ['none', 'low', 'medium', 'high'],
+  perplexity: ['none'],
+};
+
 const TIER_COLORS: Record<string, string> = {
   fast: 'text-emerald-500',
   balanced: 'text-blue-500',
