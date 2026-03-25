@@ -199,6 +199,38 @@ export default function ResultsPage() {
       if (sessionData.integration_timestamps && typeof sessionData.integration_timestamps === 'object') {
         setIntegrationTimestamps(prev => ({ ...sessionData.integration_timestamps, ...prev }));
       }
+      // Restore failed states from persisted error sentinels
+      const errorColumns: [string, (v: boolean) => void, string][] = [
+        ['builtwith_data', setBuiltwithFailed, 'builtwith'],
+        ['semrush_data', setSemrushFailed, 'semrush'],
+        ['psi_data', setPsiFailed, 'psi'],
+        ['wappalyzer_data', setWappalyzerFailed, 'wappalyzer'],
+        ['detectzestack_data', setDetectzestackFailed, 'detectzestack'],
+        ['carbon_data', setCarbonFailed, 'carbon'],
+        ['crux_data', setCruxFailed, 'crux'],
+        ['wave_data', setWaveFailed, 'wave'],
+        ['observatory_data', setObservatoryFailed, 'observatory'],
+        ['ocean_data', setOceanFailed, 'ocean'],
+        ['ssllabs_data', setSsllabsFailed, 'ssllabs'],
+        ['httpstatus_data', setHttpstatusFailed, 'httpstatus'],
+        ['w3c_data', setW3cFailed, 'w3c'],
+        ['schema_data', setSchemaFailed, 'schema'],
+        ['readable_data', setReadableFailed, 'readable'],
+        ['yellowlab_data', setYellowlabFailed, 'yellowlab'],
+        ['linkcheck_data', setLinkcheckFailed, 'linkcheck'],
+        ['nav_structure', setNavFailed, 'nav-structure'],
+        ['content_types_data', setContentTypesFailed, 'content-types'],
+        ['avoma_data', setAvomaFailed, 'avoma'],
+        ['hubspot_data', setHubspotFailed, 'hubspot'],
+        ['tech_analysis_data', setTechAnalysisFailed, 'tech-analysis'],
+      ];
+      for (const [col, setFailed, key] of errorColumns) {
+        const val = sessionData[col];
+        if (val && typeof val === 'object' && val._error) {
+          setFailed(true);
+          setError(key, val.message || 'Previously failed');
+        }
+      }
     }
     if (pagesRes.data) {
       setPages(pagesRes.data as unknown as CrawlPage[]);
