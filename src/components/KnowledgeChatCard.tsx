@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, SlidersHorizontal, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -465,26 +465,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             {messages.map((msg, i) => (
               <div key={i}>
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[85%] px-4 py-3 text-sm ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-lg rounded-tr-none'
-                        : 'rounded-lg text-foreground'
-                    }`}
-                  >
-                    {msg.role === 'assistant' ? (
+                  {msg.role === 'user' ? (
+                    <UserBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} attachmentNames={msg.attachmentNames} />
+                  ) : (
+                    <div className="max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
                       <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
                         <div className="chat-prose max-w-none">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
                         </div>
                       </Suspense>
-                    ) : (
-                      <UserBubbleContent content={typeof msg.content === 'string' ? msg.content : ''} attachmentNames={msg.attachmentNames} />
-                    )}
-                    {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
-                      <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
-                    )}
-                  </div>
+                      {isStreaming && i === messages.length - 1 && (
+                        <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
+                      )}
+                    </div>
+                  )}
                 </div>
                 {/* Source badges for assistant messages */}
                 {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !(isStreaming && i === messages.length - 1) && (
