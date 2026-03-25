@@ -169,6 +169,15 @@ export default function ResultsPage() {
   const setError = (key: string, msg: string) => setIntegrationErrors(prev => ({ ...prev, [key]: msg }));
   const clearError = (key: string) => setIntegrationErrors(prev => { const next = { ...prev }; delete next[key]; return next; });
 
+  /** Persist a failure sentinel to the DB so revisits don't re-trigger the integration */
+  const persistFailure = useCallback(async (dbColumn: string, errorMsg: string) => {
+    if (!sessionId) return;
+    await supabase.from('crawl_sessions').update({ [dbColumn]: { _error: true, message: errorMsg } } as any).eq('id', sessionId);
+  }, [sessionId]);
+
+  /** Check if persisted data is a failure sentinel */
+  const isPersistedError = (data: any): boolean => data && typeof data === 'object' && data._error === true;
+
   /** Toggle an integration on from the results page — unpause it and bump version to trigger re-render & re-run */
   const handleTogglePause = useCallback(async (key: string) => {
     await toggleIntegrationPause(key);
