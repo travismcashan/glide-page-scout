@@ -284,6 +284,66 @@ async function handleGatewayRequest(
   });
 }
 
+async function handlePerplexityRequest(
+  perplexityModelId: string,
+  messages: any[],
+  systemPrompt: string,
+): Promise<Response> {
+  const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!PERPLEXITY_API_KEY) {
+    return new Response(
+      JSON.stringify({ error: 'Perplexity API key is not configured. Please add PERPLEXITY_API_KEY in settings.' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const pplxModel = PERPLEXITY_MODELS[perplexityModelId] || 'sonar';
+
+  // Perplexity uses OpenAI-compatible format but text-only
+  const textMessages = messages.map((msg: any) => ({
+    role: msg.role,
+    content: typeof msg.content === 'string' ? msg.content : 
+      (Array.isArray(msg.content) ? msg.content.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('\n') : ''),
+  }));
+
+  console.log(`[knowledge-chat] Perplexity request: model=${pplxModel}`);
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: pplxModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...textMessages,
+      ],
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Perplexity API error:', response.status, errText);
+    let errorMsg = `Perplexity API error (${response.status})`;
+    try {
+      const errJson = JSON.parse(errText);
+      errorMsg = errJson.error?.message || errorMsg;
+    } catch { /* use default */ }
+    return new Response(
+      JSON.stringify({ error: errorMsg }),
+      { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Perplexity uses OpenAI-compatible SSE format, pass through directly
+  return new Response(response.body, {
+    headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
