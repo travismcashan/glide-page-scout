@@ -261,6 +261,41 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
+function AssistantBubbleWrapper({ content, thinking, isStreamingThis }: { content: string; thinking?: string; isStreamingThis?: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="group relative max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
+      {thinking && (
+        <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
+      )}
+      <Suspense fallback={<span>{content}</span>}>
+        <div className="chat-prose max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        </div>
+      </Suspense>
+      {isStreamingThis && (
+        <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
+      )}
+      {content && !isStreamingThis && (
+        <button
+          onClick={handleCopy}
+          className="absolute -right-8 top-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground"
+          title="Copy response"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
