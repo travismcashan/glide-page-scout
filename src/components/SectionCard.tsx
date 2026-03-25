@@ -13,22 +13,18 @@ type SectionCardProps = {
   error?: boolean;
   errorText?: string;
   paused?: boolean;
-  /** Called when the user toggles the pause switch on the results page */
   onTogglePause?: () => void;
-  /** Extra content shown in the header bar (right side) */
   headerExtra?: React.ReactNode;
-  /** External collapse control — when provided, overrides internal state */
+  /** Content rendered immediately after the title text (e.g. count badges) */
+  titleExtra?: React.ReactNode;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
-  /** Unique section identifier for persisting collapse state */
   sectionId?: string;
-  /** Callback when collapse state changes (for persistence) */
   onCollapseChange?: (sectionId: string, collapsed: boolean) => void;
-  /** Persisted collapse state from localStorage */
   persistedCollapsed?: boolean | undefined;
 };
 
-export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed }: SectionCardProps) {
+export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed }: SectionCardProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
     if (persistedCollapsed !== undefined) return persistedCollapsed;
     if (paused) return true;
@@ -70,6 +66,7 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
       >
         <div className="p-1.5 rounded-md bg-muted">{icon}</div>
         <h2 className="text-base font-semibold">{title}</h2>
+        {titleExtra && !paused && <div onClick={e => e.stopPropagation()}>{titleExtra}</div>}
         {headerExtra && !paused && <div className="ml-auto" onClick={e => e.stopPropagation()}>{headerExtra}</div>}
         {paused && onTogglePause && (
           <div className="ml-auto flex items-center gap-2" onClick={e => e.stopPropagation()}>
