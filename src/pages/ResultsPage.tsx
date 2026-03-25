@@ -1249,7 +1249,7 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-background">
       <header className="px-6">
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
-           <div className="flex items-start justify-between">
+           <div className="flex items-center justify-between">
              <div className="flex items-end gap-6">
                <h1 className="text-7xl font-light tracking-tight text-foreground leading-none pt-2.5">
                  {session?.domain?.replace(/^www\./i, '')}
@@ -1271,7 +1271,7 @@ export default function ResultsPage() {
              </div>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground mt-2 h-16 w-16 [&>svg]:h-10 [&>svg]:w-10">
+                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground h-16 w-16 [&>svg]:h-10 [&>svg]:w-10">
                   <Menu className="!h-10 !w-10" strokeWidth={2} />
                 </Button>
               </SheetTrigger>
