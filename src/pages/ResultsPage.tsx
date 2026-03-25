@@ -1044,6 +1044,8 @@ export default function ResultsPage() {
     { key: 'semrush', dbColumn: 'semrush_data' },
     { key: 'nav-structure', dbColumn: 'nav_structure' },
     { key: 'content-types', dbColumn: 'content_types_data' },
+    { key: 'avoma', dbColumn: 'avoma_data' },
+    { key: 'hubspot', dbColumn: 'hubspot_data' },
   ];
 
   const [rerunningAll, setRerunningAll] = useState(false);
