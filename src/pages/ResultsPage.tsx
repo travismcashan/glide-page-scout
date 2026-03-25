@@ -846,27 +846,29 @@ export default function ResultsPage() {
         clearError('link-checker');
         setLinkcheckStreamingResults(null);
         await fetchData();
-      } else { setLinkcheckFailed(true); setError('link-checker', result.error || 'Link checker returned an error'); }
+      } else { const msg = result.error || 'Link checker returned an error'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
       linkcheckAbortRef.current = null;
-    }).catch((e) => { setLinkcheckFailed(true); setError('link-checker', e?.message || 'Link checker request failed'); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
+    }).catch((e) => { const msg = e?.message || 'Link checker request failed'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
   }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
   const [navFailed, setNavFailed] = useState(false);
   useEffect(() => {
     if (!session || (session as any).nav_structure || navLoading || navFailed || isIntegrationPaused('nav-structure')) return;
+    if (navTriggeredRef.current) return;
+    navTriggeredRef.current = true;
     setNavLoading(true);
     navExtractApi.extract(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ nav_structure: result } as any).eq('id', session.id);
         clearError('nav-structure');
         fetchData();
-      } else { setNavFailed(true); setError('nav-structure', result.error || 'Nav structure extraction failed'); }
+      } else { const msg = result.error || 'Nav structure extraction failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); }
       setNavLoading(false);
-    }).catch((e) => { setNavFailed(true); setError('nav-structure', e?.message || 'Nav structure request failed'); setNavLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Nav structure request failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); setNavLoading(false); });
   }, [session, navLoading, navFailed, fetchData, pauseVersion]);
   // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
   const [sitemapLoading, setSitemapLoading] = useState(false);
