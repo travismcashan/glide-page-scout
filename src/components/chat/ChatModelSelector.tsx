@@ -150,7 +150,7 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
           {versionsForProvider.map(m => (
             <DropdownMenuItem
               key={m.id}
-              onClick={() => onModelChange(m.id)}
+              onClick={() => handleVersionChange(m.id)}
               className={`flex items-center justify-between ${selectedModel.id === m.id ? 'bg-accent' : ''}`}
             >
               <div className="flex items-center gap-2">
