@@ -169,7 +169,70 @@ serve(async (req) => {
     // Fetch form submissions for contacts — only from our matched contacts
     let formSubmissions: any[] = [];
     const contactEmails = new Set(contacts.map((c: any) => c.email?.toLowerCase()).filter(Boolean));
-    const formFieldsCache = new Map<string, any[]>(); // formId -> all submissions with fields+email
+    const formFieldsCache = new Map<string, { submissions: any[]; after: string | null; exhausted: boolean }>();
+    const normalizeEmail = (value?: string | null) => (value || '').trim().toLowerCase();
+
+    async function loadFormSubmissions(formId: string, targetEmail?: string) {
+      let cacheEntry = formFieldsCache.get(formId);
+      if (!cacheEntry) {
+        cacheEntry = { submissions: [], after: null, exhausted: false };
+        formFieldsCache.set(formId, cacheEntry);
+      }
+
+      const normalizedTargetEmail = normalizeEmail(targetEmail);
+      let pagesLoaded = 0;
+
+      while (!cacheEntry.exhausted && pagesLoaded < 20) {
+        if (normalizedTargetEmail && cacheEntry.submissions.some((s: any) => s.email === normalizedTargetEmail)) {
+          break;
+        }
+
+        const query = new URLSearchParams({ limit: '50' });
+        if (cacheEntry.after) query.set('after', cacheEntry.after);
+
+        try {
+          const submissionRes = await hubspotFetch(
+            `/form-integrations/v1/submissions/forms/${formId}?${query.toString()}`,
+            HUBSPOT_ACCESS_TOKEN
+          );
+
+          const pageSubs = (submissionRes?.results || []).map((s: any) => {
+            const fields = (s.values || []).map((v: any) => ({
+              name: v.name || v.label || 'Unknown',
+              label: v.label || v.name || 'Unknown',
+              value: v.value || '',
+            })).filter((f: any) => f.value);
+
+            const emailField = fields.find((f: any) => {
+              const key = `${f.name} ${f.label}`.toLowerCase();
+              return key.includes('email') && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(f.value).trim());
+            });
+
+            return {
+              submittedAt: s.submittedAt,
+              fields,
+              email: normalizeEmail(emailField?.value),
+            };
+          }).filter((s: any) => s.fields.length > 0);
+
+          cacheEntry.submissions.push(...pageSubs);
+
+          const matchedCount = pageSubs.filter((s: any) => contactEmails.has(s.email)).length;
+          console.log(`[hubspot] Form ${formId}: loaded ${pageSubs.length} submissions, ${matchedCount} from our contacts`);
+
+          const nextAfter = submissionRes?.paging?.next?.after;
+          cacheEntry.after = nextAfter ? String(nextAfter) : null;
+          cacheEntry.exhausted = !cacheEntry.after || pageSubs.length === 0;
+          pagesLoaded += 1;
+        } catch (formErr) {
+          cacheEntry.exhausted = true;
+          console.error(`[hubspot] Error fetching form ${formId} submissions: ${formErr.message}`);
+          break;
+        }
+      }
+
+      return cacheEntry.submissions;
+    }
 
     for (const contactId of contactIds.slice(0, 10)) {
       try {
@@ -184,33 +247,9 @@ serve(async (req) => {
         for (const sub of subs) {
           const formId = sub['form-id'];
 
-          // Fetch submissions for this form once, cache results
-          if (formId && !formFieldsCache.has(formId)) {
-            let allSubs: any[] = [];
-            try {
-              const submissionRes = await hubspotFetch(
-                `/form-integrations/v1/submissions/forms/${formId}?limit=50`,
-                HUBSPOT_ACCESS_TOKEN
-              );
-              allSubs = (submissionRes?.results || []).map((s: any) => {
-                const fields = (s.values || []).map((v: any) => ({
-                  name: v.name || v.label || 'Unknown',
-                  label: v.label || v.name || 'Unknown',
-                  value: v.value || '',
-                })).filter((f: any) => f.value);
-                const emailField = fields.find((f: any) => f.name.toLowerCase() === 'email');
-                return { submittedAt: s.submittedAt, fields, email: emailField?.value?.toLowerCase() || '' };
-              }).filter((s: any) => s.fields.length > 0);
-              console.log(`[hubspot] Form ${formId}: ${allSubs.length} submissions, ${allSubs.filter((s: any) => contactEmails.has(s.email)).length} from our contacts`);
-            } catch (formErr) {
-              console.error(`[hubspot] Error fetching form ${formId} submissions: ${formErr.message}`);
-            }
-            formFieldsCache.set(formId, allSubs);
-          }
-
           // Only match submissions from THIS contact's email
           let fields: any[] = [];
-          const cached = formId ? formFieldsCache.get(formId) : undefined;
+          const cached = formId ? await loadFormSubmissions(formId, contactEmail) : undefined;
           if (contactEmail && cached) {
             const contactSubs = cached.filter((s: any) => s.email === contactEmail);
             // Find closest by timestamp
