@@ -77,11 +77,6 @@ function WaveCard({ data, isLoading }: { data: WaveData | null; isLoading: boole
       <div className="flex items-center gap-2">
         <Eye className="h-4 w-4 text-primary" />
         <span className="text-sm font-medium">WAVE Accessibility Report</span>
-        {data.waveUrl && (
-          <a href={data.waveUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline ml-auto">
-            Full Report →
-          </a>
-        )}
       </div>
 
       {/* Summary badges */}

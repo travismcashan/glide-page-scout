@@ -86,16 +86,6 @@ export function YellowLabCard({ data }: { data: YellowLabData }) {
           <span className={`text-4xl font-bold ${scoreColor(globalScore)}`}>{globalScore}</span>
           <span className="text-xs text-muted-foreground">/ 100</span>
         </div>
-        {data.runId && (
-          <a
-            href={`https://yellowlab.tools/result/${data.runId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-auto text-xs text-primary hover:underline"
-          >
-            View full report ↗
-          </a>
-        )}
       </div>
 
       {/* Category breakdown */}
