@@ -759,8 +759,10 @@ export default function ResultsPage() {
       try {
         const startResult = await yellowlabApi.start(session.base_url);
         if (!startResult.success || !startResult.runId) {
+          const msg = startResult.error || 'Yellow Lab Tools start failed';
           setYellowlabFailed(true);
-          setError('yellowlab', startResult.error || 'Yellow Lab Tools start failed');
+          setError('yellowlab', msg);
+          persistFailure('yellowlab_data', msg);
           setYellowlabLoading(false);
           return;
         }
@@ -772,8 +774,10 @@ export default function ResultsPage() {
           await new Promise(r => setTimeout(r, 8000));
           const pollResult = await yellowlabApi.poll(runId);
           if (!pollResult.success) {
+            const msg = pollResult.error || 'Yellow Lab Tools poll error';
             setYellowlabFailed(true);
-            setError('yellowlab', pollResult.error || 'Yellow Lab Tools poll error');
+            setError('yellowlab', msg);
+            persistFailure('yellowlab_data', msg);
             setYellowlabLoading(false);
             return;
           }
@@ -785,18 +789,24 @@ export default function ResultsPage() {
             return;
           }
           if (pollResult.status === 'failed') {
+            const msg = (pollResult as any).error || 'Yellow Lab Tools could not analyze this page — the site may block automated testing';
             setYellowlabFailed(true);
-            setError('yellowlab', (pollResult as any).error || 'Yellow Lab Tools could not analyze this page — the site may block automated testing');
+            setError('yellowlab', msg);
+            persistFailure('yellowlab_data', msg);
             setYellowlabLoading(false);
             return;
           }
         }
+        const msg = 'Yellow Lab Tools timed out after 3 minutes';
         setYellowlabFailed(true);
-        setError('yellowlab', 'Yellow Lab Tools timed out after 3 minutes');
+        setError('yellowlab', msg);
+        persistFailure('yellowlab_data', msg);
         setYellowlabLoading(false);
       } catch (e: any) {
+        const msg = e?.message || 'Yellow Lab Tools request failed';
         setYellowlabFailed(true);
-        setError('yellowlab', e?.message || 'Yellow Lab Tools request failed');
+        setError('yellowlab', msg);
+        persistFailure('yellowlab_data', msg);
         setYellowlabLoading(false);
       }
     })();
