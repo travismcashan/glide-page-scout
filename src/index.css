@@ -171,15 +171,31 @@
 }
 
 .chat-prose table {
-  @apply my-3 w-full text-[0.8rem] border-collapse;
+  @apply my-3 w-full text-[0.8rem] border-collapse border border-border rounded-md overflow-hidden;
+}
+
+.chat-prose thead {
+  @apply bg-muted/50;
 }
 
 .chat-prose th {
-  @apply text-left font-semibold text-muted-foreground pb-1.5 border-b border-border;
+  @apply text-left font-semibold text-muted-foreground px-3 py-2 border-b border-border border-r border-r-border/30;
+}
+
+.chat-prose th:last-child {
+  @apply border-r-0;
 }
 
 .chat-prose td {
-  @apply py-1.5 pr-3 border-b border-border/40;
+  @apply px-3 py-2 border-b border-border/40 border-r border-r-border/20;
+}
+
+.chat-prose td:last-child {
+  @apply border-r-0;
+}
+
+.chat-prose tr:last-child td {
+  @apply border-b-0;
 }
 
 .chat-prose a {
