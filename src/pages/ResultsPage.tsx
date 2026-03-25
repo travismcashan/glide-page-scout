@@ -74,6 +74,7 @@ import { FormsCard } from '@/components/FormsCard';
 import { GlobalProgressBar } from '@/components/GlobalProgressBar';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
+import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
