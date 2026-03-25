@@ -106,13 +106,15 @@ function detectSources(text: string): string[] {
 
 // countSources removed — no longer displayed (RAG replaces full-context stats)
 
-export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
