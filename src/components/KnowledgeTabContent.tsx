@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Database, BookOpen } from 'lucide-react';
+import { Database, BookOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { SectionCard } from '@/components/SectionCard';
@@ -32,6 +32,7 @@ export function KnowledgeTabContent({
 }: Props) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [ingesting, setIngesting] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(true);
   const ingestTriggeredRef = useRef(false);
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
@@ -69,20 +70,40 @@ export function KnowledgeTabContent({
   }, [session.id]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
-      {/* Document Library sidebar */}
-      <div className="border rounded-lg p-4 h-[700px]">
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+    <div className="flex gap-6">
+      {/* Document Library sidebar - collapsible */}
+      {libraryOpen ? (
+        <div className="border rounded-lg p-4 h-[700px] w-[300px] shrink-0 relative">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Document Library
+            </h3>
+            <button
+              onClick={() => setLibraryOpen(false)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Collapse document library"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          </div>
+          <DocumentLibrary
+            sessionId={session.id}
+            refreshKey={refreshKey}
+            onIngestIntegrations={runIngest}
+            ingesting={ingesting}
+          />
+        </div>
+      ) : (
+        <button
+          onClick={() => setLibraryOpen(true)}
+          className="border rounded-lg p-2 h-fit shrink-0 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          title="Open document library"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
           <Database className="h-4 w-4" />
-          Document Library
-        </h3>
-        <DocumentLibrary
-          sessionId={session.id}
-          refreshKey={refreshKey}
-          onIngestIntegrations={runIngest}
-          ingesting={ingesting}
-        />
-      </div>
+        </button>
+      )
 
       {/* Chat */}
       <SectionCard
