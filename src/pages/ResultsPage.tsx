@@ -180,9 +180,6 @@ export default function ResultsPage() {
     await supabase.from('crawl_sessions').update({ [dbColumn]: { _error: true, message: errorMsg } } as any).eq('id', sessionId);
   }, [sessionId]);
 
-  /** Check if persisted data is a failure sentinel */
-  const isPersistedError = (data: any): boolean => data && typeof data === 'object' && data._error === true;
-
   /** Toggle an integration on from the results page — unpause it and bump version to trigger re-render & re-run */
   const handleTogglePause = useCallback(async (key: string) => {
     await toggleIntegrationPause(key);
