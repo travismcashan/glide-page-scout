@@ -318,11 +318,18 @@ async function handleClaudeRequest(
             try {
               const event = JSON.parse(jsonStr);
               // Convert Anthropic events to OpenAI delta format
-              if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-                const openAiChunk = {
-                  choices: [{ delta: { content: event.delta.text }, index: 0 }],
-                };
-                controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(openAiChunk)}\n\n`));
+              if (event.type === 'content_block_delta') {
+                if (event.delta?.type === 'text_delta') {
+                  const openAiChunk = {
+                    choices: [{ delta: { content: event.delta.text }, index: 0 }],
+                  };
+                  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(openAiChunk)}\n\n`));
+                } else if (event.delta?.type === 'thinking_delta') {
+                  const openAiChunk = {
+                    choices: [{ delta: { reasoning_content: event.delta.thinking }, index: 0 }],
+                  };
+                  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(openAiChunk)}\n\n`));
+                }
               }
             } catch { /* skip unparseable */ }
           }

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, SlidersHorizontal, Copy, Check, Pencil } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 
-type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[] };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string };
 
 type SessionData = {
   id: string;
@@ -238,6 +238,29 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   );
 }
 
+function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <Brain className="h-3 w-3" />
+        <span>{isStreaming ? 'Thinking…' : 'Thought process'}</span>
+        {isStreaming && <span className="flex gap-0.5 ml-1"><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" /></span>}
+      </button>
+      {expanded && (
+        <div className="mt-1.5 pl-5 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
+          {thinking}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -349,6 +372,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     saveMessage('user', typeof displayContent === 'string' ? displayContent : messageText);
 
     let assistantContent = '';
+    let thinkingContent = '';
 
     // Build the API messages - use multimodal content for the current message
     const apiMessages = newMessages.map((m, i) => {
@@ -452,14 +476,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            const reasoningContent = parsed.choices?.[0]?.delta?.reasoning_content as string | undefined;
+            if (reasoningContent) {
+              thinkingContent += reasoningContent;
+            }
             if (content) {
               assistantContent += content;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
                 if (last?.role === 'assistant') {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent } : m);
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent, thinking: thinkingContent || undefined } : m);
                 }
-                return [...prev, { role: 'assistant', content: assistantContent }];
+                return [...prev, { role: 'assistant', content: assistantContent, thinking: thinkingContent || undefined }];
               });
             }
           } catch { /* ignore */ }
@@ -576,6 +604,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                     />
                   ) : (
                     <div className="max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
+                      {msg.thinking && (
+                        <ThinkingBlock thinking={msg.thinking} isStreaming={isStreaming && i === messages.length - 1 && !msg.content} />
+                      )}
                       <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
                         <div className="chat-prose max-w-none">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
