@@ -152,7 +152,8 @@
 }
 
 .chat-prose code:not(pre code) {
-  @apply text-[0.8rem] px-1.5 py-0.5 rounded-md bg-primary/8 text-primary font-medium;
+  @apply text-[0.8rem] px-1.5 py-0.5 rounded-md text-primary font-medium;
+  background: hsl(var(--primary) / 0.08);
   font-family: 'JetBrains Mono', monospace;
 }
 
