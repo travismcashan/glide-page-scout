@@ -158,7 +158,10 @@ serve(async (req) => {
     console.log(`[hubspot] Found ${engagements.length} engagements`);
 
     // Fetch form submissions for contacts
+    // Step 1: Get form IDs from contact profiles
     let formSubmissions: any[] = [];
+    const seenFormIds = new Set<string>();
+
     for (const contactId of contactIds.slice(0, 10)) {
       try {
         const subRes = await hubspotFetch(
@@ -168,21 +171,48 @@ serve(async (req) => {
         const subs = subRes?.['form-submissions'] || [];
         const contact = contacts.find((c: any) => c.id === contactId);
         for (const sub of subs) {
-          const fields = (sub.fields || []).map((f: any) => ({
-            name: f.name || f.label || 'Unknown',
-            value: f.value || '',
-          })).filter((f: any) => f.value);
+          const formId = sub['form-id'];
+          const portalId = sub['portal-id'];
+          const conversionId = sub['conversion-id'];
+
+          // Try to get actual submitted values from the form submissions API
+          let fields: any[] = [];
+          if (formId && conversionId) {
+            try {
+              const submissionRes = await hubspotFetch(
+                `/form-integrations/v1/submissions/forms/${formId}?limit=50`,
+                HUBSPOT_ACCESS_TOKEN
+              );
+              // Find the matching submission by conversion ID or timestamp
+              const allSubs = submissionRes?.results || [];
+              const match = allSubs.find((s: any) => s.conversionId === conversionId) 
+                || allSubs.find((s: any) => {
+                  // Match by timestamp proximity (within 1 second)
+                  if (!sub.timestamp || !s.submittedAt) return false;
+                  return Math.abs(sub.timestamp - s.submittedAt) < 1000;
+                });
+              if (match?.values) {
+                fields = match.values.map((v: any) => ({
+                  name: v.name || v.label || 'Unknown',
+                  label: v.label || v.name || 'Unknown',
+                  value: v.value || '',
+                })).filter((f: any) => f.value);
+              }
+            } catch (formErr) {
+              console.error(`[hubspot] Error fetching form ${formId} submissions: ${formErr.message}`);
+            }
+          }
 
           formSubmissions.push({
             contactId,
             contactName: contact ? `${contact.firstname || ''} ${contact.lastname || ''}`.trim() : '',
             contactEmail: contact?.email || '',
             formTitle: sub.title || 'Untitled Form',
-            formId: sub['form-id'] || null,
-            portalId: sub['portal-id'] || null,
+            formId: formId || null,
+            portalId: portalId || null,
             pageUrl: sub['page-url'] || null,
             timestamp: sub.timestamp ? new Date(sub.timestamp).toISOString() : null,
-            conversionId: sub['conversion-id'] || null,
+            conversionId: conversionId || null,
             fields,
           });
         }
