@@ -236,111 +236,118 @@ function getEngagementBody(eng: any): string | null {
   }
 }
 
-function ExpandableEngagement({ Icon, title, detail, isIncoming, timestamp, type, bodyContent, eng }: {
-  Icon: any; title: string; detail: string | null; isIncoming: boolean; timestamp: string | null; type: string; bodyContent: string | null; eng: any;
-}) {
-  const [open, setOpen] = useState(false);
-  const hasExpandableContent = !!bodyContent || (type === 'emails' && (eng.hs_email_to_email || eng.hs_email_sender_email)) || (type === 'meetings' && (eng.hs_meeting_start_time || eng.hs_meeting_end_time));
+function EngagementExpandedRow({ eng, type }: { eng: any; type: string }) {
+  const bodyContent = getEngagementBody(eng);
+  if (!bodyContent && !(type === 'emails' && (eng.hs_email_sender_email || eng.hs_email_to_email)) && !(type === 'meetings' && eng.hs_meeting_start_time)) return null;
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="w-full text-left" disabled={!hasExpandableContent}>
-        <Card className={`p-2.5 transition-colors ${hasExpandableContent ? 'hover:bg-muted/50 cursor-pointer' : ''}`}>
-          <div className="flex items-start gap-2.5">
-            <div className="mt-0.5 shrink-0">
-              <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-medium truncate">{title}</p>
-                {type === 'emails' && (
-                  isIncoming
-                    ? <ArrowDownLeft className="h-3 w-3 text-blue-500 shrink-0" />
-                    : <ArrowUpRight className="h-3 w-3 text-green-500 shrink-0" />
-                )}
-              </div>
-              {detail && <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>}
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {timestamp && (
-                <span className="text-[10px] text-muted-foreground tabular-nums">
-                  {format(new Date(timestamp), 'MMM d, yyyy')}
-                </span>
-              )}
-              {hasExpandableContent && (open ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />)}
-            </div>
+    <tr>
+      <td colSpan={4} className="px-3 py-2 bg-muted/30 border-b border-border">
+        <div className="space-y-1 text-xs text-muted-foreground max-w-full">
+          {type === 'emails' && eng.hs_email_sender_email && <p><strong>From:</strong> {eng.hs_email_sender_email}</p>}
+          {type === 'emails' && eng.hs_email_to_email && <p><strong>To:</strong> {eng.hs_email_to_email}</p>}
+          {type === 'meetings' && eng.hs_meeting_start_time && (
+            <p><strong>Time:</strong> {format(new Date(eng.hs_meeting_start_time), 'MMM d, yyyy h:mm a')}{eng.hs_meeting_end_time ? ` – ${format(new Date(eng.hs_meeting_end_time), 'h:mm a')}` : ''}</p>
+          )}
+          {type === 'meetings' && eng.hs_meeting_outcome && <p><strong>Outcome:</strong> {eng.hs_meeting_outcome}</p>}
+          {bodyContent && <p className="whitespace-pre-wrap leading-relaxed line-clamp-6">{bodyContent}</p>}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function EngagementRow({ eng }: { eng: any }) {
+  const [open, setOpen] = useState(false);
+  const title = getEngagementTitle(eng);
+  const detail = getEngagementDetail(eng);
+  const bodyContent = getEngagementBody(eng);
+  const hasExpandable = !!bodyContent || (eng.type === 'emails' && (eng.hs_email_to_email || eng.hs_email_sender_email)) || (eng.type === 'meetings' && (eng.hs_meeting_start_time || eng.hs_meeting_end_time));
+
+  return (
+    <>
+      <tr
+        className={`h-7 border-b border-border text-xs leading-5 ${hasExpandable ? 'hover:bg-muted/20 cursor-pointer' : 'hover:bg-muted/20'}`}
+        onClick={() => hasExpandable && setOpen(!open)}
+      >
+        <td className="px-3 py-1 whitespace-nowrap w-[60px]">
+          <span className="text-muted-foreground truncate">{engagementLabel[eng.type] || eng.type}</span>
+        </td>
+        <td className="px-3 py-1 truncate max-w-0">
+          <div className="flex items-center gap-1.5 truncate">
+            {hasExpandable && (open ? <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" /> : <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />)}
+            <span className="truncate">{title}</span>
           </div>
-        </Card>
-      </CollapsibleTrigger>
-      {hasExpandableContent && (
-        <CollapsibleContent>
-          <Card className="p-3 mt-0.5 bg-muted/30 space-y-2 text-xs text-muted-foreground">
-            {type === 'emails' && eng.hs_email_sender_email && (
-              <p><strong>From:</strong> {eng.hs_email_sender_email}</p>
-            )}
-            {type === 'emails' && eng.hs_email_to_email && (
-              <p><strong>To:</strong> {eng.hs_email_to_email}</p>
-            )}
-            {type === 'meetings' && eng.hs_meeting_start_time && (
-              <p><strong>Time:</strong> {format(new Date(eng.hs_meeting_start_time), 'MMM d, yyyy h:mm a')}{eng.hs_meeting_end_time ? ` – ${format(new Date(eng.hs_meeting_end_time), 'h:mm a')}` : ''}</p>
-            )}
-            {type === 'meetings' && eng.hs_meeting_outcome && (
-              <p><strong>Outcome:</strong> {eng.hs_meeting_outcome}</p>
-            )}
-            {bodyContent && (
-              <p className="whitespace-pre-wrap leading-relaxed">{bodyContent}</p>
-            )}
-          </Card>
-        </CollapsibleContent>
-      )}
-    </Collapsible>
+        </td>
+        <td className="px-3 py-1 truncate max-w-0 text-muted-foreground">
+          {detail || '—'}
+        </td>
+        <td className="px-3 py-1 whitespace-nowrap text-right text-muted-foreground tabular-nums w-[90px]">
+          {eng.hs_timestamp ? format(new Date(eng.hs_timestamp), 'MMM d, yyyy') : '—'}
+        </td>
+      </tr>
+      {open && <EngagementExpandedRow eng={eng} type={eng.type} />}
+    </>
+  );
+}
+
+function EngagementTypeSection({ type, items }: { type: string; items: any[] }) {
+  const [open, setOpen] = useState(true);
+  const Icon = engagementIcon[type] || MessageSquare;
+
+  return (
+    <>
+      <tr
+        className="h-7 bg-muted/40 border-b border-border cursor-pointer hover:bg-muted/60"
+        onClick={() => setOpen(!open)}
+      >
+        <td colSpan={4} className="px-3 py-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            <Icon className="h-3.5 w-3.5" />
+            <span>{engagementLabel[type] || type}s</span>
+            <Badge variant="secondary" className="text-[10px] ml-1">{items.length}</Badge>
+          </div>
+        </td>
+      </tr>
+      {open && items.map((eng) => <EngagementRow key={eng.id} eng={eng} />)}
+    </>
   );
 }
 
 function EngagementsTab({ engagements }: { engagements: any[] }) {
-  const [showAll, setShowAll] = useState(false);
-
   if (engagements.length === 0) return <p className="text-sm text-muted-foreground">No engagement history found.</p>;
 
-  // Group by type for summary
-  const typeCounts: Record<string, number> = {};
+  // Group by type, preserving order: notes, meetings, calls, emails, tasks
+  const typeOrder = ['notes', 'meetings', 'calls', 'emails', 'tasks'];
+  const grouped: Record<string, any[]> = {};
   engagements.forEach(e => {
-    typeCounts[e.type] = (typeCounts[e.type] || 0) + 1;
+    if (!grouped[e.type]) grouped[e.type] = [];
+    grouped[e.type].push(e);
   });
-
-  const visible = showAll ? engagements : engagements.slice(0, 15);
+  const orderedTypes = typeOrder.filter(t => grouped[t]?.length).concat(
+    Object.keys(grouped).filter(t => !typeOrder.includes(t))
+  );
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(typeCounts).map(([type, count]) => {
-          const Icon = engagementIcon[type] || MessageSquare;
-          return (
-            <Badge key={type} variant="secondary" className="gap-1 text-xs">
-              <Icon className="h-3 w-3" />
-              {count} {engagementLabel[type] || type}{count !== 1 ? 's' : ''}
-            </Badge>
-          );
-        })}
+    <div className="border rounded-md overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-muted border-b border-border h-7">
+              <th className="text-left px-3 py-1 font-medium text-muted-foreground w-[60px]">Type</th>
+              <th className="text-left px-3 py-1 font-medium text-muted-foreground">Title</th>
+              <th className="text-left px-3 py-1 font-medium text-muted-foreground">Detail</th>
+              <th className="text-right px-3 py-1 font-medium text-muted-foreground w-[90px]">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orderedTypes.map(type => (
+              <EngagementTypeSection key={type} type={type} items={grouped[type]} />
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div className="space-y-1.5">
-        {visible.map((eng) => {
-          const Icon = engagementIcon[eng.type] || MessageSquare;
-          const title = getEngagementTitle(eng);
-          const detail = getEngagementDetail(eng);
-          const isIncoming = eng.hs_email_direction === 'INCOMING_EMAIL' || eng.hs_call_direction === 'INBOUND';
-          const bodyContent = getEngagementBody(eng);
-
-          return (
-            <ExpandableEngagement key={eng.id} Icon={Icon} title={title} detail={detail} isIncoming={isIncoming} timestamp={eng.hs_timestamp} type={eng.type} bodyContent={bodyContent} eng={eng} />
-          );
-        })}
-      </div>
-      {engagements.length > 15 && !showAll && (
-        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowAll(true)}>
-          Show all {engagements.length} activities
-        </Button>
-      )}
     </div>
   );
 }
