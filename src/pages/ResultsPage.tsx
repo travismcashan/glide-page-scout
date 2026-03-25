@@ -43,7 +43,8 @@ import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 
 /** Show integration if it has data, is active, or user toggled "Show All" */
-function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean): boolean {
+function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, sharedView?: boolean): boolean {
+  if (sharedView) return hasData;
   if (showAll) return true;
   return hasData || !isIntegrationPaused(key);
 }
