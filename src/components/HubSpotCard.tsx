@@ -224,8 +224,80 @@ function getEngagementDetail(eng: any): string | null {
     default: return null;
   }
 }
+function getEngagementBody(eng: any): string | null {
+  const strip = (html: string) => html?.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || null;
+  switch (eng.type) {
+    case 'emails': return strip(eng.hs_email_text || '');
+    case 'calls': return strip(eng.hs_call_body || '');
+    case 'meetings': return strip(eng.hs_meeting_body || '');
+    case 'notes': return strip(eng.hs_note_body || '');
+    case 'tasks': return strip(eng.hs_task_body || '');
+    default: return null;
+  }
+}
 
-function EngagementsTab({ engagements }: { engagements: any[] }) {
+function ExpandableEngagement({ Icon, title, detail, isIncoming, timestamp, type, bodyContent, eng }: {
+  Icon: any; title: string; detail: string | null; isIncoming: boolean; timestamp: string | null; type: string; bodyContent: string | null; eng: any;
+}) {
+  const [open, setOpen] = useState(false);
+  const hasExpandableContent = !!bodyContent || (type === 'emails' && (eng.hs_email_to_email || eng.hs_email_sender_email)) || (type === 'meetings' && (eng.hs_meeting_start_time || eng.hs_meeting_end_time));
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="w-full text-left" disabled={!hasExpandableContent}>
+        <Card className={`p-2.5 transition-colors ${hasExpandableContent ? 'hover:bg-muted/50 cursor-pointer' : ''}`}>
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 shrink-0">
+              <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-medium truncate">{title}</p>
+                {type === 'emails' && (
+                  isIncoming
+                    ? <ArrowDownLeft className="h-3 w-3 text-blue-500 shrink-0" />
+                    : <ArrowUpRight className="h-3 w-3 text-green-500 shrink-0" />
+                )}
+              </div>
+              {detail && <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {timestamp && (
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {format(new Date(timestamp), 'MMM d, yyyy')}
+                </span>
+              )}
+              {hasExpandableContent && (open ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />)}
+            </div>
+          </div>
+        </Card>
+      </CollapsibleTrigger>
+      {hasExpandableContent && (
+        <CollapsibleContent>
+          <Card className="p-3 mt-0.5 bg-muted/30 space-y-2 text-xs text-muted-foreground">
+            {type === 'emails' && eng.hs_email_sender_email && (
+              <p><strong>From:</strong> {eng.hs_email_sender_email}</p>
+            )}
+            {type === 'emails' && eng.hs_email_to_email && (
+              <p><strong>To:</strong> {eng.hs_email_to_email}</p>
+            )}
+            {type === 'meetings' && eng.hs_meeting_start_time && (
+              <p><strong>Time:</strong> {format(new Date(eng.hs_meeting_start_time), 'MMM d, yyyy h:mm a')}{eng.hs_meeting_end_time ? ` – ${format(new Date(eng.hs_meeting_end_time), 'h:mm a')}` : ''}</p>
+            )}
+            {type === 'meetings' && eng.hs_meeting_outcome && (
+              <p><strong>Outcome:</strong> {eng.hs_meeting_outcome}</p>
+            )}
+            {bodyContent && (
+              <p className="whitespace-pre-wrap leading-relaxed">{bodyContent}</p>
+            )}
+          </Card>
+        </CollapsibleContent>
+      )}
+    </Collapsible>
+  );
+}
+
+
   const [showAll, setShowAll] = useState(false);
 
   if (engagements.length === 0) return <p className="text-sm text-muted-foreground">No engagement history found.</p>;
