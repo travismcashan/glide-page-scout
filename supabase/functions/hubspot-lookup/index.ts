@@ -203,10 +203,14 @@ serve(async (req) => {
               value: v.value || '',
             })).filter((f: any) => f.value);
 
-            const emailField = fields.find((f: any) => {
+            // Prefer exact 'email' field, then fall back to any field containing 'email'
+            const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+            const exactEmail = fields.find((f: any) => f.name.toLowerCase() === 'email' && isValidEmail(String(f.value)));
+            const fuzzyEmail = !exactEmail ? fields.find((f: any) => {
               const key = `${f.name} ${f.label}`.toLowerCase();
-              return key.includes('email') && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(f.value).trim());
-            });
+              return key.includes('email') && isValidEmail(String(f.value));
+            }) : null;
+            const emailField = exactEmail || fuzzyEmail;
 
             return {
               submittedAt: s.submittedAt,
