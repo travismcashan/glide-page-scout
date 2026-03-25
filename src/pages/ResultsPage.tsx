@@ -457,6 +457,21 @@ export default function ResultsPage() {
     }
   }, [session?.apollo_data]);
 
+  const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
+    setApolloLoading(true);
+    try {
+      const result = await apolloApi.enrich(email, firstName, lastName, session?.domain);
+      setApolloData(result);
+      if (result.success && session) {
+        await supabase.from('crawl_sessions').update({ apollo_data: result } as any).eq('id', session.id);
+      }
+      if (!result.success) toast.error(result.error || 'Apollo enrichment failed');
+    } catch (e: any) {
+      toast.error(e?.message || 'Apollo request failed');
+    }
+    setApolloLoading(false);
+  };
+
   // Auto-enrich Apollo using primary HubSpot contact
   useEffect(() => {
     if (apolloAutoTriggered.current) return;
@@ -479,26 +494,8 @@ export default function ResultsPage() {
 
     apolloAutoTriggered.current = true;
     console.log(`[apollo] Auto-enriching primary HubSpot contact: ${primary.email}`);
-    // Trigger after a short delay to let UI settle
-    setTimeout(() => {
-      handleApolloSearch(primary.email, primary.firstname || undefined, primary.lastname || undefined);
-    }, 500);
+    handleApolloSearch(primary.email, primary.firstname || undefined, primary.lastname || undefined);
   }, [(session as any)?.hubspot_data, apolloData, apolloLoading, pauseVersion]);
-
-  const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
-    setApolloLoading(true);
-    try {
-      const result = await apolloApi.enrich(email, firstName, lastName, session?.domain);
-      setApolloData(result);
-      if (result.success && session) {
-        await supabase.from('crawl_sessions').update({ apollo_data: result } as any).eq('id', session.id);
-      }
-      if (!result.success) toast.error(result.error || 'Apollo enrichment failed');
-    } catch (e: any) {
-      toast.error(e?.message || 'Apollo request failed');
-    }
-    setApolloLoading(false);
-  };
 
   // Unique Templates rerun support
   const [templatesRerunning, setTemplatesRerunning] = useState(false);
