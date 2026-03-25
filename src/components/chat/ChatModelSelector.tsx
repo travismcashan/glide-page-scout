@@ -82,10 +82,10 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
       {/* Model selector */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild disabled={disabled}>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground gap-1">
+          <Button variant="ghost" size="sm" className="h-auto px-2 py-0 text-base font-normal text-muted-foreground gap-1 hover:text-foreground">
             <span className={TIER_COLORS[selectedModel.tier]}>●</span>
             {selectedModel.label}
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
@@ -154,10 +154,10 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
       {/* Reasoning selector */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild disabled={disabled}>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground gap-1">
+          <Button variant="ghost" size="sm" className="h-auto px-2 py-0 text-base font-normal text-muted-foreground gap-1 hover:text-foreground">
             <selectedReasoning.icon className="h-3 w-3" />
             {selectedReasoning.label}
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
