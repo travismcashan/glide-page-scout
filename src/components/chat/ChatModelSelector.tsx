@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
-export type ModelProvider = 'gemini' | 'gpt' | 'claude';
+export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity';
 
 export type ModelOption = {
   id: string;
