@@ -30,6 +30,8 @@ type PageData = {
 type Props = {
   session: SessionData;
   pages?: PageData[];
+  selectedModel: string;
+  reasoning: ReasoningEffort;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
@@ -101,14 +103,12 @@ function countSources(session: SessionData): number {
   return keys.filter(k => !!session[k]).length + (session.gtmetrix_grade ? 1 : 0);
 }
 
-export function KnowledgeChatCard({ session, pages }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
-  const [selectedModel, setSelectedModel] = useState('google/gemini-3-flash-preview');
-  const [reasoning, setReasoning] = useState<ReasoningEffort>('none');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -364,16 +364,8 @@ export function KnowledgeChatCard({ session, pages }: Props) {
 
   return (
     <div className="flex flex-col h-[600px]">
-      {/* Model selector + Context stats */}
+      {/* Context stats */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3 px-1">
-        <ChatModelSelector
-          model={selectedModel}
-          reasoning={reasoning}
-          onModelChange={setSelectedModel}
-          onReasoningChange={setReasoning}
-          disabled={isStreaming}
-        />
-        <span className="text-border">|</span>
         <BookOpen className="h-3.5 w-3.5" />
         <span>
           <strong className="text-foreground">{sourceCount}</strong> integration sources loaded
