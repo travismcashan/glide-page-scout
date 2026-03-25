@@ -1873,6 +1873,8 @@ export default function ResultsPage() {
                   errorText={integrationErrors.avoma}
                   headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
                   collapsed={allCollapsed}
+                  paused={isIntegrationPaused('avoma') && !(session as any)?.avoma_data}
+                  onTogglePause={() => handleTogglePause('avoma')}
                 >
                   {(session as any)?.avoma_data ? <AvomaCard
                     data={(session as any).avoma_data}
