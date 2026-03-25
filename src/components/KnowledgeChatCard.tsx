@@ -226,6 +226,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning }: 
         body: JSON.stringify({
           messages: apiMessages,
           crawlContext,
+          session_id: session.id,
           model: selectedModel,
           reasoning: reasoning !== 'none' ? reasoning : undefined,
         }),
