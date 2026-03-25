@@ -1131,6 +1131,18 @@ export default function ResultsPage() {
     prevLoadingRef.current = { ...loadingMap };
   });
 
+  // Record timestamps for integrations that load internally (not tracked by loadingMap)
+  useEffect(() => {
+    if ((session as any)?.template_tiers && !integrationTimestamps['templates']) {
+      const timestamp = new Date().toISOString();
+      setIntegrationTimestamps(t => {
+        const next = { ...t, templates: timestamp };
+        if (sessionId) supabase.from('crawl_sessions').update({ integration_timestamps: next } as any).eq('id', sessionId).then();
+        return next;
+      });
+    }
+  }, [(session as any)?.template_tiers]);
+
   // Build ordered integration steps for global progress bar
   const integrationSteps = session ? [
     { key: 'sitemap', label: 'Sitemaps', loading: sitemapLoading, failed: sitemapFailed, data: session.sitemap_data, paused: isIntegrationPaused('sitemap') },
