@@ -345,6 +345,77 @@ function EngagementsTab({ engagements }: { engagements: any[] }) {
   );
 }
 
+function FormSubmissionRow({ sub }: { sub: any }) {
+  const [open, setOpen] = useState(false);
+  const fields = sub.fields || [];
+  const hasContent = fields.length > 0 || sub.pageUrl;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="w-full text-left" disabled={!hasContent}>
+        <Card className={`p-3 transition-colors ${hasContent ? 'hover:bg-muted/50 cursor-pointer' : ''}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <p className="text-sm font-medium truncate">{sub.formTitle}</p>
+                {fields.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px]">{fields.length} field{fields.length !== 1 ? 's' : ''}</Badge>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                {sub.contactName && <span>{sub.contactName}</span>}
+                {sub.contactEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{sub.contactEmail}</span>}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {sub.timestamp && (
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {format(new Date(sub.timestamp), 'MMM d, yyyy')}
+                </span>
+              )}
+              {hasContent && (open ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />)}
+            </div>
+          </div>
+        </Card>
+      </CollapsibleTrigger>
+      {hasContent && (
+        <CollapsibleContent>
+          <Card className="p-3 mt-0.5 bg-muted/30 space-y-2 text-xs text-muted-foreground">
+            {sub.pageUrl && (
+              <p><strong>Page:</strong>{' '}
+                <a href={sub.pageUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  {sub.pageUrl}
+                </a>
+              </p>
+            )}
+            {fields.length > 0 && (
+              <div className="border rounded-md overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="text-left px-2.5 py-1.5 font-medium text-muted-foreground">Field</th>
+                      <th className="text-left px-2.5 py-1.5 font-medium text-muted-foreground">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fields.map((f: any, idx: number) => (
+                      <tr key={idx} className="border-t border-border">
+                        <td className="px-2.5 py-1.5 font-medium capitalize whitespace-nowrap">{f.name.replace(/_/g, ' ')}</td>
+                        <td className="px-2.5 py-1.5 break-all">{f.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </CollapsibleContent>
+      )}
+    </Collapsible>
+  );
+}
+
 function FormSubmissionsTab({ formSubmissions }: { formSubmissions: any[] }) {
   if (formSubmissions.length === 0) return <p className="text-sm text-muted-foreground">No form submissions found.</p>;
 
@@ -352,30 +423,7 @@ function FormSubmissionsTab({ formSubmissions }: { formSubmissions: any[] }) {
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground"><strong>{formSubmissions.length}</strong> form submission{formSubmissions.length !== 1 ? 's' : ''} found</p>
       {formSubmissions.map((sub, i) => (
-        <Card key={sub.conversionId || i} className="p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <p className="text-sm font-medium truncate">{sub.formTitle}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                {sub.contactName && <span>{sub.contactName}</span>}
-                {sub.contactEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{sub.contactEmail}</span>}
-                {sub.pageUrl && (
-                  <a href={sub.pageUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-[200px]">
-                    {new URL(sub.pageUrl).pathname}
-                  </a>
-                )}
-              </div>
-            </div>
-            {sub.timestamp && (
-              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                {format(new Date(sub.timestamp), 'MMM d, yyyy')}
-              </span>
-            )}
-          </div>
-        </Card>
+        <FormSubmissionRow key={sub.conversionId || i} sub={sub} />
       ))}
     </div>
   );

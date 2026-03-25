@@ -168,6 +168,11 @@ serve(async (req) => {
         const subs = subRes?.['form-submissions'] || [];
         const contact = contacts.find((c: any) => c.id === contactId);
         for (const sub of subs) {
+          const fields = (sub.fields || []).map((f: any) => ({
+            name: f.name || f.label || 'Unknown',
+            value: f.value || '',
+          })).filter((f: any) => f.value);
+
           formSubmissions.push({
             contactId,
             contactName: contact ? `${contact.firstname || ''} ${contact.lastname || ''}`.trim() : '',
@@ -178,6 +183,7 @@ serve(async (req) => {
             pageUrl: sub['page-url'] || null,
             timestamp: sub.timestamp ? new Date(sub.timestamp).toISOString() : null,
             conversionId: sub['conversion-id'] || null,
+            fields,
           });
         }
       } catch (e) {
