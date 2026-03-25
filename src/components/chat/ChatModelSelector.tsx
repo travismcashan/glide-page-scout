@@ -106,10 +106,10 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
     }
   };
 
-  const btnClass = "h-auto px-2 py-0 text-base font-normal text-muted-foreground gap-1 hover:text-foreground";
+  const btnClass = "h-7 px-2 py-0 text-xs font-normal text-muted-foreground gap-1 hover:text-foreground rounded-full";
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0.5 border border-border rounded-full px-0.5">
       {/* 1. Provider */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild disabled={disabled}>
