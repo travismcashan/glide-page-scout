@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -261,13 +261,22 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
-function AssistantBubbleWrapper({ content, thinking, isStreamingThis }: { content: string; thinking?: string; isStreamingThis?: boolean }) {
+function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void }) {
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleSave = () => {
+    if (onSaveNote) {
+      onSaveNote(content);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
   };
 
   return (
@@ -284,13 +293,22 @@ function AssistantBubbleWrapper({ content, thinking, isStreamingThis }: { conten
         <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
       )}
       {content && !isStreamingThis && (
-        <button
-          onClick={handleCopy}
-          className="absolute -right-8 top-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground"
-          title="Copy response"
-        >
-          {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
+        <div className="absolute -right-8 top-3 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-0.5">
+          <button
+            onClick={handleCopy}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+            title="Copy response"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={handleSave}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+            title="Save as note to document library"
+          >
+            {saved ? <Check className="h-3.5 w-3.5 text-accent" /> : <BookmarkPlus className="h-3.5 w-3.5" />}
+          </button>
+        </div>
       )}
     </div>
   );
@@ -555,6 +573,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     }
   };
 
+  const handleSaveNote = useCallback(async (content: string) => {
+    try {
+      const noteName = `Chat Note – ${new Date().toLocaleString()}`;
+      const { data, error } = await supabase.functions.invoke('rag-ingest', {
+        body: {
+          session_id: session.id,
+          documents: [{ name: noteName, content, source_type: 'chat_note' }],
+        },
+      });
+      if (error) throw error;
+      toast.success('Saved to document library');
+      if (onDocumentsChanged) onDocumentsChanged();
+    } catch (e: any) {
+      console.error('Save note error:', e);
+      toast.error('Failed to save note');
+    }
+  }, [session.id, onDocumentsChanged]);
+
   const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
     if (isStreaming) return;
     // Truncate conversation to just before this message
@@ -638,7 +674,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} />
+                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} />
                   )}
                 </div>
                 {/* Source badges for assistant messages */}
