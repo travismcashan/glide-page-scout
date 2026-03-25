@@ -148,6 +148,8 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
+  const [chatModel, setChatModel] = useState('google/gemini-3-flash-preview');
+  const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
   const [activeTab, setActiveTab] = useState('raw-data');
   const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
@@ -1997,8 +1999,16 @@ export default function ResultsPage() {
                 sectionId="knowledge-chat" persistedCollapsed={isSectionCollapsed("knowledge-chat")} onCollapseChange={toggleSection} title="Knowledge Chat"
                 icon={<BookOpen className="h-5 w-5 text-foreground" />}
                 collapsed={allCollapsed}
+                headerExtra={
+                  <ChatModelSelector
+                    model={chatModel}
+                    reasoning={chatReasoning}
+                    onModelChange={setChatModel}
+                    onReasoningChange={setChatReasoning}
+                  />
+                }
               >
-                <KnowledgeChatCard session={session} pages={scrapedPages} />
+                <KnowledgeChatCard session={session} pages={scrapedPages} selectedModel={chatModel} reasoning={chatReasoning} />
               </SectionCard>
             )}
           </TabsContent>
