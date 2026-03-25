@@ -108,6 +108,48 @@ function detectSources(text: string): string[] {
 
 // countSources removed — no longer displayed (RAG replaces full-context stats)
 
+function UserBubbleContent({ content, attachmentNames }: { content: string; attachmentNames?: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const MAX_HEIGHT = 72; // ~3 lines
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setIsOverflowing(contentRef.current.scrollHeight > MAX_HEIGHT);
+    }
+  }, [content]);
+
+  return (
+    <>
+      <div
+        ref={contentRef}
+        className={`whitespace-pre-wrap overflow-hidden transition-all ${!expanded && isOverflowing ? 'max-h-[72px]' : ''}`}
+        style={!expanded && isOverflowing ? { WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' } : undefined}
+      >
+        {content}
+      </div>
+      {isOverflowing && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-[11px] mt-1 opacity-80 hover:opacity-100 underline underline-offset-2"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+      {attachmentNames && attachmentNames.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {attachmentNames.map((name, j) => (
+            <Badge key={j} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-primary-foreground/20">
+              📎 {name}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -437,18 +479,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         </div>
                       </Suspense>
                     ) : (
-                      <>
-                        <span className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : ''}</span>
-                        {msg.attachmentNames && msg.attachmentNames.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {msg.attachmentNames.map((name, j) => (
-                              <Badge key={j} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-primary-foreground/20">
-                                📎 {name}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </>
+                      <UserBubbleContent content={typeof msg.content === 'string' ? msg.content : ''} attachmentNames={msg.attachmentNames} />
                     )}
                     {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
                       <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
