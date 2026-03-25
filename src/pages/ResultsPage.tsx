@@ -84,6 +84,7 @@ type CrawlSession = {
   base_url: string;
   status: string;
   created_at: string;
+  updated_at: string;
   builtwith_data: any | null;
   semrush_data: any | null;
   psi_data: any | null;
