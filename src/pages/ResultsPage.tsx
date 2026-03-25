@@ -282,10 +282,12 @@ export default function ResultsPage() {
         fetchData();
       } else {
         setBuiltwithFailed(true);
-        setError('builtwith', result.error || 'BuiltWith API returned an error');
+        const msg = result.error || 'BuiltWith API returned an error';
+        setError('builtwith', msg);
+        persistFailure('builtwith_data', msg);
       }
       setBuiltwithLoading(false);
-    }).catch((e) => { setBuiltwithFailed(true); setError('builtwith', e?.message || 'BuiltWith request failed'); setBuiltwithLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'BuiltWith request failed'; setBuiltwithFailed(true); setError('builtwith', msg); persistFailure('builtwith_data', msg); setBuiltwithLoading(false); });
   }, [session, builtwithLoading, builtwithFailed, fetchData, pauseVersion]);
   // SEMrush
   const [semrushFailed, setSemrushFailed] = useState(false);
