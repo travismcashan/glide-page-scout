@@ -121,6 +121,7 @@ export function KnowledgeTabContent({
           reasoning={chatReasoning}
           onModelChange={setChatModel}
           onReasoningChange={setChatReasoning}
+          onDocumentsChanged={triggerRefresh}
         />
       </SectionCard>
     </div>
