@@ -236,27 +236,6 @@ function getEngagementBody(eng: any): string | null {
   }
 }
 
-function EngagementExpandedRow({ eng, type }: { eng: any; type: string }) {
-  const bodyContent = getEngagementBody(eng);
-  if (!bodyContent && !(type === 'emails' && (eng.hs_email_sender_email || eng.hs_email_to_email)) && !(type === 'meetings' && eng.hs_meeting_start_time)) return null;
-
-  return (
-    <tr>
-      <td colSpan={4} className="px-3 py-2 bg-muted/30 border-b border-border">
-        <div className="space-y-1 text-xs text-muted-foreground max-w-full">
-          {type === 'emails' && eng.hs_email_sender_email && <p><strong>From:</strong> {eng.hs_email_sender_email}</p>}
-          {type === 'emails' && eng.hs_email_to_email && <p><strong>To:</strong> {eng.hs_email_to_email}</p>}
-          {type === 'meetings' && eng.hs_meeting_start_time && (
-            <p><strong>Time:</strong> {format(new Date(eng.hs_meeting_start_time), 'MMM d, yyyy h:mm a')}{eng.hs_meeting_end_time ? ` – ${format(new Date(eng.hs_meeting_end_time), 'h:mm a')}` : ''}</p>
-          )}
-          {type === 'meetings' && eng.hs_meeting_outcome && <p><strong>Outcome:</strong> {eng.hs_meeting_outcome}</p>}
-          {bodyContent && <p className="whitespace-pre-wrap leading-relaxed line-clamp-6">{bodyContent}</p>}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
 function EngagementRow({ eng }: { eng: any }) {
   const [open, setOpen] = useState(false);
   const title = getEngagementTitle(eng);
@@ -265,29 +244,37 @@ function EngagementRow({ eng }: { eng: any }) {
   const hasExpandable = !!bodyContent || (eng.type === 'emails' && (eng.hs_email_to_email || eng.hs_email_sender_email)) || (eng.type === 'meetings' && (eng.hs_meeting_start_time || eng.hs_meeting_end_time));
 
   return (
-    <>
-      <tr
-        className={`h-7 border-b border-border text-xs leading-5 ${hasExpandable ? 'hover:bg-muted/20 cursor-pointer' : 'hover:bg-muted/20'}`}
-        onClick={() => hasExpandable && setOpen(!open)}
-      >
-        <td className="px-3 py-1 whitespace-nowrap w-[60px]">
-          <span className="text-muted-foreground truncate">{engagementLabel[eng.type] || eng.type}</span>
-        </td>
-        <td className="px-3 py-1 truncate max-w-0">
-          <div className="flex items-center gap-1.5 truncate">
-            {hasExpandable && (open ? <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" /> : <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />)}
-            <span className="truncate">{title}</span>
+    <tr
+      className={`border-b border-border text-xs leading-5 ${hasExpandable ? 'hover:bg-muted/20 cursor-pointer' : 'hover:bg-muted/20'}`}
+      onClick={() => hasExpandable && setOpen(!open)}
+    >
+      <td className="px-3 py-1 whitespace-nowrap w-[60px] align-top">
+        <span className="text-muted-foreground truncate">{engagementLabel[eng.type] || eng.type}</span>
+      </td>
+      <td className="px-3 py-1 max-w-0 align-top">
+        <div className="flex items-center gap-1.5 truncate">
+          {hasExpandable && (open ? <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" /> : <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />)}
+          <span className={open ? '' : 'truncate'}>{title}</span>
+        </div>
+        {open && (
+          <div className="mt-1.5 space-y-0.5 text-muted-foreground pb-1">
+            {eng.type === 'emails' && eng.hs_email_sender_email && <p><strong>From:</strong> {eng.hs_email_sender_email}</p>}
+            {eng.type === 'emails' && eng.hs_email_to_email && <p><strong>To:</strong> {eng.hs_email_to_email}</p>}
+            {eng.type === 'meetings' && eng.hs_meeting_start_time && (
+              <p><strong>Time:</strong> {format(new Date(eng.hs_meeting_start_time), 'MMM d, yyyy h:mm a')}{eng.hs_meeting_end_time ? ` – ${format(new Date(eng.hs_meeting_end_time), 'h:mm a')}` : ''}</p>
+            )}
+            {eng.type === 'meetings' && eng.hs_meeting_outcome && <p><strong>Outcome:</strong> {eng.hs_meeting_outcome}</p>}
+            {bodyContent && <p className="whitespace-pre-wrap leading-relaxed line-clamp-6">{bodyContent}</p>}
           </div>
-        </td>
-        <td className="px-3 py-1 truncate max-w-0 text-muted-foreground">
-          {detail || '—'}
-        </td>
-        <td className="px-3 py-1 whitespace-nowrap text-right text-muted-foreground tabular-nums w-[90px]">
-          {eng.hs_timestamp ? format(new Date(eng.hs_timestamp), 'MMM d, yyyy') : '—'}
-        </td>
-      </tr>
-      {open && <EngagementExpandedRow eng={eng} type={eng.type} />}
-    </>
+        )}
+      </td>
+      <td className="px-3 py-1 truncate max-w-0 text-muted-foreground align-top">
+        {detail || '—'}
+      </td>
+      <td className="px-3 py-1 whitespace-nowrap text-right text-muted-foreground tabular-nums w-[90px] align-top">
+        {eng.hs_timestamp ? format(new Date(eng.hs_timestamp), 'MMM d, yyyy') : '—'}
+      </td>
+    </tr>
   );
 }
 
