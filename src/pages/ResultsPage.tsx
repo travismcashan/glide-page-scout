@@ -440,8 +440,11 @@ export default function ResultsPage() {
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
   const [hubspotFailed, setHubspotFailed] = useState(false);
+  const hubspotTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || (session as any).hubspot_data || hubspotLoading || hubspotFailed || isIntegrationPaused('hubspot')) return;
+    if (hubspotTriggeredRef.current) return;
+    hubspotTriggeredRef.current = true;
     setHubspotLoading(true);
     hubspotApi.lookup(session.domain).then(async (result) => {
       if (result.success) {
