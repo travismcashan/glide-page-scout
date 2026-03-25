@@ -5,74 +5,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+// Map frontend Claude IDs to actual Anthropic model identifiers
+const CLAUDE_MODELS: Record<string, string> = {
+  'claude-haiku': 'claude-haiku-4-20250414',
+  'claude-sonnet': 'claude-sonnet-4-20250514',
+  'claude-opus': 'claude-opus-4-20250514',
+};
 
-  try {
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'LOVABLE_API_KEY is not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+// Map reasoning levels to Claude's extended thinking budget tokens
+const CLAUDE_THINKING_BUDGETS: Record<string, number> = {
+  low: 2048,
+  medium: 8192,
+  high: 32768,
+};
 
-    const { messages, crawlContext, documents, model, reasoning } = await req.json();
+const ALLOWED_GATEWAY_MODELS = [
+  'google/gemini-2.5-flash-lite',
+  'google/gemini-2.5-flash',
+  'google/gemini-3-flash-preview',
+  'google/gemini-2.5-pro',
+  'google/gemini-3.1-pro-preview',
+  'openai/gpt-5-nano',
+  'openai/gpt-5-mini',
+  'openai/gpt-5',
+  'openai/gpt-5.2',
+];
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'messages array is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Validate model against allowlist
-    const ALLOWED_MODELS = [
-      'google/gemini-2.5-flash-lite',
-      'google/gemini-2.5-flash',
-      'google/gemini-3-flash-preview',
-      'google/gemini-2.5-pro',
-      'google/gemini-3.1-pro-preview',
-      'openai/gpt-5-nano',
-      'openai/gpt-5-mini',
-      'openai/gpt-5',
-      'openai/gpt-5.2',
-    ];
-    const selectedModel = ALLOWED_MODELS.includes(model) ? model : 'google/gemini-3-flash-preview';
-
-    // Validate reasoning effort
-    const ALLOWED_REASONING = ['low', 'medium', 'high', 'xhigh'];
-    const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
-
-    // Build system prompt with crawl context
-    const MAX_CHARS = 400_000;
-    let contextBlock = '';
-
-    if (crawlContext) {
-      const available = MAX_CHARS - 2000;
-      contextBlock = crawlContext.length > available
-        ? crawlContext.slice(0, available) + '\n\n[… context truncated to fit token limit]'
-        : crawlContext;
-    }
-
-    // Append documents if provided
-    if (documents && Array.isArray(documents)) {
-      for (const doc of documents) {
-        if (doc.content && contextBlock.length < MAX_CHARS) {
-          const space = MAX_CHARS - contextBlock.length - 100;
-          if (space > 0) {
-            const trimmedDoc = doc.content.length > space
-              ? doc.content.slice(0, space) + '\n\n[… document truncated]'
-              : doc.content;
-            contextBlock += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${trimmedDoc}`;
-          }
-        }
-      }
-    }
-
-    const systemPrompt = `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.
+function buildSystemPrompt(contextBlock: string): string {
+  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.
 
 You have access to comprehensive audit data from multiple integration tools. When answering questions:
 
@@ -86,57 +46,270 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 If asked about something not covered by the available data, say so clearly rather than guessing.
 
 ${contextBlock ? `\n---\n\nHere is all the audit data gathered about this website:\n\n${contextBlock}` : '\nNo audit data is currently available for this session.'}`;
+}
 
-    console.log(`[knowledge-chat] Model: ${selectedModel}, Reasoning: ${selectedReasoning || 'none'}, Context: ${contextBlock.length} chars (~${Math.round(contextBlock.length / 4)} tokens), Messages: ${messages.length}`);
+function buildContextBlock(crawlContext: string | undefined, documents: any[] | undefined): string {
+  const MAX_CHARS = 400_000;
+  let contextBlock = '';
 
-    // Build request body
-    const requestBody: any = {
-      model: selectedModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-      ],
-      stream: true,
-    };
+  if (crawlContext) {
+    const available = MAX_CHARS - 2000;
+    contextBlock = crawlContext.length > available
+      ? crawlContext.slice(0, available) + '\n\n[… context truncated to fit token limit]'
+      : crawlContext;
+  }
 
-    // Add reasoning if specified
-    if (selectedReasoning) {
-      requestBody.reasoning = { effort: selectedReasoning };
+  if (documents && Array.isArray(documents)) {
+    for (const doc of documents) {
+      if (doc.content && contextBlock.length < MAX_CHARS) {
+        const space = MAX_CHARS - contextBlock.length - 100;
+        if (space > 0) {
+          const trimmedDoc = doc.content.length > space
+            ? doc.content.slice(0, space) + '\n\n[… document truncated]'
+            : doc.content;
+          contextBlock += `\n\n---\nAttached Document: ${doc.name || 'Untitled'}\n\n${trimmedDoc}`;
+        }
+      }
     }
+  }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
+  return contextBlock;
+}
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please wait a moment and try again.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+async function handleClaudeRequest(
+  claudeModelId: string,
+  messages: any[],
+  systemPrompt: string,
+  reasoning: string | undefined,
+): Promise<Response> {
+  const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!ANTHROPIC_API_KEY) {
+    return new Response(
+      JSON.stringify({ error: 'Anthropic API key is not configured. Please add ANTHROPIC_API_KEY in settings.' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const anthropicModel = CLAUDE_MODELS[claudeModelId];
+  if (!anthropicModel) {
+    return new Response(
+      JSON.stringify({ error: `Unknown Claude model: ${claudeModelId}` }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Convert OpenAI-style messages to Anthropic format
+  const anthropicMessages = messages.map((msg: any) => {
+    if (Array.isArray(msg.content)) {
+      // Multimodal message
+      const content = msg.content.map((part: any) => {
+        if (part.type === 'text') return { type: 'text', text: part.text };
+        if (part.type === 'image_url') {
+          const url = part.image_url?.url || '';
+          if (url.startsWith('data:')) {
+            const match = url.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              return {
+                type: 'image',
+                source: { type: 'base64', media_type: match[1], data: match[2] },
+              };
+            }
+          }
+          return { type: 'text', text: `[Image: ${url}]` };
+        }
+        return part;
+      });
+      return { role: msg.role, content };
+    }
+    return { role: msg.role, content: msg.content };
+  });
+
+  // Build Anthropic request
+  const requestBody: any = {
+    model: anthropicModel,
+    max_tokens: 8192,
+    system: systemPrompt,
+    messages: anthropicMessages,
+    stream: true,
+  };
+
+  // Add extended thinking if reasoning is requested
+  const thinkingBudget = reasoning && CLAUDE_THINKING_BUDGETS[reasoning];
+  if (thinkingBudget) {
+    requestBody.thinking = {
+      type: 'enabled',
+      budget_tokens: thinkingBudget,
+    };
+    // Extended thinking needs higher max_tokens
+    requestBody.max_tokens = thinkingBudget + 8192;
+  }
+
+  console.log(`[knowledge-chat] Claude request: model=${anthropicModel}, thinking=${reasoning || 'none'}`);
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Anthropic API error:', response.status, errText);
+    let errorMsg = `Anthropic API error (${response.status})`;
+    try {
+      const errJson = JSON.parse(errText);
+      errorMsg = errJson.error?.message || errorMsg;
+    } catch { /* use default */ }
+    return new Response(
+      JSON.stringify({ error: errorMsg }),
+      { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Transform Anthropic SSE stream to OpenAI-compatible format
+  const transformedStream = new ReadableStream({
+    async start(controller) {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let newlineIdx: number;
+          while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, newlineIdx).trim();
+            buffer = buffer.slice(newlineIdx + 1);
+
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6);
+            if (jsonStr === '[DONE]') continue;
+
+            try {
+              const event = JSON.parse(jsonStr);
+              // Convert Anthropic events to OpenAI delta format
+              if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+                const openAiChunk = {
+                  choices: [{ delta: { content: event.delta.text }, index: 0 }],
+                };
+                controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(openAiChunk)}\n\n`));
+              }
+            } catch { /* skip unparseable */ }
+          }
+        }
+        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+      } catch (e) {
+        console.error('Stream transform error:', e);
+      } finally {
+        controller.close();
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add funds in Settings → Workspace → Usage.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errText = await response.text();
-      console.error('AI gateway error:', response.status, errText);
+    },
+  });
+
+  return new Response(transformedStream, {
+    headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+  });
+}
+
+async function handleGatewayRequest(
+  model: string,
+  messages: any[],
+  systemPrompt: string,
+  reasoning: string | undefined,
+): Promise<Response> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    return new Response(
+      JSON.stringify({ error: 'LOVABLE_API_KEY is not configured' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const selectedModel = ALLOWED_GATEWAY_MODELS.includes(model) ? model : 'google/gemini-3-flash-preview';
+  const ALLOWED_REASONING = ['low', 'medium', 'high', 'xhigh'];
+  const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
+
+  const requestBody: any = {
+    model: selectedModel,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      ...messages,
+    ],
+    stream: true,
+  };
+
+  if (selectedReasoning) {
+    requestBody.reasoning = { effort: selectedReasoning };
+  }
+
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) {
       return new Response(
-        JSON.stringify({ error: `AI gateway error (${response.status})` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Rate limit exceeded. Please wait a moment and try again.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (response.status === 402) {
+      return new Response(
+        JSON.stringify({ error: 'AI credits exhausted. Please add funds in Settings → Workspace → Usage.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const errText = await response.text();
+    console.error('AI gateway error:', response.status, errText);
+    return new Response(
+      JSON.stringify({ error: `AI gateway error (${response.status})` }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  return new Response(response.body, {
+    headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+  });
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { messages, crawlContext, documents, model, reasoning } = await req.json();
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'messages array is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
-    });
+    const contextBlock = buildContextBlock(crawlContext, documents);
+    const systemPrompt = buildSystemPrompt(contextBlock);
+    const isClaudeModel = model && model.startsWith('claude-');
+
+    console.log(`[knowledge-chat] Provider: ${isClaudeModel ? 'Anthropic' : 'Gateway'}, Model: ${model || 'default'}, Reasoning: ${reasoning || 'none'}, Context: ${contextBlock.length} chars, Messages: ${messages.length}`);
+
+    if (isClaudeModel) {
+      return await handleClaudeRequest(model, messages, systemPrompt, reasoning);
+    } else {
+      return await handleGatewayRequest(model || 'google/gemini-3-flash-preview', messages, systemPrompt, reasoning);
+    }
   } catch (e) {
     console.error('knowledge-chat error:', e);
     return new Response(
