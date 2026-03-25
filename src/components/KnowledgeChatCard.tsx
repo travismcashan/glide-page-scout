@@ -355,6 +355,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
   }, [session.id]);
 
+  // Load favorites
+  useEffect(() => {
+    supabase
+      .from('knowledge_favorites')
+      .select('content')
+      .eq('session_id', session.id)
+      .then(({ data }) => {
+        if (data) setFavoriteIds(new Set(data.map(f => f.content)));
+      });
+  }, [session.id]);
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
