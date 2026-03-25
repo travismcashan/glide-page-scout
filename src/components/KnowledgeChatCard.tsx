@@ -238,6 +238,29 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   );
 }
 
+function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <Brain className="h-3 w-3" />
+        <span>{isStreaming ? 'Thinking…' : 'Thought process'}</span>
+        {isStreaming && <span className="flex gap-0.5 ml-1"><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" /></span>}
+      </button>
+      {expanded && (
+        <div className="mt-1.5 pl-5 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
+          {thinking}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
