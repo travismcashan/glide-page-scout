@@ -916,11 +916,15 @@ export default function ResultsPage() {
         toast.success(`Found ${result.data.summary?.uniqueForms || 0} unique forms`);
       } else {
         setFormsFailed(true);
-        setError('forms', result.error || 'Forms detection failed');
+        const msg = result.error || 'Forms detection failed';
+        setError('forms', msg);
+        persistFailure('forms_data', msg);
       }
     } catch (e: any) {
       setFormsFailed(true);
-      setError('forms', e?.message || 'Forms detection request failed');
+      const msg = e?.message || 'Forms detection request failed';
+      setError('forms', msg);
+      persistFailure('forms_data', msg);
     } finally {
       setFormsLoading(false);
     }
@@ -934,6 +938,8 @@ export default function ResultsPage() {
   useEffect(() => {
     if (!session || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
+    if (contentTypesTriggeredRef.current) return;
+    contentTypesTriggeredRef.current = true;
     setContentTypesLoading(true);
     setContentTypesProgress('Starting classification…');
     contentTypesApi.classifyPhased(
@@ -946,10 +952,10 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
         clearError('content-types');
         fetchData();
-      } else { setContentTypesFailed(true); setError('content-types', result.error || 'Content type classification failed'); }
+      } else { const msg = result.error || 'Content type classification failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); }
       setContentTypesLoading(false);
       setContentTypesProgress('');
-    }).catch((e) => { setContentTypesFailed(true); setError('content-types', e?.message || 'Content type classification request failed'); setContentTypesLoading(false); setContentTypesProgress(''); });
+    }).catch((e) => { const msg = e?.message || 'Content type classification request failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); setContentTypesLoading(false); setContentTypesProgress(''); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
