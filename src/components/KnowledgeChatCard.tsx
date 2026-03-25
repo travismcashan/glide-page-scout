@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -536,7 +536,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 className="h-7 px-2.5 text-xs font-normal gap-1.5 rounded-full"
                 disabled={isStreaming}
               >
-                <FileText className="h-3.5 w-3.5" />
+              <SlidersHorizontal className="h-3.5 w-3.5" />
                 Sources
                 <ChevronDown className="h-3 w-3" />
               </Button>
