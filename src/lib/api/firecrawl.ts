@@ -681,3 +681,21 @@ export const techAnalysisApi = {
     return data;
   },
 };
+
+export const hubspotApi = {
+  async lookup(domain: string): Promise<{
+    success: boolean;
+    domain?: string;
+    companies?: any[];
+    contacts?: any[];
+    deals?: any[];
+    stats?: { companiesCount: number; contactsCount: number; dealsCount: number };
+    error?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('hubspot-lookup', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
