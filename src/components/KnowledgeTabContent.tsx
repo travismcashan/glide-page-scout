@@ -123,7 +123,6 @@ export function KnowledgeTabContent({
           onReasoningChange={setChatReasoning}
         />
       </SectionCard>
-      </SectionCard>
     </div>
   );
 }
