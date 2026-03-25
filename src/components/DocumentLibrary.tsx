@@ -41,7 +41,7 @@ const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; 
   error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
 };
 
-export function DocumentLibrary({ sessionId, onDocumentCountChange }: Props) {
+export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, onIngestIntegrations, ingesting }: Props) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
