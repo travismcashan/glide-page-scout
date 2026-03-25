@@ -97,7 +97,7 @@ export function KnowledgeTabContent({
       ) : (
         <button
           onClick={() => setLibraryOpen(true)}
-          className="border rounded-lg p-2 h-fit shrink-0 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          className="border rounded-lg p-2 h-[700px] shrink-0 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
           title="Open document library"
         >
           <PanelLeftOpen className="h-4 w-4" />
