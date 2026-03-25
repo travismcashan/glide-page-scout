@@ -875,6 +875,8 @@ export default function ResultsPage() {
   const [sitemapFailed, setSitemapFailed] = useState(false);
   useEffect(() => {
     if (!session || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
+    if (sitemapTriggeredRef.current) return;
+    sitemapTriggeredRef.current = true;
     setSitemapLoading(true);
     sitemapApi.parse(session.base_url).then(async (result) => {
       if (result.success) {
@@ -885,9 +887,9 @@ export default function ResultsPage() {
           setSitemapHints(result.contentTypeHints);
         }
         fetchData();
-      } else { setSitemapFailed(true); setError('sitemap', result.error || 'Sitemap parsing failed'); }
+      } else { const msg = result.error || 'Sitemap parsing failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); }
       setSitemapLoading(false);
-    }).catch((e) => { setSitemapFailed(true); setError('sitemap', e?.message || 'Sitemap parsing request failed'); setSitemapLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Sitemap parsing request failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); setSitemapLoading(false); });
   }, [session, sitemapLoading, sitemapFailed, fetchData, pauseVersion]);
   // Hydrate sitemapHints from persisted sitemap_data on load
   useEffect(() => {
