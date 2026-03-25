@@ -1249,26 +1249,29 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-background">
       <header className="px-6">
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-7xl font-light tracking-tight text-foreground">
-                {session?.domain?.replace(/^www\./i, '')}
-              </h1>
-              {session?.created_at && (
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Created {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
-                  </span>
-                  {session?.updated_at && session.updated_at !== session.created_at && (
-                    <span className="flex items-center gap-1">
-                      <RefreshCw className="h-3 w-3" />
-                      Updated {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+           <div className="flex items-start justify-between">
+             <div className="flex items-baseline gap-4">
+               <h1 className="text-7xl font-light tracking-tight text-foreground">
+                 {session?.domain?.replace(/^www\./i, '')}
+               </h1>
+               {session?.base_url && (
+                 <span className="text-sm text-muted-foreground font-mono">{session.base_url}</span>
+               )}
+               {session?.created_at && (
+                 <div className="flex flex-col text-[11px] text-muted-foreground tabular-nums leading-relaxed">
+                   <span className="flex items-center gap-1">
+                     <Clock className="h-3 w-3" />
+                     Created {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
+                   </span>
+                   {session?.updated_at && session.updated_at !== session.created_at && (
+                     <span className="flex items-center gap-1">
+                       <RefreshCw className="h-3 w-3" />
+                       Updated {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
+                     </span>
+                   )}
+                 </div>
+               )}
+             </div>
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground mt-2 h-16 w-16 [&>svg]:h-10 [&>svg]:w-10">
