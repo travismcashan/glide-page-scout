@@ -437,18 +437,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         </div>
                       </Suspense>
                     ) : (
-                      <>
-                        <span className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : ''}</span>
-                        {msg.attachmentNames && msg.attachmentNames.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {msg.attachmentNames.map((name, j) => (
-                              <Badge key={j} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-primary-foreground/20">
-                                📎 {name}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </>
+                      <UserBubbleContent content={typeof msg.content === 'string' ? msg.content : ''} attachmentNames={msg.attachmentNames} />
                     )}
                     {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
                       <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
