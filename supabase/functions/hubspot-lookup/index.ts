@@ -168,7 +168,7 @@ serve(async (req) => {
 
     // Fetch form submissions for contacts
     let formSubmissions: any[] = [];
-    const processedFormIds = new Set<string>();
+    const formFieldsCache = new Map<string, Map<string, any[]>>(); // formId -> (submittedAt -> fields)
 
     for (const contactId of contactIds.slice(0, 10)) {
       try {
@@ -181,10 +181,9 @@ serve(async (req) => {
         for (const sub of subs) {
           const formId = sub['form-id'];
 
-          // Fetch full submissions for this form (once per form)
-          let formFieldsMap = new Map<string, any[]>(); // submittedAt -> fields
-          if (formId && !processedFormIds.has(formId)) {
-            processedFormIds.add(formId);
+          // Fetch full submissions for this form (once per form, cached)
+          if (formId && !formFieldsCache.has(formId)) {
+            const fieldMap = new Map<string, any[]>();
             try {
               const submissionRes = await hubspotFetch(
                 `/form-integrations/v1/submissions/forms/${formId}?limit=50`,
@@ -197,24 +196,29 @@ serve(async (req) => {
                   value: v.value || '',
                 })).filter((f: any) => f.value);
                 if (fields.length > 0) {
-                  formFieldsMap.set(String(s.submittedAt), fields);
+                  fieldMap.set(String(s.submittedAt), fields);
                 }
               }
-              console.log(`[hubspot] Form ${formId}: fetched ${formFieldsMap.size} submissions with fields`);
+              console.log(`[hubspot] Form ${formId}: fetched ${fieldMap.size} submissions with fields`);
             } catch (formErr) {
               console.error(`[hubspot] Error fetching form ${formId} submissions: ${formErr.message}`);
             }
+            formFieldsCache.set(formId, fieldMap);
           }
 
-          // Match by timestamp proximity (within 5 seconds) or conversionId
+          // Match by timestamp proximity (within 10 seconds)
           let fields: any[] = [];
-          if (sub.timestamp && formFieldsMap.size > 0) {
-            for (const [ts, f] of formFieldsMap) {
-              if (Math.abs(sub.timestamp - Number(ts)) < 5000) {
+          const cachedMap = formId ? formFieldsCache.get(formId) : undefined;
+          if (sub.timestamp && cachedMap && cachedMap.size > 0) {
+            let bestDelta = Infinity;
+            for (const [ts, f] of cachedMap) {
+              const delta = Math.abs(sub.timestamp - Number(ts));
+              if (delta < bestDelta) {
+                bestDelta = delta;
                 fields = f;
-                break;
               }
             }
+            console.log(`[hubspot] Form ${formId} match: closest delta=${bestDelta}ms, matched=${fields.length > 0}`);
           }
 
           formSubmissions.push({
