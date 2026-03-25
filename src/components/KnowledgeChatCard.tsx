@@ -604,6 +604,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                     />
                   ) : (
                     <div className="max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
+                      {msg.thinking && (
+                        <ThinkingBlock thinking={msg.thinking} isStreaming={isStreaming && i === messages.length - 1 && !msg.content} />
+                      )}
                       <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
                         <div className="chat-prose max-w-none">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
