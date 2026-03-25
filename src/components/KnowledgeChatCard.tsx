@@ -427,13 +427,24 @@ export function KnowledgeChatCard({ session, pages }: Props) {
                     }`}
                   >
                     {msg.role === 'assistant' ? (
-                      <Suspense fallback={<span>{msg.content}</span>}>
+                      <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
                         <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          <ReactMarkdown>{typeof msg.content === 'string' ? msg.content : ''}</ReactMarkdown>
                         </div>
                       </Suspense>
                     ) : (
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                      <>
+                        <span className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : ''}</span>
+                        {msg.attachmentNames && msg.attachmentNames.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {msg.attachmentNames.map((name, j) => (
+                              <Badge key={j} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-primary-foreground/20">
+                                📎 {name}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                     {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
                       <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
@@ -468,6 +479,11 @@ export function KnowledgeChatCard({ session, pages }: Props) {
 
       {/* Input area */}
       <div className="border-t border-border pt-3 px-1">
+        <ChatFileUpload
+          attachments={attachments}
+          setAttachments={setAttachments}
+          disabled={isStreaming}
+        />
         <div className="flex gap-2 items-end">
           <Textarea
             ref={textareaRef}
@@ -482,7 +498,7 @@ export function KnowledgeChatCard({ session, pages }: Props) {
           <Button
             size="icon"
             onClick={() => handleSend()}
-            disabled={!input.trim() || isStreaming}
+            disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
             className="shrink-0 h-[44px] w-[44px]"
           >
             {isStreaming ? (
