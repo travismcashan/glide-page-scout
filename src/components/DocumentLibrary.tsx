@@ -154,9 +154,11 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <span><strong className="text-foreground">{totalChunks}</strong> chunks indexed</span>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchDocuments} title="Refresh">
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
+          {onIngestIntegrations && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Sync integration data">
+              {ingesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -184,22 +186,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           )}
           {uploading ? 'Processing...' : 'Upload Documents'}
         </Button>
-        {onIngestIntegrations && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0"
-            onClick={onIngestIntegrations}
-            disabled={ingesting || uploading}
-            title="Sync integration data"
-          >
-            {ingesting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
-            )}
-          </Button>
-        )}
       </div>
 
       {/* Document list */}
