@@ -1093,6 +1093,8 @@ export default function ResultsPage() {
     'link-checker': linkcheckLoading, 'nav-structure': navLoading,
     sitemap: sitemapLoading, 'content-types': contentTypesLoading,
     gtmetrix: runningGtmetrix, avoma: avomaLoading,
+    forms: formsLoading, templates: templatesRerunning,
+    'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
   };
 
   useEffect(() => {
@@ -1537,7 +1539,7 @@ export default function ResultsPage() {
           <CollapsibleSection title="Content Analysis" collapsed={isSectionCollapsed("section-content-analysis") ?? false} onToggle={(c) => toggleSection("section-content-analysis", c)}>
             <SortedIntegrationList className="space-y-6">
               {session && (
-              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
+              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{integrationTimestamps['page-tags'] && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps['page-tags']), 'MMM d, yyyy h:mm a')}`}>{format(new Date(integrationTimestamps['page-tags']), 'MMM d, h:mm a')}</span>)}{integrationDurations['page-tags'] != null && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations['page-tags']}s)</span>)}{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
                 {(session as any)?.page_tags ? (
                   <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} globalInnerExpand={redesignInnerExpand} />
                 ) : null}
@@ -1633,15 +1635,26 @@ export default function ResultsPage() {
               {(techAnalysisData || techAnalysisLoading || session?.tech_analysis_data) && (
               <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} paused={isIntegrationPaused('tech-analysis') && !(session as any)?.tech_analysis_data} onTogglePause={() => handleTogglePause('tech-analysis')} headerExtra={
                 !isSharedView ? (
-                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={techAnalysisLoading} onClick={async () => {
-                    setTechAnalysisData(null);
-                    setTechAnalysisFailed(false);
-                    clearError('tech-analysis');
-                    if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
-                    fetchData();
-                  }} title="Run again">
-                    <RefreshCw className={`h-3.5 w-3.5 ${techAnalysisLoading ? 'animate-spin' : ''}`} />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {integrationTimestamps['tech-analysis'] && !techAnalysisLoading && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps['tech-analysis']), 'MMM d, yyyy h:mm a')}`}>
+                        {format(new Date(integrationTimestamps['tech-analysis']), 'MMM d, h:mm a')}
+                      </span>
+                    )}
+                    {integrationDurations['tech-analysis'] != null && !techAnalysisLoading && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations['tech-analysis']}s)</span>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={techAnalysisLoading} onClick={async () => {
+                      setIntegrationDurations(d => { const next = { ...d }; delete next['tech-analysis']; return next; });
+                      setTechAnalysisData(null);
+                      setTechAnalysisFailed(false);
+                      clearError('tech-analysis');
+                      if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
+                      fetchData();
+                    }} title="Run again">
+                      <RefreshCw className={`h-3.5 w-3.5 ${techAnalysisLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
                 ) : null
               }>
                 <TechAnalysisCard data={techAnalysisData} isLoading={techAnalysisLoading} />
