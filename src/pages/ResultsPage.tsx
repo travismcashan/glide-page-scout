@@ -153,6 +153,7 @@ export default function ResultsPage() {
   // Timing tracking per integration
   const integrationStartTimes = useRef<Record<string, number>>({});
   const [integrationDurations, setIntegrationDurations] = useState<Record<string, number>>({});
+  const [integrationTimestamps, setIntegrationTimestamps] = useState<Record<string, string>>({});
   // Error tracking per integration
   const [integrationErrors, setIntegrationErrors] = useState<Record<string, string>>({});
   const [pauseVersion, setPauseVersion] = useState(0);
