@@ -322,9 +322,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ psi_data: { mobile: result.mobile, desktop: result.desktop } } as any).eq('id', session.id);
         clearError('psi');
         fetchData();
-      } else { setPsiFailed(true); setError('psi', result.error || 'PageSpeed Insights returned an error'); }
+      } else { const msg = result.error || 'PageSpeed Insights returned an error'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); }
       setPsiLoading(false);
-    }).catch((e) => { setPsiFailed(true); setError('psi', e?.message || 'PageSpeed request failed'); setPsiLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'PageSpeed request failed'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); setPsiLoading(false); });
   }, [session, psiLoading, psiFailed, fetchData, pauseVersion]);
   // Wappalyzer
   const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
