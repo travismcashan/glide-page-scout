@@ -394,10 +394,12 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ tech_analysis_data: data } as any).eq('id', session.id);
       } else {
         setTechAnalysisFailed(true);
-        setError('tech-analysis', result.error || 'AI tech analysis failed');
+        const msg = result.error || 'AI tech analysis failed';
+        setError('tech-analysis', msg);
+        persistFailure('tech_analysis_data', msg);
       }
       setTechAnalysisLoading(false);
-    }).catch((e) => { setTechAnalysisFailed(true); setError('tech-analysis', e?.message || 'AI tech analysis failed'); setTechAnalysisLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'AI tech analysis failed'; setTechAnalysisFailed(true); setError('tech-analysis', msg); persistFailure('tech_analysis_data', msg); setTechAnalysisLoading(false); });
   }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed, builtwithLoading, detectzestackLoading, wappalyzerLoading, pauseVersion]);
 
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
@@ -411,9 +413,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ gtmetrix_grade: result.grade, gtmetrix_scores: result.scores, gtmetrix_test_id: result.testId } as any).eq('id', session.id);
         clearError('gtmetrix');
         fetchData();
-      } else { setGtmetrixFailed(true); setError('gtmetrix', result.error || 'GTmetrix returned an error'); }
+      } else { const msg = result.error || 'GTmetrix returned an error'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); }
       setRunningGtmetrix(false);
-    }).catch((e) => { setGtmetrixFailed(true); setError('gtmetrix', e?.message || 'GTmetrix request failed'); setRunningGtmetrix(false); });
+    }).catch((e) => { const msg = e?.message || 'GTmetrix request failed'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); setRunningGtmetrix(false); });
   }, [session, runningGtmetrix, gtmetrixFailed, fetchData, pauseVersion]);
   // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
@@ -427,9 +429,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ carbon_data: { green: result.green, bytes: result.bytes, cleanerThan: result.cleanerThan, statistics: result.statistics, rating: result.rating } } as any).eq('id', session.id);
         clearError('carbon');
         fetchData();
-      } else { setCarbonFailed(true); setError('carbon', result.error || 'Website Carbon returned an error'); }
+      } else { const msg = result.error || 'Website Carbon returned an error'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); }
       setCarbonLoading(false);
-    }).catch((e) => { setCarbonFailed(true); setError('carbon', e?.message || 'Website Carbon request failed'); setCarbonLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Website Carbon request failed'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); setCarbonLoading(false); });
   }, [session, carbonLoading, carbonFailed, fetchData, pauseVersion]);
   // CrUX
   const [cruxFailed, setCruxFailed] = useState(false);
@@ -446,9 +448,10 @@ export default function ResultsPage() {
         fetchData();
       } else if (result.noData) {
         setCruxNoData(true);
-      } else { setCruxFailed(true); setError('crux', result.error || 'CrUX returned an error'); }
+        persistFailure('crux_data', 'No CrUX data available for this site');
+      } else { const msg = result.error || 'CrUX returned an error'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); }
       setCruxLoading(false);
-    }).catch((e) => { setCruxFailed(true); setError('crux', e?.message || 'CrUX request failed'); setCruxLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'CrUX request failed'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); setCruxLoading(false); });
   }, [session, cruxLoading, cruxFailed, cruxNoData, fetchData, pauseVersion]);
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
@@ -462,9 +465,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ wave_data: { summary: result.summary, items: result.items, waveUrl: result.waveUrl, creditsRemaining: result.creditsRemaining, pageTitle: result.pageTitle } } as any).eq('id', session.id);
         clearError('wave');
         fetchData();
-      } else { setWaveFailed(true); setError('wave', result.error || 'WAVE returned an error'); }
+      } else { const msg = result.error || 'WAVE returned an error'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); }
       setWaveLoading(false);
-    }).catch((e) => { setWaveFailed(true); setError('wave', e?.message || 'WAVE request failed'); setWaveLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'WAVE request failed'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); setWaveLoading(false); });
   }, [session, waveLoading, waveFailed, fetchData, pauseVersion]);
   // Mozilla Observatory
   const [observatoryFailed, setObservatoryFailed] = useState(false);
@@ -478,9 +481,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ observatory_data: { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests, rawHeaders: result.rawHeaders || null, cspRaw: result.cspRaw || null, cspDirectives: result.cspDirectives || null, cookies: result.cookies || null } } as any).eq('id', session.id);
         clearError('observatory');
         fetchData();
-      } else { setObservatoryFailed(true); setError('observatory', result.error || 'Observatory returned an error'); }
+      } else { const msg = result.error || 'Observatory returned an error'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); }
       setObservatoryLoading(false);
-    }).catch((e) => { setObservatoryFailed(true); setError('observatory', e?.message || 'Observatory request failed'); setObservatoryLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Observatory request failed'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); setObservatoryLoading(false); });
   }, [session, observatoryLoading, observatoryFailed, fetchData, pauseVersion]);
   // Ocean.io
   const [oceanLoading, setOceanLoading] = useState(false);
@@ -496,9 +499,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
         clearError('ocean');
         fetchData();
-      } else { setOceanFailed(true); setError('ocean', result.error || 'Ocean.io returned an error'); }
+      } else { const msg = result.error || 'Ocean.io returned an error'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); }
       setOceanLoading(false);
-    }).catch((e) => { setOceanFailed(true); setError('ocean', e?.message || 'Ocean.io request failed'); setOceanLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Ocean.io request failed'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); setOceanLoading(false); });
   }, [session, oceanLoading, oceanFailed, fetchData, pauseVersion]);
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
