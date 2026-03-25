@@ -203,6 +203,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
+
+    // Ingest uploaded files into RAG document library (fire-and-forget)
+    if (currentAttachments.length > 0) {
+      ingestChatUploads(session.id, currentAttachments).then(count => {
+        if (count > 0 && onDocumentsChanged) onDocumentsChanged();
+      });
+    }
+
     setAttachments([]);
     setIsStreaming(true);
     setIsThinking(true);
