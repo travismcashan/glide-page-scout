@@ -27,12 +27,12 @@ export function CardTabs({ tabs, defaultValue }: CardTabsProps) {
 
   return (
     <Tabs defaultValue={firstValue} className="w-full">
-      <TabsList className="w-full justify-start h-auto flex-wrap gap-1.5 bg-transparent p-0 border-b border-border rounded-none pb-3 mb-0">
+      <TabsList className="w-full justify-start h-auto flex-wrap gap-1.5 bg-transparent p-0 border-b border-foreground rounded-none pb-3 mb-0">
         {visibleTabs.map((tab) => (
           <TabsTrigger
             key={tab.value}
             value={tab.value}
-            className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-border data-[state=active]:shadow-sm transition-all"
+            className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-foreground data-[state=active]:shadow-sm transition-all"
           >
             {tab.icon && <span className="mr-1.5 inline-flex">{tab.icon}</span>}
             {tab.label}
