@@ -427,7 +427,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                     className={`max-w-[85%] rounded-lg px-4 py-3 text-sm ${
                       msg.role === 'user'
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
+                        : 'text-foreground'
                     }`}
                   >
                     {msg.role === 'assistant' ? (
