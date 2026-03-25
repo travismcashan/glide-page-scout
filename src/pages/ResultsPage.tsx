@@ -1495,7 +1495,16 @@ export default function ResultsPage() {
                   persistedUrls={session.discovered_urls}
                   pageTags={(session as any).page_tags}
                   onPageTagChange={handlePageTagChange}
+                  lastRunTimestamp={integrationTimestamps['url-discovery'] || null}
+                  duration={integrationDurations['url-discovery'] ?? null}
+                  isSharedView={isSharedView}
                   onUrlsPersist={async (urls) => {
+                    const timestamp = new Date().toISOString();
+                    setIntegrationTimestamps(t => {
+                      const next = { ...t, 'url-discovery': timestamp };
+                      supabase.from('crawl_sessions').update({ integration_timestamps: next } as any).eq('id', session.id).then();
+                      return next;
+                    });
                     await supabase.from('crawl_sessions').update({ discovered_urls: urls, linkcheck_data: null } as any).eq('id', session.id);
                     setDiscoveredUrls(urls);
                     setLinkcheckFailed(false);

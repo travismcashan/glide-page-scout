@@ -1,4 +1,5 @@
 import { useState, useEffect, forwardRef } from 'react';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
@@ -78,6 +79,9 @@ type Props = {
   onUrlsPersist?: (urls: string[]) => void;
   pageTags?: PageTagsMap | null;
   onPageTagChange?: (url: string, template: string) => void;
+  lastRunTimestamp?: string | null;
+  duration?: number | null;
+  isSharedView?: boolean;
 };
 
 function statusBadgeClass(code: number): string {
@@ -177,7 +181,7 @@ const UrlList = forwardRef<HTMLDivElement, { urls: string[]; statusMap: Map<stri
 
 UrlList.displayName = 'UrlList';
 
-export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, sitemapUrls, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist, pageTags, onPageTagChange }: Props) {
+export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, sitemapUrls, linkCheckResults, linkCheckStreaming, linkCheckLoading, linkCheckProgress, onStopLinkCheck, navStructure, collapsed, persistedUrls, onUrlsPersist, pageTags, onPageTagChange, lastRunTimestamp, duration, isSharedView }: Props) {
   const [isMapping, setIsMapping] = useState(false);
   const [allUrls, setAllUrls] = useState<string[]>([]);
   const [discoveryDone, setDiscoveryDone] = useState(false);
@@ -296,19 +300,31 @@ export function UrlDiscoveryCard({ baseUrl, onUrlsDiscovered, onSitemapHints, si
         </>
       }
       headerExtra={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          disabled={isMapping}
-          onClick={() => {
-            setError(null);
-            startDiscovery();
-          }}
-          title="Re-discover URLs"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isMapping ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex items-center gap-1">
+          {lastRunTimestamp && !isMapping && (
+            <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(lastRunTimestamp), 'MMM d, yyyy h:mm a')}`}>
+              {format(new Date(lastRunTimestamp), 'MMM d, h:mm a')}
+            </span>
+          )}
+          {duration != null && !isMapping && (
+            <span className="text-[10px] text-muted-foreground tabular-nums">({duration}s)</span>
+          )}
+          {!isSharedView && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              disabled={isMapping}
+              onClick={() => {
+                setError(null);
+                startDiscovery();
+              }}
+              title="Re-discover URLs"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isMapping ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+        </div>
       }
     >
       {discoveryDone && !error ? (
