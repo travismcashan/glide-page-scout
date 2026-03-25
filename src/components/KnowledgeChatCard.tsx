@@ -610,6 +610,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     }
   }, [session.id, onDocumentsChanged]);
 
+  const handleToggleFavorite = useCallback(async (content: string) => {
+    const isFav = favoriteIds.has(content);
+    if (isFav) {
+      await supabase.from('knowledge_favorites').delete().eq('session_id', session.id).eq('content', content);
+      setFavoriteIds(prev => { const next = new Set(prev); next.delete(content); return next; });
+    } else {
+      await supabase.from('knowledge_favorites').insert({ session_id: session.id, content } as any);
+      setFavoriteIds(prev => new Set(prev).add(content));
+    }
+  }, [session.id, favoriteIds]);
+
   const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
     if (isStreaming) return;
     // Truncate conversation to just before this message
