@@ -522,9 +522,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
         fetchData();
-      } else { setAvomaFailed(true); setError('avoma', result.error || 'Avoma returned an error'); }
+      } else { const msg = result.error || 'Avoma returned an error'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); }
       setAvomaLoading(false);
-    }).catch((e) => { setAvomaFailed(true); setError('avoma', e?.message || 'Avoma request failed'); setAvomaLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); });
   }, [session, avomaLoading, avomaFailed, fetchData, pauseVersion]);
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
@@ -540,9 +540,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
         fetchData();
-      } else { setHubspotFailed(true); setError('hubspot', result.error || 'HubSpot returned an error'); }
+      } else { const msg = result.error || 'HubSpot returned an error'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); }
       setHubspotLoading(false);
-    }).catch((e) => { setHubspotFailed(true); setError('hubspot', e?.message || 'HubSpot request failed'); setHubspotLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'HubSpot request failed'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); setHubspotLoading(false); });
   }, [session, hubspotLoading, hubspotFailed, fetchData, pauseVersion]);
   // Apollo.io contact enrichment (manual search, persisted)
   const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
