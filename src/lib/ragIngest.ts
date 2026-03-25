@@ -155,3 +155,39 @@ export async function autoIngestPages(
     return 0;
   }
 }
+
+/**
+ * Ingest chat-uploaded files into RAG so they appear in the Document Library.
+ */
+export async function ingestChatUploads(
+  sessionId: string,
+  files: { name: string; content: string; type: 'text' | 'image' | 'document' }[]
+): Promise<number> {
+  const textFiles = files.filter(f => (f.type === 'text' || f.type === 'document') && f.content.length >= 50);
+  if (textFiles.length === 0) return 0;
+
+  const docsToIngest = textFiles.map(f => ({
+    name: `Upload: ${f.name}`,
+    content: f.content,
+    source_type: 'upload',
+    source_key: `chat-upload:${f.name}:${Date.now()}`,
+  }));
+
+  try {
+    const response = await fetch(INGEST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+    });
+
+    if (!response.ok) return 0;
+    const result = await response.json();
+    return result.results?.filter((r: any) => r.status === 'ready').length || 0;
+  } catch {
+    return 0;
+  }
+}
