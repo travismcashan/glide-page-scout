@@ -177,10 +177,12 @@ serve(async (req) => {
       if (reason) addMatch(meeting, reason);
     }
 
-    // Paginate up to 5 more pages
+    // Paginate with early-stop: quit after 2 consecutive pages with no new matches
     let nextUrl = data.next || null;
     let pageCount = 1;
-    while (nextUrl && pageCount < 15) {
+    let consecutiveEmpty = 0;
+    const prevCount = matchedMeetings.length;
+    while (nextUrl && pageCount < 12 && consecutiveEmpty < 2) {
       pageCount++;
       try {
         const pageRes = await fetch(nextUrl, {
@@ -188,13 +190,16 @@ serve(async (req) => {
         });
         if (!pageRes.ok) { await pageRes.text(); break; }
         const pageData = await pageRes.json();
+        const beforeCount = matchedMeetings.length;
         for (const meeting of (pageData.results || [])) {
           const reason = tryMatch(meeting);
           if (reason) addMatch(meeting, reason);
         }
+        consecutiveEmpty = matchedMeetings.length > beforeCount ? 0 : consecutiveEmpty + 1;
         nextUrl = pageData.next || null;
       } catch { break; }
     }
+    console.log(`[avoma] Scanned ${pageCount} pages, early-stop empty streak: ${consecutiveEmpty}`);
 
     // Sort: email_domain matches first, then attendee_name, then subject
     const reasonOrder: Record<string, number> = { email_domain: 0, attendee_name: 1, subject: 2 };
