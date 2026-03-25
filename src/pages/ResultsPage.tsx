@@ -2126,15 +2126,17 @@ export default function ResultsPage() {
 
           <TabsContent value="knowledge" className="mt-8">
             {session && (
-              <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
-                {/* Document Library sidebar */}
-                <div className="border rounded-lg p-4 h-[700px]">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Database className="h-4 w-4" />
-                    Document Library
-                  </h3>
-                  <DocumentLibrary sessionId={session.id} />
-                </div>
+              <KnowledgeTabContent
+                session={session}
+                scrapedPages={scrapedPages}
+                chatModel={chatModel}
+                chatReasoning={chatReasoning}
+                setChatModel={setChatModel}
+                setChatReasoning={setChatReasoning}
+                isSectionCollapsed={isSectionCollapsed}
+                toggleSection={toggleSection}
+                allCollapsed={allCollapsed}
+              />
 
                 {/* Chat */}
                 <SectionCard
