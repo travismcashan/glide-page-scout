@@ -354,9 +354,9 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ detectzestack_data: { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth } } as any).eq('id', session.id);
         clearError('detectzestack');
         fetchData();
-      } else { setDetectzestackFailed(true); setError('detectzestack', result.error || 'DetectZeStack returned an error'); }
+      } else { const msg = result.error || 'DetectZeStack returned an error'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); }
       setDetectzestackLoading(false);
-    }).catch((e) => { setDetectzestackFailed(true); setError('detectzestack', e?.message || 'DetectZeStack request failed'); setDetectzestackLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'DetectZeStack request failed'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); setDetectzestackLoading(false); });
   }, [session, detectzestackLoading, detectzestackFailed, fetchData, pauseVersion]);
   // AI Tech Analysis — runs after at least one tech source has data
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
