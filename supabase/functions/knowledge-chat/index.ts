@@ -86,8 +86,8 @@ async function handleClaudeRequest(
     );
   }
 
-  const anthropicModel = CLAUDE_MODELS[claudeModelId];
-  if (!anthropicModel) {
+  const claudeConfig = CLAUDE_MODELS[claudeModelId];
+  if (!claudeConfig) {
     return new Response(
       JSON.stringify({ error: `Unknown Claude model: ${claudeModelId}` }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -97,7 +97,6 @@ async function handleClaudeRequest(
   // Convert OpenAI-style messages to Anthropic format
   const anthropicMessages = messages.map((msg: any) => {
     if (Array.isArray(msg.content)) {
-      // Multimodal message
       const content = msg.content.map((part: any) => {
         if (part.type === 'text') return { type: 'text', text: part.text };
         if (part.type === 'image_url') {
@@ -120,27 +119,29 @@ async function handleClaudeRequest(
     return { role: msg.role, content: msg.content };
   });
 
-  // Build Anthropic request
+  // Build Anthropic request — respect per-model max output limits
+  const responseTokens = 8192;
   const requestBody: any = {
-    model: anthropicModel,
-    max_tokens: 8192,
+    model: claudeConfig.model,
+    max_tokens: Math.min(responseTokens, claudeConfig.maxOutput),
     system: systemPrompt,
     messages: anthropicMessages,
     stream: true,
   };
 
   // Add extended thinking if reasoning is requested
-  const thinkingBudget = reasoning && CLAUDE_THINKING_BUDGETS[reasoning];
-  if (thinkingBudget) {
-    requestBody.thinking = {
-      type: 'enabled',
-      budget_tokens: thinkingBudget,
-    };
-    // Extended thinking needs higher max_tokens
-    requestBody.max_tokens = thinkingBudget + 8192;
+  if (reasoning === 'high') {
+    const budget = Math.min(CLAUDE_THINKING_BUDGET, claudeConfig.maxOutput - responseTokens);
+    if (budget > 0) {
+      requestBody.thinking = {
+        type: 'enabled',
+        budget_tokens: budget,
+      };
+      requestBody.max_tokens = Math.min(budget + responseTokens, claudeConfig.maxOutput);
+    }
   }
 
-  console.log(`[knowledge-chat] Claude request: model=${anthropicModel}, thinking=${reasoning || 'none'}`);
+  console.log(`[knowledge-chat] Claude request: model=${claudeConfig.model}, thinking=${reasoning || 'none'}, max_tokens=${requestBody.max_tokens}`);
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
