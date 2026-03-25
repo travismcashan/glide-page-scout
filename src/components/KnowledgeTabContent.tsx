@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Database, BookOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Database, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
-import { SectionCard } from '@/components/SectionCard';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 
