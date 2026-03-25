@@ -174,9 +174,12 @@ export default function ResultsPage() {
     if (sessionRes.data) {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
-      // Restore persisted integration durations
+      // Restore persisted integration durations & timestamps
       if (sessionData.integration_durations && typeof sessionData.integration_durations === 'object') {
         setIntegrationDurations(prev => ({ ...sessionData.integration_durations, ...prev }));
+      }
+      if (sessionData.integration_timestamps && typeof sessionData.integration_timestamps === 'object') {
+        setIntegrationTimestamps(prev => ({ ...sessionData.integration_timestamps, ...prev }));
       }
     }
     if (pagesRes.data) {
