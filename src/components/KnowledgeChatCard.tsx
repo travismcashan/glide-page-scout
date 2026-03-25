@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -261,7 +261,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
-function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void }) {
+function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -308,6 +308,13 @@ function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote
           >
             {saved ? <Check className="h-3.5 w-3.5 text-accent" /> : <BookmarkPlus className="h-3.5 w-3.5" />}
           </button>
+          <button
+            onClick={onToggleFavorite}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart className={`h-3.5 w-3.5 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+          </button>
         </div>
       )}
     </div>
@@ -322,6 +329,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -344,6 +352,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           setMessages(data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content, sources: m.sources || [] })));
         }
         setLoadingHistory(false);
+      });
+  }, [session.id]);
+
+  // Load favorites
+  useEffect(() => {
+    supabase
+      .from('knowledge_favorites')
+      .select('content')
+      .eq('session_id', session.id)
+      .then(({ data }) => {
+        if (data) setFavoriteIds(new Set(data.map(f => f.content)));
       });
   }, [session.id]);
 
@@ -591,6 +610,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     }
   }, [session.id, onDocumentsChanged]);
 
+  const handleToggleFavorite = useCallback(async (content: string) => {
+    const isFav = favoriteIds.has(content);
+    if (isFav) {
+      await supabase.from('knowledge_favorites').delete().eq('session_id', session.id).eq('content', content);
+      setFavoriteIds(prev => { const next = new Set(prev); next.delete(content); return next; });
+    } else {
+      await supabase.from('knowledge_favorites').insert({ session_id: session.id, content } as any);
+      setFavoriteIds(prev => new Set(prev).add(content));
+    }
+  }, [session.id, favoriteIds]);
+
   const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
     if (isStreaming) return;
     // Truncate conversation to just before this message
@@ -674,7 +704,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} />
+                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')} isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')} />
                   )}
                 </div>
                 {/* Source badges for assistant messages */}
