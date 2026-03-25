@@ -146,6 +146,58 @@ async function ragSearch(sessionId: string, query: string): Promise<string> {
   }
 }
 
+/**
+ * Perform web search via Perplexity Sonar to get grounded web results
+ */
+async function webSearch(query: string): Promise<string> {
+  const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!PERPLEXITY_API_KEY) {
+    console.warn('[knowledge-chat] PERPLEXITY_API_KEY not set, skipping web search');
+    return '';
+  }
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { role: 'system', content: 'Provide detailed, factual information with specific data points. Include source URLs when possible.' },
+          { role: 'user', content: query },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[knowledge-chat] Web search error:', response.status, await response.text());
+      return '';
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const citations = data.citations || [];
+
+    let webContext = '--- WEB SEARCH RESULTS ---\n\n';
+    webContext += content;
+    if (citations.length > 0) {
+      webContext += '\n\nSources:\n';
+      citations.forEach((url: string, i: number) => {
+        webContext += `[${i + 1}] ${url}\n`;
+      });
+    }
+
+    console.log(`[knowledge-chat] Web search returned ${content.length} chars, ${citations.length} citations`);
+    return webContext;
+  } catch (e) {
+    console.error('[knowledge-chat] Web search failed:', e);
+    return '';
+  }
+}
+
 async function handleClaudeRequest(
   claudeModelId: string,
   messages: any[],
@@ -421,7 +473,9 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources } = await req.json();
+    const useDocuments = sources?.documents !== false; // default true
+    const useWeb = sources?.web === true; // default false
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -440,28 +494,41 @@ serve(async (req) => {
             : '')
       : '';
 
-    // Hybrid context: RAG chunks (focused) + legacy crawlContext (fallback)
+    // Build context based on selected sources
     let ragContext = '';
-    if (session_id && queryText) {
-      ragContext = await ragSearch(session_id, queryText);
+    let webContext = '';
+
+    // Run document RAG and web search in parallel
+    const contextPromises: Promise<void>[] = [];
+
+    if (useDocuments && session_id && queryText) {
+      contextPromises.push(ragSearch(session_id, queryText).then(r => { ragContext = r; }));
+    }
+    if (useWeb && queryText) {
+      contextPromises.push(webSearch(queryText).then(r => { webContext = r; }));
     }
 
-    const legacyContext = buildContextBlock(crawlContext, documents);
+    await Promise.all(contextPromises);
 
-    // Combine: RAG chunks first (most relevant), then legacy context
+    const legacyContext = useDocuments ? buildContextBlock(crawlContext, documents) : '';
+
+    // Combine all context sources
     let combinedContext = '';
     if (ragContext) {
       combinedContext = ragContext;
-      // Add truncated legacy context as supplementary background
-      const remainingBudget = 300_000 - ragContext.length;
-      if (legacyContext && remainingBudget > 10000) {
+    }
+    if (webContext) {
+      combinedContext += (combinedContext ? '\n\n' : '') + webContext;
+    }
+    // Add truncated legacy context as supplementary background
+    if (legacyContext) {
+      const remainingBudget = 300_000 - combinedContext.length;
+      if (remainingBudget > 10000) {
         combinedContext += '\n\n--- FULL AUDIT DATA (supplementary) ---\n\n' +
           (legacyContext.length > remainingBudget
             ? legacyContext.slice(0, remainingBudget) + '\n\n[… truncated]'
             : legacyContext);
       }
-    } else {
-      combinedContext = legacyContext;
     }
 
     const systemPrompt = buildSystemPrompt(combinedContext);
@@ -469,7 +536,7 @@ serve(async (req) => {
     const isPerplexityModel = model && model.startsWith('perplexity-');
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Reasoning: ${reasoning || 'none'}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Legacy: ${legacyContext.length} chars, Messages: ${messages.length}`);
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Messages: ${messages.length}`);
 
     if (isClaudeModel) {
       return await handleClaudeRequest(model, messages, systemPrompt, reasoning);
