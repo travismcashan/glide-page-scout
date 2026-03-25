@@ -363,9 +363,8 @@ export default function ResultsPage() {
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
   const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
 
-  // Load persisted tech analysis data from session
   useEffect(() => {
-    if (session?.tech_analysis_data && !techAnalysisData) {
+    if (session?.tech_analysis_data && !isPersistedError(session.tech_analysis_data) && !techAnalysisData) {
       setTechAnalysisData(session.tech_analysis_data);
     }
   }, [session]);
