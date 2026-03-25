@@ -87,10 +87,14 @@ function detectSources(text: string): string[] {
 
 function countSources(session: SessionData): number {
   const keys = [
-    'avoma_data', 'apollo_data', 'ocean_data', 'semrush_data', 'psi_data',
-    'crux_data', 'builtwith_data', 'wappalyzer_data', 'wave_data',
-    'observatory_data', 'ssllabs_data', 'httpstatus_data', 'linkcheck_data',
-    'w3c_data', 'schema_data', 'readable_data', 'carbon_data', 'yellowlab_data',
+    'avoma_data', 'apollo_data', 'ocean_data', 'hubspot_data',
+    'semrush_data', 'psi_data', 'crux_data',
+    'builtwith_data', 'wappalyzer_data', 'detectzestack_data', 'tech_analysis_data',
+    'wave_data', 'observatory_data', 'ssllabs_data',
+    'httpstatus_data', 'linkcheck_data', 'w3c_data', 'schema_data',
+    'readable_data', 'carbon_data', 'yellowlab_data',
+    'nav_structure', 'content_types_data', 'sitemap_data',
+    'forms_data', 'page_tags', 'deep_research_data', 'observations_data',
   ];
   return keys.filter(k => !!session[k]).length + (session.gtmetrix_grade ? 1 : 0);
 }

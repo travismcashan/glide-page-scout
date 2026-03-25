@@ -409,9 +409,82 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
   addSection('httpstatus.io Redirect Chain', extractHttpStatus(session.httpstatus_data));
   addSection('Broken Link Checker', extractLinkCheck(session.linkcheck_data));
 
+  // ── 🗺️ Site Structure ──
+  if (session.nav_structure) {
+    const nav = session.nav_structure;
+    const parts: string[] = [];
+    if (nav.primary?.length) parts.push(`Primary nav: ${nav.primary.map((n: any) => n.label || n.text || n.url).join(', ')}`);
+    if (nav.secondary?.length) parts.push(`Secondary nav: ${nav.secondary.map((n: any) => n.label || n.text || n.url).join(', ')}`);
+    if (nav.footer?.length) parts.push(`Footer nav: ${nav.footer.map((n: any) => n.label || n.text || n.url).join(', ')}`);
+    if (parts.length) addSection('Site Navigation Structure', parts.join('\n'));
+  }
+
+  if (session.sitemap_data) {
+    const sm = session.sitemap_data;
+    const parts: string[] = [];
+    if (sm.totalUrls) parts.push(`Total URLs in sitemap: ${sm.totalUrls}`);
+    if (sm.sitemaps?.length) parts.push(`Sitemaps found: ${sm.sitemaps.length}`);
+    if (parts.length) addSection('Sitemap Analysis', parts.join('\n'));
+  }
+
+  if (session.content_types_data) {
+    const ct = session.content_types_data;
+    if (ct.types && typeof ct.types === 'object') {
+      const lines = Object.entries(ct.types).map(([type, urls]: [string, any]) =>
+        `${type}: ${Array.isArray(urls) ? urls.length : 0} pages`
+      );
+      if (lines.length) addSection('Content Type Classification', lines.join('\n'));
+    }
+  }
+
+  if (session.forms_data) {
+    const fd = session.forms_data;
+    const parts: string[] = [];
+    if (fd.totalForms != null) parts.push(`Total forms detected: ${fd.totalForms}`);
+    if (fd.forms?.length) {
+      for (const f of fd.forms.slice(0, 10)) {
+        parts.push(`Form on ${f.url}: ${f.fields?.length || 0} fields, action=${f.action || 'none'}`);
+      }
+    }
+    if (parts.length) addSection('Forms Detection', parts.join('\n'));
+  }
+
   // ── 🧲 Enrichment & Prospecting ──
+  if (session.hubspot_data) {
+    const hb = session.hubspot_data;
+    const parts: string[] = [];
+    if (hb.contacts?.length) {
+      parts.push(`HubSpot contacts found: ${hb.contacts.length}`);
+      for (const c of hb.contacts.slice(0, 5)) {
+        const name = [c.firstname, c.lastname].filter(Boolean).join(' ') || c.email;
+        parts.push(`  ${name} — ${c.jobtitle || 'No title'} (${c.email || 'no email'})`);
+      }
+    }
+    if (hb.company) {
+      parts.push(`Company: ${hb.company.name || hb.company.domain}`);
+      if (hb.company.industry) parts.push(`Industry: ${hb.company.industry}`);
+    }
+    if (parts.length) addSection('HubSpot CRM Data', parts.join('\n'));
+  }
+
   addSection('Ocean.io Firmographics', extractOcean(session.ocean_data));
   addSection('Apollo.io Contact Enrichment', extractApollo(session.apollo_data));
+
+  // ── 🔧 Tech Analysis ──
+  if (session.detectzestack_data) {
+    const dz = session.detectzestack_data;
+    if (dz.grouped) {
+      const parts: string[] = [];
+      for (const [cat, techs] of Object.entries(dz.grouped) as [string, any[]][]) {
+        parts.push(`${cat}: ${techs.map((t: any) => t.name || t).join(', ')}`);
+      }
+      if (parts.length) addSection('DetectZeStack Technology Detection', parts.join('\n'));
+    }
+  }
+
+  if (session.tech_analysis_data?.analysis) {
+    addSection('AI Technology Analysis', session.tech_analysis_data.analysis);
+  }
 
   // ── 🎙️ Avoma Call Transcripts (full — highest-signal data) ──
   addSection('Avoma Call Transcripts & Meetings', extractAvoma(session.avoma_data));
