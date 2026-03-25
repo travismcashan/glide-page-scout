@@ -61,6 +61,14 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string; icon: typeof Z
   { value: 'high', label: 'Deep', icon: Sparkles },
 ];
 
+// Which reasoning levels each provider supports
+const PROVIDER_REASONING: Record<ModelProvider, ReasoningEffort[]> = {
+  gemini: ['none', 'low', 'medium', 'high'],
+  gpt: ['none', 'low', 'medium', 'high'],
+  claude: ['none', 'low', 'medium', 'high'],
+  perplexity: ['none'],
+};
+
 const TIER_COLORS: Record<string, string> = {
   fast: 'text-emerald-500',
   balanced: 'text-blue-500',
@@ -78,8 +86,10 @@ type Props = {
 export function ChatModelSelector({ model, reasoning, onModelChange, onReasoningChange, disabled }: Props) {
   const selectedModel = MODEL_OPTIONS.find(m => m.id === model) || VERSIONS.gemini[2];
   const selectedProvider = PROVIDERS.find(p => p.id === selectedModel.provider) || PROVIDERS[0];
-  const selectedReasoning = REASONING_OPTIONS.find(r => r.value === reasoning) || REASONING_OPTIONS[0];
   const versionsForProvider = VERSIONS[selectedModel.provider];
+  const allowedReasoning = PROVIDER_REASONING[selectedModel.provider];
+  const reasoningOptions = REASONING_OPTIONS.filter(r => allowedReasoning.includes(r.value));
+  const selectedReasoning = reasoningOptions.find(r => r.value === reasoning) || reasoningOptions[0];
 
   const PROVIDER_DEFAULTS: Record<ModelProvider, string> = {
     gemini: 'google/gemini-3-flash-preview',
@@ -90,6 +100,10 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
 
   const handleProviderChange = (provider: ModelProvider) => {
     onModelChange(PROVIDER_DEFAULTS[provider]);
+    // Reset reasoning if current level isn't supported by new provider
+    if (!PROVIDER_REASONING[provider].includes(reasoning)) {
+      onReasoningChange('none');
+    }
   };
 
   const btnClass = "h-auto px-2 py-0 text-base font-normal text-muted-foreground gap-1 hover:text-foreground";
@@ -145,32 +159,36 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <span className="text-muted-foreground/40">·</span>
+      {reasoningOptions.length > 1 && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
 
-      {/* 3. Reasoning */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild disabled={disabled}>
-          <Button variant="ghost" size="sm" className={btnClass}>
-            <selectedReasoning.icon className="h-3.5 w-3.5" />
-            {selectedReasoning.label}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          {REASONING_OPTIONS.map(r => (
-            <DropdownMenuItem
-              key={r.value}
-              onClick={() => onReasoningChange(r.value)}
-              className={selectedReasoning.value === r.value ? 'bg-accent' : ''}
-            >
-              <div className="flex items-center gap-2">
-                <r.icon className="h-3.5 w-3.5" />
-                <span className="text-sm">{r.label}</span>
-              </div>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          {/* 3. Reasoning */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild disabled={disabled}>
+              <Button variant="ghost" size="sm" className={btnClass}>
+                <selectedReasoning.icon className="h-3.5 w-3.5" />
+                {selectedReasoning.label}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              {reasoningOptions.map(r => (
+                <DropdownMenuItem
+                  key={r.value}
+                  onClick={() => onReasoningChange(r.value)}
+                  className={selectedReasoning.value === r.value ? 'bg-accent' : ''}
+                >
+                  <div className="flex items-center gap-2">
+                    <r.icon className="h-3.5 w-3.5" />
+                    <span className="text-sm">{r.label}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      )}
     </div>
   );
 }
