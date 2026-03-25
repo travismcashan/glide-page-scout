@@ -150,6 +150,31 @@ function UserBubbleContent({ content, attachmentNames }: { content: string; atta
   );
 }
 
+function UserBubbleWrapper({ content, attachmentNames }: { content: string; attachmentNames?: string[] }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="group relative max-w-[85%]">
+      <button
+        onClick={handleCopy}
+        className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground"
+        title="Copy prompt"
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+      <div className="bg-primary text-primary-foreground rounded-lg rounded-tr-none px-4 py-3 text-sm">
+        <UserBubbleContent content={content} attachmentNames={attachmentNames} />
+      </div>
+    </div>
+  );
+}
+
 export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
