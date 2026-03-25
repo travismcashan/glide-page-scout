@@ -22,6 +22,8 @@ type SectionCardProps = {
   sectionId?: string;
   onCollapseChange?: (sectionId: string, collapsed: boolean) => void;
   persistedCollapsed?: boolean | undefined;
+  /** External URL linking to the full report for this integration */
+  reportUrl?: string;
 };
 
 export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed }: SectionCardProps) {
