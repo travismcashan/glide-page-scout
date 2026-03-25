@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
-export type ModelProvider = 'gemini' | 'gpt' | 'claude';
+export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity';
 
 export type ModelOption = {
   id: string;
@@ -39,6 +39,10 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', provider: 'gpt', description: 'Balanced performance', tier: 'balanced' },
   { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful' },
   { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful' },
+  // Perplexity
+  { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web search', tier: 'fast' },
+  { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step + citations', tier: 'balanced' },
+  { id: 'perplexity-sonar-reasoning', label: 'Sonar Reasoning', provider: 'perplexity', description: 'Chain-of-thought search', tier: 'powerful' },
 ];
 
 export const REASONING_OPTIONS: { value: ReasoningEffort; label: string; icon: typeof Zap; description: string }[] = [
@@ -58,6 +62,7 @@ const PROVIDER_LABELS: Record<ModelProvider, string> = {
   gemini: 'Gemini',
   gpt: 'GPT',
   claude: 'Claude',
+  perplexity: 'Perplexity',
 };
 
 type Props = {
@@ -116,6 +121,21 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">GPT</DropdownMenuLabel>
           {MODEL_OPTIONS.filter(m => m.provider === 'gpt').map(m => (
+            <DropdownMenuItem
+              key={m.id}
+              onClick={() => onModelChange(m.id)}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] ${TIER_COLORS[m.tier]}`}>●</span>
+                <span className="text-sm">{m.label}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">{m.description}</span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">Perplexity</DropdownMenuLabel>
+          {MODEL_OPTIONS.filter(m => m.provider === 'perplexity').map(m => (
             <DropdownMenuItem
               key={m.id}
               onClick={() => onModelChange(m.id)}
