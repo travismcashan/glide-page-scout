@@ -258,6 +258,104 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_text: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: string
+          session_id: string
+        }
+        Insert: {
+          chunk_index: number
+          chunk_text: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: string
+          session_id: string
+        }
+        Update: {
+          chunk_index?: number
+          chunk_text?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_chunks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_documents: {
+        Row: {
+          char_count: number
+          chunk_count: number
+          content_hash: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          name: string
+          session_id: string
+          source_key: string | null
+          source_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          char_count?: number
+          chunk_count?: number
+          content_hash?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          name: string
+          session_id: string
+          source_key?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          char_count?: number
+          chunk_count?: number
+          content_hash?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          name?: string
+          session_id?: string
+          source_key?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_documents_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_messages: {
         Row: {
           content: string
@@ -298,7 +396,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      match_knowledge_chunks: {
+        Args: {
+          p_embedding: string
+          p_match_count?: number
+          p_match_threshold?: number
+          p_session_id: string
+        }
+        Returns: {
+          chunk_index: number
+          chunk_text: string
+          document_id: string
+          document_name: string
+          id: string
+          similarity: number
+          source_type: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
