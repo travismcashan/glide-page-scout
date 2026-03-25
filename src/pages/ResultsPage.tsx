@@ -303,10 +303,12 @@ export default function ResultsPage() {
         fetchData();
       } else {
         setSemrushFailed(true);
-        setError('semrush', result.error || 'SEMrush API returned an error');
+        const msg = result.error || 'SEMrush API returned an error';
+        setError('semrush', msg);
+        persistFailure('semrush_data', msg);
       }
       setSemrushLoading(false);
-    }).catch((e) => { setSemrushFailed(true); setError('semrush', e?.message || 'SEMrush request failed'); setSemrushLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'SEMrush request failed'; setSemrushFailed(true); setError('semrush', msg); persistFailure('semrush_data', msg); setSemrushLoading(false); });
   }, [session, semrushLoading, semrushFailed, fetchData, pauseVersion]);
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
