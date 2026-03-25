@@ -700,45 +700,51 @@ export default function ResultsPage() {
   const [w3cFailed, setW3cFailed] = useState(false);
   useEffect(() => {
     if (!session || session.w3c_data || w3cLoading || w3cFailed || isIntegrationPaused('w3c')) return;
+    if (w3cTriggeredRef.current) return;
+    w3cTriggeredRef.current = true;
     setW3cLoading(true);
     w3cApi.validate(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ w3c_data: result } as any).eq('id', session.id);
         clearError('w3c');
         fetchData();
-      } else { setW3cFailed(true); setError('w3c', result.error || 'W3C validation failed'); }
+      } else { const msg = result.error || 'W3C validation failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); }
       setW3cLoading(false);
-    }).catch((e) => { setW3cFailed(true); setError('w3c', e?.message || 'W3C validation request failed'); setW3cLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'W3C validation request failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); setW3cLoading(false); });
   }, [session, w3cLoading, w3cFailed, fetchData, pauseVersion]);
   // Schema.org / Rich Results
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaFailed, setSchemaFailed] = useState(false);
   useEffect(() => {
     if (!session || session.schema_data || schemaLoading || schemaFailed || isIntegrationPaused('schema')) return;
+    if (schemaTriggeredRef.current) return;
+    schemaTriggeredRef.current = true;
     setSchemaLoading(true);
     schemaApi.validate(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ schema_data: result } as any).eq('id', session.id);
         clearError('schema');
         fetchData();
-      } else { setSchemaFailed(true); setError('schema', result.error || 'Schema validation failed'); }
+      } else { const msg = result.error || 'Schema validation failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); }
       setSchemaLoading(false);
-    }).catch((e) => { setSchemaFailed(true); setError('schema', e?.message || 'Schema validation request failed'); setSchemaLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Schema validation request failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); setSchemaLoading(false); });
   }, [session, schemaLoading, schemaFailed, fetchData, pauseVersion]);
   // Readable.com
   const [readableLoading, setReadableLoading] = useState(false);
   const [readableFailed, setReadableFailed] = useState(false);
   useEffect(() => {
     if (!session || (session as any).readable_data || readableLoading || readableFailed || isIntegrationPaused('readable')) return;
+    if (readableTriggeredRef.current) return;
+    readableTriggeredRef.current = true;
     setReadableLoading(true);
     readableApi.score(session.base_url).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ readable_data: result } as any).eq('id', session.id);
         clearError('readable');
         fetchData();
-      } else { setReadableFailed(true); setError('readable', result.error || 'Readable.com returned an error'); }
+      } else { const msg = result.error || 'Readable.com returned an error'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); }
       setReadableLoading(false);
-    }).catch((e) => { setReadableFailed(true); setError('readable', e?.message || 'Readable.com request failed'); setReadableLoading(false); });
+    }).catch((e) => { const msg = e?.message || 'Readable.com request failed'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); setReadableLoading(false); });
   }, [session, readableLoading, readableFailed, fetchData, pauseVersion]);
   // Yellow Lab Tools (client-side polling like SSL Labs)
   const [yellowlabLoading, setYellowlabLoading] = useState(false);
