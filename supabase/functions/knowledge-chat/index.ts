@@ -12,10 +12,8 @@ const CLAUDE_MODELS: Record<string, string> = {
   'claude-opus': 'claude-opus-4-20250514',
 };
 
-// Map reasoning levels to Claude's extended thinking budget tokens
+// Claude extended thinking: on/off with a generous budget
 const CLAUDE_THINKING_BUDGETS: Record<string, number> = {
-  low: 2048,
-  medium: 8192,
   high: 32768,
 };
 

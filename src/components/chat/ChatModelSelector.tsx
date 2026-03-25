@@ -65,7 +65,7 @@ const REASONING_OPTIONS: { value: ReasoningEffort; label: string; icon: typeof Z
 const PROVIDER_REASONING: Record<ModelProvider, ReasoningEffort[]> = {
   gemini: ['none', 'low', 'medium', 'high'],
   gpt: ['none', 'low', 'medium', 'high'],
-  claude: ['none', 'low', 'medium', 'high'],
+  claude: ['none', 'high'],
   perplexity: ['none'],
 };
 
