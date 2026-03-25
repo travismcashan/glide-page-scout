@@ -1882,49 +1882,67 @@ export default function ResultsPage() {
             )}
           </TabsContent>
 
-          {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) && (
-            <TabsContent value="avoma" className="mt-8 space-y-6">
-              <SectionCard
-                sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
-                icon={<Phone className="h-5 w-5 text-foreground" />}
-                loading={avomaLoading && !(session as any)?.avoma_data}
-                loadingText="Searching Avoma for meetings with @domain attendees..."
-                error={avomaFailed}
-                errorText={integrationErrors.avoma}
-                headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
-                collapsed={allCollapsed}
-              >
-                {(session as any)?.avoma_data ? <AvomaCard
-                  data={(session as any).avoma_data}
-                  apolloEmail={session.apollo_data?.email || null}
-                  onSearchDomain={async (domain) => {
-                    setAvomaLoading(true);
-                    setAvomaFailed(false);
-                    try {
-                      const result = await avomaApi.lookup(domain);
-                      if (result.success) {
-                        await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
-                        clearError('avoma');
-                        fetchData();
-                      } else {
-                        setError('avoma', result.error || 'No results');
-                        await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
-                        fetchData();
+          {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations)) && (
+            <TabsContent value="prospecting" className="mt-8 space-y-6">
+              {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) && (
+                <SectionCard
+                  sectionId="hubspot" persistedCollapsed={isSectionCollapsed("hubspot")} onCollapseChange={toggleSection} title="HubSpot CRM"
+                  icon={<Building2 className="h-5 w-5 text-foreground" />}
+                  loading={hubspotLoading && !(session as any)?.hubspot_data}
+                  loadingText="Searching HubSpot for contacts, companies & deals..."
+                  error={hubspotFailed}
+                  errorText={integrationErrors.hubspot}
+                  headerExtra={rerunButton('hubspot', 'hubspot_data', hubspotLoading)}
+                  collapsed={allCollapsed}
+                  paused={isIntegrationPaused('hubspot') && !(session as any)?.hubspot_data}
+                  onTogglePause={() => handleTogglePause('hubspot')}
+                >
+                  {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} /> : null}
+                </SectionCard>
+              )}
+              {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) && (
+                <SectionCard
+                  sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
+                  icon={<Phone className="h-5 w-5 text-foreground" />}
+                  loading={avomaLoading && !(session as any)?.avoma_data}
+                  loadingText="Searching Avoma for meetings with @domain attendees..."
+                  error={avomaFailed}
+                  errorText={integrationErrors.avoma}
+                  headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
+                  collapsed={allCollapsed}
+                >
+                  {(session as any)?.avoma_data ? <AvomaCard
+                    data={(session as any).avoma_data}
+                    apolloEmail={session.apollo_data?.email || null}
+                    onSearchDomain={async (domain) => {
+                      setAvomaLoading(true);
+                      setAvomaFailed(false);
+                      try {
+                        const result = await avomaApi.lookup(domain);
+                        if (result.success) {
+                          await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
+                          clearError('avoma');
+                          fetchData();
+                        } else {
+                          setError('avoma', result.error || 'No results');
+                          await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
+                          fetchData();
+                        }
+                      } catch (e: any) {
+                        setError('avoma', e?.message || 'Search failed');
                       }
-                    } catch (e: any) {
-                      setError('avoma', e?.message || 'Search failed');
-                    }
-                    setAvomaLoading(false);
-                  }}
-                  onExcludedChange={async (excludedUuids) => {
-                    const current = (session as any).avoma_data;
-                    if (!current) return;
-                    const updated = { ...current, excludedMeetings: excludedUuids };
-                    await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
-                    fetchData();
-                  }}
-                /> : null}
-              </SectionCard>
+                      setAvomaLoading(false);
+                    }}
+                    onExcludedChange={async (excludedUuids) => {
+                      const current = (session as any).avoma_data;
+                      if (!current) return;
+                      const updated = { ...current, excludedMeetings: excludedUuids };
+                      await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
+                      fetchData();
+                    }}
+                  /> : null}
+                </SectionCard>
+              )}
             </TabsContent>
           )}
         </Tabs>
