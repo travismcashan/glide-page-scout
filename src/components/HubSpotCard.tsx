@@ -257,31 +257,10 @@ function EngagementsTab({ engagements }: { engagements: any[] }) {
           const title = getEngagementTitle(eng);
           const detail = getEngagementDetail(eng);
           const isIncoming = eng.hs_email_direction === 'INCOMING_EMAIL' || eng.hs_call_direction === 'INBOUND';
+          const bodyContent = getEngagementBody(eng);
 
           return (
-            <Card key={eng.id} className="p-2.5">
-              <div className="flex items-start gap-2.5">
-                <div className="mt-0.5 shrink-0">
-                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-medium truncate">{title}</p>
-                    {eng.type === 'emails' && (
-                      isIncoming
-                        ? <ArrowDownLeft className="h-3 w-3 text-blue-500 shrink-0" />
-                        : <ArrowUpRight className="h-3 w-3 text-green-500 shrink-0" />
-                    )}
-                  </div>
-                  {detail && <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>}
-                </div>
-                {eng.hs_timestamp && (
-                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                    {format(new Date(eng.hs_timestamp), 'MMM d, yyyy')}
-                  </span>
-                )}
-              </div>
-            </Card>
+            <ExpandableEngagement key={eng.id} Icon={Icon} title={title} detail={detail} isIncoming={isIncoming} timestamp={eng.hs_timestamp} type={eng.type} bodyContent={bodyContent} eng={eng} />
           );
         })}
       </div>
