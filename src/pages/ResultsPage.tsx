@@ -366,7 +366,7 @@ export default function ResultsPage() {
   const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
 
   useEffect(() => {
-    if (session?.tech_analysis_data && !isPersistedError(session.tech_analysis_data) && !techAnalysisData) {
+    if (session?.tech_analysis_data && !isErrorSentinel(session.tech_analysis_data) && !techAnalysisData) {
       setTechAnalysisData(session.tech_analysis_data);
     }
   }, [session]);
