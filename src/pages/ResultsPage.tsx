@@ -1860,7 +1860,7 @@ export default function ResultsPage() {
                   paused={isIntegrationPaused('hubspot') && !(session as any)?.hubspot_data}
                   onTogglePause={() => handleTogglePause('hubspot')}
                 >
-                  {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} /> : null}
+                  {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={handleApolloSearch} /> : null}
                 </SectionCard>
               )}
               {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) && (

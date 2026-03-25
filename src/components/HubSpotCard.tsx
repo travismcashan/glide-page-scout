@@ -1,10 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Building2, Users, DollarSign, Mail, Phone, MapPin, Calendar, Briefcase } from 'lucide-react';
+import { ChevronDown, ChevronUp, Building2, Users, DollarSign, Mail, Phone, MapPin, Calendar, Briefcase, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { CardTabs } from './CardTabs';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type HubSpotData = {
   success: boolean;
@@ -54,28 +56,72 @@ function CompanyRow({ company }: { company: any }) {
   );
 }
 
-function ContactsTab({ contacts }: { contacts: any[] }) {
+function ContactRow({ contact, onEnrichWithApollo, isPrimary }: { contact: any; onEnrichWithApollo?: (email: string, firstName?: string, lastName?: string) => void; isPrimary?: boolean }) {
+  return (
+    <Card className={`p-3 ${isPrimary ? 'border-primary/40 bg-primary/5' : ''}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium">{contact.firstname || ''} {contact.lastname || ''}</p>
+            {isPrimary && <Badge variant="default" className="text-[10px]">Primary</Badge>}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">
+            {contact.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{contact.email}</span>}
+            {contact.jobtitle && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{contact.jobtitle}</span>}
+            {contact.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{contact.phone}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {contact.lifecyclestage && <Badge variant="secondary" className="text-[10px]">{contact.lifecyclestage}</Badge>}
+          {contact.hs_lead_status && <Badge variant="outline" className="text-[10px]">{contact.hs_lead_status}</Badge>}
+          {contact.email && onEnrichWithApollo && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onEnrichWithApollo(contact.email, contact.firstname || undefined, contact.lastname || undefined)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Enrich with Apollo</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ContactsTab({ contacts, onEnrichWithApollo }: { contacts: any[]; onEnrichWithApollo?: (email: string, firstName?: string, lastName?: string) => void }) {
   if (contacts.length === 0) return <p className="text-sm text-muted-foreground">No contacts found.</p>;
+
+  // Sort: primary contact (most recent activity or first created) at top
+  const sorted = [...contacts].sort((a, b) => {
+    // Prefer contacts with job titles (more senior/relevant)
+    const aHasTitle = a.jobtitle ? 1 : 0;
+    const bHasTitle = b.jobtitle ? 1 : 0;
+    if (bHasTitle !== aHasTitle) return bHasTitle - aHasTitle;
+    // Then by most recently modified
+    const aDate = a.lastmodifieddate ? new Date(a.lastmodifieddate).getTime() : 0;
+    const bDate = b.lastmodifieddate ? new Date(b.lastmodifieddate).getTime() : 0;
+    return bDate - aDate;
+  });
+
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground"><strong>{contacts.length}</strong> contacts found</p>
-      {contacts.map((contact) => (
-        <Card key={contact.id} className="p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{contact.firstname || ''} {contact.lastname || ''}</p>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                {contact.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{contact.email}</span>}
-                {contact.jobtitle && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{contact.jobtitle}</span>}
-                {contact.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{contact.phone}</span>}
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {contact.lifecyclestage && <Badge variant="secondary" className="text-[10px]">{contact.lifecyclestage}</Badge>}
-              {contact.hs_lead_status && <Badge variant="outline" className="text-[10px]">{contact.hs_lead_status}</Badge>}
-            </div>
-          </div>
-        </Card>
+      <p className="text-xs text-muted-foreground"><strong>{contacts.length}</strong> contact{contacts.length !== 1 ? 's' : ''} found</p>
+      {sorted.map((contact, i) => (
+        <ContactRow
+          key={contact.id}
+          contact={contact}
+          onEnrichWithApollo={onEnrichWithApollo}
+          isPrimary={i === 0}
+        />
       ))}
     </div>
   );
@@ -118,15 +164,15 @@ function DealsTab({ deals }: { deals: any[] }) {
   );
 }
 
-export function HubSpotCard({ data }: { data: HubSpotData }) {
+export function HubSpotCard({ data, onEnrichWithApollo }: { data: HubSpotData; onEnrichWithApollo?: (email: string, firstName?: string, lastName?: string) => void }) {
   const tabs = [
+    { value: 'contacts', label: `Contacts (${data.stats.contactsCount})`, content: <ContactsTab contacts={data.contacts} onEnrichWithApollo={onEnrichWithApollo} /> },
     { value: 'companies', label: `Companies (${data.stats.companiesCount})`, content: (
       <div className="space-y-2">
         {data.companies.length === 0 ? <p className="text-sm text-muted-foreground">No companies found.</p> : null}
         {data.companies.map((c) => <CompanyRow key={c.id} company={c} />)}
       </div>
     )},
-    { value: 'contacts', label: `Contacts (${data.stats.contactsCount})`, content: <ContactsTab contacts={data.contacts} /> },
     { value: 'deals', label: `Deals (${data.stats.dealsCount})`, content: <DealsTab deals={data.deals} /> },
   ];
 
@@ -135,7 +181,7 @@ export function HubSpotCard({ data }: { data: HubSpotData }) {
       <p className="text-xs text-muted-foreground">
         HubSpot CRM data for <strong>{data.domain}</strong>
       </p>
-      <CardTabs tabs={tabs} />
+      <CardTabs tabs={tabs} defaultValue="contacts" />
     </div>
   );
 }
