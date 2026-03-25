@@ -1365,115 +1365,70 @@ export default function ResultsPage() {
               )}
             </TabsList>
 
-            {/* Tab-specific action buttons */}
+            {/* Unified actions dropdown */}
             <div className="flex items-center gap-2 pb-2 no-print">
-              {activeTab === 'raw-data' && (
-                <>
-                  {!isSharedView && (
-                    <>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="gap-1 px-2 text-muted-foreground" disabled={rerunningAll}>
-                            <RefreshCw className={`h-3.5 w-3.5 ${rerunningAll ? 'animate-spin' : ''}`} />
-                            Re-run All
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Re-run all integrations?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will clear all existing results and re-run every active integration from scratch. This may take several minutes.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={rerunAll}>Yes, re-run all</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 px-2 text-muted-foreground"
-                        onClick={() => setShowAllIntegrations(!showAllIntegrations)}
-                        title={showAllIntegrations ? 'Hide paused integrations' : 'Show all integrations including paused'}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        {showAllIntegrations ? 'Active Only' : 'Show All'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 px-2 text-muted-foreground"
-                        onClick={() => setAllCollapsed(!allCollapsed)}
-                        title={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
-                      >
-                        {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5" /> : <ChevronsDownUp className="h-3.5 w-3.5" />}
-                        {allCollapsed ? 'Expand All' : 'Collapse All'}
-                      </Button>
-                    </>
-                  )}
-                  {!isSharedView && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-1 px-2 text-muted-foreground">
-                          <Download className="h-3.5 w-3.5" />
-                          Export
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        {(session?.deep_research_data?.report || session?.observations_data) && (
-                          <>
-                            <DropdownMenuLabel className="text-xs text-muted-foreground">Reports</DropdownMenuLabel>
-                            {session?.deep_research_data?.report && (
-                              <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
-                                <Brain className="h-3.5 w-3.5 mr-1.5" />
-                                Deep Research PDF
-                              </DropdownMenuItem>
-                            )}
-                            {session?.observations_data && (
-                              <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                                <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-                                Observations & Insights PDF
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                          </>
-                        )}
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">Single File</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => exportAsPdf()}>
-                          Export as PDF (Print)
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
-                          Export as JSON
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
-                          Export as Markdown
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">Multiple Files</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => session && exportAsZip(session, pages)}>
-                          <Layers className="h-3.5 w-3.5 mr-1.5" />
-                          Export as ZIP (one file per integration)
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1 px-2 ml-auto text-muted-foreground"
-                    onClick={() => {
+              {activeTab === 'raw-data' && !isSharedView && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1 px-2 text-muted-foreground">
+                      <Menu className="h-4 w-4" />
+                      Actions
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">View</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => setShowAllIntegrations(!showAllIntegrations)}>
+                      <Eye className="h-3.5 w-3.5 mr-1.5" />
+                      {showAllIntegrations ? 'Active Only' : 'Show All'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setAllCollapsed(!allCollapsed)}>
+                      {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
+                      {allCollapsed ? 'Expand All' : 'Collapse All'}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Actions</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => setRerunConfirmOpen(true)} disabled={rerunningAll}>
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${rerunningAll ? 'animate-spin' : ''}`} />
+                      Re-run All
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
                       const url = new URL(window.location.href);
                       url.searchParams.set('view', 'shared');
                       navigator.clipboard.writeText(url.toString());
                       toast.success('View-only link copied to clipboard');
-                    }}
-                  >
-                    <Share2 className="h-3.5 w-3.5" />
-                    Share
-                  </Button>
-                </>
+                    }}>
+                      <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                      Share Link
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Export</DropdownMenuLabel>
+                    {session?.deep_research_data?.report && (
+                      <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                        <Brain className="h-3.5 w-3.5 mr-1.5" />
+                        Deep Research PDF
+                      </DropdownMenuItem>
+                    )}
+                    {session?.observations_data && (
+                      <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
+                        <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
+                        Observations PDF
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => exportAsPdf()}>
+                      Export as PDF (Print)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => session && exportAsJson(session, pages)}>
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => session && exportAsMarkdown(session, pages)}>
+                      Export as Markdown
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => session && exportAsZip(session, pages)}>
+                      <Layers className="h-3.5 w-3.5 mr-1.5" />
+                      Export as ZIP
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               {activeTab === 'ai-research' && !isSharedView && (
                 <>
@@ -1492,6 +1447,20 @@ export default function ResultsPage() {
                 </>
               )}
             </div>
+            <AlertDialog open={rerunConfirmOpen} onOpenChange={setRerunConfirmOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Re-run all integrations?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will clear all existing results and re-run every active integration from scratch. This may take several minutes.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => { setRerunConfirmOpen(false); rerunAll(); }}>Yes, re-run all</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           <TabsContent value="raw-data" className="mt-8 space-y-8">
