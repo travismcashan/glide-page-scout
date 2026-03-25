@@ -19,7 +19,7 @@ serve(async (req) => {
       );
     }
 
-    const { messages, crawlContext, documents } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -27,6 +27,24 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Validate model against allowlist
+    const ALLOWED_MODELS = [
+      'google/gemini-2.5-flash-lite',
+      'google/gemini-2.5-flash',
+      'google/gemini-3-flash-preview',
+      'google/gemini-2.5-pro',
+      'google/gemini-3.1-pro-preview',
+      'openai/gpt-5-nano',
+      'openai/gpt-5-mini',
+      'openai/gpt-5',
+      'openai/gpt-5.2',
+    ];
+    const selectedModel = ALLOWED_MODELS.includes(model) ? model : 'google/gemini-3-flash-preview';
+
+    // Validate reasoning effort
+    const ALLOWED_REASONING = ['low', 'medium', 'high', 'xhigh'];
+    const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
 
     // Build system prompt with crawl context
     const MAX_CHARS = 400_000;
@@ -69,17 +87,22 @@ If asked about something not covered by the available data, say so clearly rathe
 
 ${contextBlock ? `\n---\n\nHere is all the audit data gathered about this website:\n\n${contextBlock}` : '\nNo audit data is currently available for this session.'}`;
 
-    // Process messages - support multimodal content (images as base64 data URIs)
-    // Messages may have content as string or as array of content parts
-    const processedMessages = messages.map((msg: any) => {
-      // Already in multimodal format
-      if (Array.isArray(msg.content)) {
-        return msg;
-      }
-      return msg;
-    });
+    console.log(`[knowledge-chat] Model: ${selectedModel}, Reasoning: ${selectedReasoning || 'none'}, Context: ${contextBlock.length} chars (~${Math.round(contextBlock.length / 4)} tokens), Messages: ${messages.length}`);
 
-    console.log(`[knowledge-chat] Context length: ${contextBlock.length} chars (~${Math.round(contextBlock.length / 4)} tokens), Messages: ${messages.length}`);
+    // Build request body
+    const requestBody: any = {
+      model: selectedModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
+      stream: true,
+    };
+
+    // Add reasoning if specified
+    if (selectedReasoning) {
+      requestBody.reasoning = { effort: selectedReasoning };
+    }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -87,14 +110,7 @@ ${contextBlock ? `\n---\n\nHere is all the audit data gathered about this websit
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...processedMessages,
-        ],
-        stream: true,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
