@@ -492,6 +492,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     }
   };
 
+  const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
+    if (isStreaming) return;
+    // Truncate conversation to just before this message
+    const truncated = messages.slice(0, messageIndex);
+    setMessages(truncated);
+    // Delete old messages from DB and re-save truncated history
+    await supabase.from('knowledge_messages').delete().eq('session_id', session.id);
+    for (const m of truncated) {
+      await saveMessage(m.role, typeof m.content === 'string' ? m.content : '', m.sources || []);
+    }
+    // Send the edited message as a new message
+    handleSend(newText);
+  }, [messages, isStreaming, session.id, handleSend]);
+
   const clearChat = async () => {
     setMessages([]);
     setInput('');
@@ -554,7 +568,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <div key={i}>
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'user' ? (
-                    <UserBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} attachmentNames={msg.attachmentNames} />
+                    <UserBubbleWrapper
+                      content={typeof msg.content === 'string' ? msg.content : ''}
+                      attachmentNames={msg.attachmentNames}
+                      onEdit={(newText) => handleEditMessage(i, newText)}
+                      disabled={isStreaming}
+                    />
                   ) : (
                     <div className="max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
                       <Suspense fallback={<span>{typeof msg.content === 'string' ? msg.content : ''}</span>}>
