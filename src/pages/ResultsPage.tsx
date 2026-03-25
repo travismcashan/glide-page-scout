@@ -258,6 +258,13 @@ export default function ResultsPage() {
   const cruxTriggeredRef = useRef(false);
   const waveTriggeredRef = useRef(false);
   const observatoryTriggeredRef = useRef(false);
+  const httpstatusTriggeredRef = useRef(false);
+  const w3cTriggeredRef = useRef(false);
+  const schemaTriggeredRef = useRef(false);
+  const readableTriggeredRef = useRef(false);
+  const navTriggeredRef = useRef(false);
+  const sitemapTriggeredRef = useRef(false);
+  const contentTypesTriggeredRef = useRef(false);
 
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
