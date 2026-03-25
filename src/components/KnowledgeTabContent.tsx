@@ -113,16 +113,16 @@ export function KnowledgeTabContent({
         title="Knowledge Chat"
         icon={<BookOpen className="h-5 w-5 text-foreground" />}
         collapsed={allCollapsed}
-        headerExtra={
-          <ChatModelSelector
-            model={chatModel}
-            reasoning={chatReasoning}
-            onModelChange={setChatModel}
-            onReasoningChange={setChatReasoning}
-          />
-        }
       >
-        <KnowledgeChatCard session={session} pages={scrapedPages} selectedModel={chatModel} reasoning={chatReasoning} />
+        <KnowledgeChatCard
+          session={session}
+          pages={scrapedPages}
+          selectedModel={chatModel}
+          reasoning={chatReasoning}
+          onModelChange={setChatModel}
+          onReasoningChange={setChatReasoning}
+        />
+      </SectionCard>
       </SectionCard>
     </div>
   );
