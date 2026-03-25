@@ -38,9 +38,9 @@ const VERSIONS: Record<ModelProvider, ModelOption[]> = {
     { id: 'google/gemini-3.1-pro-preview', label: 'Pro 3.1', provider: 'gemini', description: 'Latest flagship', tier: 'powerful', reasoning: ALL_REASONING },
   ],
   claude: [
-    { id: 'claude-haiku', label: 'Haiku 4.5', provider: 'claude', description: 'Fast & affordable', tier: 'fast', reasoning: THINKING_ONLY },
-    { id: 'claude-sonnet', label: 'Sonnet 4.6', provider: 'claude', description: 'Best balance', tier: 'balanced', reasoning: THINKING_ONLY },
-    { id: 'claude-opus', label: 'Opus 4.6', provider: 'claude', description: '1M context, most capable', tier: 'powerful', reasoning: THINKING_ONLY },
+    { id: 'claude-haiku', label: 'Haiku 4.5', provider: 'claude', description: 'Fast & affordable', tier: 'fast', reasoning: THINKING_ONLY, reasoningLabels: { high: 'Thinking' } },
+    { id: 'claude-sonnet', label: 'Sonnet 4.6', provider: 'claude', description: 'Best balance', tier: 'balanced', reasoning: THINKING_ONLY, reasoningLabels: { high: 'Thinking' } },
+    { id: 'claude-opus', label: 'Opus 4.6', provider: 'claude', description: '1M context, most capable', tier: 'powerful', reasoning: THINKING_ONLY, reasoningLabels: { high: 'Thinking' } },
   ],
   gpt: [
     { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful', reasoning: ALL_REASONING },
