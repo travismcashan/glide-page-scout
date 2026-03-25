@@ -1102,11 +1102,18 @@ export default function ResultsPage() {
         const start = integrationStartTimes.current[key];
         if (start) {
           const duration = Math.round((Date.now() - start) / 1000);
+          const timestamp = new Date().toISOString();
           setIntegrationDurations(d => {
             const next = { ...d, [key]: duration };
-            // Persist to DB
             if (sessionId) {
               supabase.from('crawl_sessions').update({ integration_durations: next } as any).eq('id', sessionId).then();
+            }
+            return next;
+          });
+          setIntegrationTimestamps(t => {
+            const next = { ...t, [key]: timestamp };
+            if (sessionId) {
+              supabase.from('crawl_sessions').update({ integration_timestamps: next } as any).eq('id', sessionId).then();
             }
             return next;
           });
