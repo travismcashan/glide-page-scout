@@ -93,7 +93,7 @@ serve(async (req) => {
     const now = new Date();
     const lookbackDate = new Date(now);
     lookbackDate.setMonth(lookbackDate.getMonth() - 12);
-    const fromDate = sixMonthsAgo.toISOString();
+    const fromDate = lookbackDate.toISOString();
     const toDate = now.toISOString();
 
     console.log(`[avoma] Searching meetings for domain: ${domainLower} (company hint: "${companyHint}"), from: ${fromDate}, to: ${toDate}`);
