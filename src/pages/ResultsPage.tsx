@@ -1168,8 +1168,13 @@ export default function ResultsPage() {
     if (isSharedView) return null;
     return (
       <div className="flex items-center gap-1">
+        {integrationTimestamps[key] && !isLoading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps[key]), 'MMM d, yyyy h:mm a')}`}>
+            {format(new Date(integrationTimestamps[key]), 'MMM d, h:mm a')}
+          </span>
+        )}
         {integrationDurations[key] != null && !isLoading && (
-          <span className="text-[10px] text-muted-foreground tabular-nums">{integrationDurations[key]} seconds</span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations[key]}s)</span>
         )}
         <Button
           variant="ghost"
