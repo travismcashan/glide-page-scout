@@ -159,32 +159,36 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <span className="text-muted-foreground/40">·</span>
+      {reasoningOptions.length > 1 && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
 
-      {/* 3. Reasoning */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild disabled={disabled}>
-          <Button variant="ghost" size="sm" className={btnClass}>
-            <selectedReasoning.icon className="h-3.5 w-3.5" />
-            {selectedReasoning.label}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          {REASONING_OPTIONS.map(r => (
-            <DropdownMenuItem
-              key={r.value}
-              onClick={() => onReasoningChange(r.value)}
-              className={selectedReasoning.value === r.value ? 'bg-accent' : ''}
-            >
-              <div className="flex items-center gap-2">
-                <r.icon className="h-3.5 w-3.5" />
-                <span className="text-sm">{r.label}</span>
-              </div>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          {/* 3. Reasoning */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild disabled={disabled}>
+              <Button variant="ghost" size="sm" className={btnClass}>
+                <selectedReasoning.icon className="h-3.5 w-3.5" />
+                {selectedReasoning.label}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              {reasoningOptions.map(r => (
+                <DropdownMenuItem
+                  key={r.value}
+                  onClick={() => onReasoningChange(r.value)}
+                  className={selectedReasoning.value === r.value ? 'bg-accent' : ''}
+                >
+                  <div className="flex items-center gap-2">
+                    <r.icon className="h-3.5 w-3.5" />
+                    <span className="text-sm">{r.label}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      )}
     </div>
   );
 }
