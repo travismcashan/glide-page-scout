@@ -10,6 +10,7 @@ import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { ingestChatUploads } from '@/lib/ragIngest';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,7 @@ type Props = {
   reasoning: ReasoningEffort;
   onModelChange: (model: string) => void;
   onReasoningChange: (reasoning: ReasoningEffort) => void;
+  onDocumentsChanged?: () => void;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
@@ -106,7 +108,7 @@ function detectSources(text: string): string[] {
 
 // countSources removed — no longer displayed (RAG replaces full-context stats)
 
-export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -201,6 +203,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
+
+    // Ingest uploaded files into RAG document library (fire-and-forget)
+    if (currentAttachments.length > 0) {
+      ingestChatUploads(session.id, currentAttachments).then(count => {
+        if (count > 0 && onDocumentsChanged) onDocumentsChanged();
+      });
+    }
+
     setAttachments([]);
     setIsStreaming(true);
     setIsThinking(true);
