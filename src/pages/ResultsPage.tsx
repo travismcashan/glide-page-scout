@@ -78,6 +78,7 @@ import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatM
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
+import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 import {
   DropdownMenu,
   DropdownMenuContent,
