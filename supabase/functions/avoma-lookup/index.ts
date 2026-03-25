@@ -91,8 +91,8 @@ serve(async (req) => {
     const companyHint = domainLower.split('.')[0];
 
     const now = new Date();
-    const sixMonthsAgo = new Date(now);
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const lookbackDate = new Date(now);
+    lookbackDate.setMonth(lookbackDate.getMonth() - 12);
     const fromDate = sixMonthsAgo.toISOString();
     const toDate = now.toISOString();
 
