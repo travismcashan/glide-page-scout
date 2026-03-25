@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen } from 'lucide-react';
+import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
@@ -73,10 +73,13 @@ import { TemplatesCard } from '@/components/TemplatesCard';
 import { FormsCard } from '@/components/FormsCard';
 import { GlobalProgressBar } from '@/components/GlobalProgressBar';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
+import { DocumentLibrary } from '@/components/DocumentLibrary';
+import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
+import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -163,6 +166,7 @@ export default function ResultsPage() {
   const [chatModel, setChatModel] = useState('google/gemini-3-flash-preview');
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
+  const ragIngestTriggeredRef = useRef(false);
   const [activeTab, setActiveTab] = useState('raw-data');
   const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
@@ -2123,21 +2127,17 @@ export default function ResultsPage() {
 
           <TabsContent value="knowledge" className="mt-8">
             {session && (
-              <SectionCard
-                sectionId="knowledge-chat" persistedCollapsed={isSectionCollapsed("knowledge-chat")} onCollapseChange={toggleSection} title="Knowledge Chat"
-                icon={<BookOpen className="h-5 w-5 text-foreground" />}
-                collapsed={allCollapsed}
-                headerExtra={
-                  <ChatModelSelector
-                    model={chatModel}
-                    reasoning={chatReasoning}
-                    onModelChange={setChatModel}
-                    onReasoningChange={setChatReasoning}
-                  />
-                }
-              >
-                <KnowledgeChatCard session={session} pages={scrapedPages} selectedModel={chatModel} reasoning={chatReasoning} />
-              </SectionCard>
+              <KnowledgeTabContent
+                session={session}
+                scrapedPages={scrapedPages}
+                chatModel={chatModel}
+                chatReasoning={chatReasoning}
+                setChatModel={setChatModel}
+                setChatReasoning={setChatReasoning}
+                isSectionCollapsed={isSectionCollapsed}
+                toggleSection={toggleSection}
+                allCollapsed={allCollapsed}
+              />
             )}
           </TabsContent>
         </Tabs>
