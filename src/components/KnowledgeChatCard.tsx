@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -261,7 +261,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
-function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void }) {
+function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -307,6 +307,13 @@ function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote
             title="Save as note to document library"
           >
             {saved ? <Check className="h-3.5 w-3.5 text-accent" /> : <BookmarkPlus className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={onToggleFavorite}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart className={`h-3.5 w-3.5 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
           </button>
         </div>
       )}
