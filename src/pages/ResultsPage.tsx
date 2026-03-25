@@ -448,6 +448,7 @@ export default function ResultsPage() {
   // Apollo.io contact enrichment (manual search, persisted)
   const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
   const [apolloLoading, setApolloLoading] = useState(false);
+  const apolloAutoTriggered = useRef(false);
 
   // Sync apolloData from session when session loads/changes
   useEffect(() => {
@@ -455,6 +456,34 @@ export default function ResultsPage() {
       setApolloData(session.apollo_data);
     }
   }, [session?.apollo_data]);
+
+  // Auto-enrich Apollo using primary HubSpot contact
+  useEffect(() => {
+    if (apolloAutoTriggered.current) return;
+    if (apolloLoading || apolloData || session?.apollo_data) return;
+    if (isIntegrationPaused('apollo')) return;
+    const hubspot = (session as any)?.hubspot_data;
+    if (!hubspot?.success || !hubspot?.contacts?.length) return;
+
+    // Find primary contact (same logic as HubSpotCard: job title first, then most recent)
+    const sorted = [...hubspot.contacts].sort((a: any, b: any) => {
+      const aHasTitle = a.jobtitle ? 1 : 0;
+      const bHasTitle = b.jobtitle ? 1 : 0;
+      if (bHasTitle !== aHasTitle) return bHasTitle - aHasTitle;
+      const aDate = a.lastmodifieddate ? new Date(a.lastmodifieddate).getTime() : 0;
+      const bDate = b.lastmodifieddate ? new Date(b.lastmodifieddate).getTime() : 0;
+      return bDate - aDate;
+    });
+    const primary = sorted[0];
+    if (!primary?.email) return;
+
+    apolloAutoTriggered.current = true;
+    console.log(`[apollo] Auto-enriching primary HubSpot contact: ${primary.email}`);
+    // Trigger after a short delay to let UI settle
+    setTimeout(() => {
+      handleApolloSearch(primary.email, primary.firstname || undefined, primary.lastname || undefined);
+    }, 500);
+  }, [(session as any)?.hubspot_data, apolloData, apolloLoading, pauseVersion]);
 
   const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
     setApolloLoading(true);
