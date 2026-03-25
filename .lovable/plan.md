@@ -1,5 +1,6 @@
 
 
+
 ## Meta Stats Design System Unification
 
 ### Problem
@@ -44,3 +45,17 @@ Labels: Title Case, plain text
 - `src/components/SchemaCard.tsx`
 - `src/components/SemrushCard.tsx`
 
+---
+
+## Knowledge Chat — Phase 1 (✅ Shipped)
+
+### What Was Built
+A "Knowledge" tab on the Results page with a streaming AI chat that uses all integration data as context. Every integration card's data becomes part of a knowledge base the AI references when answering questions.
+
+### Architecture
+- **Edge Function**: `supabase/functions/knowledge-chat/index.ts` — Streaming via Lovable AI Gateway (`google/gemini-3-flash-preview`), 400K char context cap
+- **Component**: `src/components/KnowledgeChatCard.tsx` — Streaming SSE chat with markdown rendering, suggested questions, context stats
+- **ResultsPage**: New "Knowledge" tab with `BookOpen` icon, always visible
+
+### Phase 2 (Future): RAG with Embeddings
+Pre-process each integration's data into chunked embeddings stored in pgvector. On each chat message, do similarity search to pull only the most relevant chunks. Benefits: smarter retrieval, lower per-message cost, scales to any data size.
