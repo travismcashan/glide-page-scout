@@ -148,6 +148,7 @@ export default function ResultsPage() {
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
   const [activeTab, setActiveTab] = useState('raw-data');
+  const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
