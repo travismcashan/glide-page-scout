@@ -1637,7 +1637,7 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {session && !isIntegrationPaused('screenshots') && shouldShowIntegration('screenshots', false, showAllIntegrations, isSharedView) && (
+              {session && !isIntegrationPaused('screenshots') && (
                 <ScreenshotGallery
                   sessionId={session.id}
                   baseUrl={session.base_url}
