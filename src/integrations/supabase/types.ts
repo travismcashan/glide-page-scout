@@ -127,6 +127,7 @@ export type Database = {
           httpstatus_data: Json | null
           id: string
           integration_durations: Json | null
+          integration_timestamps: Json | null
           linkcheck_data: Json | null
           nav_structure: Json | null
           observations_data: Json | null
@@ -169,6 +170,7 @@ export type Database = {
           httpstatus_data?: Json | null
           id?: string
           integration_durations?: Json | null
+          integration_timestamps?: Json | null
           linkcheck_data?: Json | null
           nav_structure?: Json | null
           observations_data?: Json | null
@@ -211,6 +213,7 @@ export type Database = {
           httpstatus_data?: Json | null
           id?: string
           integration_durations?: Json | null
+          integration_timestamps?: Json | null
           linkcheck_data?: Json | null
           nav_structure?: Json | null
           observations_data?: Json | null
