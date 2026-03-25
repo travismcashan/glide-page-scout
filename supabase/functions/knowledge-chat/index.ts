@@ -8,8 +8,8 @@ const corsHeaders = {
 // Map frontend Claude IDs to actual Anthropic model identifiers and their max output tokens
 const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-haiku': { model: 'claude-haiku-4-5-20251001', maxOutput: 64000 },
-  'claude-sonnet': { model: 'claude-sonnet-4-20250514', maxOutput: 64000 },
-  'claude-opus': { model: 'claude-opus-4-20250514', maxOutput: 32000 },
+  'claude-sonnet': { model: 'claude-sonnet-4-6', maxOutput: 64000 },
+  'claude-opus': { model: 'claude-opus-4-6', maxOutput: 128000 },
 };
 
 // Claude extended thinking budget (used when reasoning=high)
