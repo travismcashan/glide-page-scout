@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity';
+export type ModelProvider = 'gemini' | 'gpt' | 'claude';
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
 
 export type ModelOption = {
@@ -23,12 +23,10 @@ const PROVIDERS: { id: ModelProvider; label: string }[] = [
   { id: 'gemini', label: 'Gemini' },
   { id: 'claude', label: 'Claude' },
   { id: 'gpt', label: 'GPT' },
-  { id: 'perplexity', label: 'Perplexity' },
 ];
 
 const ALL_REASONING: ReasoningEffort[] = ['none', 'low', 'medium', 'high'];
 const THINKING_ONLY: ReasoningEffort[] = ['none', 'high'];
-const NO_REASONING: ReasoningEffort[] = ['none'];
 
 const VERSIONS: Record<ModelProvider, ModelOption[]> = {
   gemini: [
@@ -44,15 +42,8 @@ const VERSIONS: Record<ModelProvider, ModelOption[]> = {
     { id: 'claude-opus', label: 'Opus 4', provider: 'claude', description: 'Most capable', tier: 'powerful', reasoning: THINKING_ONLY },
   ],
   gpt: [
-    { id: 'openai/gpt-5-nano', label: 'Nano', provider: 'gpt', description: 'Fast & efficient', tier: 'fast', reasoning: ALL_REASONING },
-    { id: 'openai/gpt-5-mini', label: 'Mini', provider: 'gpt', description: 'Balanced performance', tier: 'balanced', reasoning: ALL_REASONING },
     { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful', reasoning: ALL_REASONING },
     { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful', reasoning: ALL_REASONING },
-  ],
-  perplexity: [
-    { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web search', tier: 'fast', reasoning: NO_REASONING },
-    { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step + citations', tier: 'balanced', reasoning: NO_REASONING },
-    { id: 'perplexity-sonar-reasoning', label: 'Sonar Reasoning', provider: 'perplexity', description: 'Built-in chain-of-thought', tier: 'powerful', reasoning: NO_REASONING },
   ],
 };
 // Flatten for lookup
@@ -90,7 +81,6 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
     gemini: 'google/gemini-3-flash-preview',
     claude: 'claude-opus',
     gpt: 'openai/gpt-5',
-    perplexity: 'perplexity-sonar',
   };
 
   const handleProviderChange = (provider: ModelProvider) => {
