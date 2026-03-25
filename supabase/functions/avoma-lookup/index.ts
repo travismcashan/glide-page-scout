@@ -182,7 +182,7 @@ serve(async (req) => {
     let pageCount = 1;
     let consecutiveEmpty = 0;
     const prevCount = matchedMeetings.length;
-    while (nextUrl && pageCount < 12 && consecutiveEmpty < 2) {
+    while (nextUrl && pageCount < 20 && consecutiveEmpty < 4) {
       pageCount++;
       try {
         const pageRes = await fetch(nextUrl, {
