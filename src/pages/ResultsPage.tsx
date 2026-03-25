@@ -1258,12 +1258,12 @@ export default function ResultsPage() {
                  <div className="flex flex-col text-sm text-muted-foreground tabular-nums gap-0.5 -translate-y-3">
                    <span className="flex items-center gap-1">
                      <Clock className="h-3 w-3" />
-                     Created {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
+                     <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
                    </span>
                    {session?.updated_at && session.updated_at !== session.created_at && (
                      <span className="flex items-center gap-1">
                        <RefreshCw className="h-3 w-3" />
-                       Updated {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
+                       <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
                      </span>
                    )}
                  </div>
