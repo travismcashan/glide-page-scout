@@ -42,7 +42,12 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 
-/** Show integration if it has data, is active, or user toggled "Show All" */
+/** Check if persisted data is a failure sentinel */
+function isErrorSentinel(data: any): boolean {
+  return data && typeof data === 'object' && data._error === true;
+}
+
+/** Show integration if it has real (non-error) data, is active, or user toggled "Show All" */
 function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, sharedView?: boolean): boolean {
   if (sharedView) return hasData;
   if (showAll) return true;
