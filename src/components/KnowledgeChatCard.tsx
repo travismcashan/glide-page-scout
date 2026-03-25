@@ -45,6 +45,8 @@ type Props = {
   pages?: PageData[];
   selectedModel: string;
   reasoning: ReasoningEffort;
+  onModelChange: (model: string) => void;
+  onReasoningChange: (reasoning: ReasoningEffort) => void;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
