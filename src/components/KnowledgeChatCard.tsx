@@ -484,13 +484,13 @@ export function KnowledgeChatCard({ session, pages }: Props) {
           setAttachments={setAttachments}
           disabled={isStreaming}
         />
-        <div className="flex gap-2 items-end">
+        <div className="flex gap-1 items-end">
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about this website's audit data..."
+            placeholder={attachments.length > 0 ? "Add a message about these files..." : "Ask about this website's audit data..."}
             className="min-h-[44px] max-h-[120px] resize-none text-sm"
             rows={1}
             disabled={isStreaming}
