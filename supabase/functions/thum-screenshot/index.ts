@@ -49,12 +49,30 @@ Deno.serve(async (req) => {
 
     console.log('Fetching screenshot for:', url);
 
-    // Download the actual image from Thum.io
-    const imageResponse = await fetch(thumUrl);
-    if (!imageResponse.ok) {
-      console.error('Thum.io fetch failed:', imageResponse.status, imageResponse.statusText);
+    // Download the actual image from Thum.io with retries (it returns 502 while rendering)
+    let imageResponse: Response | null = null;
+    const maxAttempts = 4;
+    const delays = [0, 8000, 15000, 25000]; // progressive backoff
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        console.log(`Retry ${attempt}/${maxAttempts - 1} for ${url} after ${delays[attempt] / 1000}s`);
+        await new Promise(r => setTimeout(r, delays[attempt]));
+      }
+      try {
+        const resp = await fetch(thumUrl);
+        if (resp.ok) {
+          imageResponse = resp;
+          break;
+        }
+        console.warn(`Thum.io attempt ${attempt + 1}: ${resp.status} ${resp.statusText}`);
+        await resp.text(); // consume body
+      } catch (e) {
+        console.warn(`Thum.io attempt ${attempt + 1} network error:`, e);
+      }
+    }
+    if (!imageResponse) {
       return new Response(
-        JSON.stringify({ success: false, error: `Thum.io returned ${imageResponse.status}` }),
+        JSON.stringify({ success: false, error: 'Thum.io failed after retries' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

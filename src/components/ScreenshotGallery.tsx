@@ -91,8 +91,8 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
       fetchScreenshots();
     };
 
-    // Process up to 5 at a time
-    pending.slice(0, 5).forEach(processScreenshot);
+    // Process up to 3 at a time to reduce 502 errors from Thum.io
+    pending.slice(0, 3).forEach(processScreenshot);
   }, [screenshots, processingIds, fetchScreenshots]);
 
   const existingUrls = new Set(screenshots.map(s => s.url));
