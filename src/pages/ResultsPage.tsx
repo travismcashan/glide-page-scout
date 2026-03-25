@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History } from 'lucide-react';
+import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
@@ -60,6 +60,7 @@ import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { TemplatesCard } from '@/components/TemplatesCard';
 import { FormsCard } from '@/components/FormsCard';
 import { GlobalProgressBar } from '@/components/GlobalProgressBar';
+import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -1390,6 +1391,14 @@ export default function ResultsPage() {
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
               </TabsTrigger>
+              <TabsTrigger
+                value="knowledge"
+                style={activeTab === 'knowledge' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                className="relative text-base font-bold px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Knowledge
+              </TabsTrigger>
             </TabsList>
 
             {/* Unified actions dropdown */}
@@ -1936,6 +1945,18 @@ export default function ResultsPage() {
               )}
             </TabsContent>
           )}
+
+          <TabsContent value="knowledge" className="mt-8">
+            {session && (
+              <SectionCard
+                sectionId="knowledge-chat" persistedCollapsed={isSectionCollapsed("knowledge-chat")} onCollapseChange={toggleSection} title="Knowledge Chat"
+                icon={<BookOpen className="h-5 w-5 text-foreground" />}
+                collapsed={allCollapsed}
+              >
+                <KnowledgeChatCard session={session} pages={scrapedPages} />
+              </SectionCard>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
     </div>
