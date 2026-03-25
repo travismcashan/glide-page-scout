@@ -1409,6 +1409,30 @@ export default function ResultsPage() {
     );
   };
 
+  /** Build external report URL for an integration, if one exists */
+  const getReportUrl = (key: string): string | undefined => {
+    if (!session) return undefined;
+    const domain = session.domain;
+    const baseUrl = session.base_url;
+    switch (key) {
+      case 'gtmetrix': return session.gtmetrix_test_id ? `https://gtmetrix.com/reports/${session.gtmetrix_test_id}` : undefined;
+      case 'builtwith': return domain ? `https://builtwith.com/${domain}` : undefined;
+      case 'semrush': return domain ? `https://www.semrush.com/analytics/overview/?q=${domain}` : undefined;
+      case 'psi': return baseUrl ? `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(baseUrl)}` : undefined;
+      case 'crux': return baseUrl ? `https://lookerstudio.google.com/reporting/bbc5698d-57bb-4969-9e07-68810b889e09/page/keDQB?params=%7B%22origin%22:%22${encodeURIComponent(baseUrl)}%22%7D` : undefined;
+      case 'wave': return session.wave_data?.waveUrl || (baseUrl ? `https://wave.webaim.org/report#/${encodeURIComponent(baseUrl)}` : undefined);
+      case 'observatory': return domain ? `https://developer.mozilla.org/en-US/observatory/analyze?host=${domain}` : undefined;
+      case 'ssllabs': return domain ? `https://www.ssllabs.com/ssltest/analyze.html?d=${domain}` : undefined;
+      case 'yellowlab': return (session as any).yellowlab_data?.runId ? `https://yellowlab.tools/result/${(session as any).yellowlab_data.runId}` : undefined;
+      case 'w3c': return baseUrl ? `https://validator.w3.org/nu/?doc=${encodeURIComponent(baseUrl)}` : undefined;
+      case 'carbon': return domain ? `https://www.websitecarbon.com/website/${domain}/` : undefined;
+      case 'wappalyzer': return domain ? `https://www.wappalyzer.com/lookup/${domain}/` : undefined;
+      case 'schema': return baseUrl ? `https://search.google.com/test/rich-results?url=${encodeURIComponent(baseUrl)}` : undefined;
+      case 'readable': return baseUrl ? `https://readable.com/text/?url=${encodeURIComponent(baseUrl)}` : undefined;
+      default: return undefined;
+    }
+  };
+
   const innerExpandToggle = (expanded: boolean | null, setExpanded: React.Dispatch<React.SetStateAction<boolean | null>>) => (
     <Button
       variant="ghost"
