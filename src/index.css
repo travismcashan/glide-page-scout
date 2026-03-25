@@ -157,7 +157,7 @@
 }
 
 .chat-prose li::marker {
-  @apply text-muted-foreground/60;
+  @apply text-foreground;
 }
 
 .chat-prose strong {
