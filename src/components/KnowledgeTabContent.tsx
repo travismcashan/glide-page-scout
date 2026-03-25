@@ -103,24 +103,15 @@ export function KnowledgeTabContent({
       )}
 
       {/* Chat */}
-      <SectionCard
-        sectionId="knowledge-chat"
-        persistedCollapsed={isSectionCollapsed("knowledge-chat")}
-        onCollapseChange={toggleSection}
-        title="Knowledge Chat"
-        icon={<BookOpen className="h-5 w-5 text-foreground" />}
-        collapsed={allCollapsed}
-      >
-        <KnowledgeChatCard
-          session={session}
-          pages={scrapedPages}
-          selectedModel={chatModel}
-          reasoning={chatReasoning}
-          onModelChange={setChatModel}
-          onReasoningChange={setChatReasoning}
-          onDocumentsChanged={triggerRefresh}
-        />
-      </SectionCard>
+      <KnowledgeChatCard
+        session={session}
+        pages={scrapedPages}
+        selectedModel={chatModel}
+        reasoning={chatReasoning}
+        onModelChange={setChatModel}
+        onReasoningChange={setChatReasoning}
+        onDocumentsChanged={triggerRefresh}
+      />
     </div>
   );
 }
