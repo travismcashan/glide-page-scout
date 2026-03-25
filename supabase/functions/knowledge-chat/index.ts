@@ -536,7 +536,7 @@ serve(async (req) => {
     const isPerplexityModel = model && model.startsWith('perplexity-');
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Reasoning: ${reasoning || 'none'}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Legacy: ${legacyContext.length} chars, Messages: ${messages.length}`);
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Messages: ${messages.length}`);
 
     if (isClaudeModel) {
       return await handleClaudeRequest(model, messages, systemPrompt, reasoning);
