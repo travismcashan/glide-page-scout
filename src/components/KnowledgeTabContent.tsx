@@ -103,7 +103,7 @@ export function KnowledgeTabContent({
           <PanelLeftOpen className="h-4 w-4" />
           <Database className="h-4 w-4" />
         </button>
-      )
+      )}
 
       {/* Chat */}
       <SectionCard
