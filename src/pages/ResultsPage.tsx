@@ -1471,7 +1471,7 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">URL Analysis</h2>
             <SortedIntegrationList className="space-y-6">
               {session && shouldShowIntegration('sitemap', !!session.sitemap_data, showAllIntegrations) && (
-                <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('sitemap', 'sitemap_data', sitemapLoading)}{session.sitemap_data && innerExpandToggle(sitemapInnerExpand, setSitemapInnerExpand)}</SortedIntegrationList>} paused={isIntegrationPaused('sitemap') && !session.sitemap_data} onTogglePause={() => handleTogglePause('sitemap')}>
+                <SectionCard collapsed={allCollapsed} sectionId="sitemap" persistedCollapsed={isSectionCollapsed("sitemap")} onCollapseChange={toggleSection} title="XML Sitemaps" icon={<MapIcon className="h-5 w-5 text-foreground" />} loading={sitemapLoading && !session.sitemap_data} loadingText="Parsing XML sitemaps..." error={sitemapFailed} errorText={integrationErrors.sitemap} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('sitemap', 'sitemap_data', sitemapLoading)}{session.sitemap_data && innerExpandToggle(sitemapInnerExpand, setSitemapInnerExpand)}</div>} paused={isIntegrationPaused('sitemap') && !session.sitemap_data} onTogglePause={() => handleTogglePause('sitemap')}>
                   {session.sitemap_data ? <SitemapCard data={session.sitemap_data} globalInnerExpand={sitemapInnerExpand} pageTags={(session as any).page_tags} onPageTagChange={handlePageTagChange} /> : null}
                 </SectionCard>
               )}
@@ -1521,7 +1521,7 @@ export default function ResultsPage() {
                 ) : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
@@ -1538,7 +1538,7 @@ export default function ResultsPage() {
             <h2 className="text-4xl font-light tracking-tight text-foreground mt-16 mb-6 first:mt-0">Content Analysis</h2>
             <SortedIntegrationList className="space-y-6">
               {session && (
-              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</SortedIntegrationList> : undefined}>
+              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
                 {(session as any)?.page_tags ? (
                   <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} globalInnerExpand={redesignInnerExpand} />
                 ) : null}
@@ -1598,7 +1598,7 @@ export default function ResultsPage() {
                 ) : null}
               </SectionCard>
               )}
-            </div>
+            </SortedIntegrationList>
           </div>
         )}
 
