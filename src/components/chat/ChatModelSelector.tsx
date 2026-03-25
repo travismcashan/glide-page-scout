@@ -16,6 +16,7 @@ export type ModelOption = {
   provider: ModelProvider;
   description: string;
   tier: 'fast' | 'balanced' | 'powerful';
+  reasoning: ReasoningEffort[];
 };
 
 const PROVIDERS: { id: ModelProvider; label: string }[] = [
