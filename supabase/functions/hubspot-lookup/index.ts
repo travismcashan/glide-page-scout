@@ -167,9 +167,8 @@ serve(async (req) => {
     console.log(`[hubspot] Found ${engagements.length} engagements`);
 
     // Fetch form submissions for contacts
-    // Step 1: Get form IDs from contact profiles
     let formSubmissions: any[] = [];
-    const seenFormIds = new Set<string>();
+    const processedFormIds = new Set<string>();
 
     for (const contactId of contactIds.slice(0, 10)) {
       try {
@@ -181,34 +180,40 @@ serve(async (req) => {
         const contact = contacts.find((c: any) => c.id === contactId);
         for (const sub of subs) {
           const formId = sub['form-id'];
-          const portalId = sub['portal-id'];
-          const conversionId = sub['conversion-id'];
 
-          // Try to get actual submitted values from the form submissions API
-          let fields: any[] = [];
-          if (formId && conversionId) {
+          // Fetch full submissions for this form (once per form)
+          let formFieldsMap = new Map<string, any[]>(); // submittedAt -> fields
+          if (formId && !processedFormIds.has(formId)) {
+            processedFormIds.add(formId);
             try {
               const submissionRes = await hubspotFetch(
                 `/form-integrations/v1/submissions/forms/${formId}?limit=50`,
                 HUBSPOT_ACCESS_TOKEN
               );
-              // Find the matching submission by conversion ID or timestamp
-              const allSubs = submissionRes?.results || [];
-              const match = allSubs.find((s: any) => s.conversionId === conversionId) 
-                || allSubs.find((s: any) => {
-                  // Match by timestamp proximity (within 1 second)
-                  if (!sub.timestamp || !s.submittedAt) return false;
-                  return Math.abs(sub.timestamp - s.submittedAt) < 1000;
-                });
-              if (match?.values) {
-                fields = match.values.map((v: any) => ({
+              for (const s of (submissionRes?.results || [])) {
+                const fields = (s.values || []).map((v: any) => ({
                   name: v.name || v.label || 'Unknown',
                   label: v.label || v.name || 'Unknown',
                   value: v.value || '',
                 })).filter((f: any) => f.value);
+                if (fields.length > 0) {
+                  formFieldsMap.set(String(s.submittedAt), fields);
+                }
               }
+              console.log(`[hubspot] Form ${formId}: fetched ${formFieldsMap.size} submissions with fields`);
             } catch (formErr) {
               console.error(`[hubspot] Error fetching form ${formId} submissions: ${formErr.message}`);
+            }
+          }
+
+          // Match by timestamp proximity (within 5 seconds) or conversionId
+          let fields: any[] = [];
+          if (sub.timestamp && formFieldsMap.size > 0) {
+            for (const [ts, f] of formFieldsMap) {
+              if (Math.abs(sub.timestamp - Number(ts)) < 5000) {
+                fields = f;
+                break;
+              }
             }
           }
 
@@ -218,10 +223,10 @@ serve(async (req) => {
             contactEmail: contact?.email || '',
             formTitle: sub.title || 'Untitled Form',
             formId: formId || null,
-            portalId: portalId || null,
+            portalId: sub['portal-id'] || null,
             pageUrl: sub['page-url'] || null,
             timestamp: sub.timestamp ? new Date(sub.timestamp).toISOString() : null,
-            conversionId: conversionId || null,
+            conversionId: sub['conversion-id'] || null,
             fields,
           });
         }
