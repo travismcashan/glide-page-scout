@@ -106,7 +106,7 @@ function markdownToHtml(md: string): string {
   html = html.replace(/^(?!<[a-z])((?:.+\n?)+)/gm, (match) => {
     const trimmed = match.trim();
     if (!trimmed || trimmed.startsWith('<')) return match;
-    return `<p style="margin:8px 0;line-height:1.5;">${trimmed}</p>`;
+    return `<p style="margin:10pt 0;">${trimmed}</p>`;
   });
 
   return html;
@@ -144,7 +144,7 @@ serve(async (req) => {
       `--${boundary}`,
       'Content-Type: text/html; charset=UTF-8',
       '',
-      `<html><body style="font-family:Arial,sans-serif;font-size:11pt;line-height:1.6;">${htmlContent}</body></html>`,
+      `<html><body style="font-family:Arial,sans-serif;font-size:11pt;">${htmlContent}</body></html>`,
       `--${boundary}--`,
     ].join('\r\n');
 
