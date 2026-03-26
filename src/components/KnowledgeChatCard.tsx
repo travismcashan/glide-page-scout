@@ -1553,11 +1553,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       ragDocuments={msg.ragDocuments}
                       searchLabel={
                         isStreaming && i === messages.length - 1
-                          ? searchSources.web && searchSources.documents
-                            ? 'Searching Web + Knowledge / Thinking'
-                            : searchSources.web
-                              ? 'Searching Web / Thinking'
-                              : 'Searching Knowledge / Thinking'
+                          ? 'Searching + Thinking'
                           : undefined
                       }
                     />
