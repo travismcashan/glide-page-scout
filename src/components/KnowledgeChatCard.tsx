@@ -51,6 +51,7 @@ type Props = {
   selectedModel: string;
   provider: ModelProvider;
   reasoning: ReasoningEffort;
+  onProviderChange: (provider: ModelProvider) => void;
   onModelChange: (model: string) => void;
   onReasoningChange: (reasoning: ReasoningEffort) => void;
   onDocumentsChanged?: () => void;
