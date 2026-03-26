@@ -177,99 +177,99 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
   return (
     <div className="flex flex-col">
-      {/* Header stats */}
-      <div className="flex items-center justify-between px-1 mb-3">
+      {/* Single toolbar row: stats left, controls right */}
+      <div className="flex items-center gap-2 px-1 mb-3">
+        {/* Stats - left */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <BookOpen className="h-3.5 w-3.5" />
           <span><strong className="text-foreground">{readyCount}</strong> documents</span>
           <span>·</span>
           <span><strong className="text-foreground">{totalChunks}</strong> chunks indexed</span>
         </div>
-        {onIngestIntegrations && (
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Sync integration data">
-            {ingesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
-        )}
-      </div>
 
-      {/* Toolbar: view toggle | filter/sort/group | search */}
-      <div className="flex items-center gap-2 px-1 mb-3 flex-wrap">
-        {/* View toggle */}
-        <div className="flex items-center border rounded-md overflow-hidden">
-          <button onClick={() => setViewMode('grid')} className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Grid view">
-            <LayoutGrid className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={() => setViewMode('table')} className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="List view">
-            <List className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        {/* Controls - right */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          {/* View toggle */}
+          <div className="flex items-center border rounded-md overflow-hidden">
+            <button onClick={() => setViewMode('grid')} className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Grid view">
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => setViewMode('table')} className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="List view">
+              <List className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
-        {/* Filter */}
-        <Select value={filterSource} onValueChange={setFilterSource}>
-          <SelectTrigger className="h-8 w-auto min-w-[90px] text-xs gap-1.5 border rounded-md px-2.5 [&>svg:last-child]:hidden">
-            <Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="font-medium">Filter</span>
-            {filterSource !== 'all' && <span className="text-muted-foreground">· {SOURCE_LABELS[filterSource] || filterSource}</span>}
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">All sources</SelectItem>
-            {sourceTypes.map(st => (
-              <SelectItem key={st} value={st} className="text-xs">{SOURCE_LABELS[st] || st}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Filter */}
+          <Select value={filterSource} onValueChange={setFilterSource}>
+            <SelectTrigger className="h-7 w-auto text-xs gap-1 border rounded-md px-2 [&>svg:last-child]:hidden">
+              <Database className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="font-medium">Filter</span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All sources</SelectItem>
+              {sourceTypes.map(st => (
+                <SelectItem key={st} value={st} className="text-xs">{SOURCE_LABELS[st] || st}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Sort */}
-        <Select value={`${sortField}:${sortDir}`} onValueChange={v => { const [f, d] = v.split(':'); setSortField(f as SortField); setSortDir(d as SortDir); }}>
-          <SelectTrigger className="h-8 w-auto min-w-[80px] text-xs gap-1.5 border rounded-md px-2.5 [&>svg:last-child]:hidden">
-            <ArrowDownAZ className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="font-medium">Sort</span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="created_at:desc" className="text-xs">Newest first</SelectItem>
-            <SelectItem value="created_at:asc" className="text-xs">Oldest first</SelectItem>
-            <SelectItem value="name:asc" className="text-xs">Name A–Z</SelectItem>
-            <SelectItem value="name:desc" className="text-xs">Name Z–A</SelectItem>
-            <SelectItem value="char_count:desc" className="text-xs">Largest first</SelectItem>
-            <SelectItem value="char_count:asc" className="text-xs">Smallest first</SelectItem>
-            <SelectItem value="chunk_count:desc" className="text-xs">Most chunks</SelectItem>
-          </SelectContent>
-        </Select>
+          {/* Sort */}
+          <Select value={`${sortField}:${sortDir}`} onValueChange={v => { const [f, d] = v.split(':'); setSortField(f as SortField); setSortDir(d as SortDir); }}>
+            <SelectTrigger className="h-7 w-auto text-xs gap-1 border rounded-md px-2 [&>svg:last-child]:hidden">
+              <ArrowDownAZ className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="font-medium">Sort</span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at:desc" className="text-xs">Newest first</SelectItem>
+              <SelectItem value="created_at:asc" className="text-xs">Oldest first</SelectItem>
+              <SelectItem value="name:asc" className="text-xs">Name A–Z</SelectItem>
+              <SelectItem value="name:desc" className="text-xs">Name Z–A</SelectItem>
+              <SelectItem value="char_count:desc" className="text-xs">Largest first</SelectItem>
+              <SelectItem value="char_count:asc" className="text-xs">Smallest first</SelectItem>
+              <SelectItem value="chunk_count:desc" className="text-xs">Most chunks</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {/* Group by */}
-        <Select value={groupBy} onValueChange={setGroupBy}>
-          <SelectTrigger className="h-8 w-auto min-w-[100px] text-xs gap-1.5 border rounded-md px-2.5 [&>svg:last-child]:hidden">
-            <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="font-medium">Grouping</span>
-            {groupBy !== 'none' && <span className="text-muted-foreground">· {groupBy === 'source' ? 'Source' : 'Status'}</span>}
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none" className="text-xs">No grouping</SelectItem>
-            <SelectItem value="source" className="text-xs">By source</SelectItem>
-            <SelectItem value="status" className="text-xs">By status</SelectItem>
-          </SelectContent>
-        </Select>
+          {/* Group by */}
+          <Select value={groupBy} onValueChange={setGroupBy}>
+            <SelectTrigger className="h-7 w-auto text-xs gap-1 border rounded-md px-2 [&>svg:last-child]:hidden">
+              <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="font-medium">Group</span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="text-xs">No grouping</SelectItem>
+              <SelectItem value="source" className="text-xs">By source</SelectItem>
+              <SelectItem value="status" className="text-xs">By status</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {(filterSource !== 'all' || searchQuery || groupBy !== 'none') && (
-          <button onClick={() => { setFilterSource('all'); setSearchQuery(''); setGroupBy('none'); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <X className="h-3 w-3" />
-            Clear
-          </button>
-        )}
-
-        {/* Search - right aligned, compact */}
-        <div className="relative ml-auto">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="h-8 w-40 pl-7 text-xs"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+          {(filterSource !== 'all' || searchQuery || groupBy !== 'none') && (
+            <button onClick={() => { setFilterSource('all'); setSearchQuery(''); setGroupBy('none'); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 px-1">
               <X className="h-3 w-3" />
             </button>
+          )}
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              placeholder="Search…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="h-7 w-32 pl-6 text-xs"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Sync button */}
+          {onIngestIntegrations && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Sync integration data">
+              {ingesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            </Button>
           )}
         </div>
       </div>
