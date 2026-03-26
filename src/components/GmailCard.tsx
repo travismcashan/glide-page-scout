@@ -459,8 +459,10 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
       isIngesting: ingestingAll,
       emailCount: emails.length,
       isRefreshing,
+      lastFetched,
+      durationSec,
     });
-  }, [isConnected, emails.length, isLoading, ingestingAll, isRefreshing, onStateChange]);
+  }, [isConnected, emails.length, isLoading, ingestingAll, isRefreshing, lastFetched, durationSec, onStateChange]);
 
   // Count total attachments across all emails
   const totalAttachments = emails.reduce((sum, e) => sum + (e.attachments?.length || 0), 0);
