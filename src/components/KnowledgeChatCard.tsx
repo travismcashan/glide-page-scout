@@ -1110,7 +1110,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible"
+                className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted hover:text-foreground overflow-visible text-muted-foreground"
                 style={{ width: 44, height: 44 }}
                 disabled={isStreaming}
               >
