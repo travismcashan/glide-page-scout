@@ -2168,7 +2168,7 @@ export default function ResultsPage() {
             </div>}
           </TabsContent>
 
-          <TabsContent value="chat" className="mt-4 flex-1 min-h-0 flex flex-col overflow-hidden" forceMount={activeTab === 'chat' ? true : undefined}>
+          <TabsContent value="chat" className="mt-0 flex-1 min-h-0 flex flex-col overflow-hidden" forceMount={activeTab === 'chat' ? true : undefined}>
             {activeTab === 'chat' && !tabReady ? <TabSkeleton variant="chat" /> : activeTab !== 'chat' ? null : <div className="animate-fade-in flex-1 min-h-0 flex flex-col">
             {session && (
               <KnowledgeChatCard
