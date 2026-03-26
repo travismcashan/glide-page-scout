@@ -1009,27 +1009,23 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-44 p-2" align="start" side="top">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5">
-                  <Checkbox
-                    checked={searchSources.documents}
-                    onCheckedChange={(checked) =>
-                      setSearchSources(prev => ({ ...prev, documents: !!checked }))
-                    }
-                  />
+              <div className="space-y-1">
+                <button
+                  className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5 w-full text-left"
+                  onClick={() => setSearchSources(prev => ({ ...prev, documents: !prev.documents }))}
+                >
+                  {searchSources.documents ? <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" /> : <span className="w-3.5 flex-shrink-0" />}
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                   Documents
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5">
-                  <Checkbox
-                    checked={searchSources.web}
-                    onCheckedChange={(checked) =>
-                      setSearchSources(prev => ({ ...prev, web: !!checked }))
-                    }
-                  />
+                </button>
+                <button
+                  className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5 w-full text-left"
+                  onClick={() => setSearchSources(prev => ({ ...prev, web: !prev.web }))}
+                >
+                  {searchSources.web ? <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" /> : <span className="w-3.5 flex-shrink-0" />}
                   <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                   Web
-                </label>
+                </button>
               </div>
             </PopoverContent>
           </Popover>
