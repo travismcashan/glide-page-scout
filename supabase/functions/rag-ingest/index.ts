@@ -136,7 +136,7 @@ serve(async (req) => {
     const results: any[] = [];
 
     for (const doc of documents) {
-      const { name, content, source_type = 'upload', source_key } = doc;
+      const { name, content, source_type = 'upload', source_key, skip_dedup } = doc;
 
       if (!name || !content) {
         results.push({ name, status: 'skipped', reason: 'missing name or content' });
@@ -145,17 +145,19 @@ serve(async (req) => {
 
       const contentHash = hashContent(content);
 
-      // Check for existing document with same hash
-      const { data: existing } = await supabase
-        .from('knowledge_documents')
-        .select('id')
-        .eq('session_id', session_id)
-        .eq('content_hash', contentHash)
-        .maybeSingle();
+      // Check for existing document with same hash (skip if skip_dedup flag is set)
+      if (!skip_dedup) {
+        const { data: existing } = await supabase
+          .from('knowledge_documents')
+          .select('id')
+          .eq('session_id', session_id)
+          .eq('content_hash', contentHash)
+          .maybeSingle();
 
-      if (existing) {
-        results.push({ name, status: 'skipped', reason: 'duplicate content' });
-        continue;
+        if (existing) {
+          results.push({ name, status: 'skipped', reason: 'duplicate content' });
+          continue;
+        }
       }
 
       // Create document record
