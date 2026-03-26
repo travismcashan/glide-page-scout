@@ -1508,16 +1508,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       </div>
 
       {/* Scroll to bottom button - centered on thread body */}
-      {showScrollBottom && (
+      {showScrollBottom && scrollBtnLeft !== null && (
         <button
           onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
           className="fixed bottom-[180px] z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
-          style={{
-            left: outerRef.current
-              ? outerRef.current.getBoundingClientRect().left + outerRef.current.getBoundingClientRect().width / 2
-              : '50%',
-            transform: 'translateX(-50%)',
-          }}
+          style={{ left: scrollBtnLeft, transform: 'translateX(-50%)' }}
           aria-label="Scroll to bottom"
         >
           <ArrowDown className="h-5 w-5" />
