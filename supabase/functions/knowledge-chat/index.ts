@@ -17,7 +17,7 @@ const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
 const PERPLEXITY_MODELS: Record<string, string> = {
   'perplexity-sonar': 'sonar',
   'perplexity-sonar-pro': 'sonar-pro',
-  'perplexity-sonar-reasoning': 'sonar-reasoning',
+  'perplexity-sonar-reasoning-pro': 'sonar-reasoning-pro',
 };
 
 // Claude extended thinking budget (used when reasoning=high)
