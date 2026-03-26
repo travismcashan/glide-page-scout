@@ -1607,8 +1607,10 @@ export default function ResultsPage() {
       <main className={`max-w-6xl mx-auto px-6 py-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Sticky tab bar - shown when scrolling up and past the original */}
-          {stickyTabVisible && (
-            <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm animate-in slide-in-from-top-2 duration-200">
+          <div
+            className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
+            style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
+          >
               <div className="max-w-6xl mx-auto px-6 pt-5">
                 <div className="relative flex items-end">
                   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground z-0" />
