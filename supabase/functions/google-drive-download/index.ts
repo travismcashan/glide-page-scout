@@ -12,7 +12,7 @@ const EXPORT_MIMES: Record<string, string> = {
   'application/vnd.google-apps.presentation': 'text/plain',
 };
 
-const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB limit to stay within memory
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB limit
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
