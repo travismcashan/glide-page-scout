@@ -490,8 +490,8 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
     addSection('AI Technology Analysis', session.tech_analysis_data.analysis);
   }
 
-  // ── 🎙️ Avoma Call Transcripts (full — highest-signal data) ──
-  addSection('Avoma Call Transcripts & Meetings', extractAvoma(session.avoma_data));
+
+  return sections.join('\n\n');
 
   return sections.join('\n\n');
 }
