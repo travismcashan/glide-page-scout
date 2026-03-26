@@ -852,7 +852,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       saveMessage('assistant', assistantContent, sources);
 
       // Auto-ingest conversation into RAG (fire-and-forget)
-      const allMsgs = [...messages, { role: 'user' as const, content: input }, { role: 'assistant' as const, content: assistantContent }];
+      const allMsgs = [...newMessages, { role: 'assistant' as const, content: assistantContent }];
       ingestChatConversation(session.id, allMsgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))).then(() => {
         onDocumentsChanged?.();
       }).catch(() => {});
