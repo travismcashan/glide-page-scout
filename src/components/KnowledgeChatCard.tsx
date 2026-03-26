@@ -1715,7 +1715,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               variant="ghost"
               size="icon"
               onClick={() => handleSend()}
-              disabled={attachments.length === 0 && !chatInputRef.current?.getValue()?.trim() || isStreaming || attachments.some(a => a.parsing)}
+              disabled={isStreaming || attachments.some(a => a.parsing) || (attachments.length === 0 && !chatInputRef.current?.getValue()?.trim())}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
