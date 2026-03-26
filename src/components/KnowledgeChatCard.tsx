@@ -818,6 +818,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   }, [messages, isStreaming, session.id, handleSend]);
 
   const outerRef = useRef<HTMLDivElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  // Track whether user has scrolled away from bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      const distanceFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
+      setShowScrollBottom(distanceFromBottom > 200);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Auto-scroll to bottom of page when new messages arrive
   useEffect(() => {
