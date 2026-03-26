@@ -877,27 +877,37 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       // Generate a short AI title for the note
       let noteName = `Chat Note – ${new Date().toLocaleString()}`;
       try {
-        const titleResp = await supabase.functions.invoke('knowledge-chat', {
-          body: {
-            messages: [
-              { role: 'system', content: 'You are a title generator. Respond with ONLY a 3-5 word title that captures the gist of the following text. No quotes, no punctuation at the end, no explanation.' },
-              { role: 'user', content: content.slice(0, 2000) },
-            ],
-            model: 'google/gemini-2.5-flash-lite',
-          },
-        });
-        const titleText = titleResp.data?.trim?.() || '';
-        // Parse streaming response to extract content
+        const titleResp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({
+              messages: [
+                { role: 'system', content: 'You are a title generator. Respond with ONLY a 3-5 word title that captures the gist of the following text. No quotes, no punctuation at the end, no explanation.' },
+                { role: 'user', content: content.slice(0, 2000) },
+              ],
+              model: 'google/gemini-2.5-flash-lite',
+            }),
+          }
+        );
+        const titleText = await titleResp.text();
+        // Parse streaming SSE response
         const lines = titleText.split('\n').filter((l: string) => l.startsWith('data: '));
         let extracted = '';
         for (const line of lines) {
+          if (line.trim() === 'data: [DONE]') continue;
           try {
             const json = JSON.parse(line.slice(6));
             const delta = json.choices?.[0]?.delta?.content;
             if (delta) extracted += delta;
           } catch {}
         }
-        const cleanTitle = (extracted || titleText).replace(/["""]/g, '').trim();
+        const cleanTitle = extracted.replace(/["""]/g, '').trim();
         if (cleanTitle.length >= 3 && cleanTitle.length <= 60) {
           noteName = cleanTitle;
         }
