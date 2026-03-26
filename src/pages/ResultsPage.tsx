@@ -1620,7 +1620,6 @@ export default function ResultsPage() {
                 </div>
               </div>
             </div>
-          </div>
           <div ref={tabBarRef} className="relative flex items-end justify-between">
             {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground z-0" />
