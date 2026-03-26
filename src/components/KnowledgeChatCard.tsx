@@ -827,7 +827,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
       {/* Input area */}
       <div
-        className={`mx-2 mb-2 mt-3 rounded-2xl bg-card border-2 shadow-lg px-4 py-3 transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}`}
+        className={`mb-2 mt-3 rounded-2xl bg-card border-2 shadow-lg px-4 py-3 transition-colors w-full max-w-2xl mx-auto ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}`}
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
