@@ -1585,8 +1585,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       {/* Input area - sticky at bottom */}
       <div
         ref={composerRef}
-        className="fixed bottom-0 right-0 z-30 pb-2 pt-2 bg-gradient-to-t from-background via-background to-transparent"
-        style={{ left: `${sidebarWidth}px` }}
+        className="fixed bottom-0 right-0 z-30 pt-2 bg-gradient-to-t from-background via-background to-transparent"
+        style={{ left: `${sidebarWidth}px`, paddingBottom: '18px' }}
       >
       <div
         className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
