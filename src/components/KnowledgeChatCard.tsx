@@ -287,9 +287,9 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         {isStreaming ? (
-          <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-muted-foreground" />
+          <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
         ) : (
-          <Brain className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <Brain className="flex-shrink-0 text-muted-foreground" style={{ width: 28, height: 28 }} />
         )}
         <span className="text-base font-bold">{isStreaming ? 'Thinking…' : 'Show Thinking'}</span>
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -443,7 +443,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       </Suspense>
       {isStreamingThis && !content && !thinking && (
         <div className="flex items-center gap-2 py-2">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <Loader2 className="animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
         </div>
       )}
       {content && !isStreamingThis && (
