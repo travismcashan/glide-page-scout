@@ -188,6 +188,7 @@ function EmailRow({
 
 export interface GmailCardHandle {
   ingestAllEmails: () => Promise<void>;
+  refreshEmails: () => Promise<void>;
 }
 
 export interface GmailCardProps {
@@ -442,7 +443,8 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
 
   useImperativeHandle(ref, () => ({
     ingestAllEmails: handleIngestAllEmails,
-  }), [emails, isConnected, isLoading, ingestingAll]);
+    refreshEmails: doSearch,
+  }), [emails, isConnected, isLoading, ingestingAll, doSearch]);
 
   // Notify parent of state changes
   useEffect(() => {
