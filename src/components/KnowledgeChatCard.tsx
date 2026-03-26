@@ -865,34 +865,29 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <AssistantBubbleInner content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')} isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')} webCitations={msg.webCitations} isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length} />
+                    <AssistantBubbleInner
+                      content={typeof msg.content === 'string' ? msg.content : ''}
+                      thinking={msg.thinking}
+                      isStreamingThis={isStreaming && i === messages.length - 1}
+                      onSaveNote={handleSaveNote}
+                      onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')}
+                      isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')}
+                      webCitations={msg.webCitations}
+                      isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length}
+                      sources={msg.sources}
+                      onSourceClick={(s) => {
+                        const target = SOURCE_TAB_MAP[s];
+                        if (target) {
+                          setSearchParams(prev => { prev.set('tab', target.tab); return prev; }, { replace: true });
+                          setTimeout(() => {
+                            const el = document.querySelector(`[data-section-id="${target.sectionId}"]`);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }, 150);
+                        }
+                      }}
+                    />
                   )}
                 </div>
-                {/* Source badges for assistant messages */}
-                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !(isStreaming && i === messages.length - 1) && (
-                  <div className="flex items-center gap-1.5 mt-1.5 ml-1 flex-wrap">
-                    <span className="text-xs text-muted-foreground">Sources:</span>
-                    {msg.sources.map(s => (
-                      <Badge
-                        key={s}
-                        variant="outline"
-                        className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted transition-colors"
-                        onClick={() => {
-                          const target = SOURCE_TAB_MAP[s];
-                          if (target) {
-                            setSearchParams(prev => { prev.set('tab', target.tab); return prev; }, { replace: true });
-                            setTimeout(() => {
-                              const el = document.querySelector(`[data-section-id="${target.sectionId}"]`);
-                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }, 150);
-                          }
-                        }}
-                      >
-                        {SOURCE_LABELS[s] || s}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
             {/* Thinking indicator */}
