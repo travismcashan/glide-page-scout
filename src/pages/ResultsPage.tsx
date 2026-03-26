@@ -2274,6 +2274,7 @@ export default function ResultsPage() {
                 onProviderChange={setChatProvider}
                 onModelChange={setChatModel}
                 onReasoningChange={setChatReasoning}
+                stickyTabVisible={stickyTabVisible}
               />
             )}
             </div>}
