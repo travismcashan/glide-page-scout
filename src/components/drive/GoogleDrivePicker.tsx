@@ -128,28 +128,31 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
       if (e.code !== 'Space') return;
       if (isHandlingSpaceRef.current) return;
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.closest('[role="menu"]')) return;
       e.preventDefault();
-      e.stopPropagation();
       isHandlingSpaceRef.current = true;
 
-      if (previewFileRef.current) {
-        setPreviewFile(null);
-        setPreviewContent(null);
-      } else {
-        const id = focusedFileIdRef.current;
-        if (id) {
-          const file = filesRef.current.find(f => f.id === id);
-          if (file && !isFolder(file.mimeType)) {
-            setPreviewFile(file);
-            setPreviewContent(`https://drive.google.com/file/d/${file.id}/preview`);
+      try {
+        if (previewFileRef.current) {
+          setPreviewFile(null);
+          setPreviewContent(null);
+        } else {
+          const id = focusedFileIdRef.current;
+          if (id) {
+            const file = filesRef.current.find(f => f.id === id);
+            if (file && !isFolder(file.mimeType)) {
+              setPreviewFile(file);
+              setPreviewContent(`https://drive.google.com/file/d/${file.id}/preview`);
+            }
           }
         }
+      } catch (err) {
+        console.error('Preview toggle error:', err);
       }
       setTimeout(() => { isHandlingSpaceRef.current = false; }, 300);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [open]);
 
   const handleImport = async () => {
