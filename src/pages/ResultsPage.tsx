@@ -2238,6 +2238,7 @@ export default function ResultsPage() {
                 session={session}
                 pages={scrapedPages}
                 selectedModel={chatModel}
+                provider={chatProvider}
                 reasoning={chatReasoning}
                 onModelChange={setChatModel}
                 onReasoningChange={setChatReasoning}
