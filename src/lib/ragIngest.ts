@@ -333,6 +333,7 @@ export async function autoIngestIntegrations(
     }
   }
 
+  if (docsToIngest.length === 0) {
     return { ingested: 0, skipped: existingMap.size };
   }
 
