@@ -1014,7 +1014,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   return (
     <div
       ref={outerRef}
-      className="flex flex-col items-center pb-40"
+      className="flex flex-col items-center pb-24"
     >
       {/* Messages area */}
       <div ref={scrollRef} className="space-y-4 px-5 pt-5 pb-6 w-full max-w-3xl mx-auto">
