@@ -481,7 +481,7 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
                       </div>
                       <div className="flex-shrink-0">{getFileIcon(file.mimeType)}</div>
                       <div className="flex-1 min-w-0">
-                        <p className={cn('font-medium truncate', !isFolderItem && !isSupported && 'text-muted-foreground')}>{file.name}</p>
+                        <p className={cn('text-sm truncate', !isFolderItem && !isSupported && 'text-muted-foreground')}>{file.name}</p>
                       </div>
                       {isFocused && !isFolderItem && isSupported && (
                         <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -490,11 +490,11 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
                         </div>
                       )}
                       {!isFolderItem && file.size && (
-                        <div className="flex-shrink-0 text-xs text-muted-foreground hidden sm:block tabular-nums">
+                        <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block tabular-nums">
                           {formatFileSize(Number(file.size))}
                         </div>
                       )}
-                      <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block">
+                      <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block pr-1">
                         {file.modifiedTime && new Date(file.modifiedTime).toLocaleDateString()}
                       </div>
                       {isFolderItem && <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
