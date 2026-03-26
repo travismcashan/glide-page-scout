@@ -76,7 +76,7 @@ import { GlobalProgressBar } from '@/components/GlobalProgressBar';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
-import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { ChatModelSelector, type ReasoningEffort, type ModelProvider, PROVIDERS, VERSIONS } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
