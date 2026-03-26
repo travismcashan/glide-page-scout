@@ -898,7 +898,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           }}
           onKeyDown={handleKeyDown}
           placeholder="Ask a follow-up..."
-          className="min-h-[40px] max-h-[160px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 px-0 bg-transparent overflow-y-auto"
+          className="min-h-[40px] max-h-[160px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0 focus:border-0 px-0 bg-transparent overflow-y-auto"
           rows={1}
           disabled={isStreaming}
         />
