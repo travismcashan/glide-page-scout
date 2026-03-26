@@ -1001,7 +1001,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-9 px-3 text-sm font-normal gap-1.5 rounded-full border-0 bg-transparent hover:bg-transparent"
+                className="h-9 px-3 text-sm font-normal gap-1.5 rounded-full border-0 bg-transparent hover:bg-muted"
                 disabled={isStreaming}
               >
               <SlidersHorizontal className="h-4.5 w-4.5" />
