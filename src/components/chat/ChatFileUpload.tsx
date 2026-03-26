@@ -283,7 +283,7 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
             {parsing ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Plus className="h-5 w-5" />
+              <Plus className="h-7 w-7" />
             )}
           </Button>
         </DropdownMenuTrigger>
