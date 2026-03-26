@@ -654,8 +654,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, []);
 
   const saveMessage = async (role: string, content: string, sources: string[] = []) => {
+    if (!activeThreadId) return;
     await supabase.from('knowledge_messages').insert({
       session_id: session.id,
+      thread_id: activeThreadId,
       role,
       content,
       sources,
