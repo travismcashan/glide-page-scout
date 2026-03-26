@@ -435,28 +435,34 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          rag_documents: Json | null
           role: string
           session_id: string
           sources: string[] | null
           thread_id: string | null
+          web_citations: Json | null
         }
         Insert: {
           content: string
           created_at?: string
           id?: string
+          rag_documents?: Json | null
           role: string
           session_id: string
           sources?: string[] | null
           thread_id?: string | null
+          web_citations?: Json | null
         }
         Update: {
           content?: string
           created_at?: string
           id?: string
+          rag_documents?: Json | null
           role?: string
           session_id?: string
           sources?: string[] | null
           thread_id?: string | null
+          web_citations?: Json | null
         }
         Relationships: [
           {
