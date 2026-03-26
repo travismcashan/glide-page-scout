@@ -1521,9 +1521,17 @@ export default function ResultsPage() {
           size="icon"
           className="h-7 w-7"
           disabled={isLoading}
-          onClick={() => {
+          onClick={async () => {
             setIntegrationDurations(d => { const next = { ...d }; delete next[key]; return next; });
-            key === 'gtmetrix' ? rerunGtmetrix() : rerunIntegration(key, dbColumn);
+            if (key === 'gtmetrix') { rerunGtmetrix(); }
+            else if (key === 'ssllabs') {
+              await supabase.from('crawl_sessions').update({ ssllabs_data: null } as any).eq('id', session!.id);
+              ssllabsPollingRef.current = false;
+              setSsllabsFailed(false);
+              await fetchData();
+              runSslLabsScan();
+            }
+            else { rerunIntegration(key, dbColumn); }
           }}
           title="Run again"
         >
