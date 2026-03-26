@@ -757,7 +757,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   return (
     <div className="flex flex-col h-[600px] items-center">
       {/* Messages area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-1 pb-3 w-full max-w-2xl mx-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-1 pb-3 w-full max-w-3xl mx-auto">
         {messages.length === 0 && !isThinking ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex items-center gap-2 mb-4">
@@ -828,7 +828,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
       {/* Input area */}
       <div
-        className={`mb-2 mt-3 rounded-2xl bg-card border-2 shadow-lg px-4 py-3 transition-colors w-full max-w-2xl mx-auto ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}`}
+        className={`mb-2 mt-3 rounded-2xl bg-card border-2 shadow-lg px-4 py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}`}
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
