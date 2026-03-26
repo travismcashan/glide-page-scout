@@ -3,13 +3,14 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
+import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
@@ -415,9 +416,10 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
   return parts.length > 0 ? <>{parts}</> : <>{children}</>;
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -430,6 +432,53 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       onSaveNote(content);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  const handleExportPdf = () => {
+    downloadReportPdf(content, 'AI Chat Response', domain || 'chat');
+  };
+
+  const handleExportGoogleDoc = async () => {
+    const TOKEN_KEY = 'google-drive-access-token';
+    const accessToken = localStorage.getItem(TOKEN_KEY);
+    if (!accessToken) {
+      toast.error('Connect Google Drive first to export as Google Doc');
+      return;
+    }
+    setExporting('gdoc');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-doc-export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          accessToken,
+          content,
+          title: `AI Response — ${domain || 'Chat'} — ${new Date().toLocaleDateString()}`,
+        }),
+      });
+      const data = await response.json();
+      if (data.error === 'insufficient_scope') {
+        toast.error('Please reconnect Google Drive to enable export (write access needed)');
+        localStorage.removeItem(TOKEN_KEY);
+        return;
+      }
+      if (!response.ok || !data.success) {
+        toast.error(data.error || 'Failed to create Google Doc');
+        return;
+      }
+      toast.success('Google Doc created!');
+      if (data.webViewLink) {
+        window.open(data.webViewLink, '_blank');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to export');
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -499,6 +548,33 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
                 {isFavorited ? 'Unfavorite' : 'Favorite'}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleExportPdf}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  <Download className="h-[18px] w-[18px]" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
+                PDF
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleExportGoogleDoc}
+                  disabled={exporting === 'gdoc'}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  {exporting === 'gdoc' ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <FileText className="h-[18px] w-[18px]" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
+                Google Doc
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -1285,6 +1361,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                           }, 150);
                         }
                       }}
+                      domain={session.domain}
                     />
                   )}
                 </div>

@@ -13,7 +13,7 @@ export interface DriveFile {
 
 const STORAGE_KEY = 'google-drive-folder-state';
 const TOKEN_KEY = 'google-drive-access-token';
-const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+const SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
 
 interface FolderState {
   folderStack: { id: string; name: string }[];
