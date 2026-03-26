@@ -403,7 +403,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
         </div>
       )}
       {content && !isStreamingThis && (
-        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 mt-2">
           <button
             onClick={handleCopy}
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
