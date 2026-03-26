@@ -443,7 +443,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       </Suspense>
       {isStreamingThis && !content && !thinking && (
         <div className="flex items-center gap-2 py-2">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
       )}
       {content && !isStreamingThis && (
