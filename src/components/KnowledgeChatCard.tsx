@@ -389,7 +389,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
         <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
       )}
       {content && !isStreamingThis && (
-        <div className="flex items-center gap-1 mt-2 flex-wrap">
+        <div className="flex items-center gap-1 mt-5 flex-wrap">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
