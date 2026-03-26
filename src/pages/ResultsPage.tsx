@@ -76,7 +76,7 @@ import { GlobalProgressBar } from '@/components/GlobalProgressBar';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
-import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { ChatModelSelector, type ReasoningEffort, type ModelProvider, PROVIDERS, VERSIONS } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -164,7 +164,22 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
-  const [chatModel, setChatModel] = useState('google/gemini-3-flash-preview');
+  const [chatProvider, setChatProviderState] = useState<ModelProvider>(() => {
+    const saved = localStorage.getItem('chat-provider');
+    return (saved as ModelProvider) || 'gemini';
+  });
+  const setChatProvider = (p: ModelProvider) => {
+    setChatProviderState(p);
+    localStorage.setItem('chat-provider', p);
+    // Reset model to first of that provider
+    const firstModel = VERSIONS[p]?.[0];
+    if (firstModel) setChatModel(firstModel.id);
+    setChatReasoning('none');
+  };
+  const [chatModel, setChatModel] = useState(() => {
+    const savedProvider = (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
+    return VERSIONS[savedProvider]?.[0]?.id || 'google/gemini-3-flash-preview';
+  });
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
   const ragIngestTriggeredRef = useRef(false);
@@ -1610,6 +1625,19 @@ export default function ResultsPage() {
                     <Settings className="h-5 w-5" />
                     Integrations
                   </Button>
+
+                  <div className="border-t border-border my-3" />
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-1">AI Provider</p>
+                  {PROVIDERS.map(p => (
+                    <Button
+                      key={p.id}
+                      variant={chatProvider === p.id ? 'secondary' : 'ghost'}
+                      className="justify-start gap-3 text-base"
+                      onClick={() => setChatProvider(p.id)}
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
                 </nav>
               </SheetContent>
             </Sheet>
@@ -2210,6 +2238,7 @@ export default function ResultsPage() {
                 session={session}
                 pages={scrapedPages}
                 selectedModel={chatModel}
+                provider={chatProvider}
                 reasoning={chatReasoning}
                 onModelChange={setChatModel}
                 onReasoningChange={setChatReasoning}

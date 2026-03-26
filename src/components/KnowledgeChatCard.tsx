@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
-import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { ChatModelPicker, ChatReasoningPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
 import {
@@ -49,6 +49,7 @@ type Props = {
   session: SessionData;
   pages?: PageData[];
   selectedModel: string;
+  provider: ModelProvider;
   reasoning: ReasoningEffort;
   onModelChange: (model: string) => void;
   onReasoningChange: (reasoning: ReasoningEffort) => void;
@@ -506,7 +507,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -1277,12 +1278,23 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             </PopoverContent>
           </Popover>
 
-          {/* Model selector */}
-          <div className="ml-auto flex items-center gap-1" style={{ marginRight: -11 }}>
-          <ChatModelSelector
+          {/* Model & Reasoning selectors */}
+          <div className="ml-auto flex items-center gap-0.5" style={{ marginRight: -11 }}>
+          <ChatModelPicker
+            model={selectedModel}
+            provider={provider}
+            onModelChange={(id) => {
+              const newModel = MODEL_OPTIONS.find(m => m.id === id);
+              onModelChange(id);
+              if (newModel && !newModel.reasoning.includes(reasoning)) {
+                onReasoningChange('none');
+              }
+            }}
+            disabled={isStreaming}
+          />
+          <ChatReasoningPicker
             model={selectedModel}
             reasoning={reasoning}
-            onModelChange={onModelChange}
             onReasoningChange={onReasoningChange}
             disabled={isStreaming}
           />
