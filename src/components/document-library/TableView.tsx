@@ -162,7 +162,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
       <TableHeader>
         <TableRow>
           {sortable('name', 'Name', 'min-w-[200px]')}
-          {sortable('source_type', 'Source', 'w-48 text-center whitespace-nowrap')}
+          {sortable('source_type', 'Source', 'w-48 whitespace-nowrap')}
           {sortable('char_count', 'Size', 'w-28 text-center whitespace-nowrap')}
           {sortable('chunk_count', 'Chunks', 'w-24 text-center whitespace-nowrap')}
           {sortable('created_at', 'Date Added', 'w-36 text-center whitespace-nowrap')}
@@ -193,8 +193,8 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
                   )}
                 </div>
               </TableCell>
-              <TableCell className="py-2.5 px-4 text-center whitespace-nowrap">
-                <div className="flex items-center justify-center gap-1.5">
+              <TableCell className="py-2.5 px-4 whitespace-nowrap">
+                <div className="flex items-center gap-1.5">
                   <SourceIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-sm text-muted-foreground">{getSourceLabel(doc.source_type, doc.source_key)}</span>
                 </div>
