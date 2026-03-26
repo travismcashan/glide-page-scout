@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge } from 'lucide-react';
 import { DotLottiePlayer } from '@dotlottie/react-player';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -515,6 +515,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
+  const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 25, match_threshold: 0.25 });
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -708,6 +709,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           model: selectedModel,
           reasoning: reasoning !== 'none' ? reasoning : undefined,
           sources: searchSources,
+          rag_depth: ragDepth,
         }),
       });
 
@@ -1197,28 +1199,80 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 <SlidersHorizontal style={{ width: 18, height: 18 }} strokeWidth={1.5} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-44 p-2 rounded-2xl" align="start" side="top">
-              <div className="space-y-1">
-                <button
-                  className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
-                  onClick={() => setSearchSources(prev => ({ ...prev, documents: !prev.documents }))}
-                >
-                  <span className="flex items-center gap-2">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    Documents
-                  </span>
-                  {searchSources.documents && <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />}
-                </button>
-                <button
-                  className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
-                  onClick={() => setSearchSources(prev => ({ ...prev, web: !prev.web }))}
-                >
-                  <span className="flex items-center gap-2">
-                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                    Web
-                  </span>
-                  {searchSources.web && <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />}
-                </button>
+            <PopoverContent className="w-64 p-3 rounded-2xl" align="start" side="top">
+              <div className="space-y-3">
+                {/* Source toggles */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Sources</p>
+                  <button
+                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
+                    onClick={() => setSearchSources(prev => ({ ...prev, documents: !prev.documents }))}
+                  >
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      Documents
+                    </span>
+                    {searchSources.documents && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button
+                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
+                    onClick={() => setSearchSources(prev => ({ ...prev, web: !prev.web }))}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                      Web
+                    </span>
+                    {searchSources.web && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                </div>
+
+                {/* RAG Depth */}
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 flex items-center gap-1">
+                    <Gauge className="h-3 w-3" />
+                    RAG Depth
+                  </p>
+                  <div className="px-1 space-y-2.5">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-muted-foreground">Chunks retrieved</label>
+                        <span className="text-xs font-mono font-medium text-foreground">{ragDepth.match_count}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={5}
+                        max={100}
+                        step={5}
+                        value={ragDepth.match_count}
+                        onChange={e => setRagDepth(prev => ({ ...prev, match_count: Number(e.target.value) }))}
+                        className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
+                      />
+                      <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+                        <span>Faster</span>
+                        <span>More context</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-muted-foreground">Relevance threshold</label>
+                        <span className="text-xs font-mono font-medium text-foreground">{ragDepth.match_threshold.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0.05}
+                        max={0.8}
+                        step={0.05}
+                        value={ragDepth.match_threshold}
+                        onChange={e => setRagDepth(prev => ({ ...prev, match_threshold: Number(e.target.value) }))}
+                        className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
+                      />
+                      <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+                        <span>Broader</span>
+                        <span>Stricter</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
