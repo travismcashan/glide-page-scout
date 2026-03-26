@@ -174,6 +174,8 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
   const readyCount = documents.filter(d => d.status === 'ready').length;
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
+  const totalChars = documents.reduce((sum, d) => sum + d.char_count, 0);
+  const formattedChars = totalChars >= 1000000 ? `${(totalChars / 1000000).toFixed(1)}M` : totalChars >= 1000 ? `${(totalChars / 1000).toFixed(1)}K` : String(totalChars);
 
   return (
     <div className="flex flex-col">
@@ -182,9 +184,11 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         {/* Stats - left */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <BookOpen className="h-3.5 w-3.5" />
-          <span><strong className="text-foreground">{readyCount}</strong> documents</span>
+          <span><strong className="text-foreground">{readyCount}</strong> docs</span>
           <span>·</span>
-          <span><strong className="text-foreground">{totalChunks}</strong> chunks indexed</span>
+          <span><strong className="text-foreground">{totalChunks}</strong> chunks</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{formattedChars}</strong> chars</span>
         </div>
 
         {/* Controls - right */}
