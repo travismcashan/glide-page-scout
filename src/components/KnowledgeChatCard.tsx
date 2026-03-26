@@ -772,17 +772,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               thinkingContent += reasoningContent;
             }
             if (content) {
-              assistantContent += content;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant') {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent, thinking: thinkingContent || undefined } : m);
-                }
-                return [...prev, { role: 'assistant', content: assistantContent, thinking: thinkingContent || undefined }];
-              });
+              rawAccumulator += content;
+              flushAccumulator();
             }
           } catch { /* ignore */ }
         }
+        updateMessages();
       }
 
       // Detect sources and save assistant message
