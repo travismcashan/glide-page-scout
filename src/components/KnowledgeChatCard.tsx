@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -818,6 +818,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   }, [messages, isStreaming, session.id, handleSend]);
 
   const outerRef = useRef<HTMLDivElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  // Track whether user has scrolled away from bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      const distanceFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
+      setShowScrollBottom(distanceFromBottom > 200);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Auto-scroll to bottom of page when new messages arrive
   useEffect(() => {
@@ -918,6 +929,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           </>
         )}
       </div>
+
+      {/* Scroll to bottom button */}
+      {showScrollBottom && (
+        <button
+          onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+          className="fixed left-1/2 -translate-x-1/2 bottom-[180px] z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
+          aria-label="Scroll to bottom"
+        >
+          <ArrowDown className="h-5 w-5" />
+        </button>
+      )}
 
       {/* Input area - sticky at bottom */}
       <div
