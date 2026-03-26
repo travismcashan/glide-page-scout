@@ -744,12 +744,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     handleSend(newText);
   }, [messages, isStreaming, session.id, handleSend]);
 
-  const clearChat = async () => {
-    setMessages([]);
-    setInput('');
-    await supabase.from('knowledge_messages').delete().eq('session_id', session.id);
-  };
-
   if (loadingHistory) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -761,21 +755,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
   return (
     <div className="flex flex-col h-[600px]">
-      {/* Chat header */}
-      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3 px-1">
-        {messages.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground ml-auto"
-            onClick={clearChat}
-          >
-            <Trash2 className="h-3 w-3 mr-1" />
-            Clear
-          </Button>
-        )}
-      </div>
-
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-1 pb-3">
         {messages.length === 0 && !isThinking ? (
