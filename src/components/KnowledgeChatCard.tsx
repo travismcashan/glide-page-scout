@@ -503,23 +503,21 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
   }, [session.id]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll: use native window scroll since we're no longer using internal overflow
   useEffect(() => {
-    if (isStreaming && lastUserMsgRef.current && scrollRef.current) {
+    if (isStreaming && lastUserMsgRef.current) {
       wasStreamingRef.current = true;
       // During streaming, keep the user's prompt pinned near the top of the viewport
-      const container = scrollRef.current;
       const userMsg = lastUserMsgRef.current;
-      const offset = userMsg.offsetTop - container.offsetTop - 8;
-      // Only snap if we haven't manually scrolled away
-      if (Math.abs(container.scrollTop - offset) > 80) {
-        container.scrollTop = offset;
+      const targetY = userMsg.getBoundingClientRect().top + window.scrollY - 8;
+      if (Math.abs(window.scrollY - targetY) > 80) {
+        window.scrollTo({ top: targetY });
       }
-    } else if (!isStreaming && scrollRef.current) {
+    } else if (!isStreaming) {
       // After streaming ends, don't jump to bottom — user reads from their prompt down
       // Only scroll to bottom on initial history load
       if (!wasStreamingRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        window.scrollTo({ top: document.body.scrollHeight });
       }
       wasStreamingRef.current = false;
     }
