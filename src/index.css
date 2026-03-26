@@ -106,7 +106,7 @@
 
 /* Rich chat prose styling */
 .chat-prose {
-  @apply text-sm leading-relaxed;
+  @apply text-[18px] leading-8;
 }
 
 .chat-prose h1,
