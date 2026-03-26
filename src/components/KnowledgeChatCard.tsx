@@ -231,7 +231,7 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
           {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <div className="bg-muted text-foreground rounded-lg rounded-tr-none px-4 py-3 text-[15px]">
+      <div className="bg-secondary text-secondary-foreground rounded-lg rounded-tr-none px-4 py-3 text-[15px]">
         <UserBubbleContent content={content} attachmentNames={attachmentNames} />
       </div>
     </div>
