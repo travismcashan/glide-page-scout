@@ -284,7 +284,7 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
             {parsing ? (
               <Loader2 style={{ width: 28, height: 28 }} className="animate-spin" />
             ) : (
-              <Plus style={{ width: 28, height: 28 }} strokeWidth={2.5} />
+              <Plus style={{ width: 28, height: 28 }} strokeWidth={1.5} />
             )}
           </Button>
         </DropdownMenuTrigger>
