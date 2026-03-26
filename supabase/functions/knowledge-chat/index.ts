@@ -300,6 +300,74 @@ function formatRagResults(matches: Array<{ id: string; document_id: string; chun
 }
 
 /**
+ * Fetch screenshot URLs for a session, optionally filtering by query-mentioned URLs
+ */
+async function fetchScreenshots(
+  sessionId: string,
+  query: string,
+  maxImages = 5,
+): Promise<{ url: string; screenshot_url: string }[]> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data: screenshots, error } = await supabase
+    .from('crawl_screenshots')
+    .select('url, screenshot_url')
+    .eq('session_id', sessionId)
+    .eq('status', 'done')
+    .not('screenshot_url', 'is', null);
+
+  if (error || !screenshots || screenshots.length === 0) {
+    console.log(`[knowledge-chat] No screenshots found for session ${sessionId}`);
+    return [];
+  }
+
+  // Try to match specific pages mentioned in the query
+  const queryLower = query.toLowerCase();
+  const mentionedPages = screenshots.filter(s => {
+    try {
+      const urlPath = new URL(s.url).pathname.toLowerCase();
+      const urlParts = urlPath.split('/').filter(Boolean);
+      return urlParts.some(part => queryLower.includes(part));
+    } catch {
+      return false;
+    }
+  });
+
+  // If specific pages matched, prioritize those + add homepage
+  if (mentionedPages.length > 0) {
+    const homepage = screenshots.find(s => {
+      try { return new URL(s.url).pathname === '/'; } catch { return false; }
+    });
+    const selected = [...mentionedPages];
+    if (homepage && !selected.some(s => s.url === homepage.url)) {
+      selected.unshift(homepage);
+    }
+    return selected.slice(0, maxImages);
+  }
+
+  // For general visual questions: homepage + sample of inner pages
+  const homepage = screenshots.find(s => {
+    try { return new URL(s.url).pathname === '/'; } catch { return false; }
+  });
+  const innerPages = screenshots.filter(s => {
+    try { return new URL(s.url).pathname !== '/'; } catch { return true; }
+  });
+
+  const selected: typeof screenshots = [];
+  if (homepage) selected.push(homepage);
+
+  // Add diverse inner pages (spread across the list)
+  const step = Math.max(1, Math.floor(innerPages.length / (maxImages - selected.length)));
+  for (let i = 0; i < innerPages.length && selected.length < maxImages; i += step) {
+    selected.push(innerPages[i]);
+  }
+
+  return selected;
+}
+
+/**
  * Perform RAG search: embed the user query, find relevant chunks via pgvector
  * Now with smart routing: runs parallel general + source-filtered searches
  */
@@ -358,6 +426,59 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
   } catch (e) {
     console.error('[knowledge-chat] RAG search failed:', e);
     return '';
+  }
+}
+
+/**
+ * Perform RAG search and also return the routing result for screenshot decisions
+ */
+async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean }> {
+  try {
+    const [routing, embedding] = await Promise.all([
+      routeQuery(query),
+      getEmbedding(query),
+    ]);
+
+    if (!embedding) return { ragContext: '', needs_screenshots: routing.needs_screenshots };
+
+    const { priority_sources, chronological, needs_screenshots } = routing;
+
+    const searchPromises: Promise<Array<any>>[] = [];
+    searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, matchCount, matchThreshold));
+
+    if (priority_sources.length > 0) {
+      const sourceMatchCount = chronological ? 50 : 25;
+      searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, sourceMatchCount, Math.max(matchThreshold - 0.05, 0.05), priority_sources));
+    }
+
+    const results = await Promise.all(searchPromises);
+    const generalMatches = results[0] || [];
+    const sourceMatches = results[1] || [];
+
+    const seenIds = new Set<string>();
+    const merged: typeof generalMatches = [];
+
+    for (const match of sourceMatches) {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        merged.push(match);
+      }
+    }
+    for (const match of generalMatches) {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        merged.push(match);
+      }
+    }
+
+    if (merged.length === 0) return { ragContext: '', needs_screenshots };
+
+    const ragContext = formatRagResults(merged, chronological, priority_sources);
+    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
+    return { ragContext, needs_screenshots };
+  } catch (e) {
+    console.error('[knowledge-chat] RAG search failed:', e);
+    return { ragContext: '', needs_screenshots: false };
   }
 }
 
