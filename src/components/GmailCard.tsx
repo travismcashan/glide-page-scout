@@ -228,6 +228,8 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
       if (gmailData && Array.isArray(gmailData?.emails)) {
         setCachedEmails(gmailData.emails);
         setHasSearched(true);
+        if (gmailData.updatedAt) setLastFetched(gmailData.updatedAt);
+        if (gmailData.durationSec != null) setDurationSec(gmailData.durationSec);
       }
       setLoadedFromDb(true);
     })();
@@ -239,7 +241,7 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
     setCachedEmails(liveEmails);
     supabase
       .from('crawl_sessions')
-      .update({ gmail_data: { emails: liveEmails, updatedAt: new Date().toISOString() } as any })
+      .update({ gmail_data: { emails: liveEmails, updatedAt: lastFetched || new Date().toISOString(), durationSec } as any })
       .eq('id', sessionId)
       .then(({ error }) => {
         if (error) console.error('Failed to save gmail data:', error);
