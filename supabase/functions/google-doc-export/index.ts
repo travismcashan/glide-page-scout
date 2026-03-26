@@ -89,17 +89,23 @@ function markdownToHtml(md: string): string {
     return tableHtml;
   });
 
-  // Unordered lists
-  html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul style="margin:8px 0;">$1</ul>');
-
-  // Ordered lists
+  // Ordered lists (must come before unordered to avoid conflict)
   html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (match) => {
+    let num = 1;
     const items = match.trim().split('\n').map(line => {
       const content = line.replace(/^\d+\. /, '');
+      return `<li value="${num++}">${content}</li>`;
+    }).join('');
+    return `<ol style="margin:10pt 0;padding-left:24pt;">${items}</ol>`;
+  });
+
+  // Unordered lists
+  html = html.replace(/((?:^[-*] .+\n?)+)/gm, (match) => {
+    const items = match.trim().split('\n').map(line => {
+      const content = line.replace(/^[-*] /, '');
       return `<li>${content}</li>`;
     }).join('');
-    return `<ol style="margin:8px 0;">${items}</ol>`;
+    return `<ul style="margin:10pt 0;padding-left:24pt;">${items}</ul>`;
   });
 
   // Wrap remaining text blocks in paragraphs with spacing
