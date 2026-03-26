@@ -353,10 +353,14 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
   const sections: string[] = [];
   sections.push(`# Website Audit Data: ${session.domain}\nURL: ${session.base_url}\n`);
   sections.push(`IMPORTANT: The data below comes from specific named integration tools. When referencing findings, always cite the integration by name (e.g. "According to the SEMrush Domain Analysis…", "The WAVE Accessibility scan found…"). Treat each section as a distinct, authoritative source.\n`);
+  sections.push(`PRIORITY: Avoma call transcripts and meeting data represent direct conversations with the client and are the HIGHEST-VALUE source of truth. Always weigh information from calls and meetings more heavily than automated crawl data. Client statements, concerns, and context from meetings should anchor all analysis and recommendations.\n`);
 
   const addSection = (label: string, content: string | null) => {
     if (content) sections.push(`## [Source: ${label}]\n${content}`);
   };
+
+  // ── 🎙️ Avoma Call Transcripts (HIGHEST PRIORITY — placed first for maximum AI attention) ──
+  addSection('Avoma Call Transcripts & Meetings (PRIMARY SOURCE — client conversations)', extractAvoma(session.avoma_data));
 
   // ── 🔧 Technology Detection ──
   addSection('BuiltWith Technology Stack', extractBuiltWith(session.builtwith_data));
