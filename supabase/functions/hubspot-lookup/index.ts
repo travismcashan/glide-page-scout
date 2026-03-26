@@ -157,6 +157,40 @@ serve(async (req) => {
       await fetchEngagementsFor('contacts', cid);
     }
 
+    // Also fetch emails from deals
+    for (const deal of deals.slice(0, 5)) {
+      await fetchEngagementsFor('deals', deal.id);
+    }
+
+    // Supplement: Search for emails directly by sender/recipient to catch unassociated emails
+    const contactEmailList = contacts.map((c: any) => c.email?.toLowerCase()).filter(Boolean);
+    for (const email of contactEmailList) {
+      for (const direction of ['hs_email_to_email', 'hs_email_sender_email']) {
+        try {
+          const emailSearch = await hubspotFetch('/crm/v3/objects/emails/search', HUBSPOT_ACCESS_TOKEN, 'POST', {
+            filterGroups: [{
+              filters: [{ propertyName: direction, operator: 'CONTAINS_TOKEN', value: email }],
+            }],
+            properties: ['hs_email_subject', 'hs_email_direction', 'hs_email_status', 'hs_email_text', 'hs_timestamp', 'hs_email_sender_email', 'hs_email_to_email'],
+            sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
+            limit: 50,
+          });
+          const newEmails = (emailSearch.results || [])
+            .filter((item: any) => !seenEngIds.has(`emails-${item.id}`))
+            .map((item: any) => {
+              seenEngIds.add(`emails-${item.id}`);
+              return { id: item.id, type: 'emails', ...item.properties };
+            });
+          engagements.push(...newEmails);
+          if (newEmails.length > 0) {
+            console.log(`[hubspot] Email search (${direction}=${email}): found ${newEmails.length} new emails`);
+          }
+        } catch (e) {
+          console.error(`[hubspot] Email search error for ${email}: ${e.message}`);
+        }
+      }
+    }
+
     // Sort engagements by timestamp descending
     engagements.sort((a, b) => {
       const aTime = a.hs_timestamp ? new Date(a.hs_timestamp).getTime() : 0;
