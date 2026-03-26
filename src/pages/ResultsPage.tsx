@@ -2208,8 +2208,17 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('ssllabs', !!session?.ssllabs_data, showAllIntegrations, isSharedView) && (
-              <SectionCard collapsed={allCollapsed} sectionId="ssllabs" persistedCollapsed={isSectionCollapsed("ssllabs")} onCollapseChange={toggleSection} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading)} reportUrl={getReportUrl('ssllabs')} paused={isIntegrationPaused('ssllabs') && !session?.ssllabs_data} onTogglePause={() => handleTogglePause('ssllabs')}>
-                {session?.ssllabs_data ? <SslLabsCard data={session.ssllabs_data} /> : null}
+              <SectionCard collapsed={allCollapsed} sectionId="ssllabs" persistedCollapsed={isSectionCollapsed("ssllabs")} onCollapseChange={toggleSection} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={session?.ssllabs_data ? rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading) : undefined} reportUrl={getReportUrl('ssllabs')} paused={isIntegrationPaused('ssllabs') && !session?.ssllabs_data} onTogglePause={() => handleTogglePause('ssllabs')}>
+                {session?.ssllabs_data ? (
+                  <SslLabsCard data={session.ssllabs_data} />
+                ) : !ssllabsLoading && !ssllabsFailed ? (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-muted-foreground mb-3">SSL Labs scans can take 1-3 minutes and are frequently at capacity. Run manually when needed.</p>
+                    <Button size="sm" onClick={runSslLabsScan} disabled={ssllabsLoading}>
+                      <Shield className="h-4 w-4 mr-1.5" />Run SSL Scan
+                    </Button>
+                  </div>
+                ) : null}
               </SectionCard>
               )}
             </SortedIntegrationList>
