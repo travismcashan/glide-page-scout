@@ -927,7 +927,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-44 p-2" align="start">
+            <PopoverContent className="w-44 p-2" align="start" side="top">
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5">
                   <Checkbox
