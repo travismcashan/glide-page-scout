@@ -80,8 +80,8 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
 
   return (
     <div
-      className="flex flex-col h-full border-r border-border bg-muted/30 overflow-hidden transition-all duration-300 ease-in-out"
-      style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
+      className="flex flex-col border-r border-border bg-muted/30 overflow-hidden transition-all duration-300 ease-in-out sticky top-0 self-start"
+      style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, maxHeight: '100vh' }}
     >
       {collapsed ? (
         <div className="flex flex-col items-center gap-2 pt-3 px-1">
