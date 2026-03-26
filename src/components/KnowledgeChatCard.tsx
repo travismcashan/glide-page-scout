@@ -503,23 +503,21 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
   }, [session.id]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll: use native window scroll since we're no longer using internal overflow
   useEffect(() => {
-    if (isStreaming && lastUserMsgRef.current && scrollRef.current) {
+    if (isStreaming && lastUserMsgRef.current) {
       wasStreamingRef.current = true;
       // During streaming, keep the user's prompt pinned near the top of the viewport
-      const container = scrollRef.current;
       const userMsg = lastUserMsgRef.current;
-      const offset = userMsg.offsetTop - container.offsetTop - 8;
-      // Only snap if we haven't manually scrolled away
-      if (Math.abs(container.scrollTop - offset) > 80) {
-        container.scrollTop = offset;
+      const targetY = userMsg.getBoundingClientRect().top + window.scrollY - 8;
+      if (Math.abs(window.scrollY - targetY) > 80) {
+        window.scrollTo({ top: targetY });
       }
-    } else if (!isStreaming && scrollRef.current) {
+    } else if (!isStreaming) {
       // After streaming ends, don't jump to bottom — user reads from their prompt down
       // Only scroll to bottom on initial history load
       if (!wasStreamingRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        window.scrollTo({ top: document.body.scrollHeight });
       }
       wasStreamingRef.current = false;
     }
@@ -821,19 +819,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
   const outerRef = useRef<HTMLDivElement>(null);
 
-  // Capture wheel events anywhere on the page and forward to the chat thread
+  // Auto-scroll to bottom of page when new messages arrive
   useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-    const handler = (e: WheelEvent) => {
-      // Already inside the scroller — let it scroll naturally
-      if (scroller.contains(e.target as Node)) return;
-      e.preventDefault();
-      scroller.scrollTop += e.deltaY;
-    };
-    document.addEventListener('wheel', handler, { passive: false });
-    return () => document.removeEventListener('wheel', handler);
-  }, []);
+    if (messages.length > 0 || isThinking) {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  }, [messages, isThinking]);
 
   if (loadingHistory) {
     return (
@@ -847,10 +838,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   return (
     <div
       ref={outerRef}
-      className="flex flex-col h-full min-h-[400px] items-center"
+      className="flex flex-col items-center pb-40"
     >
       {/* Messages area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-5 pb-6 w-full max-w-3xl mx-auto">
+      <div ref={scrollRef} className="space-y-4 px-5 pb-6 w-full max-w-3xl mx-auto">
         {messages.length === 0 && !isThinking ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex items-center gap-2 mb-4">
@@ -928,9 +919,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         )}
       </div>
 
-      {/* Input area */}
+      {/* Input area - sticky at bottom */}
       <div
-        className={`mb-2 mt-0 rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+        className={`fixed bottom-0 left-0 right-0 z-30 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent`}
+      >
+      <div
+        className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
         style={{ paddingLeft: 30, paddingRight: 30 }}
         onDragEnter={(e) => {
           e.preventDefault();
@@ -1081,6 +1075,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             </Button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

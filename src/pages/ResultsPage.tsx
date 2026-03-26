@@ -1505,7 +1505,7 @@ export default function ResultsPage() {
   const scrapedPages = pages.filter(p => p.status === 'scraped');
 
   return (
-    <div className={activeTab === 'chat' ? 'h-screen overflow-hidden bg-background flex flex-col overscroll-none' : 'min-h-screen bg-background'}>
+    <div className="min-h-screen bg-background">
       <header className="px-6">
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
            <div className="flex items-center justify-between">
@@ -1558,8 +1558,8 @@ export default function ResultsPage() {
       {/* Global integration progress bar */}
       {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} />}
 
-      <main className={`max-w-6xl mx-auto px-6 py-8 space-y-6 w-full ${activeTab === 'chat' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : ''}`}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className={`w-full ${activeTab === 'chat' ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : ''}`}>
+      <main className={`max-w-6xl mx-auto px-6 py-8 space-y-6 w-full`}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="relative flex items-end justify-between">
             {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground z-0" />
@@ -2168,8 +2168,8 @@ export default function ResultsPage() {
             </div>}
           </TabsContent>
 
-          <TabsContent value="chat" className="mt-0 flex-1 min-h-0 flex flex-col overflow-hidden" forceMount={activeTab === 'chat' ? true : undefined}>
-            {activeTab === 'chat' && !tabReady ? <TabSkeleton variant="chat" /> : activeTab !== 'chat' ? null : <div className="animate-fade-in flex-1 min-h-0 flex flex-col">
+          <TabsContent value="chat" className="mt-0" forceMount={activeTab === 'chat' ? true : undefined}>
+            {activeTab === 'chat' && !tabReady ? <TabSkeleton variant="chat" /> : activeTab !== 'chat' ? null : <div className="animate-fade-in">
             {session && (
               <KnowledgeChatCard
                 session={session}
