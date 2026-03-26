@@ -1436,6 +1436,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         </div>
       </div>
       </div>
+      </div>
     </div>
   );
 }
