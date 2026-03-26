@@ -234,15 +234,19 @@ export async function ingestChatConversation(
   if (content.length < 100) return;
 
   // Delete existing chat conversation document so we replace it
-  await supabase
+  const { error: delError } = await supabase
     .from('knowledge_documents')
     .delete()
     .eq('session_id', sessionId)
     .eq('source_key', SOURCE_KEY)
     .eq('source_type', 'chat');
 
-  // Also delete orphaned chunks
-  // (cascade should handle this, but be safe)
+  if (delError) {
+    console.error('[chat-ingest] Delete failed:', delError);
+  }
+
+  // Small delay to ensure delete propagates before insert
+  await new Promise(r => setTimeout(r, 300));
 
   try {
     const response = await fetch(INGEST_URL, {
@@ -259,6 +263,7 @@ export async function ingestChatConversation(
           content,
           source_type: 'chat',
           source_key: SOURCE_KEY,
+          skip_dedup: true,
         }],
       }),
     });
