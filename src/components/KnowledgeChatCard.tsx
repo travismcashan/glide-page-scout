@@ -1054,7 +1054,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               {isStreaming ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <ArrowUp className="h-4.5 w-4.5" />
+                <ArrowUp className="h-7 w-7" />
               )}
             </Button>
           </div>
