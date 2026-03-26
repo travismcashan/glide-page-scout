@@ -145,7 +145,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* Header stats */}
       <div className="flex items-center justify-between px-1 mb-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -190,7 +190,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
       </div>
 
       {/* Document list */}
-      <ScrollArea className="flex-1">
+      <div>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -246,7 +246,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
             })}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }
