@@ -921,9 +921,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         )}
       </div>
 
-      {/* Input area */}
+      {/* Input area - sticky at bottom */}
       <div
-        className={`mb-2 mt-0 rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+        className={`fixed bottom-0 left-0 right-0 z-30 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent`}
+      >
+      <div
+        className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
         style={{ paddingLeft: 30, paddingRight: 30 }}
         onDragEnter={(e) => {
           e.preventDefault();
