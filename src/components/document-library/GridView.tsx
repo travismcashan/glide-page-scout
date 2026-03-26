@@ -1,5 +1,5 @@
 import { FileText, X } from 'lucide-react';
-import { KnowledgeDocument, STATUS_CONFIG, SOURCE_ICONS, getFileIcon } from './types';
+import { KnowledgeDocument, STATUS_CONFIG, SOURCE_ICONS, getDocumentIcon } from './types';
 
 type Props = {
   documents: KnowledgeDocument[];
@@ -50,7 +50,7 @@ export function GridView({ documents, onDelete, groupBy }: Props) {
 function GridItem({ doc, onDelete }: { doc: KnowledgeDocument; onDelete: (id: string, name: string) => void }) {
   const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
   const StatusIcon = statusConf.icon;
-  const FileIcon = getFileIcon(doc.name);
+  const FileIcon = getDocumentIcon(doc.name, doc.source_type);
   const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
 
   return (
