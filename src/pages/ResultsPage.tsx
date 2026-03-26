@@ -164,23 +164,29 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
-  const [chatProvider, setChatProviderState] = useState<ModelProvider>(() => {
-    const saved = localStorage.getItem('chat-provider');
-    return (saved as ModelProvider) || 'gemini';
+  const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
+    return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
   });
+  const [chatModel, setChatModelRaw] = useState(() => {
+    return localStorage.getItem('chat-model') || 'google/gemini-3-flash-preview';
+  });
+  const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
+
   const setChatProvider = (p: ModelProvider) => {
-    setChatProviderState(p);
+    setChatProviderRaw(p);
     localStorage.setItem('chat-provider', p);
     // Reset model to first of that provider
     const firstModel = VERSIONS[p]?.[0];
-    if (firstModel) setChatModel(firstModel.id);
+    if (firstModel) {
+      setChatModelRaw(firstModel.id);
+      localStorage.setItem('chat-model', firstModel.id);
+    }
     setChatReasoning('none');
   };
-  const [chatModel, setChatModel] = useState(() => {
-    const savedProvider = (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
-    return VERSIONS[savedProvider]?.[0]?.id || 'google/gemini-3-flash-preview';
-  });
-  const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
+  const setChatModel = (id: string) => {
+    setChatModelRaw(id);
+    localStorage.setItem('chat-model', id);
+  };
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
   const ragIngestTriggeredRef = useRef(false);
   const activeTab = searchParams.get('tab') || 'raw-data';
@@ -1629,15 +1635,21 @@ export default function ResultsPage() {
                   </Button>
 
                   <div className="border-t border-border my-3" />
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-1">AI Provider</p>
-                  {PROVIDERS.map(p => (
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-1">
+                    {PROVIDERS.find(p => p.id === chatProvider)?.label || 'AI'} Version
+                  </p>
+                  {(VERSIONS[chatProvider] || []).map(v => (
                     <Button
-                      key={p.id}
-                      variant={chatProvider === p.id ? 'secondary' : 'ghost'}
-                      className="justify-start gap-3 text-base"
-                      onClick={() => setChatProvider(p.id)}
+                      key={v.id}
+                      variant={chatModel === v.id ? 'secondary' : 'ghost'}
+                      className="justify-start gap-3 text-sm"
+                      onClick={() => setChatModel(v.id)}
                     >
-                      {p.label}
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${v.tier === 'fast' ? 'bg-emerald-500' : v.tier === 'balanced' ? 'bg-blue-500' : 'bg-amber-500'}`} />
+                      <span className="flex flex-col items-start">
+                        <span>{v.label}</span>
+                        <span className="text-[11px] text-muted-foreground font-normal">{v.description}</span>
+                      </span>
                     </Button>
                   ))}
                 </nav>
