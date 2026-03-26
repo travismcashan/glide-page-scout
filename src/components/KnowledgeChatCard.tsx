@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
+import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
 import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
@@ -511,7 +512,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const chatInputRef = useRef<ChatInputHandle>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
@@ -522,7 +523,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
   const wasStreamingRef = useRef(false);
@@ -618,7 +618,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   };
 
   const handleSend = useCallback(async (text?: string) => {
-    const messageText = text || input.trim();
+    const messageText = text || chatInputRef.current?.getValue()?.trim() || '';
     const currentAttachments = [...attachments];
     const hasAttachments = currentAttachments.length > 0;
     const hasParsing = currentAttachments.some(a => a.parsing);
@@ -662,7 +662,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     const userMsg: Message = { role: 'user', content: displayContent, attachmentNames };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
-    setInput('');
+    chatInputRef.current?.clear();
 
     // Ingest uploaded files into RAG document library (fire-and-forget)
     if (currentAttachments.length > 0) {
@@ -889,14 +889,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
     setIsStreaming(false);
     setIsThinking(false);
-  }, [input, messages, isStreaming, crawlContext, session.id, attachments]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  }, [messages, isStreaming, crawlContext, session.id, attachments]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
@@ -1166,20 +1159,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
         {/* Textarea */}
         {/* Textarea - auto-grows up to 4 lines, then scrolls */}
-        <Textarea
-          ref={textareaRef}
-          value={input}
-          onChange={e => {
-            setInput(e.target.value);
-            // Auto-resize textarea
-            const el = e.target;
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a follow-up..."
-          className="min-h-[44px] max-h-[160px] resize-none text-base leading-relaxed border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0 focus:border-0 px-0 bg-transparent overflow-y-auto"
-          rows={1}
+        <ChatInput
+          ref={chatInputRef}
+          onSubmit={(text) => handleSend(text)}
           disabled={isStreaming}
         />
 
@@ -1304,7 +1286,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               variant="ghost"
               size="icon"
               onClick={() => handleSend()}
-              disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
+              disabled={attachments.length === 0 && !chatInputRef.current?.getValue()?.trim() || isStreaming || attachments.some(a => a.parsing)}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
