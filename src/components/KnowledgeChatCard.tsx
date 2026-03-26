@@ -643,22 +643,14 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {sources && sources.length > 0 && (
-            <>
-              <span className="text-xs font-bold text-foreground ml-2 mr-2">Sources:</span>
-              {sources.map(s => (
-                <Badge
-                  key={s}
-                  variant="outline"
-                  className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted hover:text-foreground transition-colors"
-                  onClick={() => onSourceClick?.(s)}
-                >
-                  {SOURCE_LABELS[s] || s}
-                </Badge>
-              ))}
-            </>
-          )}
         </div>
+      )}
+      {content && !isStreamingThis && (ragDocuments?.length || (sources && sources.length > 0)) && (
+        <ReferencesBlock
+          ragDocuments={ragDocuments || []}
+          sources={sources || []}
+          onSourceClick={onSourceClick}
+        />
       )}
     </div>
   );
