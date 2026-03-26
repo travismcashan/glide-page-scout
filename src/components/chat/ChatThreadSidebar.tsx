@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, MessageSquare, MoreHorizontal, Trash2, Pencil, Pin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 export type ChatThread = {
@@ -10,6 +11,7 @@ export type ChatThread = {
   title: string;
   created_at: string;
   updated_at: string;
+  pinned?: boolean;
 };
 
 type Props = {
@@ -29,6 +31,9 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const loadThreads = useCallback(async () => {
     const { data } = await supabase
@@ -44,10 +49,34 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
     loadThreads();
   }, [loadThreads, refreshKey]);
 
-  // Notify parent of width changes
   useEffect(() => {
     onWidthChange?.(collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
   }, [collapsed, onWidthChange]);
+
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  const handleRename = useCallback(async (threadId: string) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      setRenamingId(null);
+      return;
+    }
+    await supabase.from('chat_threads').update({ title: trimmed } as any).eq('id', threadId);
+    setThreads(prev => prev.map(t => t.id === threadId ? { ...t, title: trimmed } : t));
+    setRenamingId(null);
+  }, [renameValue]);
+
+  const handlePin = useCallback(async (threadId: string) => {
+    // Move to top by setting updated_at to far future
+    const pinTime = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10).toISOString();
+    await supabase.from('chat_threads').update({ updated_at: pinTime } as any).eq('id', threadId);
+    loadThreads();
+  }, [loadThreads]);
 
   return (
     <div
@@ -117,7 +146,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
               threads.map(thread => (
                 <button
                   key={thread.id}
-                  onClick={() => onSelectThread(thread.id)}
+                  onClick={() => renamingId !== thread.id && onSelectThread(thread.id)}
                   className={cn(
                     'group w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 relative',
                     thread.id === activeThreadId
@@ -126,19 +155,56 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                   )}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="truncate text-sm font-medium">{thread.title}</div>
+                    {renamingId === thread.id ? (
+                      <input
+                        ref={renameInputRef}
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => handleRename(thread.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRename(thread.id);
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        className="w-full text-sm font-medium bg-background border border-border rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-ring"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <div className="truncate text-sm font-medium">{thread.title}</div>
+                    )}
                   </div>
-                  {threads.length > 1 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteThread(thread.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all shrink-0"
-                      title="Delete chat"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                  {renamingId !== thread.id && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted-foreground/10 text-muted-foreground transition-all shrink-0"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem onClick={() => {
+                          setRenameValue(thread.title);
+                          setRenamingId(thread.id);
+                        }}>
+                          <Pencil className="h-3.5 w-3.5 mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handlePin(thread.id)}>
+                          <Pin className="h-3.5 w-3.5 mr-2" />
+                          Pin to top
+                        </DropdownMenuItem>
+                        {threads.length > 1 && (
+                          <DropdownMenuItem
+                            onClick={() => onDeleteThread(thread.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </button>
               ))
