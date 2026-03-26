@@ -1,11 +1,11 @@
-import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import { useGmail, type GmailEmail, type GmailAttachment } from '@/hooks/useGmail';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, Paperclip, Download, Database, Loader2 } from 'lucide-react';
+import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, Paperclip, Download, Database, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -530,32 +530,13 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
       )}
 
       {!isLoading && emails.length > 0 && (
-        <div className="max-h-[600px] overflow-y-auto border border-border rounded-lg">
-          <table className="w-full text-left">
-            <thead className="sticky top-0 bg-muted/60 backdrop-blur-sm z-10">
-              <tr className="text-xs text-muted-foreground border-b border-border">
-                <th className="px-3 py-2 font-medium">Subject</th>
-                <th className="px-3 py-2 font-medium">From</th>
-                <th className="px-3 py-2 font-medium">To</th>
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium">Time</th>
-                <th className="px-2 py-2 w-8"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {emails.map((email) => (
-                <EmailTableRow
-                  key={email.id}
-                  email={email}
-                  selectedAttachments={selectedAttachments}
-                  onToggleAttachment={toggleAttachment}
-                  onDownloadAttachment={handleDownload}
-                  downloadingAttachments={downloadingAttachments}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SortableEmailTable
+          emails={emails}
+          selectedAttachments={selectedAttachments}
+          onToggleAttachment={toggleAttachment}
+          onDownloadAttachment={handleDownload}
+          downloadingAttachments={downloadingAttachments}
+        />
       )}
 
       {!isLoading && hasSearched && emails.length === 0 && !error && (
