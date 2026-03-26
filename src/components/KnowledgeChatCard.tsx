@@ -409,21 +409,21 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
             title="Copy response"
           >
-            {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? <Check className="h-[18px] w-[18px] text-accent" /> : <Copy className="h-[18px] w-[18px]" />}
           </button>
           <button
             onClick={handleSave}
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
             title="Save as note to document library"
           >
-            {saved ? <Check className="h-3.5 w-3.5 text-accent" /> : <BookmarkPlus className="h-3.5 w-3.5" />}
+            {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className="h-[18px] w-[18px]" />}
           </button>
           <button
             onClick={onToggleFavorite}
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
             title={isFavorited ? "Remove from favorites" : "Add to favorites"}
           >
-            <Heart className={`h-3.5 w-3.5 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+            <Heart className={`h-[18px] w-[18px] transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
           </button>
         </div>
       )}
