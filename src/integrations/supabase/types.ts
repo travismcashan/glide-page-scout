@@ -497,6 +497,24 @@ export type Database = {
           source_type: string
         }[]
       }
+      match_knowledge_chunks_by_source: {
+        Args: {
+          p_embedding: string
+          p_match_count?: number
+          p_match_threshold?: number
+          p_session_id: string
+          p_source_types: string[]
+        }
+        Returns: {
+          chunk_index: number
+          chunk_text: string
+          document_id: string
+          document_name: string
+          id: string
+          similarity: number
+          source_type: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
