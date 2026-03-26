@@ -920,12 +920,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-scroll to bottom of page when new messages arrive
-  useEffect(() => {
-    if (messages.length > 0 || isThinking) {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }
-  }, [messages, isThinking]);
 
   if (loadingHistory) {
     return (
