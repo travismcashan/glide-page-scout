@@ -226,17 +226,23 @@ export function GmailCard({ domain, contactEmails }: { domain: string; contactEm
         toast.error('Failed to download attachment');
         return;
       }
+      // Convert base64url to standard base64
       const base64 = base64UrlToBase64(data);
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: att.mimeType });
+      // Use fetch to decode base64 — handles large strings unlike atob
+      const resp = await fetch(`data:${att.mimeType};base64,${base64}`);
+      const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = att.filename;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      toast.success(`Downloaded ${att.filename}`);
+    } catch (err: any) {
+      console.error('Download error:', err);
+      toast.error(`Download failed: ${err.message}`);
     } finally {
       setDownloadingAttachments((prev) => {
         const next = new Set(prev);
@@ -254,7 +260,9 @@ export function GmailCard({ domain, contactEmails }: { domain: string; contactEm
       const docsToIngest: { name: string; content: string; source_type: string; source_key: string }[] = [];
 
       for (const key of selectedAttachments) {
-        const [emailId, attachmentId] = key.split(':');
+        const colonIdx = key.indexOf(':');
+        const emailId = key.substring(0, colonIdx);
+        const attachmentId = key.substring(colonIdx + 1);
         const email = emails.find((e) => e.id === emailId);
         const att = email?.attachments.find((a) => a.attachmentId === attachmentId);
         if (!email || !att) continue;
