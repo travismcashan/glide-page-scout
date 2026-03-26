@@ -986,7 +986,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         />
 
         {/* Toolbar row */}
-        <div className="flex items-center gap-1 pt-1 pb-1">
+        <div className="flex items-center gap-1 pt-1 pb-1" style={{ marginLeft: -8 }}>
           {/* + Upload button */}
           <ChatFileUpload
             attachments={attachments}
