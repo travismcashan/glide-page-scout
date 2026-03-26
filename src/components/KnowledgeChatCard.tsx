@@ -535,7 +535,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   // Thread management
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
-  const [sidebarWidth, setSidebarWidth] = useState(240);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
   const threadInitRef = useRef<string | null>(null);
 
   const crawlContext = buildCrawlContext(session, pages);
