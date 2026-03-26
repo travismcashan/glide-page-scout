@@ -303,7 +303,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         ) : (
           <Brain className="flex-shrink-0 text-muted-foreground" style={{ width: 28, height: 28 }} />
         )}
-        {isStreaming ? <AnimatedThinkingText /> : <span className="text-base font-bold">Show Thinking</span>}
+        <span className="text-base font-bold">{isStreaming ? <AnimatedThinkingText /> : 'Show Thinking'}</span>
         {expanded ? <ChevronDown className="h-5 w-5" strokeWidth={3} /> : <ChevronRight className="h-5 w-5" strokeWidth={3} />}
       </button>
       {expanded && (
