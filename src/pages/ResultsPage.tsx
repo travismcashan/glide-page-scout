@@ -1776,6 +1776,48 @@ export default function ResultsPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
+              {activeTab === 'prospecting' && !isSharedView && (
+                <div className="flex items-center gap-2">
+                  {prospectDomainEditing ? (
+                    <form className="flex items-center gap-1.5" onSubmit={async (e) => {
+                      e.preventDefault();
+                      const val = prospectDomainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '') || null;
+                      if (session) {
+                        await supabase.from('crawl_sessions').update({ prospect_domain: val } as any).eq('id', session.id);
+                        setSession({ ...session, prospect_domain: val });
+                      }
+                      setProspectDomainEditing(false);
+                      if (val) toast.success(`Prospecting domain set to ${val}`);
+                      else toast.success('Prospecting domain reset to site domain');
+                    }}>
+                      <Input
+                        value={prospectDomainInput}
+                        onChange={(e) => setProspectDomainInput(e.target.value)}
+                        placeholder={session?.domain || 'company.com'}
+                        className="h-7 w-48 text-xs"
+                        autoFocus
+                      />
+                      <Button type="submit" size="sm" variant="outline" className="h-7 px-2 text-xs">Save</Button>
+                      <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => {
+                        setProspectDomainInput(session?.prospect_domain || '');
+                        setProspectDomainEditing(false);
+                      }}>Cancel</Button>
+                    </form>
+                  ) : (
+                    <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-xs text-muted-foreground" onClick={() => {
+                      setProspectDomainInput(session?.prospect_domain || '');
+                      setProspectDomainEditing(true);
+                    }}>
+                      <Building2 className="h-3.5 w-3.5" />
+                      {session?.prospect_domain ? (
+                        <span>Domain: <span className="text-foreground font-medium">{session.prospect_domain}</span></span>
+                      ) : (
+                        'Set Company Domain'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              )}
               {activeTab === 'ai-research' && !isSharedView && (
                 <>
                   {session?.deep_research_data?.report && (
