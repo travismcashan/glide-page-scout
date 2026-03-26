@@ -277,7 +277,7 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 rounded-full border-0 bg-transparent overflow-visible"
+            className="shrink-0 rounded-full border-0 bg-transparent overflow-visible text-muted-foreground hover:bg-muted hover:text-foreground"
             style={{ width: 44, height: 44 }}
             disabled={disabled || parsing}
           >
