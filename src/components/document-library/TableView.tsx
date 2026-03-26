@@ -162,11 +162,11 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
       <TableHeader>
         <TableRow>
           {sortable('name', 'Name', 'min-w-[200px]')}
-          {sortable('created_at', 'Date Added', 'w-36 whitespace-nowrap')}
-          {sortable('char_count', 'Size', 'w-28 text-right whitespace-nowrap')}
-          {sortable('chunk_count', 'Chunks', 'w-24 text-right whitespace-nowrap')}
-          {sortable('source_type', 'Source', 'w-48 whitespace-nowrap')}
-          <TableHead className="h-9 text-sm w-24 whitespace-nowrap">Status</TableHead>
+          {sortable('source_type', 'Source', 'w-48 text-center whitespace-nowrap')}
+          {sortable('char_count', 'Size', 'w-28 text-center whitespace-nowrap')}
+          {sortable('chunk_count', 'Chunks', 'w-24 text-center whitespace-nowrap')}
+          {sortable('created_at', 'Date Added', 'w-36 text-center whitespace-nowrap')}
+          <TableHead className="h-9 text-sm w-24 text-center whitespace-nowrap">Status</TableHead>
           <TableHead className="h-9 text-sm w-10"></TableHead>
         </TableRow>
       </TableHeader>
@@ -193,17 +193,17 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
                   )}
                 </div>
               </TableCell>
-              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
-              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right whitespace-nowrap">{doc.status === 'uploading' ? '—' : `${(doc.char_count / 1000).toFixed(0)}K`}</TableCell>
-              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{doc.status === 'uploading' ? '—' : doc.chunk_count}</TableCell>
-              <TableCell className="py-2.5 px-4 whitespace-nowrap">
-                <div className="flex items-center gap-1.5">
+              <TableCell className="py-2.5 px-4 text-center whitespace-nowrap">
+                <div className="flex items-center justify-center gap-1.5">
                   <SourceIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-sm text-muted-foreground">{getSourceLabel(doc.source_type, doc.source_key)}</span>
                 </div>
               </TableCell>
-              <TableCell className="py-2.5 px-4">
-                <div className="flex items-center gap-1" title={statusConf.label}>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-center whitespace-nowrap">{doc.status === 'uploading' ? '—' : `${(doc.char_count / 1000).toFixed(0)}K`}</TableCell>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-center">{doc.status === 'uploading' ? '—' : doc.chunk_count}</TableCell>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-center">{formatDate(doc.created_at)}</TableCell>
+              <TableCell className="py-2.5 px-4 text-center">
+                <div className="flex items-center justify-center gap-1" title={statusConf.label}>
                   <StatusIcon className={`h-3.5 w-3.5 ${statusConf.color} ${(doc.status === 'processing' || doc.status === 'uploading') ? 'animate-spin' : ''}`} />
                   <span className={`text-sm ${statusConf.color}`}>{statusConf.label}</span>
                 </div>
