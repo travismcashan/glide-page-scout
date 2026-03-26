@@ -372,7 +372,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
     <div className="group relative w-full pr-10 py-3 pb-6 text-base rounded-lg text-foreground pl-0">
       <div className="flex items-center gap-2 mb-6">
         <AiAvatar className="h-7 w-7 flex-shrink-0" />
-        <span className="text-base font-bold text-foreground leading-none" style={{ transform: 'translateY(1px)' }}>Agency Atlas</span>
+        <span className="text-base font-bold text-foreground leading-none" style={{ transform: 'translateY(2.5px)' }}>Agency Atlas</span>
       </div>
       {(webCitations?.length || isWebSearching) && (
         <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
