@@ -22,7 +22,6 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   carbon_data: 'Website Carbon Footprint',
   yellowlab_data: 'Yellow Lab Tools',
   ocean_data: 'Ocean.io Company Data',
-  avoma_data: 'Avoma Transcript',
   apollo_data: 'Apollo Contact Data',
   nav_structure: 'Site Navigation Structure',
   content_types_data: 'Content Types Analysis',
