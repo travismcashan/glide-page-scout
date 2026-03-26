@@ -132,7 +132,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
           </div>
 
           {/* Thread list */}
-          <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+          <div className="flex-1 overflow-y-auto px-2 pb-3 -space-y-px">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <span className="text-sm text-muted-foreground">Loading…</span>
@@ -148,7 +148,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                   key={thread.id}
                   onClick={() => renamingId !== thread.id && onSelectThread(thread.id)}
                   className={cn(
-                    'group w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 relative',
+                    'group w-full text-left px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 relative',
                     thread.id === activeThreadId
                       ? 'bg-muted text-foreground'
                       : 'hover:bg-muted/50 text-foreground'
@@ -169,7 +169,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
-                      <div className="truncate text-sm font-medium">{thread.title}</div>
+                      <div className="truncate font-medium" style={{ fontSize: 15 }}>{thread.title}</div>
                     )}
                   </div>
                   {renamingId !== thread.id && (
