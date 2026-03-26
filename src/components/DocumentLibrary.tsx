@@ -179,20 +179,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
   return (
     <div className="flex flex-col">
-      {/* Single toolbar row: stats left, controls right */}
+      {/* Single toolbar row: controls left, stats right */}
       <div className="flex items-center gap-2 px-1 mb-3">
-        {/* Stats - left */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <BookOpen className="h-3.5 w-3.5" />
-          <span><strong className="text-foreground">{readyCount}</strong> docs</span>
-          <span>·</span>
-          <span><strong className="text-foreground">{totalChunks}</strong> chunks</span>
-          <span>·</span>
-          <span><strong className="text-foreground">{formattedChars}</strong> chars</span>
-        </div>
-
-        {/* Controls - right */}
-        <div className="flex items-center gap-1.5 ml-auto">
+        {/* Controls - left */}
+        <div className="flex items-center gap-1.5">
           {/* View toggle */}
           <div className="flex items-center border rounded-md overflow-hidden">
             <button onClick={() => setViewMode('grid')} className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Grid view">
@@ -269,6 +259,16 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
             )}
           </div>
 
+        </div>
+
+        {/* Stats - right */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
+          <BookOpen className="h-3.5 w-3.5" />
+          <span><strong className="text-foreground">{readyCount}</strong> docs</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{totalChunks}</strong> chunks</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{formattedChars}</strong> chars</span>
         </div>
       </div>
 
