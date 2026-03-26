@@ -535,7 +535,7 @@ async function handlePerplexityRequest(
       model: pplxModel,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...merged,
+        ...strictMerged,
       ],
       stream: true,
     }),
