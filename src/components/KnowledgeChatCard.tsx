@@ -768,6 +768,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
