@@ -349,7 +349,7 @@ function WebCitationsBlock({ citations, isSearching }: { citations: string[]; is
   );
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, webCitations, isWebSearching }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; webCitations?: string[]; isWebSearching?: boolean }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -387,8 +387,23 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {isStreamingThis && (
         <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
       )}
+      {sources && sources.length > 0 && !isStreamingThis && (
+        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+          <span className="text-xs text-muted-foreground">Sources:</span>
+          {sources.map(s => (
+            <Badge
+              key={s}
+              variant="outline"
+              className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted transition-colors"
+              onClick={() => onSourceClick?.(s)}
+            >
+              {SOURCE_LABELS[s] || s}
+            </Badge>
+          ))}
+        </div>
+      )}
       {content && !isStreamingThis && (
-        <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={handleCopy}
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
@@ -850,34 +865,29 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <AssistantBubbleInner content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')} isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')} webCitations={msg.webCitations} isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length} />
+                    <AssistantBubbleInner
+                      content={typeof msg.content === 'string' ? msg.content : ''}
+                      thinking={msg.thinking}
+                      isStreamingThis={isStreaming && i === messages.length - 1}
+                      onSaveNote={handleSaveNote}
+                      onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')}
+                      isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')}
+                      webCitations={msg.webCitations}
+                      isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length}
+                      sources={msg.sources}
+                      onSourceClick={(s) => {
+                        const target = SOURCE_TAB_MAP[s];
+                        if (target) {
+                          setSearchParams(prev => { prev.set('tab', target.tab); return prev; }, { replace: true });
+                          setTimeout(() => {
+                            const el = document.querySelector(`[data-section-id="${target.sectionId}"]`);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }, 150);
+                        }
+                      }}
+                    />
                   )}
                 </div>
-                {/* Source badges for assistant messages */}
-                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !(isStreaming && i === messages.length - 1) && (
-                  <div className="flex items-center gap-1.5 mt-1.5 ml-1 flex-wrap">
-                    <span className="text-xs text-muted-foreground">Sources:</span>
-                    {msg.sources.map(s => (
-                      <Badge
-                        key={s}
-                        variant="outline"
-                        className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted transition-colors"
-                        onClick={() => {
-                          const target = SOURCE_TAB_MAP[s];
-                          if (target) {
-                            setSearchParams(prev => { prev.set('tab', target.tab); return prev; }, { replace: true });
-                            setTimeout(() => {
-                              const el = document.querySelector(`[data-section-id="${target.sectionId}"]`);
-                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }, 150);
-                          }
-                        }}
-                      >
-                        {SOURCE_LABELS[s] || s}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
             {/* Thinking indicator */}
