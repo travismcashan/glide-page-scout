@@ -167,7 +167,14 @@ export default function ResultsPage() {
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
   const ragIngestTriggeredRef = useRef(false);
-  const [activeTab, setActiveTab] = useState('raw-data');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'raw-data';
+  const setActiveTab = useCallback((tab: string) => {
+    setSearchParams(prev => {
+      prev.set('tab', tab);
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
