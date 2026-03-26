@@ -49,6 +49,7 @@ type Props = {
   session: SessionData;
   pages?: PageData[];
   selectedModel: string;
+  provider: ModelProvider;
   reasoning: ReasoningEffort;
   onModelChange: (model: string) => void;
   onReasoningChange: (reasoning: ReasoningEffort) => void;
