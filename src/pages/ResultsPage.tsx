@@ -3,6 +3,7 @@ import { useSectionCollapse } from '@/hooks/use-section-collapse';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -138,6 +139,7 @@ type CrawlSession = {
   sitemap_data: any | null;
   forms_data: any | null;
   tech_analysis_data: any | null;
+  prospect_domain: string | null;
 };
 
 
@@ -165,6 +167,10 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
+  // Prospect domain override for prospecting integrations
+  const [prospectDomainInput, setProspectDomainInput] = useState('');
+  const [prospectDomainEditing, setProspectDomainEditing] = useState(false);
+  const prospectingDomain = session?.prospect_domain || session?.domain || '';
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
     return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
   });
@@ -301,6 +307,7 @@ export default function ResultsPage() {
     if (sessionRes.data) {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
+      if (sessionData.prospect_domain) setProspectDomainInput(sessionData.prospect_domain);
       // Restore persisted integration durations & timestamps
       if (sessionData.integration_durations && typeof sessionData.integration_durations === 'object') {
         setIntegrationDurations(prev => ({ ...sessionData.integration_durations, ...prev }));
@@ -603,7 +610,7 @@ export default function ResultsPage() {
     if (oceanTriggeredRef.current) return;
     oceanTriggeredRef.current = true;
     setOceanLoading(true);
-    oceanApi.enrich(session.domain).then(async (result) => {
+    oceanApi.enrich(prospectingDomain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
         clearError('ocean');
@@ -624,8 +631,8 @@ export default function ResultsPage() {
     // Prefer Apollo contact email for Avoma search, fallback to domain
     const apolloEmail = session.apollo_data?.email;
     const searchDomain = apolloEmail
-      ? apolloEmail.split('@').pop()?.toLowerCase() || session.domain
-      : session.domain;
+      ? apolloEmail.split('@').pop()?.toLowerCase() || prospectingDomain
+      : prospectingDomain;
     avomaApi.lookup(searchDomain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
@@ -644,7 +651,7 @@ export default function ResultsPage() {
     if (hubspotTriggeredRef.current) return;
     hubspotTriggeredRef.current = true;
     setHubspotLoading(true);
-    hubspotApi.lookup(session.domain).then(async (result) => {
+    hubspotApi.lookup(prospectingDomain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
@@ -1770,6 +1777,48 @@ export default function ResultsPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
+              {activeTab === 'prospecting' && !isSharedView && (
+                <div className="flex items-center gap-2">
+                  {prospectDomainEditing ? (
+                    <form className="flex items-center gap-1.5" onSubmit={async (e) => {
+                      e.preventDefault();
+                      const val = prospectDomainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '') || null;
+                      if (session) {
+                        await supabase.from('crawl_sessions').update({ prospect_domain: val } as any).eq('id', session.id);
+                        setSession({ ...session, prospect_domain: val });
+                      }
+                      setProspectDomainEditing(false);
+                      if (val) toast.success(`Prospecting domain set to ${val}`);
+                      else toast.success('Prospecting domain reset to site domain');
+                    }}>
+                      <Input
+                        value={prospectDomainInput}
+                        onChange={(e) => setProspectDomainInput(e.target.value)}
+                        placeholder={session?.domain || 'company.com'}
+                        className="h-7 w-48 text-xs"
+                        autoFocus
+                      />
+                      <Button type="submit" size="sm" variant="outline" className="h-7 px-2 text-xs">Save</Button>
+                      <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => {
+                        setProspectDomainInput(session?.prospect_domain || '');
+                        setProspectDomainEditing(false);
+                      }}>Cancel</Button>
+                    </form>
+                  ) : (
+                    <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-xs text-muted-foreground" onClick={() => {
+                      setProspectDomainInput(session?.prospect_domain || '');
+                      setProspectDomainEditing(true);
+                    }}>
+                      <Building2 className="h-3.5 w-3.5" />
+                      {session?.prospect_domain ? (
+                        <span>Domain: <span className="text-foreground font-medium">{session.prospect_domain}</span></span>
+                      ) : (
+                        'Set Company Domain'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              )}
               {activeTab === 'ai-research' && !isSharedView && (
                 <>
                   {session?.deep_research_data?.report && (
@@ -2236,7 +2285,7 @@ export default function ResultsPage() {
               >
                 <GmailCard
                   ref={gmailRef}
-                  domain={session?.domain || ''}
+                  domain={prospectingDomain}
                   onStateChange={setGmailState}
                   contactEmails={
                     (session as any)?.hubspot_data?.contacts
