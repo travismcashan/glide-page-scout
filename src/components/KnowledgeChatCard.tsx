@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -768,6 +768,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
@@ -1003,8 +1004,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     });
 
     try {
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
@@ -1264,14 +1268,28 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       }).catch(() => {});
     } catch (e: any) {
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
-      console.error('Knowledge chat error:', e);
-      clearPendingAssistantPlaceholder();
-      toast.error(e?.message || 'Failed to get response');
+      if (e?.name === 'AbortError') {
+        console.log('Chat response aborted by user');
+      } else {
+        console.error('Knowledge chat error:', e);
+        clearPendingAssistantPlaceholder();
+        toast.error(e?.message || 'Failed to get response');
+      }
     }
 
+    abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
   }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId]);
+
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+    setIsThinking(false);
+  }, []);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
@@ -1754,17 +1772,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             disabled={isStreaming}
           />
 
-          {/* Send button - pushed to the right */}
+          {/* Send / Stop button */}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleSend()}
-              disabled={isStreaming || attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText)}
+              onClick={isStreaming ? handleStop : () => handleSend()}
+              disabled={!isStreaming && (attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText))}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
               {isStreaming ? (
-                <Loader2 style={{ width: 28, height: 28 }} className="animate-spin" />
+                <div className="relative flex items-center justify-center" style={{ width: 28, height: 28 }}>
+                  <Loader2 style={{ width: 28, height: 28 }} className="animate-spin absolute" />
+                  <Square className="h-3 w-3 fill-current" />
+                </div>
               ) : (
                 <ArrowUp style={{ width: 28, height: 28 }} strokeWidth={1.5} />
               )}
