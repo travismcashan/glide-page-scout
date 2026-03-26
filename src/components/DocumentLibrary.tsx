@@ -222,9 +222,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Source filter */}
           <Select value={filterSource} onValueChange={setFilterSource}>
-            <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs gap-1.5 [&>svg:last-child]:hidden">
-              <Database className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <SelectValue placeholder="All sources" />
+            <SelectTrigger className="h-8 w-auto min-w-[100px] text-xs gap-1.5 border rounded-md px-2.5 [&>svg:last-child]:hidden">
+              <Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="font-medium">Filter</span>
+              {filterSource !== 'all' && <span className="text-muted-foreground">· {SOURCE_LABELS[filterSource] || filterSource}</span>}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all" className="text-xs">All sources</SelectItem>
@@ -236,9 +237,9 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
           {/* Sort */}
           <Select value={`${sortField}:${sortDir}`} onValueChange={v => { const [f, d] = v.split(':'); setSortField(f as SortField); setSortDir(d as SortDir); }}>
-            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs gap-1.5 [&>svg:last-child]:hidden">
-              <ArrowDownAZ className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <SelectValue placeholder="Sort by" />
+            <SelectTrigger className="h-8 w-auto min-w-[100px] text-xs gap-1.5 border rounded-md px-2.5 [&>svg:last-child]:hidden">
+              <ArrowDownAZ className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="font-medium">Sort</span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="created_at:desc" className="text-xs">Newest first</SelectItem>
@@ -253,9 +254,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
           {/* Group by */}
           <Select value={groupBy} onValueChange={setGroupBy}>
-            <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs gap-1.5 [&>svg:last-child]:hidden">
-              <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <SelectValue placeholder="Group by" />
+            <SelectTrigger className="h-8 w-auto min-w-[110px] text-xs gap-1.5 border rounded-md px-2.5 [&>svg:last-child]:hidden">
+              <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="font-medium">Grouping</span>
+              {groupBy !== 'none' && <span className="text-muted-foreground">· {groupBy === 'source' ? 'Source' : 'Status'}</span>}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none" className="text-xs">No grouping</SelectItem>
