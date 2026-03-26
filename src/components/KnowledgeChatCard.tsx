@@ -1083,6 +1083,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               continue;
             }
 
+            if (parsed.rag_documents) {
+              ragDocuments = parsed.rag_documents;
+              commitMessages();
+              continue;
+            }
+
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             const reasoningContent = parsed.choices?.[0]?.delta?.reasoning_content as string | undefined;
             if (reasoningContent) {
