@@ -874,7 +874,37 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
-      const noteName = `Chat Note – ${new Date().toLocaleString()}`;
+      // Generate a short AI title for the note
+      let noteName = `Chat Note – ${new Date().toLocaleString()}`;
+      try {
+        const titleResp = await supabase.functions.invoke('knowledge-chat', {
+          body: {
+            messages: [
+              { role: 'system', content: 'You are a title generator. Respond with ONLY a 3-5 word title that captures the gist of the following text. No quotes, no punctuation at the end, no explanation.' },
+              { role: 'user', content: content.slice(0, 2000) },
+            ],
+            model: 'google/gemini-2.5-flash-lite',
+          },
+        });
+        const titleText = titleResp.data?.trim?.() || '';
+        // Parse streaming response to extract content
+        const lines = titleText.split('\n').filter((l: string) => l.startsWith('data: '));
+        let extracted = '';
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line.slice(6));
+            const delta = json.choices?.[0]?.delta?.content;
+            if (delta) extracted += delta;
+          } catch {}
+        }
+        const cleanTitle = (extracted || titleText).replace(/["""]/g, '').trim();
+        if (cleanTitle.length >= 3 && cleanTitle.length <= 60) {
+          noteName = cleanTitle;
+        }
+      } catch (e) {
+        console.warn('Could not generate note title, using default:', e);
+      }
+
       const { data, error } = await supabase.functions.invoke('rag-ingest', {
         body: {
           session_id: session.id,
@@ -882,7 +912,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         },
       });
       if (error) throw error;
-      toast.success('Saved to document library');
+      toast.success(`Saved: ${noteName}`);
       if (onDocumentsChanged) onDocumentsChanged();
     } catch (e: any) {
       console.error('Save note error:', e);
