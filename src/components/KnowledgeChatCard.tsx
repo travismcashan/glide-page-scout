@@ -836,20 +836,36 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         }
       };
 
+      // Smooth rendering: accumulate content and flush via RAF for character-level smoothness
+      let rafId: number | null = null;
+      let dirty = false;
+
       const updateMessages = () => {
-        setMessages(prev => {
-          const last = prev[prev.length - 1];
-          const msgData: Message = {
-            role: 'assistant',
-            content: assistantContent,
-            thinking: thinkingContent || undefined,
-            webCitations,
-          };
-          if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
-            return prev.map((m, i) => i === prev.length - 1 ? { ...m, ...msgData } : m);
-          }
-          return [...prev, msgData];
-        });
+        dirty = true;
+        if (rafId === null) {
+          rafId = requestAnimationFrame(function flush() {
+            rafId = null;
+            if (!dirty) return;
+            dirty = false;
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              const msgData: Message = {
+                role: 'assistant',
+                content: assistantContent,
+                thinking: thinkingContent || undefined,
+                webCitations,
+              };
+              if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, ...msgData } : m);
+              }
+              return [...prev, msgData];
+            });
+            // Schedule another flush if more data arrived during render
+            if (dirty) {
+              rafId = requestAnimationFrame(flush);
+            }
+          });
+        }
       };
 
       while (true) {
@@ -898,6 +914,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           }
         }
       }
+
+      // Cancel any pending RAF
+      if (rafId !== null) cancelAnimationFrame(rafId);
 
       // Final flush
       if (textBuffer.trim()) {
