@@ -260,6 +260,16 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           </div>
 
         </div>
+
+        {/* Stats - right */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
+          <BookOpen className="h-3.5 w-3.5" />
+          <span><strong className="text-foreground">{readyCount}</strong> docs</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{totalChunks}</strong> chunks</span>
+          <span>·</span>
+          <span><strong className="text-foreground">{formattedChars}</strong> chars</span>
+        </div>
       </div>
 
       {/* Upload + Sync row */}
