@@ -1117,10 +1117,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 <SlidersHorizontal style={{ width: 18, height: 18 }} strokeWidth={1.5} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-44 p-2" align="start" side="top">
+            <PopoverContent className="w-44 p-2 rounded-2xl" align="start" side="top">
               <div className="space-y-1">
                 <button
-                  className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5 w-full text-left"
+                  className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
                   onClick={() => setSearchSources(prev => ({ ...prev, documents: !prev.documents }))}
                 >
                   <span className="flex items-center gap-2">
@@ -1130,7 +1130,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                   {searchSources.documents && <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />}
                 </button>
                 <button
-                  className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded px-2 py-1.5 w-full text-left"
+                  className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
                   onClick={() => setSearchSources(prev => ({ ...prev, web: !prev.web }))}
                 >
                   <span className="flex items-center gap-2">
