@@ -392,6 +392,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
+  const wasStreamingRef = useRef(false);
 
   const crawlContext = buildCrawlContext(session, pages);
 
@@ -427,6 +428,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   // Auto-scroll to bottom
   useEffect(() => {
     if (isStreaming && lastUserMsgRef.current && scrollRef.current) {
+      wasStreamingRef.current = true;
       // During streaming, keep the user's prompt pinned near the top of the viewport
       const container = scrollRef.current;
       const userMsg = lastUserMsgRef.current;
@@ -436,7 +438,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         container.scrollTop = offset;
       }
     } else if (!isStreaming && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // After streaming ends, don't jump to bottom — user reads from their prompt down
+      // Only scroll to bottom on initial history load
+      if (!wasStreamingRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+      wasStreamingRef.current = false;
     }
   }, [messages, isThinking]);
 
