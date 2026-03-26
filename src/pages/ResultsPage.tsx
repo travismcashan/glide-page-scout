@@ -1566,8 +1566,8 @@ export default function ResultsPage() {
             <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
               <TabsTrigger
                 value="raw-data"
-                style={activeTab === 'raw-data' ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                style={activeTab === 'raw-data' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Globe className="h-4 w-4 mr-2" />
                 Site Analysis
@@ -1575,8 +1575,8 @@ export default function ResultsPage() {
               {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations)) && (
                 <TabsTrigger
                   value="prospecting"
-                  style={activeTab === 'prospecting' ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                  className="relative text-base font-medium px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  style={activeTab === 'prospecting' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                  className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
                   Prospecting
@@ -1584,24 +1584,24 @@ export default function ResultsPage() {
               )}
               <TabsTrigger
                 value="ai-research"
-                style={activeTab === 'ai-research' ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                style={activeTab === 'ai-research' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
               </TabsTrigger>
               <TabsTrigger
                 value="knowledge"
-                style={activeTab === 'knowledge' ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                style={activeTab === 'knowledge' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <BookOpen className="h-4 w-4 mr-2" />
                 Knowledge
               </TabsTrigger>
               <TabsTrigger
                 value="chat"
-                style={activeTab === 'chat' ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                style={activeTab === 'chat' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Chat
