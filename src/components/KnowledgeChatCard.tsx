@@ -432,7 +432,7 @@ const SOURCE_TYPE_ICONS: Record<string, string> = {
   research: '🔬',
 };
 
-function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocuments: RagDocument[]; sources: string[]; onSourceClick?: (s: string) => void }) {
+function ReferencesBlock({ ragDocuments, sources, onSourceClick, webCitations }: { ragDocuments: RagDocument[]; sources: string[]; onSourceClick?: (s: string) => void; webCitations?: string[] }) {
   const [expanded, setExpanded] = useState(false);
 
   // Combine: RAG documents + detected integration sources not already in RAG docs
@@ -441,7 +441,8 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocument
     return !ragDocuments.some(d => d.name.toLowerCase().includes(label.toLowerCase()));
   });
 
-  const totalRefs = ragDocuments.length + integrationSources.length;
+  const webRefs = webCitations || [];
+  const totalRefs = ragDocuments.length + integrationSources.length + webRefs.length;
   if (totalRefs === 0) return null;
 
   return (
@@ -452,10 +453,13 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocument
       >
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         <FileText className="h-3.5 w-3.5" />
-        <span>{totalRefs} document{totalRefs !== 1 ? 's' : ''} referenced</span>
+        <span>{totalRefs} source{totalRefs !== 1 ? 's' : ''} referenced</span>
       </button>
       {expanded && (
         <div className="mt-2 ml-5 space-y-0.5">
+          {ragDocuments.length > 0 && (
+            <div className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mt-1 mb-1">Documents</div>
+          )}
           {ragDocuments.map((doc, i) => (
             <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
@@ -474,6 +478,28 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocument
               <span className="text-[11px] opacity-60">(integration)</span>
             </button>
           ))}
+          {webRefs.length > 0 && (
+            <>
+              <div className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mt-2 mb-1">Web</div>
+              {webRefs.map((url, i) => {
+                let displayUrl = url;
+                try { displayUrl = new URL(url).hostname; } catch {}
+                return (
+                  <a
+                    key={`web-${i}`}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    <span className="truncate max-w-[300px]">{displayUrl}</span>
+                    <span className="text-[11px] opacity-60">[{i + 1}]</span>
+                  </a>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -617,8 +643,16 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 
   return (
     <div className="group relative w-full pr-10 py-3 pb-6 text-base rounded-lg text-foreground pl-0">
-      {(webCitations?.length || isWebSearching) && (
-        <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
+      {isWebSearching && !content && (
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <Search className="h-3.5 w-3.5" />
+          <span>Searching the web…</span>
+          <span className="flex gap-0.5 ml-1">
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+          </span>
+        </div>
       )}
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
@@ -708,11 +742,12 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           </TooltipProvider>
         </div>
       )}
-      {content && !isStreamingThis && (ragDocuments?.length || (sources && sources.length > 0)) && (
+      {content && !isStreamingThis && (ragDocuments?.length || (sources && sources.length > 0) || (webCitations && webCitations.length > 0)) && (
         <ReferencesBlock
           ragDocuments={ragDocuments || []}
           sources={sources || []}
           onSourceClick={onSourceClick}
+          webCitations={webCitations}
         />
       )}
     </div>
