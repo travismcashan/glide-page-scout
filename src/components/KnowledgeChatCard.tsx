@@ -1147,7 +1147,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
-          return prev.map((m, i) => i === prev.length - 1 ? { ...m, sources, webCitations } : m);
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, sources, webCitations, ragDocuments: ragDocuments.length > 0 ? ragDocuments : undefined } : m);
         }
         return prev;
       });
