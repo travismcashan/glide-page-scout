@@ -74,8 +74,8 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
                 </div>
               </TableCell>
               <TableCell className="py-2.5 px-4 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
-              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{(doc.char_count / 1000).toFixed(0)}K chars</TableCell>
-              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{doc.chunk_count}</TableCell>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{doc.status === 'uploading' ? '—' : `${(doc.char_count / 1000).toFixed(0)}K chars`}</TableCell>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{doc.status === 'uploading' ? '—' : doc.chunk_count}</TableCell>
               <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-1.5">
                   <SourceIcon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -84,7 +84,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
               </TableCell>
               <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-1" title={statusConf.label}>
-                  <StatusIcon className={`h-3.5 w-3.5 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
+                  <StatusIcon className={`h-3.5 w-3.5 ${statusConf.color} ${(doc.status === 'processing' || doc.status === 'uploading') ? 'animate-spin' : ''}`} />
                   <span className={`text-xs ${statusConf.color}`}>{statusConf.label}</span>
                 </div>
               </TableCell>

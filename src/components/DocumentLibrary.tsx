@@ -84,7 +84,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments, refreshKey]);
 
   useEffect(() => {
-    const processing = documents.some(d => d.status === 'processing' || d.status === 'pending');
+    const processing = documents.some(d => d.status === 'processing' || d.status === 'pending' || d.status === 'uploading');
     if (!processing) return;
     const interval = setInterval(fetchDocuments, 3000);
     return () => clearInterval(interval);
@@ -125,43 +125,80 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setUploading(true);
-    const docsToIngest: { name: string; content: string; source_type: string }[] = [];
-    for (const file of Array.from(files)) {
-      if (file.size > 20 * 1024 * 1024) { toast.error(`${file.name} is too large (max 20MB)`); continue; }
+
+    const fileList = Array.from(files).filter(f => {
+      if (f.size > 20 * 1024 * 1024) { toast.error(`${f.name} is too large (max 20MB)`); return false; }
+      return true;
+    });
+    if (fileList.length === 0) { setUploading(false); return; }
+
+    // Step 1: Insert placeholder rows so files appear immediately
+    const placeholders = fileList.map(f => ({
+      session_id: sessionId,
+      name: f.name,
+      source_type: 'upload',
+      status: 'uploading',
+      char_count: 0,
+      chunk_count: 0,
+    }));
+    const { data: inserted, error: insertErr } = await supabase
+      .from('knowledge_documents')
+      .insert(placeholders)
+      .select('id, name');
+    if (insertErr) { toast.error('Failed to queue files'); setUploading(false); return; }
+    const idMap = new Map<string, string>();
+    for (const row of (inserted || []) as any[]) idMap.set(row.name, row.id);
+    fetchDocuments();
+
+    // Step 2: Process each file individually
+    let successCount = 0;
+    for (const file of fileList) {
+      const docId = idMap.get(file.name);
       try {
+        let content: string;
         if (isBinaryFile(file)) {
           const fileBase64 = await fileToBase64(file);
-          toast.info(`Parsing ${file.name}…`);
           const parseResp = await fetch(PARSE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
             body: JSON.stringify({ fileBase64, fileName: file.name, mimeType: getMimeType(file) }),
           });
-          if (!parseResp.ok) { const err = await parseResp.json().catch(() => ({})); toast.error(`Failed to parse ${file.name}: ${err.error || parseResp.status}`); continue; }
+          if (!parseResp.ok) {
+            if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Parse failed' }).eq('id', docId);
+            fetchDocuments();
+            continue;
+          }
           const { text } = await parseResp.json();
-          if (!text || text.length < 30) { toast.error(`Could not extract content from ${file.name}`); continue; }
-          docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
+          if (!text || text.length < 30) {
+            if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'No content extracted' }).eq('id', docId);
+            fetchDocuments();
+            continue;
+          }
+          content = text;
         } else {
-          docsToIngest.push({ name: file.name, content: await file.text(), source_type: 'upload' });
+          content = await file.text();
         }
-      } catch { toast.error(`Failed to read ${file.name}`); }
-    }
-    if (docsToIngest.length > 0) {
-      try {
+
+        // Update placeholder to pending before indexing
+        if (docId) {
+          await supabase.from('knowledge_documents').delete().eq('id', docId);
+        }
+
+        // Send to ingest (creates real doc with chunking)
         const response = await fetch(INGEST_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+          body: JSON.stringify({ session_id: sessionId, documents: [{ name: file.name, content, source_type: 'upload' }] }),
         });
-        if (!response.ok) { const err = await response.json().catch(() => ({})); toast.error(err.error || 'Failed to ingest documents'); }
-        else {
-          const data = await response.json();
-          const readyCount = data.results?.filter((r: any) => r.status === 'ready').length || 0;
-          toast.success(`${readyCount} document${readyCount !== 1 ? 's' : ''} indexed`);
-          fetchDocuments();
-        }
-      } catch (err: any) { toast.error(err?.message || 'Upload failed'); }
+        if (response.ok) successCount++;
+        fetchDocuments();
+      } catch {
+        if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Upload failed' }).eq('id', docId);
+        fetchDocuments();
+      }
     }
+
+    if (successCount > 0) toast.success(`${successCount} file${successCount !== 1 ? 's' : ''} indexed`);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setUploading(false);
   };
