@@ -535,6 +535,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   // Thread management
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+  const [sidebarWidth, setSidebarWidth] = useState(240);
   const threadInitRef = useRef<string | null>(null);
 
   const crawlContext = buildCrawlContext(session, pages);
@@ -1130,6 +1131,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         onNewThread={handleNewThread}
         onDeleteThread={handleDeleteThread}
         refreshKey={sidebarRefreshKey}
+        onWidthChange={setSidebarWidth}
       />
 
       {/* Main chat area */}
@@ -1227,7 +1229,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       {/* Input area - sticky at bottom */}
       <div
         ref={composerRef}
-        className={`fixed bottom-0 left-0 right-0 z-30 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent`}
+        className="fixed bottom-0 right-0 z-30 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent"
+        style={{ left: `${sidebarWidth}px` }}
       >
       <div
         className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
