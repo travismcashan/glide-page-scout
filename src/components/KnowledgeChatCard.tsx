@@ -1123,12 +1123,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-sm font-normal gap-1.5 rounded-full border-0 bg-transparent hover:bg-muted"
+                size="icon"
+                className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible"
+                style={{ width: 44, height: 44 }}
                 disabled={isStreaming}
               >
-              <SlidersHorizontal className="h-4.5 w-4.5" />
-                Sources
+                <SlidersHorizontal style={{ width: 28, height: 28 }} strokeWidth={1.5} />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-44 p-2" align="start" side="top">
