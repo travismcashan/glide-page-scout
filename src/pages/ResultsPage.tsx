@@ -2052,7 +2052,6 @@ export default function ResultsPage() {
             </SortedIntegrationList>
           </CollapsibleSection>
         )}
-          </TabsContent>
             </div>}
           </TabsContent>
 
