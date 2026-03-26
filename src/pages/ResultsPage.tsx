@@ -1523,9 +1523,9 @@ export default function ResultsPage() {
 
   const tabTriggerStyle = (value: string) =>
     activeTab === value
-      ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderTopLeftRadius: '0.375rem', borderTopRightRadius: '0.375rem' }
+      ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
       : undefined;
-  const tabTriggerClass = "relative text-base font-medium px-5 py-2.5 !rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground";
+  const tabTriggerClass = "relative text-base font-medium px-5 py-2.5 rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground";
   const showProspecting = shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations);
 
   const tabTriggers = (
