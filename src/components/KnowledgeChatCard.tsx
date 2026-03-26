@@ -350,6 +350,54 @@ function WebCitationsBlock({ citations, isSearching }: { citations: string[]; is
   );
 }
 
+/** Renders text nodes, transforming [N] citation references into styled superscript links */
+function CitationText({ children, citations }: { children: React.ReactNode; citations?: string[] }) {
+  if (typeof children !== 'string') return <>{children}</>;
+
+  const parts: React.ReactNode[] = [];
+  const regex = /\[(\d+)\]/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(children)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(children.slice(lastIndex, match.index));
+    }
+    const num = parseInt(match[1], 10);
+    const url = citations && citations[num - 1];
+    if (url) {
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-primary/15 text-primary hover:bg-primary/25 transition-colors no-underline align-super leading-none -translate-y-[1px]"
+          title={url}
+        >
+          {num}
+        </a>
+      );
+    } else {
+      parts.push(
+        <span
+          key={match.index}
+          className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-muted text-muted-foreground align-super leading-none -translate-y-[1px]"
+        >
+          {num}
+        </span>
+      );
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < children.length) {
+    parts.push(children.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? <>{parts}</> : <>{children}</>;
+}
+
 function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -368,6 +416,11 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
     }
   };
 
+  const markdownComponents = {
+    text: ({ children }: any) => <CitationText citations={webCitations}>{children}</CitationText>,
+    img: () => null,
+  };
+
   return (
     <div className="group relative w-full pr-10 py-3 pb-6 text-base rounded-lg text-foreground pl-0">
       <div className="flex items-center gap-2 mb-6">
@@ -382,7 +435,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       )}
       <Suspense fallback={<span>{content}</span>}>
         <div className="chat-prose max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
       </Suspense>
       {isStreamingThis && (
