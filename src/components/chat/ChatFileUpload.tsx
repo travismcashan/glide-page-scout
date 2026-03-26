@@ -154,13 +154,13 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 h-8 w-8 rounded-full border-0 bg-transparent"
+            className="shrink-0 h-9 w-9 rounded-full border-0 bg-transparent"
             disabled={disabled || parsing}
           >
             {parsing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Plus className="h-4 w-4" />
+              <Plus className="h-5 w-5" />
             )}
           </Button>
         </DropdownMenuTrigger>

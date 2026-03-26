@@ -92,7 +92,7 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled}>
-        <button className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1 py-0.5 rounded">
+        <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1.5 py-0.5 rounded">
           {displayLabel}
         </button>
       </DropdownMenuTrigger>

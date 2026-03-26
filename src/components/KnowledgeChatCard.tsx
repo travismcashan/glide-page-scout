@@ -991,10 +991,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2.5 text-xs font-normal gap-1.5 rounded-full border-0 bg-transparent hover:bg-transparent"
+                className="h-9 px-3 text-sm font-normal gap-1.5 rounded-full border-0 bg-transparent hover:bg-transparent"
                 disabled={isStreaming}
               >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <SlidersHorizontal className="h-4.5 w-4.5" />
                 Sources
               </Button>
             </PopoverTrigger>
@@ -1039,12 +1039,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               size="icon"
               onClick={() => handleSend()}
               disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
-              className="shrink-0 h-8 w-8 rounded-full bg-muted text-foreground hover:bg-muted/80"
+              className="shrink-0 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80"
             >
               {isStreaming ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <ArrowUp className="h-3.5 w-3.5" />
+                <ArrowUp className="h-4.5 w-4.5" />
               )}
             </Button>
           </div>
