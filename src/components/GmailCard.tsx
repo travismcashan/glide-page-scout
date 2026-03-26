@@ -334,6 +334,69 @@ export const GmailCard = forwardRef<GmailCardHandle, { domain: string; contactEm
     }
   };
 
+  const handleIngestAllEmails = async () => {
+    if (!sessionId || emails.length === 0) return;
+    setIngestingAll(true);
+    try {
+      const docsToIngest = emails.map((email) => {
+        const from = parseEmailAddress(email.from);
+        const to = parseEmailAddress(email.to);
+        const parts: string[] = [];
+        parts.push(`Subject: ${email.subject || '(no subject)'}`);
+        parts.push(`From: ${email.from}`);
+        parts.push(`To: ${email.to}`);
+        parts.push(`Date: ${email.date}`);
+        if (email.attachments?.length) {
+          parts.push(`Attachments: ${email.attachments.map(a => a.filename).join(', ')}`);
+        }
+        parts.push('');
+        parts.push(email.body || email.snippet || '(empty)');
+
+        return {
+          name: `Gmail: ${email.subject || '(no subject)'} — ${from.name || from.email} → ${to.name || to.email}`,
+          content: parts.join('\n'),
+          source_type: 'gmail',
+          source_key: `gmail:email:${email.id}`,
+        };
+      }).filter(d => d.content.length >= 50);
+
+      if (docsToIngest.length === 0) {
+        toast.error('No emails with enough content to ingest');
+        return;
+      }
+
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+      });
+
+      if (!response.ok) {
+        toast.error('Failed to ingest emails');
+        return;
+      }
+
+      const result = await response.json();
+      const count = result.results?.filter((r: any) => r.status === 'ready').length || 0;
+      toast.success(`Ingested ${count} email${count !== 1 ? 's' : ''} into knowledge base`);
+    } catch (err: any) {
+      console.error('Ingest all emails error:', err);
+      toast.error('Failed to ingest emails');
+    } finally {
+      setIngestingAll(false);
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    ingestAllEmails: handleIngestAllEmails,
+    canIngest: isConnected === true && emails.length > 0 && !isLoading,
+    isIngesting: ingestingAll,
+  }), [emails, isConnected, isLoading, ingestingAll]);
+
   // Count total attachments across all emails
   const totalAttachments = emails.reduce((sum, e) => sum + (e.attachments?.length || 0), 0);
   const ingestableCount = selectedAttachments.size;
@@ -415,4 +478,4 @@ export const GmailCard = forwardRef<GmailCardHandle, { domain: string; contactEm
       )}
     </div>
   );
-}
+});
