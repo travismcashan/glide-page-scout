@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useGmail, type GmailEmail, type GmailAttachment } from '@/hooks/useGmail';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -185,13 +185,20 @@ function EmailRow({
   );
 }
 
-export function GmailCard({ domain, contactEmails }: { domain: string; contactEmails?: string[] }) {
+export interface GmailCardHandle {
+  ingestAllEmails: () => Promise<void>;
+  canIngest: boolean;
+  isIngesting: boolean;
+}
+
+export const GmailCard = forwardRef<GmailCardHandle, { domain: string; contactEmails?: string[] }>(function GmailCard({ domain, contactEmails }, ref) {
   const { id: sessionId } = useParams<{ id: string }>();
   const { isConnected, isLoading, emails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
   const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
   const [ingesting, setIngesting] = useState(false);
+  const [ingestingAll, setIngestingAll] = useState(false);
 
   const doSearch = async () => {
     setHasSearched(true);
