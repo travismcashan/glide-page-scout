@@ -57,21 +57,41 @@ type Props = {
 
 type ViewMode = 'grid' | 'table';
 
+const STORAGE_KEY = 'doclib-prefs';
+
+function loadPrefs(): { viewMode: ViewMode; filterSource: string; sortField: SortField; sortDir: SortDir; groupBy: string } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { viewMode: 'table', filterSource: 'all', sortField: 'created_at', sortDir: 'desc', groupBy: 'none' };
+}
+
+function savePrefs(prefs: Record<string, string>) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
+}
+
 export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, onIngestIntegrations, ingesting }: Props) {
+  const initial = loadPrefs();
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [viewMode, setViewMode] = useState<ViewMode>(initial.viewMode);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterSource, setFilterSource] = useState<string>('all');
-  const [sortField, setSortField] = useState<SortField>('created_at');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [groupBy, setGroupBy] = useState<string>('none');
+  const [filterSource, setFilterSource] = useState<string>(initial.filterSource);
+  const [sortField, setSortField] = useState<SortField>(initial.sortField);
+  const [sortDir, setSortDir] = useState<SortDir>(initial.sortDir);
+  const [groupBy, setGroupBy] = useState<string>(initial.groupBy);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const [gridPreviewDoc, setGridPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [gridPreviewContent, setGridPreviewContent] = useState<string | null>(null);
   const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Persist preferences to localStorage
+  useEffect(() => {
+    savePrefs({ viewMode, filterSource, sortField, sortDir, groupBy });
+  }, [viewMode, filterSource, sortField, sortDir, groupBy]);
 
   const openGridPreview = async (doc: KnowledgeDocument) => {
     setGridPreviewDoc(doc);
