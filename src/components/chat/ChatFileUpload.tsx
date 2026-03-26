@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Plus, X, FileText, Image as ImageIcon, Loader2, Upload } from 'lucide-react';
+import { Plus, X, FileText, Image as ImageIcon, Loader2, Upload, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -25,11 +25,29 @@ const DOC_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocu
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
+const DRIVE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-drive-picker`;
+
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
 function isTextFile(file: File): boolean {
   if (file.type.startsWith('text/')) return true;
   const ext = '.' + file.name.split('.').pop()?.toLowerCase();
   return TEXT_EXTENSIONS.includes(ext);
+}
+
+/** Load a Google script if not already loaded */
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
 }
 
 type Props = {
@@ -135,6 +153,111 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleGoogleDrive = async () => {
+    try {
+      setParsing(true);
+
+      // 1. Get client ID from edge function
+      const clientIdResp = await fetch(DRIVE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ action: 'get-client-id' }),
+      });
+      if (!clientIdResp.ok) throw new Error('Could not get Google config');
+      const { clientId } = await clientIdResp.json();
+
+      // 2. Load Google Identity Services
+      await loadScript('https://accounts.google.com/gsi/client');
+      await loadScript('https://apis.google.com/js/api.js');
+
+      // 3. Get access token via GIS
+      const accessToken = await new Promise<string>((resolve, reject) => {
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: GOOGLE_SCOPES,
+          callback: (resp: any) => {
+            if (resp.error) {
+              reject(new Error(resp.error));
+            } else {
+              resolve(resp.access_token);
+            }
+          },
+        });
+        tokenClient.requestAccessToken();
+      });
+
+      // 4. Load and show Google Picker
+      await new Promise<void>((resolve) => {
+        (window as any).gapi.load('picker', { callback: resolve });
+      });
+
+      const fileData = await new Promise<{ id: string; name: string; mimeType: string } | null>((resolve) => {
+        const picker = new (window as any).google.picker.PickerBuilder()
+          .addView((window as any).google.picker.ViewId.DOCS)
+          .setOAuthToken(accessToken)
+          .setCallback((data: any) => {
+            if (data.action === 'picked' && data.docs?.[0]) {
+              const doc = data.docs[0];
+              resolve({ id: doc.id, name: doc.name, mimeType: doc.mimeType });
+            } else if (data.action === 'cancel') {
+              resolve(null);
+            }
+          })
+          .build();
+        picker.setVisible(true);
+      });
+
+      if (!fileData) {
+        setParsing(false);
+        return;
+      }
+
+      // 5. Download file content via edge function
+      const placeholder: ChatAttachment = {
+        name: fileData.name,
+        type: 'text',
+        content: '',
+        mimeType: fileData.mimeType,
+        parsing: true,
+      };
+      setAttachments(prev => [...prev, placeholder]);
+
+      const dlResp = await fetch(DRIVE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ action: 'download', accessToken, fileId: fileData.id }),
+      });
+
+      if (!dlResp.ok) {
+        const err = await dlResp.json().catch(() => ({}));
+        throw new Error(err.error || `Download failed (${dlResp.status})`);
+      }
+
+      const result = await dlResp.json();
+      setAttachments(prev =>
+        prev.map(a => a.name === fileData.name && a.parsing
+          ? { ...a, content: result.content, mimeType: result.mimeType, parsing: false }
+          : a
+        )
+      );
+
+      toast.success(`Loaded ${fileData.name} from Google Drive`);
+    } catch (e: any) {
+      if (e.message !== 'popup_closed_by_user') {
+        toast.error(`Google Drive: ${e.message}`);
+      }
+      setAttachments(prev => prev.filter(a => !a.parsing));
+    } finally {
+      setParsing(false);
+    }
+  };
+
   return (
     <>
       <input
@@ -164,10 +287,14 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-44">
+        <DropdownMenuContent align="start" side="top" className="w-48">
           <DropdownMenuItem onClick={() => inputRef.current?.click()} className="gap-2">
             <Upload className="h-4 w-4" />
             Upload files
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleGoogleDrive} className="gap-2">
+            <HardDrive className="h-4 w-4" />
+            Google Drive
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
