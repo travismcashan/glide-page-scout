@@ -1585,7 +1585,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       {/* Input area - sticky at bottom */}
       <div
         ref={composerRef}
-        className="fixed bottom-0 right-0 z-30 pb-16 pt-2 bg-gradient-to-t from-background via-background to-transparent"
+        className="fixed bottom-0 right-0 z-30 pb-2 pt-2 bg-gradient-to-t from-background via-background to-transparent"
         style={{ left: `${sidebarWidth}px` }}
       >
       <div
