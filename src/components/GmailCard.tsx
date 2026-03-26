@@ -1,11 +1,11 @@
-import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import { useGmail, type GmailEmail, type GmailAttachment } from '@/hooks/useGmail';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, Paperclip, Download, Database, Loader2 } from 'lucide-react';
+import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, Paperclip, Download, Database, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -179,6 +179,107 @@ function EmailTableRow({
         </tr>
       )}
     </>
+  );
+}
+
+type SortKey = 'subject' | 'from' | 'to' | 'date';
+type SortDir = 'asc' | 'desc';
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+  return dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+}
+
+function SortableEmailTable({
+  emails,
+  selectedAttachments,
+  onToggleAttachment,
+  onDownloadAttachment,
+  downloadingAttachments,
+}: {
+  emails: GmailEmail[];
+  selectedAttachments: Set<string>;
+  onToggleAttachment: (key: string) => void;
+  onDownloadAttachment: (emailId: string, att: GmailAttachment) => void;
+  downloadingAttachments: Set<string>;
+}) {
+  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const sorted = useMemo(() => {
+    const arr = [...emails];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'subject':
+          cmp = (a.subject || '').localeCompare(b.subject || '');
+          break;
+        case 'from':
+          cmp = (a.from || '').localeCompare(b.from || '');
+          break;
+        case 'to':
+          cmp = (a.to || '').localeCompare(b.to || '');
+          break;
+        case 'date':
+          cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [emails, sortKey, sortDir]);
+
+  const columns: { key: SortKey; label: string }[] = [
+    { key: 'subject', label: 'Subject' },
+    { key: 'from', label: 'From' },
+    { key: 'to', label: 'To' },
+    { key: 'date', label: 'Date' },
+  ];
+
+  return (
+    <div className="max-h-[600px] overflow-y-auto border border-border rounded-lg">
+      <table className="w-full text-left">
+        <thead className="sticky top-0 bg-muted/60 backdrop-blur-sm z-10">
+          <tr className="text-xs text-muted-foreground border-b border-border">
+            {columns.map(col => (
+              <th
+                key={col.key}
+                className="px-3 py-2 font-medium cursor-pointer select-none hover:text-foreground transition-colors"
+                onClick={() => toggleSort(col.key)}
+              >
+                <span className="inline-flex items-center gap-1">
+                  {col.label}
+                  <SortIcon active={sortKey === col.key} dir={sortDir} />
+                </span>
+              </th>
+            ))}
+            <th className="px-3 py-2 font-medium">Time</th>
+            <th className="px-2 py-2 w-8"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((email) => (
+            <EmailTableRow
+              key={email.id}
+              email={email}
+              selectedAttachments={selectedAttachments}
+              onToggleAttachment={onToggleAttachment}
+              onDownloadAttachment={onDownloadAttachment}
+              downloadingAttachments={downloadingAttachments}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -530,32 +631,13 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
       )}
 
       {!isLoading && emails.length > 0 && (
-        <div className="max-h-[600px] overflow-y-auto border border-border rounded-lg">
-          <table className="w-full text-left">
-            <thead className="sticky top-0 bg-muted/60 backdrop-blur-sm z-10">
-              <tr className="text-xs text-muted-foreground border-b border-border">
-                <th className="px-3 py-2 font-medium">Subject</th>
-                <th className="px-3 py-2 font-medium">From</th>
-                <th className="px-3 py-2 font-medium">To</th>
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium">Time</th>
-                <th className="px-2 py-2 w-8"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {emails.map((email) => (
-                <EmailTableRow
-                  key={email.id}
-                  email={email}
-                  selectedAttachments={selectedAttachments}
-                  onToggleAttachment={toggleAttachment}
-                  onDownloadAttachment={handleDownload}
-                  downloadingAttachments={downloadingAttachments}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SortableEmailTable
+          emails={emails}
+          selectedAttachments={selectedAttachments}
+          onToggleAttachment={toggleAttachment}
+          onDownloadAttachment={handleDownload}
+          downloadingAttachments={downloadingAttachments}
+        />
       )}
 
       {!isLoading && hasSearched && emails.length === 0 && !error && (
