@@ -531,25 +531,67 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const dragCounterRef = useRef(0);
   const [composerHeight, setComposerHeight] = useState(176);
 
+  // Thread management
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+  const threadInitRef = useRef<string | null>(null);
+
   const crawlContext = buildCrawlContext(session, pages);
 
-  // Load chat history from DB
+  // Initialize: load or create default thread
   useEffect(() => {
-    if (loadedSessionRef.current === session.id) return;
-    loadedSessionRef.current = session.id;
+    if (threadInitRef.current === session.id) return;
+    threadInitRef.current = session.id;
+
+    const initThread = async () => {
+      // Try to find existing threads
+      const { data: threads } = await supabase
+        .from('chat_threads')
+        .select('id')
+        .eq('session_id', session.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (threads && threads.length > 0) {
+        setActiveThreadId(threads[0].id);
+      } else {
+        // Create first thread
+        const { data: newThread } = await supabase
+          .from('chat_threads')
+          .insert({ session_id: session.id, title: 'New Chat' } as any)
+          .select('id')
+          .single();
+        if (newThread) {
+          setActiveThreadId(newThread.id);
+          setSidebarRefreshKey(k => k + 1);
+        }
+      }
+    };
+    initThread();
+  }, [session.id]);
+
+  // Load chat history from DB — per thread
+  useEffect(() => {
+    if (!activeThreadId) return;
+    const key = `${session.id}:${activeThreadId}`;
+    if (loadedSessionRef.current === key) return;
+    loadedSessionRef.current = key;
     setLoadingHistory(true);
     supabase
       .from('knowledge_messages')
       .select('role, content, sources')
       .eq('session_id', session.id)
+      .eq('thread_id', activeThreadId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (data && data.length > 0) {
           setMessages(data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content, sources: m.sources || [] })));
+        } else {
+          setMessages([]);
         }
         setLoadingHistory(false);
       });
-  }, [session.id]);
+  }, [session.id, activeThreadId]);
 
   // Load favorites
   useEffect(() => {
