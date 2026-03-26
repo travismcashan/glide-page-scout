@@ -1585,7 +1585,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       {/* Input area - sticky at bottom */}
       <div
         ref={composerRef}
-        className="fixed bottom-0 right-0 z-30 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent"
+        className="fixed bottom-0 right-0 z-30 pb-8 pt-2 bg-gradient-to-t from-background via-background to-transparent"
         style={{ left: `${sidebarWidth}px` }}
       >
       <div
@@ -1798,7 +1798,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           </div>
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground/60 text-center py-1">AI can make mistakes. No chat data is used to train AI models.</p>
+      <p className="text-[11px] text-muted-foreground/60 text-center pt-2 pb-0">AI can make mistakes. No chat data is used to train AI models.</p>
       </div>
       </div>
     </div>
