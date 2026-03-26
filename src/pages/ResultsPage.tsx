@@ -1505,7 +1505,7 @@ export default function ResultsPage() {
   const scrapedPages = pages.filter(p => p.status === 'scraped');
 
   return (
-    <div className={activeTab === 'chat' ? 'h-screen overflow-hidden bg-background flex flex-col' : 'min-h-screen bg-background'}>
+    <div className={activeTab === 'chat' ? 'h-screen overflow-hidden bg-background flex flex-col overscroll-none' : 'min-h-screen bg-background'}>
       <header className="px-6">
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
            <div className="flex items-center justify-between">

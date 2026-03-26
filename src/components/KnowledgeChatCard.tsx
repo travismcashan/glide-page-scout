@@ -778,6 +778,22 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     handleSend(newText);
   }, [messages, isStreaming, session.id, handleSend]);
 
+  const outerRef = useRef<HTMLDivElement>(null);
+
+  // Capture wheel events anywhere in the chat area and forward to the thread
+  useEffect(() => {
+    const outer = outerRef.current;
+    const scroller = scrollRef.current;
+    if (!outer || !scroller) return;
+    const handler = (e: WheelEvent) => {
+      if (scroller.contains(e.target as Node)) return;
+      e.preventDefault();
+      scroller.scrollTop += e.deltaY;
+    };
+    outer.addEventListener('wheel', handler, { passive: false });
+    return () => outer.removeEventListener('wheel', handler);
+  }, []);
+
   if (loadingHistory) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -789,12 +805,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
   return (
     <div
+      ref={outerRef}
       className="flex flex-col h-full min-h-[400px] items-center"
-      onWheel={(e) => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop += e.deltaY;
-        }
-      }}
     >
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-5 pb-6 w-full max-w-3xl mx-auto">
