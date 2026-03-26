@@ -914,12 +914,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
   // Track whether user has scrolled away from bottom
   useEffect(() => {
-    const handleScroll = () => {
+    const checkDistance = () => {
       const distanceFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
       setShowScrollBottom(distanceFromBottom > 200);
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    checkDistance(); // check immediately on mount / content change
+    window.addEventListener('scroll', checkDistance, { passive: true });
+    window.addEventListener('resize', checkDistance, { passive: true });
+    const observer = new MutationObserver(checkDistance);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      window.removeEventListener('scroll', checkDistance);
+      window.removeEventListener('resize', checkDistance);
+      observer.disconnect();
+    };
   }, []);
 
 
