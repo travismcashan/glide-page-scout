@@ -387,8 +387,23 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {isStreamingThis && (
         <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
       )}
+      {sources && sources.length > 0 && !isStreamingThis && (
+        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+          <span className="text-xs text-muted-foreground">Sources:</span>
+          {sources.map(s => (
+            <Badge
+              key={s}
+              variant="outline"
+              className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted transition-colors"
+              onClick={() => onSourceClick?.(s)}
+            >
+              {SOURCE_LABELS[s] || s}
+            </Badge>
+          ))}
+        </div>
+      )}
       {content && !isStreamingThis && (
-        <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={handleCopy}
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
