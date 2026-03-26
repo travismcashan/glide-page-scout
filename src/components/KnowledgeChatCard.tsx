@@ -1092,8 +1092,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             ))}
             <div
               aria-hidden="true"
-              className="pointer-events-none"
-              style={{ height: `max(calc(100vh - ${composerHeight}px - 32px), 240px)` }}
+              className="pointer-events-none transition-all duration-300"
+              style={{ height: isStreaming ? `max(calc(100vh - ${composerHeight}px - 32px), 240px)` : `${composerHeight + 16}px` }}
             />
           </>
         )}
