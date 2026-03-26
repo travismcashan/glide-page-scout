@@ -27,40 +27,42 @@ export const PROVIDERS: { id: ModelProvider; label: string }[] = [
   { id: 'perplexity', label: 'Perplexity' },
 ];
 
-const ALL_REASONING: ReasoningEffort[] = ['none', 'low', 'medium', 'high'];
-const THINKING_ONLY: ReasoningEffort[] = ['none', 'high'];
+const GEMINI_REASONING: ReasoningEffort[] = ['none', 'medium', 'high'];
+const GPT_REASONING: ReasoningEffort[] = ['none', 'medium', 'high'];
+const CLAUDE_REASONING: ReasoningEffort[] = ['none', 'high'];
+const NO_REASONING: ReasoningEffort[] = ['none'];
 
 export const VERSIONS: Record<ModelProvider, ModelOption[]> = {
   gemini: [
-    { id: 'google/gemini-2.5-flash-lite', label: 'Flash Lite', provider: 'gemini', description: 'Fastest, cheapest', tier: 'fast', reasoning: ALL_REASONING },
-    { id: 'google/gemini-2.5-flash', label: 'Flash 2.5', provider: 'gemini', description: 'Fast & capable', tier: 'fast', reasoning: ALL_REASONING },
-    { id: 'google/gemini-3-flash-preview', label: 'Flash 3.0', provider: 'gemini', description: 'Latest fast model', tier: 'balanced', reasoning: ALL_REASONING },
-    { id: 'google/gemini-2.5-pro', label: 'Pro 2.5', provider: 'gemini', description: 'Best reasoning', tier: 'powerful', reasoning: ALL_REASONING },
-    { id: 'google/gemini-3.1-pro-preview', label: 'Pro 3.1', provider: 'gemini', description: 'Latest flagship', tier: 'powerful', reasoning: ALL_REASONING },
+    { id: 'google/gemini-2.5-flash-lite', label: 'Flash Lite', provider: 'gemini', description: 'Fastest, cheapest', tier: 'fast', reasoning: GEMINI_REASONING, reasoningLabels: { none: 'Fast', medium: 'Thinking', high: 'Pro' } },
+    { id: 'google/gemini-2.5-flash', label: 'Flash 2.5', provider: 'gemini', description: 'Fast & capable', tier: 'fast', reasoning: GEMINI_REASONING, reasoningLabels: { none: 'Fast', medium: 'Thinking', high: 'Pro' } },
+    { id: 'google/gemini-3-flash-preview', label: 'Flash 3.0', provider: 'gemini', description: 'Latest fast model', tier: 'balanced', reasoning: GEMINI_REASONING, reasoningLabels: { none: 'Fast', medium: 'Thinking', high: 'Pro' } },
+    { id: 'google/gemini-2.5-pro', label: 'Pro 2.5', provider: 'gemini', description: 'Best reasoning', tier: 'powerful', reasoning: GEMINI_REASONING, reasoningLabels: { none: 'Fast', medium: 'Thinking', high: 'Pro' } },
+    { id: 'google/gemini-3.1-pro-preview', label: 'Pro 3.1', provider: 'gemini', description: 'Latest flagship', tier: 'powerful', reasoning: GEMINI_REASONING, reasoningLabels: { none: 'Fast', medium: 'Thinking', high: 'Pro' } },
   ],
   claude: [
-    { id: 'claude-haiku', label: 'Haiku 4.5', provider: 'claude', description: 'Fast & affordable', tier: 'fast', reasoning: THINKING_ONLY, reasoningLabels: { high: 'Thinking' } },
-    { id: 'claude-sonnet', label: 'Sonnet 4.6', provider: 'claude', description: 'Best balance', tier: 'balanced', reasoning: THINKING_ONLY, reasoningLabels: { high: 'Thinking' } },
-    { id: 'claude-opus', label: 'Opus 4.6', provider: 'claude', description: '1M context, most capable', tier: 'powerful', reasoning: THINKING_ONLY, reasoningLabels: { high: 'Thinking' } },
+    { id: 'claude-haiku', label: 'Haiku 4.5', provider: 'claude', description: 'Fast & affordable', tier: 'fast', reasoning: CLAUDE_REASONING, reasoningLabels: { none: 'Regular', high: 'Extended Thinking' } },
+    { id: 'claude-sonnet', label: 'Sonnet 4.6', provider: 'claude', description: 'Best balance', tier: 'balanced', reasoning: CLAUDE_REASONING, reasoningLabels: { none: 'Regular', high: 'Extended Thinking' } },
+    { id: 'claude-opus', label: 'Opus 4.6', provider: 'claude', description: '1M context, most capable', tier: 'powerful', reasoning: CLAUDE_REASONING, reasoningLabels: { none: 'Regular', high: 'Extended Thinking' } },
   ],
   gpt: [
-    { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful', reasoning: ALL_REASONING },
-    { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful', reasoning: ALL_REASONING },
+    { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful', reasoning: GPT_REASONING, reasoningLabels: { none: 'Instant', medium: 'Thinking', high: 'Pro' } },
+    { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful', reasoning: GPT_REASONING, reasoningLabels: { none: 'Instant', medium: 'Thinking', high: 'Pro' } },
   ],
   perplexity: [
-    { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web-grounded', tier: 'fast', reasoning: ['none'] },
-    { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step reasoning', tier: 'balanced', reasoning: ['none'] },
-    { id: 'perplexity-sonar-reasoning-pro', label: 'Reasoning Pro', provider: 'perplexity', description: 'Advanced reasoning', tier: 'powerful', reasoning: ['none'] },
+    { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web-grounded', tier: 'fast', reasoning: NO_REASONING },
+    { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step reasoning', tier: 'balanced', reasoning: NO_REASONING },
+    { id: 'perplexity-sonar-reasoning-pro', label: 'Reasoning Pro', provider: 'perplexity', description: 'Advanced reasoning', tier: 'powerful', reasoning: NO_REASONING },
   ],
 };
 
 export const MODEL_OPTIONS: ModelOption[] = Object.values(VERSIONS).flat();
 
 const REASONING_META: Record<ReasoningEffort, { label: string; icon: typeof Zap }> = {
-  none: { label: 'None', icon: Zap },
+  none: { label: 'Fast', icon: Zap },
   low: { label: 'Light', icon: Zap },
-  medium: { label: 'Standard', icon: Brain },
-  high: { label: 'Deep', icon: Sparkles },
+  medium: { label: 'Thinking', icon: Brain },
+  high: { label: 'Pro', icon: Sparkles },
 };
 
 const TIER_DOT: Record<string, string> = {
