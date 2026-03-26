@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { KnowledgeDocument, SortField, SortDir, STATUS_CONFIG, SOURCE_ICONS, getDocumentIcon, formatDate } from './types';
+import { KnowledgeDocument, SortField, SortDir, STATUS_CONFIG, SOURCE_ICONS, SOURCE_LABELS, getDocumentIcon, formatDate } from './types';
 
 type Props = {
   documents: KnowledgeDocument[];
@@ -88,7 +88,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
           {sortable('created_at', 'Date Added', 'w-36 whitespace-nowrap')}
           {sortable('char_count', 'Size', 'w-28 text-right whitespace-nowrap')}
           {sortable('chunk_count', 'Chunks', 'w-24 text-right whitespace-nowrap')}
-          {sortable('source_type', 'Source', 'w-32 whitespace-nowrap')}
+          {sortable('source_type', 'Source', 'w-40 whitespace-nowrap')}
           <TableHead className="h-9 text-sm w-24 whitespace-nowrap">Status</TableHead>
           <TableHead className="h-9 text-sm w-10"></TableHead>
         </TableRow>
@@ -116,7 +116,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
                     ) : (
                       <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                     )}
-                    <span className="text-sm font-medium truncate max-w-[400px]">{doc.name}</span>
+                    <span className="text-sm text-foreground truncate max-w-[400px]">{doc.name}</span>
                   </div>
                 </TableCell>
                 <TableCell className="py-2.5 px-4 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
@@ -125,13 +125,13 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
                 <TableCell className="py-2.5 px-4">
                   <div className="flex items-center gap-1.5">
                     <SourceIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-5">{doc.source_type}</Badge>
+                    <span className="text-sm text-muted-foreground">{SOURCE_LABELS[doc.source_type] || toTitleCase(doc.source_type)}</span>
                   </div>
                 </TableCell>
                 <TableCell className="py-2.5 px-4">
                   <div className="flex items-center gap-1" title={statusConf.label}>
                     <StatusIcon className={`h-3.5 w-3.5 ${statusConf.color} ${(doc.status === 'processing' || doc.status === 'uploading') ? 'animate-spin' : ''}`} />
-                    <span className={`text-xs ${statusConf.color}`}>{statusConf.label}</span>
+                    <span className={`text-sm ${statusConf.color}`}>{statusConf.label}</span>
                   </div>
                 </TableCell>
                 <TableCell className="py-2.5 px-4">
