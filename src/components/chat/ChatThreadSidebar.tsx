@@ -22,12 +22,13 @@ type Props = {
   onDeleteThread: (threadId: string) => void;
   refreshKey?: number;
   onWidthChange?: (width: number) => void;
+  stickyTabVisible?: boolean;
 };
 
 const EXPANDED_WIDTH = 280;
 const COLLAPSED_WIDTH = 40;
 
-export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey, onWidthChange }: Props) {
+export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey, onWidthChange, stickyTabVisible }: Props) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -80,8 +81,8 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
 
   return (
     <div
-      className="flex flex-col border-r border-border bg-muted/30 overflow-hidden transition-all duration-300 ease-in-out sticky top-0 self-start"
-      style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, maxHeight: '100vh' }}
+      className="flex flex-col border-r border-border bg-muted/30 overflow-hidden transition-all duration-300 ease-in-out sticky self-start"
+      style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, maxHeight: stickyTabVisible ? 'calc(100vh - 52px)' : '100vh', top: stickyTabVisible ? 52 : 0 }}
     >
       {collapsed ? (
         <div className="flex flex-col items-center gap-2 pt-3 px-1">
