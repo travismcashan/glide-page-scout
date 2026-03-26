@@ -387,23 +387,8 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {isStreamingThis && (
         <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
       )}
-      {sources && sources.length > 0 && !isStreamingThis && (
-        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-          <span className="text-xs text-muted-foreground">Sources:</span>
-          {sources.map(s => (
-            <Badge
-              key={s}
-              variant="outline"
-              className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted transition-colors"
-              onClick={() => onSourceClick?.(s)}
-            >
-              {SOURCE_LABELS[s] || s}
-            </Badge>
-          ))}
-        </div>
-      )}
       {content && !isStreamingThis && (
-        <div className="flex items-center gap-1 mt-2">
+        <div className="flex items-center gap-1 mt-2 flex-wrap">
           <button
             onClick={handleCopy}
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
@@ -425,6 +410,21 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           >
             <Heart className={`h-[18px] w-[18px] transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
           </button>
+          {sources && sources.length > 0 && (
+            <>
+              <span className="text-xs text-muted-foreground ml-2">Sources:</span>
+              {sources.map(s => (
+                <Badge
+                  key={s}
+                  variant="outline"
+                  className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted transition-colors"
+                  onClick={() => onSourceClick?.(s)}
+                >
+                  {SOURCE_LABELS[s] || s}
+                </Badge>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
