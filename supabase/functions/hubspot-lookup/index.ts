@@ -157,6 +157,45 @@ serve(async (req) => {
       await fetchEngagementsFor('contacts', cid);
     }
 
+    // Also fetch emails from deals
+    for (const deal of deals.slice(0, 5)) {
+      await fetchEngagementsFor('deals', deal.id);
+    }
+
+    // Supplement: Search for emails directly by sender/recipient to catch unassociated emails
+    const contactEmailList = contacts.map((c: any) => c.email?.toLowerCase()).filter(Boolean);
+    // Build filter groups to search emails by all contact emails (to or from)
+    const emailFilterGroups = contactEmailList.flatMap((email: string) => [
+      { filters: [{ propertyName: 'hs_email_to_email', operator: 'EQ', value: email }] },
+      { filters: [{ propertyName: 'hs_email_sender_email', operator: 'EQ', value: email }] },
+    ]);
+
+    // Search in batches of 3 filter groups (HubSpot max)
+    for (let i = 0; i < emailFilterGroups.length; i += 3) {
+      const batch = emailFilterGroups.slice(i, i + 3);
+      try {
+        const emailSearch = await hubspotFetch('/crm/v3/objects/emails/search', HUBSPOT_ACCESS_TOKEN, 'POST', {
+          filterGroups: batch,
+          properties: ['hs_email_subject', 'hs_email_direction', 'hs_email_status', 'hs_email_text', 'hs_timestamp', 'hs_email_sender_email', 'hs_email_to_email'],
+          sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
+          limit: 100,
+        });
+        console.log(`[hubspot] Email search batch ${i}: ${emailSearch.total || 0} total results`);
+        const newEmails = (emailSearch.results || [])
+          .filter((item: any) => !seenEngIds.has(`emails-${item.id}`))
+          .map((item: any) => {
+            seenEngIds.add(`emails-${item.id}`);
+            return { id: item.id, type: 'emails', ...item.properties };
+          });
+        engagements.push(...newEmails);
+        if (newEmails.length > 0) {
+          console.log(`[hubspot] Email search: found ${newEmails.length} new emails`);
+        }
+      } catch (e) {
+        console.error(`[hubspot] Email search error: ${e.message}`);
+      }
+    }
+
     // Sort engagements by timestamp descending
     engagements.sort((a, b) => {
       const aTime = a.hs_timestamp ? new Date(a.hs_timestamp).getTime() : 0;
