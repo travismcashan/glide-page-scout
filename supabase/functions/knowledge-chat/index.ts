@@ -305,11 +305,10 @@ async function handleClaudeRequest(
     return { role: msg.role, content: msg.content };
   });
 
-  // Build Anthropic request — respect per-model max output limits
-  const responseTokens = 8192;
+  // Build Anthropic request — use each model's full output capacity
   const requestBody: any = {
     model: claudeConfig.model,
-    max_tokens: Math.min(responseTokens, claudeConfig.maxOutput),
+    max_tokens: claudeConfig.maxOutput,
     system: systemPrompt,
     messages: anthropicMessages,
     stream: true,
@@ -317,13 +316,13 @@ async function handleClaudeRequest(
 
   // Add extended thinking if reasoning is requested
   if (reasoning === 'high') {
-    const budget = Math.min(CLAUDE_THINKING_BUDGET, claudeConfig.maxOutput - responseTokens);
+    const budget = Math.min(CLAUDE_THINKING_BUDGET, claudeConfig.maxOutput - 16384);
     if (budget > 0) {
       requestBody.thinking = {
         type: 'enabled',
         budget_tokens: budget,
       };
-      requestBody.max_tokens = Math.min(budget + responseTokens, claudeConfig.maxOutput);
+      requestBody.max_tokens = claudeConfig.maxOutput;
     }
   }
 
@@ -428,6 +427,7 @@ async function handleGatewayRequest(
 
   const requestBody: any = {
     model: selectedModel,
+    max_tokens: 65536,
     messages: [
       { role: 'system', content: systemPrompt },
       ...messages,
