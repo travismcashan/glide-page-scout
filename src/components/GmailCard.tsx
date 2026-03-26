@@ -456,7 +456,7 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
   useImperativeHandle(ref, () => ({
     ingestAllEmails: handleIngestAllEmails,
     refreshEmails: doSearch,
-  }), [emails, isConnected, isLoading, ingestingAll, doSearch]);
+  }), [handleIngestAllEmails, doSearch]);
 
   // Notify parent of state changes
   useEffect(() => {
