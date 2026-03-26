@@ -556,25 +556,26 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
   }, [session.id]);
 
-  // Auto-scroll: use native window scroll since we're no longer using internal overflow
+  // Auto-scroll: scroll to user message once when streaming starts, then stop
+  const hasScrolledForStreamRef = useRef(false);
   useEffect(() => {
     if (isStreaming && lastUserMsgRef.current) {
       wasStreamingRef.current = true;
-      // During streaming, keep the user's prompt pinned near the top of the viewport
-      const userMsg = lastUserMsgRef.current;
-      const targetY = userMsg.getBoundingClientRect().top + window.scrollY - 8;
-      if (Math.abs(window.scrollY - targetY) > 80) {
+      // Only scroll once at the start of streaming, not on every chunk
+      if (!hasScrolledForStreamRef.current) {
+        hasScrolledForStreamRef.current = true;
+        const userMsg = lastUserMsgRef.current;
+        const targetY = userMsg.getBoundingClientRect().top + window.scrollY - 8;
         window.scrollTo({ top: targetY });
       }
     } else if (!isStreaming) {
-      // After streaming ends, don't jump to bottom — user reads from their prompt down
-      // Only scroll to bottom on initial history load
+      hasScrolledForStreamRef.current = false;
       if (!wasStreamingRef.current) {
         window.scrollTo({ top: document.body.scrollHeight });
       }
       wasStreamingRef.current = false;
     }
-  }, [messages, isThinking]);
+  }, [isStreaming, isThinking]);
 
   const saveMessage = async (role: string, content: string, sources: string[] = []) => {
     await supabase.from('knowledge_messages').insert({
