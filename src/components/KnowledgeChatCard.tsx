@@ -582,31 +582,33 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       });
   }, [session.id]);
 
-  // Gemini-style scroll: pin user message at top of viewport when streaming starts
+  // Gemini-style scroll: pin user message at top when response starts
   const hasScrolledForStreamRef = useRef(false);
+
+  // Scroll to pin user message at top — called from handleSend after message is added
+  const scrollToLastUserMessage = useCallback(() => {
+    hasScrolledForStreamRef.current = true;
+    // Wait for React to render the new message into the DOM
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        if (lastUserMsgRef.current) {
+          const rect = lastUserMsgRef.current.getBoundingClientRect();
+          const scrollTarget = window.scrollY + rect.top - 20;
+          window.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+        }
+      });
+    }, 50);
+  }, []);
+
+  // Reset scroll flag when streaming ends
   useEffect(() => {
-    if (isStreaming && lastUserMsgRef.current) {
-      wasStreamingRef.current = true;
-      if (!hasScrolledForStreamRef.current) {
-        hasScrolledForStreamRef.current = true;
-        // Use a short delay to ensure the DOM has updated with the new message
-        requestAnimationFrame(() => {
-          if (lastUserMsgRef.current) {
-            const rect = lastUserMsgRef.current.getBoundingClientRect();
-            // Scroll so the user message sits 20px from the top of the viewport
-            const scrollTarget = window.scrollY + rect.top - 20;
-            window.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-          }
-        });
-      }
-    } else if (!isStreaming) {
+    if (!isStreaming) {
       hasScrolledForStreamRef.current = false;
-      if (!wasStreamingRef.current) {
-        window.scrollTo({ top: document.body.scrollHeight });
-      }
       wasStreamingRef.current = false;
+    } else {
+      wasStreamingRef.current = true;
     }
-  }, [isStreaming, isThinking]);
+  }, [isStreaming]);
 
   const saveMessage = async (role: string, content: string, sources: string[] = []) => {
     await supabase.from('knowledge_messages').insert({
@@ -663,6 +665,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     chatInputRef.current?.clear();
+    scrollToLastUserMessage();
 
     // Ingest uploaded files into RAG document library (fire-and-forget)
     if (currentAttachments.length > 0) {
@@ -889,7 +892,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
