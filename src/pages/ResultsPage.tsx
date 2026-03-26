@@ -266,7 +266,7 @@ export default function ResultsPage() {
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
   const gmailRef = useRef<GmailCardHandle>(null);
-  const [gmailState, setGmailState] = useState<{ canIngest: boolean; isIngesting: boolean; emailCount: number }>({ canIngest: false, isIngesting: false, emailCount: 0 });
+  const [gmailState, setGmailState] = useState<{ canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean }>({ canIngest: false, isIngesting: false, emailCount: 0, isRefreshing: false });
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
   const [sitemapInnerExpand, setSitemapInnerExpand] = useState<boolean | null>(null);
   const [contentTypesInnerExpand, setContentTypesInnerExpand] = useState<boolean | null>(null);
@@ -2200,17 +2200,31 @@ export default function ResultsPage() {
                 icon={<Mail className="h-5 w-5 text-foreground" />}
                 collapsed={allCollapsed}
                 headerExtra={
-                  gmailState.canIngest ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 gap-1.5 text-xs"
-                      disabled={gmailState.isIngesting}
-                      onClick={() => gmailRef.current?.ingestAllEmails()}
-                    >
-                      {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
-                      Ingest All Emails
-                    </Button>
+                  gmailState.emailCount > 0 ? (
+                    <div className="flex gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs"
+                        disabled={gmailState.isRefreshing}
+                        onClick={() => gmailRef.current?.refreshEmails()}
+                      >
+                        {gmailState.isRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                        Refresh Emails
+                      </Button>
+                      {gmailState.canIngest && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1.5 text-xs"
+                          disabled={gmailState.isIngesting}
+                          onClick={() => gmailRef.current?.ingestAllEmails()}
+                        >
+                          {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+                          Ingest All Emails
+                        </Button>
+                      )}
+                    </div>
                   ) : undefined
                 }
               >
