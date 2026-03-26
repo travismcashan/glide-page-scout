@@ -13,6 +13,13 @@ const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-opus': { model: 'claude-opus-4-6', maxOutput: 128000 },
 };
 
+// Map frontend Perplexity IDs to actual Perplexity model identifiers
+const PERPLEXITY_MODELS: Record<string, string> = {
+  'perplexity-sonar': 'sonar',
+  'perplexity-sonar-pro': 'sonar-pro',
+  'perplexity-sonar-reasoning': 'sonar-reasoning',
+};
+
 // Claude extended thinking budget (used when reasoning=high)
 const CLAUDE_THINKING_BUDGET = 16384;
 

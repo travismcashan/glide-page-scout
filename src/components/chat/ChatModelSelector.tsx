@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
-export type ModelProvider = 'gemini' | 'gpt' | 'claude';
+export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity';
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
 
 export type ModelOption = {
@@ -27,6 +27,7 @@ const PROVIDERS: { id: ModelProvider; label: string }[] = [
   { id: 'gemini', label: 'Gemini' },
   { id: 'claude', label: 'Claude' },
   { id: 'gpt', label: 'GPT' },
+  { id: 'perplexity', label: 'Perplexity' },
 ];
 
 const ALL_REASONING: ReasoningEffort[] = ['none', 'low', 'medium', 'high'];
@@ -48,6 +49,11 @@ const VERSIONS: Record<ModelProvider, ModelOption[]> = {
   gpt: [
     { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful', reasoning: ALL_REASONING },
     { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful', reasoning: ALL_REASONING },
+  ],
+  perplexity: [
+    { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web-grounded', tier: 'fast', reasoning: ['none'] },
+    { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step reasoning', tier: 'balanced', reasoning: ['none'] },
+    { id: 'perplexity-sonar-reasoning', label: 'Reasoning', provider: 'perplexity', description: 'Chain-of-thought', tier: 'powerful', reasoning: ['none'] },
   ],
 };
 
