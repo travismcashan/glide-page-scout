@@ -262,7 +262,7 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   if (previewFile) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden" hideCloseButton>
+        <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0 bg-background">
             <div className="flex items-center gap-3">
               {getFileIcon(previewFile.mimeType)}
@@ -304,7 +304,7 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   // File picker
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl h-[75vh] flex flex-col p-0 gap-0 overflow-hidden" hideCloseButton>
+      <DialogContent className="sm:max-w-3xl h-[75vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
           <div className="flex items-center gap-3">
