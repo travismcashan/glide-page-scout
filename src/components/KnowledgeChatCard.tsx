@@ -304,7 +304,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
           <Brain className="flex-shrink-0 text-muted-foreground" style={{ width: 28, height: 28 }} />
         )}
         <span className="text-base font-bold">Show Thinking</span>
-        {expanded ? <ChevronDown className="h-5 w-5" strokeWidth={3} /> : <ChevronRight className="h-5 w-5" strokeWidth={3} />}
+        {expanded ? <ChevronDown className="h-5 w-5 -ml-1" strokeWidth={3} /> : <ChevronRight className="h-5 w-5 -ml-1" strokeWidth={3} />}
       </button>
       {expanded && (
         <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed" style={{ marginLeft: 13, paddingLeft: 22 }}>
