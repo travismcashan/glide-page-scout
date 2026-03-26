@@ -6,6 +6,46 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 
+const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
+const BINARY_MIME_TYPES: Record<string, string> = {
+  'application/pdf': 'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword': 'application/msword',
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+  'image/webp': 'image/webp',
+  'image/gif': 'image/gif',
+};
+
+function isBinaryFile(file: File): boolean {
+  if (BINARY_MIME_TYPES[file.type]) return true;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  return ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext);
+}
+
+function getMimeType(file: File): string {
+  if (file.type && BINARY_MIME_TYPES[file.type]) return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const map: Record<string, string> = {
+    pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    doc: 'application/msword', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    webp: 'image/webp', gif: 'image/gif',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]); // strip data URI prefix
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 type KnowledgeDocument = {
   id: string;
   name: string;
