@@ -144,7 +144,7 @@ serve(async (req) => {
       `--${boundary}`,
       'Content-Type: text/html; charset=UTF-8',
       '',
-      `<html><body style="font-family:Arial,sans-serif;font-size:11pt;line-height:1.6;">${htmlContent}</body></html>`,
+      `<html><body style="font-family:Arial,sans-serif;font-size:11pt;">${htmlContent}</body></html>`,
       `--${boundary}--`,
     ].join('\r\n');
 
