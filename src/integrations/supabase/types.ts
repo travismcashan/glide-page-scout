@@ -168,6 +168,7 @@ export type Database = {
           observatory_data: Json | null
           ocean_data: Json | null
           page_tags: Json | null
+          prospect_domain: string | null
           psi_data: Json | null
           readable_data: Json | null
           schema_data: Json | null
@@ -213,6 +214,7 @@ export type Database = {
           observatory_data?: Json | null
           ocean_data?: Json | null
           page_tags?: Json | null
+          prospect_domain?: string | null
           psi_data?: Json | null
           readable_data?: Json | null
           schema_data?: Json | null
@@ -258,6 +260,7 @@ export type Database = {
           observatory_data?: Json | null
           ocean_data?: Json | null
           page_tags?: Json | null
+          prospect_domain?: string | null
           psi_data?: Json | null
           readable_data?: Json | null
           schema_data?: Json | null
