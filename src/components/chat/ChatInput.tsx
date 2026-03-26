@@ -11,10 +11,11 @@ type Props = {
   onSubmit: (text: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  onChange?: (value: string) => void;
 };
 
 export const ChatInput = forwardRef<ChatInputHandle, Props>(
-  ({ onSubmit, disabled, placeholder = 'Ask a follow-up...' }, ref) => {
+  ({ onSubmit, disabled, placeholder = 'Ask a follow-up...', onChange: onChangeProp }, ref) => {
     const [value, setValue] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -31,10 +32,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(
 
     const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setValue(e.target.value);
+      onChangeProp?.(e.target.value);
       const el = e.target;
       el.style.height = 'auto';
       el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-    }, []);
+    }, [onChangeProp]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {

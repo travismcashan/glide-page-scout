@@ -726,6 +726,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [hasInputText, setHasInputText] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
@@ -1592,6 +1593,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           ref={chatInputRef}
           onSubmit={(text) => handleSend(text)}
           disabled={isStreaming}
+          onChange={(val) => setHasInputText(!!val?.trim())}
         />
 
         {/* Toolbar row */}
@@ -1715,7 +1717,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               variant="ghost"
               size="icon"
               onClick={() => handleSend()}
-              disabled={attachments.length === 0 && !chatInputRef.current?.getValue()?.trim() || isStreaming || attachments.some(a => a.parsing)}
+              disabled={isStreaming || attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText)}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
