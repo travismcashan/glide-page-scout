@@ -417,6 +417,62 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
   return parts.length > 0 ? <>{parts}</> : <>{children}</>;
 }
 
+const SOURCE_TYPE_ICONS: Record<string, string> = {
+  integration: '📊',
+  scrape: '🌐',
+  upload: '📎',
+  chat: '💬',
+  gdrive: '📁',
+};
+
+function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocuments: RagDocument[]; sources: string[]; onSourceClick?: (s: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Combine: RAG documents + detected integration sources not already in RAG docs
+  const integrationSources = sources.filter(s => {
+    const label = SOURCE_LABELS[s] || s;
+    return !ragDocuments.some(d => d.name.toLowerCase().includes(label.toLowerCase()));
+  });
+
+  const totalRefs = ragDocuments.length + integrationSources.length;
+  if (totalRefs === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <Database className="h-3 w-3" />
+        <span>{totalRefs} document{totalRefs !== 1 ? 's' : ''} referenced</span>
+      </button>
+      {expanded && (
+        <div className="mt-2 ml-5 space-y-0.5">
+          {ragDocuments.map((doc, i) => (
+            <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
+              <span className="truncate max-w-[300px]">{doc.name}</span>
+              <span className="text-[10px] opacity-60">({doc.source_type})</span>
+            </div>
+          ))}
+          {integrationSources.map(s => (
+            <button
+              key={`src-${s}`}
+              onClick={() => onSourceClick?.(s)}
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>📊</span>
+              <span className="truncate max-w-[300px]">{SOURCE_LABELS[s] || s}</span>
+              <span className="text-[10px] opacity-60">(integration)</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[] }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
