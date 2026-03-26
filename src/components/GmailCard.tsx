@@ -187,11 +187,15 @@ function EmailRow({
 
 export interface GmailCardHandle {
   ingestAllEmails: () => Promise<void>;
-  canIngest: boolean;
-  isIngesting: boolean;
 }
 
-export const GmailCard = forwardRef<GmailCardHandle, { domain: string; contactEmails?: string[] }>(function GmailCard({ domain, contactEmails }, ref) {
+export interface GmailCardProps {
+  domain: string;
+  contactEmails?: string[];
+  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number }) => void;
+}
+
+export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, contactEmails, onStateChange }, ref) {
   const { id: sessionId } = useParams<{ id: string }>();
   const { isConnected, isLoading, emails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
   const [hasSearched, setHasSearched] = useState(false);
