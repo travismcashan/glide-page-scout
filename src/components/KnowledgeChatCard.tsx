@@ -613,6 +613,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             }
 
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            const reasoningContent = parsed.choices?.[0]?.delta?.reasoning_content as string | undefined;
+            if (reasoningContent) {
+              thinkingContent += reasoningContent;
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, thinking: thinkingContent, webCitations } : m);
+                }
+                return [...prev, { role: 'assistant', content: '', thinking: thinkingContent, webCitations }];
+              });
+            }
             if (content) {
               if (isThinking) setIsThinking(false);
               assistantContent += content;
