@@ -392,7 +392,7 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
     }
   };
 
-  const handleIngestAllEmails = async () => {
+  const handleIngestAllEmails = useCallback(async () => {
     console.log('[gmail] ingestAllEmails called', { sessionId, emailCount: emails.length });
     if (!sessionId || emails.length === 0) {
       toast.error('No emails to ingest');
@@ -451,7 +451,7 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
     } finally {
       setIngestingAll(false);
     }
-  };
+  }, [sessionId, emails]);
 
   useImperativeHandle(ref, () => ({
     ingestAllEmails: handleIngestAllEmails,
