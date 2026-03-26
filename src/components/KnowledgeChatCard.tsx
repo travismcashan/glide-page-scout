@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
+import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
 import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
