@@ -189,6 +189,23 @@ export default function ResultsPage() {
     }
   }, [activeTab]);
   const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
+
+  // Sticky tab bar on scroll-up
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const [stickyTabVisible, setStickyTabVisible] = useState(false);
+  const lastScrollY = useRef(0);
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const scrollingUp = currentY < lastScrollY.current;
+      const tabBarTop = tabBarRef.current?.getBoundingClientRect().top ?? 0;
+      const pastTabBar = tabBarTop < 0;
+      setStickyTabVisible(scrollingUp && pastTabBar);
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
