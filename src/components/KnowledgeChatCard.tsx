@@ -1155,15 +1155,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
           {/* Send button - pushed to the right */}
             <Button
+              variant="ghost"
               size="icon"
               onClick={() => handleSend()}
               disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
-              className="shrink-0 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80"
+              className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible"
+              style={{ width: 44, height: 44 }}
             >
               {isStreaming ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 style={{ width: 28, height: 28 }} className="animate-spin" />
               ) : (
-                <ArrowUp className="h-7 w-7" />
+                <ArrowUp style={{ width: 28, height: 28 }} strokeWidth={1.5} />
               )}
             </Button>
           </div>
