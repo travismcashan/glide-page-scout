@@ -132,7 +132,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
           </div>
 
           {/* Thread list */}
-          <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+          <div className="flex-1 overflow-y-auto px-2 pb-3 -space-y-px">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <span className="text-sm text-muted-foreground">Loading…</span>
