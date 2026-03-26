@@ -122,12 +122,8 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                   : 'hover:bg-muted text-foreground'
               )}
             >
-              <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <div className="truncate text-xs font-medium">{thread.title}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">
-                  {format(new Date(thread.updated_at), 'MMM d, h:mm a')}
-                </div>
               </div>
               {threads.length > 1 && (
                 <button
