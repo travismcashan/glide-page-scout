@@ -1005,6 +1005,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             content: contentForUi,
             thinking: thinkingForUi || undefined,
             webCitations,
+            ragDocuments: ragDocuments.length > 0 ? ragDocuments : undefined,
           };
           if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
             return prev.map((m, i) => i === prev.length - 1 ? { ...m, ...msgData } : m);
