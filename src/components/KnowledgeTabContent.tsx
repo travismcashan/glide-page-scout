@@ -50,9 +50,6 @@ export function KnowledgeTabContent({
 
   return (
     <div>
-      <p className="text-sm text-muted-foreground mb-4">
-        Indexed documents from integrations, scraped pages, uploads, and chat notes. These power the AI chat's context.
-      </p>
       <DocumentLibrary
         sessionId={session.id}
         refreshKey={refreshKey}
