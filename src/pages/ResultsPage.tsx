@@ -164,7 +164,22 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
-  const [chatModel, setChatModel] = useState('google/gemini-3-flash-preview');
+  const [chatProvider, setChatProviderState] = useState<ModelProvider>(() => {
+    const saved = localStorage.getItem('chat-provider');
+    return (saved as ModelProvider) || 'gemini';
+  });
+  const setChatProvider = (p: ModelProvider) => {
+    setChatProviderState(p);
+    localStorage.setItem('chat-provider', p);
+    // Reset model to first of that provider
+    const firstModel = VERSIONS[p]?.[0];
+    if (firstModel) setChatModel(firstModel.id);
+    setChatReasoning('none');
+  };
+  const [chatModel, setChatModel] = useState(() => {
+    const savedProvider = (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
+    return VERSIONS[savedProvider]?.[0]?.id || 'google/gemini-3-flash-preview';
+  });
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
   const ragIngestTriggeredRef = useRef(false);
