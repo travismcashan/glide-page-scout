@@ -869,13 +869,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         )}
 
         {/* Textarea */}
+        {/* Textarea - auto-grows up to 4 lines, then scrolls */}
         <Textarea
           ref={textareaRef}
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={e => {
+            setInput(e.target.value);
+            // Auto-resize textarea
+            const el = e.target;
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Ask a follow-up..."
-          className="min-h-[40px] max-h-[120px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 px-0 bg-transparent"
+          className="min-h-[40px] max-h-[160px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 px-0 bg-transparent overflow-y-auto"
           rows={1}
           disabled={isStreaming}
         />
