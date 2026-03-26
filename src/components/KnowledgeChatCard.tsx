@@ -1283,6 +1283,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           <div className="ml-auto flex items-center gap-0.5" style={{ marginRight: -11 }}>
           <ChatProviderPicker
             provider={provider}
+            model={selectedModel}
             onProviderChange={onProviderChange}
             disabled={isStreaming}
           />
