@@ -5,10 +5,12 @@ import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { GridView } from './document-library/GridView';
 import { TableView } from './document-library/TableView';
-import { KnowledgeDocument, SortField, SortDir, sortDocuments, SOURCE_LABELS } from './document-library/types';
+import { KnowledgeDocument, SOURCE_LABELS, STATUS_CONFIG, getDocumentIcon, formatDate } from './document-library/types';
 
 const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
 const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
