@@ -168,20 +168,37 @@ export default function ResultsPage() {
     return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
   });
   const [chatModel, setChatModelRaw] = useState(() => {
-    return localStorage.getItem('chat-model') || 'google/gemini-3-flash-preview';
+    return localStorage.getItem('chat-model') || 'google/gemini-3.1-pro-preview';
   });
-  const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
+  const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>(() => {
+    const savedProvider = (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
+    return savedProvider === 'claude' ? 'high' : savedProvider === 'perplexity' ? 'none' : 'medium';
+  });
+
+  // Best (most powerful) model per provider
+  const BEST_MODEL: Record<ModelProvider, string> = {
+    gemini: 'google/gemini-3.1-pro-preview',
+    claude: 'claude-opus',
+    gpt: 'openai/gpt-5.2',
+    perplexity: 'perplexity-sonar-reasoning-pro',
+  };
+  // Default reasoning per provider
+  const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
+    gemini: 'medium',
+    claude: 'high', // extended thinking
+    gpt: 'medium',
+    perplexity: 'none',
+  };
 
   const setChatProvider = (p: ModelProvider) => {
     setChatProviderRaw(p);
     localStorage.setItem('chat-provider', p);
-    // Reset model to first of that provider
-    const firstModel = VERSIONS[p]?.[0];
-    if (firstModel) {
-      setChatModelRaw(firstModel.id);
-      localStorage.setItem('chat-model', firstModel.id);
+    const bestId = BEST_MODEL[p] || VERSIONS[p]?.[VERSIONS[p].length - 1]?.id;
+    if (bestId) {
+      setChatModelRaw(bestId);
+      localStorage.setItem('chat-model', bestId);
     }
-    setChatReasoning('none');
+    setChatReasoning(DEFAULT_REASONING[p] || 'none');
   };
   const setChatModel = (id: string) => {
     setChatModelRaw(id);
