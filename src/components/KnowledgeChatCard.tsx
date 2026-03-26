@@ -452,8 +452,11 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
         </div>
       </Suspense>
       {isStreamingThis && !content && !thinking && (
-        <div className="flex items-center gap-2 py-2">
-          <Loader2 className="animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
+        <div className="mb-8">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
+            <AnimatedThinkingText />
+          </div>
         </div>
       )}
       {content && !isStreamingThis && (
