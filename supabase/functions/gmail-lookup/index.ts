@@ -203,12 +203,26 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('[gmail] Error:', error);
 
-    if (error?.status === 401 || error?.status === 403) {
+    if (error?.status === 401) {
       return new Response(JSON.stringify({
         error: 'gmail_auth_required',
-        message: 'Please connect Gmail to view emails.',
+        message: 'Gmail session expired. Please reconnect.',
       }), {
         status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (error?.status === 403) {
+      const msg = typeof error.message === 'string' ? error.message : String(error.message);
+      const isApiDisabled = msg.includes('SERVICE_DISABLED') || msg.includes('has not been used in project');
+      return new Response(JSON.stringify({
+        error: isApiDisabled ? 'gmail_api_disabled' : 'gmail_forbidden',
+        message: isApiDisabled
+          ? 'Gmail API is not enabled in the Google Cloud project. Please enable it in the Google Cloud Console.'
+          : 'Access denied by Gmail. Please reconnect with the required permissions.',
+      }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
