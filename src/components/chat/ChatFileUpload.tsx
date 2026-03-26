@@ -277,13 +277,14 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 h-9 w-9 rounded-full border-0 bg-transparent"
+            className="shrink-0 rounded-full border-0 bg-transparent overflow-visible"
+            style={{ width: 44, height: 44 }}
             disabled={disabled || parsing}
           >
             {parsing ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 style={{ width: 28, height: 28 }} className="animate-spin" />
             ) : (
-              <Plus className="h-9 w-9" strokeWidth={3} />
+              <Plus style={{ width: 28, height: 28 }} strokeWidth={2.5} />
             )}
           </Button>
         </DropdownMenuTrigger>
