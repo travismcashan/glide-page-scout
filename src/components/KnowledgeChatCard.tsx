@@ -416,9 +416,10 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
   return parts.length > 0 ? <>{parts}</> : <>{children}</>;
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -431,6 +432,53 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       onSaveNote(content);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  const handleExportPdf = () => {
+    downloadReportPdf(content, 'AI Chat Response', domain || 'chat');
+  };
+
+  const handleExportGoogleDoc = async () => {
+    const TOKEN_KEY = 'google-drive-access-token';
+    const accessToken = localStorage.getItem(TOKEN_KEY);
+    if (!accessToken) {
+      toast.error('Connect Google Drive first to export as Google Doc');
+      return;
+    }
+    setExporting('gdoc');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-doc-export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          accessToken,
+          content,
+          title: `AI Response — ${domain || 'Chat'} — ${new Date().toLocaleDateString()}`,
+        }),
+      });
+      const data = await response.json();
+      if (data.error === 'insufficient_scope') {
+        toast.error('Please reconnect Google Drive to enable export (write access needed)');
+        localStorage.removeItem(TOKEN_KEY);
+        return;
+      }
+      if (!response.ok || !data.success) {
+        toast.error(data.error || 'Failed to create Google Doc');
+        return;
+      }
+      toast.success('Google Doc created!');
+      if (data.webViewLink) {
+        window.open(data.webViewLink, '_blank');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to export');
+    } finally {
+      setExporting(null);
     }
   };
 
