@@ -1199,7 +1199,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 <SlidersHorizontal style={{ width: 25, height: 21 }} strokeWidth={1.5} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 p-3 rounded-2xl" align="start" side="top">
+            <PopoverContent className="w-64 p-3 rounded-2xl" align="start" side="top" sideOffset={20}>
               <div className="space-y-3">
                 {/* Source toggles */}
                 <div className="space-y-1">
