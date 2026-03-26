@@ -2201,6 +2201,18 @@ export default function ResultsPage() {
                 collapsed={allCollapsed}
                 headerExtra={
                   <div className="flex items-center gap-1.5">
+                    {gmailState.canIngest && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs"
+                        disabled={gmailState.isIngesting}
+                        onClick={() => gmailRef.current?.ingestAllEmails()}
+                      >
+                        {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+                        Ingest All Emails
+                      </Button>
+                    )}
                     {gmailState.lastFetched && !gmailState.isRefreshing && (
                       <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(gmailState.lastFetched), 'MMM d, yyyy h:mm a')}`}>
                         {format(new Date(gmailState.lastFetched), 'MMM d, h:mm a')}
@@ -2219,18 +2231,6 @@ export default function ResultsPage() {
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${gmailState.isRefreshing ? 'animate-spin' : ''}`} />
                     </Button>
-                    {gmailState.canIngest && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 gap-1.5 text-xs"
-                        disabled={gmailState.isIngesting}
-                        onClick={() => gmailRef.current?.ingestAllEmails()}
-                      >
-                        {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
-                        Ingest All Emails
-                      </Button>
-                    )}
                   </div>
                 }
               >
