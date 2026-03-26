@@ -742,7 +742,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
     let assistantContent = '';
     let thinkingContent = '';
+    let displayedAssistantContent = '';
+    let displayedThinkingContent = '';
     let webCitations: string[] = [];
+    let animationFrameId: number | null = null;
+    let lastAnimationTs = 0;
 
     // Build the API messages - use multimodal content for the current message
     const apiMessages = newMessages.map((m, i) => {
@@ -836,36 +840,66 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         }
       };
 
-      // Smooth rendering: accumulate content and flush via RAF for character-level smoothness
-      let rafId: number | null = null;
-      let dirty = false;
+      const commitMessages = (
+        contentForUi = displayedAssistantContent,
+        thinkingForUi = displayedThinkingContent,
+      ) => {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          const msgData: Message = {
+            role: 'assistant',
+            content: contentForUi,
+            thinking: thinkingForUi || undefined,
+            webCitations,
+          };
+          if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, ...msgData } : m);
+          }
+          return [...prev, msgData];
+        });
+      };
 
       const updateMessages = () => {
-        dirty = true;
-        if (rafId === null) {
-          rafId = requestAnimationFrame(function flush() {
-            rafId = null;
-            if (!dirty) return;
-            dirty = false;
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              const msgData: Message = {
-                role: 'assistant',
-                content: assistantContent,
-                thinking: thinkingContent || undefined,
-                webCitations,
-              };
-              if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, ...msgData } : m);
-              }
-              return [...prev, msgData];
-            });
-            // Schedule another flush if more data arrived during render
-            if (dirty) {
-              rafId = requestAnimationFrame(flush);
-            }
-          });
-        }
+        if (animationFrameId !== null) return;
+
+        animationFrameId = requestAnimationFrame(function animate(ts) {
+          if (!lastAnimationTs) lastAnimationTs = ts;
+          const delta = Math.min(ts - lastAnimationTs, 48);
+          lastAnimationTs = ts;
+
+          let charBudget = Math.max(2, Math.floor(delta * 0.45));
+          const pendingThinking = thinkingContent.length - displayedThinkingContent.length;
+          const pendingAssistant = assistantContent.length - displayedAssistantContent.length;
+          const totalBacklog = pendingThinking + pendingAssistant;
+
+          if (totalBacklog > 120) {
+            charBudget = Math.max(charBudget, Math.ceil(totalBacklog / 18));
+          }
+
+          if (pendingThinking > 0) {
+            const take = Math.min(charBudget, pendingThinking);
+            displayedThinkingContent = thinkingContent.slice(0, displayedThinkingContent.length + take);
+            charBudget -= take;
+          }
+
+          if (charBudget > 0 && pendingAssistant > 0) {
+            const take = Math.min(charBudget, pendingAssistant);
+            displayedAssistantContent = assistantContent.slice(0, displayedAssistantContent.length + take);
+          }
+
+          commitMessages();
+
+          const stillPending =
+            displayedThinkingContent.length < thinkingContent.length ||
+            displayedAssistantContent.length < assistantContent.length;
+
+          if (stillPending) {
+            animationFrameId = requestAnimationFrame(animate);
+          } else {
+            animationFrameId = null;
+            lastAnimationTs = 0;
+          }
+        });
       };
 
       while (true) {
@@ -888,10 +922,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           try {
             const parsed = JSON.parse(jsonStr);
 
-            // Handle custom web_citations event
             if (parsed.web_citations) {
               webCitations = parsed.web_citations;
-              updateMessages();
+              commitMessages();
               continue;
             }
 
@@ -902,7 +935,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               updateMessages();
             }
             if (content) {
-              // Use accumulator to handle <think> tags that may span chunks
               rawAccumulator += content;
               flushAccumulator();
               if (assistantContent && isThinking) setIsThinking(false);
@@ -915,8 +947,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         }
       }
 
-      // Cancel any pending RAF
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      lastAnimationTs = 0;
 
       // Final flush
       if (textBuffer.trim()) {
@@ -940,8 +975,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             }
           } catch { /* ignore */ }
         }
-        updateMessages();
       }
+
+      displayedAssistantContent = assistantContent;
+      displayedThinkingContent = thinkingContent;
+      commitMessages(assistantContent, thinkingContent);
 
       // Detect sources and save assistant message
       const sources = detectSources(assistantContent);
@@ -973,6 +1011,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         onDocumentsChanged?.();
       }).catch(() => {});
     } catch (e: any) {
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       console.error('Knowledge chat error:', e);
       clearPendingAssistantPlaceholder();
       toast.error(e?.message || 'Failed to get response');
