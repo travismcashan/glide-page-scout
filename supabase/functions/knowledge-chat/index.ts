@@ -933,6 +933,7 @@ serve(async (req) => {
     // Build context based on selected sources
     let ragContext = '';
     let needsScreenshots = false;
+    let ragDocuments: { name: string; source_type: string }[] = [];
     let webContext = '';
     let webCitations: string[] = [];
 
@@ -943,6 +944,7 @@ serve(async (req) => {
       contextPromises.push(ragSearchWithRouting(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => {
         ragContext = r.ragContext;
         needsScreenshots = r.needs_screenshots;
+        ragDocuments = r.ragDocuments;
       }));
     }
     if (useWeb && queryText) {
