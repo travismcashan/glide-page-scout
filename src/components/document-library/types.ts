@@ -1,4 +1,4 @@
-import { FileText, Database, Globe, MessageSquare, StickyNote, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, Upload, HardDrive, Bookmark } from 'lucide-react';
+import { FileText, Database, Globe, MessageSquare, StickyNote, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, Upload, HardDrive, Bookmark, Mail, Video, PhoneCall, ClipboardList } from 'lucide-react';
 
 export type KnowledgeDocument = {
   id: string;
@@ -41,7 +41,13 @@ export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: s
   error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
 };
 
-export function getDocumentIcon(_name: string, sourceType: string) {
+/** Get the source label, with special handling for HubSpot integration docs */
+export function getSourceLabel(sourceType: string, sourceKey: string | null): string {
+  if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data')) return 'HubSpot';
+  return SOURCE_LABELS[sourceType] || sourceType;
+}
+
+export function getDocumentIcon(_name: string, sourceType: string, sourceKey?: string | null) {
   if (sourceType === 'upload' || sourceType === 'google-drive') {
     const ext = _name.split('.').pop()?.toLowerCase() || '';
     if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
@@ -51,6 +57,18 @@ export function getDocumentIcon(_name: string, sourceType: string) {
   if (sourceType === 'chat_note') return Bookmark;
   if (sourceType === 'chat') return MessageSquare;
   if (sourceType === 'scrape') return Globe;
+
+  // HubSpot activity-specific icons
+  if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data:engagement:')) {
+    const name = _name.toLowerCase();
+    if (name.startsWith('hubspot email')) return Mail;
+    if (name.startsWith('hubspot meeting')) return Video;
+    if (name.startsWith('hubspot call')) return PhoneCall;
+    if (name.startsWith('hubspot note')) return StickyNote;
+    if (name.startsWith('hubspot task')) return ClipboardList;
+  }
+  if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data')) return Database;
+
   return Database;
 }
 
