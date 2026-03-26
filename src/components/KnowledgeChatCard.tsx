@@ -1273,9 +1273,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       toast.error(e?.message || 'Failed to get response');
     }
 
+    abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
   }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId]);
+
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+    setIsThinking(false);
+  }, []);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
