@@ -438,9 +438,13 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
       </Suspense>
-      {isStreamingThis && (
-        <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
-      )}
+      {isStreamingThis && !content && !thinking && (
+        <div className="flex items-center gap-1 py-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+        </div>
+      )
       {content && !isStreamingThis && (
         <div className="flex items-center gap-1 mt-5 flex-wrap">
           <TooltipProvider delayDuration={300}>
