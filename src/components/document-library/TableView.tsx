@@ -49,13 +49,13 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
     <Table>
       <TableHeader>
         <TableRow>
-          {sortable('name', 'Name')}
-          {sortable('created_at', 'Date Added', 'w-28')}
-          {sortable('char_count', 'Size', 'w-24 text-right')}
-          {sortable('chunk_count', 'Chunks', 'w-20 text-right')}
-          {sortable('source_type', 'Source', 'w-28')}
-          <TableHead className="h-9 text-sm w-20">Status</TableHead>
-          <TableHead className="h-9 text-sm w-8"></TableHead>
+          {sortable('name', 'Name', 'min-w-[200px]')}
+          {sortable('created_at', 'Date Added', 'w-36 whitespace-nowrap')}
+          {sortable('char_count', 'Size', 'w-28 text-right whitespace-nowrap')}
+          {sortable('chunk_count', 'Chunks', 'w-24 text-right whitespace-nowrap')}
+          {sortable('source_type', 'Source', 'w-32 whitespace-nowrap')}
+          <TableHead className="h-9 text-sm w-24 whitespace-nowrap">Status</TableHead>
+          <TableHead className="h-9 text-sm w-10"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -70,7 +70,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
               <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-2">
                   <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium truncate max-w-[200px]">{doc.name}</span>
+                  <span className="text-sm font-medium truncate max-w-[400px]">{doc.name}</span>
                 </div>
               </TableCell>
               <TableCell className="py-2.5 px-4 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
