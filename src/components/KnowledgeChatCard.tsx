@@ -281,7 +281,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="mb-2">
+    <div className="mb-8">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
