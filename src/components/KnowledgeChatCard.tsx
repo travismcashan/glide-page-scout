@@ -1248,8 +1248,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
                       />
                       <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
-                        <span>Quick glance</span>
-                        <span>Deep read</span>
+                        <span>Quick glance <span className="opacity-60">(faster)</span></span>
+                        <span><span className="opacity-60">(slower)</span> Deep read</span>
                       </div>
                     </div>
                     <div>
@@ -1267,8 +1267,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
                       />
                       <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
-                        <span>Include more</span>
-                        <span>Only best matches</span>
+                        <span>Include more <span className="opacity-60">(broader)</span></span>
+                        <span><span className="opacity-60">(precise)</span> Only best matches</span>
                       </div>
                     </div>
                   </div>
