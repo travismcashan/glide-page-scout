@@ -68,7 +68,33 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [groupBy, setGroupBy] = useState<string>('none');
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [gridPreviewDoc, setGridPreviewDoc] = useState<KnowledgeDocument | null>(null);
+  const [gridPreviewContent, setGridPreviewContent] = useState<string | null>(null);
+  const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const openGridPreview = async (doc: KnowledgeDocument) => {
+    setGridPreviewDoc(doc);
+    setGridPreviewContent(null);
+    setGridPreviewLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('knowledge_chunks')
+        .select('chunk_text, chunk_index')
+        .eq('document_id', doc.id)
+        .order('chunk_index', { ascending: true })
+        .limit(50);
+      if (error || !data || data.length === 0) {
+        setGridPreviewContent('No content available.');
+      } else {
+        setGridPreviewContent(data.map((c: any) => c.chunk_text).join('\n\n'));
+      }
+    } catch {
+      setGridPreviewContent('Failed to load preview.');
+    } finally {
+      setGridPreviewLoading(false);
+    }
+  };
 
   const fetchDocuments = useCallback(async () => {
     const { data, error } = await supabase
