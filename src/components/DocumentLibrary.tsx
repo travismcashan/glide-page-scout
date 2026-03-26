@@ -65,7 +65,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [groupBy, setGroupBy] = useState<string>('none');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocuments = useCallback(async () => {
     const { data, error } = await supabase
