@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 
-type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[] };
 
 type SessionData = {
   id: string;
@@ -262,6 +262,60 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
 }
 
 function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean }) {
+  return <AssistantBubbleInner content={content} thinking={thinking} isStreamingThis={isStreamingThis} onSaveNote={onSaveNote} onToggleFavorite={onToggleFavorite} isFavorited={isFavorited} />;
+}
+
+function WebCitationsBlock({ citations, isSearching }: { citations: string[]; isSearching?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!citations.length && !isSearching) return null;
+
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <Search className="h-3 w-3" />
+        <span>
+          {isSearching && !citations.length
+            ? 'Searching the web…'
+            : `Searched ${citations.length} site${citations.length !== 1 ? 's' : ''}`}
+        </span>
+        {isSearching && (
+          <span className="flex gap-0.5 ml-1">
+            <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
+            <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
+            <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+          </span>
+        )}
+      </button>
+      {expanded && citations.length > 0 && (
+        <div className="mt-1.5 ml-5 space-y-1">
+          {citations.map((url, i) => {
+            let displayUrl = url;
+            try { displayUrl = new URL(url).hostname; } catch {}
+            return (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">{displayUrl}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, webCitations, isWebSearching }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; webCitations?: string[]; isWebSearching?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -281,6 +335,9 @@ function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote
 
   return (
     <div className="group relative max-w-[85%] px-4 py-3 text-sm rounded-lg text-foreground">
+      {(webCitations?.length || isWebSearching) && (
+        <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
+      )}
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
       )}
@@ -445,6 +502,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
     let assistantContent = '';
     let thinkingContent = '';
+    let webCitations: string[] = [];
+    const isWebSearch = searchSources.web;
+
+    // If web search is enabled, add a placeholder assistant message with searching indicator
+    if (isWebSearch) {
+      setMessages(prev => [...prev, { role: 'assistant' as const, content: '', webCitations: [] }]);
+    }
 
     // Build the API messages - use multimodal content for the current message
     const apiMessages = newMessages.map((m, i) => {
@@ -517,6 +581,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
           try {
             const parsed = JSON.parse(jsonStr);
+
+            // Handle custom web_citations event
+            if (parsed.web_citations) {
+              webCitations = parsed.web_citations;
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant') {
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, webCitations } : m);
+                }
+                return prev;
+              });
+              continue;
+            }
+
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               if (isThinking) setIsThinking(false);
@@ -524,9 +602,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               setMessages(prev => {
                 const last = prev[prev.length - 1];
                 if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent } : m);
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent, webCitations } : m);
                 }
-                return [...prev, { role: 'assistant', content: assistantContent }];
+                return [...prev, { role: 'assistant', content: assistantContent, webCitations }];
               });
             }
           } catch {
@@ -571,7 +649,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
-          return prev.map((m, i) => i === prev.length - 1 ? { ...m, sources } : m);
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, sources, webCitations } : m);
         }
         return prev;
       });
@@ -704,7 +782,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       disabled={isStreaming}
                     />
                   ) : (
-                    <AssistantBubbleWrapper content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')} isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')} />
+                    <AssistantBubbleInner content={typeof msg.content === 'string' ? msg.content : ''} thinking={msg.thinking} isStreamingThis={isStreaming && i === messages.length - 1} onSaveNote={handleSaveNote} onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')} isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')} webCitations={msg.webCitations} isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length} />
                   )}
                 </div>
                 {/* Source badges for assistant messages */}

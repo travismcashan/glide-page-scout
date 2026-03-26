@@ -150,6 +150,7 @@ async function ragSearch(sessionId: string, query: string): Promise<string> {
  * Perform web search via Perplexity Sonar to get grounded web results
  */
 async function webSearch(query: string): Promise<string> {
+  // Note: citations are extracted separately and returned via webSearchWithCitations
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
   if (!PERPLEXITY_API_KEY) {
     console.warn('[knowledge-chat] PERPLEXITY_API_KEY not set, skipping web search');
@@ -195,6 +196,58 @@ async function webSearch(query: string): Promise<string> {
   } catch (e) {
     console.error('[knowledge-chat] Web search failed:', e);
     return '';
+  }
+}
+
+/**
+ * Perform web search and return both context string and raw citations
+ */
+async function webSearchWithCitations(query: string): Promise<{ context: string; citations: string[] }> {
+  const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!PERPLEXITY_API_KEY) {
+    console.warn('[knowledge-chat] PERPLEXITY_API_KEY not set, skipping web search');
+    return { context: '', citations: [] };
+  }
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { role: 'system', content: 'Provide detailed, factual information with specific data points. Include source URLs when possible.' },
+          { role: 'user', content: query },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[knowledge-chat] Web search error:', response.status, await response.text());
+      return { context: '', citations: [] };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const citations: string[] = data.citations || [];
+
+    let webContext = '--- WEB SEARCH RESULTS ---\n\n';
+    webContext += content;
+    if (citations.length > 0) {
+      webContext += '\n\nSources:\n';
+      citations.forEach((url: string, i: number) => {
+        webContext += `[${i + 1}] ${url}\n`;
+      });
+    }
+
+    console.log(`[knowledge-chat] Web search returned ${content.length} chars, ${citations.length} citations`);
+    return { context: webContext, citations };
+  } catch (e) {
+    console.error('[knowledge-chat] Web search failed:', e);
+    return { context: '', citations: [] };
   }
 }
 
@@ -504,6 +557,7 @@ serve(async (req) => {
     // Build context based on selected sources
     let ragContext = '';
     let webContext = '';
+    let webCitations: string[] = [];
 
     // Run document RAG and web search in parallel
     const contextPromises: Promise<void>[] = [];
@@ -512,7 +566,7 @@ serve(async (req) => {
       contextPromises.push(ragSearch(session_id, queryText).then(r => { ragContext = r; }));
     }
     if (useWeb && queryText) {
-      contextPromises.push(webSearch(queryText).then(r => { webContext = r; }));
+      contextPromises.push(webSearchWithCitations(queryText).then(r => { webContext = r.context; webCitations = r.citations; }));
     }
 
     await Promise.all(contextPromises);
@@ -545,12 +599,43 @@ serve(async (req) => {
 
     console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Messages: ${messages.length}`);
 
+    // Build citation metadata event to send before the AI stream
+    let citationsEvent = '';
+    if (webCitations.length > 0) {
+      citationsEvent = `data: ${JSON.stringify({ web_citations: webCitations })}\n\n`;
+    }
+
+    // Helper to prepend citations event to a streaming response
+    const prependCitations = (aiResponse: Response): Response => {
+      if (!citationsEvent || !aiResponse.body) return aiResponse;
+      const encoder = new TextEncoder();
+      const citationsChunk = encoder.encode(citationsEvent);
+      const transformed = new ReadableStream({
+        async start(controller) {
+          controller.enqueue(citationsChunk);
+          const reader = aiResponse.body!.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+          } finally {
+            controller.close();
+          }
+        },
+      });
+      return new Response(transformed, {
+        headers: aiResponse.headers,
+      });
+    };
+
     if (isClaudeModel) {
-      return await handleClaudeRequest(model, messages, systemPrompt, reasoning);
+      return prependCitations(await handleClaudeRequest(model, messages, systemPrompt, reasoning));
     } else if (isPerplexityModel) {
-      return await handlePerplexityRequest(model, messages, systemPrompt);
+      return prependCitations(await handlePerplexityRequest(model, messages, systemPrompt));
     } else {
-      return await handleGatewayRequest(model || 'google/gemini-3-flash-preview', messages, systemPrompt, reasoning);
+      return prependCitations(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', messages, systemPrompt, reasoning));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
