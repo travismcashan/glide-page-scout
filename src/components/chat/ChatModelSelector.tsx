@@ -53,7 +53,7 @@ const VERSIONS: Record<ModelProvider, ModelOption[]> = {
   perplexity: [
     { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web-grounded', tier: 'fast', reasoning: ['none'] },
     { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step reasoning', tier: 'balanced', reasoning: ['none'] },
-    { id: 'perplexity-sonar-reasoning', label: 'Reasoning', provider: 'perplexity', description: 'Chain-of-thought', tier: 'powerful', reasoning: ['none'] },
+    { id: 'perplexity-sonar-reasoning-pro', label: 'Reasoning Pro', provider: 'perplexity', description: 'Advanced reasoning', tier: 'powerful', reasoning: ['none'] },
   ],
 };
 
