@@ -123,6 +123,49 @@ export function ChatModelPicker({ model, provider, onModelChange, disabled }: Mo
   );
 }
 
+/* ─── Provider Picker (company: Gemini/Claude/GPT/Perplexity) ─── */
+
+type ProviderPickerProps = {
+  provider: ModelProvider;
+  onProviderChange: (provider: ModelProvider) => void;
+  disabled?: boolean;
+};
+
+export function ChatProviderPicker({ provider, onProviderChange, disabled }: ProviderPickerProps) {
+  const [open, setOpen] = useState(false);
+  const selected = PROVIDERS.find(p => p.id === provider) || PROVIDERS[0];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild disabled={disabled}>
+        <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1.5 py-0.5 rounded flex items-center gap-1">
+          {selected.label}
+          <ChevronDown className="h-3 w-3 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" side="top" className="w-[160px] p-1.5" sideOffset={10}>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">
+          Provider
+        </div>
+        {PROVIDERS.map(p => (
+          <button
+            key={p.id}
+            onClick={() => { onProviderChange(p.id); setOpen(false); }}
+            className={cn(
+              'w-full text-left rounded-md px-2 py-2 transition-colors text-sm',
+              provider === p.id
+                ? 'bg-accent text-accent-foreground font-medium'
+                : 'hover:bg-muted/50'
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /* ─── Reasoning Picker ─── */
 
 type ReasoningPickerProps = {
