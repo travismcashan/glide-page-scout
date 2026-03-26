@@ -788,7 +788,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   }
 
   return (
-    <div className="flex flex-col h-full min-h-[400px] items-center">
+    <div
+      className="flex flex-col h-full min-h-[400px] items-center"
+      onWheel={(e) => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop += e.deltaY;
+        }
+      }}
+    >
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-5 pb-6 w-full max-w-3xl mx-auto">
         {messages.length === 0 && !isThinking ? (
