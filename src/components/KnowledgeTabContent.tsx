@@ -1,37 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Database, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Database } from 'lucide-react';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
-import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
-import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 
 type Props = {
   session: Record<string, any> & { id: string; domain: string; base_url: string };
   scrapedPages: { url: string; title: string | null; ai_outline: string | null; raw_content: string | null; screenshot_url?: string | null }[];
-  chatModel: string;
-  chatReasoning: ReasoningEffort;
-  setChatModel: (m: string) => void;
-  setChatReasoning: (r: ReasoningEffort) => void;
-  isSectionCollapsed: (id: string) => boolean;
-  toggleSection: (id: string, collapsed: boolean) => void;
-  allCollapsed: boolean;
 };
 
 export function KnowledgeTabContent({
   session,
   scrapedPages,
-  chatModel,
-  chatReasoning,
-  setChatModel,
-  setChatReasoning,
-  isSectionCollapsed,
-  toggleSection,
-  allCollapsed,
 }: Props) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [ingesting, setIngesting] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(true);
   const ingestTriggeredRef = useRef(false);
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
@@ -66,51 +49,22 @@ export function KnowledgeTabContent({
   }, [session.id]);
 
   return (
-    <div className="flex gap-6">
-      {/* Document Library sidebar - collapsible */}
-      {libraryOpen ? (
-        <div className="border rounded-lg p-4 h-[700px] w-[300px] shrink-0 relative">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              Document Library
-            </h3>
-            <button
-              onClick={() => setLibraryOpen(false)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              title="Collapse document library"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          </div>
-          <DocumentLibrary
-            sessionId={session.id}
-            refreshKey={refreshKey}
-            onIngestIntegrations={runIngest}
-            ingesting={ingesting}
-          />
-        </div>
-      ) : (
-        <button
-          onClick={() => setLibraryOpen(true)}
-          className="border rounded-lg p-2 h-[700px] shrink-0 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground bg-card hover:bg-accent/50 transition-colors cursor-pointer"
-          title="Open document library"
-        >
-          <PanelLeftOpen className="h-4 w-4" />
-          <Database className="h-4 w-4" />
-        </button>
-      )}
-
-      {/* Chat */}
-      <KnowledgeChatCard
-        session={session}
-        pages={scrapedPages}
-        selectedModel={chatModel}
-        reasoning={chatReasoning}
-        onModelChange={setChatModel}
-        onReasoningChange={setChatReasoning}
-        onDocumentsChanged={triggerRefresh}
-      />
+    <div className="border rounded-lg p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Database className="h-5 w-5 text-foreground" />
+        <h3 className="text-lg font-semibold">Document Library</h3>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">
+        Indexed documents from integrations, scraped pages, uploads, and chat notes. These power the AI chat's context.
+      </p>
+      <div className="h-[600px]">
+        <DocumentLibrary
+          sessionId={session.id}
+          refreshKey={refreshKey}
+          onIngestIntegrations={runIngest}
+          ingesting={ingesting}
+        />
+      </div>
     </div>
   );
 }
