@@ -898,6 +898,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     let displayedAssistantContent = '';
     let displayedThinkingContent = '';
     let webCitations: string[] = [];
+    let ragDocuments: RagDocument[] = [];
     let animationFrameId: number | null = null;
     let lastAnimationTs = 0;
 
