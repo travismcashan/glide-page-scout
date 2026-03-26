@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive } from 'lucide-react';
+import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
