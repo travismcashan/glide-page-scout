@@ -194,7 +194,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
                 </div>
               </TableCell>
               <TableCell className="py-2.5 px-4 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
-              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{doc.status === 'uploading' ? '—' : `${(doc.char_count / 1000).toFixed(0)}K chars`}</TableCell>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right whitespace-nowrap">{doc.status === 'uploading' ? '—' : `${(doc.char_count / 1000).toFixed(0)}K`}</TableCell>
               <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{doc.status === 'uploading' ? '—' : doc.chunk_count}</TableCell>
               <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-1.5">
