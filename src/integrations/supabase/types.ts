@@ -153,6 +153,7 @@ export type Database = {
           domain: string
           forms_data: Json | null
           forms_tiers: Json | null
+          gmail_data: Json | null
           gtmetrix_grade: string | null
           gtmetrix_scores: Json | null
           gtmetrix_test_id: string | null
@@ -197,6 +198,7 @@ export type Database = {
           domain: string
           forms_data?: Json | null
           forms_tiers?: Json | null
+          gmail_data?: Json | null
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
           gtmetrix_test_id?: string | null
@@ -241,6 +243,7 @@ export type Database = {
           domain?: string
           forms_data?: Json | null
           forms_tiers?: Json | null
+          gmail_data?: Json | null
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
           gtmetrix_test_id?: string | null
