@@ -50,10 +50,6 @@ export function KnowledgeTabContent({
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2">
-        <Database className="h-5 w-5 text-foreground" />
-        <h3 className="text-lg font-semibold">Document Library</h3>
-      </div>
       <p className="text-sm text-muted-foreground mb-4">
         Indexed documents from integrations, scraped pages, uploads, and chat notes. These power the AI chat's context.
       </p>
