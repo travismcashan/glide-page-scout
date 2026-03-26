@@ -448,30 +448,30 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocument
     <div className="mt-3">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
       >
-        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        <FileText className="h-3 w-3" />
+        {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        <FileText className="h-3.5 w-3.5" />
         <span>{totalRefs} document{totalRefs !== 1 ? 's' : ''} referenced</span>
       </button>
       {expanded && (
         <div className="mt-2 ml-5 space-y-0.5">
           {ragDocuments.map((doc, i) => (
-            <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
               <span className="truncate max-w-[300px]">{doc.name}</span>
-              <span className="text-[10px] opacity-60">({doc.source_type})</span>
+              <span className="text-[11px] opacity-60">({doc.source_type})</span>
             </div>
           ))}
           {integrationSources.map(s => (
             <button
               key={`src-${s}`}
               onClick={() => onSourceClick?.(s)}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <span>📊</span>
               <span className="truncate max-w-[300px]">{SOURCE_LABELS[s] || s}</span>
-              <span className="text-[10px] opacity-60">(integration)</span>
+              <span className="text-[11px] opacity-60">(integration)</span>
             </button>
           ))}
         </div>
@@ -645,7 +645,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                   onClick={handleCopy}
                   className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                 >
-                  {copied ? <Check className="h-[18px] w-[18px] text-accent" /> : <Copy className="h-[18px] w-[18px]" />}
+                  {copied ? <Check className="h-5 w-5 text-accent" /> : <Copy className="h-5 w-5" />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
@@ -658,7 +658,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                   onClick={handleSave}
                   className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                 >
-                  {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className={`h-[18px] w-[18px] transition-colors ${isSavedNote ? 'fill-blue-500 text-blue-500' : ''}`} />}
+                  {saved ? <Check className="h-5 w-5 text-accent" /> : <BookmarkPlus className={`h-5 w-5 transition-colors ${isSavedNote ? 'fill-blue-500 text-blue-500' : ''}`} />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
@@ -671,7 +671,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                   onClick={onToggleFavorite}
                   className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                 >
-                  <Heart className={`h-[18px] w-[18px] transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+                  <Heart className={`h-5 w-5 transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
@@ -684,7 +684,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                   onClick={handleExportPdf}
                   className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                 >
-                  <Download className="h-[18px] w-[18px]" />
+                  <Download className="h-5 w-5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
@@ -698,7 +698,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                   disabled={exporting === 'gdoc'}
                   className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                 >
-                  {exporting === 'gdoc' ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <FileText className="h-[18px] w-[18px]" />}
+                  {exporting === 'gdoc' ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
