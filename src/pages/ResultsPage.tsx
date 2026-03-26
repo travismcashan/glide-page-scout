@@ -265,6 +265,7 @@ export default function ResultsPage() {
   }, []);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
+  const gmailRef = useRef<GmailCardHandle>(null);
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
   const [sitemapInnerExpand, setSitemapInnerExpand] = useState<boolean | null>(null);
   const [contentTypesInnerExpand, setContentTypesInnerExpand] = useState<boolean | null>(null);
