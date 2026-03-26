@@ -20,9 +20,10 @@ type Props = {
   onNewThread: () => void;
   onDeleteThread: (threadId: string) => void;
   refreshKey?: number;
+  onWidthChange?: (width: number) => void;
 };
 
-export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey }: Props) {
+export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey, onWidthChange }: Props) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -40,6 +41,11 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
   useEffect(() => {
     loadThreads();
   }, [loadThreads, refreshKey]);
+
+  // Notify parent of width changes
+  useEffect(() => {
+    onWidthChange?.(collapsed ? 40 : 240);
+  }, [collapsed, onWidthChange]);
 
   if (collapsed) {
     return (
