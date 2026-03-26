@@ -839,12 +839,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 {/* Source badges for assistant messages */}
                 {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && !(isStreaming && i === messages.length - 1) && (
                   <div className="flex items-center gap-1.5 mt-1.5 ml-1 flex-wrap">
-                    <span className="text-[10px] text-muted-foreground">Sources:</span>
+                    <span className="text-xs text-muted-foreground">Sources:</span>
                     {msg.sources.map(s => (
                       <Badge
                         key={s}
                         variant="outline"
-                        className="text-[10px] px-1.5 py-0 h-4 font-normal cursor-pointer hover:bg-muted transition-colors"
+                        className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted transition-colors"
                         onClick={() => {
                           const target = SOURCE_TAB_MAP[s];
                           if (target) {
