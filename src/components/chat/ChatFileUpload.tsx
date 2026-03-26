@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Plus, X, FileText, Image as ImageIcon, Loader2, Upload, HardDrive } from 'lucide-react';
+import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -204,12 +205,13 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
             <Upload className="h-4 w-4" />
             Upload files
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleGoogleDrive} className="gap-2">
+          <DropdownMenuItem onClick={() => setDrivePickerOpen(true)} className="gap-2">
             <HardDrive className="h-4 w-4" />
             Google Drive
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
     </>
   );
 }
