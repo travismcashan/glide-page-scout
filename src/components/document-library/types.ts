@@ -1,4 +1,4 @@
-import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, FileType2, File } from 'lucide-react';
+import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, FileType2, File, BarChart3, Shield, Zap, Search, Link, Code, Accessibility, Leaf, Gauge, Navigation, Map, FormInput, LayoutTemplate, Cpu, Users, Building2, Mail, FileCode } from 'lucide-react';
 
 export type KnowledgeDocument = {
   id: string;
@@ -36,11 +36,67 @@ export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: s
   error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
 };
 
-export function getFileIcon(name: string) {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
-  if (['pdf', 'doc', 'docx'].includes(ext)) return FileType2;
-  return File;
+/** Integration-specific icons keyed by common name patterns */
+const INTEGRATION_ICON_MAP: Record<string, typeof FileText> = {
+  semrush: BarChart3,
+  pagespeed: Zap,
+  psi: Zap,
+  crux: Gauge,
+  builtwith: Cpu,
+  wappalyzer: Cpu,
+  detectzestack: Cpu,
+  wave: Accessibility,
+  observatory: Shield,
+  ssllabs: Shield,
+  ssl: Shield,
+  httpstatus: Link,
+  linkcheck: Link,
+  'link checker': Link,
+  'broken links': Link,
+  w3c: FileCode,
+  schema: Code,
+  readable: FileText,
+  carbon: Leaf,
+  yellowlab: Gauge,
+  gtmetrix: Gauge,
+  nav: Navigation,
+  navigation: Navigation,
+  sitemap: Map,
+  forms: FormInput,
+  templates: LayoutTemplate,
+  'content types': LayoutTemplate,
+  content_types: LayoutTemplate,
+  tech: Cpu,
+  'tech analysis': Cpu,
+  apollo: Users,
+  ocean: Building2,
+  hubspot: Mail,
+  avoma: Users,
+  'deep research': Search,
+  observations: Search,
+};
+
+export function getDocumentIcon(name: string, sourceType: string) {
+  // For uploads, use file-extension-based icons
+  if (sourceType === 'upload') {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
+    if (['pdf'].includes(ext)) return FileType2;
+    if (['doc', 'docx'].includes(ext)) return FileType2;
+    if (['json', 'xml', 'html', 'css', 'js', 'ts', 'tsx', 'jsx'].includes(ext)) return FileCode;
+    return FileText;
+  }
+
+  if (sourceType === 'chat') return MessageSquare;
+  if (sourceType === 'scrape') return Globe;
+
+  // For integration docs, match by name keywords
+  const lower = name.toLowerCase();
+  for (const [key, icon] of Object.entries(INTEGRATION_ICON_MAP)) {
+    if (lower.includes(key)) return icon;
+  }
+
+  return Database;
 }
 
 export function formatDate(dateStr: string) {
