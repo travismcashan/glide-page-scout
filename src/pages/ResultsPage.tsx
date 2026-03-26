@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle } from 'lucide-react';
+import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
@@ -64,6 +64,7 @@ function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, 
 import { AvomaCard } from '@/components/AvomaCard';
 import { HubSpotCard } from '@/components/HubSpotCard';
 import { ApolloCard } from '@/components/ApolloCard';
+import { GmailCard } from '@/components/GmailCard';
 import { SectionCard } from '@/components/SectionCard';
 import { SortedIntegrationList } from '@/components/SortedIntegrationList';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
@@ -2192,6 +2193,20 @@ export default function ResultsPage() {
                   {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={handleApolloSearch} /> : null}
                 </SectionCard>
               )}
+              <SectionCard
+                sectionId="gmail" persistedCollapsed={isSectionCollapsed("gmail")} onCollapseChange={toggleSection} title="Gmail — Email Threads"
+                icon={<Mail className="h-5 w-5 text-foreground" />}
+                collapsed={allCollapsed}
+              >
+                <GmailCard
+                  domain={session?.domain || ''}
+                  contactEmails={
+                    (session as any)?.hubspot_data?.contacts
+                      ?.map((c: any) => c.email?.toLowerCase())
+                      .filter(Boolean) || []
+                  }
+                />
+              </SectionCard>
               {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations) && (
                 <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
                   <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
