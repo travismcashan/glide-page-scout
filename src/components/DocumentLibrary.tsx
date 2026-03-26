@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, SlidersHorizontal, FolderOpen } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -64,7 +64,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [groupBy, setGroupBy] = useState<string>('none');
-  const [showFilters, setShowFilters] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocuments = useCallback(async () => {
@@ -195,9 +194,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
               <List className="h-3.5 w-3.5" />
             </button>
           </div>
-          <Button variant="ghost" size="icon" className={`h-7 w-7 ${showFilters ? 'text-primary' : ''}`} onClick={() => setShowFilters(v => !v)} title="Filter & sort">
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-          </Button>
           {onIngestIntegrations && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Sync integration data">
               {ingesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
@@ -206,7 +202,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         </div>
       </div>
 
-      {/* Search + filters bar */}
+      {/* Search + inline filters */}
       <div className="px-1 mb-3 space-y-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -223,58 +219,58 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           )}
         </div>
 
-        {showFilters && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Source filter */}
-            <Select value={filterSource} onValueChange={setFilterSource}>
-              <SelectTrigger className="h-7 w-[130px] text-xs">
-                <SelectValue placeholder="All sources" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">All sources</SelectItem>
-                {sourceTypes.map(st => (
-                  <SelectItem key={st} value={st} className="text-xs">{SOURCE_LABELS[st] || st}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Source filter */}
+          <Select value={filterSource} onValueChange={setFilterSource}>
+            <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs gap-1.5 [&>svg:last-child]:hidden">
+              <Database className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <SelectValue placeholder="All sources" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All sources</SelectItem>
+              {sourceTypes.map(st => (
+                <SelectItem key={st} value={st} className="text-xs">{SOURCE_LABELS[st] || st}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            {/* Sort */}
-            <Select value={`${sortField}:${sortDir}`} onValueChange={v => { const [f, d] = v.split(':'); setSortField(f as SortField); setSortDir(d as SortDir); }}>
-              <SelectTrigger className="h-7 w-[140px] text-xs">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at:desc" className="text-xs">Newest first</SelectItem>
-                <SelectItem value="created_at:asc" className="text-xs">Oldest first</SelectItem>
-                <SelectItem value="name:asc" className="text-xs">Name A-Z</SelectItem>
-                <SelectItem value="name:desc" className="text-xs">Name Z-A</SelectItem>
-                <SelectItem value="char_count:desc" className="text-xs">Largest first</SelectItem>
-                <SelectItem value="char_count:asc" className="text-xs">Smallest first</SelectItem>
-                <SelectItem value="chunk_count:desc" className="text-xs">Most chunks</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Sort */}
+          <Select value={`${sortField}:${sortDir}`} onValueChange={v => { const [f, d] = v.split(':'); setSortField(f as SortField); setSortDir(d as SortDir); }}>
+            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs gap-1.5 [&>svg:last-child]:hidden">
+              <ArrowDownAZ className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at:desc" className="text-xs">Newest first</SelectItem>
+              <SelectItem value="created_at:asc" className="text-xs">Oldest first</SelectItem>
+              <SelectItem value="name:asc" className="text-xs">Name A–Z</SelectItem>
+              <SelectItem value="name:desc" className="text-xs">Name Z–A</SelectItem>
+              <SelectItem value="char_count:desc" className="text-xs">Largest first</SelectItem>
+              <SelectItem value="char_count:asc" className="text-xs">Smallest first</SelectItem>
+              <SelectItem value="chunk_count:desc" className="text-xs">Most chunks</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {/* Group by */}
-            <Select value={groupBy} onValueChange={setGroupBy}>
-              <SelectTrigger className="h-7 w-[130px] text-xs">
-                <FolderOpen className="h-3 w-3 mr-1" />
-                <SelectValue placeholder="Group by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none" className="text-xs">No grouping</SelectItem>
-                <SelectItem value="source" className="text-xs">By source</SelectItem>
-                <SelectItem value="status" className="text-xs">By status</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Group by */}
+          <Select value={groupBy} onValueChange={setGroupBy}>
+            <SelectTrigger className="h-7 w-auto min-w-[110px] text-xs gap-1.5 [&>svg:last-child]:hidden">
+              <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <SelectValue placeholder="Group by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="text-xs">No grouping</SelectItem>
+              <SelectItem value="source" className="text-xs">By source</SelectItem>
+              <SelectItem value="status" className="text-xs">By status</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {/* Active filter count */}
-            {(filterSource !== 'all' || searchQuery || groupBy !== 'none') && (
-              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => { setFilterSource('all'); setSearchQuery(''); setGroupBy('none'); }}>
-                Clear filters
-              </Button>
-            )}
-          </div>
-        )}
+          {(filterSource !== 'all' || searchQuery || groupBy !== 'none') && (
+            <button onClick={() => { setFilterSource('all'); setSearchQuery(''); setGroupBy('none'); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              <X className="h-3 w-3" />
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Upload */}
