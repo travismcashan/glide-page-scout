@@ -231,7 +231,7 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
           {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <div className="bg-primary text-primary-foreground rounded-lg rounded-tr-none px-4 py-3 text-sm">
+      <div className="bg-muted text-foreground rounded-lg rounded-tr-none px-4 py-3 text-sm">
         <UserBubbleContent content={content} attachmentNames={attachmentNames} />
       </div>
     </div>
@@ -250,7 +250,8 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         <Brain className="h-3 w-3" />
         <span>{isStreaming ? 'Thinking…' : 'Thought process'}</span>
-        {isStreaming && <span className="flex gap-0.5 ml-1"><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" /></span>}
+        {isStreaming && <span className="flex gap-0.5 ml-1"><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" /><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" /><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" /></span>}
+
       </button>
       {expanded && (
         <div className="mt-1.5 pl-5 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
@@ -285,9 +286,9 @@ function WebCitationsBlock({ citations, isSearching }: { citations: string[]; is
         </span>
         {isSearching && (
           <span className="flex gap-0.5 ml-1">
-            <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-            <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
-            <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
           </span>
         )}
       </button>
@@ -813,9 +814,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <div className="flex justify-start">
                 <div className="flex items-center gap-2.5 px-4 py-3">
                   <div className="flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
-                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+                     <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
                   </div>
                   <span className="text-sm text-muted-foreground">Thinking…</span>
                 </div>
@@ -968,7 +969,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               size="icon"
               onClick={() => handleSend()}
               disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
-              className="shrink-0 h-8 w-8 rounded-full"
+              className="shrink-0 h-8 w-8 rounded-full bg-muted text-foreground hover:bg-muted/80"
             >
               {isStreaming ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
