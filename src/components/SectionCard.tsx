@@ -61,7 +61,7 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
   };
 
   return (
-    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-50' : ''}`}>
+    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-50' : ''}`} data-section-id={sectionId}>
       <div
         className={`px-4 py-2.5 border-b border-border flex items-center gap-2.5 select-none transition-colors ${paused ? 'cursor-default' : 'cursor-pointer hover:bg-muted/30'}`}
         onClick={handleToggle}
