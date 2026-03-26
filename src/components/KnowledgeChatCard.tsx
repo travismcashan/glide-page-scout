@@ -31,7 +31,8 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 
-type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[] };
+type RagDocument = { name: string; source_type: string };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[] };
 
 type SessionData = {
   id: string;
@@ -416,7 +417,63 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
   return parts.length > 0 ? <>{parts}</> : <>{children}</>;
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string }) {
+const SOURCE_TYPE_ICONS: Record<string, string> = {
+  integration: '📊',
+  scrape: '🌐',
+  upload: '📎',
+  chat: '💬',
+  gdrive: '📁',
+};
+
+function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocuments: RagDocument[]; sources: string[]; onSourceClick?: (s: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Combine: RAG documents + detected integration sources not already in RAG docs
+  const integrationSources = sources.filter(s => {
+    const label = SOURCE_LABELS[s] || s;
+    return !ragDocuments.some(d => d.name.toLowerCase().includes(label.toLowerCase()));
+  });
+
+  const totalRefs = ragDocuments.length + integrationSources.length;
+  if (totalRefs === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <FileText className="h-3 w-3" />
+        <span>{totalRefs} document{totalRefs !== 1 ? 's' : ''} referenced</span>
+      </button>
+      {expanded && (
+        <div className="mt-2 ml-5 space-y-0.5">
+          {ragDocuments.map((doc, i) => (
+            <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
+              <span className="truncate max-w-[300px]">{doc.name}</span>
+              <span className="text-[10px] opacity-60">({doc.source_type})</span>
+            </div>
+          ))}
+          {integrationSources.map(s => (
+            <button
+              key={`src-${s}`}
+              onClick={() => onSourceClick?.(s)}
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>📊</span>
+              <span className="truncate max-w-[300px]">{SOURCE_LABELS[s] || s}</span>
+              <span className="text-[10px] opacity-60">(integration)</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[] }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
@@ -642,22 +699,14 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {sources && sources.length > 0 && (
-            <>
-              <span className="text-xs font-bold text-foreground ml-2 mr-2">Sources:</span>
-              {sources.map(s => (
-                <Badge
-                  key={s}
-                  variant="outline"
-                  className="text-xs px-2 py-0.5 h-5 font-normal cursor-pointer hover:bg-muted hover:text-foreground transition-colors"
-                  onClick={() => onSourceClick?.(s)}
-                >
-                  {SOURCE_LABELS[s] || s}
-                </Badge>
-              ))}
-            </>
-          )}
         </div>
+      )}
+      {content && !isStreamingThis && (ragDocuments?.length || (sources && sources.length > 0)) && (
+        <ReferencesBlock
+          ragDocuments={ragDocuments || []}
+          sources={sources || []}
+          onSourceClick={onSourceClick}
+        />
       )}
     </div>
   );
@@ -897,6 +946,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     let displayedAssistantContent = '';
     let displayedThinkingContent = '';
     let webCitations: string[] = [];
+    let ragDocuments: RagDocument[] = [];
     let animationFrameId: number | null = null;
     let lastAnimationTs = 0;
 
@@ -1003,6 +1053,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             content: contentForUi,
             thinking: thinkingForUi || undefined,
             webCitations,
+            ragDocuments: ragDocuments.length > 0 ? ragDocuments : undefined,
           };
           if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
             return prev.map((m, i) => i === prev.length - 1 ? { ...m, ...msgData } : m);
@@ -1080,6 +1131,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               continue;
             }
 
+            if (parsed.rag_documents) {
+              ragDocuments = parsed.rag_documents;
+              commitMessages();
+              continue;
+            }
+
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             const reasoningContent = parsed.choices?.[0]?.delta?.reasoning_content as string | undefined;
             if (reasoningContent) {
@@ -1138,7 +1195,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
-          return prev.map((m, i) => i === prev.length - 1 ? { ...m, sources, webCitations } : m);
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, sources, webCitations, ragDocuments: ragDocuments.length > 0 ? ragDocuments : undefined } : m);
         }
         return prev;
       });
@@ -1426,6 +1483,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                         }
                       }}
                       domain={session.domain}
+                      ragDocuments={msg.ragDocuments}
                     />
                   )}
                 </div>

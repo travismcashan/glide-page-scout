@@ -431,15 +431,16 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
 
 /**
  * Perform RAG search and also return the routing result for screenshot decisions
+ * and the list of documents referenced
  */
-async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean }> {
+async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: { name: string; source_type: string }[] }> {
   try {
     const [routing, embedding] = await Promise.all([
       routeQuery(query),
       getEmbedding(query),
     ]);
 
-    if (!embedding) return { ragContext: '', needs_screenshots: routing.needs_screenshots };
+    if (!embedding) return { ragContext: '', needs_screenshots: routing.needs_screenshots, ragDocuments: [] };
 
     const { priority_sources, chronological, needs_screenshots } = routing;
 
@@ -471,14 +472,23 @@ async function ragSearchWithRouting(sessionId: string, query: string, matchCount
       }
     }
 
-    if (merged.length === 0) return { ragContext: '', needs_screenshots };
+    if (merged.length === 0) return { ragContext: '', needs_screenshots, ragDocuments: [] };
+
+    // Extract unique documents referenced
+    const docMap = new Map<string, { name: string; source_type: string }>();
+    for (const match of merged) {
+      if (!docMap.has(match.document_id)) {
+        docMap.set(match.document_id, { name: match.document_name, source_type: match.source_type });
+      }
+    }
+    const ragDocuments = Array.from(docMap.values());
 
     const ragContext = formatRagResults(merged, chronological, priority_sources);
-    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
-    return { ragContext, needs_screenshots };
+    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks from ${ragDocuments.length} documents (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
+    return { ragContext, needs_screenshots, ragDocuments };
   } catch (e) {
     console.error('[knowledge-chat] RAG search failed:', e);
-    return { ragContext: '', needs_screenshots: false };
+    return { ragContext: '', needs_screenshots: false, ragDocuments: [] };
   }
 }
 
@@ -923,6 +933,7 @@ serve(async (req) => {
     // Build context based on selected sources
     let ragContext = '';
     let needsScreenshots = false;
+    let ragDocuments: { name: string; source_type: string }[] = [];
     let webContext = '';
     let webCitations: string[] = [];
 
@@ -933,6 +944,7 @@ serve(async (req) => {
       contextPromises.push(ragSearchWithRouting(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => {
         ragContext = r.ragContext;
         needsScreenshots = r.needs_screenshots;
+        ragDocuments = r.ragDocuments;
       }));
     }
     if (useWeb && queryText) {
@@ -1006,20 +1018,25 @@ serve(async (req) => {
 
     console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
 
-    // Build citation metadata event to send before the AI stream
-    let citationsEvent = '';
+    // Build metadata events to send before the AI stream
+    const metadataEvents: string[] = [];
     if (webCitations.length > 0) {
-      citationsEvent = `data: ${JSON.stringify({ web_citations: webCitations })}\n\n`;
+      metadataEvents.push(`data: ${JSON.stringify({ web_citations: webCitations })}\n\n`);
+    }
+    if (ragDocuments.length > 0) {
+      metadataEvents.push(`data: ${JSON.stringify({ rag_documents: ragDocuments })}\n\n`);
     }
 
-    // Helper to prepend citations event to a streaming response
-    const prependCitations = (aiResponse: Response): Response => {
-      if (!citationsEvent || !aiResponse.body) return aiResponse;
+    // Helper to prepend metadata events to a streaming response
+    const prependMetadata = (aiResponse: Response): Response => {
+      if (metadataEvents.length === 0 || !aiResponse.body) return aiResponse;
       const encoder = new TextEncoder();
-      const citationsChunk = encoder.encode(citationsEvent);
+      const metadataChunks = metadataEvents.map(e => encoder.encode(e));
       const transformed = new ReadableStream({
         async start(controller) {
-          controller.enqueue(citationsChunk);
+          for (const chunk of metadataChunks) {
+            controller.enqueue(chunk);
+          }
           const reader = aiResponse.body!.getReader();
           try {
             while (true) {
@@ -1038,11 +1055,11 @@ serve(async (req) => {
     };
 
     if (isClaudeModel) {
-      return prependCitations(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning));
+      return prependMetadata(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning));
     } else if (isPerplexityModel) {
-      return prependCitations(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
+      return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
     } else {
-      return prependCitations(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
