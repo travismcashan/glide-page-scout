@@ -665,6 +665,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     chatInputRef.current?.clear();
+    scrollToLastUserMessage();
 
     // Ingest uploaded files into RAG document library (fire-and-forget)
     if (currentAttachments.length > 0) {
