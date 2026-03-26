@@ -754,9 +754,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   }
 
   return (
-    <div className="flex flex-col h-[600px]">
+    <div className="flex flex-col h-[600px] items-center">
       {/* Messages area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-1 pb-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 px-1 pb-3 w-full max-w-2xl mx-auto">
         {messages.length === 0 && !isThinking ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex items-center gap-2 mb-4">
