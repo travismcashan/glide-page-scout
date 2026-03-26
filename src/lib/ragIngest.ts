@@ -172,12 +172,10 @@ export async function autoIngestIntegrations(
 
     const existingCreatedAt = existingMap.get(key);
     if (existingCreatedAt) {
-      // Only re-ingest if the integration ran after the document was indexed
       const integrationRanAt = integrationTimestamps[key];
       if (!integrationRanAt || new Date(integrationRanAt) <= new Date(existingCreatedAt)) {
-        continue; // Already up-to-date
+        continue;
       }
-      // Delete the stale document so re-ingest replaces it
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -192,6 +190,43 @@ export async function autoIngestIntegrations(
       source_type: 'integration',
       source_key: key,
     });
+  }
+
+  // HubSpot: expand into per-activity documents
+  const hubspotData = sessionData.hubspot_data;
+  if (hubspotData && typeof hubspotData === 'object' && !hubspotData._error) {
+    const hubspotTimestamp = integrationTimestamps.hubspot_data;
+    // Check if any hubspot doc already exists and is up-to-date
+    const hubspotExisting = existingMap.get('hubspot_data:summary');
+    const needsReIngest = !hubspotExisting || (hubspotTimestamp && new Date(hubspotTimestamp) > new Date(hubspotExisting));
+
+    if (needsReIngest) {
+      // Delete all old hubspot docs (summary + individual engagements)
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('source_type', 'integration')
+        .like('source_key', 'hubspot_data:%');
+
+      // Also delete the legacy single-blob hubspot doc
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('source_type', 'integration')
+        .eq('source_key', 'hubspot_data');
+
+      const expandedDocs = expandHubSpotDocs(hubspotData);
+      for (const doc of expandedDocs) {
+        docsToIngest.push({
+          name: doc.name,
+          content: doc.content,
+          source_type: 'integration',
+          source_key: doc.source_key,
+        });
+      }
+    }
   }
 
   if (docsToIngest.length === 0) {
