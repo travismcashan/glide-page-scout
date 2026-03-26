@@ -1784,7 +1784,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               {isStreaming ? (
                 <div className="relative flex items-center justify-center" style={{ width: 28, height: 28 }}>
                   <Loader2 style={{ width: 28, height: 28 }} className="animate-spin absolute" />
-                  <Square className="h-3 w-3 fill-current" />
+                  <Square className="h-2.5 w-2.5 fill-current" />
                 </div>
               ) : (
                 <ArrowUp style={{ width: 28, height: 28 }} strokeWidth={1.5} />
