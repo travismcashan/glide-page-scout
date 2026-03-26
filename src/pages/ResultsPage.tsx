@@ -193,14 +193,30 @@ export default function ResultsPage() {
   // Sticky tab bar on scroll-up
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [stickyTabVisible, setStickyTabVisible] = useState(false);
-  const lastScrollY = useRef(0);
+  const lastScrollY = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
+  const scrollUpDistance = useRef(0);
   useEffect(() => {
+    lastScrollY.current = window.scrollY;
     const handleScroll = () => {
       const currentY = window.scrollY;
-      const scrollingUp = currentY < lastScrollY.current;
+      const delta = lastScrollY.current - currentY;
       const tabBarTop = tabBarRef.current?.getBoundingClientRect().top ?? 0;
       const pastTabBar = tabBarTop < 0;
-      setStickyTabVisible(scrollingUp && pastTabBar);
+
+      if (delta > 0) {
+        // Scrolling up — accumulate distance
+        scrollUpDistance.current += delta;
+      } else {
+        // Scrolling down — reset and hide
+        scrollUpDistance.current = 0;
+        setStickyTabVisible(false);
+      }
+
+      // Only show after scrolling up at least 30px while past the tab bar
+      if (scrollUpDistance.current > 30 && pastTabBar) {
+        setStickyTabVisible(true);
+      }
+
       lastScrollY.current = currentY;
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
