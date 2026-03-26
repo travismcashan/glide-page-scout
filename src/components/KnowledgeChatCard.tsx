@@ -368,8 +368,8 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   };
 
   return (
-    <div className="group relative w-full pr-10 py-3 pb-12 text-base rounded-lg text-foreground pl-9">
-      <div className="flex items-center gap-2 mb-4 -ml-9">
+    <div className="group relative w-full pr-10 py-3 pb-12 text-base rounded-lg text-foreground pl-0">
+      <div className="flex items-center gap-2 mb-4">
         <AiAvatar className="h-7 w-7 flex-shrink-0" />
         <span className="text-base font-bold text-foreground leading-none">Agency Atlas</span>
       </div>
