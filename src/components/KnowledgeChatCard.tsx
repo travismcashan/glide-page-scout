@@ -369,9 +369,9 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 
   return (
     <div className="group relative w-full pr-10 px-4 py-3 text-base rounded-lg text-foreground">
-      <div className="flex items-center gap-1.5 mb-2">
-        <AiAvatar className="h-5 w-5" />
-        <span className="text-xs font-medium text-muted-foreground">Agency Atlas</span>
+      <div className="flex items-center gap-2 mb-2">
+        <AiAvatar className="h-7 w-7" />
+        <span className="text-base font-bold text-foreground">Agency Atlas</span>
       </div>
       {(webCitations?.length || isWebSearching) && (
         <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
