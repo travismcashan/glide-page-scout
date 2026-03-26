@@ -5,25 +5,110 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-/** Convert markdown to basic HTML for Google Docs import */
+function escHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Convert markdown to HTML optimized for Google Docs import */
 function markdownToHtml(md: string): string {
   let html = md;
+
+  // Code blocks
+  html = html.replace(/```[\s\S]*?```/g, (match) => {
+    const content = match.slice(3).replace(/^[^\n]*\n/, '').slice(0, -3);
+    return `<pre style="background-color:#f4f4f4;padding:12px;font-family:monospace;font-size:10pt;">${escHtml(content)}</pre>`;
+  });
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code style="background-color:#f4f4f4;padding:1px 4px;font-family:monospace;">$1</code>');
+
+  // Headers
   html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Bold and italic
+  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<b><i>$1</i></b>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   html = html.replace(/\*(.+?)\*/g, '<i>$1</i>');
-  html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // Horizontal rules
   html = html.replace(/^---+$/gm, '<hr>');
-  // Wrap remaining plain lines in paragraphs
+
+  // Blockquotes
+  html = html.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #cccccc;padding-left:12px;color:#555555;margin:8px 0;">$1</blockquote>');
+
+  // Markdown tables → HTML tables
+  html = html.replace(/((?:^\|.+\|$\n?)+)/gm, (tableBlock) => {
+    const rows = tableBlock.trim().split('\n').filter(r => r.trim());
+    if (rows.length < 2) return tableBlock;
+
+    const isSeparator = (row: string) => /^\|[\s\-:]+\|$/.test(row.trim());
+    const hasSeparator = rows.length >= 2 && isSeparator(rows[1]);
+
+    const parseRow = (row: string) =>
+      row.split('|').slice(1, -1).map(cell => cell.trim());
+
+    const tableStyle = 'border-collapse:collapse;width:100%;margin:12px 0;';
+    const cellStyle = 'border:1px solid #cccccc;padding:8px 12px;';
+    const headerStyle = cellStyle + 'background-color:#e8e8e8;font-weight:bold;';
+
+    let tableHtml = `<table style="${tableStyle}">`;
+
+    const headerCells = parseRow(rows[0]);
+    if (hasSeparator) {
+      tableHtml += '<thead><tr>';
+      for (const cell of headerCells) {
+        tableHtml += `<th style="${headerStyle}">${cell}</th>`;
+      }
+      tableHtml += '</tr></thead><tbody>';
+      for (let i = 2; i < rows.length; i++) {
+        const cells = parseRow(rows[i]);
+        tableHtml += '<tr>';
+        for (const cell of cells) {
+          tableHtml += `<td style="${cellStyle}">${cell}</td>`;
+        }
+        tableHtml += '</tr>';
+      }
+      tableHtml += '</tbody>';
+    } else {
+      tableHtml += '<tbody>';
+      for (const row of rows) {
+        const cells = parseRow(row);
+        tableHtml += '<tr>';
+        for (const cell of cells) {
+          tableHtml += `<td style="${cellStyle}">${cell}</td>`;
+        }
+        tableHtml += '</tr>';
+      }
+      tableHtml += '</tbody>';
+    }
+
+    tableHtml += '</table>';
+    return tableHtml;
+  });
+
+  // Unordered lists
+  html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul style="margin:8px 0;">$1</ul>');
+
+  // Ordered lists
+  html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (match) => {
+    const items = match.trim().split('\n').map(line => {
+      const content = line.replace(/^\d+\. /, '');
+      return `<li>${content}</li>`;
+    }).join('');
+    return `<ol style="margin:8px 0;">${items}</ol>`;
+  });
+
+  // Wrap remaining text blocks in paragraphs with spacing
   html = html.replace(/^(?!<[a-z])((?:.+\n?)+)/gm, (match) => {
     const trimmed = match.trim();
     if (!trimmed || trimmed.startsWith('<')) return match;
-    return `<p>${trimmed}</p>`;
+    return `<p style="margin:8px 0;line-height:1.5;">${trimmed}</p>`;
   });
+
   return html;
 }
 
@@ -45,7 +130,6 @@ serve(async (req) => {
     const docTitle = title || 'AI Chat Response';
     const htmlContent = markdownToHtml(content);
 
-    // Create a Google Doc by uploading HTML content
     const boundary = '===BOUNDARY===';
     const metadata = JSON.stringify({
       name: docTitle,
@@ -60,7 +144,7 @@ serve(async (req) => {
       `--${boundary}`,
       'Content-Type: text/html; charset=UTF-8',
       '',
-      `<html><body>${htmlContent}</body></html>`,
+      `<html><body style="font-family:Arial,sans-serif;font-size:11pt;line-height:1.6;">${htmlContent}</body></html>`,
       `--${boundary}--`,
     ].join('\r\n');
 
@@ -79,17 +163,17 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Google Doc creation error:', errorText);
-      
+
       if (response.status === 401 || response.status === 403) {
-        return new Response(JSON.stringify({ 
+        return new Response(JSON.stringify({
           error: 'insufficient_scope',
-          message: 'Please reconnect Google Drive with write permissions.' 
+          message: 'Please reconnect Google Drive with write permissions.'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 403,
         });
       }
-      
+
       return new Response(JSON.stringify({ error: 'Failed to create Google Doc' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
