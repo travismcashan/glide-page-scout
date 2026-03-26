@@ -294,68 +294,56 @@ function formatRagResults(matches: Array<{ id: string; document_id: string; chun
  * Now with smart routing: runs parallel general + source-filtered searches
  */
 async function ragSearch(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<string> {
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) {
-    console.warn('[knowledge-chat] GEMINI_API_KEY not set, skipping RAG search');
-    return '';
-  }
-
   try {
-    const embResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'models/gemini-embedding-001',
-          content: { parts: [{ text: query.slice(0, 4000) }] },
-          outputDimensionality: 768,
-        }),
+    // Step 1: Run router classification and embedding in parallel
+    const [routing, embedding] = await Promise.all([
+      routeQuery(query),
+      getEmbedding(query),
+    ]);
+
+    if (!embedding) return '';
+
+    const { priority_sources, chronological } = routing;
+
+    // Step 2: Run general search + source-filtered search in parallel
+    const searchPromises: Promise<Array<any>>[] = [];
+
+    // Always run the general search (existing behavior)
+    searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, matchCount, matchThreshold));
+
+    // If router identified priority sources, also search filtered
+    if (priority_sources.length > 0) {
+      const sourceMatchCount = chronological ? 50 : 25; // fetch more for chronological
+      searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, sourceMatchCount, Math.max(matchThreshold - 0.05, 0.05), priority_sources));
+    }
+
+    const results = await Promise.all(searchPromises);
+    const generalMatches = results[0] || [];
+    const sourceMatches = results[1] || [];
+
+    // Step 3: Merge & dedupe
+    const seenIds = new Set<string>();
+    const merged: typeof generalMatches = [];
+
+    // Priority source matches first (they're the specifically relevant ones)
+    for (const match of sourceMatches) {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        merged.push(match);
       }
-    );
-
-    if (!embResponse.ok) {
-      console.error('[knowledge-chat] RAG embedding error:', await embResponse.text());
-      return '';
     }
-
-    const embData = await embResponse.json();
-    const queryEmbedding = embData.embedding?.values;
-    if (!queryEmbedding) return '';
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: matches, error } = await supabase.rpc('match_knowledge_chunks', {
-      p_session_id: sessionId,
-      p_embedding: `[${queryEmbedding.join(',')}]`,
-      p_match_count: matchCount,
-      p_match_threshold: matchThreshold,
-    });
-
-    if (error || !matches || matches.length === 0) {
-      if (error) console.error('[knowledge-chat] RAG search error:', error);
-      return '';
-    }
-
-    const docChunks = new Map<string, { name: string; sourceType: string; chunks: string[] }>();
-    for (const match of matches) {
-      const key = match.document_id;
-      if (!docChunks.has(key)) {
-        docChunks.set(key, { name: match.document_name, sourceType: match.source_type, chunks: [] });
+    // Then general matches
+    for (const match of generalMatches) {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        merged.push(match);
       }
-      docChunks.get(key)!.chunks.push(match.chunk_text);
     }
 
-    let ragContext = '--- RETRIEVED KNOWLEDGE (most relevant chunks from indexed documents) ---\n\n';
-    for (const [, doc] of docChunks) {
-      ragContext += `=== ${doc.name} (${doc.sourceType}) ===\n`;
-      ragContext += doc.chunks.join('\n\n');
-      ragContext += '\n\n';
-    }
+    if (merged.length === 0) return '';
 
-    console.log(`[knowledge-chat] RAG retrieved ${matches.length} chunks from ${docChunks.size} documents`);
+    const ragContext = formatRagResults(merged, chronological, priority_sources);
+    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological})`);
     return ragContext;
   } catch (e) {
     console.error('[knowledge-chat] RAG search failed:', e);
