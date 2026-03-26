@@ -194,7 +194,7 @@ export interface GmailCardHandle {
 export interface GmailCardProps {
   domain: string;
   contactEmails?: string[];
-  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean }) => void;
+  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }) => void;
   onRefresh?: () => void;
 }
 
@@ -209,6 +209,8 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
   const [ingesting, setIngesting] = useState(false);
   const [ingestingAll, setIngestingAll] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastFetched, setLastFetched] = useState<string | null>(null);
+  const [durationSec, setDurationSec] = useState<number | null>(null);
 
   // The displayed emails: prefer live if we just fetched, otherwise cached from DB
   const emails = liveEmails.length > 0 ? liveEmails : cachedEmails;
@@ -247,12 +249,15 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
   const doSearch = useCallback(async () => {
     setHasSearched(true);
     setIsRefreshing(true);
+    const start = Date.now();
     try {
       await searchEmails({
         contactEmails: contactEmails?.length ? contactEmails : undefined,
         domain: !contactEmails?.length ? domain : undefined,
         maxResults: 50,
       });
+      setLastFetched(new Date().toISOString());
+      setDurationSec(Math.round((Date.now() - start) / 1000));
     } finally {
       setIsRefreshing(false);
     }
