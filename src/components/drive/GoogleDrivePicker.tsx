@@ -51,6 +51,13 @@ function getFileIcon(mimeType: string, size: 'sm' | 'lg' = 'sm') {
   return <File className={cn(sizeClass, 'text-muted-foreground')} />;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
 function isFileSupported(mimeType: string): boolean {
   return SUPPORTED_MIMES.some(m => mimeType.includes(m) || m.includes(mimeType));
 }
@@ -480,6 +487,11 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
                         <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Eye className="w-3.5 h-3.5" />
                           <span>Space to preview</span>
+                        </div>
+                      )}
+                      {!isFolderItem && file.size && (
+                        <div className="flex-shrink-0 text-xs text-muted-foreground hidden sm:block tabular-nums">
+                          {formatFileSize(Number(file.size))}
                         </div>
                       )}
                       <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block">
