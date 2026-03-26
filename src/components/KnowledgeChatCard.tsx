@@ -231,7 +231,7 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
           {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <div className="bg-secondary text-secondary-foreground rounded-lg rounded-tr-none px-4 py-3 text-[15px]">
+      <div className="bg-secondary text-secondary-foreground rounded-lg rounded-tr-none px-4 py-3 text-base">
         <UserBubbleContent content={content} attachmentNames={attachmentNames} />
       </div>
     </div>
@@ -335,7 +335,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   };
 
   return (
-    <div className="group relative max-w-[85%] px-4 py-3 text-[15px] rounded-lg text-foreground">
+    <div className="group relative max-w-[85%] px-4 py-3 text-base rounded-lg text-foreground">
       {(webCitations?.length || isWebSearching) && (
         <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
       )}
