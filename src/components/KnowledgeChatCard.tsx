@@ -250,7 +250,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         <Brain className="h-3 w-3" />
         <span>{isStreaming ? 'Thinking…' : 'Thought process'}</span>
-        {isStreaming && <span className="flex gap-0.5 ml-1"><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" /><span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" /></span>}
+        {isStreaming && <span className="flex gap-0.5 ml-1"><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" /><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" /><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" /></span>}
 
       </button>
       {expanded && (
