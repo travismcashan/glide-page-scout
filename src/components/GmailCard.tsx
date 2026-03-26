@@ -397,9 +397,16 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
 
   useImperativeHandle(ref, () => ({
     ingestAllEmails: handleIngestAllEmails,
-    canIngest: isConnected === true && emails.length > 0 && !isLoading,
-    isIngesting: ingestingAll,
   }), [emails, isConnected, isLoading, ingestingAll]);
+
+  // Notify parent of state changes
+  useEffect(() => {
+    onStateChange?.({
+      canIngest: isConnected === true && emails.length > 0 && !isLoading,
+      isIngesting: ingestingAll,
+      emailCount: emails.length,
+    });
+  }, [isConnected, emails.length, isLoading, ingestingAll, onStateChange]);
 
   // Count total attachments across all emails
   const totalAttachments = emails.reduce((sum, e) => sum + (e.attachments?.length || 0), 0);
