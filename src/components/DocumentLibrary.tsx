@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Trash2, Loader2, Database, Globe, BookOpen, CheckCircle2, AlertCircle, Clock, X, RefreshCw, MessageSquare } from 'lucide-react';
+import { FileText, Upload, Trash2, Loader2, Database, Globe, BookOpen, CheckCircle2, AlertCircle, Clock, X, RefreshCw, MessageSquare, LayoutGrid, List, FileImage, FileType2, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 
 const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
@@ -39,7 +39,7 @@ async function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      resolve(result.split(',')[1]); // strip data URI prefix
+      resolve(result.split(',')[1]);
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
@@ -82,10 +82,26 @@ const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; 
   error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
 };
 
+function getFileIcon(name: string) {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
+  if (['pdf'].includes(ext)) return FileType2;
+  if (['doc', 'docx'].includes(ext)) return FileType2;
+  return File;
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+type ViewMode = 'grid' | 'table';
+
 export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, onIngestIntegrations, ingesting }: Props) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocuments = useCallback(async () => {
@@ -104,11 +120,8 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     setLoading(false);
   }, [sessionId, onDocumentCountChange]);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments, refreshKey]);
+  useEffect(() => { fetchDocuments(); }, [fetchDocuments, refreshKey]);
 
-  // Poll for processing documents
   useEffect(() => {
     const processing = documents.some(d => d.status === 'processing' || d.status === 'pending');
     if (!processing) return;
@@ -130,7 +143,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
       }
       try {
         if (isBinaryFile(file)) {
-          // Route binary files through parse-upload for AI extraction
           const fileBase64 = await fileToBase64(file);
           const mimeType = getMimeType(file);
           toast.info(`Parsing ${file.name}…`);
@@ -155,7 +167,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           }
           docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
         } else {
-          // Plain text files
           const text = await file.text();
           docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
         }
@@ -195,7 +206,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   };
 
   const deleteDocument = async (docId: string, docName: string) => {
-    // Chunks cascade-delete via FK
     const { error } = await supabase
       .from('knowledge_documents')
       .delete()
@@ -214,7 +224,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
   return (
     <div className="flex flex-col">
-      {/* Header stats */}
+      {/* Header stats + view toggle */}
       <div className="flex items-center justify-between px-1 mb-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <BookOpen className="h-3.5 w-3.5" />
@@ -223,6 +233,22 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <span><strong className="text-foreground">{totalChunks}</strong> chunks indexed</span>
         </div>
         <div className="flex items-center gap-1">
+          <div className="flex items-center border rounded-md overflow-hidden">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              title="Grid view"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              title="List view"
+            >
+              <List className="h-3.5 w-3.5" />
+            </button>
+          </div>
           {onIngestIntegrations && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Sync integration data">
               {ingesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
@@ -271,50 +297,133 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
               Upload files or ingest integration data to build your knowledge base.
             </p>
           </div>
+        ) : viewMode === 'grid' ? (
+          <GridView documents={documents} onDelete={deleteDocument} />
         ) : (
-          <div className="space-y-1 px-1">
-            {documents.map(doc => {
-              const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
-              const StatusIcon = statusConf.icon;
-              const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
+          <TableView documents={documents} onDelete={deleteDocument} />
+        )}
+      </div>
+    </div>
+  );
+}
 
-              return (
-                <div
-                  key={doc.id}
-                  className="group flex items-start gap-2 p-2 rounded-md hover:bg-accent/50 transition-colors"
-                >
-                  <SourceIcon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium truncate">{doc.name}</span>
-                      <StatusIcon className={`h-3 w-3 shrink-0 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                      <span>{doc.chunk_count} chunks</span>
-                      <span>·</span>
-                      <span>{(doc.char_count / 1000).toFixed(0)}K chars</span>
-                      <span>·</span>
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">
-                        {doc.source_type}
-                      </Badge>
-                    </div>
-                    {doc.error_message && (
-                      <p className="text-[10px] text-destructive mt-0.5 truncate">{doc.error_message}</p>
-                    )}
+/* ── Grid View ── */
+function GridView({ documents, onDelete }: { documents: KnowledgeDocument[]; onDelete: (id: string, name: string) => void }) {
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 px-1">
+      {documents.map(doc => {
+        const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
+        const StatusIcon = statusConf.icon;
+        const FileIcon = getFileIcon(doc.name);
+        const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
+
+        return (
+          <div
+            key={doc.id}
+            className="group relative flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-accent/50 transition-colors text-center"
+          >
+            {/* Delete button */}
+            <button
+              onClick={() => onDelete(doc.id, doc.name)}
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 hover:text-destructive"
+              title="Remove"
+            >
+              <X className="h-3 w-3" />
+            </button>
+
+            {/* File icon */}
+            <div className="relative">
+              <FileIcon className="h-8 w-8 text-muted-foreground" />
+              <SourceIcon className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-muted-foreground bg-background rounded-full p-0.5" />
+            </div>
+
+            {/* Status indicator */}
+            <StatusIcon className={`h-3 w-3 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
+
+            {/* File name */}
+            <span className="text-[10px] leading-tight font-medium text-foreground line-clamp-2 w-full break-all">
+              {doc.name}
+            </span>
+
+            {/* Chunk info */}
+            <span className="text-[9px] text-muted-foreground">
+              {doc.chunk_count} chunks
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Table View ── */
+function TableView({ documents, onDelete }: { documents: KnowledgeDocument[]; onDelete: (id: string, name: string) => void }) {
+  return (
+    <div className="px-1">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="h-8 text-xs">Name</TableHead>
+            <TableHead className="h-8 text-xs w-24">Date Added</TableHead>
+            <TableHead className="h-8 text-xs w-20 text-right">Size</TableHead>
+            <TableHead className="h-8 text-xs w-16 text-right">Chunks</TableHead>
+            <TableHead className="h-8 text-xs w-24">Source</TableHead>
+            <TableHead className="h-8 text-xs w-16">Status</TableHead>
+            <TableHead className="h-8 text-xs w-8"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {documents.map(doc => {
+            const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
+            const StatusIcon = statusConf.icon;
+            const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
+            const FileIcon = getFileIcon(doc.name);
+
+            return (
+              <TableRow key={doc.id} className="group">
+                <TableCell className="py-2 px-4">
+                  <div className="flex items-center gap-2">
+                    <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs font-medium truncate max-w-[200px]">{doc.name}</span>
                   </div>
+                </TableCell>
+                <TableCell className="py-2 px-4 text-xs text-muted-foreground">
+                  {formatDate(doc.created_at)}
+                </TableCell>
+                <TableCell className="py-2 px-4 text-xs text-muted-foreground text-right">
+                  {(doc.char_count / 1000).toFixed(0)}K chars
+                </TableCell>
+                <TableCell className="py-2 px-4 text-xs text-muted-foreground text-right">
+                  {doc.chunk_count}
+                </TableCell>
+                <TableCell className="py-2 px-4">
+                  <div className="flex items-center gap-1.5">
+                    <SourceIcon className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                      {doc.source_type}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell className="py-2 px-4">
+                  <div className="flex items-center gap-1" title={statusConf.label}>
+                    <StatusIcon className={`h-3 w-3 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
+                    <span className={`text-[10px] ${statusConf.color}`}>{statusConf.label}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="py-2 px-4">
                   <button
-                    onClick={() => deleteDocument(doc.id, doc.name)}
+                    onClick={() => onDelete(doc.id, doc.name)}
                     className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-destructive"
-                    title="Remove document"
+                    title="Remove"
                   >
                     <X className="h-3 w-3" />
                   </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
