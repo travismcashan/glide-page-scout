@@ -2242,7 +2242,7 @@ export default function ResultsPage() {
               >
                 <GmailCard
                   ref={gmailRef}
-                  domain={session?.domain || ''}
+                  domain={prospectingDomain}
                   onStateChange={setGmailState}
                   contactEmails={
                     (session as any)?.hubspot_data?.contacts
