@@ -165,7 +165,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
           {sortable('created_at', 'Date Added', 'w-36 whitespace-nowrap')}
           {sortable('char_count', 'Size', 'w-28 text-right whitespace-nowrap')}
           {sortable('chunk_count', 'Chunks', 'w-24 text-right whitespace-nowrap')}
-          {sortable('source_type', 'Source', 'w-40 whitespace-nowrap')}
+          {sortable('source_type', 'Source', 'w-48 whitespace-nowrap')}
           <TableHead className="h-9 text-sm w-24 whitespace-nowrap">Status</TableHead>
           <TableHead className="h-9 text-sm w-10"></TableHead>
         </TableRow>
