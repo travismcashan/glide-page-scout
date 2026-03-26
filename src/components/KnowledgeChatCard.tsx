@@ -1268,9 +1268,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       }).catch(() => {});
     } catch (e: any) {
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
-      console.error('Knowledge chat error:', e);
-      clearPendingAssistantPlaceholder();
-      toast.error(e?.message || 'Failed to get response');
+      if (e?.name === 'AbortError') {
+        console.log('Chat response aborted by user');
+      } else {
+        console.error('Knowledge chat error:', e);
+        clearPendingAssistantPlaceholder();
+        toast.error(e?.message || 'Failed to get response');
+      }
     }
 
     abortControllerRef.current = null;
