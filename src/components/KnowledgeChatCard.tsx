@@ -399,7 +399,7 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
   return parts.length > 0 ? <>{parts}</> : <>{children}</>;
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -464,7 +464,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                   onClick={handleSave}
                   className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                 >
-                  {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className="h-[18px] w-[18px]" />}
+                  {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className={`h-[18px] w-[18px] transition-colors ${isSavedNote ? 'fill-blue-500 text-blue-500' : ''}`} />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
