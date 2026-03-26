@@ -1361,6 +1361,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                           }, 150);
                         }
                       }}
+                      domain={session.domain}
                     />
                   )}
                 </div>
