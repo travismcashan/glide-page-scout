@@ -81,7 +81,217 @@ function buildContextBlock(crawlContext: string | undefined, documents: any[] | 
 }
 
 /**
+ * Route query to the most relevant source types using a fast LLM classification
+ */
+async function routeQuery(query: string): Promise<{ priority_sources: string[]; chronological: boolean }> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) return { priority_sources: [], chronological: false };
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a query router. Given a user question about a website audit, classify which document source types are most relevant and whether the question requires chronological ordering.
+
+Available source_types: "upload", "gmail", "chat", "crawl", "gdrive"
+- "gmail" = email threads/messages
+- "upload" = user-uploaded documents (proposals, reports, PDFs)
+- "chat" = previous AI chat conversations
+- "crawl" = website page content scraped during audit
+- "gdrive" = Google Drive documents
+
+Respond with a JSON object:
+{
+  "priority_sources": ["gmail"],  // 0-2 source types most relevant. Empty array if the question is general/unclear.
+  "chronological": false          // true ONLY if the question asks about timeline, first/last, sequence, or date-based ordering
+}
+
+Examples:
+- "What was the first email from John?" → {"priority_sources":["gmail"],"chronological":true}
+- "Summarize the proposal document" → {"priority_sources":["upload"],"chronological":false}
+- "What did we discuss about SEO?" → {"priority_sources":["chat"],"chronological":false}
+- "How is the website performing?" → {"priority_sources":[],"chronological":false}
+- "Show me the email history" → {"priority_sources":["gmail"],"chronological":true}
+- "What pages were crawled?" → {"priority_sources":["crawl"],"chronological":false}`
+          },
+          { role: 'user', content: query },
+        ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'route_query',
+            description: 'Classify the query for document routing',
+            parameters: {
+              type: 'object',
+              properties: {
+                priority_sources: {
+                  type: 'array',
+                  items: { type: 'string', enum: ['upload', 'gmail', 'chat', 'crawl', 'gdrive'] },
+                  description: 'Source types most relevant to this query (0-2 items)',
+                },
+                chronological: {
+                  type: 'boolean',
+                  description: 'Whether this question needs chronological ordering',
+                },
+              },
+              required: ['priority_sources', 'chronological'],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: 'function', function: { name: 'route_query' } },
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[knowledge-chat] Router classification failed:', response.status);
+      return { priority_sources: [], chronological: false };
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      console.log(`[knowledge-chat] Router: sources=${JSON.stringify(parsed.priority_sources)}, chrono=${parsed.chronological}`);
+      return {
+        priority_sources: Array.isArray(parsed.priority_sources) ? parsed.priority_sources : [],
+        chronological: !!parsed.chronological,
+      };
+    }
+    return { priority_sources: [], chronological: false };
+  } catch (e) {
+    console.warn('[knowledge-chat] Router error, falling back:', e);
+    return { priority_sources: [], chronological: false };
+  }
+}
+
+/**
+ * Get query embedding vector
+ */
+async function getEmbedding(query: string): Promise<number[] | null> {
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) {
+    console.warn('[knowledge-chat] GEMINI_API_KEY not set, skipping embedding');
+    return null;
+  }
+
+  const embResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'models/gemini-embedding-001',
+        content: { parts: [{ text: query.slice(0, 4000) }] },
+        outputDimensionality: 768,
+      }),
+    }
+  );
+
+  if (!embResponse.ok) {
+    console.error('[knowledge-chat] Embedding error:', await embResponse.text());
+    return null;
+  }
+
+  const embData = await embResponse.json();
+  return embData.embedding?.values || null;
+}
+
+/**
+ * Perform RAG search using a pre-computed embedding
+ */
+async function ragSearchWithEmbedding(
+  sessionId: string,
+  embedding: number[],
+  matchCount: number,
+  matchThreshold: number,
+  sourceTypes?: string[],
+): Promise<Array<{ id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number }>> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const embeddingStr = `[${embedding.join(',')}]`;
+
+  if (sourceTypes && sourceTypes.length > 0) {
+    const { data, error } = await supabase.rpc('match_knowledge_chunks_by_source', {
+      p_session_id: sessionId,
+      p_embedding: embeddingStr,
+      p_source_types: sourceTypes,
+      p_match_count: matchCount,
+      p_match_threshold: matchThreshold,
+    });
+    if (error) {
+      console.error('[knowledge-chat] Source-filtered RAG error:', error);
+      return [];
+    }
+    return data || [];
+  } else {
+    const { data, error } = await supabase.rpc('match_knowledge_chunks', {
+      p_session_id: sessionId,
+      p_embedding: embeddingStr,
+      p_match_count: matchCount,
+      p_match_threshold: matchThreshold,
+    });
+    if (error) {
+      console.error('[knowledge-chat] RAG search error:', error);
+      return [];
+    }
+    return data || [];
+  }
+}
+
+/**
+ * Format RAG matches into context string, optionally sorting chronologically
+ */
+function formatRagResults(matches: Array<{ id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number }>, chronological: boolean, prioritySources: string[]): string {
+  if (matches.length === 0) return '';
+
+  // If chronological, sort priority source chunks by chunk_index (proxy for document order/time)
+  if (chronological && prioritySources.length > 0) {
+    const priorityMatches = matches.filter(m => prioritySources.includes(m.source_type));
+    const otherMatches = matches.filter(m => !prioritySources.includes(m.source_type));
+
+    // Sort priority matches by document_name then chunk_index for chronological ordering
+    priorityMatches.sort((a, b) => {
+      const nameCompare = a.document_name.localeCompare(b.document_name);
+      if (nameCompare !== 0) return nameCompare;
+      return a.chunk_index - b.chunk_index;
+    });
+
+    matches = [...priorityMatches, ...otherMatches];
+  }
+
+  const docChunks = new Map<string, { name: string; sourceType: string; chunks: string[] }>();
+  for (const match of matches) {
+    const key = match.document_id;
+    if (!docChunks.has(key)) {
+      docChunks.set(key, { name: match.document_name, sourceType: match.source_type, chunks: [] });
+    }
+    docChunks.get(key)!.chunks.push(match.chunk_text);
+  }
+
+  let ragContext = '--- RETRIEVED KNOWLEDGE (most relevant chunks from indexed documents) ---\n\n';
+  for (const [, doc] of docChunks) {
+    ragContext += `=== ${doc.name} (${doc.sourceType}) ===\n`;
+    ragContext += doc.chunks.join('\n\n');
+    ragContext += '\n\n';
+  }
+
+  return ragContext;
+}
+
+/**
  * Perform RAG search: embed the user query, find relevant chunks via pgvector
+ * Now with smart routing: runs parallel general + source-filtered searches
  */
 async function ragSearch(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<string> {
   const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
