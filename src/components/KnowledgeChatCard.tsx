@@ -827,13 +827,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     setLoadingHistory(true);
     supabase
       .from('knowledge_messages')
-      .select('role, content, sources')
+      .select('role, content, sources, rag_documents, web_citations')
       .eq('session_id', session.id)
       .eq('thread_id', activeThreadId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (data && data.length > 0) {
-          setMessages(data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content, sources: m.sources || [] })));
+          setMessages(data.map((m: any) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            sources: m.sources || [],
+            ragDocuments: m.rag_documents || undefined,
+            webCitations: m.web_citations || undefined,
+          })));
         } else {
           setMessages([]);
         }
@@ -1248,7 +1254,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         }
         return prev;
       });
-      saveMessage('assistant', assistantContent, sources);
+      saveMessage('assistant', assistantContent, sources, ragDocuments, webCitations);
 
       // Auto-title the thread if it's still "New Chat"
       if (activeThreadId && newMessages.length === 1) {
