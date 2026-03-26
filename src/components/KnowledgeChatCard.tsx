@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge } from 'lucide-react';
-import { DotLottiePlayer } from '@dotlottie/react-player';
+
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -286,9 +286,11 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <div className="h-6 w-6 flex-shrink-0">
-          <DotLottiePlayer src="/assets/Loading.lottie" autoplay loop={isStreaming} style={{ width: '24px', height: '24px' }} />
-        </div>
+        {isStreaming ? (
+          <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-muted-foreground" />
+        ) : (
+          <Brain className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+        )}
         <span className="text-base font-bold">{isStreaming ? 'Thinking…' : 'Show Thinking'}</span>
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
       </button>
