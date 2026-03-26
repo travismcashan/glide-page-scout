@@ -930,6 +930,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         )}
       </div>
 
+      {/* Scroll to bottom button */}
+      {showScrollBottom && (
+        <button
+          onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+          className="fixed left-1/2 -translate-x-1/2 bottom-[180px] z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
+          aria-label="Scroll to bottom"
+        >
+          <ArrowDown className="h-5 w-5" />
+        </button>
+      )}
+
       {/* Input area - sticky at bottom */}
       <div
         className={`fixed bottom-0 left-0 right-0 z-30 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent`}
