@@ -256,7 +256,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
               placeholder="Search…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="h-7 w-32 pl-6 text-xs"
+              className="h-7 w-64 pl-6 text-xs"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
