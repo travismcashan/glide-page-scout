@@ -1612,7 +1612,7 @@ export default function ResultsPage() {
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
            <div className="flex items-center justify-between">
              <div>
-               <h1 className="text-7xl font-light tracking-tight text-foreground leading-none pt-2.5">
+               <h1 className="text-4xl font-light tracking-tight text-foreground leading-none pt-2.5">
                  {session?.domain?.replace(/^www\./i, '')}
                </h1>
                {session?.created_at && (
