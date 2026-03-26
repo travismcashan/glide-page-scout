@@ -65,6 +65,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [groupBy, setGroupBy] = useState<string>('none');
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocuments = useCallback(async () => {
