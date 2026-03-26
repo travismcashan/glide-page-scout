@@ -918,9 +918,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="h-7 px-2.5 text-xs font-normal gap-1.5 rounded-full"
+                className="h-7 px-2.5 text-xs font-normal gap-1.5 rounded-full border-0 bg-transparent hover:bg-transparent"
                 disabled={isStreaming}
               >
               <SlidersHorizontal className="h-3.5 w-3.5" />
