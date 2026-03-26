@@ -20,9 +20,10 @@ type Props = {
   onNewThread: () => void;
   onDeleteThread: (threadId: string) => void;
   refreshKey?: number;
+  onWidthChange?: (width: number) => void;
 };
 
-export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey }: Props) {
+export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey, onWidthChange }: Props) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
