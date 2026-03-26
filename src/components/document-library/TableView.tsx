@@ -33,6 +33,10 @@ export function TableView({ documents, onDelete, sortField, sortDir, onSort, gro
   return <div className="px-1"><DocTable documents={documents} onDelete={onDelete} sortField={sortField} sortDir={sortDir} onSort={onSort} /></div>;
 }
 
+function toTitleCase(str: string): string {
+  return str.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function SortIndicator({ field, activeField, dir }: { field: SortField; activeField: SortField; dir: SortDir }) {
   if (field !== activeField) return null;
   return dir === 'asc' ? <ArrowUp className="h-3 w-3 inline ml-0.5" /> : <ArrowDown className="h-3 w-3 inline ml-0.5" />;
