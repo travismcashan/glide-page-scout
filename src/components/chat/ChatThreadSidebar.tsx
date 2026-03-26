@@ -169,7 +169,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
-                      <div className="truncate text-sm font-medium">{thread.title}</div>
+                      <div className="truncate font-medium" style={{ fontSize: 15 }}>{thread.title}</div>
                     )}
                   </div>
                   {renamingId !== thread.id && (
