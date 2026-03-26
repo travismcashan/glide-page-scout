@@ -64,7 +64,7 @@ function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, 
 import { AvomaCard } from '@/components/AvomaCard';
 import { HubSpotCard } from '@/components/HubSpotCard';
 import { ApolloCard } from '@/components/ApolloCard';
-import { GmailCard } from '@/components/GmailCard';
+import { GmailCard, type GmailCardHandle } from '@/components/GmailCard';
 import { SectionCard } from '@/components/SectionCard';
 import { SortedIntegrationList } from '@/components/SortedIntegrationList';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
@@ -265,6 +265,8 @@ export default function ResultsPage() {
   }, []);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
+  const gmailRef = useRef<GmailCardHandle>(null);
+  const [gmailState, setGmailState] = useState<{ canIngest: boolean; isIngesting: boolean; emailCount: number }>({ canIngest: false, isIngesting: false, emailCount: 0 });
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
   const [sitemapInnerExpand, setSitemapInnerExpand] = useState<boolean | null>(null);
   const [contentTypesInnerExpand, setContentTypesInnerExpand] = useState<boolean | null>(null);
@@ -2197,9 +2199,25 @@ export default function ResultsPage() {
                 sectionId="gmail" persistedCollapsed={isSectionCollapsed("gmail")} onCollapseChange={toggleSection} title="Gmail — Email Threads"
                 icon={<Mail className="h-5 w-5 text-foreground" />}
                 collapsed={allCollapsed}
+                headerExtra={
+                  gmailState.canIngest ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1.5 text-xs"
+                      disabled={gmailState.isIngesting}
+                      onClick={() => gmailRef.current?.ingestAllEmails()}
+                    >
+                      {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+                      Ingest All Emails
+                    </Button>
+                  ) : undefined
+                }
               >
                 <GmailCard
+                  ref={gmailRef}
                   domain={session?.domain || ''}
+                  onStateChange={setGmailState}
                   contactEmails={
                     (session as any)?.hubspot_data?.contacts
                       ?.map((c: any) => c.email?.toLowerCase())

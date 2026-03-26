@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useGmail, type GmailEmail, type GmailAttachment } from '@/hooks/useGmail';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -185,13 +185,24 @@ function EmailRow({
   );
 }
 
-export function GmailCard({ domain, contactEmails }: { domain: string; contactEmails?: string[] }) {
+export interface GmailCardHandle {
+  ingestAllEmails: () => Promise<void>;
+}
+
+export interface GmailCardProps {
+  domain: string;
+  contactEmails?: string[];
+  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number }) => void;
+}
+
+export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, contactEmails, onStateChange }, ref) {
   const { id: sessionId } = useParams<{ id: string }>();
   const { isConnected, isLoading, emails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
   const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
   const [ingesting, setIngesting] = useState(false);
+  const [ingestingAll, setIngestingAll] = useState(false);
 
   const doSearch = async () => {
     setHasSearched(true);
@@ -327,6 +338,76 @@ export function GmailCard({ domain, contactEmails }: { domain: string; contactEm
     }
   };
 
+  const handleIngestAllEmails = async () => {
+    if (!sessionId || emails.length === 0) return;
+    setIngestingAll(true);
+    try {
+      const docsToIngest = emails.map((email) => {
+        const from = parseEmailAddress(email.from);
+        const to = parseEmailAddress(email.to);
+        const parts: string[] = [];
+        parts.push(`Subject: ${email.subject || '(no subject)'}`);
+        parts.push(`From: ${email.from}`);
+        parts.push(`To: ${email.to}`);
+        parts.push(`Date: ${email.date}`);
+        if (email.attachments?.length) {
+          parts.push(`Attachments: ${email.attachments.map(a => a.filename).join(', ')}`);
+        }
+        parts.push('');
+        parts.push(email.body || email.snippet || '(empty)');
+
+        return {
+          name: `Gmail: ${email.subject || '(no subject)'} — ${from.name || from.email} → ${to.name || to.email}`,
+          content: parts.join('\n'),
+          source_type: 'gmail',
+          source_key: `gmail:email:${email.id}`,
+        };
+      }).filter(d => d.content.length >= 50);
+
+      if (docsToIngest.length === 0) {
+        toast.error('No emails with enough content to ingest');
+        return;
+      }
+
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+      });
+
+      if (!response.ok) {
+        toast.error('Failed to ingest emails');
+        return;
+      }
+
+      const result = await response.json();
+      const count = result.results?.filter((r: any) => r.status === 'ready').length || 0;
+      toast.success(`Ingested ${count} email${count !== 1 ? 's' : ''} into knowledge base`);
+    } catch (err: any) {
+      console.error('Ingest all emails error:', err);
+      toast.error('Failed to ingest emails');
+    } finally {
+      setIngestingAll(false);
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    ingestAllEmails: handleIngestAllEmails,
+  }), [emails, isConnected, isLoading, ingestingAll]);
+
+  // Notify parent of state changes
+  useEffect(() => {
+    onStateChange?.({
+      canIngest: isConnected === true && emails.length > 0 && !isLoading,
+      isIngesting: ingestingAll,
+      emailCount: emails.length,
+    });
+  }, [isConnected, emails.length, isLoading, ingestingAll, onStateChange]);
+
   // Count total attachments across all emails
   const totalAttachments = emails.reduce((sum, e) => sum + (e.attachments?.length || 0), 0);
   const ingestableCount = selectedAttachments.size;
@@ -408,4 +489,4 @@ export function GmailCard({ domain, contactEmails }: { domain: string; contactEm
       )}
     </div>
   );
-}
+});
