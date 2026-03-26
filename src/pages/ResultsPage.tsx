@@ -306,6 +306,7 @@ export default function ResultsPage() {
     if (sessionRes.data) {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
+      if (sessionData.prospect_domain) setProspectDomainInput(sessionData.prospect_domain);
       // Restore persisted integration durations & timestamps
       if (sessionData.integration_durations && typeof sessionData.integration_durations === 'object') {
         setIntegrationDurations(prev => ({ ...sessionData.integration_durations, ...prev }));
