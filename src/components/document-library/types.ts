@@ -44,6 +44,7 @@ export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: s
 /** Get the source label, with special handling for HubSpot integration docs */
 export function getSourceLabel(sourceType: string, sourceKey: string | null): string {
   if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data')) return 'HubSpot';
+  if (sourceType === 'integration' && sourceKey?.startsWith('avoma_data')) return 'Avoma';
   return SOURCE_LABELS[sourceType] || sourceType;
 }
 
@@ -68,6 +69,10 @@ export function getDocumentIcon(_name: string, sourceType: string, sourceKey?: s
     if (name.startsWith('hubspot task')) return ClipboardList;
   }
   if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data')) return Database;
+
+  // Avoma meeting-specific icon
+  if (sourceType === 'integration' && sourceKey?.startsWith('avoma_data:meeting:')) return Video;
+  if (sourceType === 'integration' && sourceKey?.startsWith('avoma_data')) return Database;
 
   return Database;
 }

@@ -22,7 +22,6 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   carbon_data: 'Website Carbon Footprint',
   yellowlab_data: 'Yellow Lab Tools',
   ocean_data: 'Ocean.io Company Data',
-  avoma_data: 'Avoma Transcript',
   apollo_data: 'Apollo Contact Data',
   nav_structure: 'Site Navigation Structure',
   content_types_data: 'Content Types Analysis',
@@ -136,6 +135,75 @@ function expandHubSpotDocs(
   return docs;
 }
 
+/** Expand Avoma data into per-meeting documents */
+function expandAvomaDocs(
+  avomaData: any
+): { name: string; content: string; source_key: string }[] {
+  const docs: { name: string; content: string; source_key: string }[] = [];
+  const meetings = avomaData.meetings || [];
+
+  for (const meeting of meetings) {
+    const parts: string[] = [];
+    const subject = meeting.subject || 'Untitled Meeting';
+
+    // Meeting metadata
+    if (meeting.startTime) parts.push(`Date: ${new Date(meeting.startTime).toLocaleString()}`);
+    if (meeting.endTime) parts.push(`End: ${new Date(meeting.endTime).toLocaleString()}`);
+    if (meeting.purpose) parts.push(`Purpose: ${meeting.purpose}`);
+    if (meeting.outcome) parts.push(`Outcome: ${meeting.outcome}`);
+
+    // Attendees
+    if (meeting.attendees?.length) {
+      const attendeeList = meeting.attendees.map((a: any) =>
+        `${a.name || 'Unknown'}${a.email ? ` <${a.email}>` : ''}${a.is_rep ? ' (Rep)' : ''}`
+      ).join(', ');
+      parts.push(`Attendees: ${attendeeList}`);
+    }
+
+    // AI Notes
+    if (meeting.insights?.aiNotes?.length) {
+      parts.push('\n## AI Notes');
+      for (const note of meeting.insights.aiNotes) {
+        const label = note.noteType ? `[${note.noteType}] ` : '';
+        parts.push(`- ${label}${note.text}`);
+      }
+    }
+
+    // Keywords
+    if (meeting.insights?.keywords?.length) {
+      const kws = meeting.insights.keywords.map((k: any) => `${k.word} (${k.count})`).join(', ');
+      parts.push(`\n## Keywords\n${kws}`);
+    }
+
+    // Speakers
+    if (meeting.insights?.speakers?.length) {
+      const speakers = meeting.insights.speakers.map((s: any) =>
+        `${s.name}${s.email ? ` <${s.email}>` : ''}${s.is_rep ? ' (Rep)' : ''}`
+      ).join(', ');
+      parts.push(`\n## Speakers\n${speakers}`);
+    }
+
+    // Transcript
+    if (meeting.transcript?.sentences?.length) {
+      parts.push('\n## Transcript');
+      for (const s of meeting.transcript.sentences) {
+        parts.push(`[${s.speakerName || 'Unknown'}]: ${s.text}`);
+      }
+    }
+
+    const content = parts.join('\n');
+    if (content.length < 30) continue;
+
+    docs.push({
+      name: `Avoma Meeting: ${subject}`,
+      content,
+      source_key: `avoma_data:meeting:${meeting.uuid || meeting.id || meetings.indexOf(meeting)}`,
+    });
+  }
+
+  return docs;
+}
+
 /**
  * Check which integrations have data but haven't been ingested yet,
  * and send them to the RAG ingest pipeline.
@@ -218,6 +286,42 @@ export async function autoIngestIntegrations(
         .eq('source_key', 'hubspot_data');
 
       const expandedDocs = expandHubSpotDocs(hubspotData);
+      for (const doc of expandedDocs) {
+        docsToIngest.push({
+          name: doc.name,
+          content: doc.content,
+          source_type: 'integration',
+          source_key: doc.source_key,
+        });
+      }
+    }
+  }
+
+  // Avoma: expand into per-meeting documents
+  const avomaData = sessionData.avoma_data;
+  if (avomaData && typeof avomaData === 'object' && !avomaData._error) {
+    const avomaTimestamp = integrationTimestamps.avoma_data;
+    const avomaExisting = existingMap.get('avoma_data:meeting:0') || existingMap.get('avoma_data');
+    const needsReIngest = !avomaExisting || (avomaTimestamp && new Date(avomaTimestamp) > new Date(avomaExisting));
+
+    if (needsReIngest) {
+      // Delete all old avoma docs
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('source_type', 'integration')
+        .like('source_key', 'avoma_data:%');
+
+      // Delete legacy single-blob avoma doc
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('source_type', 'integration')
+        .eq('source_key', 'avoma_data');
+
+      const expandedDocs = expandAvomaDocs(avomaData);
       for (const doc of expandedDocs) {
         docsToIngest.push({
           name: doc.name,
