@@ -1278,7 +1278,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           </Popover>
 
           {/* Model selector */}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1" style={{ marginRight: -11 }}>
           <ChatModelSelector
             model={selectedModel}
             reasoning={reasoning}
