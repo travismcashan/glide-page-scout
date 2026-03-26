@@ -1368,6 +1368,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
   const outerRef = useRef<HTMLDivElement>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [scrollBtnLeft, setScrollBtnLeft] = useState<number | null>(null);
 
   // Track whether user has scrolled away from bottom
   useEffect(() => {
@@ -1375,8 +1376,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       const distanceFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
       const hasAssistantReply = messages.some(m => m.role === 'assistant' && m.content);
       setShowScrollBottom(distanceFromBottom > 200 && hasAssistantReply);
+      if (outerRef.current) {
+        const rect = outerRef.current.getBoundingClientRect();
+        setScrollBtnLeft(rect.left + rect.width / 2);
+      }
     };
-    checkDistance(); // check immediately on mount / content change
+    checkDistance();
     window.addEventListener('scroll', checkDistance, { passive: true });
     window.addEventListener('resize', checkDistance, { passive: true });
     const observer = new MutationObserver(checkDistance);
