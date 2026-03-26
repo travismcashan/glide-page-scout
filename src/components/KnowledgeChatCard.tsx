@@ -16,6 +16,7 @@ import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
 import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
+import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -531,25 +532,67 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const dragCounterRef = useRef(0);
   const [composerHeight, setComposerHeight] = useState(176);
 
+  // Thread management
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+  const threadInitRef = useRef<string | null>(null);
+
   const crawlContext = buildCrawlContext(session, pages);
 
-  // Load chat history from DB
+  // Initialize: load or create default thread
   useEffect(() => {
-    if (loadedSessionRef.current === session.id) return;
-    loadedSessionRef.current = session.id;
+    if (threadInitRef.current === session.id) return;
+    threadInitRef.current = session.id;
+
+    const initThread = async () => {
+      // Try to find existing threads
+      const { data: threads } = await supabase
+        .from('chat_threads')
+        .select('id')
+        .eq('session_id', session.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (threads && threads.length > 0) {
+        setActiveThreadId(threads[0].id);
+      } else {
+        // Create first thread
+        const { data: newThread } = await supabase
+          .from('chat_threads')
+          .insert({ session_id: session.id, title: 'New Chat' } as any)
+          .select('id')
+          .single();
+        if (newThread) {
+          setActiveThreadId(newThread.id);
+          setSidebarRefreshKey(k => k + 1);
+        }
+      }
+    };
+    initThread();
+  }, [session.id]);
+
+  // Load chat history from DB — per thread
+  useEffect(() => {
+    if (!activeThreadId) return;
+    const key = `${session.id}:${activeThreadId}`;
+    if (loadedSessionRef.current === key) return;
+    loadedSessionRef.current = key;
     setLoadingHistory(true);
     supabase
       .from('knowledge_messages')
       .select('role, content, sources')
       .eq('session_id', session.id)
+      .eq('thread_id', activeThreadId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (data && data.length > 0) {
           setMessages(data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content, sources: m.sources || [] })));
+        } else {
+          setMessages([]);
         }
         setLoadingHistory(false);
       });
-  }, [session.id]);
+  }, [session.id, activeThreadId]);
 
   // Load favorites
   useEffect(() => {
@@ -612,8 +655,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, []);
 
   const saveMessage = async (role: string, content: string, sources: string[] = []) => {
+    if (!activeThreadId) return;
     await supabase.from('knowledge_messages').insert({
       session_id: session.id,
+      thread_id: activeThreadId,
       role,
       content,
       sources,
@@ -888,6 +933,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       });
       saveMessage('assistant', assistantContent, sources);
 
+      // Auto-title the thread if it's still "New Chat"
+      if (activeThreadId && newMessages.length === 1) {
+        // First message in thread — generate a title
+        const titleText = typeof displayContent === 'string' ? displayContent : messageText;
+        const shortTitle = titleText.slice(0, 60).replace(/\n/g, ' ');
+        await supabase.from('chat_threads').update({ title: shortTitle, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
+        setSidebarRefreshKey(k => k + 1);
+      } else if (activeThreadId) {
+        // Update the thread's updated_at timestamp
+        await supabase.from('chat_threads').update({ updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
+        setSidebarRefreshKey(k => k + 1);
+      }
+
       // Auto-ingest conversation into RAG (fire-and-forget)
       const allMsgs = [...newMessages, { role: 'assistant' as const, content: assistantContent }];
       ingestChatConversation(session.id, allMsgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))).then(() => {
@@ -901,7 +959,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
@@ -974,18 +1032,62 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, [session.id, favoriteIds]);
 
   const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
-    if (isStreaming) return;
-    // Truncate conversation to just before this message
+    if (isStreaming || !activeThreadId) return;
     const truncated = messages.slice(0, messageIndex);
     setMessages(truncated);
-    // Delete old messages from DB and re-save truncated history
-    await supabase.from('knowledge_messages').delete().eq('session_id', session.id);
+    await supabase.from('knowledge_messages').delete().eq('thread_id', activeThreadId);
     for (const m of truncated) {
       await saveMessage(m.role, typeof m.content === 'string' ? m.content : '', m.sources || []);
     }
-    // Send the edited message as a new message
     handleSend(newText);
-  }, [messages, isStreaming, session.id, handleSend]);
+  }, [messages, isStreaming, session.id, handleSend, activeThreadId]);
+
+  // New chat handler
+  const handleNewThread = useCallback(async () => {
+    if (isStreaming) return;
+    const { data: newThread } = await supabase
+      .from('chat_threads')
+      .insert({ session_id: session.id, title: 'New Chat' } as any)
+      .select('id')
+      .single();
+    if (newThread) {
+      loadedSessionRef.current = null; // force reload
+      setMessages([]);
+      setActiveThreadId(newThread.id);
+      setSidebarRefreshKey(k => k + 1);
+    }
+  }, [session.id, isStreaming]);
+
+  // Delete thread handler
+  const handleDeleteThread = useCallback(async (threadId: string) => {
+    await supabase.from('knowledge_messages').delete().eq('thread_id', threadId);
+    await supabase.from('chat_threads').delete().eq('id', threadId);
+    if (threadId === activeThreadId) {
+      // Switch to another thread
+      const { data: remaining } = await supabase
+        .from('chat_threads')
+        .select('id')
+        .eq('session_id', session.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (remaining && remaining.length > 0) {
+        loadedSessionRef.current = null;
+        setActiveThreadId(remaining[0].id);
+      } else {
+        // Create a new one
+        handleNewThread();
+      }
+    }
+    setSidebarRefreshKey(k => k + 1);
+  }, [activeThreadId, session.id, handleNewThread]);
+
+  // Select thread handler
+  const handleSelectThread = useCallback((threadId: string) => {
+    if (threadId === activeThreadId || isStreaming) return;
+    loadedSessionRef.current = null;
+    setMessages([]);
+    setActiveThreadId(threadId);
+  }, [activeThreadId, isStreaming]);
 
   const outerRef = useRef<HTMLDivElement>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -1009,7 +1111,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, []);
 
 
-  if (loadingHistory) {
+  if (loadingHistory && !activeThreadId) {
     return (
       <div className="flex items-center justify-center h-[400px]">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -1019,10 +1121,22 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }
 
   return (
-    <div
-      ref={outerRef}
-      className="flex flex-col items-center pb-24"
-    >
+    <div className="flex min-h-[500px]">
+      {/* Thread sidebar */}
+      <ChatThreadSidebar
+        sessionId={session.id}
+        activeThreadId={activeThreadId}
+        onSelectThread={handleSelectThread}
+        onNewThread={handleNewThread}
+        onDeleteThread={handleDeleteThread}
+        refreshKey={sidebarRefreshKey}
+      />
+
+      {/* Main chat area */}
+      <div
+        ref={outerRef}
+        className="flex-1 flex flex-col items-center pb-24"
+      >
       {/* Messages area */}
       <div ref={scrollRef} className="space-y-4 px-5 pt-5 w-full max-w-3xl mx-auto">
         {messages.length === 0 && !isThinking ? (
@@ -1320,6 +1434,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             </Button>
           </div>
         </div>
+      </div>
       </div>
       </div>
     </div>

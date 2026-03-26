@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_threads: {
+        Row: {
+          created_at: string
+          id: string
+          session_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          session_id: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_threads_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crawl_pages: {
         Row: {
           ai_outline: string | null
@@ -403,6 +435,7 @@ export type Database = {
           role: string
           session_id: string
           sources: string[] | null
+          thread_id: string | null
         }
         Insert: {
           content: string
@@ -411,6 +444,7 @@ export type Database = {
           role: string
           session_id: string
           sources?: string[] | null
+          thread_id?: string | null
         }
         Update: {
           content?: string
@@ -419,6 +453,7 @@ export type Database = {
           role?: string
           session_id?: string
           sources?: string[] | null
+          thread_id?: string | null
         }
         Relationships: [
           {
@@ -426,6 +461,13 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "chat_threads"
             referencedColumns: ["id"]
           },
         ]
