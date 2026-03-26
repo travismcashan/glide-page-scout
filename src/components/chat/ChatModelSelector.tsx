@@ -127,19 +127,22 @@ export function ChatModelPicker({ model, provider, onModelChange, disabled }: Mo
 
 type ProviderPickerProps = {
   provider: ModelProvider;
+  model?: string;
   onProviderChange: (provider: ModelProvider) => void;
   disabled?: boolean;
 };
 
-export function ChatProviderPicker({ provider, onProviderChange, disabled }: ProviderPickerProps) {
+export function ChatProviderPicker({ provider, model, onProviderChange, disabled }: ProviderPickerProps) {
   const [open, setOpen] = useState(false);
   const selected = PROVIDERS.find(p => p.id === provider) || PROVIDERS[0];
+  const selectedModel = model ? MODEL_OPTIONS.find(m => m.id === model) : undefined;
+  const displayLabel = selectedModel ? `${selected.label} ${selectedModel.label}` : selected.label;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild disabled={disabled}>
         <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1.5 py-0.5 rounded flex items-center gap-1">
-          {selected.label}
+          {displayLabel}
           <ChevronDown className="h-3 w-3 opacity-50" />
         </button>
       </PopoverTrigger>
