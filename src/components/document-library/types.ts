@@ -1,4 +1,4 @@
-import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage } from 'lucide-react';
+import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, Upload } from 'lucide-react';
 
 export type KnowledgeDocument = {
   id: string;
@@ -31,8 +31,9 @@ export const SOURCE_LABELS: Record<string, string> = {
 
 export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
   ready: { icon: CheckCircle2, color: 'text-emerald-500', label: 'Indexed' },
-  processing: { icon: Loader2, color: 'text-amber-500', label: 'Processing' },
-  pending: { icon: Clock, color: 'text-muted-foreground', label: 'Pending' },
+  processing: { icon: Loader2, color: 'text-amber-500', label: 'Indexing' },
+  pending: { icon: Clock, color: 'text-muted-foreground', label: 'Queued' },
+  uploading: { icon: Upload, color: 'text-blue-500', label: 'Uploading' },
   error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
 };
 
