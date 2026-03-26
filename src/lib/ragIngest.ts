@@ -297,7 +297,42 @@ export async function autoIngestIntegrations(
     }
   }
 
-  if (docsToIngest.length === 0) {
+  // Avoma: expand into per-meeting documents
+  const avomaData = sessionData.avoma_data;
+  if (avomaData && typeof avomaData === 'object' && !avomaData._error) {
+    const avomaTimestamp = integrationTimestamps.avoma_data;
+    const avomaExisting = existingMap.get('avoma_data:meeting:0') || existingMap.get('avoma_data');
+    const needsReIngest = !avomaExisting || (avomaTimestamp && new Date(avomaTimestamp) > new Date(avomaExisting));
+
+    if (needsReIngest) {
+      // Delete all old avoma docs
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('source_type', 'integration')
+        .like('source_key', 'avoma_data:%');
+
+      // Delete legacy single-blob avoma doc
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('source_type', 'integration')
+        .eq('source_key', 'avoma_data');
+
+      const expandedDocs = expandAvomaDocs(avomaData);
+      for (const doc of expandedDocs) {
+        docsToIngest.push({
+          name: doc.name,
+          content: doc.content,
+          source_type: 'integration',
+          source_key: doc.source_key,
+        });
+      }
+    }
+  }
+
     return { ingested: 0, skipped: existingMap.size };
   }
 
