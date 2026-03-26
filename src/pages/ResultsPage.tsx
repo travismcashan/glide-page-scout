@@ -166,6 +166,10 @@ export default function ResultsPage() {
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
   const [allCollapsed, setAllCollapsed] = useState(false);
+  // Prospect domain override for prospecting integrations
+  const [prospectDomainInput, setProspectDomainInput] = useState('');
+  const [prospectDomainEditing, setProspectDomainEditing] = useState(false);
+  const prospectingDomain = session?.prospect_domain || session?.domain || '';
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
     return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
   });
