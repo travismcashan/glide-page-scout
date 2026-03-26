@@ -945,6 +945,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
       if (error) throw error;
       toast.success(`Saved: ${noteName}`);
+      setSavedNoteContents(prev => new Set(prev).add(content.slice(0, 200)));
       if (onDocumentsChanged) onDocumentsChanged();
     } catch (e: any) {
       console.error('Save note error:', e);
@@ -1057,6 +1058,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       onSaveNote={handleSaveNote}
                       onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')}
                       isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')}
+                      isSavedNote={savedNoteContents.has((typeof msg.content === 'string' ? msg.content : '').slice(0, 200))}
                       webCitations={msg.webCitations}
                       isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length}
                       sources={msg.sources}
