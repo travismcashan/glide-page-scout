@@ -524,11 +524,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
-  const wasStreamingRef = useRef(false);
   const handleFilesRef = useRef<((files: FileList) => void) | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
+  const [composerHeight, setComposerHeight] = useState(176);
 
   const crawlContext = buildCrawlContext(session, pages);
 
@@ -582,33 +583,33 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       });
   }, [session.id]);
 
-  // Gemini-style scroll: pin user message at top when response starts
-  const hasScrolledForStreamRef = useRef(false);
+  useEffect(() => {
+    if (!composerRef.current) return;
 
-  // Scroll to pin user message at top — called from handleSend after message is added
-  const scrollToLastUserMessage = useCallback(() => {
-    hasScrolledForStreamRef.current = true;
-    // Wait for React to render the new message into the DOM
-    setTimeout(() => {
-      requestAnimationFrame(() => {
-        if (lastUserMsgRef.current) {
-          const rect = lastUserMsgRef.current.getBoundingClientRect();
-          const scrollTarget = window.scrollY + rect.top - 20;
-          window.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-        }
-      });
-    }, 50);
+    const updateComposerHeight = () => {
+      if (composerRef.current) {
+        setComposerHeight(composerRef.current.getBoundingClientRect().height);
+      }
+    };
+
+    updateComposerHeight();
+    const observer = new ResizeObserver(updateComposerHeight);
+    observer.observe(composerRef.current);
+    window.addEventListener('resize', updateComposerHeight, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateComposerHeight);
+    };
   }, []);
 
-  // Reset scroll flag when streaming ends
-  useEffect(() => {
-    if (!isStreaming) {
-      hasScrolledForStreamRef.current = false;
-      wasStreamingRef.current = false;
-    } else {
-      wasStreamingRef.current = true;
-    }
-  }, [isStreaming]);
+  const scrollToLastUserMessage = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        lastUserMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  }, []);
 
   const saveMessage = async (role: string, content: string, sources: string[] = []) => {
     await supabase.from('knowledge_messages').insert({
@@ -662,9 +663,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     // Display message shows just the text + attachment names
     const displayContent = messageText || `Attached ${attachmentNames.join(', ')}`;
     const userMsg: Message = { role: 'user', content: displayContent, attachmentNames };
+    const assistantPlaceholder: Message = { role: 'assistant', content: '' };
     const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+
+    const clearPendingAssistantPlaceholder = () => {
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (!last || last.role !== 'assistant') return prev;
+        const hasContent = typeof last.content === 'string' && last.content.trim().length > 0;
+        if (hasContent || last.thinking || last.webCitations?.length) return prev;
+        return prev.slice(0, -1);
+      });
+    };
+
+    setMessages([...newMessages, assistantPlaceholder]);
     chatInputRef.current?.clear();
+    setAttachments([]);
+    setIsStreaming(true);
+    setIsThinking(true);
     scrollToLastUserMessage();
 
     // Ingest uploaded files into RAG document library (fire-and-forget)
@@ -674,22 +690,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       });
     }
 
-    setAttachments([]);
-    setIsStreaming(true);
-    setIsThinking(true);
-
     // Save user message to DB
     saveMessage('user', typeof displayContent === 'string' ? displayContent : messageText);
 
     let assistantContent = '';
     let thinkingContent = '';
     let webCitations: string[] = [];
-    const isWebSearch = searchSources.web;
-
-    // If web search is enabled, add a placeholder assistant message with searching indicator
-    if (isWebSearch) {
-      setMessages(prev => [...prev, { role: 'assistant' as const, content: '', webCitations: [] }]);
-    }
 
     // Build the API messages - use multimodal content for the current message
     const apiMessages = newMessages.map((m, i) => {
@@ -728,6 +734,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         } else {
           toast.error(errorMsg);
         }
+        clearPendingAssistantPlaceholder();
         setIsStreaming(false);
         setIsThinking(false);
         return;
@@ -735,6 +742,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
       if (!resp.body) {
         toast.error('No response stream');
+        clearPendingAssistantPlaceholder();
         setIsStreaming(false);
         setIsThinking(false);
         return;
@@ -887,6 +895,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       }).catch(() => {});
     } catch (e: any) {
       console.error('Knowledge chat error:', e);
+      clearPendingAssistantPlaceholder();
       toast.error(e?.message || 'Failed to get response');
     }
 
@@ -1015,7 +1024,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       className="flex flex-col items-center pb-24"
     >
       {/* Messages area */}
-      <div ref={scrollRef} className="space-y-4 px-5 pt-5 pb-6 w-full max-w-3xl mx-auto">
+      <div ref={scrollRef} className="space-y-4 px-5 pt-5 w-full max-w-3xl mx-auto">
         {messages.length === 0 && !isThinking ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex items-center gap-2 mb-4">
@@ -1041,7 +1050,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         ) : (
           <>
             {messages.map((msg, i) => (
-              <div key={i} ref={msg.role === 'user' && (i === messages.length - 1 || i === messages.length - 2) ? lastUserMsgRef : undefined}>
+              <div
+                key={i}
+                ref={msg.role === 'user' && (i === messages.length - 1 || i === messages.length - 2) ? lastUserMsgRef : undefined}
+                style={msg.role === 'user' ? { scrollMarginTop: '24px' } : undefined}
+              >
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'user' ? (
                     <UserBubbleWrapper
@@ -1077,6 +1090,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                 </div>
               </div>
             ))}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none"
+              style={{ height: `max(calc(100vh - ${composerHeight}px - 32px), 240px)` }}
+            />
           </>
         )}
       </div>
@@ -1094,6 +1112,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
       {/* Input area - sticky at bottom */}
       <div
+        ref={composerRef}
         className={`fixed bottom-0 left-0 right-0 z-30 pb-4 pt-2 bg-gradient-to-t from-background via-background to-transparent`}
       >
       <div
