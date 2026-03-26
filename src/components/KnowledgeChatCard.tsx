@@ -57,6 +57,7 @@ type Props = {
   onModelChange: (model: string) => void;
   onReasoningChange: (reasoning: ReasoningEffort) => void;
   onDocumentsChanged?: () => void;
+  stickyTabVisible?: boolean;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
@@ -510,7 +511,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -1123,6 +1124,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           onDeleteThread={handleDeleteThread}
           refreshKey={sidebarRefreshKey}
           onWidthChange={setSidebarWidth}
+          stickyTabVisible={stickyTabVisible}
         />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -1143,6 +1145,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         onDeleteThread={handleDeleteThread}
         refreshKey={sidebarRefreshKey}
         onWidthChange={setSidebarWidth}
+        stickyTabVisible={stickyTabVisible}
       />
 
       {/* Main chat area */}
