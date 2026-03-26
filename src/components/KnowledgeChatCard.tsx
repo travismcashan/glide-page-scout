@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowUp, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -71,6 +72,37 @@ const SOURCE_LABELS: Record<string, string> = {
   avoma: 'Avoma', apollo: 'Apollo', ocean: 'Ocean.io', hubspot: 'HubSpot',
   nav: 'Navigation', sitemap: 'Sitemap', forms: 'Forms', content_types: 'Content Types',
   tech_analysis: 'Tech Analysis', pages: 'Scraped Pages',
+};
+
+/** Maps source keys to the tab and sectionId they live on */
+const SOURCE_TAB_MAP: Record<string, { tab: string; sectionId: string }> = {
+  semrush: { tab: 'raw-data', sectionId: 'semrush' },
+  psi: { tab: 'raw-data', sectionId: 'pagespeed' },
+  crux: { tab: 'raw-data', sectionId: 'crux' },
+  builtwith: { tab: 'raw-data', sectionId: 'builtwith' },
+  wappalyzer: { tab: 'raw-data', sectionId: 'wappalyzer' },
+  detectzestack: { tab: 'raw-data', sectionId: 'detectzestack' },
+  wave: { tab: 'raw-data', sectionId: 'wave' },
+  observatory: { tab: 'raw-data', sectionId: 'observatory' },
+  ssllabs: { tab: 'raw-data', sectionId: 'ssllabs' },
+  httpstatus: { tab: 'raw-data', sectionId: 'httpstatus' },
+  linkcheck: { tab: 'raw-data', sectionId: 'link-checker' },
+  w3c: { tab: 'raw-data', sectionId: 'w3c' },
+  schema: { tab: 'raw-data', sectionId: 'schema' },
+  readable: { tab: 'raw-data', sectionId: 'readable' },
+  carbon: { tab: 'raw-data', sectionId: 'carbon' },
+  yellowlab: { tab: 'raw-data', sectionId: 'yellowlab' },
+  gtmetrix: { tab: 'raw-data', sectionId: 'gtmetrix' },
+  tech_analysis: { tab: 'raw-data', sectionId: 'tech-analysis' },
+  nav: { tab: 'raw-data', sectionId: 'nav-structure' },
+  sitemap: { tab: 'raw-data', sectionId: 'sitemap' },
+  forms: { tab: 'raw-data', sectionId: 'forms' },
+  content_types: { tab: 'raw-data', sectionId: 'content-types' },
+  avoma: { tab: 'prospecting', sectionId: 'avoma' },
+  apollo: { tab: 'prospecting', sectionId: 'apollo' },
+  ocean: { tab: 'prospecting', sectionId: 'ocean' },
+  hubspot: { tab: 'prospecting', sectionId: 'hubspot' },
+  pages: { tab: 'raw-data', sectionId: 'content-audit' },
 };
 
 function detectSources(text: string): string[] {
@@ -801,7 +833,21 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                   <div className="flex items-center gap-1.5 mt-1.5 ml-1 flex-wrap">
                     <span className="text-[10px] text-muted-foreground">Sources:</span>
                     {msg.sources.map(s => (
-                      <Badge key={s} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                      <Badge
+                        key={s}
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 h-4 font-normal cursor-pointer hover:bg-muted transition-colors"
+                        onClick={() => {
+                          const target = SOURCE_TAB_MAP[s];
+                          if (target) {
+                            setSearchParams(prev => { prev.set('tab', target.tab); return prev; }, { replace: true });
+                            setTimeout(() => {
+                              const el = document.querySelector(`[data-section-id="${target.sectionId}"]`);
+                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 150);
+                          }
+                        }}
+                      >
                         {SOURCE_LABELS[s] || s}
                       </Badge>
                     ))}
