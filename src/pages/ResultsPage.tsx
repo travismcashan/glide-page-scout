@@ -1609,7 +1609,7 @@ export default function ResultsPage() {
           {/* Sticky tab bar - shown when scrolling up and past the original */}
           {stickyTabVisible && (
             <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm animate-in slide-in-from-top-2 duration-200">
-              <div className="max-w-6xl mx-auto px-6">
+              <div className="max-w-6xl mx-auto px-6 pt-5">
                 <div className="relative flex items-end">
                   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground z-0" />
                   <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
