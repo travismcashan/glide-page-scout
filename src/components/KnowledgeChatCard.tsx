@@ -558,6 +558,27 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
   }, [session.id]);
 
+  // Load saved note contents to show persistent blue bookmark
+  useEffect(() => {
+    supabase
+      .from('knowledge_documents')
+      .select('id')
+      .eq('session_id', session.id)
+      .eq('source_type', 'chat_note')
+      .then(async ({ data: docs }) => {
+        if (!docs || docs.length === 0) return;
+        const docIds = docs.map(d => d.id);
+        const { data: chunks } = await supabase
+          .from('knowledge_chunks')
+          .select('chunk_text')
+          .in('document_id', docIds)
+          .eq('chunk_index', 0);
+        if (chunks) {
+          setSavedNoteContents(new Set(chunks.map(c => c.chunk_text.slice(0, 200))));
+        }
+      });
+  }, [session.id]);
+
   // Gemini-style scroll: pin user message at top of viewport when streaming starts
   const hasScrolledForStreamRef = useRef(false);
   useEffect(() => {
