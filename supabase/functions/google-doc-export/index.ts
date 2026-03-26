@@ -151,12 +151,15 @@ function markdownToHtml(md: string): string {
   // Lists
   html = convertMarkdownLists(html);
 
-  // Wrap remaining text blocks in paragraphs with spacing
+  // Wrap remaining text blocks in paragraphs
   html = html.replace(/^(?!<[a-z])((?:.+\n?)+)/gm, (match) => {
     const trimmed = match.trim();
     if (!trimmed || trimmed.startsWith('<')) return match;
-    return `<p style="margin:10pt 0;">${trimmed}</p>`;
+    return `<p>${trimmed}</p>`;
   });
+
+  // Google Docs ignores CSS margins — insert a blank <p> between block elements for spacing
+  html = html.replace(/(<\/(?:p|h[1-4]|pre|blockquote|table|ol|ul)>)\s*(<(?:p|h[1-4]|pre|blockquote|table|ol|ul)[\s>])/gi, '$1<p><br></p>$2');
 
   return html;
 }
