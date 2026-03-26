@@ -83,7 +83,7 @@ function buildContextBlock(crawlContext: string | undefined, documents: any[] | 
 /**
  * Perform RAG search: embed the user query, find relevant chunks via pgvector
  */
-async function ragSearch(sessionId: string, query: string): Promise<string> {
+async function ragSearch(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<string> {
   const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
   if (!GEMINI_API_KEY) {
     console.warn('[knowledge-chat] GEMINI_API_KEY not set, skipping RAG search');
@@ -120,8 +120,8 @@ async function ragSearch(sessionId: string, query: string): Promise<string> {
     const { data: matches, error } = await supabase.rpc('match_knowledge_chunks', {
       p_session_id: sessionId,
       p_embedding: `[${queryEmbedding.join(',')}]`,
-      p_match_count: 25,
-      p_match_threshold: 0.25,
+      p_match_count: matchCount,
+      p_match_threshold: matchThreshold,
     });
 
     if (error || !matches || matches.length === 0) {
@@ -568,9 +568,11 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
+    const ragMatchCount = Math.min(Math.max(rag_depth?.match_count ?? 25, 5), 100);
+    const ragMatchThreshold = Math.min(Math.max(rag_depth?.match_threshold ?? 0.25, 0.05), 0.8);
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
