@@ -496,6 +496,17 @@ async function handlePerplexityRequest(
       (Array.isArray(msg.content) ? msg.content.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('\n') : ''),
   }));
 
+  // Perplexity requires strict alternating user/assistant messages after system.
+  // Merge consecutive same-role messages to satisfy this constraint.
+  const merged: { role: string; content: string }[] = [];
+  for (const msg of textMessages) {
+    if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+      merged[merged.length - 1].content += '\n\n' + msg.content;
+    } else {
+      merged.push({ ...msg });
+    }
+  }
+
   console.log(`[knowledge-chat] Perplexity request: model=${pplxModel}`);
 
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -508,7 +519,7 @@ async function handlePerplexityRequest(
       model: pplxModel,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...textMessages,
+        ...merged,
       ],
       stream: true,
     }),
