@@ -64,6 +64,7 @@ function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, 
 import { AvomaCard } from '@/components/AvomaCard';
 import { HubSpotCard } from '@/components/HubSpotCard';
 import { ApolloCard } from '@/components/ApolloCard';
+import { GmailCard } from '@/components/GmailCard';
 import { SectionCard } from '@/components/SectionCard';
 import { SortedIntegrationList } from '@/components/SortedIntegrationList';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
@@ -2192,6 +2193,20 @@ export default function ResultsPage() {
                   {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={handleApolloSearch} /> : null}
                 </SectionCard>
               )}
+              <SectionCard
+                sectionId="gmail" persistedCollapsed={isSectionCollapsed("gmail")} onCollapseChange={toggleSection} title="Gmail — Email Threads"
+                icon={<Mail className="h-5 w-5 text-foreground" />}
+                collapsed={allCollapsed}
+              >
+                <GmailCard
+                  domain={session?.domain || ''}
+                  contactEmails={
+                    (session as any)?.hubspot_data?.contacts
+                      ?.map((c: any) => c.email?.toLowerCase())
+                      .filter(Boolean) || []
+                  }
+                />
+              </SectionCard>
               {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations) && (
                 <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
                   <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
