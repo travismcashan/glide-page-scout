@@ -1279,18 +1279,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             </PopoverContent>
           </Popover>
 
-          {/* Model & Reasoning selectors */}
+          {/* Provider & Reasoning selectors */}
           <div className="ml-auto flex items-center gap-0.5" style={{ marginRight: -11 }}>
-          <ChatModelPicker
-            model={selectedModel}
+          <ChatProviderPicker
             provider={provider}
-            onModelChange={(id) => {
-              const newModel = MODEL_OPTIONS.find(m => m.id === id);
-              onModelChange(id);
-              if (newModel && !newModel.reasoning.includes(reasoning)) {
-                onReasoningChange('none');
-              }
-            }}
+            onProviderChange={onProviderChange}
             disabled={isStreaming}
           />
           <ChatReasoningPicker
