@@ -487,7 +487,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           </TooltipProvider>
           {sources && sources.length > 0 && (
             <>
-              <span className="text-xs text-muted-foreground ml-2">Sources:</span>
+              <span className="text-xs font-bold text-foreground ml-2 mr-2">Sources:</span>
               {sources.map(s => (
                 <Badge
                   key={s}
