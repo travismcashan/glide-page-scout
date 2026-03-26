@@ -13,6 +13,7 @@ import {
   Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type SortField = 'name' | 'modified' | 'type';
 type SortDirection = 'asc' | 'desc';
