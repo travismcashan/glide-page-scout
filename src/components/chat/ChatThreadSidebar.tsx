@@ -116,10 +116,10 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
               key={thread.id}
               onClick={() => onSelectThread(thread.id)}
               className={cn(
-                'group w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-start gap-2 relative',
+                'group w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 relative',
                 thread.id === activeThreadId
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-muted text-foreground'
+                  ? 'bg-muted text-foreground'
+                  : 'hover:bg-muted/50 text-foreground'
               )}
             >
               <div className="flex-1 min-w-0">
