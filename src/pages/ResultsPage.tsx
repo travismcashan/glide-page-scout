@@ -64,7 +64,7 @@ function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, 
 import { AvomaCard } from '@/components/AvomaCard';
 import { HubSpotCard } from '@/components/HubSpotCard';
 import { ApolloCard } from '@/components/ApolloCard';
-import { GmailCard } from '@/components/GmailCard';
+import { GmailCard, type GmailCardHandle } from '@/components/GmailCard';
 import { SectionCard } from '@/components/SectionCard';
 import { SortedIntegrationList } from '@/components/SortedIntegrationList';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
