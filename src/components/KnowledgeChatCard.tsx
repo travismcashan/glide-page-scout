@@ -932,6 +932,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       });
       saveMessage('assistant', assistantContent, sources);
 
+      // Auto-title the thread if it's still "New Chat"
+      if (activeThreadId && newMessages.length === 1) {
+        // First message in thread — generate a title
+        const titleText = typeof displayContent === 'string' ? displayContent : messageText;
+        const shortTitle = titleText.slice(0, 60).replace(/\n/g, ' ');
+        await supabase.from('chat_threads').update({ title: shortTitle, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
+        setSidebarRefreshKey(k => k + 1);
+      } else if (activeThreadId) {
+        // Update the thread's updated_at timestamp
+        await supabase.from('chat_threads').update({ updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
+        setSidebarRefreshKey(k => k + 1);
+      }
+
       // Auto-ingest conversation into RAG (fire-and-forget)
       const allMsgs = [...newMessages, { role: 'assistant' as const, content: assistantContent }];
       ingestChatConversation(session.id, allMsgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))).then(() => {
@@ -945,7 +958,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
