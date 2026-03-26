@@ -2200,15 +2200,15 @@ export default function ResultsPage() {
                 icon={<Mail className="h-5 w-5 text-foreground" />}
                 collapsed={allCollapsed}
                 headerExtra={
-                  gmailRef.current?.canIngest ? (
+                  gmailState.canIngest ? (
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-7 gap-1.5 text-xs"
-                      disabled={gmailRef.current?.isIngesting}
+                      disabled={gmailState.isIngesting}
                       onClick={() => gmailRef.current?.ingestAllEmails()}
                     >
-                      {gmailRef.current?.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+                      {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
                       Ingest All Emails
                     </Button>
                   ) : undefined
@@ -2217,6 +2217,7 @@ export default function ResultsPage() {
                 <GmailCard
                   ref={gmailRef}
                   domain={session?.domain || ''}
+                  onStateChange={setGmailState}
                   contactEmails={
                     (session as any)?.hubspot_data?.contacts
                       ?.map((c: any) => c.email?.toLowerCase())
