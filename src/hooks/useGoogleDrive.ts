@@ -35,6 +35,14 @@ function saveFolderState(state: FolderState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 
+function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
@@ -54,9 +62,7 @@ export function useGoogleDrive() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [files, setFiles] = useState<DriveFile[]>([]);
-  const [accessToken, setAccessToken] = useState<string | null>(() => {
-    try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
-  });
+  const [accessToken, setAccessToken] = useState<string | null>(() => getStoredToken());
 
   const initialState = loadFolderState();
   const [currentFolder, setCurrentFolder] = useState(initialState.currentFolder);
@@ -77,9 +83,21 @@ export function useGoogleDrive() {
     setIsConnected(false);
   }, []);
 
-  const listFiles = useCallback(async (folderId: string = 'root', token?: string) => {
-    const tok = token || accessToken;
-    if (!tok) { setIsConnected(false); return; }
+  const getActiveToken = useCallback((overrideToken?: string | null) => {
+    const token = overrideToken || accessToken || getStoredToken();
+    if (token && token !== accessToken) {
+      setAccessToken(token);
+    }
+    return token;
+  }, [accessToken]);
+
+  const listFiles = useCallback(async (folderId: string = 'root', tokenOverride?: string) => {
+    const tok = getActiveToken(tokenOverride);
+    if (!tok) {
+      setIsConnected(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await fetch(LIST_URL, {
@@ -93,32 +111,41 @@ export function useGoogleDrive() {
       });
 
       if (!response.ok) {
-        if (response.status === 401) { clearToken(); return; }
+        if (response.status === 401) {
+          clearToken();
+          return;
+        }
         throw new Error('Failed to list files');
       }
 
       const data = await response.json();
-      if (data.error === 'token_expired') { clearToken(); return; }
+      if (data.error === 'token_expired') {
+        clearToken();
+        return;
+      }
+
       setFiles(data.files || []);
       setCurrentFolder(folderId);
       setIsConnected(true);
     } catch (err) {
       console.error('Error listing files:', err);
+      setIsConnected(false);
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, clearToken]);
+  }, [clearToken, getActiveToken]);
 
-  // Check connection on init
   const checkConnection = useCallback(async () => {
-    if (!accessToken) { setIsConnected(false); return; }
-    await listFiles(currentFolder, accessToken);
-  }, [accessToken, currentFolder, listFiles]);
+    const latestToken = getActiveToken();
+    if (!latestToken) {
+      setIsConnected(false);
+      return;
+    }
+    await listFiles(currentFolder, latestToken);
+  }, [currentFolder, getActiveToken, listFiles]);
 
-  // Connect via GIS popup
   const connect = useCallback(async () => {
     try {
-      // Get client ID
       const clientIdResp = await fetch(PICKER_URL, {
         method: 'POST',
         headers: {
@@ -149,6 +176,7 @@ export function useGoogleDrive() {
       await listFiles('root', token);
     } catch (error) {
       console.error('Google Drive connect error:', error);
+      setIsConnected(false);
     }
   }, [saveToken, listFiles]);
 
@@ -166,8 +194,9 @@ export function useGoogleDrive() {
   const downloadFile = useCallback(async (file: DriveFile): Promise<{
     content?: string; mimeType: string; fileName: string; isText: boolean; size?: number;
   } | null> => {
-    const tok = accessToken;
+    const tok = getActiveToken();
     if (!tok) return null;
+
     try {
       const response = await fetch(DOWNLOAD_URL, {
         method: 'POST',
@@ -189,7 +218,7 @@ export function useGoogleDrive() {
       console.error('Error downloading file:', error);
       return null;
     }
-  }, [accessToken]);
+  }, [getActiveToken]);
 
   return {
     isConnected,
