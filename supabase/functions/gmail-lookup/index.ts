@@ -5,6 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+interface GmailAttachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
 interface GmailMessage {
   id: string;
   threadId: string;
@@ -14,6 +21,7 @@ interface GmailMessage {
   date: string;
   snippet: string;
   body: string;
+  attachments: GmailAttachment[];
 }
 
 async function gmailFetch(path: string, token: string) {
@@ -32,11 +40,7 @@ async function gmailFetch(path: string, token: string) {
 
 function decodeBase64Url(data: string): string {
   const padded = data.replace(/-/g, '+').replace(/_/g, '/');
-  try {
-    return atob(padded);
-  } catch {
-    return '';
-  }
+  try { return atob(padded); } catch { return ''; }
 }
 
 function getHeader(headers: any[], name: string): string {
@@ -44,37 +48,56 @@ function getHeader(headers: any[], name: string): string {
   return h?.value || '';
 }
 
-function extractBody(payload: any): string {
-  if (!payload) return '';
+function extractBodyAndAttachments(payload: any): { body: string; attachments: GmailAttachment[] } {
+  const attachments: GmailAttachment[] = [];
 
-  // Direct body
-  if (payload.body?.data) {
-    return decodeBase64Url(payload.body.data);
+  function collectAttachments(part: any) {
+    if (part.filename && part.filename.length > 0 && part.body?.attachmentId) {
+      attachments.push({
+        attachmentId: part.body.attachmentId,
+        filename: part.filename,
+        mimeType: part.mimeType || 'application/octet-stream',
+        size: part.body.size || 0,
+      });
+    }
+    if (part.parts) {
+      for (const sub of part.parts) collectAttachments(sub);
+    }
   }
 
-  // Multipart — prefer text/plain, fall back to text/html
-  if (payload.parts) {
-    let textBody = '';
-    let htmlBody = '';
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        textBody = decodeBase64Url(part.body.data);
-      } else if (part.mimeType === 'text/html' && part.body?.data) {
-        htmlBody = decodeBase64Url(part.body.data);
-      } else if (part.parts) {
-        // Nested multipart
-        const nested = extractBody(part);
-        if (nested) textBody = textBody || nested;
+  function extractText(part: any): { text: string; html: string } {
+    if (!part) return { text: '', html: '' };
+    let text = '';
+    let html = '';
+    if (part.mimeType === 'text/plain' && part.body?.data) {
+      text = decodeBase64Url(part.body.data);
+    } else if (part.mimeType === 'text/html' && part.body?.data) {
+      html = decodeBase64Url(part.body.data);
+    }
+    if (part.parts) {
+      for (const sub of part.parts) {
+        const nested = extractText(sub);
+        if (!text && nested.text) text = nested.text;
+        if (!html && nested.html) html = nested.html;
       }
     }
-    if (textBody) return textBody;
-    if (htmlBody) {
-      // Strip HTML tags for a readable version
-      return htmlBody.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    }
+    return { text, html };
   }
 
-  return '';
+  if (payload) {
+    collectAttachments(payload);
+  }
+
+  const { text, html } = extractText(payload);
+  let body = text;
+  if (!body && html) {
+    body = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  if (!body && payload?.body?.data) {
+    body = decodeBase64Url(payload.body.data);
+  }
+
+  return { body, attachments };
 }
 
 serve(async (req) => {
@@ -83,18 +106,33 @@ serve(async (req) => {
   }
 
   try {
-    const { action, accessToken, contactEmails, domain, maxResults } = await req.json();
+    const { action, accessToken, contactEmails, domain, maxResults, messageId, attachmentId } = await req.json();
 
     // Return client ID for OAuth initialization
     if (action === 'get-client-id') {
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       if (!clientId) {
         return new Response(JSON.stringify({ error: 'GOOGLE_CLIENT_ID not configured' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       return new Response(JSON.stringify({ clientId }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Download a specific attachment
+    if (action === 'get-attachment') {
+      if (!accessToken || !messageId || !attachmentId) {
+        return new Response(JSON.stringify({ error: 'accessToken, messageId, and attachmentId are required' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const att = await gmailFetch(
+        `/users/me/messages/${messageId}/attachments/${attachmentId}`,
+        accessToken,
+      );
+      return new Response(JSON.stringify({ success: true, data: att.data, size: att.size }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -103,33 +141,28 @@ serve(async (req) => {
     if (action === 'search') {
       if (!accessToken) {
         return new Response(JSON.stringify({ error: 'accessToken is required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Build search query from contact emails or domain
       const emails: string[] = contactEmails || [];
       const searchDomain: string = domain || '';
       const limit = Math.min(maxResults || 50, 100);
 
       let query = '';
       if (emails.length > 0) {
-        // Search for emails to/from any of the contact addresses
         const parts = emails.map((e: string) => `from:${e} OR to:${e}`);
         query = parts.join(' OR ');
       } else if (searchDomain) {
         query = `from:@${searchDomain} OR to:@${searchDomain}`;
       } else {
         return new Response(JSON.stringify({ error: 'contactEmails or domain is required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       console.log(`[gmail] Searching: ${query} (limit: ${limit})`);
 
-      // Search for message IDs
       const searchRes = await gmailFetch(
         `/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${limit}`,
         accessToken,
@@ -144,7 +177,6 @@ serve(async (req) => {
         });
       }
 
-      // Fetch full message details (batch in parallel, up to 20 at a time)
       const results: GmailMessage[] = [];
       const batchSize = 20;
 
@@ -153,12 +185,9 @@ serve(async (req) => {
         const fetched = await Promise.all(
           batch.map(async (id: string) => {
             try {
-              const msg = await gmailFetch(
-                `/users/me/messages/${id}?format=full`,
-                accessToken,
-              );
+              const msg = await gmailFetch(`/users/me/messages/${id}?format=full`, accessToken);
               const headers = msg.payload?.headers || [];
-              const body = extractBody(msg.payload);
+              const { body, attachments } = extractBodyAndAttachments(msg.payload);
 
               return {
                 id: msg.id,
@@ -168,7 +197,8 @@ serve(async (req) => {
                 to: getHeader(headers, 'To'),
                 date: getHeader(headers, 'Date'),
                 snippet: msg.snippet || '',
-                body: body.substring(0, 5000), // Cap body size
+                body: body.substring(0, 5000),
+                attachments,
               } as GmailMessage;
             } catch (e) {
               console.error(`[gmail] Error fetching message ${id}: ${e}`);
@@ -179,7 +209,6 @@ serve(async (req) => {
         results.push(...fetched.filter(Boolean) as GmailMessage[]);
       }
 
-      // Sort by date descending
       results.sort((a, b) => {
         const aDate = new Date(a.date).getTime() || 0;
         const bDate = new Date(b.date).getTime() || 0;
@@ -196,8 +225,7 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error: any) {
