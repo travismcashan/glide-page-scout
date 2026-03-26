@@ -550,6 +550,33 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                 {isFavorited ? 'Unfavorite' : 'Favorite'}
               </TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleExportPdf}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  <Download className="h-[18px] w-[18px]" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
+                PDF
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleExportGoogleDoc}
+                  disabled={exporting === 'gdoc'}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  {exporting === 'gdoc' ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <FileText className="h-[18px] w-[18px]" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
+                Google Doc
+              </TooltipContent>
+            </Tooltip>
           </TooltipProvider>
           {sources && sources.length > 0 && (
             <>
