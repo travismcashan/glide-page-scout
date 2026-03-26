@@ -399,7 +399,7 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
   return parts.length > 0 ? <>{parts}</> : <>{children}</>;
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -464,7 +464,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
                   onClick={handleSave}
                   className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                 >
-                  {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className="h-[18px] w-[18px]" />}
+                  {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className={`h-[18px] w-[18px] transition-colors ${isSavedNote ? 'fill-blue-500 text-blue-500' : ''}`} />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
@@ -516,6 +516,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -554,6 +555,27 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       .eq('session_id', session.id)
       .then(({ data }) => {
         if (data) setFavoriteIds(new Set(data.map(f => f.content)));
+      });
+  }, [session.id]);
+
+  // Load saved note contents to show persistent blue bookmark
+  useEffect(() => {
+    supabase
+      .from('knowledge_documents')
+      .select('id')
+      .eq('session_id', session.id)
+      .eq('source_type', 'chat_note')
+      .then(async ({ data: docs }) => {
+        if (!docs || docs.length === 0) return;
+        const docIds = docs.map(d => d.id);
+        const { data: chunks } = await supabase
+          .from('knowledge_chunks')
+          .select('chunk_text')
+          .in('document_id', docIds)
+          .eq('chunk_index', 0);
+        if (chunks) {
+          setSavedNoteContents(new Set(chunks.map(c => c.chunk_text.slice(0, 200))));
+        }
       });
   }, [session.id]);
 
@@ -923,6 +945,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
       if (error) throw error;
       toast.success(`Saved: ${noteName}`);
+      setSavedNoteContents(prev => new Set(prev).add(content.slice(0, 200)));
       if (onDocumentsChanged) onDocumentsChanged();
     } catch (e: any) {
       console.error('Save note error:', e);
@@ -1035,6 +1058,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                       onSaveNote={handleSaveNote}
                       onToggleFavorite={() => handleToggleFavorite(typeof msg.content === 'string' ? msg.content : '')}
                       isFavorited={favoriteIds.has(typeof msg.content === 'string' ? msg.content : '')}
+                      isSavedNote={savedNoteContents.has((typeof msg.content === 'string' ? msg.content : '').slice(0, 200))}
                       webCitations={msg.webCitations}
                       isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length}
                       sources={msg.sources}
