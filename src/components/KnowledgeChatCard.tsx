@@ -560,17 +560,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
   }, [session.id]);
 
-  // Auto-scroll: scroll to user message once when streaming starts, then stop
+  // Gemini-style scroll: pin user message near top of viewport when streaming starts
   const hasScrolledForStreamRef = useRef(false);
   useEffect(() => {
     if (isStreaming && lastUserMsgRef.current) {
       wasStreamingRef.current = true;
-      // Only scroll once at the start of streaming, not on every chunk
       if (!hasScrolledForStreamRef.current) {
         hasScrolledForStreamRef.current = true;
         const userMsg = lastUserMsgRef.current;
-        const targetY = userMsg.getBoundingClientRect().top + window.scrollY - 8;
-        window.scrollTo({ top: targetY });
+        // Pin user message ~80px from the top of the viewport for a clean reading area below
+        const targetY = userMsg.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
       }
     } else if (!isStreaming) {
       hasScrolledForStreamRef.current = false;
@@ -1114,7 +1114,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 style={{ width: 44, height: 44 }}
                 disabled={isStreaming}
               >
-                <SlidersHorizontal style={{ width: 22, height: 22 }} strokeWidth={1.5} />
+                <SlidersHorizontal style={{ width: 18, height: 18 }} strokeWidth={1.5} />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-44 p-2" align="start" side="top">
