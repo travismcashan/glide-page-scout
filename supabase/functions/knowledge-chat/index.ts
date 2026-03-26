@@ -533,6 +533,7 @@ async function handlePerplexityRequest(
     },
     body: JSON.stringify({
       model: pplxModel,
+      max_tokens: 16384,
       messages: [
         { role: 'system', content: systemPrompt },
         ...strictMerged,
