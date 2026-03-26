@@ -69,6 +69,10 @@ export function getDocumentIcon(_name: string, sourceType: string, sourceKey?: s
   }
   if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data')) return Database;
 
+  // Avoma meeting-specific icon
+  if (sourceType === 'integration' && sourceKey?.startsWith('avoma_data:meeting:')) return Video;
+  if (sourceType === 'integration' && sourceKey?.startsWith('avoma_data')) return Database;
+
   return Database;
 }
 
