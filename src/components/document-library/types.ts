@@ -44,6 +44,7 @@ export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: s
 /** Get the source label, with special handling for HubSpot integration docs */
 export function getSourceLabel(sourceType: string, sourceKey: string | null): string {
   if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data')) return 'HubSpot';
+  if (sourceType === 'integration' && sourceKey?.startsWith('avoma_data')) return 'Avoma';
   return SOURCE_LABELS[sourceType] || sourceType;
 }
 
