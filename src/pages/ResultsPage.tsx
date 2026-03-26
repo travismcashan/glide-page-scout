@@ -1562,12 +1562,12 @@ export default function ResultsPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className={`w-full ${activeTab === 'chat' ? 'flex-1 flex flex-col min-h-0' : ''}`}>
           <div className="relative flex items-end justify-between">
             {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
-            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground/30 z-0" />
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground z-0" />
             <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
               <TabsTrigger
                 value="raw-data"
                 style={activeTab === 'raw-data' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-bold px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground/30 data-[state=active]:bg-background data-[state=active]:text-foreground"
+                className="relative text-base font-bold px-5 py-2.5 !rounded-t-lg !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Globe className="h-4 w-4 mr-2" />
                 Site Analysis
