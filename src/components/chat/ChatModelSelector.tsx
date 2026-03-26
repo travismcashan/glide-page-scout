@@ -1,10 +1,13 @@
-import { ChevronDown, Zap, Brain, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ChevronRight, Zap, Brain, Sparkles } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
 export type ModelProvider = 'gemini' | 'gpt' | 'claude';
@@ -47,15 +50,15 @@ const VERSIONS: Record<ModelProvider, ModelOption[]> = {
     { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful', reasoning: ALL_REASONING },
   ],
 };
-// Flatten for lookup
+
 export const MODEL_OPTIONS: ModelOption[] = Object.values(VERSIONS).flat();
 
-const REASONING_OPTIONS: { value: ReasoningEffort; label: string; icon: typeof Zap }[] = [
-  { value: 'none', label: 'None', icon: Zap },
-  { value: 'low', label: 'Light', icon: Zap },
-  { value: 'medium', label: 'Standard', icon: Brain },
-  { value: 'high', label: 'Deep', icon: Sparkles },
-];
+const REASONING_META: Record<ReasoningEffort, { label: string; icon: typeof Zap }> = {
+  none: { label: 'None', icon: Zap },
+  low: { label: 'Light', icon: Zap },
+  medium: { label: 'Standard', icon: Brain },
+  high: { label: 'Deep', icon: Sparkles },
+};
 
 const TIER_COLORS: Record<string, string> = {
   fast: 'text-emerald-500',
@@ -74,31 +77,11 @@ type Props = {
 export function ChatModelSelector({ model, reasoning, onModelChange, onReasoningChange, disabled }: Props) {
   const selectedModel = MODEL_OPTIONS.find(m => m.id === model) || VERSIONS.gemini[2];
   const selectedProvider = PROVIDERS.find(p => p.id === selectedModel.provider) || PROVIDERS[0];
-  const versionsForProvider = VERSIONS[selectedModel.provider];
-  const reasoningOptions = REASONING_OPTIONS
-    .filter(r => selectedModel.reasoning.includes(r.value))
-    .map(r => ({
-      ...r,
-      label: selectedModel.reasoningLabels?.[r.value] ?? r.label,
-    }));
-  const selectedReasoning = reasoningOptions.find(r => r.value === reasoning) || reasoningOptions[0];
 
-  const PROVIDER_DEFAULTS: Record<ModelProvider, string> = {
-    gemini: 'google/gemini-3-flash-preview',
-    claude: 'claude-opus',
-    gpt: 'openai/gpt-5',
-  };
+  const reasoningLabel = selectedModel.reasoningLabels?.[reasoning] ?? REASONING_META[reasoning]?.label ?? '';
+  const displayLabel = `${selectedProvider.label} ${selectedModel.label}${reasoning !== 'none' ? ` · ${reasoningLabel}` : ''}`;
 
-  const handleProviderChange = (provider: ModelProvider) => {
-    const defaultId = PROVIDER_DEFAULTS[provider];
-    const defaultModel = MODEL_OPTIONS.find(m => m.id === defaultId);
-    onModelChange(defaultId);
-    if (defaultModel && !defaultModel.reasoning.includes(reasoning)) {
-      onReasoningChange('none');
-    }
-  };
-
-  const handleVersionChange = (modelId: string) => {
+  const handleSelect = (modelId: string) => {
     const newModel = MODEL_OPTIONS.find(m => m.id === modelId);
     onModelChange(modelId);
     if (newModel && !newModel.reasoning.includes(reasoning)) {
@@ -106,89 +89,75 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
     }
   };
 
-  const btnClass = "h-7 px-2 py-0 text-xs font-normal text-muted-foreground gap-1 hover:text-foreground rounded-full";
-
   return (
-    <div className="flex items-center gap-0.5 border border-border rounded-full px-0.5">
-      {/* 1. Provider */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild disabled={disabled}>
-          <Button variant="ghost" size="sm" className={btnClass}>
-            {selectedProvider.label}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          {PROVIDERS.map(p => (
-            <DropdownMenuItem
-              key={p.id}
-              onClick={() => handleProviderChange(p.id)}
-              className={selectedProvider.id === p.id ? 'bg-accent' : ''}
-            >
-              <span className="text-sm">{p.label}</span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <span className="text-muted-foreground/40">·</span>
-
-      {/* 2. Version */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild disabled={disabled}>
-          <Button variant="ghost" size="sm" className={btnClass}>
-            <span className={TIER_COLORS[selectedModel.tier]}>●</span>
-            {selectedModel.label}
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" className="w-52">
-          {versionsForProvider.map(m => (
-            <DropdownMenuItem
-              key={m.id}
-              onClick={() => handleVersionChange(m.id)}
-              className={`flex items-center justify-between ${selectedModel.id === m.id ? 'bg-accent' : ''}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] ${TIER_COLORS[m.tier]}`}>●</span>
-                <span className="text-sm">{m.label}</span>
-              </div>
-              <span className="text-[10px] text-muted-foreground">{m.description}</span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {reasoningOptions.length > 1 && (
-        <>
-          <span className="text-muted-foreground/40">·</span>
-
-          {/* 3. Reasoning */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={disabled}>
-              <Button variant="ghost" size="sm" className={btnClass}>
-                <selectedReasoning.icon className="h-4 w-4" />
-                {selectedReasoning.label}
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
-              {reasoningOptions.map(r => (
-                <DropdownMenuItem
-                  key={r.value}
-                  onClick={() => onReasoningChange(r.value)}
-                  className={selectedReasoning.value === r.value ? 'bg-accent' : ''}
-                >
-                  <div className="flex items-center gap-2">
-                    <r.icon className="h-3.5 w-3.5" />
-                    <span className="text-sm">{r.label}</span>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <button className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1 py-0.5 rounded">
+          {displayLabel}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="w-48">
+        {PROVIDERS.map(provider => {
+          const versions = VERSIONS[provider.id];
+          return (
+            <DropdownMenuSub key={provider.id}>
+              <DropdownMenuSubTrigger className={selectedProvider.id === provider.id ? 'bg-accent' : ''}>
+                <span className="text-sm">{provider.label}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-52" sideOffset={4}>
+                {versions.map(v => {
+                  const hasReasoning = v.reasoning.length > 1;
+                  if (hasReasoning) {
+                    return (
+                      <DropdownMenuSub key={v.id}>
+                        <DropdownMenuSubTrigger className={selectedModel.id === v.id ? 'bg-accent' : ''}>
+                          <div className="flex items-center gap-2 flex-1">
+                            <span className={`text-[10px] ${TIER_COLORS[v.tier]}`}>●</span>
+                            <span className="text-sm">{v.label}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground ml-2">{v.description}</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-36" sideOffset={4}>
+                          {v.reasoning.map(r => {
+                            const meta = REASONING_META[r];
+                            const label = v.reasoningLabels?.[r] ?? meta.label;
+                            const Icon = meta.icon;
+                            return (
+                              <DropdownMenuItem
+                                key={r}
+                                onClick={() => { handleSelect(v.id); onReasoningChange(r); }}
+                                className={selectedModel.id === v.id && reasoning === r ? 'bg-accent' : ''}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Icon className="h-3.5 w-3.5" />
+                                  <span className="text-sm">{label}</span>
+                                </div>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    );
+                  }
+                  return (
+                    <DropdownMenuItem
+                      key={v.id}
+                      onClick={() => handleSelect(v.id)}
+                      className={`flex items-center justify-between ${selectedModel.id === v.id ? 'bg-accent' : ''}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] ${TIER_COLORS[v.tier]}`}>●</span>
+                        <span className="text-sm">{v.label}</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">{v.description}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
