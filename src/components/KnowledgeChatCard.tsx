@@ -1031,18 +1031,62 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, [session.id, favoriteIds]);
 
   const handleEditMessage = useCallback(async (messageIndex: number, newText: string) => {
-    if (isStreaming) return;
-    // Truncate conversation to just before this message
+    if (isStreaming || !activeThreadId) return;
     const truncated = messages.slice(0, messageIndex);
     setMessages(truncated);
-    // Delete old messages from DB and re-save truncated history
-    await supabase.from('knowledge_messages').delete().eq('session_id', session.id);
+    await supabase.from('knowledge_messages').delete().eq('thread_id', activeThreadId);
     for (const m of truncated) {
       await saveMessage(m.role, typeof m.content === 'string' ? m.content : '', m.sources || []);
     }
-    // Send the edited message as a new message
     handleSend(newText);
-  }, [messages, isStreaming, session.id, handleSend]);
+  }, [messages, isStreaming, session.id, handleSend, activeThreadId]);
+
+  // New chat handler
+  const handleNewThread = useCallback(async () => {
+    if (isStreaming) return;
+    const { data: newThread } = await supabase
+      .from('chat_threads')
+      .insert({ session_id: session.id, title: 'New Chat' } as any)
+      .select('id')
+      .single();
+    if (newThread) {
+      loadedSessionRef.current = null; // force reload
+      setMessages([]);
+      setActiveThreadId(newThread.id);
+      setSidebarRefreshKey(k => k + 1);
+    }
+  }, [session.id, isStreaming]);
+
+  // Delete thread handler
+  const handleDeleteThread = useCallback(async (threadId: string) => {
+    await supabase.from('knowledge_messages').delete().eq('thread_id', threadId);
+    await supabase.from('chat_threads').delete().eq('id', threadId);
+    if (threadId === activeThreadId) {
+      // Switch to another thread
+      const { data: remaining } = await supabase
+        .from('chat_threads')
+        .select('id')
+        .eq('session_id', session.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (remaining && remaining.length > 0) {
+        loadedSessionRef.current = null;
+        setActiveThreadId(remaining[0].id);
+      } else {
+        // Create a new one
+        handleNewThread();
+      }
+    }
+    setSidebarRefreshKey(k => k + 1);
+  }, [activeThreadId, session.id, handleNewThread]);
+
+  // Select thread handler
+  const handleSelectThread = useCallback((threadId: string) => {
+    if (threadId === activeThreadId || isStreaming) return;
+    loadedSessionRef.current = null;
+    setMessages([]);
+    setActiveThreadId(threadId);
+  }, [activeThreadId, isStreaming]);
 
   const outerRef = useRef<HTMLDivElement>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
