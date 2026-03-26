@@ -892,7 +892,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
