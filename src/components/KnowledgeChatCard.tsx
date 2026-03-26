@@ -442,10 +442,8 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
         </div>
       </Suspense>
       {isStreamingThis && !content && !thinking && (
-        <div className="flex items-center gap-1 py-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
-          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
-          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+        <div className="flex items-center gap-2 py-2">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
       {content && !isStreamingThis && (
