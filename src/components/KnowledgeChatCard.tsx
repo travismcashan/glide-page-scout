@@ -643,8 +643,16 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 
   return (
     <div className="group relative w-full pr-10 py-3 pb-6 text-base rounded-lg text-foreground pl-0">
-      {(webCitations?.length || isWebSearching) && (
-        <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
+      {isWebSearching && !content && (
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <Search className="h-3.5 w-3.5" />
+          <span>Searching the web…</span>
+          <span className="flex gap-0.5 ml-1">
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+            <span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+          </span>
+        </div>
       )}
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
@@ -734,11 +742,12 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           </TooltipProvider>
         </div>
       )}
-      {content && !isStreamingThis && (ragDocuments?.length || (sources && sources.length > 0)) && (
+      {content && !isStreamingThis && (ragDocuments?.length || (sources && sources.length > 0) || (webCitations && webCitations.length > 0)) && (
         <ReferencesBlock
           ragDocuments={ragDocuments || []}
           sources={sources || []}
           onSourceClick={onSourceClick}
+          webCitations={webCitations}
         />
       )}
     </div>
