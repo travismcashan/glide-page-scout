@@ -430,7 +430,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
       )}
-      <Suspense fallback={<span>{content}</span>}>
+      <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{content}</div>}>
         <div className="chat-prose max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
