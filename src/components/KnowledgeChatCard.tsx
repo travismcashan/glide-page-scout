@@ -280,13 +280,13 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   );
 }
 
-function AnimatedThinkingText() {
+function AnimatedThinkingText({ label = 'Thinking' }: { label?: string }) {
   const [dotCount, setDotCount] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setDotCount(d => (d + 1) % 4), 400);
     return () => clearInterval(interval);
   }, []);
-  return <span className="text-base font-bold">Thinking{'.'.repeat(dotCount || 0)}</span>;
+  return <span className="text-base font-bold">{label}{'.'.repeat(dotCount || 0)}</span>;
 }
 
 function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
