@@ -27,20 +27,23 @@ type SectionCardProps = {
 };
 
 export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed, reportUrl }: SectionCardProps) {
+  const hasPersistedValue = persistedCollapsed !== undefined;
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
-    if (persistedCollapsed !== undefined) return persistedCollapsed;
+    if (hasPersistedValue) return persistedCollapsed;
     if (paused) return true;
     return false;
   });
-  const [hasOverride, setHasOverride] = useState(() => {
-    return persistedCollapsed !== undefined;
-  });
+  const [hasOverride, setHasOverride] = useState(hasPersistedValue);
+  const [prevControlled, setPrevControlled] = useState(controlledCollapsed);
 
-  useEffect(() => {
+  // Only clear override when controlledCollapsed actually changes (user clicked Collapse/Expand All)
+  // Not on remount with the same value
+  if (controlledCollapsed !== prevControlled) {
+    setPrevControlled(controlledCollapsed);
     if (controlledCollapsed !== undefined) {
       setHasOverride(false);
     }
-  }, [controlledCollapsed]);
+  }
 
   const isCollapsed = hasOverride ? internalCollapsed : (controlledCollapsed ?? internalCollapsed);
 
