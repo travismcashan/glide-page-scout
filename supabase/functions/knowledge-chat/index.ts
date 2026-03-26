@@ -600,7 +600,7 @@ serve(async (req) => {
     const contextPromises: Promise<void>[] = [];
 
     if (useDocuments && session_id && queryText) {
-      contextPromises.push(ragSearch(session_id, queryText).then(r => { ragContext = r; }));
+      contextPromises.push(ragSearch(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => { ragContext = r; }));
     }
     if (useWeb && queryText) {
       contextPromises.push(webSearchWithCitations(queryText).then(r => { webContext = r.context; webCitations = r.citations; }));
