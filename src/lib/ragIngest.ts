@@ -24,7 +24,6 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   ocean_data: 'Ocean.io Company Data',
   avoma_data: 'Avoma Transcript',
   apollo_data: 'Apollo Contact Data',
-  hubspot_data: 'HubSpot CRM Data',
   nav_structure: 'Site Navigation Structure',
   content_types_data: 'Content Types Analysis',
   sitemap_data: 'Sitemap Analysis',
@@ -32,6 +31,110 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   deep_research_data: 'Deep Research Report',
   observations_data: 'Observations & Insights',
 };
+
+const ENGAGEMENT_LABELS: Record<string, string> = {
+  emails: 'Email',
+  calls: 'Call',
+  meetings: 'Meeting',
+  notes: 'Note',
+  tasks: 'Task',
+};
+
+function stripHtml(html: string): string {
+  return html?.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || '';
+}
+
+function formatEngagementDoc(eng: any): { title: string; content: string } {
+  const type = eng.type || 'activity';
+  const label = ENGAGEMENT_LABELS[type] || 'Activity';
+  let title = '';
+  const parts: string[] = [];
+
+  switch (type) {
+    case 'emails':
+      title = eng.hs_email_subject || 'No subject';
+      if (eng.hs_email_direction) parts.push(`Direction: ${eng.hs_email_direction === 'INCOMING_EMAIL' ? 'Received' : 'Sent'}`);
+      if (eng.hs_email_sender_email) parts.push(`From: ${eng.hs_email_sender_email}`);
+      if (eng.hs_email_to_email) parts.push(`To: ${eng.hs_email_to_email}`);
+      if (eng.hs_email_text) parts.push(`\n${stripHtml(eng.hs_email_text)}`);
+      break;
+    case 'calls':
+      title = eng.hs_call_title || 'Phone call';
+      if (eng.hs_call_direction) parts.push(`Direction: ${eng.hs_call_direction === 'INBOUND' ? 'Inbound' : 'Outbound'}`);
+      if (eng.hs_call_duration) parts.push(`Duration: ${Math.round(Number(eng.hs_call_duration) / 1000)}s`);
+      if (eng.hs_call_body) parts.push(`\n${stripHtml(eng.hs_call_body)}`);
+      break;
+    case 'meetings':
+      title = eng.hs_meeting_title || 'Meeting';
+      if (eng.hs_meeting_start_time) parts.push(`Start: ${new Date(eng.hs_meeting_start_time).toLocaleString()}`);
+      if (eng.hs_meeting_end_time) parts.push(`End: ${new Date(eng.hs_meeting_end_time).toLocaleString()}`);
+      if (eng.hs_meeting_outcome) parts.push(`Outcome: ${eng.hs_meeting_outcome}`);
+      if (eng.hs_meeting_body) parts.push(`\n${stripHtml(eng.hs_meeting_body)}`);
+      break;
+    case 'notes':
+      title = stripHtml(eng.hs_note_body || '').substring(0, 60) || 'Note';
+      if (eng.hs_note_body) parts.push(stripHtml(eng.hs_note_body));
+      break;
+    case 'tasks':
+      title = eng.hs_task_subject || 'Task';
+      if (eng.hs_task_body) parts.push(stripHtml(eng.hs_task_body));
+      break;
+    default:
+      title = 'Activity';
+      parts.push(JSON.stringify(eng, null, 2));
+  }
+
+  if (eng.hs_timestamp) parts.unshift(`Date: ${new Date(Number(eng.hs_timestamp)).toLocaleString()}`);
+
+  return {
+    title: `HubSpot ${label}: ${title}`,
+    content: parts.join('\n'),
+  };
+}
+
+/** Expand HubSpot data into per-activity documents + a contacts/deals summary */
+function expandHubSpotDocs(
+  hubspotData: any
+): { name: string; content: string; source_key: string }[] {
+  const docs: { name: string; content: string; source_key: string }[] = [];
+
+  // Contacts + Deals + Company as one summary doc
+  const summaryParts: string[] = [];
+  if (hubspotData.contacts?.length) {
+    summaryParts.push('## Contacts\n' + JSON.stringify(hubspotData.contacts, null, 2));
+  }
+  if (hubspotData.deals?.length) {
+    summaryParts.push('## Deals\n' + JSON.stringify(hubspotData.deals, null, 2));
+  }
+  if (hubspotData.company) {
+    summaryParts.push('## Company\n' + JSON.stringify(hubspotData.company, null, 2));
+  }
+  if (hubspotData.formSubmissions?.length) {
+    summaryParts.push('## Form Submissions\n' + JSON.stringify(hubspotData.formSubmissions, null, 2));
+  }
+  if (summaryParts.length > 0) {
+    docs.push({
+      name: 'HubSpot CRM Summary',
+      content: summaryParts.join('\n\n'),
+      source_key: 'hubspot_data:summary',
+    });
+  }
+
+  // Individual engagement documents
+  const engagements = hubspotData.engagements || [];
+  for (let i = 0; i < engagements.length; i++) {
+    const eng = engagements[i];
+    const { title, content } = formatEngagementDoc(eng);
+    if (content.length < 20) continue;
+    docs.push({
+      name: title,
+      content,
+      source_key: `hubspot_data:engagement:${eng.hs_object_id || eng.id || i}`,
+    });
+  }
+
+  return docs;
+}
 
 /**
  * Check which integrations have data but haven't been ingested yet,
