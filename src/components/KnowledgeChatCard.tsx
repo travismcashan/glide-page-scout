@@ -850,6 +850,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         return prev;
       });
       saveMessage('assistant', assistantContent, sources);
+
+      // Auto-ingest conversation into RAG (fire-and-forget)
+      const allMsgs = [...messages, { role: 'user' as const, content: input }, { role: 'assistant' as const, content: assistantContent }];
+      ingestChatConversation(session.id, allMsgs.map(m => ({ role: m.role, content: m.content }))).then(() => {
+        onDocumentsChanged?.();
+      }).catch(() => {});
     } catch (e: any) {
       console.error('Knowledge chat error:', e);
       toast.error(e?.message || 'Failed to get response');
