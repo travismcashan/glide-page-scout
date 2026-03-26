@@ -41,6 +41,7 @@ import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 // ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
 import { ContentSectionCard } from '@/components/ContentSectionCard';
 import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
+import { TabSkeleton } from '@/components/TabSkeleton';
 
 /** Check if persisted data is a failure sentinel */
 function isErrorSentinel(data: any): boolean {
@@ -174,6 +175,19 @@ export default function ResultsPage() {
       return prev;
     }, { replace: true });
   }, [setSearchParams]);
+  const [tabReady, setTabReady] = useState(true);
+  const prevTabRef = useRef(activeTab);
+
+  useEffect(() => {
+    if (prevTabRef.current !== activeTab) {
+      prevTabRef.current = activeTab;
+      setTabReady(false);
+      const t = requestAnimationFrame(() => {
+        setTabReady(true);
+      });
+      return () => cancelAnimationFrame(t);
+    }
+  }, [activeTab]);
   const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
@@ -1692,7 +1706,8 @@ export default function ResultsPage() {
             </AlertDialog>
           </div>
 
-          <TabsContent value="raw-data" className="mt-8 space-y-8">
+          <TabsContent value="raw-data" className="mt-8 space-y-8" forceMount={activeTab === 'raw-data' ? true : undefined}>
+            {activeTab === 'raw-data' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'raw-data' ? null : <div className="animate-fade-in space-y-8">
 
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(
@@ -2037,11 +2052,12 @@ export default function ResultsPage() {
             </SortedIntegrationList>
           </CollapsibleSection>
         )}
-
-
+          </TabsContent>
+            </div>}
           </TabsContent>
 
-          <TabsContent value="ai-research" className="mt-8 space-y-6">
+          <TabsContent value="ai-research" className="mt-8 space-y-6" forceMount={activeTab === 'ai-research' ? true : undefined}>
+            {activeTab === 'ai-research' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'ai-research' ? null : <div className="animate-fade-in space-y-6">
             {session && (
               <>
                 <SectionCard
@@ -2061,10 +2077,12 @@ export default function ResultsPage() {
                 </SectionCard>
               </>
             )}
+            </div>}
           </TabsContent>
 
           {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations)) && (
-            <TabsContent value="prospecting" className="mt-8 space-y-6">
+            <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
+              {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <div className="animate-fade-in space-y-6">
               {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) && (
                 <SectionCard
                   sectionId="hubspot" persistedCollapsed={isSectionCollapsed("hubspot")} onCollapseChange={toggleSection} title="HubSpot CRM"
@@ -2136,19 +2154,23 @@ export default function ResultsPage() {
                   /> : null}
                 </SectionCard>
               )}
+              </div>}
             </TabsContent>
           )}
 
-          <TabsContent value="knowledge" className="mt-8">
+          <TabsContent value="knowledge" className="mt-8" forceMount={activeTab === 'knowledge' ? true : undefined}>
+            {activeTab === 'knowledge' && !tabReady ? <TabSkeleton variant="knowledge" /> : activeTab !== 'knowledge' ? null : <div className="animate-fade-in">
             {session && (
               <KnowledgeTabContent
                 session={session}
                 scrapedPages={scrapedPages}
               />
             )}
+            </div>}
           </TabsContent>
 
-          <TabsContent value="chat" className="mt-8">
+          <TabsContent value="chat" className="mt-8" forceMount={activeTab === 'chat' ? true : undefined}>
+            {activeTab === 'chat' && !tabReady ? <TabSkeleton variant="chat" /> : activeTab !== 'chat' ? null : <div className="animate-fade-in">
             {session && (
               <KnowledgeChatCard
                 session={session}
@@ -2159,6 +2181,7 @@ export default function ResultsPage() {
                 onReasoningChange={setChatReasoning}
               />
             )}
+            </div>}
           </TabsContent>
         </Tabs>
       </main>
