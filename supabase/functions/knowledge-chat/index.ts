@@ -1038,11 +1038,11 @@ serve(async (req) => {
     };
 
     if (isClaudeModel) {
-      return prependCitations(await handleClaudeRequest(model, messages, systemPrompt, reasoning));
+      return prependCitations(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning));
     } else if (isPerplexityModel) {
-      return prependCitations(await handlePerplexityRequest(model, messages, systemPrompt));
+      return prependCitations(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
     } else {
-      return prependCitations(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', messages, systemPrompt, reasoning));
+      return prependCitations(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
