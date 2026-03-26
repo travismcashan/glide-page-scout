@@ -1247,9 +1247,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         onChange={e => setRagDepth(prev => ({ ...prev, match_count: Number(e.target.value) }))}
                         className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
                       />
-                      <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+                      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
                         <span>Less <span className="opacity-60">(faster)</span></span>
-                        <span><span className="opacity-60">(slower)</span> More</span>
+                        <span>More <span className="opacity-60">(slower)</span></span>
                       </div>
                     </div>
                     <div>
@@ -1266,9 +1266,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         onChange={e => setRagDepth(prev => ({ ...prev, match_threshold: Number(e.target.value) }))}
                         className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
                       />
-                      <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+                      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
                         <span>Less picky <span className="opacity-60">(broader)</span></span>
-                        <span><span className="opacity-60">(precise)</span> More picky</span>
+                        <span>More picky <span className="opacity-60">(precise)</span></span>
                       </div>
                     </div>
                   </div>
