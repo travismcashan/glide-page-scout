@@ -169,7 +169,7 @@ serve(async (req) => {
         try {
           const emailSearch = await hubspotFetch('/crm/v3/objects/emails/search', HUBSPOT_ACCESS_TOKEN, 'POST', {
             filterGroups: [{
-              filters: [{ propertyName: direction, operator: 'CONTAINS_TOKEN', value: email }],
+              filters: [{ propertyName: direction, operator: 'CONTAINS_TOKEN', value: email.split('@')[0] }],
             }],
             properties: ['hs_email_subject', 'hs_email_direction', 'hs_email_status', 'hs_email_text', 'hs_timestamp', 'hs_email_sender_email', 'hs_email_to_email'],
             sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
@@ -188,6 +188,32 @@ serve(async (req) => {
         } catch (e) {
           console.error(`[hubspot] Email search error for ${email}: ${e.message}`);
         }
+      }
+    }
+
+    // Also search emails by domain (catches emails to/from any @domain address)
+    for (const direction of ['hs_email_to_email', 'hs_email_sender_email']) {
+      try {
+        const emailSearch = await hubspotFetch('/crm/v3/objects/emails/search', HUBSPOT_ACCESS_TOKEN, 'POST', {
+          filterGroups: [{
+            filters: [{ propertyName: direction, operator: 'CONTAINS_TOKEN', value: domainLower }],
+          }],
+          properties: ['hs_email_subject', 'hs_email_direction', 'hs_email_status', 'hs_email_text', 'hs_timestamp', 'hs_email_sender_email', 'hs_email_to_email'],
+          sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
+          limit: 100,
+        });
+        const newEmails = (emailSearch.results || [])
+          .filter((item: any) => !seenEngIds.has(`emails-${item.id}`))
+          .map((item: any) => {
+            seenEngIds.add(`emails-${item.id}`);
+            return { id: item.id, type: 'emails', ...item.properties };
+          });
+        engagements.push(...newEmails);
+        if (newEmails.length > 0) {
+          console.log(`[hubspot] Domain email search (${direction}~${domainLower}): found ${newEmails.length} new emails`);
+        }
+      } catch (e) {
+        console.error(`[hubspot] Domain email search error: ${e.message}`);
       }
     }
 
