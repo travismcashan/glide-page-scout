@@ -925,7 +925,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               >
               <SlidersHorizontal className="h-3.5 w-3.5" />
                 Sources
-                <ChevronDown className="h-3 w-3" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-44 p-2" align="start" side="top">
