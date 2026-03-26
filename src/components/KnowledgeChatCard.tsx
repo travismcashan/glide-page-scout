@@ -1078,6 +1078,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           </div>
         </div>
       </div>
+      </div>
     </div>
   );
 }
