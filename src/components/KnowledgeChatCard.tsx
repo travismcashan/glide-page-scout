@@ -901,7 +901,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     });
   }, []);
 
-  const saveMessage = async (role: string, content: string, sources: string[] = []) => {
+  const saveMessage = async (role: string, content: string, sources: string[] = [], ragDocs?: RagDocument[], webCites?: string[]) => {
     if (!activeThreadId) return;
     await supabase.from('knowledge_messages').insert({
       session_id: session.id,
@@ -909,6 +909,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       role,
       content,
       sources,
+      rag_documents: ragDocs && ragDocs.length > 0 ? ragDocs : null,
+      web_citations: webCites && webCites.length > 0 ? webCites : null,
     } as any);
   };
 
