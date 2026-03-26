@@ -1293,7 +1293,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               size="icon"
               onClick={() => handleSend()}
               disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
-              className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible"
+              className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
               {isStreaming ? (
