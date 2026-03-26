@@ -1,80 +1,19 @@
-import { useState } from 'react';
-import { FileText, X, Loader2 } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from 'react';
+import { FileText, X } from 'lucide-react';
 import { KnowledgeDocument, STATUS_CONFIG, SOURCE_ICONS, getDocumentIcon } from './types';
 
 type Props = {
   documents: KnowledgeDocument[];
   onDelete: (id: string, name: string) => void;
+  onPreview?: (doc: KnowledgeDocument) => void;
   groupBy?: string;
 };
 
-export function GridView({ documents, onDelete, groupBy }: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-
-  const togglePreview = async (docId: string) => {
-    if (expandedId === docId) {
-      setExpandedId(null);
-      setPreviewContent(null);
-      return;
-    }
-    setExpandedId(docId);
-    setPreviewContent(null);
-    setLoadingPreview(true);
-    try {
-      const { data, error } = await supabase
-        .from('knowledge_chunks')
-        .select('chunk_text, chunk_index')
-        .eq('document_id', docId)
-        .order('chunk_index', { ascending: true })
-        .limit(50);
-      if (error || !data || data.length === 0) {
-        setPreviewContent('No content available.');
-      } else {
-        setPreviewContent(data.map((c: any) => c.chunk_text).join('\n\n'));
-      }
-    } catch {
-      setPreviewContent('Failed to load preview.');
-    } finally {
-      setLoadingPreview(false);
-    }
-  };
-
-  const renderPreview = () => {
-    if (!expandedId) return null;
-    return (
-      <div className="col-span-full border rounded-lg bg-muted/30 mt-1 mb-2">
-        {loadingPreview ? (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            <span className="text-xs text-muted-foreground ml-2">Loading preview…</span>
-          </div>
-        ) : (
-          <ScrollArea className="max-h-64">
-            <pre className="text-xs text-muted-foreground whitespace-pre-wrap p-4 font-mono leading-relaxed">
-              {previewContent}
-            </pre>
-          </ScrollArea>
-        )}
-      </div>
-    );
-  };
-
-  const renderGrid = (docs: KnowledgeDocument[]) => {
-    const items: React.ReactNode[] = [];
-    for (const doc of docs) {
-      items.push(
-        <GridItem key={doc.id} doc={doc} onDelete={onDelete} isExpanded={expandedId === doc.id} onToggle={togglePreview} />
-      );
-      if (expandedId === doc.id) {
-        items.push(<React.Fragment key={`${doc.id}-preview`}>{renderPreview()}</React.Fragment>);
-      }
-    }
-    return items;
-  };
+export function GridView({ documents, onDelete, onPreview, groupBy }: Props) {
+  const renderGrid = (docs: KnowledgeDocument[]) =>
+    docs.map(doc => (
+      <GridItem key={doc.id} doc={doc} onDelete={onDelete} onPreview={onPreview} />
+    ));
 
   if (groupBy === 'source') {
     const groups = groupBySource(documents);
@@ -83,9 +22,7 @@ export function GridView({ documents, onDelete, groupBy }: Props) {
         {groups.map(([label, docs]) => (
           <div key={label}>
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{label}</h4>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-              {renderGrid(docs)}
-            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">{renderGrid(docs)}</div>
           </div>
         ))}
       </div>
@@ -99,9 +36,7 @@ export function GridView({ documents, onDelete, groupBy }: Props) {
         {groups.map(([label, docs]) => (
           <div key={label}>
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{label}</h4>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-              {renderGrid(docs)}
-            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">{renderGrid(docs)}</div>
           </div>
         ))}
       </div>
@@ -115,9 +50,7 @@ export function GridView({ documents, onDelete, groupBy }: Props) {
   );
 }
 
-import React from 'react';
-
-function GridItem({ doc, onDelete, isExpanded, onToggle }: { doc: KnowledgeDocument; onDelete: (id: string, name: string) => void; isExpanded: boolean; onToggle: (id: string) => void }) {
+function GridItem({ doc, onDelete, onPreview }: { doc: KnowledgeDocument; onDelete: (id: string, name: string) => void; onPreview?: (doc: KnowledgeDocument) => void }) {
   const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
   const StatusIcon = statusConf.icon;
   const FileIcon = getDocumentIcon(doc.name, doc.source_type);
@@ -126,8 +59,8 @@ function GridItem({ doc, onDelete, isExpanded, onToggle }: { doc: KnowledgeDocum
 
   return (
     <div
-      className={`group relative flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-accent/50 transition-colors text-center ${canPreview ? 'cursor-pointer' : ''} ${isExpanded ? 'bg-accent/30 ring-1 ring-accent' : ''}`}
-      onClick={() => canPreview && onToggle(doc.id)}
+      className={`group relative flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-accent/50 transition-colors text-center ${canPreview ? 'cursor-pointer' : ''}`}
+      onClick={() => canPreview && onPreview?.(doc)}
     >
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(doc.id, doc.name); }}

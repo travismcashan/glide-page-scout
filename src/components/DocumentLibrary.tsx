@@ -5,10 +5,12 @@ import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { GridView } from './document-library/GridView';
 import { TableView } from './document-library/TableView';
-import { KnowledgeDocument, SortField, SortDir, sortDocuments, SOURCE_LABELS } from './document-library/types';
+import { KnowledgeDocument, SortField, SortDir, sortDocuments, SOURCE_LABELS, STATUS_CONFIG, getDocumentIcon, formatDate } from './document-library/types';
 
 const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
 const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
@@ -66,7 +68,33 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [groupBy, setGroupBy] = useState<string>('none');
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [gridPreviewDoc, setGridPreviewDoc] = useState<KnowledgeDocument | null>(null);
+  const [gridPreviewContent, setGridPreviewContent] = useState<string | null>(null);
+  const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const openGridPreview = async (doc: KnowledgeDocument) => {
+    setGridPreviewDoc(doc);
+    setGridPreviewContent(null);
+    setGridPreviewLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('knowledge_chunks')
+        .select('chunk_text, chunk_index')
+        .eq('document_id', doc.id)
+        .order('chunk_index', { ascending: true })
+        .limit(50);
+      if (error || !data || data.length === 0) {
+        setGridPreviewContent('No content available.');
+      } else {
+        setGridPreviewContent(data.map((c: any) => c.chunk_text).join('\n\n'));
+      }
+    } catch {
+      setGridPreviewContent('Failed to load preview.');
+    } finally {
+      setGridPreviewLoading(false);
+    }
+  };
 
   const fetchDocuments = useCallback(async () => {
     const { data, error } = await supabase
@@ -419,12 +447,59 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
             <Search className="h-6 w-6 text-muted-foreground mx-auto mb-2 opacity-50" />
             <p className="text-sm text-muted-foreground">No documents match your search</p>
           </div>
-        ) : viewMode === 'grid' ? (
-          <GridView documents={processedDocuments} onDelete={deleteDocument} groupBy={groupBy !== 'none' ? groupBy : undefined} />
+         ) : viewMode === 'grid' ? (
+          <GridView documents={processedDocuments} onDelete={deleteDocument} onPreview={openGridPreview} groupBy={groupBy !== 'none' ? groupBy : undefined} />
         ) : (
           <TableView documents={processedDocuments} onDelete={deleteDocument} sortField={sortField} sortDir={sortDir} onSort={handleSort} groupBy={groupBy !== 'none' ? groupBy : undefined} />
         )}
       </div>
+
+      {/* Grid preview modal */}
+      {gridPreviewDoc && (() => {
+        const FileIcon = getDocumentIcon(gridPreviewDoc.name, gridPreviewDoc.source_type);
+        return (
+          <Dialog open={!!gridPreviewDoc} onOpenChange={(open) => !open && setGridPreviewDoc(null)}>
+            <DialogContent className="sm:max-w-4xl h-[80vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b flex-shrink-0 bg-background">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{gridPreviewDoc.name}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{SOURCE_LABELS[gridPreviewDoc.source_type] || gridPreviewDoc.source_type}</span>
+                      <span>·</span>
+                      <span>{formatDate(gridPreviewDoc.created_at)}</span>
+                      <span>·</span>
+                      <span>{(gridPreviewDoc.char_count / 1000).toFixed(0)}K chars</span>
+                      <span>·</span>
+                      <span>{gridPreviewDoc.chunk_count} chunks</span>
+                    </div>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setGridPreviewDoc(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-hidden min-h-0">
+                {gridPreviewLoading ? (
+                  <div className="flex items-center justify-center h-full gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Loading preview…</span>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-full">
+                    <pre className="text-sm text-foreground/80 whitespace-pre-wrap p-6 font-mono leading-relaxed">{gridPreviewContent}</pre>
+                  </ScrollArea>
+                )}
+              </div>
+              <div className="flex items-center justify-between px-5 py-3 border-t bg-muted/30 flex-shrink-0">
+                <p className="text-xs text-muted-foreground">Press Esc to close</p>
+                <Button variant="ghost" size="sm" onClick={() => setGridPreviewDoc(null)}>Close</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }
