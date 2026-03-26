@@ -7,6 +7,7 @@ import { ArrowUp, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Gl
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
@@ -389,27 +390,47 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       )}
       {content && !isStreamingThis && (
         <div className="flex items-center gap-1 mt-2 flex-wrap">
-          <button
-            onClick={handleCopy}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-            title="Copy response"
-          >
-            {copied ? <Check className="h-[18px] w-[18px] text-accent" /> : <Copy className="h-[18px] w-[18px]" />}
-          </button>
-          <button
-            onClick={handleSave}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-            title="Save as note to document library"
-          >
-            {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className="h-[18px] w-[18px]" />}
-          </button>
-          <button
-            onClick={onToggleFavorite}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-            title={isFavorited ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Heart className={`h-[18px] w-[18px] transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
-          </button>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleCopy}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  {copied ? <Check className="h-[18px] w-[18px] text-accent" /> : <Copy className="h-[18px] w-[18px]" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
+                {copied ? 'Copied!' : 'Copy'}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleSave}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  {saved ? <Check className="h-[18px] w-[18px] text-accent" /> : <BookmarkPlus className="h-[18px] w-[18px]" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
+                {saved ? 'Saved!' : 'Save'}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleFavorite}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                >
+                  <Heart className={`h-[18px] w-[18px] transition-colors ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
+                {isFavorited ? 'Unfavorite' : 'Favorite'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {sources && sources.length > 0 && (
             <>
               <span className="text-xs text-muted-foreground ml-2">Sources:</span>
