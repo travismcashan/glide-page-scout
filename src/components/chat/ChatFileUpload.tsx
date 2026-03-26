@@ -184,7 +184,7 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
         }}
       />
 
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
