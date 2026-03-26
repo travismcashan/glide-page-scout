@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload } from 'lucide-react';
+import { DotLottiePlayer } from '@dotlottie/react-player';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
-import { AiAvatar } from '@/components/chat/AiAvatar';
+
 import { ingestChatUploads } from '@/lib/ragIngest';
 import {
   DropdownMenu,
@@ -276,19 +277,19 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="mb-2">
+    <div className="mb-4">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        <Brain className="h-3 w-3" />
-        <span>{isStreaming ? 'Thinking…' : 'Thought process'}</span>
-        {isStreaming && <span className="flex gap-0.5 ml-1"><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" /><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" /><span className="h-1 w-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" /></span>}
-
+        <div className="h-6 w-6 flex-shrink-0">
+          <DotLottiePlayer src="/assets/Loading.lottie" autoplay loop style={{ width: '24px', height: '24px' }} />
+        </div>
+        <span className="font-semibold">{isStreaming ? 'Thinking…' : 'Show Thinking'}</span>
+        {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
       </button>
       {expanded && (
-        <div className="mt-1.5 pl-5 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
+        <div className="mt-2 pl-8 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
           {thinking}
         </div>
       )}
@@ -423,10 +424,6 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 
   return (
     <div className="group relative w-full pr-10 py-3 pb-6 text-base rounded-lg text-foreground pl-0">
-      <div className="flex items-center gap-2 mb-6">
-        <AiAvatar className="h-7 w-7 flex-shrink-0" />
-        <span className="text-base font-bold text-foreground leading-none" style={{ transform: 'translateY(2.5px)' }}>Agency Atlas</span>
-      </div>
       {(webCitations?.length || isWebSearching) && (
         <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
       )}
