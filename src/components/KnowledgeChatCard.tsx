@@ -287,7 +287,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <div className="h-6 w-6 flex-shrink-0">
-          <DotLottiePlayer src="/assets/Loading.lottie" autoplay loop style={{ width: '24px', height: '24px' }} />
+          <DotLottiePlayer src="/assets/Loading.lottie" autoplay loop={isStreaming} style={{ width: '24px', height: '24px' }} />
         </div>
         <span className="font-semibold">{isStreaming ? 'Thinking…' : 'Show Thinking'}</span>
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
