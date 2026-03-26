@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { GridView } from './document-library/GridView';
 import { TableView } from './document-library/TableView';
-import { KnowledgeDocument, SortField, SortDir, sortDocuments, SOURCE_LABELS, STATUS_CONFIG, getDocumentIcon, formatDate } from './document-library/types';
+import { KnowledgeDocument, SortField, SortDir, sortDocuments, SOURCE_LABELS, STATUS_CONFIG, getDocumentIcon, getSourceLabel, formatDate } from './document-library/types';
 
 const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
 const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
@@ -456,7 +456,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
       {/* Grid preview modal */}
       {gridPreviewDoc && (() => {
-        const FileIcon = getDocumentIcon(gridPreviewDoc.name, gridPreviewDoc.source_type);
+        const FileIcon = getDocumentIcon(gridPreviewDoc.name, gridPreviewDoc.source_type, gridPreviewDoc.source_key);
         return (
           <Dialog open={!!gridPreviewDoc} onOpenChange={(open) => !open && setGridPreviewDoc(null)}>
             <DialogContent className="sm:max-w-4xl h-[80vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
@@ -466,7 +466,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{gridPreviewDoc.name}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{SOURCE_LABELS[gridPreviewDoc.source_type] || gridPreviewDoc.source_type}</span>
+                      <span>{getSourceLabel(gridPreviewDoc.source_type, gridPreviewDoc.source_key)}</span>
                       <span>·</span>
                       <span>{formatDate(gridPreviewDoc.created_at)}</span>
                       <span>·</span>

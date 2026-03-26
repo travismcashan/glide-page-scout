@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
-import { KnowledgeDocument, SortField, SortDir, STATUS_CONFIG, SOURCE_ICONS, SOURCE_LABELS, getDocumentIcon, formatDate } from './types';
+import { KnowledgeDocument, SortField, SortDir, STATUS_CONFIG, SOURCE_ICONS, getSourceLabel, getDocumentIcon, formatDate } from './types';
 
 type Props = {
   documents: KnowledgeDocument[];
@@ -88,7 +88,7 @@ function PreviewDialog({ doc, content, loading, onClose }: {
 }) {
   if (!doc) return null;
 
-  const FileIcon = getDocumentIcon(doc.name, doc.source_type);
+  const FileIcon = getDocumentIcon(doc.name, doc.source_type, doc.source_key);
   const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
 
   return (
@@ -101,7 +101,7 @@ function PreviewDialog({ doc, content, loading, onClose }: {
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{doc.name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{SOURCE_LABELS[doc.source_type] || toTitleCase(doc.source_type)}</span>
+                <span>{getSourceLabel(doc.source_type, doc.source_key)}</span>
                 <span>·</span>
                 <span>{formatDate(doc.created_at)}</span>
                 <span>·</span>
@@ -175,7 +175,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
           const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
           const StatusIcon = statusConf.icon;
           const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
-          const FileIcon = getDocumentIcon(doc.name, doc.source_type);
+          const FileIcon = getDocumentIcon(doc.name, doc.source_type, doc.source_key);
           const canPreview = doc.status === 'ready' && doc.chunk_count > 0;
 
           return (
@@ -199,7 +199,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
               <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-1.5">
                   <SourceIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">{SOURCE_LABELS[doc.source_type] || toTitleCase(doc.source_type)}</span>
+                  <span className="text-sm text-muted-foreground">{getSourceLabel(doc.source_type, doc.source_key)}</span>
                 </div>
               </TableCell>
               <TableCell className="py-2.5 px-4">

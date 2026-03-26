@@ -53,7 +53,7 @@ export function GridView({ documents, onDelete, onPreview, groupBy }: Props) {
 function GridItem({ doc, onDelete, onPreview }: { doc: KnowledgeDocument; onDelete: (id: string, name: string) => void; onPreview?: (doc: KnowledgeDocument) => void }) {
   const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
   const StatusIcon = statusConf.icon;
-  const FileIcon = getDocumentIcon(doc.name, doc.source_type);
+  const FileIcon = getDocumentIcon(doc.name, doc.source_type, doc.source_key);
   const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
   const canPreview = doc.status === 'ready' && doc.chunk_count > 0;
 
