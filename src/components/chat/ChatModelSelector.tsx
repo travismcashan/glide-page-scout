@@ -139,10 +139,10 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
           <Button variant="ghost" size="sm" className={btnClass}>
             <span className={TIER_COLORS[selectedModel.tier]}>●</span>
             {selectedModel.label}
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuContent align="end" side="top" className="w-52">
           {versionsForProvider.map(m => (
             <DropdownMenuItem
               key={m.id}
@@ -167,9 +167,9 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={disabled}>
               <Button variant="ghost" size="sm" className={btnClass}>
-                <selectedReasoning.icon className="h-3.5 w-3.5" />
+                <selectedReasoning.icon className="h-4 w-4" />
                 {selectedReasoning.label}
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
