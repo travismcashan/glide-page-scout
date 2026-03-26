@@ -444,7 +444,7 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocument
         className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
       >
         {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        <Database className="h-3 w-3" />
+        <FileText className="h-3 w-3" />
         <span>{totalRefs} document{totalRefs !== 1 ? 's' : ''} referenced</span>
       </button>
       {expanded && (
