@@ -778,15 +778,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     handleSend(newText);
   }, [messages, isStreaming, session.id, handleSend]);
 
-  if (loadingHistory) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading chat history...</span>
-      </div>
-    );
-  }
-
   const outerRef = useRef<HTMLDivElement>(null);
 
   // Capture wheel events anywhere in the chat area and forward to the thread
@@ -795,7 +786,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     const scroller = scrollRef.current;
     if (!outer || !scroller) return;
     const handler = (e: WheelEvent) => {
-      // If the event target is already inside the scroll area, let it handle naturally
       if (scroller.contains(e.target as Node)) return;
       e.preventDefault();
       scroller.scrollTop += e.deltaY;
@@ -803,6 +793,15 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
     outer.addEventListener('wheel', handler, { passive: false });
     return () => outer.removeEventListener('wheel', handler);
   }, []);
+
+  if (loadingHistory) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading chat history...</span>
+      </div>
+    );
+  }
 
   return (
     <div
