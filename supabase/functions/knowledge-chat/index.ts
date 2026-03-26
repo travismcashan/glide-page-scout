@@ -83,9 +83,9 @@ function buildContextBlock(crawlContext: string | undefined, documents: any[] | 
 /**
  * Route query to the most relevant source types using a fast LLM classification
  */
-async function routeQuery(query: string): Promise<{ priority_sources: string[]; chronological: boolean }> {
+async function routeQuery(query: string): Promise<{ priority_sources: string[]; chronological: boolean; needs_screenshots: boolean }> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) return { priority_sources: [], chronological: false };
+  if (!LOVABLE_API_KEY) return { priority_sources: [], chronological: false, needs_screenshots: false };
 
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -99,7 +99,7 @@ async function routeQuery(query: string): Promise<{ priority_sources: string[]; 
         messages: [
           {
             role: 'system',
-            content: `You are a query router. Given a user question about a website audit, classify which document source types are most relevant and whether the question requires chronological ordering.
+            content: `You are a query router. Given a user question about a website audit, classify which document source types are most relevant, whether the question requires chronological ordering, and whether screenshots of the website pages would help answer the question.
 
 Available source_types: "upload", "gmail", "chat", "crawl", "gdrive"
 - "gmail" = email threads/messages
@@ -111,16 +111,21 @@ Available source_types: "upload", "gmail", "chat", "crawl", "gdrive"
 Respond with a JSON object:
 {
   "priority_sources": ["gmail"],  // 0-2 source types most relevant. Empty array if the question is general/unclear.
-  "chronological": false          // true ONLY if the question asks about timeline, first/last, sequence, or date-based ordering
+  "chronological": false,         // true ONLY if the question asks about timeline, first/last, sequence, or date-based ordering
+  "needs_screenshots": false      // true if the question is about visual design, layout, appearance, branding, colors, UI, UX, how pages look, comparing designs, or anything that would benefit from seeing the actual website screenshots
 }
 
 Examples:
-- "What was the first email from John?" → {"priority_sources":["gmail"],"chronological":true}
-- "Summarize the proposal document" → {"priority_sources":["upload"],"chronological":false}
-- "What did we discuss about SEO?" → {"priority_sources":["chat"],"chronological":false}
-- "How is the website performing?" → {"priority_sources":[],"chronological":false}
-- "Show me the email history" → {"priority_sources":["gmail"],"chronological":true}
-- "What pages were crawled?" → {"priority_sources":["crawl"],"chronological":false}`
+- "What was the first email from John?" → {"priority_sources":["gmail"],"chronological":true,"needs_screenshots":false}
+- "Summarize the proposal document" → {"priority_sources":["upload"],"chronological":false,"needs_screenshots":false}
+- "How does the homepage look?" → {"priority_sources":["crawl"],"chronological":false,"needs_screenshots":true}
+- "What's the design style of the website?" → {"priority_sources":[],"chronological":false,"needs_screenshots":true}
+- "Compare the header across pages" → {"priority_sources":["crawl"],"chronological":false,"needs_screenshots":true}
+- "How is the website performing?" → {"priority_sources":[],"chronological":false,"needs_screenshots":false}
+- "Show me the email history" → {"priority_sources":["gmail"],"chronological":true,"needs_screenshots":false}
+- "What pages were crawled?" → {"priority_sources":["crawl"],"chronological":false,"needs_screenshots":false}
+- "What colors does the site use?" → {"priority_sources":[],"chronological":false,"needs_screenshots":true}
+- "Is the navigation user-friendly?" → {"priority_sources":[],"chronological":false,"needs_screenshots":true}`
           },
           { role: 'user', content: query },
         ],
@@ -141,8 +146,12 @@ Examples:
                   type: 'boolean',
                   description: 'Whether this question needs chronological ordering',
                 },
+                needs_screenshots: {
+                  type: 'boolean',
+                  description: 'Whether website screenshots would help answer this question',
+                },
               },
-              required: ['priority_sources', 'chronological'],
+              required: ['priority_sources', 'chronological', 'needs_screenshots'],
               additionalProperties: false,
             },
           },
@@ -153,23 +162,24 @@ Examples:
 
     if (!response.ok) {
       console.warn('[knowledge-chat] Router classification failed:', response.status);
-      return { priority_sources: [], chronological: false };
+      return { priority_sources: [], chronological: false, needs_screenshots: false };
     }
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);
-      console.log(`[knowledge-chat] Router: sources=${JSON.stringify(parsed.priority_sources)}, chrono=${parsed.chronological}`);
+      console.log(`[knowledge-chat] Router: sources=${JSON.stringify(parsed.priority_sources)}, chrono=${parsed.chronological}, screenshots=${parsed.needs_screenshots}`);
       return {
         priority_sources: Array.isArray(parsed.priority_sources) ? parsed.priority_sources : [],
         chronological: !!parsed.chronological,
+        needs_screenshots: !!parsed.needs_screenshots,
       };
     }
-    return { priority_sources: [], chronological: false };
+    return { priority_sources: [], chronological: false, needs_screenshots: false };
   } catch (e) {
     console.warn('[knowledge-chat] Router error, falling back:', e);
-    return { priority_sources: [], chronological: false };
+    return { priority_sources: [], chronological: false, needs_screenshots: false };
   }
 }
 
@@ -290,6 +300,74 @@ function formatRagResults(matches: Array<{ id: string; document_id: string; chun
 }
 
 /**
+ * Fetch screenshot URLs for a session, optionally filtering by query-mentioned URLs
+ */
+async function fetchScreenshots(
+  sessionId: string,
+  query: string,
+  maxImages = 5,
+): Promise<{ url: string; screenshot_url: string }[]> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data: screenshots, error } = await supabase
+    .from('crawl_screenshots')
+    .select('url, screenshot_url')
+    .eq('session_id', sessionId)
+    .eq('status', 'done')
+    .not('screenshot_url', 'is', null);
+
+  if (error || !screenshots || screenshots.length === 0) {
+    console.log(`[knowledge-chat] No screenshots found for session ${sessionId}`);
+    return [];
+  }
+
+  // Try to match specific pages mentioned in the query
+  const queryLower = query.toLowerCase();
+  const mentionedPages = screenshots.filter(s => {
+    try {
+      const urlPath = new URL(s.url).pathname.toLowerCase();
+      const urlParts = urlPath.split('/').filter(Boolean);
+      return urlParts.some(part => queryLower.includes(part));
+    } catch {
+      return false;
+    }
+  });
+
+  // If specific pages matched, prioritize those + add homepage
+  if (mentionedPages.length > 0) {
+    const homepage = screenshots.find(s => {
+      try { return new URL(s.url).pathname === '/'; } catch { return false; }
+    });
+    const selected = [...mentionedPages];
+    if (homepage && !selected.some(s => s.url === homepage.url)) {
+      selected.unshift(homepage);
+    }
+    return selected.slice(0, maxImages);
+  }
+
+  // For general visual questions: homepage + sample of inner pages
+  const homepage = screenshots.find(s => {
+    try { return new URL(s.url).pathname === '/'; } catch { return false; }
+  });
+  const innerPages = screenshots.filter(s => {
+    try { return new URL(s.url).pathname !== '/'; } catch { return true; }
+  });
+
+  const selected: typeof screenshots = [];
+  if (homepage) selected.push(homepage);
+
+  // Add diverse inner pages (spread across the list)
+  const step = Math.max(1, Math.floor(innerPages.length / (maxImages - selected.length)));
+  for (let i = 0; i < innerPages.length && selected.length < maxImages; i += step) {
+    selected.push(innerPages[i]);
+  }
+
+  return selected;
+}
+
+/**
  * Perform RAG search: embed the user query, find relevant chunks via pgvector
  * Now with smart routing: runs parallel general + source-filtered searches
  */
@@ -348,6 +426,59 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
   } catch (e) {
     console.error('[knowledge-chat] RAG search failed:', e);
     return '';
+  }
+}
+
+/**
+ * Perform RAG search and also return the routing result for screenshot decisions
+ */
+async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean }> {
+  try {
+    const [routing, embedding] = await Promise.all([
+      routeQuery(query),
+      getEmbedding(query),
+    ]);
+
+    if (!embedding) return { ragContext: '', needs_screenshots: routing.needs_screenshots };
+
+    const { priority_sources, chronological, needs_screenshots } = routing;
+
+    const searchPromises: Promise<Array<any>>[] = [];
+    searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, matchCount, matchThreshold));
+
+    if (priority_sources.length > 0) {
+      const sourceMatchCount = chronological ? 50 : 25;
+      searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, sourceMatchCount, Math.max(matchThreshold - 0.05, 0.05), priority_sources));
+    }
+
+    const results = await Promise.all(searchPromises);
+    const generalMatches = results[0] || [];
+    const sourceMatches = results[1] || [];
+
+    const seenIds = new Set<string>();
+    const merged: typeof generalMatches = [];
+
+    for (const match of sourceMatches) {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        merged.push(match);
+      }
+    }
+    for (const match of generalMatches) {
+      if (!seenIds.has(match.id)) {
+        seenIds.add(match.id);
+        merged.push(match);
+      }
+    }
+
+    if (merged.length === 0) return { ragContext: '', needs_screenshots };
+
+    const ragContext = formatRagResults(merged, chronological, priority_sources);
+    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
+    return { ragContext, needs_screenshots };
+  } catch (e) {
+    console.error('[knowledge-chat] RAG search failed:', e);
+    return { ragContext: '', needs_screenshots: false };
   }
 }
 
@@ -791,20 +922,34 @@ serve(async (req) => {
 
     // Build context based on selected sources
     let ragContext = '';
+    let needsScreenshots = false;
     let webContext = '';
     let webCitations: string[] = [];
 
-    // Run document RAG and web search in parallel
+    // Run document RAG (with routing) and web search in parallel
     const contextPromises: Promise<void>[] = [];
 
     if (useDocuments && session_id && queryText) {
-      contextPromises.push(ragSearch(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => { ragContext = r; }));
+      contextPromises.push(ragSearchWithRouting(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => {
+        ragContext = r.ragContext;
+        needsScreenshots = r.needs_screenshots;
+      }));
     }
     if (useWeb && queryText) {
       contextPromises.push(webSearchWithCitations(queryText).then(r => { webContext = r.context; webCitations = r.citations; }));
     }
 
     await Promise.all(contextPromises);
+
+    // Fetch screenshots if the router says visual context would help
+    // Skip for Perplexity (text-only)
+    const isClaudeModel = model && model.startsWith('claude-');
+    const isPerplexityModel = model && model.startsWith('perplexity-');
+    let screenshotImages: { url: string; screenshot_url: string }[] = [];
+    if (needsScreenshots && session_id && !isPerplexityModel) {
+      screenshotImages = await fetchScreenshots(session_id, queryText);
+      console.log(`[knowledge-chat] Injecting ${screenshotImages.length} screenshots as multimodal content`);
+    }
 
     const legacyContext = useDocuments ? buildContextBlock(crawlContext, documents) : '';
 
@@ -828,11 +973,38 @@ serve(async (req) => {
     }
 
     const systemPrompt = buildSystemPrompt(combinedContext);
-    const isClaudeModel = model && model.startsWith('claude-');
-    const isPerplexityModel = model && model.startsWith('perplexity-');
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Messages: ${messages.length}`);
+    // Inject screenshot images into the messages if available
+    let augmentedMessages = messages;
+    if (screenshotImages.length > 0) {
+      // Build a multimodal "screenshots context" message injected before the last user message
+      const imageContentParts: any[] = [
+        { type: 'text', text: `Here are ${screenshotImages.length} screenshot(s) of the website pages for visual reference:` },
+      ];
+      for (const ss of screenshotImages) {
+        imageContentParts.push({
+          type: 'text',
+          text: `Page: ${ss.url}`,
+        });
+        imageContentParts.push({
+          type: 'image_url',
+          image_url: { url: ss.screenshot_url },
+        });
+      }
+
+      // Insert as a user message right before the last user message
+      augmentedMessages = [...messages];
+      const lastUserIdx = augmentedMessages.map((m: any) => m.role).lastIndexOf('user');
+      if (lastUserIdx >= 0) {
+        augmentedMessages.splice(lastUserIdx, 0, {
+          role: 'user',
+          content: imageContentParts,
+        });
+      }
+    }
+
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
 
     // Build citation metadata event to send before the AI stream
     let citationsEvent = '';
@@ -866,11 +1038,11 @@ serve(async (req) => {
     };
 
     if (isClaudeModel) {
-      return prependCitations(await handleClaudeRequest(model, messages, systemPrompt, reasoning));
+      return prependCitations(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning));
     } else if (isPerplexityModel) {
-      return prependCitations(await handlePerplexityRequest(model, messages, systemPrompt));
+      return prependCitations(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
     } else {
-      return prependCitations(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', messages, systemPrompt, reasoning));
+      return prependCitations(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
