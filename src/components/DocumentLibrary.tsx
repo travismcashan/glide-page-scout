@@ -88,6 +88,11 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Persist preferences to localStorage
+  useEffect(() => {
+    savePrefs({ viewMode, filterSource, sortField, sortDir, groupBy });
+  }, [viewMode, filterSource, sortField, sortDir, groupBy]);
+
   const openGridPreview = async (doc: KnowledgeDocument) => {
     setGridPreviewDoc(doc);
     setGridPreviewContent(null);
