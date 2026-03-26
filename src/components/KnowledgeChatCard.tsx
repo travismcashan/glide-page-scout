@@ -16,6 +16,7 @@ import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
 import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
+import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
