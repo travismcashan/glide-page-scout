@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Trash2, Loader2, Database, Globe, BookOpen, CheckCircle2, AlertCircle, Clock, X, RefreshCw } from 'lucide-react';
+import { FileText, Upload, Trash2, Loader2, Database, Globe, BookOpen, CheckCircle2, AlertCircle, Clock, X, RefreshCw, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,6 +32,7 @@ const SOURCE_ICONS: Record<string, typeof FileText> = {
   integration: Database,
   upload: FileText,
   scrape: Globe,
+  chat: MessageSquare,
 };
 
 const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {

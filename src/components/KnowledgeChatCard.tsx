@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 
-import { ingestChatUploads } from '@/lib/ragIngest';
+import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -850,6 +850,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         return prev;
       });
       saveMessage('assistant', assistantContent, sources);
+
+      // Auto-ingest conversation into RAG (fire-and-forget)
+      const allMsgs = [...messages, { role: 'user' as const, content: input }, { role: 'assistant' as const, content: assistantContent }];
+      ingestChatConversation(session.id, allMsgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))).then(() => {
+        onDocumentsChanged?.();
+      }).catch(() => {});
     } catch (e: any) {
       console.error('Knowledge chat error:', e);
       toast.error(e?.message || 'Failed to get response');

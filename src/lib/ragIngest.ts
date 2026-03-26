@@ -210,3 +210,66 @@ export async function ingestChatUploads(
     return 0;
   }
 }
+
+/**
+ * Ingest the current chat conversation as a single document into RAG.
+ * Re-ingests (replaces) on every AI response so the document stays current.
+ */
+export async function ingestChatConversation(
+  sessionId: string,
+  messages: { role: string; content: string }[]
+): Promise<void> {
+  // Need at least one exchange (user + assistant)
+  const meaningful = messages.filter(m => m.content && m.content.length > 20);
+  if (meaningful.length < 2) return;
+
+  const SOURCE_KEY = 'chat-conversation';
+  const docName = 'AI Chat Conversation';
+
+  // Format messages into a readable document
+  const content = meaningful
+    .map(m => `**${m.role === 'user' ? 'User' : 'Assistant'}:**\n${m.content}`)
+    .join('\n\n---\n\n');
+
+  if (content.length < 100) return;
+
+  // Delete existing chat conversation document so we replace it
+  await supabase
+    .from('knowledge_documents')
+    .delete()
+    .eq('session_id', sessionId)
+    .eq('source_key', SOURCE_KEY)
+    .eq('source_type', 'chat');
+
+  // Also delete orphaned chunks
+  // (cascade should handle this, but be safe)
+
+  try {
+    const response = await fetch(INGEST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({
+        session_id: sessionId,
+        documents: [{
+          name: docName,
+          content,
+          source_type: 'chat',
+          source_key: SOURCE_KEY,
+        }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[chat-ingest] Failed:', await response.text());
+      return;
+    }
+    const result = await response.json();
+    console.log(`[chat-ingest] Ingested chat conversation: ${result.results?.[0]?.chunks || 0} chunks`);
+  } catch (err) {
+    console.error('[chat-ingest] Error:', err);
+  }
+}
