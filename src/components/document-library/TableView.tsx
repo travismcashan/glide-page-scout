@@ -1,7 +1,7 @@
 import { FileText, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { KnowledgeDocument, SortField, SortDir, STATUS_CONFIG, SOURCE_ICONS, getFileIcon, formatDate } from './types';
+import { KnowledgeDocument, SortField, SortDir, STATUS_CONFIG, SOURCE_ICONS, getDocumentIcon, formatDate } from './types';
 
 type Props = {
   documents: KnowledgeDocument[];
@@ -63,7 +63,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
           const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
           const StatusIcon = statusConf.icon;
           const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
-          const FileIcon = getFileIcon(doc.name);
+          const FileIcon = getDocumentIcon(doc.name, doc.source_type);
 
           return (
             <TableRow key={doc.id} className="group">
