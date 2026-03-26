@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive } from 'lucide-react';
+import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -64,6 +65,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [groupBy, setGroupBy] = useState<string>('none');
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocuments = useCallback(async () => {
@@ -209,6 +211,76 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     else { toast.success(`Removed "${docName}"`); fetchDocuments(); }
   };
 
+  const handleDriveFilesSelected = async (driveFiles: { name: string; content?: string; mimeType: string; isText: boolean }[]) => {
+    const validFiles = driveFiles.filter(f => f.content && f.content.length > 0);
+    if (validFiles.length === 0) return;
+    setUploading(true);
+
+    // Insert placeholders
+    const placeholders = validFiles.map(f => ({
+      session_id: sessionId,
+      name: f.name,
+      source_type: 'google-drive' as const,
+      status: 'uploading',
+      char_count: 0,
+      chunk_count: 0,
+    }));
+    const { data: inserted, error: insertErr } = await supabase
+      .from('knowledge_documents')
+      .insert(placeholders)
+      .select('id, name');
+    if (insertErr) { toast.error('Failed to queue files'); setUploading(false); return; }
+    const idMap = new Map<string, string>();
+    for (const row of (inserted || []) as any[]) idMap.set(row.name, row.id);
+    fetchDocuments();
+
+    let successCount = 0;
+    for (const file of validFiles) {
+      const docId = idMap.get(file.name);
+      try {
+        let content = file.content!;
+
+        // For binary content (base64), parse it first
+        if (!file.isText) {
+          const parseResp = await fetch(PARSE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+            body: JSON.stringify({ fileBase64: content, fileName: file.name, mimeType: file.mimeType }),
+          });
+          if (!parseResp.ok) {
+            if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Parse failed' }).eq('id', docId);
+            fetchDocuments();
+            continue;
+          }
+          const { text } = await parseResp.json();
+          if (!text || text.length < 30) {
+            if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'No content extracted' }).eq('id', docId);
+            fetchDocuments();
+            continue;
+          }
+          content = text;
+        }
+
+        // Delete placeholder, then ingest
+        if (docId) await supabase.from('knowledge_documents').delete().eq('id', docId);
+
+        const response = await fetch(INGEST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({ session_id: sessionId, documents: [{ name: file.name, content, source_type: 'google-drive' }] }),
+        });
+        if (response.ok) successCount++;
+        fetchDocuments();
+      } catch {
+        if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Import failed' }).eq('id', docId);
+        fetchDocuments();
+      }
+    }
+
+    if (successCount > 0) toast.success(`${successCount} file${successCount !== 1 ? 's' : ''} imported from Google Drive`);
+    setUploading(false);
+  };
+
   const readyCount = documents.filter(d => d.status === 'ready').length;
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
   const totalChars = documents.reduce((sum, d) => sum + d.char_count, 0);
@@ -309,12 +381,16 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         </div>
       </div>
 
-      {/* Upload + Sync row */}
+      {/* Upload + Drive + Sync row */}
       <div className="flex items-center gap-2 px-1 mb-3">
         <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif" className="hidden" onChange={handleFileUpload} />
         <Button variant="outline" size="sm" className="flex-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
           {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
-          {uploading ? 'Processing...' : 'Upload Documents'}
+          {uploading ? 'Processing...' : 'Upload'}
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => setDrivePickerOpen(true)} disabled={uploading}>
+          <HardDrive className="h-3.5 w-3.5 mr-1.5" />
+          Google Drive
         </Button>
         {onIngestIntegrations && (
           <Button variant="outline" size="sm" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Re-sync integration data">
@@ -323,6 +399,8 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           </Button>
         )}
       </div>
+
+      <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
 
       {/* Document list */}
       <div>

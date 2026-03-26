@@ -1,4 +1,4 @@
-import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, Upload } from 'lucide-react';
+import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, Upload, HardDrive } from 'lucide-react';
 
 export type KnowledgeDocument = {
   id: string;
@@ -20,6 +20,7 @@ export const SOURCE_ICONS: Record<string, typeof FileText> = {
   upload: FileText,
   scrape: Globe,
   chat: MessageSquare,
+  'google-drive': HardDrive,
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
@@ -27,6 +28,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   upload: 'Upload',
   scrape: 'Scraped',
   chat: 'Chat Note',
+  'google-drive': 'Google Drive',
 };
 
 export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
@@ -38,9 +40,10 @@ export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: s
 };
 
 export function getDocumentIcon(_name: string, sourceType: string) {
-  if (sourceType === 'upload') {
+  if (sourceType === 'upload' || sourceType === 'google-drive') {
     const ext = _name.split('.').pop()?.toLowerCase() || '';
     if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
+    if (sourceType === 'google-drive') return HardDrive;
     return FileText;
   }
   if (sourceType === 'chat') return MessageSquare;
