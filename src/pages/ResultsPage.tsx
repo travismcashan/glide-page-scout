@@ -2200,40 +2200,38 @@ export default function ResultsPage() {
                 icon={<Mail className="h-5 w-5 text-foreground" />}
                 collapsed={allCollapsed}
                 headerExtra={
-                  gmailState.emailCount > 0 ? (
-                    <div className="flex items-center gap-1.5">
-                      {gmailState.lastFetched && !gmailState.isRefreshing && (
-                        <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(gmailState.lastFetched), 'MMM d, yyyy h:mm a')}`}>
-                          {format(new Date(gmailState.lastFetched), 'MMM d, h:mm a')}
-                        </span>
-                      )}
-                      {gmailState.durationSec != null && !gmailState.isRefreshing && (
-                        <span className="text-[10px] text-muted-foreground tabular-nums">({gmailState.durationSec}s)</span>
-                      )}
+                  <div className="flex items-center gap-1.5">
+                    {gmailState.lastFetched && !gmailState.isRefreshing && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(gmailState.lastFetched), 'MMM d, yyyy h:mm a')}`}>
+                        {format(new Date(gmailState.lastFetched), 'MMM d, h:mm a')}
+                      </span>
+                    )}
+                    {gmailState.durationSec != null && !gmailState.isRefreshing && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">({gmailState.durationSec}s)</span>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      disabled={gmailState.isRefreshing}
+                      onClick={() => gmailRef.current?.refreshEmails()}
+                      title="Refresh emails"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${gmailState.isRefreshing ? 'animate-spin' : ''}`} />
+                    </Button>
+                    {gmailState.canIngest && (
                       <Button
                         size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={gmailState.isRefreshing}
-                        onClick={() => gmailRef.current?.refreshEmails()}
-                        title="Refresh emails"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs"
+                        disabled={gmailState.isIngesting}
+                        onClick={() => gmailRef.current?.ingestAllEmails()}
                       >
-                        <RefreshCw className={`h-3.5 w-3.5 ${gmailState.isRefreshing ? 'animate-spin' : ''}`} />
+                        {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+                        Ingest All Emails
                       </Button>
-                      {gmailState.canIngest && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 gap-1.5 text-xs"
-                          disabled={gmailState.isIngesting}
-                          onClick={() => gmailRef.current?.ingestAllEmails()}
-                        >
-                          {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
-                          Ingest All Emails
-                        </Button>
-                      )}
-                    </div>
-                  ) : undefined
+                    )}
+                  </div>
                 }
               >
                 <GmailCard
