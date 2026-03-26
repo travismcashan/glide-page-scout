@@ -1797,6 +1797,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             </Button>
           </div>
         </div>
+        <p className="text-[11px] text-muted-foreground/60 text-center pt-1 pb-0.5">AI can make mistakes. No chat data is used to train AI models.</p>
       </div>
       </div>
       </div>
