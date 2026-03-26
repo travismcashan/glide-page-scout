@@ -1768,17 +1768,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             disabled={isStreaming}
           />
 
-          {/* Send button - pushed to the right */}
+          {/* Send / Stop button */}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleSend()}
-              disabled={isStreaming || attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText)}
+              onClick={isStreaming ? handleStop : () => handleSend()}
+              disabled={!isStreaming && (attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText))}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
               {isStreaming ? (
-                <Loader2 style={{ width: 28, height: 28 }} className="animate-spin" />
+                <div className="relative flex items-center justify-center" style={{ width: 28, height: 28 }}>
+                  <Loader2 style={{ width: 28, height: 28 }} className="animate-spin absolute" />
+                  <Square className="h-3 w-3 fill-current" />
+                </div>
               ) : (
                 <ArrowUp style={{ width: 28, height: 28 }} strokeWidth={1.5} />
               )}
