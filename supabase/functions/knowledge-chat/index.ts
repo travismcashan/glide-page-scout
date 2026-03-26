@@ -431,15 +431,16 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
 
 /**
  * Perform RAG search and also return the routing result for screenshot decisions
+ * and the list of documents referenced
  */
-async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean }> {
+async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: { name: string; source_type: string }[] }> {
   try {
     const [routing, embedding] = await Promise.all([
       routeQuery(query),
       getEmbedding(query),
     ]);
 
-    if (!embedding) return { ragContext: '', needs_screenshots: routing.needs_screenshots };
+    if (!embedding) return { ragContext: '', needs_screenshots: routing.needs_screenshots, ragDocuments: [] };
 
     const { priority_sources, chronological, needs_screenshots } = routing;
 
@@ -471,14 +472,23 @@ async function ragSearchWithRouting(sessionId: string, query: string, matchCount
       }
     }
 
-    if (merged.length === 0) return { ragContext: '', needs_screenshots };
+    if (merged.length === 0) return { ragContext: '', needs_screenshots, ragDocuments: [] };
+
+    // Extract unique documents referenced
+    const docMap = new Map<string, { name: string; source_type: string }>();
+    for (const match of merged) {
+      if (!docMap.has(match.document_id)) {
+        docMap.set(match.document_id, { name: match.document_name, source_type: match.source_type });
+      }
+    }
+    const ragDocuments = Array.from(docMap.values());
 
     const ragContext = formatRagResults(merged, chronological, priority_sources);
-    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
-    return { ragContext, needs_screenshots };
+    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks from ${ragDocuments.length} documents (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
+    return { ragContext, needs_screenshots, ragDocuments };
   } catch (e) {
     console.error('[knowledge-chat] RAG search failed:', e);
-    return { ragContext: '', needs_screenshots: false };
+    return { ragContext: '', needs_screenshots: false, ragDocuments: [] };
   }
 }
 
