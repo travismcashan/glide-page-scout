@@ -1593,6 +1593,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           ref={chatInputRef}
           onSubmit={(text) => handleSend(text)}
           disabled={isStreaming}
+          onChange={(val) => setHasInputText(!!val?.trim())}
         />
 
         {/* Toolbar row */}
@@ -1716,7 +1717,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               variant="ghost"
               size="icon"
               onClick={() => handleSend()}
-              disabled={isStreaming || attachments.some(a => a.parsing) || (attachments.length === 0 && !chatInputRef.current?.getValue()?.trim())}
+              disabled={isStreaming || attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText)}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
