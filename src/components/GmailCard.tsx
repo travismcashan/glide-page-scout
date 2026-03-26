@@ -91,7 +91,7 @@ function AttachmentRow({
   );
 }
 
-function EmailRow({
+function EmailTableRow({
   email,
   selectedAttachments,
   onToggleAttachment,
@@ -108,8 +108,11 @@ function EmailRow({
   const from = parseEmailAddress(email.from);
   const to = parseEmailAddress(email.to);
   let dateStr = '';
+  let timeStr = '';
   try {
-    dateStr = format(new Date(email.date), 'MMM d, yyyy h:mm a');
+    const d = new Date(email.date);
+    dateStr = format(d, 'MMM d, yyyy');
+    timeStr = format(d, 'h:mm a');
   } catch {
     dateStr = email.date;
   }
@@ -117,72 +120,65 @@ function EmailRow({
   const hasAttachments = email.attachments && email.attachments.length > 0;
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <button
+    <>
+      <tr
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-start gap-3 p-3 text-left hover:bg-muted/50 transition-colors"
+        className="cursor-pointer hover:bg-muted/50 transition-colors border-b border-border text-xs"
       >
-        <Mail className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium truncate">{email.subject || '(no subject)'}</span>
+        <td className="px-3 py-2 max-w-[280px]">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate font-medium text-foreground">{email.subject || '(no subject)'}</span>
             {hasAttachments && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 h-4">
+              <Badge variant="outline" className="text-[10px] px-1 py-0 gap-0.5 h-4 shrink-0">
                 <Paperclip className="h-2.5 w-2.5" />
                 {email.attachments.length}
               </Badge>
             )}
           </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            <span className="font-medium">{from.name || from.email}</span>
-            {' → '}
-            <span>{to.name || to.email}</span>
-            <span className="ml-2 text-muted-foreground/70">{dateStr}</span>
-          </div>
-          {!expanded && (
-            <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-1">{email.snippet}</p>
-          )}
-        </div>
-        {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
-      </button>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground truncate max-w-[160px]">{from.name || from.email}</td>
+        <td className="px-3 py-2 text-muted-foreground truncate max-w-[160px]">{to.name || to.email}</td>
+        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{dateStr}</td>
+        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{timeStr}</td>
+        <td className="px-2 py-2 text-muted-foreground">
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </td>
+      </tr>
       {expanded && (
-        <div className="px-3 pb-3 border-t border-border">
-          <div className="text-xs text-muted-foreground mt-2 mb-1 space-y-0.5">
-            <div><strong>From:</strong> {email.from}</div>
-            <div><strong>To:</strong> {email.to}</div>
-            <div><strong>Date:</strong> {dateStr}</div>
-          </div>
-          <div className="mt-2 text-sm whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto bg-muted/30 rounded p-2">
-            {email.body || email.snippet || '(empty)'}
-          </div>
-
-          {hasAttachments && (
-            <div className="mt-3 border border-border rounded-md">
-              <div className="px-2 py-1.5 bg-muted/30 border-b border-border flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Paperclip className="h-3 w-3" />
-                Attachments ({email.attachments.length})
-              </div>
-              <div className="py-1">
-                {email.attachments.map((att) => {
-                  const key = `${email.id}:${att.attachmentId}`;
-                  return (
-                    <AttachmentRow
-                      key={key}
-                      att={att}
-                      emailId={email.id}
-                      selected={selectedAttachments.has(key)}
-                      onToggle={() => onToggleAttachment(key)}
-                      onDownload={() => onDownloadAttachment(email.id, att)}
-                      downloading={downloadingAttachments.has(key)}
-                    />
-                  );
-                })}
-              </div>
+        <tr className="border-b border-border">
+          <td colSpan={6} className="px-3 py-3 bg-muted/20">
+            <div className="text-sm whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto bg-muted/30 rounded p-2">
+              {email.body || email.snippet || '(empty)'}
             </div>
-          )}
-        </div>
+
+            {hasAttachments && (
+              <div className="mt-3 border border-border rounded-md">
+                <div className="px-2 py-1.5 bg-muted/30 border-b border-border flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Paperclip className="h-3 w-3" />
+                  Attachments ({email.attachments.length})
+                </div>
+                <div className="py-1">
+                  {email.attachments.map((att) => {
+                    const key = `${email.id}:${att.attachmentId}`;
+                    return (
+                      <AttachmentRow
+                        key={key}
+                        att={att}
+                        emailId={email.id}
+                        selected={selectedAttachments.has(key)}
+                        onToggle={() => onToggleAttachment(key)}
+                        onDownload={() => onDownloadAttachment(email.id, att)}
+                        downloading={downloadingAttachments.has(key)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
