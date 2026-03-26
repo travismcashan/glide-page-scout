@@ -335,7 +335,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   };
 
   return (
-    <div className="group relative max-w-[85%] px-4 py-3 text-base rounded-lg text-foreground">
+    <div className="group relative w-full px-4 py-3 text-base rounded-lg text-foreground">
       {(webCitations?.length || isWebSearching) && (
         <WebCitationsBlock citations={webCitations || []} isSearching={isWebSearching} />
       )}
