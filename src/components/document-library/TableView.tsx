@@ -38,7 +38,7 @@ function SortIndicator({ field, activeField, dir }: { field: SortField; activeFi
 function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Props, 'groupBy'>) {
   const sortable = (field: SortField, label: string, className?: string) => (
     <TableHead
-      className={`h-8 text-xs cursor-pointer select-none hover:text-foreground transition-colors ${className || ''}`}
+      className={`h-9 text-sm cursor-pointer select-none hover:text-foreground transition-colors ${className || ''}`}
       onClick={() => onSort(field)}
     >
       {label}<SortIndicator field={field} activeField={sortField} dir={sortDir} />
@@ -50,12 +50,12 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
       <TableHeader>
         <TableRow>
           {sortable('name', 'Name')}
-          {sortable('created_at', 'Date Added', 'w-24')}
-          {sortable('char_count', 'Size', 'w-20 text-right')}
-          {sortable('chunk_count', 'Chunks', 'w-16 text-right')}
-          {sortable('source_type', 'Source', 'w-24')}
-          <TableHead className="h-8 text-xs w-16">Status</TableHead>
-          <TableHead className="h-8 text-xs w-8"></TableHead>
+          {sortable('created_at', 'Date Added', 'w-28')}
+          {sortable('char_count', 'Size', 'w-24 text-right')}
+          {sortable('chunk_count', 'Chunks', 'w-20 text-right')}
+          {sortable('source_type', 'Source', 'w-28')}
+          <TableHead className="h-9 text-sm w-20">Status</TableHead>
+          <TableHead className="h-9 text-sm w-8"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -67,34 +67,34 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort }: Omit<Prop
 
           return (
             <TableRow key={doc.id} className="group">
-              <TableCell className="py-2 px-4">
+              <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-2">
                   <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-xs font-medium truncate max-w-[200px]">{doc.name}</span>
+                  <span className="text-sm font-medium truncate max-w-[200px]">{doc.name}</span>
                 </div>
               </TableCell>
-              <TableCell className="py-2 px-4 text-xs text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
-              <TableCell className="py-2 px-4 text-xs text-muted-foreground text-right">{(doc.char_count / 1000).toFixed(0)}K chars</TableCell>
-              <TableCell className="py-2 px-4 text-xs text-muted-foreground text-right">{doc.chunk_count}</TableCell>
-              <TableCell className="py-2 px-4">
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{(doc.char_count / 1000).toFixed(0)}K chars</TableCell>
+              <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-right">{doc.chunk_count}</TableCell>
+              <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-1.5">
-                  <SourceIcon className="h-3 w-3 text-muted-foreground" />
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">{doc.source_type}</Badge>
+                  <SourceIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-5">{doc.source_type}</Badge>
                 </div>
               </TableCell>
-              <TableCell className="py-2 px-4">
+              <TableCell className="py-2.5 px-4">
                 <div className="flex items-center gap-1" title={statusConf.label}>
-                  <StatusIcon className={`h-3 w-3 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
-                  <span className={`text-[10px] ${statusConf.color}`}>{statusConf.label}</span>
+                  <StatusIcon className={`h-3.5 w-3.5 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
+                  <span className={`text-xs ${statusConf.color}`}>{statusConf.label}</span>
                 </div>
               </TableCell>
-              <TableCell className="py-2 px-4">
+              <TableCell className="py-2.5 px-4">
                 <button
                   onClick={() => onDelete(doc.id, doc.name)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-destructive"
                   title="Remove"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </TableCell>
             </TableRow>
