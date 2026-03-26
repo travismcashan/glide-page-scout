@@ -30,8 +30,6 @@ export function KnowledgeTabContent({
       const total = integrationResult.ingested + pageCount;
       if (total > 0) {
         toast.success(`Indexed ${total} document${total !== 1 ? 's' : ''} into knowledge base`);
-      } else {
-        toast.info('Everything is already up to date');
       }
       triggerRefresh();
     } catch (err) {
