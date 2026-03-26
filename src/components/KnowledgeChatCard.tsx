@@ -231,7 +231,7 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
           {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <div className="bg-primary text-primary-foreground rounded-lg rounded-tr-none px-4 py-3 text-sm">
+      <div className="bg-muted text-foreground rounded-lg rounded-tr-none px-4 py-3 text-sm">
         <UserBubbleContent content={content} attachmentNames={attachmentNames} />
       </div>
     </div>
@@ -813,9 +813,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               <div className="flex justify-start">
                 <div className="flex items-center gap-2.5 px-4 py-3">
                   <div className="flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
-                    <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+                     <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
                   </div>
                   <span className="text-sm text-muted-foreground">Thinking…</span>
                 </div>
