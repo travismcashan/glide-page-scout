@@ -1625,6 +1625,19 @@ export default function ResultsPage() {
                     <Settings className="h-5 w-5" />
                     Integrations
                   </Button>
+
+                  <div className="border-t border-border my-3" />
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-1">AI Provider</p>
+                  {PROVIDERS.map(p => (
+                    <Button
+                      key={p.id}
+                      variant={chatProvider === p.id ? 'secondary' : 'ghost'}
+                      className="justify-start gap-3 text-base"
+                      onClick={() => setChatProvider(p.id)}
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
                 </nav>
               </SheetContent>
             </Sheet>
