@@ -560,17 +560,22 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       });
   }, [session.id]);
 
-  // Gemini-style scroll: pin user message near top of viewport when streaming starts
+  // Gemini-style scroll: pin user message at top of viewport when streaming starts
   const hasScrolledForStreamRef = useRef(false);
   useEffect(() => {
     if (isStreaming && lastUserMsgRef.current) {
       wasStreamingRef.current = true;
       if (!hasScrolledForStreamRef.current) {
         hasScrolledForStreamRef.current = true;
-        const userMsg = lastUserMsgRef.current;
-        // Pin user message ~80px from the top of the viewport for a clean reading area below
-        const targetY = userMsg.getBoundingClientRect().top + window.scrollY - 80;
-        window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        // Use a short delay to ensure the DOM has updated with the new message
+        requestAnimationFrame(() => {
+          if (lastUserMsgRef.current) {
+            const rect = lastUserMsgRef.current.getBoundingClientRect();
+            // Scroll so the user message sits 20px from the top of the viewport
+            const scrollTarget = window.scrollY + rect.top - 20;
+            window.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+          }
+        });
       }
     } else if (!isStreaming) {
       hasScrolledForStreamRef.current = false;
