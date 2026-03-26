@@ -726,6 +726,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [hasInputText, setHasInputText] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
