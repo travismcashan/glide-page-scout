@@ -84,7 +84,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments, refreshKey]);
 
   useEffect(() => {
-    const processing = documents.some(d => d.status === 'processing' || d.status === 'pending');
+    const processing = documents.some(d => d.status === 'processing' || d.status === 'pending' || d.status === 'uploading');
     if (!processing) return;
     const interval = setInterval(fetchDocuments, 3000);
     return () => clearInterval(interval);
