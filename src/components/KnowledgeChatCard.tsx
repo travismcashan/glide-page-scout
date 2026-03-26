@@ -278,6 +278,15 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   );
 }
 
+function AnimatedThinkingText() {
+  const [dotCount, setDotCount] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setDotCount(d => (d + 1) % 4), 400);
+    return () => clearInterval(interval);
+  }, []);
+  return <span className="text-base font-bold">Thinking{'.'.repeat(dotCount || 0)}</span>;
+}
+
 function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -292,7 +301,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         ) : (
           <Brain className="flex-shrink-0 text-muted-foreground" style={{ width: 28, height: 28 }} />
         )}
-        <span className="text-base font-bold">{isStreaming ? 'Thinking…' : 'Show Thinking'}</span>
+        {isStreaming ? <AnimatedThinkingText /> : <span className="text-base font-bold">Show Thinking</span>}
         {expanded ? <ChevronDown className="h-5 w-5" strokeWidth={3} /> : <ChevronRight className="h-5 w-5" strokeWidth={3} />}
       </button>
       {expanded && (
