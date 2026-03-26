@@ -1112,11 +1112,22 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, []);
 
 
-  if (loadingHistory && !activeThreadId) {
+  if (!activeThreadId || loadingHistory) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading chat history...</span>
+      <div className="flex min-h-[500px]">
+        <ChatThreadSidebar
+          sessionId={session.id}
+          activeThreadId={activeThreadId}
+          onSelectThread={handleSelectThread}
+          onNewThread={handleNewThread}
+          onDeleteThread={handleDeleteThread}
+          refreshKey={sidebarRefreshKey}
+          onWidthChange={setSidebarWidth}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading chat…</span>
+        </div>
       </div>
     );
   }
