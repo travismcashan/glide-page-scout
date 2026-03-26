@@ -1,4 +1,4 @@
-import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage, FileType2, File, BarChart3, Shield, Zap, Search, Link, Code, Accessibility, Leaf, Gauge, Navigation, Map, FormInput, LayoutTemplate, Cpu, Users, Building2, Mail, FileCode } from 'lucide-react';
+import { FileText, Database, Globe, MessageSquare, CheckCircle2, Loader2, Clock, AlertCircle, FileImage } from 'lucide-react';
 
 export type KnowledgeDocument = {
   id: string;
