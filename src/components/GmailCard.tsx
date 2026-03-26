@@ -393,7 +393,11 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
   };
 
   const handleIngestAllEmails = async () => {
-    if (!sessionId || emails.length === 0) return;
+    console.log('[gmail] ingestAllEmails called', { sessionId, emailCount: emails.length });
+    if (!sessionId || emails.length === 0) {
+      toast.error('No emails to ingest');
+      return;
+    }
     setIngestingAll(true);
     try {
       const docsToIngest = emails.map((email) => {
@@ -457,7 +461,7 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
   // Notify parent of state changes
   useEffect(() => {
     onStateChange?.({
-      canIngest: isConnected === true && emails.length > 0 && !isLoading,
+      canIngest: emails.length > 0 && !isLoading,
       isIngesting: ingestingAll,
       emailCount: emails.length,
       isRefreshing,
