@@ -199,7 +199,8 @@ export interface GmailCardProps {
 }
 
 export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, contactEmails, onStateChange }, ref) {
-  const { id: sessionId } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; sessionId?: string }>();
+  const sessionId = params.sessionId ?? params.id;
   const { isConnected, isLoading, emails: liveEmails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
   const [cachedEmails, setCachedEmails] = useState<GmailEmail[]>([]);
   const [loadedFromDb, setLoadedFromDb] = useState(false);
@@ -235,18 +236,24 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
     })();
   }, [sessionId, loadedFromDb]);
 
-  // Save emails to DB whenever live emails update
+  // Save emails to DB whenever live emails or fetch metadata update
   useEffect(() => {
     if (!sessionId || liveEmails.length === 0) return;
     setCachedEmails(liveEmails);
     supabase
       .from('crawl_sessions')
-      .update({ gmail_data: { emails: liveEmails, updatedAt: lastFetched || new Date().toISOString(), durationSec } as any })
+      .update({
+        gmail_data: {
+          emails: liveEmails,
+          updatedAt: lastFetched || new Date().toISOString(),
+          durationSec,
+        } as any,
+      })
       .eq('id', sessionId)
       .then(({ error }) => {
         if (error) console.error('Failed to save gmail data:', error);
       });
-  }, [sessionId, liveEmails]);
+  }, [sessionId, liveEmails, lastFetched, durationSec]);
 
   const doSearch = useCallback(async () => {
     setHasSearched(true);
