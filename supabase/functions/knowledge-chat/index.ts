@@ -507,6 +507,22 @@ async function handlePerplexityRequest(
     }
   }
 
+  // Ensure first message is user (Perplexity requires user after system)
+  if (merged.length > 0 && merged[0].role !== 'user') {
+    merged.unshift({ role: 'user', content: 'Hello' });
+  }
+
+  // Ensure strict alternation by inserting placeholder messages where needed
+  const strictMerged: { role: string; content: string }[] = [];
+  for (const msg of merged) {
+    if (strictMerged.length > 0 && strictMerged[strictMerged.length - 1].role === msg.role) {
+      // Insert a placeholder of the opposite role
+      const filler = msg.role === 'user' ? 'assistant' : 'user';
+      strictMerged.push({ role: filler, content: '(continued)' });
+    }
+    strictMerged.push(msg);
+  }
+
   console.log(`[knowledge-chat] Perplexity request: model=${pplxModel}`);
 
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -519,7 +535,7 @@ async function handlePerplexityRequest(
       model: pplxModel,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...merged,
+        ...strictMerged,
       ],
       stream: true,
     }),

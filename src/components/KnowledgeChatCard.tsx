@@ -654,6 +654,59 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let textBuffer = '';
+      // Track whether we're inside a <think> block (Perplexity reasoning models)
+      let inThinkBlock = false;
+      let rawAccumulator = ''; // accumulates raw content to parse <think> tags
+
+      const flushAccumulator = () => {
+        if (!rawAccumulator) return;
+        // Process accumulated raw content for <think> tags
+        let remaining = rawAccumulator;
+        rawAccumulator = '';
+
+        while (remaining.length > 0) {
+          if (inThinkBlock) {
+            const closeIdx = remaining.indexOf('</think>');
+            if (closeIdx === -1) {
+              // Still inside think block, all remaining is thinking
+              thinkingContent += remaining;
+              remaining = '';
+            } else {
+              thinkingContent += remaining.slice(0, closeIdx);
+              inThinkBlock = false;
+              remaining = remaining.slice(closeIdx + 8); // skip '</think>'
+            }
+          } else {
+            const openIdx = remaining.indexOf('<think>');
+            if (openIdx === -1) {
+              // No think tag, all remaining is content
+              assistantContent += remaining;
+              remaining = '';
+            } else {
+              // Content before <think>
+              assistantContent += remaining.slice(0, openIdx);
+              inThinkBlock = true;
+              remaining = remaining.slice(openIdx + 7); // skip '<think>'
+            }
+          }
+        }
+      };
+
+      const updateMessages = () => {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          const msgData: Message = {
+            role: 'assistant',
+            content: assistantContent,
+            thinking: thinkingContent || undefined,
+            webCitations,
+          };
+          if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, ...msgData } : m);
+          }
+          return [...prev, msgData];
+        });
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -678,13 +731,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             // Handle custom web_citations event
             if (parsed.web_citations) {
               webCitations = parsed.web_citations;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant') {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, webCitations } : m);
-                }
-                return prev;
-              });
+              updateMessages();
               continue;
             }
 
@@ -692,24 +739,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             const reasoningContent = parsed.choices?.[0]?.delta?.reasoning_content as string | undefined;
             if (reasoningContent) {
               thinkingContent += reasoningContent;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, thinking: thinkingContent, webCitations } : m);
-                }
-                return [...prev, { role: 'assistant', content: '', thinking: thinkingContent, webCitations }];
-              });
+              updateMessages();
             }
             if (content) {
-              if (isThinking) setIsThinking(false);
-              assistantContent += content;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant' && prev.length === newMessages.length + 1) {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent, webCitations } : m);
-                }
-                return [...prev, { role: 'assistant', content: assistantContent, webCitations }];
-              });
+              // Use accumulator to handle <think> tags that may span chunks
+              rawAccumulator += content;
+              flushAccumulator();
+              if (assistantContent && isThinking) setIsThinking(false);
+              updateMessages();
             }
           } catch {
             textBuffer = line + '\n' + textBuffer;
@@ -735,17 +772,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
               thinkingContent += reasoningContent;
             }
             if (content) {
-              assistantContent += content;
-              setMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant') {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent, thinking: thinkingContent || undefined } : m);
-                }
-                return [...prev, { role: 'assistant', content: assistantContent, thinking: thinkingContent || undefined }];
-              });
+              rawAccumulator += content;
+              flushAccumulator();
             }
           } catch { /* ignore */ }
         }
+        updateMessages();
       }
 
       // Detect sources and save assistant message
