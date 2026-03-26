@@ -1,20 +1,22 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Trash2, Loader2, Database, Globe, BookOpen, CheckCircle2, AlertCircle, Clock, X, RefreshCw, MessageSquare, LayoutGrid, List, FileImage, FileType2, File } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, SlidersHorizontal, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { GridView } from './document-library/GridView';
+import { TableView } from './document-library/TableView';
+import { KnowledgeDocument, SortField, SortDir, sortDocuments, SOURCE_LABELS } from './document-library/types';
 
 const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
+const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
+
 const BINARY_MIME_TYPES: Record<string, string> = {
   'application/pdf': 'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/msword': 'application/msword',
-  'image/png': 'image/png',
-  'image/jpeg': 'image/jpeg',
-  'image/webp': 'image/webp',
-  'image/gif': 'image/gif',
+  'image/png': 'image/png', 'image/jpeg': 'image/jpeg', 'image/webp': 'image/webp', 'image/gif': 'image/gif',
 };
 
 function isBinaryFile(file: File): boolean {
@@ -28,8 +30,7 @@ function getMimeType(file: File): string {
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
   const map: Record<string, string> = {
     pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    doc: 'application/msword', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
-    webp: 'image/webp', gif: 'image/gif',
+    doc: 'application/msword', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
   };
   return map[ext] || 'application/octet-stream';
 }
@@ -37,26 +38,11 @@ function getMimeType(file: File): string {
 async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]);
-    };
+    reader.onload = () => { resolve((reader.result as string).split(',')[1]); };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
-
-type KnowledgeDocument = {
-  id: string;
-  name: string;
-  source_type: string;
-  source_key: string | null;
-  chunk_count: number;
-  char_count: number;
-  status: string;
-  error_message: string | null;
-  created_at: string;
-};
 
 type Props = {
   sessionId: string;
@@ -66,35 +52,6 @@ type Props = {
   ingesting?: boolean;
 };
 
-const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
-
-const SOURCE_ICONS: Record<string, typeof FileText> = {
-  integration: Database,
-  upload: FileText,
-  scrape: Globe,
-  chat: MessageSquare,
-};
-
-const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
-  ready: { icon: CheckCircle2, color: 'text-emerald-500', label: 'Indexed' },
-  processing: { icon: Loader2, color: 'text-amber-500', label: 'Processing' },
-  pending: { icon: Clock, color: 'text-muted-foreground', label: 'Pending' },
-  error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
-};
-
-function getFileIcon(name: string) {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
-  if (['pdf'].includes(ext)) return FileType2;
-  if (['doc', 'docx'].includes(ext)) return FileType2;
-  return File;
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 type ViewMode = 'grid' | 'table';
 
 export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, onIngestIntegrations, ingesting }: Props) {
@@ -102,6 +59,12 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterSource, setFilterSource] = useState<string>('all');
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [groupBy, setGroupBy] = useState<string>('none');
+  const [showFilters, setShowFilters] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocuments = useCallback(async () => {
@@ -110,7 +73,6 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
       .select('*')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: false });
-
     if (error) {
       console.error('Failed to fetch documents:', error);
     } else {
@@ -129,94 +91,86 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     return () => clearInterval(interval);
   }, [documents, fetchDocuments]);
 
+  // Derive unique source types for filter
+  const sourceTypes = useMemo(() => {
+    const types = new Set(documents.map(d => d.source_type));
+    return Array.from(types).sort();
+  }, [documents]);
+
+  // Filter → search → sort pipeline
+  const processedDocuments = useMemo(() => {
+    let filtered = documents;
+    if (filterSource !== 'all') {
+      filtered = filtered.filter(d => d.source_type === filterSource);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(d =>
+        d.name.toLowerCase().includes(q) ||
+        d.source_type.toLowerCase().includes(q)
+      );
+    }
+    return sortDocuments(filtered, sortField, sortDir);
+  }, [documents, filterSource, searchQuery, sortField, sortDir]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     setUploading(true);
     const docsToIngest: { name: string; content: string; source_type: string }[] = [];
-
     for (const file of Array.from(files)) {
-      if (file.size > 20 * 1024 * 1024) {
-        toast.error(`${file.name} is too large (max 20MB)`);
-        continue;
-      }
+      if (file.size > 20 * 1024 * 1024) { toast.error(`${file.name} is too large (max 20MB)`); continue; }
       try {
         if (isBinaryFile(file)) {
           const fileBase64 = await fileToBase64(file);
-          const mimeType = getMimeType(file);
           toast.info(`Parsing ${file.name}…`);
           const parseResp = await fetch(PARSE_URL, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ fileBase64, fileName: file.name, mimeType }),
+            headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+            body: JSON.stringify({ fileBase64, fileName: file.name, mimeType: getMimeType(file) }),
           });
-          if (!parseResp.ok) {
-            const err = await parseResp.json().catch(() => ({}));
-            toast.error(`Failed to parse ${file.name}: ${err.error || parseResp.status}`);
-            continue;
-          }
+          if (!parseResp.ok) { const err = await parseResp.json().catch(() => ({})); toast.error(`Failed to parse ${file.name}: ${err.error || parseResp.status}`); continue; }
           const { text } = await parseResp.json();
-          if (!text || text.length < 30) {
-            toast.error(`Could not extract content from ${file.name}`);
-            continue;
-          }
+          if (!text || text.length < 30) { toast.error(`Could not extract content from ${file.name}`); continue; }
           docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
         } else {
-          const text = await file.text();
-          docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
+          docsToIngest.push({ name: file.name, content: await file.text(), source_type: 'upload' });
         }
-      } catch {
-        toast.error(`Failed to read ${file.name}`);
-      }
+      } catch { toast.error(`Failed to read ${file.name}`); }
     }
-
     if (docsToIngest.length > 0) {
       try {
         const response = await fetch(INGEST_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
           body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
         });
-
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          toast.error(err.error || 'Failed to ingest documents');
-        } else {
+        if (!response.ok) { const err = await response.json().catch(() => ({})); toast.error(err.error || 'Failed to ingest documents'); }
+        else {
           const data = await response.json();
           const readyCount = data.results?.filter((r: any) => r.status === 'ready').length || 0;
           toast.success(`${readyCount} document${readyCount !== 1 ? 's' : ''} indexed`);
           fetchDocuments();
         }
-      } catch (err: any) {
-        toast.error(err?.message || 'Upload failed');
-      }
+      } catch (err: any) { toast.error(err?.message || 'Upload failed'); }
     }
-
     if (fileInputRef.current) fileInputRef.current.value = '';
     setUploading(false);
   };
 
   const deleteDocument = async (docId: string, docName: string) => {
-    const { error } = await supabase
-      .from('knowledge_documents')
-      .delete()
-      .eq('id', docId);
-
-    if (error) {
-      toast.error('Failed to delete document');
-    } else {
-      toast.success(`Removed "${docName}"`);
-      fetchDocuments();
-    }
+    const { error } = await supabase.from('knowledge_documents').delete().eq('id', docId);
+    if (error) toast.error('Failed to delete document');
+    else { toast.success(`Removed "${docName}"`); fetchDocuments(); }
   };
 
   const readyCount = documents.filter(d => d.status === 'ready').length;
@@ -234,21 +188,16 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         </div>
         <div className="flex items-center gap-1">
           <div className="flex items-center border rounded-md overflow-hidden">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              title="Grid view"
-            >
+            <button onClick={() => setViewMode('grid')} className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Grid view">
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              title="List view"
-            >
+            <button onClick={() => setViewMode('table')} className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="List view">
               <List className="h-3.5 w-3.5" />
             </button>
           </div>
+          <Button variant="ghost" size="icon" className={`h-7 w-7 ${showFilters ? 'text-primary' : ''}`} onClick={() => setShowFilters(v => !v)} title="Filter & sort">
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+          </Button>
           {onIngestIntegrations && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Sync integration data">
               {ingesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
@@ -257,28 +206,82 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         </div>
       </div>
 
+      {/* Search + filters bar */}
+      <div className="px-1 mb-3 space-y-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search documents…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="h-8 pl-8 text-xs"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
+        {showFilters && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Source filter */}
+            <Select value={filterSource} onValueChange={setFilterSource}>
+              <SelectTrigger className="h-7 w-[130px] text-xs">
+                <SelectValue placeholder="All sources" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All sources</SelectItem>
+                {sourceTypes.map(st => (
+                  <SelectItem key={st} value={st} className="text-xs">{SOURCE_LABELS[st] || st}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Sort */}
+            <Select value={`${sortField}:${sortDir}`} onValueChange={v => { const [f, d] = v.split(':'); setSortField(f as SortField); setSortDir(d as SortDir); }}>
+              <SelectTrigger className="h-7 w-[140px] text-xs">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at:desc" className="text-xs">Newest first</SelectItem>
+                <SelectItem value="created_at:asc" className="text-xs">Oldest first</SelectItem>
+                <SelectItem value="name:asc" className="text-xs">Name A-Z</SelectItem>
+                <SelectItem value="name:desc" className="text-xs">Name Z-A</SelectItem>
+                <SelectItem value="char_count:desc" className="text-xs">Largest first</SelectItem>
+                <SelectItem value="char_count:asc" className="text-xs">Smallest first</SelectItem>
+                <SelectItem value="chunk_count:desc" className="text-xs">Most chunks</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Group by */}
+            <Select value={groupBy} onValueChange={setGroupBy}>
+              <SelectTrigger className="h-7 w-[130px] text-xs">
+                <FolderOpen className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Group by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" className="text-xs">No grouping</SelectItem>
+                <SelectItem value="source" className="text-xs">By source</SelectItem>
+                <SelectItem value="status" className="text-xs">By status</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Active filter count */}
+            {(filterSource !== 'all' || searchQuery || groupBy !== 'none') && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => { setFilterSource('all'); setSearchQuery(''); setGroupBy('none'); }}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Upload */}
       <div className="px-1 mb-3">
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif"
-          className="hidden"
-          onChange={handleFileUpload}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-          ) : (
-            <Upload className="h-3.5 w-3.5 mr-1.5" />
-          )}
+        <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif" className="hidden" onChange={handleFileUpload} />
+        <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
           {uploading ? 'Processing...' : 'Upload Documents'}
         </Button>
       </div>
@@ -293,137 +296,19 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <div className="text-center py-8 px-4">
             <Database className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
             <p className="text-sm text-muted-foreground mb-1">No documents yet</p>
-            <p className="text-xs text-muted-foreground">
-              Upload files or ingest integration data to build your knowledge base.
-            </p>
+            <p className="text-xs text-muted-foreground">Upload files or ingest integration data to build your knowledge base.</p>
+          </div>
+        ) : processedDocuments.length === 0 ? (
+          <div className="text-center py-8 px-4">
+            <Search className="h-6 w-6 text-muted-foreground mx-auto mb-2 opacity-50" />
+            <p className="text-sm text-muted-foreground">No documents match your search</p>
           </div>
         ) : viewMode === 'grid' ? (
-          <GridView documents={documents} onDelete={deleteDocument} />
+          <GridView documents={processedDocuments} onDelete={deleteDocument} groupBy={groupBy !== 'none' ? groupBy : undefined} />
         ) : (
-          <TableView documents={documents} onDelete={deleteDocument} />
+          <TableView documents={processedDocuments} onDelete={deleteDocument} sortField={sortField} sortDir={sortDir} onSort={handleSort} groupBy={groupBy !== 'none' ? groupBy : undefined} />
         )}
       </div>
-    </div>
-  );
-}
-
-/* ── Grid View ── */
-function GridView({ documents, onDelete }: { documents: KnowledgeDocument[]; onDelete: (id: string, name: string) => void }) {
-  return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 px-1">
-      {documents.map(doc => {
-        const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
-        const StatusIcon = statusConf.icon;
-        const FileIcon = getFileIcon(doc.name);
-        const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
-
-        return (
-          <div
-            key={doc.id}
-            className="group relative flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-accent/50 transition-colors text-center"
-          >
-            {/* Delete button */}
-            <button
-              onClick={() => onDelete(doc.id, doc.name)}
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 hover:text-destructive"
-              title="Remove"
-            >
-              <X className="h-3 w-3" />
-            </button>
-
-            {/* File icon */}
-            <div className="relative">
-              <FileIcon className="h-8 w-8 text-muted-foreground" />
-              <SourceIcon className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-muted-foreground bg-background rounded-full p-0.5" />
-            </div>
-
-            {/* Status indicator */}
-            <StatusIcon className={`h-3 w-3 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
-
-            {/* File name */}
-            <span className="text-[10px] leading-tight font-medium text-foreground line-clamp-2 w-full break-all">
-              {doc.name}
-            </span>
-
-            {/* Chunk info */}
-            <span className="text-[9px] text-muted-foreground">
-              {doc.chunk_count} chunks
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── Table View ── */
-function TableView({ documents, onDelete }: { documents: KnowledgeDocument[]; onDelete: (id: string, name: string) => void }) {
-  return (
-    <div className="px-1">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="h-8 text-xs">Name</TableHead>
-            <TableHead className="h-8 text-xs w-24">Date Added</TableHead>
-            <TableHead className="h-8 text-xs w-20 text-right">Size</TableHead>
-            <TableHead className="h-8 text-xs w-16 text-right">Chunks</TableHead>
-            <TableHead className="h-8 text-xs w-24">Source</TableHead>
-            <TableHead className="h-8 text-xs w-16">Status</TableHead>
-            <TableHead className="h-8 text-xs w-8"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {documents.map(doc => {
-            const statusConf = STATUS_CONFIG[doc.status] || STATUS_CONFIG.pending;
-            const StatusIcon = statusConf.icon;
-            const SourceIcon = SOURCE_ICONS[doc.source_type] || FileText;
-            const FileIcon = getFileIcon(doc.name);
-
-            return (
-              <TableRow key={doc.id} className="group">
-                <TableCell className="py-2 px-4">
-                  <div className="flex items-center gap-2">
-                    <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-xs font-medium truncate max-w-[200px]">{doc.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-2 px-4 text-xs text-muted-foreground">
-                  {formatDate(doc.created_at)}
-                </TableCell>
-                <TableCell className="py-2 px-4 text-xs text-muted-foreground text-right">
-                  {(doc.char_count / 1000).toFixed(0)}K chars
-                </TableCell>
-                <TableCell className="py-2 px-4 text-xs text-muted-foreground text-right">
-                  {doc.chunk_count}
-                </TableCell>
-                <TableCell className="py-2 px-4">
-                  <div className="flex items-center gap-1.5">
-                    <SourceIcon className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
-                      {doc.source_type}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell className="py-2 px-4">
-                  <div className="flex items-center gap-1" title={statusConf.label}>
-                    <StatusIcon className={`h-3 w-3 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
-                    <span className={`text-[10px] ${statusConf.color}`}>{statusConf.label}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-2 px-4">
-                  <button
-                    onClick={() => onDelete(doc.id, doc.name)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-destructive"
-                    title="Remove"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
     </div>
   );
 }
