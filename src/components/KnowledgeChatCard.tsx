@@ -512,7 +512,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const chatInputRef = useRef<ChatInputHandle>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
@@ -523,7 +523,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
   const wasStreamingRef = useRef(false);
@@ -619,7 +619,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   };
 
   const handleSend = useCallback(async (text?: string) => {
-    const messageText = text || input.trim();
+    const messageText = text || chatInputRef.current?.getValue()?.trim() || '';
     const currentAttachments = [...attachments];
     const hasAttachments = currentAttachments.length > 0;
     const hasParsing = currentAttachments.some(a => a.parsing);
@@ -663,7 +663,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     const userMsg: Message = { role: 'user', content: displayContent, attachmentNames };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
-    setInput('');
+    chatInputRef.current?.clear();
 
     // Ingest uploaded files into RAG document library (fire-and-forget)
     if (currentAttachments.length > 0) {
@@ -890,14 +890,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
     setIsStreaming(false);
     setIsThinking(false);
-  }, [input, messages, isStreaming, crawlContext, session.id, attachments]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  }, [messages, isStreaming, crawlContext, session.id, attachments]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
@@ -1167,20 +1160,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
         {/* Textarea */}
         {/* Textarea - auto-grows up to 4 lines, then scrolls */}
-        <Textarea
-          ref={textareaRef}
-          value={input}
-          onChange={e => {
-            setInput(e.target.value);
-            // Auto-resize textarea
-            const el = e.target;
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a follow-up..."
-          className="min-h-[44px] max-h-[160px] resize-none text-base leading-relaxed border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none focus:ring-0 focus:border-0 px-0 bg-transparent overflow-y-auto"
-          rows={1}
+        <ChatInput
+          ref={chatInputRef}
+          onSubmit={(text) => handleSend(text)}
           disabled={isStreaming}
         />
 
