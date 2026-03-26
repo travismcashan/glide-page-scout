@@ -40,9 +40,10 @@ export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: s
 };
 
 export function getDocumentIcon(_name: string, sourceType: string) {
-  if (sourceType === 'upload') {
+  if (sourceType === 'upload' || sourceType === 'google-drive') {
     const ext = _name.split('.').pop()?.toLowerCase() || '';
     if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
+    if (sourceType === 'google-drive') return HardDrive;
     return FileText;
   }
   if (sourceType === 'chat') return MessageSquare;
