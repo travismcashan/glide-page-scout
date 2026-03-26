@@ -219,11 +219,12 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
     (async () => {
       const { data } = await supabase
         .from('crawl_sessions')
-        .select('gmail_data')
+        .select('gmail_data' as any)
         .eq('id', sessionId)
         .single();
-      if (data?.gmail_data && Array.isArray((data.gmail_data as any)?.emails)) {
-        setCachedEmails((data.gmail_data as any).emails);
+      const gmailData = (data as any)?.gmail_data;
+      if (gmailData && Array.isArray(gmailData?.emails)) {
+        setCachedEmails(gmailData.emails);
         setHasSearched(true);
       }
       setLoadedFromDb(true);
