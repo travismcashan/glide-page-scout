@@ -427,6 +427,7 @@ async function handleGatewayRequest(
 
   const requestBody: any = {
     model: selectedModel,
+    max_tokens: 65536,
     messages: [
       { role: 'system', content: systemPrompt },
       ...messages,
