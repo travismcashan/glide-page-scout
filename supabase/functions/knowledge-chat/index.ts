@@ -1018,20 +1018,25 @@ serve(async (req) => {
 
     console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
 
-    // Build citation metadata event to send before the AI stream
-    let citationsEvent = '';
+    // Build metadata events to send before the AI stream
+    const metadataEvents: string[] = [];
     if (webCitations.length > 0) {
-      citationsEvent = `data: ${JSON.stringify({ web_citations: webCitations })}\n\n`;
+      metadataEvents.push(`data: ${JSON.stringify({ web_citations: webCitations })}\n\n`);
+    }
+    if (ragDocuments.length > 0) {
+      metadataEvents.push(`data: ${JSON.stringify({ rag_documents: ragDocuments })}\n\n`);
     }
 
-    // Helper to prepend citations event to a streaming response
-    const prependCitations = (aiResponse: Response): Response => {
-      if (!citationsEvent || !aiResponse.body) return aiResponse;
+    // Helper to prepend metadata events to a streaming response
+    const prependMetadata = (aiResponse: Response): Response => {
+      if (metadataEvents.length === 0 || !aiResponse.body) return aiResponse;
       const encoder = new TextEncoder();
-      const citationsChunk = encoder.encode(citationsEvent);
+      const metadataChunks = metadataEvents.map(e => encoder.encode(e));
       const transformed = new ReadableStream({
         async start(controller) {
-          controller.enqueue(citationsChunk);
+          for (const chunk of metadataChunks) {
+            controller.enqueue(chunk);
+          }
           const reader = aiResponse.body!.getReader();
           try {
             while (true) {
@@ -1050,11 +1055,11 @@ serve(async (req) => {
     };
 
     if (isClaudeModel) {
-      return prependCitations(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning));
+      return prependMetadata(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning));
     } else if (isPerplexityModel) {
-      return prependCitations(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
+      return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
     } else {
-      return prependCitations(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
