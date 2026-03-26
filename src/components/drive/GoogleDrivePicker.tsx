@@ -482,6 +482,11 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
                           <span>Space to preview</span>
                         </div>
                       )}
+                      {!isFolderItem && file.size && (
+                        <div className="flex-shrink-0 text-xs text-muted-foreground hidden sm:block tabular-nums">
+                          {formatFileSize(Number(file.size))}
+                        </div>
+                      )}
                       <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block">
                         {file.modifiedTime && new Date(file.modifiedTime).toLocaleDateString()}
                       </div>
