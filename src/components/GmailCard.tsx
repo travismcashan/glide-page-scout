@@ -498,9 +498,6 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
               Ingest {ingestableCount}
             </Button>
           )}
-          <Button onClick={doSearch} size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={isLoading}>
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
           <Button onClick={disconnect} size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground">
             <LogOut className="h-3.5 w-3.5" /> Disconnect
           </Button>
