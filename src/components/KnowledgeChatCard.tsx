@@ -844,7 +844,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       </div>
 
       {/* Input area */}
-      <div className="border-t border-border pt-3 px-1">
+      <div className="mx-2 mb-2 mt-3 rounded-2xl bg-card border border-border shadow-lg px-4 py-3">
         {/* Attachment previews */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-1.5 px-1 pb-2">
@@ -875,7 +875,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask a follow-up..."
-          className="min-h-[44px] max-h-[120px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 px-1"
+          className="min-h-[40px] max-h-[120px] resize-none text-sm border-0 shadow-none focus-visible:ring-0 px-0 bg-transparent"
           rows={1}
           disabled={isStreaming}
         />
