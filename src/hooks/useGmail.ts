@@ -15,6 +15,13 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
+export interface GmailAttachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
 export interface GmailEmail {
   id: string;
   threadId: string;
@@ -24,6 +31,7 @@ export interface GmailEmail {
   date: string;
   snippet: string;
   body: string;
+  attachments: GmailAttachment[];
 }
 
 export function useGmail() {
@@ -134,11 +142,48 @@ export function useGmail() {
     }
   }, [getToken, connect, clearToken]);
 
+  const getAttachment = useCallback(async (messageId: string, attachmentId: string): Promise<string | null> => {
+    let token = getToken();
+    if (!token) {
+      token = await connect();
+      if (!token) return null;
+    }
+
+    try {
+      const resp = await fetch(GMAIL_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          action: 'get-attachment',
+          accessToken: token,
+          messageId,
+          attachmentId,
+        }),
+      });
+
+      if (resp.status === 401) {
+        clearToken();
+        return null;
+      }
+
+      const data = await resp.json();
+      if (data.error) return null;
+      return data.data || null; // base64url-encoded data
+    } catch (err) {
+      console.error('Gmail attachment error:', err);
+      return null;
+    }
+  }, [getToken, connect, clearToken]);
+
   const disconnect = useCallback(() => {
     clearToken();
     setEmails([]);
     setError(null);
   }, [clearToken]);
 
-  return { isConnected, isLoading, emails, error, connect, searchEmails, disconnect };
+  return { isConnected, isLoading, emails, error, connect, searchEmails, getAttachment, disconnect };
 }

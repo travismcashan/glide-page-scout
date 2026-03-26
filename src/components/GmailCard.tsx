@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useGmail, type GmailEmail } from '@/hooks/useGmail';
+import { useGmail, type GmailEmail, type GmailAttachment } from '@/hooks/useGmail';
+import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, Paperclip, Download, Database, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+
+const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
 
 function parseEmailAddress(raw: string): { name: string; email: string } {
   const match = raw.match(/^(.*?)\s*<([^>]+)>/);
@@ -11,7 +16,93 @@ function parseEmailAddress(raw: string): { name: string; email: string } {
   return { name: '', email: raw.trim() };
 }
 
-function EmailRow({ email }: { email: GmailEmail }) {
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function base64UrlToBase64(b64url: string): string {
+  return b64url.replace(/-/g, '+').replace(/_/g, '/');
+}
+
+function base64UrlToText(b64url: string): string {
+  try {
+    return atob(base64UrlToBase64(b64url));
+  } catch {
+    return '';
+  }
+}
+
+/** Check if a MIME type is text-extractable for ingestion */
+function isTextExtractable(mimeType: string): boolean {
+  return (
+    mimeType.startsWith('text/') ||
+    mimeType === 'application/pdf' ||
+    mimeType === 'application/json' ||
+    mimeType === 'application/xml' ||
+    mimeType.includes('spreadsheet') ||
+    mimeType.includes('document') ||
+    mimeType.includes('presentation') ||
+    mimeType === 'message/rfc822'
+  );
+}
+
+function AttachmentRow({
+  att,
+  emailId,
+  selected,
+  onToggle,
+  onDownload,
+  downloading,
+}: {
+  att: GmailAttachment;
+  emailId: string;
+  selected: boolean;
+  onToggle: () => void;
+  onDownload: () => void;
+  downloading: boolean;
+}) {
+  const canIngest = isTextExtractable(att.mimeType);
+
+  return (
+    <div className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50 text-xs">
+      {canIngest && (
+        <Checkbox
+          checked={selected}
+          onCheckedChange={onToggle}
+          className="h-3.5 w-3.5"
+        />
+      )}
+      {!canIngest && <div className="w-3.5" />}
+      <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+      <span className="flex-1 truncate">{att.filename}</span>
+      <span className="text-muted-foreground shrink-0">{formatSize(att.size)}</span>
+      <button
+        onClick={onDownload}
+        disabled={downloading}
+        className="text-muted-foreground hover:text-foreground p-0.5"
+        title="Download"
+      >
+        {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+      </button>
+    </div>
+  );
+}
+
+function EmailRow({
+  email,
+  selectedAttachments,
+  onToggleAttachment,
+  onDownloadAttachment,
+  downloadingAttachments,
+}: {
+  email: GmailEmail;
+  selectedAttachments: Set<string>;
+  onToggleAttachment: (key: string) => void;
+  onDownloadAttachment: (emailId: string, att: GmailAttachment) => void;
+  downloadingAttachments: Set<string>;
+}) {
   const [expanded, setExpanded] = useState(false);
   const from = parseEmailAddress(email.from);
   const to = parseEmailAddress(email.to);
@@ -21,6 +112,8 @@ function EmailRow({ email }: { email: GmailEmail }) {
   } catch {
     dateStr = email.date;
   }
+
+  const hasAttachments = email.attachments && email.attachments.length > 0;
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -32,6 +125,12 @@ function EmailRow({ email }: { email: GmailEmail }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium truncate">{email.subject || '(no subject)'}</span>
+            {hasAttachments && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 h-4">
+                <Paperclip className="h-2.5 w-2.5" />
+                {email.attachments.length}
+              </Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
             <span className="font-medium">{from.name || from.email}</span>
@@ -55,6 +154,31 @@ function EmailRow({ email }: { email: GmailEmail }) {
           <div className="mt-2 text-sm whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto bg-muted/30 rounded p-2">
             {email.body || email.snippet || '(empty)'}
           </div>
+
+          {hasAttachments && (
+            <div className="mt-3 border border-border rounded-md">
+              <div className="px-2 py-1.5 bg-muted/30 border-b border-border flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Paperclip className="h-3 w-3" />
+                Attachments ({email.attachments.length})
+              </div>
+              <div className="py-1">
+                {email.attachments.map((att) => {
+                  const key = `${email.id}:${att.attachmentId}`;
+                  return (
+                    <AttachmentRow
+                      key={key}
+                      att={att}
+                      emailId={email.id}
+                      selected={selectedAttachments.has(key)}
+                      onToggle={() => onToggleAttachment(key)}
+                      onDownload={() => onDownloadAttachment(email.id, att)}
+                      downloading={downloadingAttachments.has(key)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -62,8 +186,12 @@ function EmailRow({ email }: { email: GmailEmail }) {
 }
 
 export function GmailCard({ domain, contactEmails }: { domain: string; contactEmails?: string[] }) {
-  const { isConnected, isLoading, emails, error, connect, searchEmails, disconnect } = useGmail();
+  const { id: sessionId } = useParams<{ id: string }>();
+  const { isConnected, isLoading, emails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
+  const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
+  const [ingesting, setIngesting] = useState(false);
 
   const doSearch = async () => {
     setHasSearched(true);
@@ -74,12 +202,126 @@ export function GmailCard({ domain, contactEmails }: { domain: string; contactEm
     });
   };
 
-  // Auto-search when connected and we have contact emails
   useEffect(() => {
     if (isConnected && !hasSearched && !isLoading && (contactEmails?.length || domain)) {
       doSearch();
     }
   }, [isConnected, hasSearched, contactEmails, domain]);
+
+  const toggleAttachment = (key: string) => {
+    setSelectedAttachments((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleDownload = async (emailId: string, att: GmailAttachment) => {
+    const key = `${emailId}:${att.attachmentId}`;
+    setDownloadingAttachments((prev) => new Set(prev).add(key));
+    try {
+      const data = await getAttachment(emailId, att.attachmentId);
+      if (!data) {
+        toast.error('Failed to download attachment');
+        return;
+      }
+      const base64 = base64UrlToBase64(data);
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: att.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = att.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingAttachments((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const handleIngestSelected = async () => {
+    if (!sessionId || selectedAttachments.size === 0) return;
+    setIngesting(true);
+
+    try {
+      const docsToIngest: { name: string; content: string; source_type: string; source_key: string }[] = [];
+
+      for (const key of selectedAttachments) {
+        const [emailId, attachmentId] = key.split(':');
+        const email = emails.find((e) => e.id === emailId);
+        const att = email?.attachments.find((a) => a.attachmentId === attachmentId);
+        if (!email || !att) continue;
+
+        const data = await getAttachment(emailId, attachmentId);
+        if (!data) {
+          toast.error(`Failed to fetch ${att.filename}`);
+          continue;
+        }
+
+        // For text types, decode directly. For binary, send base64 for server-side parsing.
+        let textContent: string;
+        if (att.mimeType.startsWith('text/') || att.mimeType === 'application/json' || att.mimeType === 'application/xml') {
+          textContent = base64UrlToText(data);
+        } else {
+          // For PDFs, Office docs, etc. — send a summary placeholder with the email context
+          textContent = `[Attachment from Gmail email]\nSubject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\nDate: ${email.date}\nFilename: ${att.filename}\nType: ${att.mimeType}\nSize: ${formatSize(att.size)}\n\n[Binary attachment — text extraction not available in this version]`;
+        }
+
+        if (textContent.length < 20) {
+          toast.error(`${att.filename} has no extractable content`);
+          continue;
+        }
+
+        docsToIngest.push({
+          name: `Gmail Attachment: ${att.filename} (from: ${email.subject || 'no subject'})`,
+          content: textContent,
+          source_type: 'gmail',
+          source_key: `gmail:${emailId}:${attachmentId}`,
+        });
+      }
+
+      if (docsToIngest.length === 0) {
+        toast.error('No content could be extracted from selected attachments');
+        return;
+      }
+
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+      });
+
+      if (!response.ok) {
+        toast.error('Failed to ingest attachments');
+        return;
+      }
+
+      const result = await response.json();
+      const count = result.results?.filter((r: any) => r.status === 'ready').length || 0;
+      toast.success(`Ingested ${count} attachment${count !== 1 ? 's' : ''} into knowledge base`);
+      setSelectedAttachments(new Set());
+    } catch (err: any) {
+      console.error('Ingest error:', err);
+      toast.error('Failed to ingest attachments');
+    } finally {
+      setIngesting(false);
+    }
+  };
+
+  // Count total attachments across all emails
+  const totalAttachments = emails.reduce((sum, e) => sum + (e.attachments?.length || 0), 0);
+  const ingestableCount = selectedAttachments.size;
 
   if (!isConnected) {
     return (
@@ -100,9 +342,24 @@ export function GmailCard({ domain, contactEmails }: { domain: string; contactEm
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {emails.length > 0 ? `${emails.length} emails` : hasSearched ? 'No emails found' : 'Searching...'} for <strong>@{domain}</strong>
+          {emails.length > 0
+            ? `${emails.length} emails${totalAttachments > 0 ? ` · ${totalAttachments} attachments` : ''}`
+            : hasSearched ? 'No emails found' : 'Searching...'
+          } for <strong>@{domain}</strong>
         </p>
         <div className="flex gap-1">
+          {ingestableCount > 0 && (
+            <Button
+              onClick={handleIngestSelected}
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1 text-xs"
+              disabled={ingesting}
+            >
+              {ingesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+              Ingest {ingestableCount}
+            </Button>
+          )}
           <Button onClick={doSearch} size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={isLoading}>
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
@@ -124,7 +381,14 @@ export function GmailCard({ domain, contactEmails }: { domain: string; contactEm
       {!isLoading && emails.length > 0 && (
         <div className="space-y-2 max-h-[600px] overflow-y-auto">
           {emails.map((email) => (
-            <EmailRow key={email.id} email={email} />
+            <EmailRow
+              key={email.id}
+              email={email}
+              selectedAttachments={selectedAttachments}
+              onToggleAttachment={toggleAttachment}
+              onDownloadAttachment={handleDownload}
+              downloadingAttachments={downloadingAttachments}
+            />
           ))}
         </div>
       )}
