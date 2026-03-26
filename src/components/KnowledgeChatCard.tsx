@@ -785,18 +785,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
   const outerRef = useRef<HTMLDivElement>(null);
 
-  // Capture wheel events anywhere in the chat area and forward to the thread
+  // Capture wheel events anywhere on the page and forward to the chat thread
   useEffect(() => {
-    const outer = outerRef.current;
     const scroller = scrollRef.current;
-    if (!outer || !scroller) return;
+    if (!scroller) return;
     const handler = (e: WheelEvent) => {
+      // Already inside the scroller — let it scroll naturally
       if (scroller.contains(e.target as Node)) return;
       e.preventDefault();
       scroller.scrollTop += e.deltaY;
     };
-    outer.addEventListener('wheel', handler, { passive: false });
-    return () => outer.removeEventListener('wheel', handler);
+    document.addEventListener('wheel', handler, { passive: false });
+    return () => document.removeEventListener('wheel', handler);
   }, []);
 
   if (loadingHistory) {
