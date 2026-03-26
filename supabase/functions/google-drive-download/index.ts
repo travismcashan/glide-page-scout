@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +11,8 @@ const EXPORT_MIMES: Record<string, string> = {
   'application/vnd.google-apps.spreadsheet': 'text/csv',
   'application/vnd.google-apps.presentation': 'text/plain',
 };
+
+const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB limit to stay within memory
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -71,22 +74,19 @@ serve(async (req) => {
       });
     }
 
-    // For binary, return base64
+    // For binary, read as ArrayBuffer and use std library base64
     const fileData = await downloadResponse.arrayBuffer();
-    const uint8Array = new Uint8Array(fileData);
-    const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let base64Content = '';
-    const len = uint8Array.length;
-
-    for (let i = 0; i < len; i += 3) {
-      const a = uint8Array[i];
-      const b = i + 1 < len ? uint8Array[i + 1] : 0;
-      const c = i + 2 < len ? uint8Array[i + 2] : 0;
-      base64Content += base64Chars[a >> 2];
-      base64Content += base64Chars[((a & 3) << 4) | (b >> 4)];
-      base64Content += i + 1 < len ? base64Chars[((b & 15) << 2) | (c >> 6)] : '=';
-      base64Content += i + 2 < len ? base64Chars[c & 63] : '=';
+    
+    if (fileData.byteLength > MAX_FILE_SIZE) {
+      return new Response(JSON.stringify({ 
+        error: `File too large (${Math.round(fileData.byteLength / 1024 / 1024)}MB). Maximum is ${MAX_FILE_SIZE / 1024 / 1024}MB.` 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 413,
+      });
     }
+
+    const base64Content = base64Encode(new Uint8Array(fileData));
 
     return new Response(JSON.stringify({
       fileName: fileName || fileId,

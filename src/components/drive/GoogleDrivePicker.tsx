@@ -13,6 +13,7 @@ import {
   Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type SortField = 'name' | 'modified' | 'type';
 type SortDirection = 'asc' | 'desc';
@@ -161,17 +162,27 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
     setIsImporting(true);
     try {
       const imported: { name: string; content?: string; mimeType: string; isText: boolean }[] = [];
+      const failed: string[] = [];
       for (const file of filesToImport) {
-        const result = await downloadFile(file);
-        if (result) {
-          imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
+        try {
+          const result = await downloadFile(file);
+          if (result) {
+            imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
+          } else {
+            failed.push(file.name);
+          }
+        } catch {
+          failed.push(file.name);
         }
       }
       if (imported.length > 0) {
         onFilesSelected(imported);
-        setSelectedFiles(new Set());
-        onOpenChange(false);
       }
+      if (failed.length > 0) {
+        toast.error(`Failed to import ${failed.length} file${failed.length > 1 ? 's' : ''}: ${failed.join(', ')}`);
+      }
+      setSelectedFiles(new Set());
+      onOpenChange(false);
     } finally {
       setIsImporting(false);
     }
