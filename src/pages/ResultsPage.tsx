@@ -609,7 +609,7 @@ export default function ResultsPage() {
     if (oceanTriggeredRef.current) return;
     oceanTriggeredRef.current = true;
     setOceanLoading(true);
-    oceanApi.enrich(session.domain).then(async (result) => {
+    oceanApi.enrich(prospectingDomain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
         clearError('ocean');
@@ -630,8 +630,8 @@ export default function ResultsPage() {
     // Prefer Apollo contact email for Avoma search, fallback to domain
     const apolloEmail = session.apollo_data?.email;
     const searchDomain = apolloEmail
-      ? apolloEmail.split('@').pop()?.toLowerCase() || session.domain
-      : session.domain;
+      ? apolloEmail.split('@').pop()?.toLowerCase() || prospectingDomain
+      : prospectingDomain;
     avomaApi.lookup(searchDomain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
@@ -650,7 +650,7 @@ export default function ResultsPage() {
     if (hubspotTriggeredRef.current) return;
     hubspotTriggeredRef.current = true;
     setHubspotLoading(true);
-    hubspotApi.lookup(session.domain).then(async (result) => {
+    hubspotApi.lookup(prospectingDomain).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
