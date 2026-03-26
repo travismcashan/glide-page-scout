@@ -922,20 +922,34 @@ serve(async (req) => {
 
     // Build context based on selected sources
     let ragContext = '';
+    let needsScreenshots = false;
     let webContext = '';
     let webCitations: string[] = [];
 
-    // Run document RAG and web search in parallel
+    // Run document RAG (with routing) and web search in parallel
     const contextPromises: Promise<void>[] = [];
 
     if (useDocuments && session_id && queryText) {
-      contextPromises.push(ragSearch(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => { ragContext = r; }));
+      contextPromises.push(ragSearchWithRouting(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => {
+        ragContext = r.ragContext;
+        needsScreenshots = r.needs_screenshots;
+      }));
     }
     if (useWeb && queryText) {
       contextPromises.push(webSearchWithCitations(queryText).then(r => { webContext = r.context; webCitations = r.citations; }));
     }
 
     await Promise.all(contextPromises);
+
+    // Fetch screenshots if the router says visual context would help
+    // Skip for Perplexity (text-only)
+    const isClaudeModel = model && model.startsWith('claude-');
+    const isPerplexityModel = model && model.startsWith('perplexity-');
+    let screenshotImages: { url: string; screenshot_url: string }[] = [];
+    if (needsScreenshots && session_id && !isPerplexityModel) {
+      screenshotImages = await fetchScreenshots(session_id, queryText);
+      console.log(`[knowledge-chat] Injecting ${screenshotImages.length} screenshots as multimodal content`);
+    }
 
     const legacyContext = useDocuments ? buildContextBlock(crawlContext, documents) : '';
 
@@ -959,11 +973,38 @@ serve(async (req) => {
     }
 
     const systemPrompt = buildSystemPrompt(combinedContext);
-    const isClaudeModel = model && model.startsWith('claude-');
-    const isPerplexityModel = model && model.startsWith('perplexity-');
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Messages: ${messages.length}`);
+    // Inject screenshot images into the messages if available
+    let augmentedMessages = messages;
+    if (screenshotImages.length > 0) {
+      // Build a multimodal "screenshots context" message injected before the last user message
+      const imageContentParts: any[] = [
+        { type: 'text', text: `Here are ${screenshotImages.length} screenshot(s) of the website pages for visual reference:` },
+      ];
+      for (const ss of screenshotImages) {
+        imageContentParts.push({
+          type: 'text',
+          text: `Page: ${ss.url}`,
+        });
+        imageContentParts.push({
+          type: 'image_url',
+          image_url: { url: ss.screenshot_url },
+        });
+      }
+
+      // Insert as a user message right before the last user message
+      augmentedMessages = [...messages];
+      const lastUserIdx = augmentedMessages.map((m: any) => m.role).lastIndexOf('user');
+      if (lastUserIdx >= 0) {
+        augmentedMessages.splice(lastUserIdx, 0, {
+          role: 'user',
+          content: imageContentParts,
+        });
+      }
+    }
+
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
 
     // Build citation metadata event to send before the AI stream
     let citationsEvent = '';
