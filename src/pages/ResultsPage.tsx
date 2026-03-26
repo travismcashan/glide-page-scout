@@ -266,7 +266,7 @@ export default function ResultsPage() {
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
   const navRef = useRef<NavStructureCardHandle>(null);
   const gmailRef = useRef<GmailCardHandle>(null);
-  const [gmailState, setGmailState] = useState<{ canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean }>({ canIngest: false, isIngesting: false, emailCount: 0, isRefreshing: false });
+  const [gmailState, setGmailState] = useState<{ canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }>({ canIngest: false, isIngesting: false, emailCount: 0, isRefreshing: false, lastFetched: null, durationSec: null });
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
   const [sitemapInnerExpand, setSitemapInnerExpand] = useState<boolean | null>(null);
   const [contentTypesInnerExpand, setContentTypesInnerExpand] = useState<boolean | null>(null);
@@ -2201,16 +2201,24 @@ export default function ResultsPage() {
                 collapsed={allCollapsed}
                 headerExtra={
                   gmailState.emailCount > 0 ? (
-                    <div className="flex gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      {gmailState.lastFetched && !gmailState.isRefreshing && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(gmailState.lastFetched), 'MMM d, yyyy h:mm a')}`}>
+                          {format(new Date(gmailState.lastFetched), 'MMM d, h:mm a')}
+                        </span>
+                      )}
+                      {gmailState.durationSec != null && !gmailState.isRefreshing && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums">({gmailState.durationSec}s)</span>
+                      )}
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 gap-1.5 text-xs"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
                         disabled={gmailState.isRefreshing}
                         onClick={() => gmailRef.current?.refreshEmails()}
+                        title="Refresh emails"
                       >
-                        {gmailState.isRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                        Refresh Emails
+                        <RefreshCw className={`h-3.5 w-3.5 ${gmailState.isRefreshing ? 'animate-spin' : ''}`} />
                       </Button>
                       {gmailState.canIngest && (
                         <Button

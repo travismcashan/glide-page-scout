@@ -194,7 +194,7 @@ export interface GmailCardHandle {
 export interface GmailCardProps {
   domain: string;
   contactEmails?: string[];
-  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean }) => void;
+  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }) => void;
   onRefresh?: () => void;
 }
 
@@ -209,6 +209,8 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
   const [ingesting, setIngesting] = useState(false);
   const [ingestingAll, setIngestingAll] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastFetched, setLastFetched] = useState<string | null>(null);
+  const [durationSec, setDurationSec] = useState<number | null>(null);
 
   // The displayed emails: prefer live if we just fetched, otherwise cached from DB
   const emails = liveEmails.length > 0 ? liveEmails : cachedEmails;
@@ -226,6 +228,8 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
       if (gmailData && Array.isArray(gmailData?.emails)) {
         setCachedEmails(gmailData.emails);
         setHasSearched(true);
+        if (gmailData.updatedAt) setLastFetched(gmailData.updatedAt);
+        if (gmailData.durationSec != null) setDurationSec(gmailData.durationSec);
       }
       setLoadedFromDb(true);
     })();
@@ -237,7 +241,7 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
     setCachedEmails(liveEmails);
     supabase
       .from('crawl_sessions')
-      .update({ gmail_data: { emails: liveEmails, updatedAt: new Date().toISOString() } as any })
+      .update({ gmail_data: { emails: liveEmails, updatedAt: lastFetched || new Date().toISOString(), durationSec } as any })
       .eq('id', sessionId)
       .then(({ error }) => {
         if (error) console.error('Failed to save gmail data:', error);
@@ -247,12 +251,15 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
   const doSearch = useCallback(async () => {
     setHasSearched(true);
     setIsRefreshing(true);
+    const start = Date.now();
     try {
       await searchEmails({
         contactEmails: contactEmails?.length ? contactEmails : undefined,
         domain: !contactEmails?.length ? domain : undefined,
         maxResults: 50,
       });
+      setLastFetched(new Date().toISOString());
+      setDurationSec(Math.round((Date.now() - start) / 1000));
     } finally {
       setIsRefreshing(false);
     }
@@ -454,8 +461,10 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
       isIngesting: ingestingAll,
       emailCount: emails.length,
       isRefreshing,
+      lastFetched,
+      durationSec,
     });
-  }, [isConnected, emails.length, isLoading, ingestingAll, isRefreshing, onStateChange]);
+  }, [isConnected, emails.length, isLoading, ingestingAll, isRefreshing, lastFetched, durationSec, onStateChange]);
 
   // Count total attachments across all emails
   const totalAttachments = emails.reduce((sum, e) => sum + (e.attachments?.length || 0), 0);
