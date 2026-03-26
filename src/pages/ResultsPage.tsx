@@ -1567,7 +1567,7 @@ export default function ResultsPage() {
               <TabsTrigger
                 value="raw-data"
                 style={activeTab === 'raw-data' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                className="relative text-base font-medium px-5 py-2.5 !rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Globe className="h-4 w-4 mr-2" />
                 Site Analysis
@@ -1576,7 +1576,7 @@ export default function ResultsPage() {
                 <TabsTrigger
                   value="prospecting"
                   style={activeTab === 'prospecting' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                  className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  className="relative text-base font-medium px-5 py-2.5 !rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
                   Prospecting
@@ -1585,7 +1585,7 @@ export default function ResultsPage() {
               <TabsTrigger
                 value="ai-research"
                 style={activeTab === 'ai-research' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                className="relative text-base font-medium px-5 py-2.5 !rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <Brain className="h-4 w-4 mr-2" />
                 AI Research
@@ -1593,7 +1593,7 @@ export default function ResultsPage() {
               <TabsTrigger
                 value="knowledge"
                 style={activeTab === 'knowledge' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                className="relative text-base font-medium px-5 py-2.5 !rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <BookOpen className="h-4 w-4 mr-2" />
                 Knowledge
@@ -1601,7 +1601,7 @@ export default function ResultsPage() {
               <TabsTrigger
                 value="chat"
                 style={activeTab === 'chat' ? { borderBottomColor: 'transparent', marginBottom: '-2px', paddingBottom: 'calc(0.625rem + 2px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
-                className="relative text-base font-medium px-5 py-2.5 !rounded-t-md !rounded-b-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                className="relative text-base font-medium px-5 py-2.5 !rounded-none border-2 border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Chat
