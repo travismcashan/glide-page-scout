@@ -1135,7 +1135,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       {/* Main chat area */}
       <div
         ref={outerRef}
-        className="flex-1 flex flex-col items-center pb-24"
+        className="flex-1 flex flex-col items-center"
       >
       {/* Messages area */}
       <div ref={scrollRef} className="space-y-4 px-5 pt-5 w-full max-w-3xl mx-auto">
@@ -1207,7 +1207,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             <div
               aria-hidden="true"
               className="pointer-events-none transition-all duration-300"
-              style={{ height: isStreaming ? `max(calc(100vh - ${composerHeight}px - 32px), 240px)` : `${composerHeight + 16}px` }}
+              style={{ height: isStreaming ? `max(calc(100vh - ${composerHeight}px - 32px), 240px)` : `${composerHeight + 48}px` }}
             />
           </>
         )}
