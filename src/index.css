@@ -118,42 +118,42 @@
 }
 
 .chat-prose h1 {
-  @apply text-base font-bold mt-5 mb-3 pb-1.5;
+  @apply text-base font-bold mt-8 mb-4 pb-1.5;
   border-bottom: 2px solid hsl(var(--border));
 }
 
 .chat-prose h2 {
-  @apply text-base font-bold mt-5 mb-2 pb-1;
+  @apply text-base font-bold mt-8 mb-3 pb-1;
   border-bottom: 1px solid hsl(var(--border) / 0.5);
 }
 
 .chat-prose h3 {
-  @apply text-base font-semibold mt-4 mb-2;
+  @apply text-base font-semibold mt-7 mb-3;
 }
 
 .chat-prose h4 {
-  @apply text-base font-semibold mt-3 mb-1.5 text-muted-foreground;
+  @apply text-base font-semibold mt-6 mb-2 text-muted-foreground;
 }
 
 .chat-prose ul {
-  @apply my-2 pl-5 space-y-1 list-disc;
+  @apply my-4 pl-5 space-y-2 list-disc;
 }
 
 .chat-prose ol {
-  @apply my-2 pl-5 space-y-1 list-decimal;
+  @apply my-4 pl-5 space-y-2 list-decimal;
 }
 
 .chat-prose p {
-  @apply my-2 leading-[1.7];
+  @apply my-4 leading-[1.75];
 }
 
 .chat-prose ul,
 .chat-prose ol {
-  @apply my-2 pl-5 space-y-1;
+  @apply my-4 pl-5 space-y-2;
 }
 
 .chat-prose li {
-  @apply text-base leading-[1.65];
+  @apply text-base leading-[1.7];
 }
 
 .chat-prose li::marker {
