@@ -301,8 +301,10 @@ export async function autoIngestIntegrations(
   const avomaData = sessionData.avoma_data;
   if (avomaData && typeof avomaData === 'object' && !avomaData._error) {
     const avomaTimestamp = integrationTimestamps.avoma_data;
-    const avomaExisting = existingMap.get('avoma_data:meeting:0') || existingMap.get('avoma_data');
-    const needsReIngest = !avomaExisting || (avomaTimestamp && new Date(avomaTimestamp) > new Date(avomaExisting));
+    // Check if expanded docs exist; if only the legacy blob exists, re-ingest to expand
+    const hasExpandedDocs = Array.from(existingMap.keys()).some(k => k.startsWith('avoma_data:'));
+    const avomaLegacy = existingMap.get('avoma_data');
+    const needsReIngest = !hasExpandedDocs || (avomaLegacy && !hasExpandedDocs) || (avomaTimestamp && hasExpandedDocs && new Date(avomaTimestamp) > new Date(existingMap.get('avoma_data:meeting:0') || '0'));
 
     if (needsReIngest) {
       // Delete all old avoma docs
