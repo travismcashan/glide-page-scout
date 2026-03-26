@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge } from 'lucide-react';
 import { DotLottiePlayer } from '@dotlottie/react-player';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -515,6 +515,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
+  const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 25, match_threshold: 0.25 });
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
