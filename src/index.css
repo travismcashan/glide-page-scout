@@ -118,12 +118,12 @@
 }
 
 .chat-prose h1 {
-  @apply text-xl font-bold mt-5 mb-3 pb-1.5;
+  @apply text-base font-bold mt-5 mb-3 pb-1.5;
   border-bottom: 2px solid hsl(var(--border));
 }
 
 .chat-prose h2 {
-  @apply text-lg font-bold mt-5 mb-2 pb-1;
+  @apply text-base font-bold mt-5 mb-2 pb-1;
   border-bottom: 1px solid hsl(var(--border) / 0.5);
 }
 
