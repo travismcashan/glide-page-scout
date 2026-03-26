@@ -938,7 +938,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       if (activeThreadId && newMessages.length === 1) {
         // First message in thread — generate a title
         const titleText = typeof displayContent === 'string' ? displayContent : messageText;
-        const shortTitle = titleText.slice(0, 60).replace(/\n/g, ' ');
+        const shortTitle = titleText.slice(0, 30).replace(/\n/g, ' ').trim();
         await supabase.from('chat_threads').update({ title: shortTitle, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
         setSidebarRefreshKey(k => k + 1);
       } else if (activeThreadId) {
