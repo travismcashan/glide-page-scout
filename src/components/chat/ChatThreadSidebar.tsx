@@ -148,7 +148,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                   key={thread.id}
                   onClick={() => renamingId !== thread.id && onSelectThread(thread.id)}
                   className={cn(
-                    'group w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-2 relative',
+                    'group w-full text-left px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 relative',
                     thread.id === activeThreadId
                       ? 'bg-muted text-foreground'
                       : 'hover:bg-muted/50 text-foreground'
