@@ -1,14 +1,11 @@
-import { ChevronRight, Zap, Brain, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Zap, Brain, Sparkles } from 'lucide-react';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity';
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
@@ -66,10 +63,10 @@ const REASONING_META: Record<ReasoningEffort, { label: string; icon: typeof Zap 
   high: { label: 'Deep', icon: Sparkles },
 };
 
-const TIER_COLORS: Record<string, string> = {
-  fast: 'text-emerald-500',
-  balanced: 'text-blue-500',
-  powerful: 'text-amber-500',
+const TIER_DOT: Record<string, string> = {
+  fast: 'bg-emerald-500',
+  balanced: 'bg-blue-500',
+  powerful: 'bg-amber-500',
 };
 
 type Props = {
@@ -81,89 +78,129 @@ type Props = {
 };
 
 export function ChatModelSelector({ model, reasoning, onModelChange, onReasoningChange, disabled }: Props) {
+  const [open, setOpen] = useState(false);
   const selectedModel = MODEL_OPTIONS.find(m => m.id === model) || VERSIONS.gemini[2];
   const selectedProvider = PROVIDERS.find(p => p.id === selectedModel.provider) || PROVIDERS[0];
+  const [activeTab, setActiveTab] = useState<ModelProvider>(selectedProvider.id);
 
   const reasoningLabel = selectedModel.reasoningLabels?.[reasoning] ?? REASONING_META[reasoning]?.label ?? '';
   const displayLabel = `${selectedProvider.label} ${selectedModel.label}${reasoning !== 'none' ? ` · ${reasoningLabel}` : ''}`;
 
-  const handleSelect = (modelId: string) => {
+  const handleSelectModel = (modelId: string) => {
     const newModel = MODEL_OPTIONS.find(m => m.id === modelId);
     onModelChange(modelId);
     if (newModel && !newModel.reasoning.includes(reasoning)) {
       onReasoningChange('none');
     }
+    // If the new model doesn't support reasoning, close immediately
+    if (newModel && newModel.reasoning.length <= 1) {
+      setOpen(false);
+    }
   };
 
+  const handleSelectReasoning = (r: ReasoningEffort) => {
+    onReasoningChange(r);
+    setOpen(false);
+  };
+
+  const versions = VERSIONS[activeTab];
+  const currentModelInTab = versions.find(v => v.id === selectedModel.id);
+  // Show reasoning options for the currently selected model in this tab, or the highlighted one
+  const reasoningModel = currentModelInTab || (selectedModel.provider === activeTab ? selectedModel : null);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={disabled}>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild disabled={disabled}>
         <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1.5 py-0.5 rounded">
           {displayLabel}
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="w-48">
-        {PROVIDERS.map(provider => {
-          const versions = VERSIONS[provider.id];
-          return (
-            <DropdownMenuSub key={provider.id}>
-              <DropdownMenuSubTrigger className={selectedProvider.id === provider.id ? 'bg-accent' : ''}>
-                <span className="text-sm">{provider.label}</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-52" sideOffset={4}>
-                {versions.map(v => {
-                  const hasReasoning = v.reasoning.length > 1;
-                  if (hasReasoning) {
-                    return (
-                      <DropdownMenuSub key={v.id}>
-                        <DropdownMenuSubTrigger className={selectedModel.id === v.id ? 'bg-accent' : ''}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <span className={`text-[10px] ${TIER_COLORS[v.tier]}`}>●</span>
-                            <span className="text-sm">{v.label}</span>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground ml-2">{v.description}</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="w-36" sideOffset={4}>
-                          {v.reasoning.map(r => {
-                            const meta = REASONING_META[r];
-                            const label = v.reasoningLabels?.[r] ?? meta.label;
-                            const Icon = meta.icon;
-                            return (
-                              <DropdownMenuItem
-                                key={r}
-                                onClick={() => { handleSelect(v.id); onReasoningChange(r); }}
-                                className={selectedModel.id === v.id && reasoning === r ? 'bg-accent' : ''}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Icon className="h-3.5 w-3.5" />
-                                  <span className="text-sm">{label}</span>
-                                </div>
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                    );
-                  }
-                  return (
-                    <DropdownMenuItem
-                      key={v.id}
-                      onClick={() => handleSelect(v.id)}
-                      className={`flex items-center justify-between ${selectedModel.id === v.id ? 'bg-accent' : ''}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] ${TIER_COLORS[v.tier]}`}>●</span>
-                        <span className="text-sm">{v.label}</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">{v.description}</span>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="top"
+        className="w-[420px] p-0"
+        sideOffset={8}
+      >
+        {/* Provider tabs */}
+        <div className="flex border-b border-border">
+          {PROVIDERS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setActiveTab(p.id)}
+              className={cn(
+                'flex-1 text-xs font-medium py-2.5 px-1 transition-colors border-b-2 -mb-px',
+                activeTab === p.id
+                  ? 'border-foreground text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex">
+          {/* Models column */}
+          <div className="flex-1 p-1.5 border-r border-border min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">
+              Model
+            </div>
+            {versions.map(v => (
+              <button
+                key={v.id}
+                onClick={() => handleSelectModel(v.id)}
+                className={cn(
+                  'w-full text-left rounded-md px-2 py-2 transition-colors flex items-start gap-2',
+                  selectedModel.id === v.id
+                    ? 'bg-accent text-accent-foreground'
+                    : 'hover:bg-muted/50'
+                )}
+              >
+                <span className={cn('h-2 w-2 rounded-full mt-1 shrink-0', TIER_DOT[v.tier])} />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium leading-tight">{v.label}</div>
+                  <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{v.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Reasoning column */}
+          <div className="w-[140px] p-1.5 shrink-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">
+              Reasoning
+            </div>
+            {reasoningModel && reasoningModel.reasoning.length > 1 ? (
+              reasoningModel.reasoning.map(r => {
+                const meta = REASONING_META[r];
+                const label = reasoningModel.reasoningLabels?.[r] ?? meta.label;
+                const Icon = meta.icon;
+                return (
+                  <button
+                    key={r}
+                    onClick={() => handleSelectReasoning(r)}
+                    className={cn(
+                      'w-full text-left rounded-md px-2 py-2 transition-colors flex items-center gap-2',
+                      selectedModel.id === reasoningModel.id && reasoning === r
+                        ? 'bg-accent text-accent-foreground'
+                        : 'hover:bg-muted/50'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-sm">{label}</span>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-2 py-2 text-xs text-muted-foreground">
+                {activeTab === 'perplexity'
+                  ? 'Built-in web search'
+                  : 'Select a model with reasoning support'}
+              </div>
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
