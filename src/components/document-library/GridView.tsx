@@ -66,11 +66,11 @@ function GridItem({ doc, onDelete }: { doc: KnowledgeDocument; onDelete: (id: st
         <FileIcon className="h-8 w-8 text-muted-foreground" />
         <SourceIcon className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-muted-foreground bg-background rounded-full p-0.5" />
       </div>
-      <StatusIcon className={`h-3 w-3 ${statusConf.color} ${doc.status === 'processing' ? 'animate-spin' : ''}`} />
+      <StatusIcon className={`h-3 w-3 ${statusConf.color} ${(doc.status === 'processing' || doc.status === 'uploading') ? 'animate-spin' : ''}`} />
       <span className="text-[10px] leading-tight font-medium text-foreground line-clamp-2 w-full break-all">
         {doc.name}
       </span>
-      <span className="text-[9px] text-muted-foreground">{doc.chunk_count} chunks</span>
+      <span className="text-[9px] text-muted-foreground">{doc.status === 'uploading' ? 'Uploading…' : `${doc.chunk_count} chunks`}</span>
     </div>
   );
 }
