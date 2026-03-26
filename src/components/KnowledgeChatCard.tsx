@@ -390,7 +390,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
+  const wasStreamingRef = useRef(false);
 
   const crawlContext = buildCrawlContext(session, pages);
 
@@ -425,8 +427,23 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (isStreaming && lastUserMsgRef.current && scrollRef.current) {
+      wasStreamingRef.current = true;
+      // During streaming, keep the user's prompt pinned near the top of the viewport
+      const container = scrollRef.current;
+      const userMsg = lastUserMsgRef.current;
+      const offset = userMsg.offsetTop - container.offsetTop - 8;
+      // Only snap if we haven't manually scrolled away
+      if (Math.abs(container.scrollTop - offset) > 80) {
+        container.scrollTop = offset;
+      }
+    } else if (!isStreaming && scrollRef.current) {
+      // After streaming ends, don't jump to bottom — user reads from their prompt down
+      // Only scroll to bottom on initial history load
+      if (!wasStreamingRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+      wasStreamingRef.current = false;
     }
   }, [messages, isThinking]);
 
@@ -772,7 +789,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
         ) : (
           <>
             {messages.map((msg, i) => (
-              <div key={i}>
+              <div key={i} ref={msg.role === 'user' && (i === messages.length - 1 || i === messages.length - 2) ? lastUserMsgRef : undefined}>
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'user' ? (
                     <UserBubbleWrapper
