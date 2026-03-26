@@ -83,9 +83,9 @@ function buildContextBlock(crawlContext: string | undefined, documents: any[] | 
 /**
  * Route query to the most relevant source types using a fast LLM classification
  */
-async function routeQuery(query: string): Promise<{ priority_sources: string[]; chronological: boolean }> {
+async function routeQuery(query: string): Promise<{ priority_sources: string[]; chronological: boolean; needs_screenshots: boolean }> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) return { priority_sources: [], chronological: false };
+  if (!LOVABLE_API_KEY) return { priority_sources: [], chronological: false, needs_screenshots: false };
 
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -99,7 +99,7 @@ async function routeQuery(query: string): Promise<{ priority_sources: string[]; 
         messages: [
           {
             role: 'system',
-            content: `You are a query router. Given a user question about a website audit, classify which document source types are most relevant and whether the question requires chronological ordering.
+            content: `You are a query router. Given a user question about a website audit, classify which document source types are most relevant, whether the question requires chronological ordering, and whether screenshots of the website pages would help answer the question.
 
 Available source_types: "upload", "gmail", "chat", "crawl", "gdrive"
 - "gmail" = email threads/messages
@@ -111,16 +111,21 @@ Available source_types: "upload", "gmail", "chat", "crawl", "gdrive"
 Respond with a JSON object:
 {
   "priority_sources": ["gmail"],  // 0-2 source types most relevant. Empty array if the question is general/unclear.
-  "chronological": false          // true ONLY if the question asks about timeline, first/last, sequence, or date-based ordering
+  "chronological": false,         // true ONLY if the question asks about timeline, first/last, sequence, or date-based ordering
+  "needs_screenshots": false      // true if the question is about visual design, layout, appearance, branding, colors, UI, UX, how pages look, comparing designs, or anything that would benefit from seeing the actual website screenshots
 }
 
 Examples:
-- "What was the first email from John?" → {"priority_sources":["gmail"],"chronological":true}
-- "Summarize the proposal document" → {"priority_sources":["upload"],"chronological":false}
-- "What did we discuss about SEO?" → {"priority_sources":["chat"],"chronological":false}
-- "How is the website performing?" → {"priority_sources":[],"chronological":false}
-- "Show me the email history" → {"priority_sources":["gmail"],"chronological":true}
-- "What pages were crawled?" → {"priority_sources":["crawl"],"chronological":false}`
+- "What was the first email from John?" → {"priority_sources":["gmail"],"chronological":true,"needs_screenshots":false}
+- "Summarize the proposal document" → {"priority_sources":["upload"],"chronological":false,"needs_screenshots":false}
+- "How does the homepage look?" → {"priority_sources":["crawl"],"chronological":false,"needs_screenshots":true}
+- "What's the design style of the website?" → {"priority_sources":[],"chronological":false,"needs_screenshots":true}
+- "Compare the header across pages" → {"priority_sources":["crawl"],"chronological":false,"needs_screenshots":true}
+- "How is the website performing?" → {"priority_sources":[],"chronological":false,"needs_screenshots":false}
+- "Show me the email history" → {"priority_sources":["gmail"],"chronological":true,"needs_screenshots":false}
+- "What pages were crawled?" → {"priority_sources":["crawl"],"chronological":false,"needs_screenshots":false}
+- "What colors does the site use?" → {"priority_sources":[],"chronological":false,"needs_screenshots":true}
+- "Is the navigation user-friendly?" → {"priority_sources":[],"chronological":false,"needs_screenshots":true}`
           },
           { role: 'user', content: query },
         ],
@@ -141,8 +146,12 @@ Examples:
                   type: 'boolean',
                   description: 'Whether this question needs chronological ordering',
                 },
+                needs_screenshots: {
+                  type: 'boolean',
+                  description: 'Whether website screenshots would help answer this question',
+                },
               },
-              required: ['priority_sources', 'chronological'],
+              required: ['priority_sources', 'chronological', 'needs_screenshots'],
               additionalProperties: false,
             },
           },
@@ -153,23 +162,24 @@ Examples:
 
     if (!response.ok) {
       console.warn('[knowledge-chat] Router classification failed:', response.status);
-      return { priority_sources: [], chronological: false };
+      return { priority_sources: [], chronological: false, needs_screenshots: false };
     }
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);
-      console.log(`[knowledge-chat] Router: sources=${JSON.stringify(parsed.priority_sources)}, chrono=${parsed.chronological}`);
+      console.log(`[knowledge-chat] Router: sources=${JSON.stringify(parsed.priority_sources)}, chrono=${parsed.chronological}, screenshots=${parsed.needs_screenshots}`);
       return {
         priority_sources: Array.isArray(parsed.priority_sources) ? parsed.priority_sources : [],
         chronological: !!parsed.chronological,
+        needs_screenshots: !!parsed.needs_screenshots,
       };
     }
-    return { priority_sources: [], chronological: false };
+    return { priority_sources: [], chronological: false, needs_screenshots: false };
   } catch (e) {
     console.warn('[knowledge-chat] Router error, falling back:', e);
-    return { priority_sources: [], chronological: false };
+    return { priority_sources: [], chronological: false, needs_screenshots: false };
   }
 }
 
