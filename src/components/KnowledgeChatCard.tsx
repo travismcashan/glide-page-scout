@@ -1004,8 +1004,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     });
 
     try {
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
