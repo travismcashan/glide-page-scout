@@ -1230,12 +1230,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                 <div className="space-y-2 border-t pt-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 flex items-center gap-1">
                     <Gauge className="h-3 w-3" />
-                    RAG Depth
+                    Context
                   </p>
                   <div className="px-1 space-y-2.5">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-muted-foreground">Chunks retrieved</label>
+                        <label className="text-xs text-muted-foreground">How much to read</label>
                         <span className="text-xs font-mono font-medium text-foreground">{ragDepth.match_count}</span>
                       </div>
                       <input
@@ -1248,13 +1248,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
                       />
                       <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
-                        <span>Faster</span>
-                        <span>More context</span>
+                        <span>Quick glance</span>
+                        <span>Deep read</span>
                       </div>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-muted-foreground">Relevance threshold</label>
+                        <label className="text-xs text-muted-foreground">How picky to be</label>
                         <span className="text-xs font-mono font-medium text-foreground">{ragDepth.match_threshold.toFixed(2)}</span>
                       </div>
                       <input
@@ -1267,8 +1267,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
                         className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
                       />
                       <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
-                        <span>Broader</span>
-                        <span>Stricter</span>
+                        <span>Include more</span>
+                        <span>Only best matches</span>
                       </div>
                     </div>
                   </div>
