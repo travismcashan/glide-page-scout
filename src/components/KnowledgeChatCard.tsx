@@ -280,13 +280,13 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   );
 }
 
-function AnimatedThinkingText() {
+function AnimatedThinkingText({ label = 'Thinking' }: { label?: string }) {
   const [dotCount, setDotCount] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => setDotCount(d => (d + 1) % 4), 400);
     return () => clearInterval(interval);
   }, []);
-  return <span className="text-base font-bold">Thinking{'.'.repeat(dotCount || 0)}</span>;
+  return <span className="text-base font-bold">{label}{'.'.repeat(dotCount || 0)}</span>;
 }
 
 function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
@@ -506,7 +506,7 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick, webCitations }:
   );
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[] }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments, searchLabel }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[]; searchLabel?: string }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
@@ -666,7 +666,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
-            <AnimatedThinkingText />
+            <AnimatedThinkingText label={searchLabel || 'Thinking'} />
           </div>
         </div>
       )}
@@ -1551,6 +1551,15 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       }}
                       domain={session.domain}
                       ragDocuments={msg.ragDocuments}
+                      searchLabel={
+                        isStreaming && i === messages.length - 1
+                          ? searchSources.web && searchSources.documents
+                            ? 'Searching Web + Knowledge / Thinking'
+                            : searchSources.web
+                              ? 'Searching Web / Thinking'
+                              : 'Searching Knowledge / Thinking'
+                          : undefined
+                      }
                     />
                   )}
                 </div>
