@@ -110,7 +110,8 @@
 
 /* Rich chat prose styling */
 .chat-prose {
-  @apply text-base leading-relaxed;
+  @apply leading-relaxed;
+  font-size: 18px;
 }
 
 .chat-prose h1,
