@@ -523,7 +523,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
   const wasStreamingRef = useRef(false);
@@ -1287,7 +1286,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               variant="ghost"
               size="icon"
               onClick={() => handleSend()}
-              disabled={(!input.trim() && attachments.length === 0) || isStreaming || attachments.some(a => a.parsing)}
+              disabled={attachments.length === 0 && !chatInputRef.current?.getValue()?.trim() || isStreaming || attachments.some(a => a.parsing)}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
             >
