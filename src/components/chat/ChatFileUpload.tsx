@@ -200,7 +200,7 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="top" className="w-48">
+        <DropdownMenuContent align="start" side="top" sideOffset={10} className="w-48">
           <DropdownMenuItem onClick={() => inputRef.current?.click()} className="gap-2">
             <Upload className="h-4 w-4" />
             Upload files
