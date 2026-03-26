@@ -142,7 +142,7 @@ type CrawlSession = {
 export default function ResultsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isSharedView = searchParams.get('view') === 'shared';
   const [session, setSession] = useState<CrawlSession | null>(null);
   const [pages, setPages] = useState<CrawlPage[]>([]);
@@ -167,7 +167,6 @@ export default function ResultsPage() {
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>('none');
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
   const ragIngestTriggeredRef = useRef(false);
-  const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'raw-data';
   const setActiveTab = useCallback((tab: string) => {
     setSearchParams(prev => {
