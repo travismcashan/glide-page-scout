@@ -228,7 +228,9 @@ export default function ResultsPage() {
       }
 
       // Only show after scrolling up at least 30px while past the tab bar
-      if (scrollUpDistance.current > 30 && pastTabBar) {
+      if (!pastTabBar) {
+        setStickyTabVisible(false);
+      } else if (scrollUpDistance.current > 30) {
         setStickyTabVisible(true);
       }
 
