@@ -1143,12 +1143,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               <Badge
                 key={`${att.name}-${i}`}
                 variant="secondary"
-                className="gap-1 pl-1.5 pr-1 py-0.5 text-xs font-normal max-w-[200px]"
+                className="gap-1 pl-1.5 pr-1 py-0.5 text-xs font-normal max-w-[200px] relative overflow-hidden"
               >
                 <FileText className="h-3 w-3 shrink-0" />
                 <span className="truncate">{att.name}</span>
                 {att.parsing ? (
-                  <Loader2 className="h-3 w-3 animate-spin shrink-0 ml-0.5" />
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin shrink-0 ml-0.5 text-muted-foreground" />
+                    <span className="absolute bottom-0 left-0 h-[2px] w-full bg-muted-foreground/20">
+                      <span className="absolute inset-0 h-full bg-primary animate-[indeterminate_1.5s_ease-in-out_infinite]" />
+                    </span>
+                  </>
                 ) : (
                   <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:text-destructive shrink-0">
                     <span className="text-xs">×</span>
