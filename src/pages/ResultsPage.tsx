@@ -138,6 +138,7 @@ type CrawlSession = {
   sitemap_data: any | null;
   forms_data: any | null;
   tech_analysis_data: any | null;
+  prospect_domain: string | null;
 };
 
 
