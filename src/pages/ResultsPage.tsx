@@ -2254,6 +2254,7 @@ export default function ResultsPage() {
                 selectedModel={chatModel}
                 provider={chatProvider}
                 reasoning={chatReasoning}
+                onProviderChange={setChatProvider}
                 onModelChange={setChatModel}
                 onReasoningChange={setChatReasoning}
               />
