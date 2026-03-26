@@ -417,7 +417,7 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
   return parts.length > 0 ? <>{parts}</> : <>{children}</>;
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[] }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
