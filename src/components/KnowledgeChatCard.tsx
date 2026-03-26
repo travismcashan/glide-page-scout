@@ -1124,6 +1124,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           onDeleteThread={handleDeleteThread}
           refreshKey={sidebarRefreshKey}
           onWidthChange={setSidebarWidth}
+          stickyTabVisible={stickyTabVisible}
         />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -1144,6 +1145,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         onDeleteThread={handleDeleteThread}
         refreshKey={sidebarRefreshKey}
         onWidthChange={setSidebarWidth}
+        stickyTabVisible={stickyTabVisible}
       />
 
       {/* Main chat area */}
