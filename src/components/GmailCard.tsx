@@ -193,32 +193,76 @@ export interface GmailCardHandle {
 export interface GmailCardProps {
   domain: string;
   contactEmails?: string[];
-  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number }) => void;
+  onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean }) => void;
+  onRefresh?: () => void;
 }
 
 export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, contactEmails, onStateChange }, ref) {
   const { id: sessionId } = useParams<{ id: string }>();
-  const { isConnected, isLoading, emails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
+  const { isConnected, isLoading, emails: liveEmails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
+  const [cachedEmails, setCachedEmails] = useState<GmailEmail[]>([]);
+  const [loadedFromDb, setLoadedFromDb] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
   const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
   const [ingesting, setIngesting] = useState(false);
   const [ingestingAll, setIngestingAll] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const doSearch = async () => {
-    setHasSearched(true);
-    await searchEmails({
-      contactEmails: contactEmails?.length ? contactEmails : undefined,
-      domain: !contactEmails?.length ? domain : undefined,
-      maxResults: 50,
-    });
-  };
+  // The displayed emails: prefer live if we just fetched, otherwise cached from DB
+  const emails = liveEmails.length > 0 ? liveEmails : cachedEmails;
 
+  // Load cached emails from DB on mount
   useEffect(() => {
-    if (isConnected && !hasSearched && !isLoading && (contactEmails?.length || domain)) {
+    if (!sessionId || loadedFromDb) return;
+    (async () => {
+      const { data } = await supabase
+        .from('crawl_sessions')
+        .select('gmail_data')
+        .eq('id', sessionId)
+        .single();
+      if (data?.gmail_data && Array.isArray((data.gmail_data as any)?.emails)) {
+        setCachedEmails((data.gmail_data as any).emails);
+        setHasSearched(true);
+      }
+      setLoadedFromDb(true);
+    })();
+  }, [sessionId, loadedFromDb]);
+
+  // Save emails to DB whenever live emails update
+  useEffect(() => {
+    if (!sessionId || liveEmails.length === 0) return;
+    setCachedEmails(liveEmails);
+    supabase
+      .from('crawl_sessions')
+      .update({ gmail_data: { emails: liveEmails, updatedAt: new Date().toISOString() } as any })
+      .eq('id', sessionId)
+      .then(({ error }) => {
+        if (error) console.error('Failed to save gmail data:', error);
+      });
+  }, [sessionId, liveEmails]);
+
+  const doSearch = useCallback(async () => {
+    setHasSearched(true);
+    setIsRefreshing(true);
+    try {
+      await searchEmails({
+        contactEmails: contactEmails?.length ? contactEmails : undefined,
+        domain: !contactEmails?.length ? domain : undefined,
+        maxResults: 50,
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [searchEmails, contactEmails, domain]);
+
+  // Auto-fetch only if no cached data and connected
+  useEffect(() => {
+    if (isConnected && !hasSearched && !isLoading && !loadedFromDb) return; // wait for DB load
+    if (isConnected && !hasSearched && !isLoading && cachedEmails.length === 0 && (contactEmails?.length || domain)) {
       doSearch();
     }
-  }, [isConnected, hasSearched, contactEmails, domain]);
+  }, [isConnected, hasSearched, isLoading, loadedFromDb, cachedEmails.length, contactEmails, domain]);
 
   const toggleAttachment = (key: string) => {
     setSelectedAttachments((prev) => {
