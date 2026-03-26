@@ -381,12 +381,16 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         </div>
       </div>
 
-      {/* Upload + Sync row */}
+      {/* Upload + Drive + Sync row */}
       <div className="flex items-center gap-2 px-1 mb-3">
         <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif" className="hidden" onChange={handleFileUpload} />
         <Button variant="outline" size="sm" className="flex-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
           {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
-          {uploading ? 'Processing...' : 'Upload Documents'}
+          {uploading ? 'Processing...' : 'Upload'}
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => setDrivePickerOpen(true)} disabled={uploading}>
+          <HardDrive className="h-3.5 w-3.5 mr-1.5" />
+          Google Drive
         </Button>
         {onIngestIntegrations && (
           <Button variant="outline" size="sm" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Re-sync integration data">
@@ -395,6 +399,8 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           </Button>
         )}
       </div>
+
+      <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
 
       {/* Document list */}
       <div>
