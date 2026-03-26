@@ -295,7 +295,7 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
       </button>
       {expanded && (
-        <div className="mt-2 pl-8 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+        <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed" style={{ marginLeft: 13, paddingLeft: 22 }}>
           {thinking}
         </div>
       )}
