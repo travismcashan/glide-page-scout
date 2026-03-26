@@ -709,6 +709,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           model: selectedModel,
           reasoning: reasoning !== 'none' ? reasoning : undefined,
           sources: searchSources,
+          rag_depth: ragDepth,
         }),
       });
 
