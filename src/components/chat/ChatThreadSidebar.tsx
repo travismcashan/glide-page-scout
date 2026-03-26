@@ -47,7 +47,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
     onWidthChange?.(collapsed ? 40 : 240);
   }, [collapsed, onWidthChange]);
 
-
+  if (collapsed) {
     return (
       <div className="flex flex-col items-center gap-2 pt-3 px-1">
         <Button
