@@ -129,8 +129,36 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         continue;
       }
       try {
-        const text = await file.text();
-        docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
+        if (isBinaryFile(file)) {
+          // Route binary files through parse-upload for AI extraction
+          const fileBase64 = await fileToBase64(file);
+          const mimeType = getMimeType(file);
+          toast.info(`Parsing ${file.name}…`);
+          const parseResp = await fetch(PARSE_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ fileBase64, fileName: file.name, mimeType }),
+          });
+          if (!parseResp.ok) {
+            const err = await parseResp.json().catch(() => ({}));
+            toast.error(`Failed to parse ${file.name}: ${err.error || parseResp.status}`);
+            continue;
+          }
+          const { text } = await parseResp.json();
+          if (!text || text.length < 30) {
+            toast.error(`Could not extract content from ${file.name}`);
+            continue;
+          }
+          docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
+        } else {
+          // Plain text files
+          const text = await file.text();
+          docsToIngest.push({ name: file.name, content: text, source_type: 'upload' });
+        }
       } catch {
         toast.error(`Failed to read ${file.name}`);
       }
@@ -209,7 +237,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx"
+          accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif"
           className="hidden"
           onChange={handleFileUpload}
         />
