@@ -423,6 +423,13 @@ const SOURCE_TYPE_ICONS: Record<string, string> = {
   upload: '📎',
   chat: '💬',
   gdrive: '📁',
+  screenshot: '📸',
+  image: '🖼️',
+  email: '📧',
+  note: '📝',
+  pdf: '📄',
+  doc: '📃',
+  research: '🔬',
 };
 
 function ReferencesBlock({ ragDocuments, sources, onSourceClick }: { ragDocuments: RagDocument[]; sources: string[]; onSourceClick?: (s: string) => void }) {

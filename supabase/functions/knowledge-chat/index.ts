@@ -1023,6 +1023,12 @@ serve(async (req) => {
     if (webCitations.length > 0) {
       metadataEvents.push(`data: ${JSON.stringify({ web_citations: webCitations })}\n\n`);
     }
+    // Add screenshots to ragDocuments so they appear in references
+    if (screenshotImages.length > 0) {
+      for (const ss of screenshotImages) {
+        ragDocuments.push({ name: `Screenshot: ${ss.url}`, source_type: 'screenshot' });
+      }
+    }
     if (ragDocuments.length > 0) {
       metadataEvents.push(`data: ${JSON.stringify({ rag_documents: ragDocuments })}\n\n`);
     }
