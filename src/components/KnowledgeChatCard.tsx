@@ -412,6 +412,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 }
 
 export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, onModelChange, onReasoningChange, onDocumentsChanged }: Props) {
+  const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
