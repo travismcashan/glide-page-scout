@@ -11,6 +11,7 @@ import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatModelSelector, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { AiAvatar } from '@/components/chat/AiAvatar';
 import { ingestChatUploads } from '@/lib/ragIngest';
 import {
   DropdownMenu,
