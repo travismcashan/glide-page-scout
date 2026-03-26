@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search } from 'lucide-react';
+import { Send, Loader2, Trash2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -393,6 +393,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const loadedSessionRef = useRef<string | null>(null);
   const wasStreamingRef = useRef(false);
+  const handleFilesRef = useRef<((files: FileList) => void) | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const crawlContext = buildCrawlContext(session, pages);
 
@@ -844,7 +847,41 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
       </div>
 
       {/* Input area */}
-      <div className="mx-2 mb-2 mt-3 rounded-2xl bg-card border border-border shadow-lg px-4 py-3">
+      <div
+        className={`mx-2 mb-2 mt-3 rounded-2xl bg-card border-2 shadow-lg px-4 py-3 transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}`}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dragCounterRef.current++;
+          setIsDragging(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dragCounterRef.current--;
+          if (dragCounterRef.current === 0) setIsDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dragCounterRef.current = 0;
+          setIsDragging(false);
+          if (e.dataTransfer.files?.length && handleFilesRef.current) {
+            handleFilesRef.current(e.dataTransfer.files);
+          }
+        }}
+      >
+        {/* Drop zone overlay */}
+        {isDragging && (
+          <div className="flex items-center justify-center gap-2 py-4 text-primary">
+            <Upload className="h-5 w-5" />
+            <span className="text-sm font-medium">Drop files here</span>
+          </div>
+        )}
         {/* Attachment previews */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-1.5 px-1 pb-2">
@@ -894,6 +931,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
             attachments={attachments}
             setAttachments={setAttachments}
             disabled={isStreaming}
+            onHandleFilesRef={handleFilesRef}
           />
 
           {/* Sources selector */}

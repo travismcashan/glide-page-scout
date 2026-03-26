@@ -36,9 +36,10 @@ type Props = {
   attachments: ChatAttachment[];
   setAttachments: React.Dispatch<React.SetStateAction<ChatAttachment[]>>;
   disabled?: boolean;
+  onHandleFilesRef?: React.MutableRefObject<((files: FileList) => void) | null>;
 };
 
-export function ChatFileUpload({ attachments, setAttachments, disabled }: Props) {
+export function ChatFileUpload({ attachments, setAttachments, disabled, onHandleFilesRef }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [parsing, setParsing] = useState(false);
 
@@ -124,6 +125,11 @@ export function ChatFileUpload({ attachments, setAttachments, disabled }: Props)
       toast.error(`Unsupported file type: ${file.name}`);
     }
   };
+
+  // Expose handleFiles to parent via ref
+  if (onHandleFilesRef) {
+    onHandleFilesRef.current = handleFiles;
+  }
 
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
