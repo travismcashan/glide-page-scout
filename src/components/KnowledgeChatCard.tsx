@@ -955,6 +955,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           </Popover>
 
           {/* Model selector */}
+          <div className="ml-auto flex items-center gap-1">
           <ChatModelSelector
             model={selectedModel}
             reasoning={reasoning}
@@ -964,7 +965,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, reasoning, on
           />
 
           {/* Send button - pushed to the right */}
-          <div className="ml-auto">
             <Button
               size="icon"
               onClick={() => handleSend()}
