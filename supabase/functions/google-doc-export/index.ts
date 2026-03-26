@@ -9,9 +9,68 @@ function escHtml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function convertMarkdownLists(input: string): string {
+  const lines = input.replace(/\r\n/g, '\n').split('\n');
+  const output: string[] = [];
+  let listType: 'ol' | 'ul' | null = null;
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (!listType || listItems.length === 0) return;
+
+    const listStyle = listType === 'ol'
+      ? 'margin:10pt 0 0 0;padding-left:24pt;list-style-type:decimal;'
+      : 'margin:10pt 0 0 0;padding-left:24pt;list-style-type:disc;';
+
+    const items = listItems
+      .map((item) => `<li style="margin:0 0 4pt 0;">${item}</li>`)
+      .join('');
+
+    output.push(`<${listType} style="${listStyle}">${items}</${listType}>`);
+    output.push('<p style="margin:0 0 10pt 0;">&nbsp;</p>');
+
+    listType = null;
+    listItems = [];
+  };
+
+  for (const line of lines) {
+    const orderedMatch = line.match(/^\s*\d+\.\s+(.+)$/);
+    const unorderedMatch = line.match(/^\s*[-*]\s+(.+)$/);
+
+    if (orderedMatch || unorderedMatch) {
+      const nextType: 'ol' | 'ul' = orderedMatch ? 'ol' : 'ul';
+
+      if (listType && listType !== nextType) {
+        flushList();
+      }
+
+      listType = nextType;
+      listItems.push((orderedMatch ?? unorderedMatch)![1].trim());
+      continue;
+    }
+
+    if (!line.trim()) {
+      if (!listType) {
+        output.push(line);
+      }
+      continue;
+    }
+
+    if (listType) {
+      flushList();
+    }
+
+    output.push(line);
+  }
+
+  flushList();
+
+  return output.join('\n').replace(/(?:\n){3,}/g, '\n\n');
+}
+
 /** Convert markdown to HTML optimized for Google Docs import */
 function markdownToHtml(md: string): string {
-  let html = md;
+  let html = md.replace(/\r\n/g, '\n');
 
   // Code blocks
   html = html.replace(/```[\s\S]*?```/g, (match) => {
@@ -89,24 +148,8 @@ function markdownToHtml(md: string): string {
     return tableHtml;
   });
 
-  // Ordered lists (must come before unordered to avoid conflict)
-  html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (match) => {
-    let num = 1;
-    const items = match.trim().split('\n').map(line => {
-      const content = line.replace(/^\d+\. /, '');
-      return `<li value="${num++}">${content}</li>`;
-    }).join('');
-    return `<ol style="margin:10pt 0;padding-left:24pt;">${items}</ol>`;
-  });
-
-  // Unordered lists
-  html = html.replace(/((?:^[-*] .+\n?)+)/gm, (match) => {
-    const items = match.trim().split('\n').map(line => {
-      const content = line.replace(/^[-*] /, '');
-      return `<li>${content}</li>`;
-    }).join('');
-    return `<ul style="margin:10pt 0;padding-left:24pt;">${items}</ul>`;
-  });
+  // Lists
+  html = convertMarkdownLists(html);
 
   // Wrap remaining text blocks in paragraphs with spacing
   html = html.replace(/^(?!<[a-z])((?:.+\n?)+)/gm, (match) => {
