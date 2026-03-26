@@ -1483,6 +1483,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                         }
                       }}
                       domain={session.domain}
+                      ragDocuments={msg.ragDocuments}
                     />
                   )}
                 </div>
