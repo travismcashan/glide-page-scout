@@ -2396,6 +2396,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             </PopoverContent>
           </Popover>
 
+          {/* Deep Research toggle (Gemini only) */}
+          {provider === 'gemini' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeepResearchMode(prev => !prev)}
+              disabled={isStreaming}
+              className={`shrink-0 rounded-full h-8 gap-1.5 text-xs px-3 transition-colors ${
+                deepResearchMode
+                  ? 'bg-primary/15 text-primary hover:bg-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Telescope className="h-3.5 w-3.5" />
+              Deep Research
+            </Button>
+          )}
+
           {/* Provider & Reasoning selectors */}
           <div className="ml-auto flex items-center gap-0.5" style={{ marginRight: -11 }}>
           <ChatProviderPicker
