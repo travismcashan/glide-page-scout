@@ -52,6 +52,7 @@ type Props = {
   onDocumentCountChange?: (count: number) => void;
   refreshKey?: number;
   onIngestIntegrations?: () => void;
+  onStopIngestion?: () => void;
   ingesting?: boolean;
 };
 
@@ -71,7 +72,7 @@ function savePrefs(prefs: Record<string, string>) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
 }
 
-export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, onIngestIntegrations, ingesting }: Props) {
+export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, onIngestIntegrations, onStopIngestion, ingesting }: Props) {
   const initial = loadPrefs();
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -479,10 +480,16 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <HardDrive className="h-3.5 w-3.5 mr-1.5" />
           Google Drive
         </Button>
-        {onIngestIntegrations && (
-          <Button variant="outline" size="sm" onClick={onIngestIntegrations} disabled={ingesting || uploading} title="Re-sync integration data">
-            {ingesting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-            {ingesting ? 'Syncing…' : 'Sync'}
+        {onIngestIntegrations && !ingesting && (
+          <Button variant="outline" size="sm" onClick={onIngestIntegrations} disabled={uploading} title="Re-sync integration data">
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            Sync
+          </Button>
+        )}
+        {ingesting && onStopIngestion && (
+          <Button variant="outline" size="sm" onClick={onStopIngestion} className="text-destructive hover:text-destructive" title="Stop syncing">
+            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            Stop Sync
           </Button>
         )}
       </div>
