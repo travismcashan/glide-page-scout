@@ -639,30 +639,6 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
             <p className="text-sm text-muted-foreground">
               {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Click to select · Space to preview'}
             </p>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5" />
-                Doc tabs:
-              </span>
-              <RadioGroup
-                value={tabMode}
-                onValueChange={(v: string) => {
-                  const val = v as TabMode;
-                  setTabMode(val);
-                  try { localStorage.setItem('drive-tab-mode', val); } catch {}
-                }}
-                className="flex items-center gap-3"
-              >
-                <div className="flex items-center gap-1.5">
-                  <RadioGroupItem value="all" id="tab-all" className="h-3.5 w-3.5" />
-                  <Label htmlFor="tab-all" className="text-xs text-muted-foreground cursor-pointer">Import all</Label>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <RadioGroupItem value="choose" id="tab-choose" className="h-3.5 w-3.5" />
-                  <Label htmlFor="tab-choose" className="text-xs text-muted-foreground cursor-pointer">Let me choose</Label>
-                </div>
-              </RadioGroup>
-            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
