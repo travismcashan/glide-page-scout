@@ -521,7 +521,7 @@ function extractTechCoverage(session: any): number | null {
 
 // ── Category definitions ───────────────────────────────────────
 
-export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis';
+export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis' | 'navigation';
 
 export type CategoryScore = {
   key: CategoryKey;
@@ -561,17 +561,18 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'seo',
     label: 'SEO & Search',
-    weight: 20,
+    weight: 18,
     integrations: [
       { key: 'semrush', label: 'SEMrush', extract: extractSemrush },
       { key: 'psi-seo', label: 'PageSpeed SEO', extract: extractPsiSeo },
       { key: 'schema', label: 'Schema.org', extract: extractSchema },
+      { key: 'sitemap', label: 'XML Sitemap', extract: extractSitemap },
     ],
   },
   {
     key: 'accessibility',
     label: 'Accessibility',
-    weight: 20,
+    weight: 18,
     integrations: [
       { key: 'psi-accessibility', label: 'Lighthouse', extract: extractPsiAccessibility },
       { key: 'wave', label: 'WAVE', extract: extractWave },
@@ -581,7 +582,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'security',
     label: 'Security',
-    weight: 15,
+    weight: 14,
     integrations: [
       { key: 'observatory', label: 'Observatory', extract: extractObservatory },
       { key: 'ssllabs', label: 'SSL Labs', extract: extractSslLabs },
@@ -590,7 +591,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'content',
     label: 'Content',
-    weight: 15,
+    weight: 12,
     integrations: [
       { key: 'readable', label: 'Readability', extract: extractReadable },
     ],
@@ -598,10 +599,19 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'url-analysis',
     label: 'URL Health',
+    weight: 8,
+    integrations: [
+      { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatusDetailed },
+      { key: 'link-checker', label: 'Broken Links', extract: extractBrokenLinks },
+      { key: 'url-health', label: 'URL Health', extract: extractUrlHealth },
+    ],
+  },
+  {
+    key: 'navigation',
+    label: 'Navigation',
     weight: 5,
     integrations: [
-      { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatus },
-      { key: 'link-checker', label: 'Broken Links', extract: extractBrokenLinks },
+      { key: 'nav-structure', label: 'Site Navigation', extract: extractNavigation },
     ],
   },
   {
