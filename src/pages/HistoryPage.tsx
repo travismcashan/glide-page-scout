@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Globe, Clock, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { buildResultsPath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
 
 type CrawlSession = {
