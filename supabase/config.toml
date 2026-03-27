@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.caption-screenshots]
 verify_jwt = false
+
+[functions.apollo-team-search]
+verify_jwt = false

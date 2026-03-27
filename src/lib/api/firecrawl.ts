@@ -511,6 +511,13 @@ export const avomaApi = {
 };
 
 export const apolloApi = {
+  async teamSearch(domain: string): Promise<any> {
+    const { data, error } = await supabase.functions.invoke('apollo-team-search', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
   async enrich(email: string, firstName?: string, lastName?: string, domain?: string): Promise<{
     success: boolean;
     found?: boolean;

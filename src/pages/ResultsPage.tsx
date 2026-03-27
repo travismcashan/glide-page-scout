@@ -666,12 +666,23 @@ export default function ResultsPage() {
   const [apolloLoading, setApolloLoading] = useState(false);
   const apolloAutoTriggered = useRef(false);
 
+  // Apollo team search state
+  const [apolloTeamData, setApolloTeamData] = useState<any>((session as any)?.apollo_team_data || null);
+  const [apolloTeamLoading, setApolloTeamLoading] = useState(false);
+  const apolloTeamAutoTriggered = useRef(false);
+
   // Sync apolloData from session when session loads/changes
   useEffect(() => {
     if (session?.apollo_data && !apolloData) {
       setApolloData(session.apollo_data);
     }
   }, [session?.apollo_data]);
+
+  useEffect(() => {
+    if ((session as any)?.apollo_team_data && !apolloTeamData) {
+      setApolloTeamData((session as any).apollo_team_data);
+    }
+  }, [(session as any)?.apollo_team_data]);
 
   const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
     setApolloLoading(true);
@@ -686,6 +697,24 @@ export default function ResultsPage() {
       toast.error(e?.message || 'Apollo request failed');
     }
     setApolloLoading(false);
+  };
+
+  const handleApolloTeamSearch = async () => {
+    const domain = prospectingDomain || apolloData?.organizationDomain || session?.domain;
+    if (!domain) { toast.error('No domain available for team search'); return; }
+    setApolloTeamLoading(true);
+    try {
+      const result = await apolloApi.teamSearch(domain);
+      setApolloTeamData(result);
+      if (result.success && session) {
+        await supabase.from('crawl_sessions').update({ apollo_team_data: result } as any).eq('id', session.id);
+      }
+      if (!result.success) toast.error(result.error || 'Apollo team search failed');
+      else if (result.totalFound > 0) toast.success(`Found ${result.totalFound} team contacts`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Apollo team search failed');
+    }
+    setApolloTeamLoading(false);
   };
 
   // Auto-enrich Apollo using primary HubSpot contact
@@ -712,6 +741,18 @@ export default function ResultsPage() {
     console.log(`[apollo] Auto-enriching primary HubSpot contact: ${primary.email}`);
     handleApolloSearch(primary.email, primary.firstname || undefined, primary.lastname || undefined);
   }, [(session as any)?.hubspot_data, apolloData, apolloLoading, pauseVersion]);
+
+  // Auto-trigger team search once Apollo enrichment completes with org domain
+  useEffect(() => {
+    if (apolloTeamAutoTriggered.current) return;
+    if (apolloTeamLoading || apolloTeamData || (session as any)?.apollo_team_data) return;
+    if (isIntegrationPaused('apollo')) return;
+    const domain = apolloData?.organizationDomain || prospectingDomain;
+    if (!domain || !apolloData?.found) return;
+    apolloTeamAutoTriggered.current = true;
+    console.log(`[apollo] Auto-searching team contacts at: ${domain}`);
+    handleApolloTeamSearch();
+  }, [apolloData, apolloTeamData, apolloTeamLoading, prospectingDomain, pauseVersion]);
 
   // Unique Templates rerun support
   const [templatesRerunning, setTemplatesRerunning] = useState(false);
@@ -2313,7 +2354,7 @@ export default function ResultsPage() {
               </SectionCard>
               {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations) && (
                 <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
-                  <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} />
+                  <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
                 </SectionCard>
               )}
               {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) && (
