@@ -358,6 +358,11 @@ export default function ResultsPage() {
     setLoading(false);
   }, [sessionId]);
 
+  // Direct session state merge — avoids re-fetching the entire row from DB
+  const updateSession = useCallback((partial: Partial<CrawlSession>) => {
+    setSession(prev => prev ? { ...prev, ...partial } : prev);
+  }, []);
+
   useEffect(() => {
     loadPausedIntegrations().catch(() => undefined).finally(() => {
       fetchData();
@@ -394,9 +399,10 @@ export default function ResultsPage() {
     builtwithApi.lookup(session.domain).then(async (result) => {
       if (result.credits) setBuiltwithCredits(result.credits);
       if (result.success && result.grouped) {
-        await supabase.from('crawl_sessions').update({ builtwith_data: { grouped: result.grouped, totalCount: result.totalCount } } as any).eq('id', session.id);
+        const saved = { grouped: result.grouped, totalCount: result.totalCount };
+        await supabase.from('crawl_sessions').update({ builtwith_data: saved } as any).eq('id', session.id);
         clearError('builtwith');
-        fetchData();
+        updateSession({ builtwith_data: saved } as any);
       } else {
         setBuiltwithFailed(true);
         const msg = result.error || 'BuiltWith API returned an error';
@@ -405,7 +411,7 @@ export default function ResultsPage() {
       }
       setBuiltwithLoading(false);
     }).catch((e) => { const msg = e?.message || 'BuiltWith request failed'; setBuiltwithFailed(true); setError('builtwith', msg); persistFailure('builtwith_data', msg); setBuiltwithLoading(false); });
-  }, [session, builtwithLoading, builtwithFailed, fetchData, pauseVersion]);
+  }, [session, builtwithLoading, builtwithFailed, pauseVersion]);
   // SEMrush
   const [semrushFailed, setSemrushFailed] = useState(false);
   useEffect(() => {
@@ -415,9 +421,10 @@ export default function ResultsPage() {
     setSemrushLoading(true);
     semrushApi.domainOverview(session.domain).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ semrush_data: { overview: result.overview, organicKeywords: result.organicKeywords, backlinks: result.backlinks } } as any).eq('id', session.id);
+        const saved = { overview: result.overview, organicKeywords: result.organicKeywords, backlinks: result.backlinks };
+        await supabase.from('crawl_sessions').update({ semrush_data: saved } as any).eq('id', session.id);
         clearError('semrush');
-        fetchData();
+        updateSession({ semrush_data: saved } as any);
       } else {
         setSemrushFailed(true);
         const msg = result.error || 'SEMrush API returned an error';
@@ -426,7 +433,7 @@ export default function ResultsPage() {
       }
       setSemrushLoading(false);
     }).catch((e) => { const msg = e?.message || 'SEMrush request failed'; setSemrushFailed(true); setError('semrush', msg); persistFailure('semrush_data', msg); setSemrushLoading(false); });
-  }, [session, semrushLoading, semrushFailed, fetchData, pauseVersion]);
+  }, [session, semrushLoading, semrushFailed, pauseVersion]);
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
@@ -436,13 +443,14 @@ export default function ResultsPage() {
     setPsiLoading(true);
     pagespeedApi.analyze(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ psi_data: { mobile: result.mobile, desktop: result.desktop } } as any).eq('id', session.id);
+        const saved = { mobile: result.mobile, desktop: result.desktop };
+        await supabase.from('crawl_sessions').update({ psi_data: saved } as any).eq('id', session.id);
         clearError('psi');
-        fetchData();
+        updateSession({ psi_data: saved } as any);
       } else { const msg = result.error || 'PageSpeed Insights returned an error'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); }
       setPsiLoading(false);
     }).catch((e) => { const msg = e?.message || 'PageSpeed request failed'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); setPsiLoading(false); });
-  }, [session, psiLoading, psiFailed, fetchData, pauseVersion]);
+  }, [session, psiLoading, psiFailed, pauseVersion]);
   // Wappalyzer
   const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
   useEffect(() => {
@@ -452,13 +460,14 @@ export default function ResultsPage() {
     setWappalyzerLoading(true);
     wappalyzerApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ wappalyzer_data: { grouped: result.grouped, totalCount: result.totalCount, social: result.social } } as any).eq('id', session.id);
+        const saved = { grouped: result.grouped, totalCount: result.totalCount, social: result.social };
+        await supabase.from('crawl_sessions').update({ wappalyzer_data: saved } as any).eq('id', session.id);
         clearError('wappalyzer');
-        fetchData();
+        updateSession({ wappalyzer_data: saved } as any);
       } else { const msg = result.error || 'Wappalyzer returned an error'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); }
       setWappalyzerLoading(false);
     }).catch((e) => { const msg = e?.message || 'Wappalyzer request failed'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); setWappalyzerLoading(false); });
-  }, [session, wappalyzerLoading, wappalyzerFailed, fetchData, pauseVersion]);
+  }, [session, wappalyzerLoading, wappalyzerFailed, pauseVersion]);
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
@@ -468,13 +477,14 @@ export default function ResultsPage() {
     setDetectzestackLoading(true);
     detectzestackApi.lookup(session.domain).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ detectzestack_data: { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth } } as any).eq('id', session.id);
+        const saved = { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth };
+        await supabase.from('crawl_sessions').update({ detectzestack_data: saved } as any).eq('id', session.id);
         clearError('detectzestack');
-        fetchData();
+        updateSession({ detectzestack_data: saved } as any);
       } else { const msg = result.error || 'DetectZeStack returned an error'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); }
       setDetectzestackLoading(false);
     }).catch((e) => { const msg = e?.message || 'DetectZeStack request failed'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); setDetectzestackLoading(false); });
-  }, [session, detectzestackLoading, detectzestackFailed, fetchData, pauseVersion]);
+  }, [session, detectzestackLoading, detectzestackFailed, pauseVersion]);
   // AI Tech Analysis — runs after at least one tech source has data
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
@@ -529,11 +539,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ gtmetrix_grade: result.grade, gtmetrix_scores: result.scores, gtmetrix_test_id: result.testId } as any).eq('id', session.id);
         clearError('gtmetrix');
-        fetchData();
+        updateSession({ gtmetrix_grade: result.grade, gtmetrix_scores: result.scores, gtmetrix_test_id: result.testId } as any);
       } else { const msg = result.error || 'GTmetrix returned an error'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); }
       setRunningGtmetrix(false);
     }).catch((e) => { const msg = e?.message || 'GTmetrix request failed'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); setRunningGtmetrix(false); });
-  }, [session, runningGtmetrix, gtmetrixFailed, fetchData, pauseVersion]);
+  }, [session, runningGtmetrix, gtmetrixFailed, pauseVersion]);
   // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
@@ -543,13 +553,14 @@ export default function ResultsPage() {
     setCarbonLoading(true);
     websiteCarbonApi.check(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ carbon_data: { green: result.green, bytes: result.bytes, cleanerThan: result.cleanerThan, statistics: result.statistics, rating: result.rating } } as any).eq('id', session.id);
+        const saved = { green: result.green, bytes: result.bytes, cleanerThan: result.cleanerThan, statistics: result.statistics, rating: result.rating };
+        await supabase.from('crawl_sessions').update({ carbon_data: saved } as any).eq('id', session.id);
         clearError('carbon');
-        fetchData();
+        updateSession({ carbon_data: saved } as any);
       } else { const msg = result.error || 'Website Carbon returned an error'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); }
       setCarbonLoading(false);
     }).catch((e) => { const msg = e?.message || 'Website Carbon request failed'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); setCarbonLoading(false); });
-  }, [session, carbonLoading, carbonFailed, fetchData, pauseVersion]);
+  }, [session, carbonLoading, carbonFailed, pauseVersion]);
   // CrUX
   const [cruxFailed, setCruxFailed] = useState(false);
   const [cruxNoData, setCruxNoData] = useState(false);
@@ -560,16 +571,17 @@ export default function ResultsPage() {
     setCruxLoading(true);
     cruxApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ crux_data: { overall: result.overall, phone: result.phone, desktop: result.desktop, collectionPeriod: result.collectionPeriod } } as any).eq('id', session.id);
+        const saved = { overall: result.overall, phone: result.phone, desktop: result.desktop, collectionPeriod: result.collectionPeriod };
+        await supabase.from('crawl_sessions').update({ crux_data: saved } as any).eq('id', session.id);
         clearError('crux');
-        fetchData();
+        updateSession({ crux_data: saved } as any);
       } else if (result.noData) {
         setCruxNoData(true);
         persistFailure('crux_data', 'No CrUX data available for this site');
       } else { const msg = result.error || 'CrUX returned an error'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); }
       setCruxLoading(false);
     }).catch((e) => { const msg = e?.message || 'CrUX request failed'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); setCruxLoading(false); });
-  }, [session, cruxLoading, cruxFailed, cruxNoData, fetchData, pauseVersion]);
+  }, [session, cruxLoading, cruxFailed, cruxNoData, pauseVersion]);
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
   useEffect(() => {
@@ -579,13 +591,14 @@ export default function ResultsPage() {
     setWaveLoading(true);
     waveApi.scan(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ wave_data: { summary: result.summary, items: result.items, waveUrl: result.waveUrl, creditsRemaining: result.creditsRemaining, pageTitle: result.pageTitle } } as any).eq('id', session.id);
+        const saved = { summary: result.summary, items: result.items, waveUrl: result.waveUrl, creditsRemaining: result.creditsRemaining, pageTitle: result.pageTitle };
+        await supabase.from('crawl_sessions').update({ wave_data: saved } as any).eq('id', session.id);
         clearError('wave');
-        fetchData();
+        updateSession({ wave_data: saved } as any);
       } else { const msg = result.error || 'WAVE returned an error'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); }
       setWaveLoading(false);
     }).catch((e) => { const msg = e?.message || 'WAVE request failed'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); setWaveLoading(false); });
-  }, [session, waveLoading, waveFailed, fetchData, pauseVersion]);
+  }, [session, waveLoading, waveFailed, pauseVersion]);
   // Mozilla Observatory
   const [observatoryFailed, setObservatoryFailed] = useState(false);
   useEffect(() => {
