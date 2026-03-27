@@ -39,20 +39,12 @@ const INTEGRATIONS = [
 
 const ROTATING_WORDS = ['Research', 'Analyze', 'Prospect', 'Chat', 'Discover'];
 
-type RecentSession = {
-  id: string;
-  domain: string;
-  base_url: string;
-  status: string;
-  created_at: string;
-};
-
 export default function CrawlPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [url, setUrl] = useState('');
   const [isStarting, setIsStarting] = useState(false);
-  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [recentViews, setRecentViews] = useState<RecentView[]>([]);
   const [wordIndex, setWordIndex] = useState(0);
 
   // Rotating word animation
@@ -69,16 +61,9 @@ export default function CrawlPage() {
     return shuffled.slice(0, 4);
   }, []);
 
-  // Fetch recent sessions
+  // Load recently viewed from localStorage
   useEffect(() => {
-    supabase
-      .from('crawl_sessions')
-      .select('id, domain, base_url, status, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5)
-      .then(({ data }) => {
-        if (data) setRecentSessions(data as RecentSession[]);
-      });
+    setRecentViews(getRecentViews().slice(0, 5));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
