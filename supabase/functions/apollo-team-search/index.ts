@@ -60,14 +60,14 @@ Deno.serve(async (req) => {
 
     for (const search of searches) {
       try {
-        const url = `https://api.apollo.io/api/v1/mixed_people/api_search?${search.params.toString()}`;
-        const response = await fetch(url, {
+        const response = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
             'X-Api-Key': apiKey,
           },
+          body: JSON.stringify(Object.fromEntries(search.params.entries())),
         });
 
         const contentType = response.headers.get('content-type') || '';
