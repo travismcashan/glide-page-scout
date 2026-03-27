@@ -806,7 +806,7 @@ export default function ResultsPage() {
       if (startResult.status === 'READY') {
         await supabase.from('crawl_sessions').update({ ssllabs_data: startResult } as any).eq('id', session.id);
         clearError('ssllabs');
-        fetchData();
+        updateSession({ ssllabs_data: startResult } as any);
         setSsllabsLoading(false);
         ssllabsPollingRef.current = false;
         return;
@@ -829,7 +829,7 @@ export default function ResultsPage() {
         if (pollResult.status === 'READY') {
           await supabase.from('crawl_sessions').update({ ssllabs_data: pollResult } as any).eq('id', session.id);
           clearError('ssllabs');
-          fetchData();
+          updateSession({ ssllabs_data: pollResult } as any);
           setSsllabsLoading(false);
           ssllabsPollingRef.current = false;
           return;
@@ -879,11 +879,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ httpstatus_data: result } as any).eq('id', session.id);
         clearError('httpstatus');
-        fetchData();
+        updateSession({ httpstatus_data: result } as any);
       } else { const msg = result.error || 'httpstatus.io returned an error'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); }
       setHttpstatusLoading(false);
     }).catch((e) => { const msg = e?.message || 'httpstatus.io request failed'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); setHttpstatusLoading(false); });
-  }, [session, httpstatusLoading, httpstatusFailed, fetchData, pauseVersion]);
+  }, [session, httpstatusLoading, httpstatusFailed, pauseVersion]);
   // W3C HTML/CSS Validation
   const [w3cLoading, setW3cLoading] = useState(false);
   const [w3cFailed, setW3cFailed] = useState(false);
@@ -896,11 +896,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ w3c_data: result } as any).eq('id', session.id);
         clearError('w3c');
-        fetchData();
+        updateSession({ w3c_data: result } as any);
       } else { const msg = result.error || 'W3C validation failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); }
       setW3cLoading(false);
     }).catch((e) => { const msg = e?.message || 'W3C validation request failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); setW3cLoading(false); });
-  }, [session, w3cLoading, w3cFailed, fetchData, pauseVersion]);
+  }, [session, w3cLoading, w3cFailed, pauseVersion]);
   // Schema.org / Rich Results
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaFailed, setSchemaFailed] = useState(false);
@@ -913,11 +913,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ schema_data: result } as any).eq('id', session.id);
         clearError('schema');
-        fetchData();
+        updateSession({ schema_data: result } as any);
       } else { const msg = result.error || 'Schema validation failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); }
       setSchemaLoading(false);
     }).catch((e) => { const msg = e?.message || 'Schema validation request failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); setSchemaLoading(false); });
-  }, [session, schemaLoading, schemaFailed, fetchData, pauseVersion]);
+  }, [session, schemaLoading, schemaFailed, pauseVersion]);
   // Readable.com
   const [readableLoading, setReadableLoading] = useState(false);
   const [readableFailed, setReadableFailed] = useState(false);
@@ -930,11 +930,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ readable_data: result } as any).eq('id', session.id);
         clearError('readable');
-        fetchData();
+        updateSession({ readable_data: result } as any);
       } else { const msg = result.error || 'Readable.com returned an error'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); }
       setReadableLoading(false);
     }).catch((e) => { const msg = e?.message || 'Readable.com request failed'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); setReadableLoading(false); });
-  }, [session, readableLoading, readableFailed, fetchData, pauseVersion]);
+  }, [session, readableLoading, readableFailed, pauseVersion]);
   // Yellow Lab Tools (client-side polling like SSL Labs)
   const [yellowlabLoading, setYellowlabLoading] = useState(false);
   const [yellowlabFailed, setYellowlabFailed] = useState(false);
@@ -971,9 +971,10 @@ export default function ResultsPage() {
             return;
           }
           if (pollResult.status === 'complete') {
-            await supabase.from('crawl_sessions').update({ yellowlab_data: { globalScore: pollResult.globalScore, runId, categories: pollResult.categories } } as any).eq('id', session.id);
+            const saved = { globalScore: pollResult.globalScore, runId, categories: pollResult.categories };
+            await supabase.from('crawl_sessions').update({ yellowlab_data: saved } as any).eq('id', session.id);
             clearError('yellowlab');
-            fetchData();
+            updateSession({ yellowlab_data: saved } as any);
             setYellowlabLoading(false);
             return;
           }
@@ -999,7 +1000,7 @@ export default function ResultsPage() {
         setYellowlabLoading(false);
       }
     })();
-  }, [session, yellowlabLoading, yellowlabFailed, fetchData, pauseVersion]);
+  }, [session, yellowlabLoading, yellowlabFailed, pauseVersion]);
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
