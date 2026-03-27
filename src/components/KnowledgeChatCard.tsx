@@ -1849,25 +1849,39 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     setIsThinking(false);
   }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth]);
 
-  // ── Handle pending prompt from Prompts tab ──
+  // ── Handle pending prompt from Prompts tab — always start a new chat ──
   useEffect(() => {
-    if (!pendingPrompt || !activeThreadId || loadingHistory || isStreaming) return;
+    if (!pendingPrompt || loadingHistory || isStreaming) return;
     const { text, deepResearch } = pendingPrompt;
     onPendingPromptConsumed?.();
 
-    if (deepResearch) {
-      setDeepResearchMode(true);
-      // Ensure Gemini is selected for deep research
-      if (provider !== 'gemini') {
-        onProviderChange('gemini');
+    // Always create a fresh thread for prompt library items
+    (async () => {
+      const { data: newThread } = await supabase
+        .from('chat_threads')
+        .insert({ session_id: session.id, title: 'New Chat' } as any)
+        .select('id')
+        .single();
+      if (!newThread) return;
+
+      loadedSessionRef.current = null;
+      setMessages([]);
+      setActiveThreadId(newThread.id);
+      setSidebarRefreshKey(k => k + 1);
+
+      if (deepResearch) {
+        setDeepResearchMode(true);
+        if (provider !== 'gemini') {
+          onProviderChange('gemini');
+        }
+        // Wait a tick for state to settle before sending
+        setTimeout(() => handleDeepResearchSend(text), 200);
+      } else {
+        setDeepResearchMode(false);
+        setTimeout(() => handleSend(text), 200);
       }
-      // Start deep research after a tick to allow state updates
-      setTimeout(() => handleDeepResearchSend(text), 100);
-    } else {
-      setDeepResearchMode(false);
-      setTimeout(() => handleSend(text), 100);
-    }
-  }, [pendingPrompt, activeThreadId, loadingHistory]);
+    })();
+  }, [pendingPrompt, loadingHistory]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
