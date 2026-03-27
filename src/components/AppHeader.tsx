@@ -101,6 +101,9 @@ export default function AppHeader() {
           <NavLink to="/integrations" className={linkBase} activeClassName={linkActive}>
             Integrations
           </NavLink>
+          <NavLink to="/connections" className={linkBase} activeClassName={linkActive}>
+            Connections
+          </NavLink>
           <NavLink to="/wishlist" className={linkBase} activeClassName={linkActive}>
             Wishlist
           </NavLink>
