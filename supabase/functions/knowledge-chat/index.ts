@@ -746,11 +746,95 @@ async function handleClaudeRequest(
   });
 }
 
+/**
+ * Tool definitions for live analytics queries
+ */
+const ANALYTICS_TOOLS = [
+  {
+    type: 'function' as const,
+    function: {
+      name: 'query_ga4',
+      description: 'Query Google Analytics 4 (GA4) for live data. Use this when the user asks for analytics metrics like sessions, users, pageviews, bounce rate, engagement, conversions, traffic sources, or page performance — especially for custom date ranges, year-over-year comparisons, or data not in the static audit snapshot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
+          endDate: { type: 'string', description: 'End date in YYYY-MM-DD format' },
+          metrics: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'GA4 metric names: sessions, totalUsers, newUsers, screenPageViews, bounceRate, averageSessionDuration, engagementRate, conversions, eventCount, userEngagementDuration',
+          },
+          dimensions: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Optional GA4 dimension names: date, pagePath, pageTitle, sessionDefaultChannelGroup, country, city, deviceCategory, browser, operatingSystem, landingPage',
+          },
+          limit: { type: 'number', description: 'Max rows to return (default 25, max 100)' },
+          orderBy: { type: 'string', description: 'Metric or dimension name to sort by' },
+          orderDesc: { type: 'boolean', description: 'Sort descending (default true for metrics)' },
+          compareStartDate: { type: 'string', description: 'Comparison period start date (YYYY-MM-DD) for year-over-year or period-over-period' },
+          compareEndDate: { type: 'string', description: 'Comparison period end date (YYYY-MM-DD)' },
+        },
+        required: ['startDate', 'endDate', 'metrics'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'query_search_console',
+      description: 'Query Google Search Console for live search performance data. Use this when the user asks for keyword rankings, search queries, CTR, impressions, clicks, or position data — especially for custom date ranges or filtered queries.',
+      parameters: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
+          endDate: { type: 'string', description: 'End date in YYYY-MM-DD format' },
+          dimensions: {
+            type: 'array',
+            items: { type: 'string', enum: ['query', 'page', 'country', 'device', 'date', 'searchAppearance'] },
+            description: 'Dimensions to break down by (default: query)',
+          },
+          limit: { type: 'number', description: 'Max rows (default 25, max 100)' },
+        },
+        required: ['startDate', 'endDate'],
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
+/**
+ * Execute an analytics tool call by invoking the analytics-query edge function
+ */
+async function executeAnalyticsTool(toolName: string, params: any): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/analytics-query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ tool: toolName, params }),
+    });
+
+    const result = await response.json();
+    return JSON.stringify(result, null, 2);
+  } catch (e) {
+    return JSON.stringify({ error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}` });
+  }
+}
+
 async function handleGatewayRequest(
   model: string,
   messages: any[],
   systemPrompt: string,
   reasoning: string | undefined,
+  enableTools = false,
 ): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
@@ -764,27 +848,33 @@ async function handleGatewayRequest(
   const ALLOWED_REASONING = ['low', 'medium', 'high', 'xhigh'];
   const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
 
-  const requestBody: any = {
-    model: selectedModel,
-    max_tokens: 65536,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...messages,
-    ],
-    stream: true,
+  const buildRequestBody = (msgs: any[], includeTools: boolean): any => {
+    const body: any = {
+      model: selectedModel,
+      max_tokens: 65536,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...msgs,
+      ],
+      stream: true,
+    };
+    if (selectedReasoning) {
+      body.reasoning = { effort: selectedReasoning };
+    }
+    if (includeTools) {
+      body.tools = ANALYTICS_TOOLS;
+    }
+    return body;
   };
 
-  if (selectedReasoning) {
-    requestBody.reasoning = { effort: selectedReasoning };
-  }
-
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  // First request — with tools if enabled
+  let response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify(buildRequestBody(messages, enableTools)),
   });
 
   if (!response.ok) {
@@ -806,6 +896,82 @@ async function handleGatewayRequest(
       JSON.stringify({ error: `AI gateway error (${response.status})` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+  }
+
+  // If tools are enabled, we need to check for tool calls (non-streaming first pass)
+  if (enableTools) {
+    // Do a non-streaming request to check for tool calls
+    const nonStreamBody = buildRequestBody(messages, true);
+    nonStreamBody.stream = false;
+
+    const checkResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(nonStreamBody),
+    });
+
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json();
+      const choice = checkData.choices?.[0];
+
+      if (choice?.finish_reason === 'tool_calls' && choice?.message?.tool_calls?.length > 0) {
+        console.log(`[knowledge-chat] Tool calls detected: ${choice.message.tool_calls.map((tc: any) => tc.function.name).join(', ')}`);
+
+        // Execute all tool calls in parallel
+        const toolResults = await Promise.all(
+          choice.message.tool_calls.map(async (tc: any) => {
+            const args = JSON.parse(tc.function.arguments);
+            console.log(`[knowledge-chat] Executing tool: ${tc.function.name}`, JSON.stringify(args));
+            const result = await executeAnalyticsTool(tc.function.name, args);
+            return {
+              role: 'tool' as const,
+              tool_call_id: tc.id,
+              content: result,
+            };
+          })
+        );
+
+        // Build final messages with tool results, stream the final response
+        const finalMessages = [
+          ...messages,
+          choice.message, // assistant message with tool_calls
+          ...toolResults,
+        ];
+
+        const finalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(buildRequestBody(finalMessages, false)),
+        });
+
+        if (!finalResponse.ok) {
+          const errText = await finalResponse.text();
+          console.error('AI gateway final response error:', finalResponse.status, errText);
+          return new Response(
+            JSON.stringify({ error: `AI gateway error (${finalResponse.status})` }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return new Response(finalResponse.body, {
+          headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+        });
+      }
+
+      // No tool calls — re-do as streaming
+      // (We already have the non-streaming response, convert it to SSE format)
+      const content = choice?.message?.content || '';
+      const sseChunk = `data: ${JSON.stringify({ choices: [{ delta: { content }, index: 0 }] })}\n\ndata: [DONE]\n\n`;
+      return new Response(sseChunk, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+      });
+    }
   }
 
   return new Response(response.body, {
