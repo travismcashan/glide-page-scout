@@ -91,7 +91,8 @@ serve(async (req) => {
     // If client provided a specific propertyId, use it directly
     let propertyId: string | null = requestedPropertyId?.replace('properties/', '') || null;
     let propertyName: string = '';
-
+    // Auto-detect if no propertyId provided
+    if (!propertyId) {
     console.log(`[ga4] Auto-detecting GA4 property for domain: ${domain}`);
     const accountsRes = await fetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries', {
       headers: { Authorization: `Bearer ${accessToken}` },
