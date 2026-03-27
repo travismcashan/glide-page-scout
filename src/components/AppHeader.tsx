@@ -94,7 +94,7 @@ export default function AppHeader() {
         <nav className="flex items-center gap-1">
           <button
             onClick={() => navigate('/history')}
-            className={cn(linkBase, (location.pathname === '/history' || location.pathname.startsWith('/sites/') || location.pathname === '/') && linkActive)}
+            className={cn(linkBase, (location.pathname === '/history' || location.pathname.startsWith('/sites/')) && linkActive)}
           >
             History
           </button>
