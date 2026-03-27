@@ -555,8 +555,12 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
 
   let ingestedCount = 0;
 
-  for (const screenshot of newScreenshots) {
+  for (let i = 0; i < newScreenshots.length; i++) {
+    const screenshot = newScreenshots[i];
     try {
+      // Rate-limit: wait 3s between calls (skip first)
+      if (i > 0) await new Promise(r => setTimeout(r, 3000));
+
       // Caption one screenshot at a time
       const captionRes = await fetch(CAPTION_URL, {
         method: 'POST',
@@ -614,7 +618,7 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
         const result = await ingestRes.json();
         if (result.results?.[0]?.status === 'ready') {
           ingestedCount++;
-          console.log(`[screenshot-ingest] ✓ ${docName}`);
+          console.log(`[screenshot-ingest] ✓ (${ingestedCount}/${newScreenshots.length}) ${docName}`);
         }
       }
     } catch (err) {

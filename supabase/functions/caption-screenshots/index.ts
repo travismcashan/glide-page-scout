@@ -27,18 +27,27 @@ serve(async (req) => {
 
     console.log(`[caption-screenshots] Captioning: ${page_url}`);
 
-    const prompt = `You are a web design analyst. Describe this screenshot of the page "${page_url}" in detail for a knowledge base. Include:
-- Overall layout and structure
-- Key visual elements (hero sections, CTAs, navigation, images, forms)
-- Color scheme and typography observations
-- Content hierarchy and messaging
-- Any notable design patterns or UI components
+    // Fetch image and convert to base64 (Gemini doesn't support arbitrary HTTP URLs via file_data)
+    const imgRes = await fetch(screenshot_url);
+    if (!imgRes.ok) {
+      console.error(`[caption-screenshots] Failed to fetch image: ${imgRes.status}`);
+      return new Response(JSON.stringify({ caption: null, error: 'Failed to fetch image' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-Be thorough but concise. Write 3-6 paragraphs.`;
+    const buf = await imgRes.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    const mimeType = imgRes.headers.get('content-type')?.split(';')[0] || 'image/png';
 
-    // Use Gemini with fileUri-style URL reference (no base64 needed)
+    const prompt = `Describe this screenshot of the web page "${page_url}" for a knowledge base. Cover: layout, visual elements (hero, CTAs, nav, images, forms), colors, typography, content hierarchy, and notable UI patterns. Be thorough but concise, 2-4 paragraphs.`;
+
+    // Use flash-lite for speed and lower rate limits
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,66 +55,26 @@ Be thorough but concise. Write 3-6 paragraphs.`;
           contents: [{
             parts: [
               { text: prompt },
-              { file_data: { mime_type: 'image/png', file_uri: screenshot_url } },
+              { inline_data: { mime_type: mimeType, data: base64 } },
             ],
           }],
-          generationConfig: { maxOutputTokens: 2000 },
+          generationConfig: { maxOutputTokens: 1000 },
         }),
       }
     );
 
-    // If file_data with URL doesn't work, fall back to inline_data with fetch
     if (!response.ok) {
       const errText = await response.text();
-      console.log(`[caption-screenshots] file_data failed (${response.status}), trying inline_data fallback`);
-
-      // Fetch the image and convert to base64
-      const imgRes = await fetch(screenshot_url);
-      if (!imgRes.ok) {
-        return new Response(JSON.stringify({ caption: null, error: 'Failed to fetch image' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      const buf = await imgRes.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      const base64 = btoa(binary);
-
-      const fallbackRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: prompt },
-                { inline_data: { mime_type: 'image/png', data: base64 } },
-              ],
-            }],
-            generationConfig: { maxOutputTokens: 2000 },
-          }),
-        }
-      );
-
-      if (!fallbackRes.ok) {
-        const fallbackErr = await fallbackRes.text();
-        console.error(`[caption-screenshots] Fallback also failed: ${fallbackErr}`);
-        return new Response(JSON.stringify({ caption: null, error: 'AI captioning failed' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const fallbackData = await fallbackRes.json();
-      const caption = fallbackData.candidates?.[0]?.content?.parts?.[0]?.text || null;
-      return new Response(JSON.stringify({ caption }), {
+      console.error(`[caption-screenshots] Gemini error ${response.status}: ${errText.slice(0, 200)}`);
+      return new Response(JSON.stringify({ caption: null, error: `Gemini ${response.status}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const data = await response.json();
     const caption = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+
+    console.log(`[caption-screenshots] ✓ ${page_url} (${caption?.length || 0} chars)`);
 
     return new Response(JSON.stringify({ caption }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
