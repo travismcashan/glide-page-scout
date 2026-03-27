@@ -351,7 +351,7 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
 
       {/* Medium view dialog */}
       <Dialog open={!!selectedShot && !fullscreen} onOpenChange={(open) => { if (!open) setSelectedShot(null); }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 gap-0">
+        <DialogContent className="max-w-[90vw] w-full max-h-[90vh] overflow-y-auto p-0 gap-0">
           {selectedShot && (
             <>
               <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
