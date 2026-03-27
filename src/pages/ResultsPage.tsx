@@ -358,6 +358,11 @@ export default function ResultsPage() {
     setLoading(false);
   }, [sessionId]);
 
+  // Direct session state merge — avoids re-fetching the entire row from DB
+  const updateSession = useCallback((partial: Partial<CrawlSession>) => {
+    setSession(prev => prev ? { ...prev, ...partial } : prev);
+  }, []);
+
   useEffect(() => {
     loadPausedIntegrations().catch(() => undefined).finally(() => {
       fetchData();
@@ -394,9 +399,10 @@ export default function ResultsPage() {
     builtwithApi.lookup(session.domain).then(async (result) => {
       if (result.credits) setBuiltwithCredits(result.credits);
       if (result.success && result.grouped) {
-        await supabase.from('crawl_sessions').update({ builtwith_data: { grouped: result.grouped, totalCount: result.totalCount } } as any).eq('id', session.id);
+        const saved = { grouped: result.grouped, totalCount: result.totalCount };
+        await supabase.from('crawl_sessions').update({ builtwith_data: saved } as any).eq('id', session.id);
         clearError('builtwith');
-        fetchData();
+        updateSession({ builtwith_data: saved } as any);
       } else {
         setBuiltwithFailed(true);
         const msg = result.error || 'BuiltWith API returned an error';
@@ -405,7 +411,7 @@ export default function ResultsPage() {
       }
       setBuiltwithLoading(false);
     }).catch((e) => { const msg = e?.message || 'BuiltWith request failed'; setBuiltwithFailed(true); setError('builtwith', msg); persistFailure('builtwith_data', msg); setBuiltwithLoading(false); });
-  }, [session, builtwithLoading, builtwithFailed, fetchData, pauseVersion]);
+  }, [session, builtwithLoading, builtwithFailed, pauseVersion]);
   // SEMrush
   const [semrushFailed, setSemrushFailed] = useState(false);
   useEffect(() => {
@@ -415,9 +421,10 @@ export default function ResultsPage() {
     setSemrushLoading(true);
     semrushApi.domainOverview(session.domain).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ semrush_data: { overview: result.overview, organicKeywords: result.organicKeywords, backlinks: result.backlinks } } as any).eq('id', session.id);
+        const saved = { overview: result.overview, organicKeywords: result.organicKeywords, backlinks: result.backlinks };
+        await supabase.from('crawl_sessions').update({ semrush_data: saved } as any).eq('id', session.id);
         clearError('semrush');
-        fetchData();
+        updateSession({ semrush_data: saved } as any);
       } else {
         setSemrushFailed(true);
         const msg = result.error || 'SEMrush API returned an error';
@@ -426,7 +433,7 @@ export default function ResultsPage() {
       }
       setSemrushLoading(false);
     }).catch((e) => { const msg = e?.message || 'SEMrush request failed'; setSemrushFailed(true); setError('semrush', msg); persistFailure('semrush_data', msg); setSemrushLoading(false); });
-  }, [session, semrushLoading, semrushFailed, fetchData, pauseVersion]);
+  }, [session, semrushLoading, semrushFailed, pauseVersion]);
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
@@ -436,13 +443,14 @@ export default function ResultsPage() {
     setPsiLoading(true);
     pagespeedApi.analyze(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ psi_data: { mobile: result.mobile, desktop: result.desktop } } as any).eq('id', session.id);
+        const saved = { mobile: result.mobile, desktop: result.desktop };
+        await supabase.from('crawl_sessions').update({ psi_data: saved } as any).eq('id', session.id);
         clearError('psi');
-        fetchData();
+        updateSession({ psi_data: saved } as any);
       } else { const msg = result.error || 'PageSpeed Insights returned an error'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); }
       setPsiLoading(false);
     }).catch((e) => { const msg = e?.message || 'PageSpeed request failed'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); setPsiLoading(false); });
-  }, [session, psiLoading, psiFailed, fetchData, pauseVersion]);
+  }, [session, psiLoading, psiFailed, pauseVersion]);
   // Wappalyzer
   const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
   useEffect(() => {
@@ -452,13 +460,14 @@ export default function ResultsPage() {
     setWappalyzerLoading(true);
     wappalyzerApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ wappalyzer_data: { grouped: result.grouped, totalCount: result.totalCount, social: result.social } } as any).eq('id', session.id);
+        const saved = { grouped: result.grouped, totalCount: result.totalCount, social: result.social };
+        await supabase.from('crawl_sessions').update({ wappalyzer_data: saved } as any).eq('id', session.id);
         clearError('wappalyzer');
-        fetchData();
+        updateSession({ wappalyzer_data: saved } as any);
       } else { const msg = result.error || 'Wappalyzer returned an error'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); }
       setWappalyzerLoading(false);
     }).catch((e) => { const msg = e?.message || 'Wappalyzer request failed'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); setWappalyzerLoading(false); });
-  }, [session, wappalyzerLoading, wappalyzerFailed, fetchData, pauseVersion]);
+  }, [session, wappalyzerLoading, wappalyzerFailed, pauseVersion]);
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
@@ -468,13 +477,14 @@ export default function ResultsPage() {
     setDetectzestackLoading(true);
     detectzestackApi.lookup(session.domain).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ detectzestack_data: { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth } } as any).eq('id', session.id);
+        const saved = { grouped: result.grouped, totalCount: result.totalCount, scanDepth: result.scanDepth };
+        await supabase.from('crawl_sessions').update({ detectzestack_data: saved } as any).eq('id', session.id);
         clearError('detectzestack');
-        fetchData();
+        updateSession({ detectzestack_data: saved } as any);
       } else { const msg = result.error || 'DetectZeStack returned an error'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); }
       setDetectzestackLoading(false);
     }).catch((e) => { const msg = e?.message || 'DetectZeStack request failed'; setDetectzestackFailed(true); setError('detectzestack', msg); persistFailure('detectzestack_data', msg); setDetectzestackLoading(false); });
-  }, [session, detectzestackLoading, detectzestackFailed, fetchData, pauseVersion]);
+  }, [session, detectzestackLoading, detectzestackFailed, pauseVersion]);
   // AI Tech Analysis — runs after at least one tech source has data
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
@@ -529,11 +539,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ gtmetrix_grade: result.grade, gtmetrix_scores: result.scores, gtmetrix_test_id: result.testId } as any).eq('id', session.id);
         clearError('gtmetrix');
-        fetchData();
+        updateSession({ gtmetrix_grade: result.grade, gtmetrix_scores: result.scores, gtmetrix_test_id: result.testId } as any);
       } else { const msg = result.error || 'GTmetrix returned an error'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); }
       setRunningGtmetrix(false);
     }).catch((e) => { const msg = e?.message || 'GTmetrix request failed'; setGtmetrixFailed(true); setError('gtmetrix', msg); persistFailure('gtmetrix_scores', msg); setRunningGtmetrix(false); });
-  }, [session, runningGtmetrix, gtmetrixFailed, fetchData, pauseVersion]);
+  }, [session, runningGtmetrix, gtmetrixFailed, pauseVersion]);
   // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
@@ -543,13 +553,14 @@ export default function ResultsPage() {
     setCarbonLoading(true);
     websiteCarbonApi.check(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ carbon_data: { green: result.green, bytes: result.bytes, cleanerThan: result.cleanerThan, statistics: result.statistics, rating: result.rating } } as any).eq('id', session.id);
+        const saved = { green: result.green, bytes: result.bytes, cleanerThan: result.cleanerThan, statistics: result.statistics, rating: result.rating };
+        await supabase.from('crawl_sessions').update({ carbon_data: saved } as any).eq('id', session.id);
         clearError('carbon');
-        fetchData();
+        updateSession({ carbon_data: saved } as any);
       } else { const msg = result.error || 'Website Carbon returned an error'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); }
       setCarbonLoading(false);
     }).catch((e) => { const msg = e?.message || 'Website Carbon request failed'; setCarbonFailed(true); setError('carbon', msg); persistFailure('carbon_data', msg); setCarbonLoading(false); });
-  }, [session, carbonLoading, carbonFailed, fetchData, pauseVersion]);
+  }, [session, carbonLoading, carbonFailed, pauseVersion]);
   // CrUX
   const [cruxFailed, setCruxFailed] = useState(false);
   const [cruxNoData, setCruxNoData] = useState(false);
@@ -560,16 +571,17 @@ export default function ResultsPage() {
     setCruxLoading(true);
     cruxApi.lookup(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ crux_data: { overall: result.overall, phone: result.phone, desktop: result.desktop, collectionPeriod: result.collectionPeriod } } as any).eq('id', session.id);
+        const saved = { overall: result.overall, phone: result.phone, desktop: result.desktop, collectionPeriod: result.collectionPeriod };
+        await supabase.from('crawl_sessions').update({ crux_data: saved } as any).eq('id', session.id);
         clearError('crux');
-        fetchData();
+        updateSession({ crux_data: saved } as any);
       } else if (result.noData) {
         setCruxNoData(true);
         persistFailure('crux_data', 'No CrUX data available for this site');
       } else { const msg = result.error || 'CrUX returned an error'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); }
       setCruxLoading(false);
     }).catch((e) => { const msg = e?.message || 'CrUX request failed'; setCruxFailed(true); setError('crux', msg); persistFailure('crux_data', msg); setCruxLoading(false); });
-  }, [session, cruxLoading, cruxFailed, cruxNoData, fetchData, pauseVersion]);
+  }, [session, cruxLoading, cruxFailed, cruxNoData, pauseVersion]);
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
   useEffect(() => {
@@ -579,13 +591,14 @@ export default function ResultsPage() {
     setWaveLoading(true);
     waveApi.scan(session.base_url).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ wave_data: { summary: result.summary, items: result.items, waveUrl: result.waveUrl, creditsRemaining: result.creditsRemaining, pageTitle: result.pageTitle } } as any).eq('id', session.id);
+        const saved = { summary: result.summary, items: result.items, waveUrl: result.waveUrl, creditsRemaining: result.creditsRemaining, pageTitle: result.pageTitle };
+        await supabase.from('crawl_sessions').update({ wave_data: saved } as any).eq('id', session.id);
         clearError('wave');
-        fetchData();
+        updateSession({ wave_data: saved } as any);
       } else { const msg = result.error || 'WAVE returned an error'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); }
       setWaveLoading(false);
     }).catch((e) => { const msg = e?.message || 'WAVE request failed'; setWaveFailed(true); setError('wave', msg); persistFailure('wave_data', msg); setWaveLoading(false); });
-  }, [session, waveLoading, waveFailed, fetchData, pauseVersion]);
+  }, [session, waveLoading, waveFailed, pauseVersion]);
   // Mozilla Observatory
   const [observatoryFailed, setObservatoryFailed] = useState(false);
   useEffect(() => {
@@ -595,13 +608,14 @@ export default function ResultsPage() {
     setObservatoryLoading(true);
     observatoryApi.scan(session.domain).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ observatory_data: { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests, rawHeaders: result.rawHeaders || null, cspRaw: result.cspRaw || null, cspDirectives: result.cspDirectives || null, cookies: result.cookies || null } } as any).eq('id', session.id);
+        const saved = { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests, rawHeaders: result.rawHeaders || null, cspRaw: result.cspRaw || null, cspDirectives: result.cspDirectives || null, cookies: result.cookies || null };
+        await supabase.from('crawl_sessions').update({ observatory_data: saved } as any).eq('id', session.id);
         clearError('observatory');
-        fetchData();
+        updateSession({ observatory_data: saved } as any);
       } else { const msg = result.error || 'Observatory returned an error'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); }
       setObservatoryLoading(false);
     }).catch((e) => { const msg = e?.message || 'Observatory request failed'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); setObservatoryLoading(false); });
-  }, [session, observatoryLoading, observatoryFailed, fetchData, pauseVersion]);
+  }, [session, observatoryLoading, observatoryFailed, pauseVersion]);
   // Ocean.io
   const [oceanLoading, setOceanLoading] = useState(false);
   const [oceanFailed, setOceanFailed] = useState(false);
@@ -615,11 +629,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
         clearError('ocean');
-        fetchData();
+        updateSession({ ocean_data: result } as any);
       } else { const msg = result.error || 'Ocean.io returned an error'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); }
       setOceanLoading(false);
     }).catch((e) => { const msg = e?.message || 'Ocean.io request failed'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); setOceanLoading(false); });
-  }, [session, oceanLoading, oceanFailed, fetchData, pauseVersion]);
+  }, [session, oceanLoading, oceanFailed, pauseVersion]);
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
   const [avomaFailed, setAvomaFailed] = useState(false);
@@ -638,11 +652,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
-        fetchData();
+        updateSession({ avoma_data: result } as any);
       } else { const msg = result.error || 'Avoma returned an error'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); }
       setAvomaLoading(false);
     }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); });
-  }, [session, avomaLoading, avomaFailed, fetchData, pauseVersion]);
+  }, [session, avomaLoading, avomaFailed, pauseVersion]);
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
   const [hubspotFailed, setHubspotFailed] = useState(false);
@@ -656,11 +670,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
-        fetchData();
+        updateSession({ hubspot_data: result } as any);
       } else { const msg = result.error || 'HubSpot returned an error'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); }
       setHubspotLoading(false);
     }).catch((e) => { const msg = e?.message || 'HubSpot request failed'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); setHubspotLoading(false); });
-  }, [session, hubspotLoading, hubspotFailed, fetchData, pauseVersion]);
+  }, [session, hubspotLoading, hubspotFailed, pauseVersion]);
   // Apollo.io contact enrichment (manual search, persisted)
   const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
   const [apolloLoading, setApolloLoading] = useState(false);
@@ -792,7 +806,7 @@ export default function ResultsPage() {
       if (startResult.status === 'READY') {
         await supabase.from('crawl_sessions').update({ ssllabs_data: startResult } as any).eq('id', session.id);
         clearError('ssllabs');
-        fetchData();
+        updateSession({ ssllabs_data: startResult } as any);
         setSsllabsLoading(false);
         ssllabsPollingRef.current = false;
         return;
@@ -815,7 +829,7 @@ export default function ResultsPage() {
         if (pollResult.status === 'READY') {
           await supabase.from('crawl_sessions').update({ ssllabs_data: pollResult } as any).eq('id', session.id);
           clearError('ssllabs');
-          fetchData();
+          updateSession({ ssllabs_data: pollResult } as any);
           setSsllabsLoading(false);
           ssllabsPollingRef.current = false;
           return;
@@ -851,7 +865,7 @@ export default function ResultsPage() {
       setSsllabsLoading(false);
       ssllabsPollingRef.current = false;
     }
-  }, [session, fetchData]);
+  }, [session]);
 
   // httpstatus.io
   const [httpstatusLoading, setHttpstatusLoading] = useState(false);
@@ -865,11 +879,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ httpstatus_data: result } as any).eq('id', session.id);
         clearError('httpstatus');
-        fetchData();
+        updateSession({ httpstatus_data: result } as any);
       } else { const msg = result.error || 'httpstatus.io returned an error'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); }
       setHttpstatusLoading(false);
     }).catch((e) => { const msg = e?.message || 'httpstatus.io request failed'; setHttpstatusFailed(true); setError('httpstatus', msg); persistFailure('httpstatus_data', msg); setHttpstatusLoading(false); });
-  }, [session, httpstatusLoading, httpstatusFailed, fetchData, pauseVersion]);
+  }, [session, httpstatusLoading, httpstatusFailed, pauseVersion]);
   // W3C HTML/CSS Validation
   const [w3cLoading, setW3cLoading] = useState(false);
   const [w3cFailed, setW3cFailed] = useState(false);
@@ -882,11 +896,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ w3c_data: result } as any).eq('id', session.id);
         clearError('w3c');
-        fetchData();
+        updateSession({ w3c_data: result } as any);
       } else { const msg = result.error || 'W3C validation failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); }
       setW3cLoading(false);
     }).catch((e) => { const msg = e?.message || 'W3C validation request failed'; setW3cFailed(true); setError('w3c', msg); persistFailure('w3c_data', msg); setW3cLoading(false); });
-  }, [session, w3cLoading, w3cFailed, fetchData, pauseVersion]);
+  }, [session, w3cLoading, w3cFailed, pauseVersion]);
   // Schema.org / Rich Results
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaFailed, setSchemaFailed] = useState(false);
@@ -899,11 +913,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ schema_data: result } as any).eq('id', session.id);
         clearError('schema');
-        fetchData();
+        updateSession({ schema_data: result } as any);
       } else { const msg = result.error || 'Schema validation failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); }
       setSchemaLoading(false);
     }).catch((e) => { const msg = e?.message || 'Schema validation request failed'; setSchemaFailed(true); setError('schema', msg); persistFailure('schema_data', msg); setSchemaLoading(false); });
-  }, [session, schemaLoading, schemaFailed, fetchData, pauseVersion]);
+  }, [session, schemaLoading, schemaFailed, pauseVersion]);
   // Readable.com
   const [readableLoading, setReadableLoading] = useState(false);
   const [readableFailed, setReadableFailed] = useState(false);
@@ -916,11 +930,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ readable_data: result } as any).eq('id', session.id);
         clearError('readable');
-        fetchData();
+        updateSession({ readable_data: result } as any);
       } else { const msg = result.error || 'Readable.com returned an error'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); }
       setReadableLoading(false);
     }).catch((e) => { const msg = e?.message || 'Readable.com request failed'; setReadableFailed(true); setError('readable', msg); persistFailure('readable_data', msg); setReadableLoading(false); });
-  }, [session, readableLoading, readableFailed, fetchData, pauseVersion]);
+  }, [session, readableLoading, readableFailed, pauseVersion]);
   // Yellow Lab Tools (client-side polling like SSL Labs)
   const [yellowlabLoading, setYellowlabLoading] = useState(false);
   const [yellowlabFailed, setYellowlabFailed] = useState(false);
@@ -957,9 +971,10 @@ export default function ResultsPage() {
             return;
           }
           if (pollResult.status === 'complete') {
-            await supabase.from('crawl_sessions').update({ yellowlab_data: { globalScore: pollResult.globalScore, runId, categories: pollResult.categories } } as any).eq('id', session.id);
+            const saved = { globalScore: pollResult.globalScore, runId, categories: pollResult.categories };
+            await supabase.from('crawl_sessions').update({ yellowlab_data: saved } as any).eq('id', session.id);
             clearError('yellowlab');
-            fetchData();
+            updateSession({ yellowlab_data: saved } as any);
             setYellowlabLoading(false);
             return;
           }
@@ -985,7 +1000,7 @@ export default function ResultsPage() {
         setYellowlabLoading(false);
       }
     })();
-  }, [session, yellowlabLoading, yellowlabFailed, fetchData, pauseVersion]);
+  }, [session, yellowlabLoading, yellowlabFailed, pauseVersion]);
   // Broken Link Checker
   const [linkcheckLoading, setLinkcheckLoading] = useState(false);
   const [linkcheckFailed, setLinkcheckFailed] = useState(false);
@@ -1020,14 +1035,14 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ linkcheck_data: result } as any).eq('id', session.id);
         clearError('link-checker');
         setLinkcheckStreamingResults(null);
-        await fetchData();
+        updateSession({ linkcheck_data: result } as any);
       } else { const msg = result.error || 'Link checker returned an error'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
       linkcheckAbortRef.current = null;
     }).catch((e) => { const msg = e?.message || 'Link checker request failed'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
-  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
+  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, pauseVersion]);
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
   const [navFailed, setNavFailed] = useState(false);
@@ -1040,11 +1055,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ nav_structure: result } as any).eq('id', session.id);
         clearError('nav-structure');
-        fetchData();
+        updateSession({ nav_structure: result } as any);
       } else { const msg = result.error || 'Nav structure extraction failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); }
       setNavLoading(false);
     }).catch((e) => { const msg = e?.message || 'Nav structure request failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); setNavLoading(false); });
-  }, [session, navLoading, navFailed, fetchData, pauseVersion]);
+  }, [session, navLoading, navFailed, pauseVersion]);
   // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapFailed, setSitemapFailed] = useState(false);
@@ -1061,11 +1076,11 @@ export default function ResultsPage() {
         if (result.contentTypeHints?.length) {
           setSitemapHints(result.contentTypeHints);
         }
-        fetchData();
+        updateSession({ sitemap_data: result } as any);
       } else { const msg = result.error || 'Sitemap parsing failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); }
       setSitemapLoading(false);
     }).catch((e) => { const msg = e?.message || 'Sitemap parsing request failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); setSitemapLoading(false); });
-  }, [session, sitemapLoading, sitemapFailed, fetchData, pauseVersion]);
+  }, [session, sitemapLoading, sitemapFailed, pauseVersion]);
   // Hydrate sitemapHints from persisted sitemap_data on load
   useEffect(() => {
     if (session?.sitemap_data?.contentTypeHints?.length && sitemapHints.length === 0) {
@@ -1087,7 +1102,7 @@ export default function ResultsPage() {
       if (result.success && result.data) {
         await supabase.from('crawl_sessions').update({ forms_data: result.data } as any).eq('id', session.id);
         clearError('forms');
-        fetchData();
+        updateSession({ forms_data: result.data } as any);
         toast.success(`Found ${result.data.summary?.uniqueForms || 0} unique forms`);
       } else {
         setFormsFailed(true);
@@ -1103,7 +1118,7 @@ export default function ResultsPage() {
     } finally {
       setFormsLoading(false);
     }
-  }, [session, formsLoading, effectiveDiscoveredUrls, fetchData]);
+  }, [session, formsLoading, effectiveDiscoveredUrls]);
 
   const formsAutoRunRef = useRef(false);
 
@@ -1126,12 +1141,12 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
         clearError('content-types');
-        fetchData();
+        updateSession({ content_types_data: result } as any);
       } else { const msg = result.error || 'Content type classification failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); }
       setContentTypesLoading(false);
       setContentTypesProgress('');
     }).catch((e) => { const msg = e?.message || 'Content type classification request failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); setContentTypesLoading(false); setContentTypesProgress(''); });
-  }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
+  }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, pauseVersion]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
     if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
@@ -1235,7 +1250,7 @@ export default function ResultsPage() {
           if (industry) {
             console.log(`[auto-tag] Industry: ${industry} (${industryConfidence})`);
           }
-          fetchData();
+          updateSession({ page_tags: merged } as any);
         } else {
           // Fallback to pure pattern matching
           const ctData = (session as any).content_types_data;
@@ -1243,7 +1258,7 @@ export default function ResultsPage() {
           const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
           if (Object.keys(seeded).length > 0) {
             await supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id);
-            fetchData();
+            updateSession({ page_tags: seeded } as any);
           }
         }
       } catch (e) {
@@ -1253,7 +1268,7 @@ export default function ResultsPage() {
         const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
         if (Object.keys(seeded).length > 0) {
           await supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id);
-          fetchData();
+          updateSession({ page_tags: seeded } as any);
         }
       } finally {
         setAutoTagging(false);
@@ -1268,8 +1283,8 @@ export default function ResultsPage() {
     if (!session) return;
     const updated = setPageTemplate((session as any).page_tags, url, template);
     await supabase.from('crawl_sessions').update({ page_tags: updated } as any).eq('id', session.id);
-    fetchData();
-  }, [session, fetchData]);
+    updateSession({ page_tags: updated } as any);
+  }, [session]);
 
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
@@ -1277,9 +1292,7 @@ export default function ResultsPage() {
     const processPage = async (page: CrawlPage) => {
       setProcessingPages(prev => new Set([...prev, page.id]));
       try {
-        // Content scraping only — screenshots are a completely separate integration
         const scrapeResult = await firecrawlApi.scrape(page.url, { formats: ['markdown'] });
-
         const markdown = scrapeResult?.data?.markdown || (scrapeResult as any)?.markdown || '';
         const title = scrapeResult?.data?.metadata?.title || (scrapeResult as any)?.metadata?.title || page.url;
 
@@ -1289,33 +1302,36 @@ export default function ResultsPage() {
           status: markdown ? 'scraped' : 'error',
         }).eq('id', page.id);
 
-        // Generate outline independently — don't block on failure
+        // Update local pages state directly
+        setPages(prev => prev.map(p => p.id === page.id ? { ...p, raw_content: markdown || null, title, status: markdown ? 'scraped' : 'error' } : p));
+
+        // Generate outline independently
         if (markdown) {
           try {
             const outlineResult = await aiApi.generateOutline(markdown, title, page.url);
             if (outlineResult.success && outlineResult.outline) {
               await supabase.from('crawl_pages').update({ ai_outline: outlineResult.outline }).eq('id', page.id);
+              setPages(prev => prev.map(p => p.id === page.id ? { ...p, ai_outline: outlineResult.outline } : p));
             }
           } catch (e) { console.error('Outline generation failed for:', page.url, e); }
         }
-        fetchData();
       } catch (error) {
         console.error('Error processing page:', page.url, error);
         await supabase.from('crawl_pages').update({ status: 'error' }).eq('id', page.id);
-        fetchData();
+        setPages(prev => prev.map(p => p.id === page.id ? { ...p, status: 'error' } : p));
       }
     };
     pending.slice(0, 3).forEach(processPage);
-  }, [pages, processingPages, fetchData]);
+  }, [pages, processingPages]);
 
   // Mark session complete
   useEffect(() => {
     if (!session || session.status !== 'crawling') return;
     const allDone = pages.length > 0 && pages.every(p => p.status !== 'pending');
     if (allDone) {
-      supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => fetchData());
+      supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => updateSession({ status: 'completed' } as any));
     }
-  }, [pages, session, fetchData]);
+  }, [pages, session]);
 
   // ── Re-run helpers ──
   const rerunIntegration = useCallback(async (key: string, dbColumn: string) => {
@@ -1361,8 +1377,8 @@ export default function ResultsPage() {
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
-    fetchData();
-  }, [session, fetchData]);
+    updateSession({ [dbColumn]: null } as any);
+  }, [session]);
 
   const integrationList: { key: string; dbColumn: string }[] = [
     { key: 'sitemap', dbColumn: 'sitemap_data' },
@@ -1444,8 +1460,9 @@ export default function ResultsPage() {
     clearError('gtmetrix');
     setGtmetrixFailed(false);
     setRunningGtmetrix(false);
-    fetchData();
-  }, [session, fetchData]);
+    gtmetrixTriggeredRef.current = false;
+    updateSession({ gtmetrix_grade: null, gtmetrix_scores: null, gtmetrix_test_id: null } as any);
+  }, [session]);
 
   // Track loading → done transitions for timing
   const prevLoadingRef = useRef<Record<string, boolean>>({});
@@ -1572,7 +1589,7 @@ export default function ResultsPage() {
               await supabase.from('crawl_sessions').update({ ssllabs_data: null } as any).eq('id', session!.id);
               ssllabsPollingRef.current = false;
               setSsllabsFailed(false);
-              await fetchData();
+              updateSession({ ssllabs_data: null } as any);
               runSslLabsScan();
             }
             else { rerunIntegration(key, dbColumn); }
@@ -1628,7 +1645,7 @@ export default function ResultsPage() {
       const result = await aiApi.generateOutline(page.raw_content, page.title || undefined, page.url);
       if (result.success && result.outline) {
         await supabase.from('crawl_pages').update({ ai_outline: result.outline }).eq('id', page.id);
-        fetchData();
+        setPages(prev => prev.map(p => p.id === page.id ? { ...p, ai_outline: result.outline } : p));
         toast.success('Outline generated!');
       } else { toast.error(result.error || 'Failed to generate outline'); }
     } catch { toast.error('Failed to generate outline'); } finally {
@@ -1967,7 +1984,7 @@ export default function ResultsPage() {
                     linkcheckRunningRef.current = false;
                     setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
-                    fetchData();
+                    updateSession({ discovered_urls: urls, linkcheck_data: null } as any);
                   }}
                 />
               )}
@@ -2014,7 +2031,7 @@ export default function ResultsPage() {
               <SectionCard collapsed={allCollapsed} sectionId="content-types" persistedCollapsed={isSectionCollapsed("content-types")} onCollapseChange={toggleSection} title="Bulk Content (Posts & CPTs)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('content-types', 'content_types_data', contentTypesLoading)}{(session as any)?.content_types_data && innerExpandToggle(contentTypesInnerExpand, setContentTypesInnerExpand)}</div>} paused={isIntegrationPaused('content-types') && !(session as any)?.content_types_data} onTogglePause={() => handleTogglePause('content-types')}>
                 {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={isSharedView ? undefined : handlePageTagChange} globalInnerExpand={contentTypesInnerExpand} onDataChange={isSharedView ? undefined : async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
-                  fetchData();
+                  updateSession({ content_types_data: updated } as any);
                 }} /> : null}
               </SectionCard>
               )}
@@ -2051,7 +2068,7 @@ export default function ResultsPage() {
               {shouldShowIntegration('forms', !!(session as any)?.forms_data, showAllIntegrations) && (
               <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Analysis (Form Recommendations)" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)} paused={isIntegrationPaused('forms') && !(session as any)?.forms_data} onTogglePause={() => handleTogglePause('forms')}>
                 {(session as any)?.forms_data ? (
-                  <FormsCard data={(session as any).forms_data} domain={(session as any).domain} savedTiers={(session as any).forms_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { formsRerunFnRef.current = fn; }} />
+                  <FormsCard data={(session as any).forms_data} domain={(session as any).domain} savedTiers={(session as any).forms_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId!); updateSession({ forms_tiers: tiers } as any); }} onRerunRequest={(fn) => { formsRerunFnRef.current = fn; }} />
                 ) : !formsLoading && !isSharedView ? (
                   <div className="text-center py-4">
                     <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
@@ -2074,7 +2091,7 @@ export default function ResultsPage() {
               {session && (
               <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis (Recommended Layouts)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? rerunButton('templates', 'template_tiers', templatesRerunning) : undefined}>
                 {(session as any)?.page_tags ? (
-                  <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
+                  <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); updateSession({ template_tiers: tiers } as any); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
                 ) : null}
               </SectionCard>
               )}
@@ -2114,7 +2131,7 @@ export default function ResultsPage() {
                       setTechAnalysisFailed(false);
                       clearError('tech-analysis');
                       if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
-                      fetchData();
+                      updateSession({ tech_analysis_data: null } as any);
                     }} title="Run again">
                       <RefreshCw className={`h-3.5 w-3.5 ${techAnalysisLoading ? 'animate-spin' : ''}`} />
                     </Button>
@@ -2392,11 +2409,12 @@ export default function ResultsPage() {
                         if (result.success) {
                           await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
                           clearError('avoma');
-                          fetchData();
+                          updateSession({ avoma_data: result } as any);
                         } else {
                           setError('avoma', result.error || 'No results');
-                          await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
-                          fetchData();
+                          const noResultData = { ...result, domain, totalMatches: 0, meetings: [] };
+                          await supabase.from('crawl_sessions').update({ avoma_data: noResultData } as any).eq('id', session!.id);
+                          updateSession({ avoma_data: noResultData } as any);
                         }
                       } catch (e: any) {
                         setError('avoma', e?.message || 'Search failed');
@@ -2408,7 +2426,7 @@ export default function ResultsPage() {
                       if (!current) return;
                       const updated = { ...current, excludedMeetings: excludedUuids };
                       await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
-                      fetchData();
+                      updateSession({ avoma_data: updated } as any);
                     }}
                   /> : null}
                 </SectionCard>
