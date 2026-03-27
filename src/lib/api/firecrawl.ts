@@ -706,3 +706,23 @@ export const hubspotApi = {
     return data;
   },
 };
+
+export const ga4Api = {
+  async lookup(domain: string): Promise<any> {
+    const { data, error } = await supabase.functions.invoke('ga4-lookup', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
+
+export const searchConsoleApi = {
+  async lookup(domain: string): Promise<any> {
+    const { data, error } = await supabase.functions.invoke('search-console-lookup', {
+      body: { domain },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+};
