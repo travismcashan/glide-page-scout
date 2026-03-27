@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, CheckCircle, AlertTriangle, Clock, Globe, ChevronDown, ChevronUp, Server, FileText } from 'lucide-react';
+import { ArrowRight, CheckCircle, AlertTriangle, Clock, Globe, ChevronDown, ChevronUp, Server } from 'lucide-react';
 import { useState } from 'react';
 
 type TimingPhases = {
