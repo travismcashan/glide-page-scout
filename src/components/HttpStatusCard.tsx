@@ -245,7 +245,8 @@ export function HttpStatusCard({ data }: { data: HttpStatusData }) {
         })}
       </div>
 
-      {/* Page Metadata */}
+
+
       {pageMeta && (
         <div className="border-t border-border pt-4 space-y-2">
           <div className="flex items-center gap-1.5">
