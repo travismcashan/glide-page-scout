@@ -39,6 +39,74 @@ Deno.serve(async (req) => {
       return `https://api.apollo.io/api/v1/mixed_people/api_search?${sp.toString()}`;
     }
 
+    function mapEmploymentHistory(history: any[] = []) {
+      return history.map((eh: any) => ({
+        title: eh.title,
+        organizationName: eh.organization_name,
+        startDate: eh.start_date,
+        endDate: eh.end_date,
+        current: eh.current,
+        description: eh.description,
+        degree: eh.degree,
+        kind: eh.kind,
+      }));
+    }
+
+    function mapPerson(p: any) {
+      return {
+        id: p.id,
+        name: p.name,
+        firstName: p.first_name,
+        lastName: p.last_name,
+        title: p.title,
+        headline: p.headline,
+        photoUrl: p.photo_url,
+        email: p.email,
+        emailStatus: p.email_status,
+        linkedinUrl: p.linkedin_url,
+        city: p.city,
+        state: p.state,
+        country: p.country,
+        seniority: p.seniority,
+        departments: p.departments || [],
+        organizationName: p.organization?.name || p.organization_name || null,
+        organizationLogo: p.organization?.logo_url || null,
+        employmentHistory: mapEmploymentHistory(p.employment_history || []),
+      };
+    }
+
+    async function enrichPeopleById(ids: string[]) {
+      if (ids.length === 0) return new Map<string, any>();
+
+      const response = await fetch('https://api.apollo.io/api/v1/people/bulk_match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'X-Api-Key': apiKey,
+        },
+        body: JSON.stringify({
+          details: ids.slice(0, 10).map((id) => ({ id })),
+          reveal_personal_emails: false,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const rawText = await response.text();
+
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Apollo bulk_match returned non-JSON (${response.status})`);
+      }
+
+      const data = JSON.parse(rawText);
+      if (!response.ok) {
+        throw new Error(data?.message || `Apollo bulk_match returned ${response.status}`);
+      }
+
+      const people = data.people || data.contacts || data.matches || [];
+      return new Map<string, any>(people.map((p: any) => [p.id, p]));
+    }
+
     const searches = [
       {
         label: 'marketing',
@@ -78,38 +146,17 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const people = data.people || [];
-        console.log(`Apollo ${search.label}: found ${people.length} people`);
+        const searchPeople = data.people || [];
+        console.log(`Apollo ${search.label}: found ${searchPeople.length} people`);
 
-        results[search.label] = people.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          firstName: p.first_name,
-          lastName: p.last_name,
-          title: p.title,
-          headline: p.headline,
-          photoUrl: p.photo_url,
-          email: p.email,
-          emailStatus: p.email_status,
-          linkedinUrl: p.linkedin_url,
-          city: p.city,
-          state: p.state,
-          country: p.country,
-          seniority: p.seniority,
-          departments: p.departments || [],
-          organizationName: p.organization?.name || null,
-          organizationLogo: p.organization?.logo_url || null,
-          employmentHistory: (p.employment_history || []).map((eh: any) => ({
-            title: eh.title,
-            organizationName: eh.organization_name,
-            startDate: eh.start_date,
-            endDate: eh.end_date,
-            current: eh.current,
-            description: eh.description,
-            degree: eh.degree,
-            kind: eh.kind,
-          })),
-        }));
+        const enrichedMap = await enrichPeopleById(
+          searchPeople.map((p: any) => p.id).filter(Boolean)
+        ).catch((error) => {
+          console.error(`Apollo ${search.label} bulk enrich error:`, error);
+          return new Map<string, any>();
+        });
+
+        results[search.label] = searchPeople.map((p: any) => mapPerson(enrichedMap.get(p.id) || p));
       } catch (err) {
         console.error(`Apollo ${search.label} search error:`, err);
       }
