@@ -290,7 +290,7 @@ function AnimatedThinkingText({ label = 'Thinking' }: { label?: string }) {
     const interval = setInterval(() => setDotCount(d => (d + 1) % 4), 400);
     return () => clearInterval(interval);
   }, []);
-  return <span className="text-base font-bold">{label}{'.'.repeat(dotCount || 0)}</span>;
+  return <span className="text-base text-foreground">{label}{'.'.repeat(dotCount || 0)}</span>;
 }
 
 function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
@@ -303,11 +303,11 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         {isStreaming ? (
-          <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
+          <Loader2 className="flex-shrink-0 animate-spin text-foreground" style={{ width: 28, height: 28 }} />
         ) : (
           <Brain className="flex-shrink-0 text-muted-foreground" style={{ width: 28, height: 28 }} />
         )}
-        <span className="text-base font-bold">Show Thinking</span>
+        <span className="text-base text-foreground">Show Thinking</span>
         {expanded ? <ChevronDown className="h-5 w-5 -ml-1" strokeWidth={3} /> : <ChevronRight className="h-5 w-5 -ml-1" strokeWidth={3} />}
       </button>
       {expanded && (
@@ -350,11 +350,11 @@ function DeepResearchStepsBlock({ steps, sources, isStreaming }: { steps: string
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         {isStreaming ? (
-          <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 24, height: 24 }} />
+          <Loader2 className="flex-shrink-0 animate-spin text-foreground" style={{ width: 24, height: 24 }} />
         ) : (
           <Telescope className="flex-shrink-0 text-muted-foreground" style={{ width: 24, height: 24 }} />
         )}
-        <span className="text-sm font-bold">
+        <span className="text-sm text-foreground">
           {isStreaming ? `Researching… (${steps.length} steps)` : `Deep Research (${steps.length} steps)`}
         </span>
         {sourceCount > 0 && (
@@ -756,8 +756,8 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       </Suspense>
       {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && (
         <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <Loader2 className="flex-shrink-0 animate-spin text-foreground" style={{ width: 28, height: 28 }} />
             <AnimatedThinkingText label={isDeepResearch ? 'Starting Deep Research' : (searchLabel || 'Thinking')} />
           </div>
         </div>
