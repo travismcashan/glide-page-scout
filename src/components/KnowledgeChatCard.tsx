@@ -894,6 +894,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const threadInitRef = useRef<string | null>(null);
+  const queuedPromptRef = useRef<{ text: string; deepResearch: boolean } | null>(null);
 
   const crawlContext = buildCrawlContext(session, pages);
 
