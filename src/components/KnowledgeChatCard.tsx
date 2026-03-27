@@ -65,6 +65,7 @@ type Props = {
   onPendingPromptConsumed?: () => void;
 };
 
+const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
 
 const SUGGESTED_QUESTIONS = [
