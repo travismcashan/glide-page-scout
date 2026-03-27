@@ -37,9 +37,7 @@ export default function AppHeader() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
           >
-            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
-              <ProductIcon className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
+            <ProductIcon className="h-7 w-7 text-primary" />
             <span className="text-base font-semibold tracking-tight">
               {currentProduct.fullName}
             </span>
