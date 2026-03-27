@@ -280,7 +280,7 @@ export async function autoIngestIntegrations(
     if (!data) continue;
     if (typeof data === 'object' && data._error) continue;
 
-    const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    const content = key === 'apollo_team_data' ? formatApolloTeamDoc(data) : (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
     if (content.length < 50) continue;
 
     const existingCreatedAt = existingMap.get(key);
