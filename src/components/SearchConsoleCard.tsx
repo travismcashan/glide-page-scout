@@ -1,7 +1,26 @@
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+
+type DailyTrendItem = {
+  date: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+};
+
+type SitemapItem = {
+  path: string;
+  lastSubmitted?: string;
+  lastDownloaded?: string;
+  isPending?: boolean;
+  warnings?: number;
+  errors?: number;
+  contents?: { type: string; submitted?: number; indexed?: number }[];
+};
 
 type SearchConsoleData = {
   success: boolean;
@@ -19,8 +38,8 @@ type SearchConsoleData = {
   };
   topQueries?: { query: string; clicks: number; impressions: number; ctr: number; position: number }[];
   topPages?: { page: string; clicks: number; impressions: number; ctr: number; position: number }[];
-  dailyTrend?: any[];
-  sitemaps?: any[];
+  dailyTrend?: DailyTrendItem[];
+  sitemaps?: SitemapItem[];
   availableSites?: { url: string; permissionLevel: string }[];
 };
 
