@@ -676,6 +676,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
     weight: 12,
     integrations: [
       { key: 'readable', label: 'Readability', extract: extractReadable },
+      { key: 'ga4', label: 'GA4 Engagement', extract: extractGa4 },
     ],
   },
   {
