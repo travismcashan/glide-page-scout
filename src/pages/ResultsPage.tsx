@@ -1858,7 +1858,7 @@ export default function ResultsPage() {
       <AppHeader />
 
       {/* Domain + crawl info — compact single row */}
-      <div className="max-w-6xl mx-auto px-6 pt-3 pb-1">
+      <div className="max-w-6xl mx-auto px-6 pt-5 pb-3">
         <div className="flex items-baseline justify-between gap-4">
           <h1 className="text-xl font-semibold tracking-tight text-foreground leading-none">
             {session?.domain?.replace(/^www\./i, '')}
