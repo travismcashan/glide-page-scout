@@ -188,7 +188,7 @@ export default function ResultsPage() {
   }, [params.sessionId, params.domain, params.dateSlug]);
 
   const sessionId = resolvedSessionId;
-  const navigate = useNavigate();
+  // navigate already declared above
   const [searchParams, setSearchParams] = useSearchParams();
   const isSharedView = searchParams.get('view') === 'shared';
   const [session, setSession] = useState<CrawlSession | null>(null);
