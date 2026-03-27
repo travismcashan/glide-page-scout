@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown } from 'lucide-react';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -19,6 +20,14 @@ type Connection = {
   scopes: string;
   created_at: string;
   updated_at: string;
+  provider_config?: { propertyId: string; propertyName: string } | null;
+};
+
+type PropertyOption = {
+  id: string;
+  name: string;
+  account?: string;
+  permissionLevel?: string;
 };
 
 function loadScript(src: string): Promise<void> {
@@ -44,6 +53,12 @@ export default function ConnectionsPage() {
   const [loading, setLoading] = useState(true);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+
+  // Property picker state
+  const [pickerProvider, setPickerProvider] = useState<string | null>(null);
+  const [pickerProperties, setPickerProperties] = useState<PropertyOption[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [savingProperty, setSavingProperty] = useState(false);
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -103,10 +118,52 @@ export default function ConnectionsPage() {
       if (!exchangeRes.ok) throw new Error(result.message || result.error);
 
       await fetchConnections();
+
+      // If the provider returned available properties, show the picker
+      if (result.needsPropertySelection && result.availableProperties?.length) {
+        setPickerProvider(provider);
+        setPickerProperties(result.availableProperties);
+      }
     } catch (err: any) {
       console.error(`${provider} connect error:`, err);
     } finally {
       setConnectingProvider(null);
+    }
+  };
+
+  const loadProperties = async (provider: string) => {
+    setPickerLoading(true);
+    setPickerProvider(provider);
+    try {
+      const res = await fetch(OAUTH_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ action: 'list-properties', provider }),
+      });
+      const data = await res.json();
+      setPickerProperties(data.properties || []);
+    } catch (err) {
+      console.error('Failed to load properties:', err);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  const saveProperty = async (provider: string, propertyId: string, propertyName: string) => {
+    setSavingProperty(true);
+    try {
+      await fetch(OAUTH_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ action: 'set-property', provider, propertyId, propertyName }),
+      });
+      await fetchConnections();
+      setPickerProvider(null);
+      setPickerProperties([]);
+    } catch (err) {
+      console.error('Failed to save property:', err);
+    } finally {
+      setSavingProperty(false);
     }
   };
 
@@ -146,6 +203,7 @@ export default function ConnectionsPage() {
       iconColor: 'text-destructive',
       description: 'Read-only access to search email threads for prospect intelligence',
       connection: gmailConnection,
+      hasPropertyPicker: false,
     },
     {
       id: 'google-drive',
@@ -156,6 +214,7 @@ export default function ConnectionsPage() {
       iconColor: 'text-primary',
       description: 'Import documents, spreadsheets, and files into the knowledge base',
       connection: driveConnection,
+      hasPropertyPicker: false,
     },
     {
       id: 'google-analytics',
@@ -166,6 +225,8 @@ export default function ConnectionsPage() {
       iconColor: 'text-amber-600',
       description: 'Read-only access to GA4 traffic, engagement, and conversion data',
       connection: ga4Connection,
+      hasPropertyPicker: true,
+      propertyLabel: 'GA4 Property',
     },
     {
       id: 'google-search-console',
@@ -176,6 +237,8 @@ export default function ConnectionsPage() {
       iconColor: 'text-emerald-600',
       description: 'Read-only access to search queries, impressions, clicks, and indexing data',
       connection: gscConnection,
+      hasPropertyPicker: true,
+      propertyLabel: 'Site',
     },
   ];
 
@@ -216,6 +279,8 @@ export default function ConnectionsPage() {
             const conn = p.connection;
             const isConnecting = connectingProvider === p.id;
             const isDisconnecting = disconnecting === conn?.id;
+            const isPickerOpen = pickerProvider === p.id;
+            const selectedProperty = conn?.provider_config;
 
             return (
               <Card key={p.id} className="p-0 overflow-hidden">
@@ -240,13 +305,43 @@ export default function ConnectionsPage() {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {conn ? `Signed in as ${conn.provider_email}` : p.description}
+                        {conn ? (
+                          <>
+                            Signed in as {conn.provider_email}
+                            {p.hasPropertyPicker && selectedProperty && (
+                              <span className="ml-1.5 text-foreground font-medium">
+                                · {selectedProperty.propertyName}
+                              </span>
+                            )}
+                            {p.hasPropertyPicker && !selectedProperty && (
+                              <span className="ml-1.5 text-amber-600 font-medium">
+                                · No {p.propertyLabel?.toLowerCase()} selected
+                              </span>
+                            )}
+                          </>
+                        ) : p.description}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {conn ? (
                       <>
+                        {p.hasPropertyPicker && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => isPickerOpen ? setPickerProvider(null) : loadProperties(p.id)}
+                            disabled={pickerLoading && isPickerOpen}
+                            className="text-xs"
+                          >
+                            {pickerLoading && isPickerOpen ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3 mr-1" />
+                            )}
+                            {selectedProperty ? 'Change' : 'Select'} {p.propertyLabel}
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -280,6 +375,60 @@ export default function ConnectionsPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Property picker panel */}
+                {conn && isPickerOpen && (
+                  <div className="border-t border-border bg-muted/30 px-5 py-4">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Select which {p.propertyLabel?.toLowerCase()} to use for scans. Only data from the selected {p.propertyLabel?.toLowerCase()} will be fetched.
+                    </p>
+                    {pickerLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading available {p.propertyLabel?.toLowerCase()}s...
+                      </div>
+                    ) : pickerProperties.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No {p.propertyLabel?.toLowerCase()}s found for this account.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {pickerProperties.map((prop) => {
+                          const isSelected = selectedProperty?.propertyId === prop.id;
+                          return (
+                            <button
+                              key={prop.id}
+                              onClick={() => !isSelected && saveProperty(p.id, prop.id, prop.name)}
+                              disabled={savingProperty}
+                              className={`w-full text-left px-3 py-2.5 rounded-md border transition-colors text-sm ${
+                                isSelected
+                                  ? 'border-primary/50 bg-primary/5 text-foreground'
+                                  : 'border-border bg-card hover:bg-accent/50 text-foreground'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="font-medium">{prop.name}</span>
+                                  {prop.account && (
+                                    <span className="text-muted-foreground ml-2 text-xs">({prop.account})</span>
+                                  )}
+                                  {prop.permissionLevel && (
+                                    <span className="text-muted-foreground ml-2 text-xs">{prop.permissionLevel}</span>
+                                  )}
+                                </div>
+                                {isSelected && (
+                                  <Badge variant="outline" className="text-primary border-primary/30 text-xs">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Selected
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 font-mono">{prop.id}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
             );
           })}

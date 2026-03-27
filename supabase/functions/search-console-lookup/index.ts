@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function getValidAccessToken(supabase: any): Promise<string | null> {
+async function getConnectionWithToken(supabase: any): Promise<{ accessToken: string; config: any } | null> {
   const { data: connections } = await supabase
     .from('oauth_connections')
     .select('*')
@@ -16,48 +16,49 @@ async function getValidAccessToken(supabase: any): Promise<string | null> {
   const conn = connections?.[0];
   if (!conn) return null;
 
+  let accessToken = conn.access_token;
   const expiresAt = new Date(conn.token_expires_at).getTime();
-  if (Date.now() < expiresAt - 5 * 60 * 1000) {
-    return conn.access_token;
+
+  if (Date.now() >= expiresAt - 5 * 60 * 1000) {
+    console.log('[gsc] Access token expired, refreshing...');
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+
+    if (!clientId || !clientSecret || !conn.refresh_token) {
+      console.error('[gsc] Cannot refresh: missing credentials or refresh token');
+      return null;
+    }
+
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: conn.refresh_token,
+        grant_type: 'refresh_token',
+      }),
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) {
+      console.error('[gsc] Token refresh failed:', tokenData);
+      return null;
+    }
+
+    accessToken = tokenData.access_token;
+    const newExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
+    await supabase
+      .from('oauth_connections')
+      .update({
+        access_token: accessToken,
+        token_expires_at: newExpiresAt,
+        ...(tokenData.refresh_token ? { refresh_token: tokenData.refresh_token } : {}),
+      })
+      .eq('id', conn.id);
   }
 
-  console.log('[gsc] Access token expired, refreshing...');
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-
-  if (!clientId || !clientSecret || !conn.refresh_token) {
-    console.error('[gsc] Cannot refresh: missing credentials or refresh token');
-    return null;
-  }
-
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: conn.refresh_token,
-      grant_type: 'refresh_token',
-    }),
-  });
-
-  const tokenData = await tokenRes.json();
-  if (!tokenRes.ok) {
-    console.error('[gsc] Token refresh failed:', tokenData);
-    return null;
-  }
-
-  const newExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
-  await supabase
-    .from('oauth_connections')
-    .update({
-      access_token: tokenData.access_token,
-      token_expires_at: newExpiresAt,
-      ...(tokenData.refresh_token ? { refresh_token: tokenData.refresh_token } : {}),
-    })
-    .eq('id', conn.id);
-
-  return tokenData.access_token;
+  return { accessToken, config: conn.provider_config };
 }
 
 serve(async (req) => {
@@ -77,60 +78,64 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const accessToken = await getValidAccessToken(supabase);
-    if (!accessToken) {
+    const connection = await getConnectionWithToken(supabase);
+    if (!connection) {
       return new Response(JSON.stringify({ success: false, error: 'Google Search Console not connected. Connect via Settings → Connections.' }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Step 1: List sites to find matching property
-    console.log(`[gsc] Looking up sites for domain: ${domain}`);
-    const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const { accessToken, config } = connection;
 
-    if (!sitesRes.ok) {
-      const err = await sitesRes.text();
-      console.error('[gsc] Sites list failed:', err);
-      return new Response(JSON.stringify({ success: false, error: `Search Console API error: ${sitesRes.status}` }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Use stored site URL from provider_config if available
+    let siteUrl: string | null = config?.propertyId || null;
+
+    // If no stored site, try auto-detecting
+    if (!siteUrl) {
+      console.log(`[gsc] No stored site, auto-detecting for domain: ${domain}`);
+      const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
-    }
 
-    const sitesData = await sitesRes.json();
-    const sites = sitesData.siteEntry || [];
-    const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
+      if (!sitesRes.ok) {
+        const err = await sitesRes.text();
+        console.error('[gsc] Sites list failed:', err);
+        return new Response(JSON.stringify({ success: false, error: `Search Console API error: ${sitesRes.status}` }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-    // Find matching site URL
-    let siteUrl: string | null = null;
-    for (const site of sites) {
-      const url = (site.siteUrl || '').toLowerCase();
-      if (url.includes(cleanDomain)) {
-        siteUrl = site.siteUrl;
-        break;
+      const sitesData = await sitesRes.json();
+      const sites = sitesData.siteEntry || [];
+      const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
+
+      for (const site of sites) {
+        const url = (site.siteUrl || '').toLowerCase();
+        if (url.includes(cleanDomain)) {
+          siteUrl = site.siteUrl;
+          break;
+        }
+      }
+
+      if (!siteUrl) {
+        return new Response(JSON.stringify({
+          success: true,
+          found: false,
+          message: `No Search Console property found for "${domain}". Please select a site in Connections settings.`,
+          availableSites: sites.map((s: any) => ({ url: s.siteUrl, permissionLevel: s.permissionLevel })),
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
-    if (!siteUrl) {
-      return new Response(JSON.stringify({
-        success: true,
-        found: false,
-        message: `No Search Console property found for "${domain}". Available sites: ${sites.map((s: any) => s.siteUrl).join(', ')}`,
-        availableSites: sites.map((s: any) => ({ url: s.siteUrl, permissionLevel: s.permissionLevel })),
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log(`[gsc] Found site: ${siteUrl}`);
+    console.log(`[gsc] Using site: ${siteUrl}`);
     const encodedSiteUrl = encodeURIComponent(siteUrl);
 
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     const startDate90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
 
-    // Parallel requests: top queries, top pages, daily performance, index coverage
     const apiBase = `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}`;
     const searchAnalytics = (body: any) =>
       fetch(`${apiBase}/searchAnalytics/query`, {
@@ -140,34 +145,10 @@ serve(async (req) => {
       });
 
     const [queriesRes, pagesRes, trendRes, indexRes] = await Promise.all([
-      // Top queries (30 days)
-      searchAnalytics({
-        startDate,
-        endDate,
-        dimensions: ['query'],
-        rowLimit: 50,
-        dataState: 'all',
-      }),
-      // Top pages (30 days)
-      searchAnalytics({
-        startDate,
-        endDate,
-        dimensions: ['page'],
-        rowLimit: 50,
-        dataState: 'all',
-      }),
-      // Daily trend (90 days)
-      searchAnalytics({
-        startDate: startDate90,
-        endDate,
-        dimensions: ['date'],
-        dataState: 'all',
-      }),
-      // Index coverage — use URL Inspection API (note: this requires individual URLs)
-      // Instead, get sitemaps for coverage info
-      fetch(`${apiBase}/sitemaps`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }),
+      searchAnalytics({ startDate, endDate, dimensions: ['query'], rowLimit: 50, dataState: 'all' }),
+      searchAnalytics({ startDate, endDate, dimensions: ['page'], rowLimit: 50, dataState: 'all' }),
+      searchAnalytics({ startDate: startDate90, endDate, dimensions: ['date'], dataState: 'all' }),
+      fetch(`${apiBase}/sitemaps`, { headers: { Authorization: `Bearer ${accessToken}` } }),
     ]);
 
     const parseSearchAnalytics = async (res: Response, label: string) => {
@@ -192,7 +173,6 @@ serve(async (req) => {
       parseSearchAnalytics(trendRes, 'trend'),
     ]);
 
-    // Parse sitemaps/index info
     let sitemapInfo: any[] = [];
     if (indexRes.ok) {
       const sitemapData = await indexRes.json();
@@ -207,7 +187,6 @@ serve(async (req) => {
       }));
     }
 
-    // Compute summary stats
     const totalClicks = queries.reduce((sum: number, q: any) => sum + q.clicks, 0);
     const totalImpressions = queries.reduce((sum: number, q: any) => sum + q.impressions, 0);
     const avgCtr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;

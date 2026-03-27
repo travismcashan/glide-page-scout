@@ -1,0 +1,1 @@
+ALTER TABLE public.oauth_connections ADD COLUMN IF NOT EXISTS provider_config jsonb DEFAULT null;

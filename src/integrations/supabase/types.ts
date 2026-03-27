@@ -499,6 +499,7 @@ export type Database = {
           created_at: string
           id: string
           provider: string
+          provider_config: Json | null
           provider_email: string | null
           refresh_token: string
           scopes: string | null
@@ -510,6 +511,7 @@ export type Database = {
           created_at?: string
           id?: string
           provider: string
+          provider_config?: Json | null
           provider_email?: string | null
           refresh_token: string
           scopes?: string | null
@@ -521,6 +523,7 @@ export type Database = {
           created_at?: string
           id?: string
           provider?: string
+          provider_config?: Json | null
           provider_email?: string | null
           refresh_token?: string
           scopes?: string | null
