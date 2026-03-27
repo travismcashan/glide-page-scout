@@ -35,7 +35,7 @@ const ALLOWED_GATEWAY_MODELS = [
   'openai/gpt-5.2',
 ];
 
-function buildSystemPrompt(contextBlock: string, customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string): string {
+function buildSystemPrompt(contextBlock: string, customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
   const customBlock = customInstructions?.trim()
     ? `\n\n---\n\n**User's Custom Instructions** (always follow these preferences):\n${customInstructions.trim()}\n`
     : '';
@@ -1146,7 +1146,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, customInstructions, aboutMe, personalBio } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, customInstructions, aboutMe, personalBio, myRole } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1224,7 +1224,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions, aboutMe, personalBio);
+    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions, aboutMe, personalBio, myRole);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available

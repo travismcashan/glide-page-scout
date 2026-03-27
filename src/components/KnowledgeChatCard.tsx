@@ -1133,6 +1133,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
           aboutMe: (() => { try { const s = localStorage.getItem('ai-about-me'); return s ? JSON.parse(s) : undefined; } catch { return undefined; } })(),
           personalBio: localStorage.getItem('ai-personal-bio') || undefined,
+          myRole: localStorage.getItem('ai-my-role') || undefined,
         }),
       });
 
