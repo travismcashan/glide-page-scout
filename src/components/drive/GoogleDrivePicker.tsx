@@ -98,9 +98,16 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [foldersOnTop, setFoldersOnTop] = useState(true);
-  const [multiTab, setMultiTab] = useState(() => {
-    try { return localStorage.getItem('drive-multi-tab') === 'true'; } catch { return false; }
+  const [tabMode, setTabMode] = useState<TabMode>(() => {
+    try { return (localStorage.getItem('drive-tab-mode') as TabMode) || 'all'; } catch { return 'all'; }
   });
+  // Tab picker state
+  const [tabPickerOpen, setTabPickerOpen] = useState(false);
+  const [tabPickerTabs, setTabPickerTabs] = useState<TabInfo[]>([]);
+  const [tabPickerSelected, setTabPickerSelected] = useState<Set<string>>(new Set());
+  const [tabPickerFile, setTabPickerFile] = useState<DriveFile | null>(null);
+  const [tabPickerLoading, setTabPickerLoading] = useState(false);
+  const [tabPickerPending, setTabPickerPending] = useState<DriveFile[]>([]);
 
   const previewFileRef = useRef(previewFile);
   const focusedFileIdRef = useRef(focusedFileId);
