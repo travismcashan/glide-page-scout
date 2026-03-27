@@ -35,11 +35,27 @@ const ALLOWED_GATEWAY_MODELS = [
   'openai/gpt-5.2',
 ];
 
-function buildSystemPrompt(contextBlock: string, customInstructions?: string): string {
+function buildSystemPrompt(contextBlock: string, customInstructions?: string, aboutMe?: Record<string, any>): string {
   const customBlock = customInstructions?.trim()
     ? `\n\n---\n\n**User's Custom Instructions** (always follow these preferences):\n${customInstructions.trim()}\n`
     : '';
-  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${customBlock}
+
+  let aboutBlock = '';
+  if (aboutMe && typeof aboutMe === 'object') {
+    const parts: string[] = [];
+    if (aboutMe.name) parts.push(`Name: ${aboutMe.name}`);
+    if (aboutMe.title) parts.push(`Title: ${aboutMe.title}`);
+    if (aboutMe.organization) parts.push(`Company: ${aboutMe.organization}${aboutMe.orgIndustry ? ` (${aboutMe.orgIndustry})` : ''}`);
+    if (aboutMe.orgSize) parts.push(`Company Size: ${aboutMe.orgSize}`);
+    if (aboutMe.city || aboutMe.state || aboutMe.country) parts.push(`Location: ${[aboutMe.city, aboutMe.state, aboutMe.country].filter(Boolean).join(', ')}`);
+    if (aboutMe.seniority) parts.push(`Seniority: ${aboutMe.seniority}`);
+    if (aboutMe.departments?.length) parts.push(`Departments: ${aboutMe.departments.join(', ')}`);
+    if (parts.length > 0) {
+      aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses — address them by name, understand their role and company context):\n${parts.join('\n')}\n`;
+    }
+  }
+
+  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${customBlock}
 
 You have access to comprehensive audit data from multiple integration tools. When answering questions:
 
@@ -1127,7 +1143,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, customInstructions } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, customInstructions, aboutMe } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1205,7 +1221,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions);
+    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions, aboutMe);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available
