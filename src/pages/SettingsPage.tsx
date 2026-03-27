@@ -38,8 +38,8 @@ const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, profile, isAdmin, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
 
-  // Model settings
   const [provider, setProvider] = useState<ModelProvider>(
     () => (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini'
   );
