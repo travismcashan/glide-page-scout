@@ -4,9 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, X, Clock, Loader2, CreditCard } from 'lucide-react';
+import { X, Clock, Loader2, CreditCard } from 'lucide-react';
 import { getPausedIntegrations, toggleIntegrationPause, loadPausedIntegrations } from '@/lib/integrationState';
 import { supabase } from '@/integrations/supabase/client';
+import AppHeader from '@/components/AppHeader';
 
 type Status = 'active' | 'coming-soon';
 type HealthStatus = 'unknown' | 'checking' | 'ok' | 'down';
@@ -239,14 +240,13 @@ export default function IntegrationsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="font-semibold text-lg">Integrations</h1>
-            <p className="text-xs text-muted-foreground">
+      <AppHeader />
+
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               {activeCount} active{pausedCount > 0 && <> · {pausedCount} paused</>}
             </p>
           </div>
@@ -259,9 +259,6 @@ export default function IntegrationsPage() {
             </Button>
           </div>
         </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-12">
         {grouped.map(({ category, label, items }) => {
           const catActiveCount = items.filter(i => !pausedSet.has(i.id)).length;
           const catAllOn = catActiveCount === items.length;
