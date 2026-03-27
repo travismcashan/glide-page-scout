@@ -174,7 +174,8 @@ export default function ResultsPage() {
   const [allCollapsed, setAllCollapsed] = useState(false);
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
-  const [prospectDomainEditing, setProspectDomainEditing] = useState(false);
+  const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
+  const [lookbackDays, setLookbackDays] = useState<number>(90);
   const prospectingDomain = session?.prospect_domain || session?.domain || '';
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
     return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
