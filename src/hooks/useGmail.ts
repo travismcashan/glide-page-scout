@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
-const TOKEN_KEY = 'gmail-access-token';
 const GMAIL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gmail-lookup`;
 
 export interface GmailAttachment {
@@ -34,9 +34,16 @@ export function useGmail() {
     'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
   };
 
-  const clearToken = useCallback(() => {
-    try { localStorage.removeItem(TOKEN_KEY); } catch {}
-    setIsConnected(false);
+  // Check oauth_connections table on mount to see if Gmail is connected
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('oauth_connections')
+        .select('id')
+        .eq('provider', 'gmail')
+        .limit(1);
+      setIsConnected(!!data && data.length > 0);
+    })();
   }, []);
 
   const searchEmails = useCallback(async (opts: {
@@ -49,7 +56,6 @@ export function useGmail() {
     setError(null);
 
     try {
-      // No longer pass accessToken — the edge function resolves it from the DB
       const resp = await fetch(GMAIL_URL, {
         method: 'POST',
         headers: apiHeaders,
@@ -60,7 +66,6 @@ export function useGmail() {
       });
 
       if (resp.status === 401) {
-        clearToken();
         setIsConnected(false);
         setError('Gmail is not connected. Go to Connections to set it up.');
         return;
@@ -80,7 +85,7 @@ export function useGmail() {
     } finally {
       setIsLoading(false);
     }
-  }, [clearToken]);
+  }, []);
 
   const getAttachment = useCallback(async (messageId: string, attachmentId: string): Promise<string | null> => {
     try {
@@ -95,7 +100,7 @@ export function useGmail() {
       });
 
       if (resp.status === 401) {
-        clearToken();
+        setIsConnected(false);
         return null;
       }
 
@@ -106,14 +111,13 @@ export function useGmail() {
       console.error('Gmail attachment error:', err);
       return null;
     }
-  }, [clearToken]);
+  }, []);
 
   const disconnect = useCallback(() => {
-    clearToken();
     setEmails([]);
     setError(null);
     setIsConnected(false);
-  }, [clearToken]);
+  }, []);
 
   // connect is now a no-op redirect hint — real auth happens on /connections
   const connect = useCallback(async () => {
