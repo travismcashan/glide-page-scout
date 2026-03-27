@@ -99,7 +99,7 @@ export default function SettingsPage() {
         {/* ── AI Model ── */}
         <section className="space-y-6">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">AI Model</h2>
+            <h2 className="text-xl font-semibold tracking-tight">AI Model Defaults</h2>
             <p className="text-sm text-muted-foreground mt-1">Choose which model powers your chat and research workflows.</p>
           </div>
 
