@@ -244,7 +244,7 @@ export default function ResultsPage() {
   const SECTION_IDS = [
     'section-url-analysis', 'section-content-analysis', 'section-design-analysis',
     'section-tech-detection', 'section-performance', 'section-seo',
-    'section-security', 'section-accessibility', 'section-prospecting',
+    'section-security', 'section-ux-accessibility',
   ];
   const allSectionsCollapsed = SECTION_IDS.every(id => isSectionCollapsed(id) === true);
   const handleToggleAllSections = (collapsed: boolean) => {
