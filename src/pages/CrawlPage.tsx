@@ -2,17 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Globe, Loader2, Search, Zap, ArrowRight, BarChart3, Brain, Shield, LogOut, Settings, User } from 'lucide-react';
+import { Globe, Loader2, ArrowRight, BarChart3, Brain, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
-import { useAuth } from '@/contexts/AuthContext';
+import AppHeader from '@/components/AppHeader';
 
 export default function CrawlPage() {
   const navigate = useNavigate();
-  const { user, profile, isAdmin, signOut } = useAuth();
   const [url, setUrl] = useState('');
   const [isStarting, setIsStarting] = useState(false);
 
@@ -54,56 +51,7 @@ export default function CrawlPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Minimal header */}
-      <header className="px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">Glide</span>
-          </div>
-          <nav className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate('/history')}>History</Button>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate('/settings')}>Settings</Button>
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="ml-1">
-                    <Avatar className="h-7 w-7">
-                      <AvatarImage src={profile?.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">{(profile?.display_name || user.email || '?')[0]?.toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium truncate">{profile?.display_name || 'User'}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  {isAdmin && (
-                    <DropdownMenuItem onClick={() => navigate('/admin')}>
-                      <Shield className="h-4 w-4 mr-2" /> Admin Panel
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => navigate('/settings')}>
-                    <Settings className="h-4 w-4 mr-2" /> Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => signOut()}>
-                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button variant="default" size="sm" className="ml-1" onClick={() => navigate('/login')}>
-                Sign In
-              </Button>
-            )}
-          </nav>
-        </div>
-      </header>
+      <AppHeader />
 
       {/* Hero */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 pb-24">
@@ -121,7 +69,7 @@ export default function CrawlPage() {
           </h1>
 
           <p className="text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
-            Paste any URL — Glide runs 30+ analyses, builds a knowledge base, and gives you an AI research partner for your sales prep.
+            Paste any URL — Agency Atlas runs 30+ analyses, builds a knowledge base, and gives you an AI research partner for your sales prep.
           </p>
 
           {/* Search form */}
