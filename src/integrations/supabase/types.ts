@@ -140,6 +140,7 @@ export type Database = {
       crawl_sessions: {
         Row: {
           apollo_data: Json | null
+          apollo_team_data: Json | null
           avoma_data: Json | null
           base_url: string
           builtwith_data: Json | null
@@ -186,6 +187,7 @@ export type Database = {
         }
         Insert: {
           apollo_data?: Json | null
+          apollo_team_data?: Json | null
           avoma_data?: Json | null
           base_url: string
           builtwith_data?: Json | null
@@ -232,6 +234,7 @@ export type Database = {
         }
         Update: {
           apollo_data?: Json | null
+          apollo_team_data?: Json | null
           avoma_data?: Json | null
           base_url?: string
           builtwith_data?: Json | null
