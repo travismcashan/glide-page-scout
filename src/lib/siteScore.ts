@@ -70,40 +70,38 @@ function extractGtmetrix(session: any): number | null {
   return letterToScore(session.gtmetrix_grade);
 }
 
-function extractPsiPerformance(session: any): number | null {
+function extractPsiCategory(session: any, category: string): number | null {
   const psi = session.psi_data;
   if (!psi) return null;
-  const mobile = psi.mobile?.lighthouseResult?.categories?.performance?.score;
-  const desktop = psi.desktop?.lighthouseResult?.categories?.performance?.score;
-  const scores = [mobile, desktop].filter((s) => s != null).map((s: number) => s * 100);
-  return scores.length ? clamp(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null;
+  // Support both pre-processed format (categories.performance = 50) and raw Lighthouse format
+  const mobileRaw = psi.mobile?.lighthouseResult?.categories?.[category]?.score;
+  const desktopRaw = psi.desktop?.lighthouseResult?.categories?.[category]?.score;
+  const mobilePre = psi.mobile?.categories?.[category];
+  const desktopPre = psi.desktop?.categories?.[category];
+  
+  const scores: number[] = [];
+  if (mobileRaw != null) scores.push(mobileRaw * 100);
+  else if (typeof mobilePre === 'number') scores.push(mobilePre);
+  if (desktopRaw != null) scores.push(desktopRaw * 100);
+  else if (typeof desktopPre === 'number') scores.push(desktopPre);
+  
+  return scores.length ? clamp(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+}
+
+function extractPsiPerformance(session: any): number | null {
+  return extractPsiCategory(session, 'performance');
 }
 
 function extractPsiSeo(session: any): number | null {
-  const psi = session.psi_data;
-  if (!psi) return null;
-  const mobile = psi.mobile?.lighthouseResult?.categories?.seo?.score;
-  const desktop = psi.desktop?.lighthouseResult?.categories?.seo?.score;
-  const scores = [mobile, desktop].filter((s) => s != null).map((s: number) => s * 100);
-  return scores.length ? clamp(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null;
+  return extractPsiCategory(session, 'seo');
 }
 
 function extractPsiAccessibility(session: any): number | null {
-  const psi = session.psi_data;
-  if (!psi) return null;
-  const mobile = psi.mobile?.lighthouseResult?.categories?.accessibility?.score;
-  const desktop = psi.desktop?.lighthouseResult?.categories?.accessibility?.score;
-  const scores = [mobile, desktop].filter((s) => s != null).map((s: number) => s * 100);
-  return scores.length ? clamp(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null;
+  return extractPsiCategory(session, 'accessibility');
 }
 
 function extractPsiBestPractices(session: any): number | null {
-  const psi = session.psi_data;
-  if (!psi) return null;
-  const mobile = psi.mobile?.lighthouseResult?.categories?.['best-practices']?.score;
-  const desktop = psi.desktop?.lighthouseResult?.categories?.['best-practices']?.score;
-  const scores = [mobile, desktop].filter((s) => s != null).map((s: number) => s * 100);
-  return scores.length ? clamp(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null;
+  return extractPsiCategory(session, 'bestPractices') ?? extractPsiCategory(session, 'best-practices');
 }
 
 function extractCrux(session: any): number | null {
@@ -154,19 +152,29 @@ function extractSchema(session: any): number | null {
 
 function extractWave(session: any): number | null {
   const wave = session.wave_data;
-  if (!wave?.categories) return null;
-  const errors = wave.categories?.error?.count ?? 0;
-  const contrast = wave.categories?.contrast?.count ?? 0;
-  const alerts = wave.categories?.alert?.count ?? 0;
+  if (!wave) return null;
+  // Support both formats: wave.categories.error.count and wave.summary.errors
+  const errors = wave.categories?.error?.count ?? wave.summary?.errors ?? 0;
+  const contrast = wave.categories?.contrast?.count ?? wave.summary?.contrast ?? 0;
+  const alerts = wave.categories?.alert?.count ?? wave.summary?.alerts ?? 0;
+  if (errors === 0 && contrast === 0 && alerts === 0 && !wave.categories && !wave.summary) return null;
   return clamp(100 - (errors * 5) - (contrast * 3) - (alerts * 1));
 }
 
 function extractW3c(session: any): number | null {
   const w3c = session.w3c_data;
-  if (!w3c?.messages) return null;
-  const errors = w3c.messages.filter((m: any) => m.type === 'error').length;
-  const warnings = w3c.messages.filter((m: any) => m.type === 'info' && m.subType === 'warning').length;
-  return clamp(100 - (errors * 5) - (warnings * 1));
+  if (!w3c) return null;
+  // Support both formats: w3c.messages array and w3c.html/css structure
+  if (w3c.messages) {
+    const errors = w3c.messages.filter((m: any) => m.type === 'error').length;
+    const warnings = w3c.messages.filter((m: any) => m.type === 'info' && m.subType === 'warning').length;
+    return clamp(100 - (errors * 5) - (warnings * 1));
+  }
+  const htmlErrors = w3c.html?.errors?.length ?? 0;
+  const htmlWarnings = w3c.html?.warnings?.length ?? 0;
+  const cssErrors = w3c.css?.errors?.length ?? 0;
+  if (htmlErrors === 0 && htmlWarnings === 0 && cssErrors === 0 && !w3c.html && !w3c.css) return null;
+  return clamp(100 - ((htmlErrors + cssErrors) * 5) - (htmlWarnings * 1));
 }
 
 function extractObservatory(session: any): number | null {
