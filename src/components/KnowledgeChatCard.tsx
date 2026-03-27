@@ -1839,7 +1839,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       toast.error(e?.message || 'Deep Research failed');
     }
 
+    // Save interaction ID for follow-up chaining (keep it even after completion)
+    if (deepResearchInteractionRef.current) {
+      lastDeepResearchIdRef.current = deepResearchInteractionRef.current;
+    }
     deepResearchInteractionRef.current = null;
+    lastEventIdRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
   }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth]);
