@@ -1,0 +1,1 @@
+ALTER TABLE public.crawl_sessions ADD COLUMN lookback_days integer NOT NULL DEFAULT 90;
