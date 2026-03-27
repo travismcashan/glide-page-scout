@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Globe, Loader2, Search, Zap, Calendar } from 'lucide-react';
+import { Globe, Loader2, Search, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildResultsPath } from '@/lib/sessionSlug';
 
