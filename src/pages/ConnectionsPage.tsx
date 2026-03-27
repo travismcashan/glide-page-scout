@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
+import AppHeader from '@/components/AppHeader';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const EMAIL_SCOPE = 'email profile';
@@ -443,30 +444,7 @@ export default function ConnectionsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Plug className="h-5 w-5 text-primary" />
-              <h1 className="text-xl font-semibold tracking-tight">Connections</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/integrations')}>
-              Integrations
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
-              History
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/wishlist')}>
-              Wishlist
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-6">
