@@ -1221,7 +1221,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions);
+    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions, aboutMe);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available
