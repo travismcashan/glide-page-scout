@@ -47,7 +47,191 @@ const apiHeaders = {
   'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
 };
 
-export default function ConnectionsPage() {
+type ProviderDef = {
+  id: string;
+  name: string;
+  scope: string;
+  icon: any;
+  iconBg: string;
+  iconColor: string;
+  description: string;
+  connection?: Connection;
+  hasPropertyPicker: boolean;
+  propertyLabel?: string;
+};
+
+function ProviderRow({ p, connectingProvider, disconnecting, pickerProvider, pickerProperties, pickerLoading, savingProperty, connectProvider, loadProperties, saveProperty, disconnectConnection, setPickerProvider }: {
+  p: ProviderDef;
+  connectingProvider: string | null;
+  disconnecting: string | null;
+  pickerProvider: string | null;
+  pickerProperties: PropertyOption[];
+  pickerLoading: boolean;
+  savingProperty: boolean;
+  connectProvider: (provider: string, scope: string) => Promise<void>;
+  loadProperties: (provider: string) => Promise<void>;
+  saveProperty: (provider: string, propertyId: string, propertyName: string) => Promise<void>;
+  disconnectConnection: (id: string) => Promise<void>;
+  setPickerProvider: (v: string | null) => void;
+}) {
+  const Icon = p.icon;
+  const conn = p.connection;
+  const isConnecting = connectingProvider === p.id;
+  const isDisconnecting = disconnecting === conn?.id;
+  const isPickerOpen = pickerProvider === p.id;
+  const selectedProperty = conn?.provider_config as { propertyId: string; propertyName: string } | undefined;
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4">
+        <div className="flex items-center gap-4">
+          <div className={`h-10 w-10 rounded-lg ${p.iconBg} flex items-center justify-center`}>
+            <Icon className={`h-5 w-5 ${p.iconColor}`} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{p.name}</span>
+              {conn ? (
+                <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground text-xs">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Not connected
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {conn ? (
+                <>
+                  Signed in as {conn.provider_email}
+                  {p.hasPropertyPicker && selectedProperty && (
+                    <span className="ml-1.5 text-foreground font-medium">
+                      · {selectedProperty.propertyName}
+                    </span>
+                  )}
+                  {p.hasPropertyPicker && !selectedProperty && (
+                    <span className="ml-1.5 text-amber-600 font-medium">
+                      · No {p.propertyLabel?.toLowerCase()} selected
+                    </span>
+                  )}
+                </>
+              ) : p.description}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {conn ? (
+            <>
+              {p.hasPropertyPicker && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => isPickerOpen ? setPickerProvider(null) : loadProperties(p.id)}
+                  disabled={pickerLoading && isPickerOpen}
+                  className="text-xs"
+                >
+                  {pickerLoading && isPickerOpen ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 mr-1" />
+                  )}
+                  {selectedProperty ? 'Change' : 'Select'} {p.propertyLabel}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => connectProvider(p.id, p.scope)}
+                disabled={isConnecting}
+                className="text-xs"
+              >
+                {isConnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                Reconnect
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => disconnectConnection(conn.id)}
+                disabled={isDisconnecting}
+                className="text-destructive hover:text-destructive text-xs"
+              >
+                {isDisconnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                Disconnect
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => connectProvider(p.id, p.scope)}
+              disabled={isConnecting}
+            >
+              {isConnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Icon className="h-3 w-3 mr-1" />}
+              Connect {p.name}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {conn && isPickerOpen && (
+        <div className="border-t border-border bg-muted/30 px-5 py-4">
+          <p className="text-xs text-muted-foreground mb-3">
+            Select which {p.propertyLabel?.toLowerCase()} to use for scans. Only data from the selected {p.propertyLabel?.toLowerCase()} will be fetched.
+          </p>
+          {pickerLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading available {p.propertyLabel?.toLowerCase()}s...
+            </div>
+          ) : pickerProperties.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No {p.propertyLabel?.toLowerCase()}s found for this account.</p>
+          ) : (
+            <div className="space-y-2">
+              {pickerProperties.map((prop) => {
+                const isSelected = selectedProperty?.propertyId === prop.id;
+                return (
+                  <button
+                    key={prop.id}
+                    onClick={() => !isSelected && saveProperty(p.id, prop.id, prop.name)}
+                    disabled={savingProperty}
+                    className={`w-full text-left px-3 py-2.5 rounded-md border transition-colors text-sm ${
+                      isSelected
+                        ? 'border-primary/50 bg-primary/5 text-foreground'
+                        : 'border-border bg-card hover:bg-accent/50 text-foreground'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-medium">{prop.name}</span>
+                        {prop.account && (
+                          <span className="text-muted-foreground ml-2 text-xs">({prop.account})</span>
+                        )}
+                        {prop.permissionLevel && (
+                          <span className="text-muted-foreground ml-2 text-xs">{prop.permissionLevel}</span>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <Badge variant="outline" className="text-primary border-primary/30 text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Selected
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 font-mono">{prop.id}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+
   const navigate = useNavigate();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
