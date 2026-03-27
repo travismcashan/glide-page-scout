@@ -48,7 +48,18 @@ const INTEGRATIONS = [
   { label: 'Audit site search experience', icon: ScanSearch },
 ];
 
-const ROTATING_WORDS = ['Research', 'Analyze', 'Prospect', 'Chat', 'Discover'];
+const ROTATING_WORDS = [
+  'Research', 'Analyze', 'Prospect', 'Discover', 'Explore',
+  'Investigate', 'Uncover', 'Decode', 'Benchmark', 'Evaluate',
+  'Audit', 'Inspect', 'Optimize', 'Diagnose', 'Profile',
+  'Dissect', 'Examine', 'Illuminate', 'Quantify', 'Validate',
+  'Map', 'Score', 'Scan', 'Reveal', 'Compare',
+  'Assess', 'Monitor', 'Track', 'Measure', 'Survey',
+  'Detect', 'Classify', 'Extract', 'Enrich', 'Verify',
+  'Catalog', 'Index', 'Rank', 'Grade', 'Review',
+  'Probe', 'Navigate', 'Chart', 'Outline', 'Pinpoint',
+  'Decipher', 'Interpret', 'Synthesize', 'Strategize', 'Prioritize',
+];
 
 export default function CrawlPage() {
   const navigate = useNavigate();
