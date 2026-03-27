@@ -1873,7 +1873,7 @@ export default function ResultsPage() {
       </header>
 
       {/* Global integration progress bar */}
-      {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} />}
+      {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
 
       <main className={`max-w-6xl mx-auto px-6 py-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
