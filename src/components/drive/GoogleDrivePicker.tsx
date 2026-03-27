@@ -4,8 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -13,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Folder, FileText, FileSpreadsheet, FileImage, File, ChevronRight,
-  Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter, Layers,
+  Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -192,7 +190,8 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
       return;
     }
 
-    // tabMode === 'all' — import all tabs as separate documents for Google Docs
+    // tabMode === 'all' — import all tabs for Google Docs
+    const docMode = (() => { try { return localStorage.getItem('drive-tab-doc-mode') || 'separate'; } catch { return 'separate'; } })();
     setIsImporting(true);
     try {
       const imported: { name: string; content?: string; mimeType: string; isText: boolean }[] = [];
@@ -201,14 +200,17 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
         try {
           const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
           if (isGoogleDoc) {
-            // Download all tabs as separate docs
             const tabResults = await downloadDocTabs(file, []);
             if (tabResults && tabResults.length > 0) {
-              for (const tab of tabResults) {
-                imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+              if (docMode === 'merged') {
+                const mergedContent = tabResults.map(t => `## ${t.fileName.split(' — ').pop() || t.fileName}\n\n${t.content}`).join('\n\n---\n\n');
+                imported.push({ name: file.name, content: mergedContent, mimeType: tabResults[0].mimeType, isText: true });
+              } else {
+                for (const tab of tabResults) {
+                  imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+                }
               }
             } else {
-              // Fallback to single download
               const result = await downloadFile(file);
               if (result) imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
               else failed.push(file.name);
@@ -262,31 +264,37 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
     tabFile: DriveFile,
     selectedTabIds: string[] | null, // null = import as single doc (no tab selection)
   ) => {
+    const docMode = (() => { try { return localStorage.getItem('drive-tab-doc-mode') || 'separate'; } catch { return 'separate'; } })();
     setIsImporting(true);
     setTabPickerOpen(false);
     try {
       const imported: { name: string; content?: string; mimeType: string; isText: boolean }[] = [];
       const failed: string[] = [];
 
+      const addTabResults = (file: DriveFile, tabResults: { fileName: string; content: string; mimeType: string; isText: boolean }[]) => {
+        if (docMode === 'merged') {
+          const mergedContent = tabResults.map(t => `## ${t.fileName.split(' — ').pop() || t.fileName}\n\n${t.content}`).join('\n\n---\n\n');
+          imported.push({ name: file.name, content: mergedContent, mimeType: tabResults[0].mimeType, isText: true });
+        } else {
+          for (const tab of tabResults) {
+            imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+          }
+        }
+      };
+
       for (const file of allFiles) {
         try {
           if (file.id === tabFile.id && selectedTabIds !== null) {
-            // Download selected tabs as separate documents
             const tabResults = await downloadDocTabs(file, selectedTabIds);
             if (tabResults) {
-              for (const tab of tabResults) {
-                imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
-              }
+              addTabResults(file, tabResults);
             } else {
               failed.push(file.name);
             }
           } else if (file.mimeType === 'application/vnd.google-apps.document') {
-            // Other Google Docs in 'choose' mode — import all tabs
             const tabResults = await downloadDocTabs(file, []);
             if (tabResults && tabResults.length > 0) {
-              for (const tab of tabResults) {
-                imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
-              }
+              addTabResults(file, tabResults);
             } else {
               const result = await downloadFile(file);
               if (result) imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
@@ -639,30 +647,6 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
             <p className="text-sm text-muted-foreground">
               {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Click to select · Space to preview'}
             </p>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5" />
-                Doc tabs:
-              </span>
-              <RadioGroup
-                value={tabMode}
-                onValueChange={(v: string) => {
-                  const val = v as TabMode;
-                  setTabMode(val);
-                  try { localStorage.setItem('drive-tab-mode', val); } catch {}
-                }}
-                className="flex items-center gap-3"
-              >
-                <div className="flex items-center gap-1.5">
-                  <RadioGroupItem value="all" id="tab-all" className="h-3.5 w-3.5" />
-                  <Label htmlFor="tab-all" className="text-xs text-muted-foreground cursor-pointer">Import all</Label>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <RadioGroupItem value="choose" id="tab-choose" className="h-3.5 w-3.5" />
-                  <Label htmlFor="tab-choose" className="text-xs text-muted-foreground cursor-pointer">Let me choose</Label>
-                </div>
-              </RadioGroup>
-            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

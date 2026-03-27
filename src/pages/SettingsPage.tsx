@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Brain, Sparkles, Zap, LogOut, Shield } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Brain, Sparkles, Zap, LogOut, Shield, FileText } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +54,14 @@ export default function SettingsPage() {
   );
   const [matchThreshold, setMatchThreshold] = useState(
     () => parseFloat(localStorage.getItem('rag-match-threshold') || '0.15')
+  );
+
+  // Google Docs import settings
+  const [tabMode, setTabMode] = useState<'all' | 'choose'>(
+    () => (localStorage.getItem('drive-tab-mode') as 'all' | 'choose') || 'all'
+  );
+  const [tabDocMode, setTabDocMode] = useState<'separate' | 'merged'>(
+    () => (localStorage.getItem('drive-tab-doc-mode') as 'separate' | 'merged') || 'separate'
   );
 
   const handleProviderChange = (p: ModelProvider) => {
@@ -198,6 +208,64 @@ export default function SettingsPage() {
                 <span>Less picky · Broader</span>
                 <span>More picky · Precise</span>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="border-t border-border" />
+
+        {/* ── Google Docs Import ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><FileText className="h-5 w-5" /> Google Docs Import</h2>
+            <p className="text-sm text-muted-foreground mt-1">Control how multi-tab Google Docs are imported into the knowledge base.</p>
+          </div>
+
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Tab Selection</label>
+              <p className="text-xs text-muted-foreground">When a Google Doc has multiple tabs, how should they be handled?</p>
+              <RadioGroup
+                value={tabMode}
+                onValueChange={(v: string) => {
+                  const val = v as 'all' | 'choose';
+                  setTabMode(val);
+                  localStorage.setItem('drive-tab-mode', val);
+                }}
+                className="space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="all" id="settings-tab-all" />
+                  <Label htmlFor="settings-tab-all" className="cursor-pointer">Import all tabs automatically</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="choose" id="settings-tab-choose" />
+                  <Label htmlFor="settings-tab-choose" className="cursor-pointer">Let me choose which tabs to import</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Document Handling</label>
+              <p className="text-xs text-muted-foreground">How should imported tabs be stored in the knowledge base?</p>
+              <RadioGroup
+                value={tabDocMode}
+                onValueChange={(v: string) => {
+                  const val = v as 'separate' | 'merged';
+                  setTabDocMode(val);
+                  localStorage.setItem('drive-tab-doc-mode', val);
+                }}
+                className="space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="separate" id="settings-doc-separate" />
+                  <Label htmlFor="settings-doc-separate" className="cursor-pointer">Each tab as a separate document</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="merged" id="settings-doc-merged" />
+                  <Label htmlFor="settings-doc-merged" className="cursor-pointer">Merge all tabs into one document</Label>
+                </div>
+              </RadioGroup>
             </div>
           </div>
         </section>
