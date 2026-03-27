@@ -28,23 +28,25 @@ Deno.serve(async (req) => {
 
     console.log('Apollo team search for domain:', domain);
 
+    function buildSearchUrl(params: { domain: string; seniorities: string[]; departments?: string[]; perPage: number }) {
+      const sp = new URLSearchParams();
+      sp.set('q_organization_domains', params.domain);
+      for (const s of params.seniorities) sp.append('person_seniorities[]', s);
+      if (params.departments) {
+        for (const d of params.departments) sp.append('person_departments[]', d);
+      }
+      sp.set('per_page', String(params.perPage));
+      return `https://api.apollo.io/api/v1/mixed_people/search?${sp.toString()}`;
+    }
+
     const searches = [
       {
         label: 'marketing',
-        body: {
-          q_organization_domains: domain,
-          person_seniorities: ['director', 'vp', 'c_suite', 'manager', 'senior'],
-          person_departments: ['marketing'],
-          per_page: 10,
-        },
+        url: buildSearchUrl({ domain, seniorities: ['director', 'vp', 'c_suite', 'manager', 'senior'], departments: ['marketing'], perPage: 10 }),
       },
       {
         label: 'c_suite',
-        body: {
-          q_organization_domains: domain,
-          person_seniorities: ['c_suite', 'vp', 'founder', 'owner'],
-          per_page: 10,
-        },
+        url: buildSearchUrl({ domain, seniorities: ['c_suite', 'vp', 'founder', 'owner'], perPage: 10 }),
       },
     ];
 
@@ -52,14 +54,13 @@ Deno.serve(async (req) => {
 
     for (const search of searches) {
       try {
-        const response = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
+        const response = await fetch(search.url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
             'X-Api-Key': apiKey,
           },
-          body: JSON.stringify(search.body),
         });
 
         const contentType = response.headers.get('content-type') || '';
