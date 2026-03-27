@@ -14,8 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi } from '@/lib/api/firecrawl';
-import { DeepResearchCard } from '@/components/DeepResearchCard';
-import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
+import { PromptLibrary, type PromptTemplate } from '@/components/PromptLibrary';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
