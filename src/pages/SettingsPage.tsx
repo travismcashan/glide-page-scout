@@ -359,6 +359,102 @@ export default function SettingsPage() {
 
         <div className="border-t border-border" />
 
+        {/* ── About Me ── */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><UserIcon className="h-5 w-5" /> About Me</h2>
+              <p className="text-sm text-muted-foreground mt-1">The AI uses this to personalize responses. Auto-populated from your professional profile.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={enrichProfile}
+              disabled={enriching || !user?.email}
+            >
+              {enriching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {aboutMe ? 'Refresh' : 'Look me up'}
+            </Button>
+          </div>
+
+          {enriching && !aboutMe && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+              <Loader2 className="h-4 w-4 animate-spin" /> Looking you up…
+            </div>
+          )}
+
+          {aboutMe && (
+            <div className="rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-start gap-4">
+                <Avatar className="h-14 w-14">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback className="text-lg">{(aboutMe.name || '?')[0]?.toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="font-semibold text-lg leading-tight">{aboutMe.name}</p>
+                  {aboutMe.title && <p className="text-sm text-muted-foreground">{aboutMe.title}</p>}
+                  {aboutMe.headline && aboutMe.headline !== aboutMe.title && (
+                    <p className="text-xs text-muted-foreground">{aboutMe.headline}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 text-sm">
+                {aboutMe.organization && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    <span>{aboutMe.organization}{aboutMe.orgIndustry ? ` · ${aboutMe.orgIndustry}` : ''}</span>
+                  </div>
+                )}
+                {aboutMe.orgSize && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Briefcase className="h-4 w-4 shrink-0" />
+                    <span>{aboutMe.orgSize}</span>
+                  </div>
+                )}
+                {(aboutMe.city || aboutMe.state || aboutMe.country) && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="h-4 w-4 shrink-0" />
+                    <span>{[aboutMe.city, aboutMe.state, aboutMe.country].filter(Boolean).join(', ')}</span>
+                  </div>
+                )}
+                {aboutMe.orgWebsite && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Globe className="h-4 w-4 shrink-0" />
+                    <a href={aboutMe.orgWebsite.startsWith('http') ? aboutMe.orgWebsite : `https://${aboutMe.orgWebsite}`} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">{aboutMe.orgWebsite.replace(/^https?:\/\//, '')}</a>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  This information is included in every AI conversation so responses are tailored to your role and company.
+                </p>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  setAboutMe(null);
+                  localStorage.removeItem('ai-about-me');
+                  toast.info('Profile data cleared');
+                }}
+              >
+                Clear profile data
+              </Button>
+            </div>
+          )}
+
+          {!aboutMe && !enriching && (
+            <p className="text-sm text-muted-foreground py-2">No profile data yet. Click "Look me up" to auto-populate from your professional profile.</p>
+          )}
+        </section>
+
+        <div className="border-t border-border" />
+
         {/* ── Google Docs Import ── */}
         <section className="space-y-6">
           <div>
