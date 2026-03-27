@@ -120,9 +120,9 @@ export default function CrawlPage() {
                 <>Hello.</>
               )}
             </h1>
-            <div className="flex items-baseline gap-3 text-4xl sm:text-5xl font-bold tracking-tight text-muted-foreground">
-              <span>Let's</span>
-              <span className="relative inline-block h-[1.2em] w-[5.5em] overflow-hidden align-baseline">
+            <div className="flex items-end gap-3 text-4xl sm:text-5xl font-bold tracking-tight leading-none text-muted-foreground">
+              <span className="leading-none">Let's</span>
+              <span className="relative inline-flex h-[1em] w-[5.5em] items-end overflow-hidden align-baseline leading-none">
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={wordIndex}
@@ -130,7 +130,7 @@ export default function CrawlPage() {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -30, opacity: 0 }}
                     transition={{ duration: 0.35, ease: 'easeInOut' }}
-                    className="absolute left-0 bottom-0 text-primary font-medium"
+                    className="absolute left-0 bottom-0 leading-none text-primary font-medium"
                   >
                     {ROTATING_WORDS[wordIndex]}.
                   </motion.span>
