@@ -1881,43 +1881,44 @@ export default function ResultsPage() {
                   <Menu className="!h-10 !w-10" strokeWidth={2} />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-64 p-0">
-                <nav className="flex flex-col gap-1 p-4 pt-12">
-                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/')}>
-                    <Search className="h-5 w-5" />
-                    New Search
-                  </Button>
-                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/history')}>
-                    <History className="h-5 w-5" />
-                    History
-                  </Button>
-                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/connections')}>
-                    <Plug className="h-5 w-5" />
-                    Connections
-                  </Button>
-                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/integrations')}>
-                    <Settings className="h-5 w-5" />
-                    Integrations
-                  </Button>
-
-                  <div className="border-t border-border my-3" />
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-1">
-                    {PROVIDERS.find(p => p.id === chatProvider)?.label || 'AI'} Version
-                  </p>
-                  {(VERSIONS[chatProvider] || []).map(v => (
-                    <Button
-                      key={v.id}
-                      variant={chatModel === v.id ? 'secondary' : 'ghost'}
-                      className="justify-start gap-3 text-sm"
-                      onClick={() => setChatModel(v.id)}
-                    >
-                      <span className={`h-2 w-2 rounded-full shrink-0 ${v.tier === 'fast' ? 'bg-emerald-500' : v.tier === 'balanced' ? 'bg-blue-500' : 'bg-amber-500'}`} />
-                      <span className="flex flex-col items-start">
-                        <span>{v.label}</span>
-                        <span className="text-[11px] text-muted-foreground font-normal">{v.description}</span>
-                      </span>
+              <SheetContent side="right" className="w-72 p-0">
+                <nav className="flex flex-col h-full">
+                  {/* Main section */}
+                  <div className="flex flex-col gap-1 p-4 pt-12">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-2">Navigate</p>
+                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/')}>
+                      <Search className="h-5 w-5" /> New Search
                     </Button>
-                  ))}
+                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/history')}>
+                      <History className="h-5 w-5" /> History
+                    </Button>
+                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/wishlist')}>
+                      <Lightbulb className="h-5 w-5" /> Wishlist
+                    </Button>
+                  </div>
+
+                  {/* Tools section */}
+                  <div className="border-t border-border mx-4" />
+                  <div className="flex flex-col gap-1 p-4">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-2">Tools</p>
+                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/connections')}>
+                      <Plug className="h-5 w-5" /> Connections
+                    </Button>
+                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/integrations')}>
+                      <Layers className="h-5 w-5" /> Integrations
+                    </Button>
+                  </div>
+
+                  {/* Spacer */}
+                  <div className="flex-1" />
+
+                  {/* Bottom section */}
+                  <div className="border-t border-border mx-4" />
+                  <div className="flex flex-col gap-1 p-4 pb-8">
+                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/settings')}>
+                      <Settings className="h-5 w-5" /> Settings
+                    </Button>
+                  </div>
                 </nav>
               </SheetContent>
             </Sheet>
