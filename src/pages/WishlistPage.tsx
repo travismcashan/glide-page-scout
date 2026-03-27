@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X, Wand2, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { AppHeader } from '@/components/AppHeader';
+import AppHeader from '@/components/AppHeader';
 
 type WishlistItem = {
   id: string;
