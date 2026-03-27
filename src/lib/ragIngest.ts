@@ -250,8 +250,58 @@ function formatApolloTeamDoc(teamData: any): string {
 }
 
 /**
+ * Insert placeholder document rows into knowledge_documents so they
+ * appear in the library immediately, then return docs needing indexing.
+ */
+async function registerDocuments(
+  sessionId: string,
+  docs: { name: string; content: string; source_type: string; source_key: string }[]
+): Promise<{ document_id: string; name: string; content: string; source_type: string; source_key: string }[]> {
+  const registered: { document_id: string; name: string; content: string; source_type: string; source_key: string }[] = [];
+
+  // Batch insert all placeholder rows at once
+  const rows = docs.map(d => ({
+    session_id: sessionId,
+    name: d.name,
+    source_type: d.source_type,
+    source_key: d.source_key,
+    char_count: d.content.length,
+    chunk_count: 0,
+    status: 'pending',
+    content_hash: null,
+  }));
+
+  const { data: inserted, error } = await supabase
+    .from('knowledge_documents')
+    .insert(rows)
+    .select('id, name, source_key');
+
+  if (error || !inserted) {
+    console.error('[register] Bulk insert failed:', error);
+    return [];
+  }
+
+  for (const row of inserted) {
+    const original = docs.find(d => d.source_key === row.source_key && d.name === row.name);
+    if (original) {
+      registered.push({
+        document_id: row.id,
+        name: row.name,
+        content: original.content,
+        source_type: original.source_type,
+        source_key: original.source_key,
+      });
+    }
+  }
+
+  return registered;
+}
+
+/**
  * Check which integrations have data but haven't been ingested yet,
  * and send them to the RAG ingest pipeline.
+ * Phase 1: Insert all document rows as 'pending' (visible immediately).
+ * Phase 2: Call rag-ingest with document_ids to index them.
  */
 export async function autoIngestIntegrations(
   sessionId: string,
@@ -309,12 +359,10 @@ export async function autoIngestIntegrations(
   const hubspotData = sessionData.hubspot_data;
   if (hubspotData && typeof hubspotData === 'object' && !hubspotData._error) {
     const hubspotTimestamp = integrationTimestamps.hubspot_data;
-    // Check if any hubspot doc already exists and is up-to-date
     const hubspotExisting = existingMap.get('hubspot_data:summary');
     const needsReIngest = !hubspotExisting || (hubspotTimestamp && new Date(hubspotTimestamp) > new Date(hubspotExisting));
 
     if (needsReIngest) {
-      // Delete all old hubspot docs (summary + individual engagements)
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -322,7 +370,6 @@ export async function autoIngestIntegrations(
         .eq('source_type', 'integration')
         .like('source_key', 'hubspot_data:%');
 
-      // Also delete the legacy single-blob hubspot doc
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -346,13 +393,11 @@ export async function autoIngestIntegrations(
   const avomaData = sessionData.avoma_data;
   if (avomaData && typeof avomaData === 'object' && !avomaData._error) {
     const avomaTimestamp = integrationTimestamps.avoma_data;
-    // Check if expanded docs exist; if only the legacy blob exists, re-ingest to expand
     const hasExpandedDocs = Array.from(existingMap.keys()).some(k => k.startsWith('avoma_data:'));
     const avomaLegacy = existingMap.get('avoma_data');
     const needsReIngest = !hasExpandedDocs || (avomaLegacy && !hasExpandedDocs) || (avomaTimestamp && hasExpandedDocs && new Date(avomaTimestamp) > new Date(existingMap.get('avoma_data:meeting:0') || '0'));
 
     if (needsReIngest) {
-      // Delete all old avoma docs
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -360,7 +405,6 @@ export async function autoIngestIntegrations(
         .eq('source_type', 'integration')
         .like('source_key', 'avoma_data:%');
 
-      // Delete legacy single-blob avoma doc
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -384,6 +428,13 @@ export async function autoIngestIntegrations(
     return { ingested: 0, skipped: existingMap.size };
   }
 
+  // Phase 1: Register all documents as 'pending' (visible immediately)
+  const registered = await registerDocuments(sessionId, docsToIngest);
+  if (registered.length === 0) {
+    return { ingested: 0, skipped: existingMap.size };
+  }
+
+  // Phase 2: Send to rag-ingest with document_ids for background indexing
   try {
     const response = await fetch(INGEST_URL, {
       method: 'POST',
@@ -392,7 +443,16 @@ export async function autoIngestIntegrations(
         'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        documents: registered.map(d => ({
+          document_id: d.document_id,
+          name: d.name,
+          content: d.content,
+          source_type: d.source_type,
+          source_key: d.source_key,
+        })),
+      }),
     });
 
     if (!response.ok) {
