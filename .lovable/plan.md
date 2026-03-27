@@ -1,61 +1,111 @@
 
 
+# Unified Scoring System for Site Analysis
 
-## Meta Stats Design System Unification
+## Concept: Hierarchical Score Rollup
 
-### Problem
-Each integration card uses a different style for its summary/meta row:
-- **SitemapCard**: Badge capsules (`Badge variant="secondary"`)
-- **BrokenLinksCard**: Colored icons + `text-sm` numbers + Badge capsule for total
-- **SchemaCard**: Multiple Badge capsules (outline, secondary, destructive variants)
-- **SemrushCard**: Large grid stat boxes (`text-lg font-semibold`) + Badge capsules for backlinks
-- **NavStructureCard, ContentTypesCard, RedesignEstimateCard, TemplatesCard**: Already use the inline text pattern (`<strong>N</strong> Label · <strong>N</strong> Label`)
-
-### Standardized Pattern
-Adopt the inline text pattern as the universal meta style since it's already the most common:
+The scoring model works in three tiers:
 
 ```text
-<strong class="text-foreground">35</strong> Total Unique Links · <strong>text-foreground">20</strong> Primary
+┌─────────────────────────────────┐
+│        OVERALL SITE SCORE       │  ← Single number (0-100) + letter grade
+│           e.g. B (78)           │
+├─────────────────────────────────┤
+│  Category Scores (sections)     │  ← One score per CollapsibleSection
+│  Performance: A (91)            │
+│  Security: B (82)               │
+│  SEO: C (67)                    │
+│  Accessibility: B (75)          │
+│  Content: B+ (84)               │
+│  Technology: A (90)             │
+├─────────────────────────────────┤
+│  Integration Scores (cards)     │  ← Individual 0-100 from each tool
+│  GTmetrix: 85                   │
+│  PageSpeed Mobile: 62           │
+│  WAVE: 91                       │
+│  Observatory: A+ → 97           │
+│  SSL Labs: A → 93               │
+│  ...                            │
+└─────────────────────────────────┘
 ```
 
-Container: `flex items-center gap-3 flex-wrap text-xs text-muted-foreground`
-Numbers: `<strong className="text-foreground">{value}</strong>`
-Separators: `<span>·</span>`
-Labels: Title Case, plain text
+## Scoring Approach
 
-### Cards to Update
+**Everything normalizes to 0-100.** Letter grades are derived from that:
 
-1. **SitemapCard** (lines 50-63) — Replace Badge capsules with inline text stats: `<strong>3</strong> Sitemaps · <strong>1,200</strong> Total URLs · <strong>5</strong> Content Type Hints`
+| Range | Grade |
+|-------|-------|
+| 90-100 | A |
+| 80-89 | B |
+| 70-79 | C |
+| 60-69 | D |
+| 0-59 | F |
 
-2. **BrokenLinksCard** (lines 74-93) — Replace colored-icon summary with inline text stats: `<strong>45</strong> OK · <strong>3</strong> Redirects · <strong>2</strong> Broken · <strong>50</strong> Checked`. Keep the progress bar below as-is (it's a visual element, not meta text).
+### Integration-Level Score Extraction
 
-3. **SchemaCard** (lines 30-61) — Replace Badge capsules with inline text stats: `<strong>5</strong> Schemas Found · <strong>3</strong> JSON-LD · <strong>1</strong> Microdata · <strong>2</strong> Errors · <strong>1</strong> Warning`. For error/warning counts, keep the text colored (text-destructive / text-yellow-600) but use inline text, not badges.
+| Integration | Raw Output | Normalization |
+|---|---|---|
+| **GTmetrix** | Grade A-F + performance % | Use performance score directly (0-100) |
+| **PageSpeed (mobile)** | Categories: performance, SEO, accessibility, best-practices (0-100 each) | Use each category score directly; contributes to multiple sections |
+| **PageSpeed (desktop)** | Same as mobile | Average mobile+desktop per category |
+| **CrUX** | LCP, FID, CLS, INP with good/needs-improvement/poor | Map: good=100, needs-improvement=60, poor=20; average across metrics |
+| **YellowLab** | globalScore 0-100 | Use directly |
+| **Website Carbon** | Cleaner than X% | Use the percentile directly |
+| **SEMrush** | Authority score, organic traffic, keywords | Use authority score (0-100) |
+| **Schema.org** | Valid/invalid/warnings count | Formula: `100 - (errors * 10) - (warnings * 3)`, floor 0 |
+| **WAVE** | Errors, alerts, contrast errors | Formula: `max(0, 100 - (errors * 5) - (contrast * 3) - (alerts * 1))` |
+| **Lighthouse Accessibility** | Score 0-100 | Use directly |
+| **W3C** | Error/warning counts | Formula: `max(0, 100 - (errors * 5) - (warnings * 1))` |
+| **Observatory** | Letter grade A+ to F | Map: A+=100, A=95, A-=90, B+=85... F=20 |
+| **SSL Labs** | Letter grade A+ to F | Same letter-to-number map |
+| **Readable** | Flesch score or grade level | Normalize to 0-100 based on grade level |
+| **HTTP Status** | % of 200 responses | Use directly as percentage |
+| **Broken Links** | Count of broken vs total | `(1 - broken/total) * 100` |
+| **BuiltWith / Wappalyzer / DetectZeStack** | Tech count + categories | No inherent "score" — contribute to a "tech coverage" heuristic (e.g., has analytics? has CDN? has security headers?) |
+| **Screenshots** | Visual only | Excluded from scoring (informational) |
+| **Ocean / Apollo / HubSpot / Avoma / Gmail** | Prospecting data | Excluded — separate tab, not a site quality metric |
 
-4. **SemrushCard** (lines 59-91) — Replace the title row ("SEMrush Domain Analysis") and large grid stat boxes with inline text meta: `<strong>1,234</strong> Organic Keywords · <strong>5,678</strong> Organic Traffic · <strong>50</strong> Paid Keywords · <strong>1,000</strong> Rank`. Replace the backlinks Badge row with inline text: `<strong>10,000</strong> Backlinks · <strong>500</strong> Domains · <strong>8,000</strong> Follow · <strong>2,000</strong> Nofollow`.
+### Category Rollup (Weighted Average)
 
-### Cards Already Consistent (no changes needed)
-- NavStructureCard
-- ContentTypesCard
-- RedesignEstimateCard
-- TemplatesCard
+Each section averages its available integration scores. Only integrations with data contribute — missing ones are excluded, not penalized.
 
-### Files to Edit
-- `src/components/SitemapCard.tsx`
-- `src/components/BrokenLinksCard.tsx`
-- `src/components/SchemaCard.tsx`
-- `src/components/SemrushCard.tsx`
+| Category | Integrations | Weight in Overall |
+|---|---|---|
+| **Performance** | GTmetrix, PSI performance, CrUX, YellowLab, Carbon | 25% |
+| **SEO & Search** | SEMrush authority, PSI SEO, Schema | 20% |
+| **Accessibility** | PSI accessibility, WAVE, W3C | 20% |
+| **Security** | Observatory, SSL Labs | 15% |
+| **Content** | Readable, HTTP status, broken links | 15% |
+| **Technology** | Tech coverage heuristic (has CDN, analytics, CMS, security) | 5% |
 
----
+### Overall Score
+Weighted average of available category scores. If a category has no data, its weight redistributes proportionally to the others.
 
-## Knowledge Chat — Phase 1 (✅ Shipped)
+## Implementation Plan
 
-### What Was Built
-A "Knowledge" tab on the Results page with a streaming AI chat that uses all integration data as context. Every integration card's data becomes part of a knowledge base the AI references when answering questions.
+### 1. Create scoring utility (`src/lib/siteScore.ts`)
+- Pure functions: `extractIntegrationScore(integrationKey, data) → number | null`
+- `computeCategoryScores(session) → Record<Category, { score: number, grade: string, integrations: {...} }>`
+- `computeOverallScore(session) → { score: number, grade: string, categories: {...} }`
+- Letter grade helper: `scoreToGrade(n: number) → string`
 
-### Architecture
-- **Edge Function**: `supabase/functions/knowledge-chat/index.ts` — Streaming via Lovable AI Gateway (`google/gemini-3-flash-preview`), 400K char context cap
-- **Component**: `src/components/KnowledgeChatCard.tsx` — Streaming SSE chat with markdown rendering, suggested questions, context stats
-- **ResultsPage**: New "Knowledge" tab with `BookOpen` icon, always visible
+### 2. Create ScoreOverview component (`src/components/ScoreOverview.tsx`)
+- Hero card at top of Decide Analysis tab showing overall grade + score
+- Category breakdown row with mini grade badges
+- Expandable detail showing which integrations fed each category
 
-### Phase 2 (Future): RAG with Embeddings
-Pre-process each integration's data into chunked embeddings stored in pgvector. On each chat message, do similarity search to pull only the most relevant chunks. Benefits: smarter retrieval, lower per-message cost, scales to any data size.
+### 3. Add score badges to CollapsibleSection headers
+- Each section header gets a small grade badge (e.g., "B · 82") when data is available
+- Uses the category score from the scoring utility
+
+### 4. Add score badges to individual SectionCard headers
+- Each integration card header shows its normalized score as a subtle badge
+- Only shown when the integration has returned data
+
+### Technical Details
+
+- All scoring logic is client-side, computed from data already in the session object — no new API calls or database changes
+- Scores recompute reactively when session state updates via `updateSession`
+- The scoring utility is a pure module with no React dependencies, making it testable and reusable for future PDF report generation
+- Grade color scheme: A=green, B=blue, C=yellow, D=orange, F=red
+
