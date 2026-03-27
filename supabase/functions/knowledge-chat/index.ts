@@ -1231,7 +1231,7 @@ serve(async (req) => {
     } else if (isPerplexityModel) {
       return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
     } else {
-      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, true));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
