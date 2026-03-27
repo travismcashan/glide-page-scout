@@ -1292,9 +1292,7 @@ export default function ResultsPage() {
     const processPage = async (page: CrawlPage) => {
       setProcessingPages(prev => new Set([...prev, page.id]));
       try {
-        // Content scraping only — screenshots are a completely separate integration
         const scrapeResult = await firecrawlApi.scrape(page.url, { formats: ['markdown'] });
-
         const markdown = scrapeResult?.data?.markdown || (scrapeResult as any)?.markdown || '';
         const title = scrapeResult?.data?.metadata?.title || (scrapeResult as any)?.metadata?.title || page.url;
 
@@ -1304,24 +1302,27 @@ export default function ResultsPage() {
           status: markdown ? 'scraped' : 'error',
         }).eq('id', page.id);
 
-        // Generate outline independently — don't block on failure
+        // Update local pages state directly
+        setPages(prev => prev.map(p => p.id === page.id ? { ...p, raw_content: markdown || null, title, status: markdown ? 'scraped' : 'error' } : p));
+
+        // Generate outline independently
         if (markdown) {
           try {
             const outlineResult = await aiApi.generateOutline(markdown, title, page.url);
             if (outlineResult.success && outlineResult.outline) {
               await supabase.from('crawl_pages').update({ ai_outline: outlineResult.outline }).eq('id', page.id);
+              setPages(prev => prev.map(p => p.id === page.id ? { ...p, ai_outline: outlineResult.outline } : p));
             }
           } catch (e) { console.error('Outline generation failed for:', page.url, e); }
         }
-        fetchData();
       } catch (error) {
         console.error('Error processing page:', page.url, error);
         await supabase.from('crawl_pages').update({ status: 'error' }).eq('id', page.id);
-        fetchData();
+        setPages(prev => prev.map(p => p.id === page.id ? { ...p, status: 'error' } : p));
       }
     };
     pending.slice(0, 3).forEach(processPage);
-  }, [pages, processingPages, fetchData]);
+  }, [pages, processingPages]);
 
   // Mark session complete
   useEffect(() => {
