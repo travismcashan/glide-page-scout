@@ -154,6 +154,7 @@ export type Database = {
           domain: string
           forms_data: Json | null
           forms_tiers: Json | null
+          ga4_data: Json | null
           gmail_data: Json | null
           gtmetrix_grade: string | null
           gtmetrix_scores: Json | null
@@ -173,6 +174,7 @@ export type Database = {
           psi_data: Json | null
           readable_data: Json | null
           schema_data: Json | null
+          search_console_data: Json | null
           semrush_data: Json | null
           sitemap_data: Json | null
           ssllabs_data: Json | null
@@ -201,6 +203,7 @@ export type Database = {
           domain: string
           forms_data?: Json | null
           forms_tiers?: Json | null
+          ga4_data?: Json | null
           gmail_data?: Json | null
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
@@ -220,6 +223,7 @@ export type Database = {
           psi_data?: Json | null
           readable_data?: Json | null
           schema_data?: Json | null
+          search_console_data?: Json | null
           semrush_data?: Json | null
           sitemap_data?: Json | null
           ssllabs_data?: Json | null
@@ -248,6 +252,7 @@ export type Database = {
           domain?: string
           forms_data?: Json | null
           forms_tiers?: Json | null
+          ga4_data?: Json | null
           gmail_data?: Json | null
           gtmetrix_grade?: string | null
           gtmetrix_scores?: Json | null
@@ -267,6 +272,7 @@ export type Database = {
           psi_data?: Json | null
           readable_data?: Json | null
           schema_data?: Json | null
+          search_console_data?: Json | null
           semrush_data?: Json | null
           sitemap_data?: Json | null
           ssllabs_data?: Json | null

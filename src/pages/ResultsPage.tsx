@@ -8,12 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug } from 'lucide-react';
+import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
 import { PromptLibrary, type PromptTemplate } from '@/components/PromptLibrary';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
@@ -40,6 +40,8 @@ import { ScreenshotGallery } from '@/components/ScreenshotGallery';
 import { UrlDiscoveryCard } from '@/components/UrlDiscoveryCard';
 // ScreenshotPickerCard removed — screenshots are fully self-contained in ScreenshotGallery
 import { ContentSectionCard } from '@/components/ContentSectionCard';
+import { GA4Card } from '@/components/GA4Card';
+import { SearchConsoleCard } from '@/components/SearchConsoleCard';
 import { isIntegrationPaused, loadPausedIntegrations, toggleIntegrationPause } from '@/lib/integrationState';
 import { TabSkeleton } from '@/components/TabSkeleton';
 
