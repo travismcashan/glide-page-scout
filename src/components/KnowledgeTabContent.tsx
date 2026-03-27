@@ -25,8 +25,7 @@ export function KnowledgeTabContent({
     if (screenshotIngestRunning.current || abortRef.current) return;
     screenshotIngestRunning.current = true;
 
-    toast.info('Captioning screenshots in background…', { duration: 4000 });
-
+    // Don't show toast upfront — only notify if there are actually new screenshots
     autoIngestScreenshots(sessionId).then(count => {
       if (count > 0) {
         toast.success(`Indexed ${count} screenshot${count !== 1 ? 's' : ''} into knowledge base`);
