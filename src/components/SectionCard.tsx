@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { GradeBadge } from '@/components/GradeBadge';
+import type { LetterGrade } from '@/lib/siteScore';
 
 type SectionCardProps = {
   title: string;
@@ -24,9 +26,12 @@ type SectionCardProps = {
   persistedCollapsed?: boolean | undefined;
   /** External URL linking to the full report for this integration */
   reportUrl?: string;
+  /** Integration grade (0-100 normalized) */
+  integrationGrade?: LetterGrade;
+  integrationScore?: number;
 };
 
-export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed, reportUrl }: SectionCardProps) {
+export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed, reportUrl, integrationGrade, integrationScore }: SectionCardProps) {
   const hasPersistedValue = persistedCollapsed !== undefined;
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
     if (hasPersistedValue) return persistedCollapsed;
@@ -71,6 +76,9 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
       >
         <div className="p-1.5 rounded-md bg-muted">{icon}</div>
         <h2 className="text-base font-semibold">{title}</h2>
+        {integrationGrade != null && integrationScore != null && !paused && (
+          <GradeBadge grade={integrationGrade} score={integrationScore} />
+        )}
         {titleExtra && !paused && <div onClick={e => e.stopPropagation()}>{titleExtra}</div>}
         {headerExtra && !paused && <div className="ml-auto" onClick={e => e.stopPropagation()}>{headerExtra}</div>}
         {reportUrl && !paused && (

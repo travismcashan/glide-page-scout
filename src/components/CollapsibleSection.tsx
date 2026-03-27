@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { GradeBadge } from '@/components/GradeBadge';
+import type { LetterGrade } from '@/lib/siteScore';
 
 type Props = {
   title: string;
@@ -7,9 +9,11 @@ type Props = {
   collapsed?: boolean;
   onToggle?: (collapsed: boolean) => void;
   className?: string;
+  grade?: LetterGrade;
+  score?: number;
 };
 
-export function CollapsibleSection({ title, children, collapsed: controlledCollapsed, onToggle, className }: Props) {
+export function CollapsibleSection({ title, children, collapsed: controlledCollapsed, onToggle, className, grade, score }: Props) {
   const [internal, setInternal] = useState(false);
   const isCollapsed = controlledCollapsed ?? internal;
 
@@ -33,6 +37,9 @@ export function CollapsibleSection({ title, children, collapsed: controlledColla
         <h2 className="text-4xl font-light tracking-tight text-foreground group-hover:text-foreground/80 transition-colors">
           {title}
         </h2>
+        {grade != null && score != null && (
+          <GradeBadge grade={grade} score={score} size="md" />
+        )}
       </button>
       {!isCollapsed && children}
     </div>
