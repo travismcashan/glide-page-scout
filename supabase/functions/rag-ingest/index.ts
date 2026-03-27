@@ -136,7 +136,7 @@ serve(async (req) => {
     const results: any[] = [];
 
     for (const doc of documents) {
-      const { name, content, source_type = 'upload', source_key, skip_dedup } = doc;
+      const { document_id, name, content, source_type = 'upload', source_key, skip_dedup } = doc;
 
       if (!name || !content) {
         results.push({ name, status: 'skipped', reason: 'missing name or content' });
@@ -147,33 +147,88 @@ serve(async (req) => {
 
       // Check for existing document with same hash (skip if skip_dedup flag is set)
       if (!skip_dedup) {
-        const { data: existing } = await supabase
+        let duplicateQuery = supabase
           .from('knowledge_documents')
           .select('id')
           .eq('session_id', session_id)
           .eq('content_hash', contentHash)
-          .maybeSingle();
+          .limit(1);
 
-        if (existing) {
+        if (document_id) {
+          duplicateQuery = duplicateQuery.neq('id', document_id);
+        }
+
+        const { data: existing } = await duplicateQuery;
+
+        if (existing && existing.length > 0) {
+          if (document_id) {
+            await supabase
+              .from('knowledge_documents')
+              .update({ status: 'error', error_message: 'Duplicate content' })
+              .eq('id', document_id);
+          }
           results.push({ name, status: 'skipped', reason: 'duplicate content' });
           continue;
         }
       }
 
-      // Create document record (skip if duplicate source_key exists)
-      const { data: docRecord, error: docError } = await supabase
-        .from('knowledge_documents')
-        .upsert({
-          session_id,
-          name,
-          source_type,
-          source_key,
-          content_hash: contentHash,
-          char_count: content.length,
-          status: 'processing',
-        }, { onConflict: 'session_id,source_type,source_key', ignoreDuplicates: true })
-        .select('id')
-        .single();
+      let targetDocumentId = document_id as string | undefined;
+
+      if (!targetDocumentId && source_key) {
+        const { data: existingBySource } = await supabase
+          .from('knowledge_documents')
+          .select('id')
+          .eq('session_id', session_id)
+          .eq('source_type', source_type)
+          .eq('source_key', source_key)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        targetDocumentId = existingBySource?.[0]?.id;
+      }
+
+      let docError: { message: string } | null = null;
+      let docRecord: { id: string } | null = null;
+
+      if (targetDocumentId) {
+        const { data: updatedDoc, error: updateError } = await supabase
+          .from('knowledge_documents')
+          .update({
+            session_id,
+            name,
+            source_type,
+            source_key,
+            content_hash: contentHash,
+            char_count: content.length,
+            chunk_count: 0,
+            status: 'processing',
+            error_message: null,
+          })
+          .eq('id', targetDocumentId)
+          .select('id')
+          .single();
+
+        docError = updateError;
+        docRecord = updatedDoc;
+      } else {
+        const { data: insertedDoc, error: insertError } = await supabase
+          .from('knowledge_documents')
+          .insert({
+            session_id,
+            name,
+            source_type,
+            source_key,
+            content_hash: contentHash,
+            char_count: content.length,
+            status: 'processing',
+            error_message: null,
+          })
+          .select('id')
+          .single();
+
+        docError = insertError;
+        docRecord = insertedDoc;
+      }
 
       if (docError || !docRecord) {
         console.error('Failed to create document:', docError);
@@ -181,9 +236,23 @@ serve(async (req) => {
         continue;
       }
 
+      await supabase
+        .from('knowledge_chunks')
+        .delete()
+        .eq('document_id', docRecord.id);
+
       // Chunk the content
       const chunks = chunkText(content);
       console.log(`[rag-ingest] ${name}: ${chunks.length} chunks from ${content.length} chars`);
+
+      if (chunks.length === 0) {
+        await supabase
+          .from('knowledge_documents')
+          .update({ status: 'error', error_message: 'No content chunks generated' })
+          .eq('id', docRecord.id);
+        results.push({ name, status: 'error', reason: 'No content chunks generated' });
+        continue;
+      }
 
       // Generate embeddings
       const embeddings = await getEmbeddings(chunks, '');

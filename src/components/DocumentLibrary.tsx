@@ -230,18 +230,36 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           content = await file.text();
         }
 
-        // Update placeholder to pending before indexing
-        if (docId) {
-          await supabase.from('knowledge_documents').delete().eq('id', docId);
-        }
-
-        // Send to ingest (creates real doc with chunking)
+        // Send to ingest using the placeholder row so it stays visible throughout processing
         const response = await fetch(INGEST_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({ session_id: sessionId, documents: [{ name: file.name, content, source_type: 'upload' }] }),
+          body: JSON.stringify({ session_id: sessionId, documents: [{ document_id: docId, name: file.name, content, source_type: 'upload' }] }),
         });
-        if (response.ok) successCount++;
+        const result = await response.json().catch(() => null);
+        const ingestResult = result?.results?.[0];
+
+        if (!response.ok || ingestResult?.status === 'error') {
+          if (docId) {
+            await supabase
+              .from('knowledge_documents')
+              .update({
+                status: 'error',
+                error_message: ingestResult?.reason || result?.error || 'Indexing failed',
+              })
+              .eq('id', docId);
+          }
+        } else if (ingestResult?.status === 'skipped' && docId) {
+          await supabase
+            .from('knowledge_documents')
+            .update({
+              status: 'error',
+              error_message: ingestResult?.reason || 'This file was skipped',
+            })
+            .eq('id', docId);
+        } else if (response.ok) {
+          successCount++;
+        }
         fetchDocuments();
       } catch {
         if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Upload failed' }).eq('id', docId);
@@ -310,15 +328,35 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           content = text;
         }
 
-        // Delete placeholder, then ingest
-        if (docId) await supabase.from('knowledge_documents').delete().eq('id', docId);
-
         const response = await fetch(INGEST_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({ session_id: sessionId, documents: [{ name: file.name, content, source_type: 'google-drive' }] }),
+          body: JSON.stringify({ session_id: sessionId, documents: [{ document_id: docId, name: file.name, content, source_type: 'google-drive' }] }),
         });
-        if (response.ok) successCount++;
+        const result = await response.json().catch(() => null);
+        const ingestResult = result?.results?.[0];
+
+        if (!response.ok || ingestResult?.status === 'error') {
+          if (docId) {
+            await supabase
+              .from('knowledge_documents')
+              .update({
+                status: 'error',
+                error_message: ingestResult?.reason || result?.error || 'Indexing failed',
+              })
+              .eq('id', docId);
+          }
+        } else if (ingestResult?.status === 'skipped' && docId) {
+          await supabase
+            .from('knowledge_documents')
+            .update({
+              status: 'error',
+              error_message: ingestResult?.reason || 'This file was skipped',
+            })
+            .eq('id', docId);
+        } else if (response.ok) {
+          successCount++;
+        }
         fetchDocuments();
       } catch {
         if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Import failed' }).eq('id', docId);
