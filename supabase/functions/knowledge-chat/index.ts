@@ -44,9 +44,23 @@ const TONE_INSTRUCTIONS: Record<string, string> = {
   cynical: 'Be critical, sarcastic, and bluntly honest. Challenge assumptions and point out flaws directly. Use dry wit but remain ultimately helpful.',
 };
 
-function buildSystemPrompt(contextBlock: string, tonePreset?: string, customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
+const CHARACTERISTIC_INSTRUCTIONS: Record<string, string> = {
+  warm: 'Use a caring, empathetic tone that makes the user feel supported.',
+  enthusiastic: 'Be energetic and excited about the topic. Show genuine interest.',
+  'headers-lists': 'Structure responses with clear headings (##, ###) and bullet/numbered lists for readability.',
+  emoji: 'Sprinkle in relevant emoji throughout responses to add personality and visual interest.',
+  tables: 'When presenting comparative data or structured information, prefer using markdown tables.',
+  gifs: 'Occasionally include a fun, relevant GIF using markdown image syntax linking to Giphy (e.g. ![description](https://media.giphy.com/...)). Use sparingly for humor or emphasis — maybe once per longer response when it fits naturally.',
+};
+
+function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteristics?: string[], customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
   const toneBlock = tonePreset && tonePreset !== 'default' && TONE_INSTRUCTIONS[tonePreset]
     ? `\n\n---\n\n**Communication Style**: ${TONE_INSTRUCTIONS[tonePreset]}\n`
+    : '';
+
+  const charParts = (characteristics || []).map(c => CHARACTERISTIC_INSTRUCTIONS[c]).filter(Boolean);
+  const charBlock = charParts.length > 0
+    ? `\n\n---\n\n**Response Characteristics** (always apply these):\n${charParts.map(c => `- ${c}`).join('\n')}\n`
     : '';
 
   const customBlock = customInstructions?.trim()
@@ -75,7 +89,7 @@ function buildSystemPrompt(contextBlock: string, tonePreset?: string, customInst
     aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses):\n${userParts.join('\n\n')}\n`;
   }
 
-  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${toneBlock}${customBlock}
+  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${toneBlock}${charBlock}${customBlock}
 
 You have access to comprehensive audit data from multiple integration tools. When answering questions:
 
@@ -1163,7 +1177,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, customInstructions, aboutMe, personalBio, myRole } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1241,7 +1255,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, customInstructions, aboutMe, personalBio, myRole);
+    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available

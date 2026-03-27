@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
@@ -82,7 +83,27 @@ export default function SettingsPage() {
     () => localStorage.getItem('ai-tone-preset') || 'default'
   );
 
-  // Custom instructions
+  // Characteristics toggles
+  const CHARACTERISTICS = [
+    { id: 'warm', label: 'Warm', description: 'Caring, empathetic tone' },
+    { id: 'enthusiastic', label: 'Enthusiastic', description: 'Energetic and excited' },
+    { id: 'headers-lists', label: 'Headers & Lists', description: 'Structured with headings and bullet points' },
+    { id: 'emoji', label: 'Emoji', description: 'Sprinkle in relevant emoji 🎯' },
+    { id: 'tables', label: 'Tables', description: 'Use tables to organize data' },
+    { id: 'gifs', label: 'GIFs', description: 'Include unexpected fun GIFs via Giphy' },
+  ] as const;
+
+  const [characteristics, setCharacteristics] = useState<string[]>(() => {
+    try { const s = localStorage.getItem('ai-characteristics'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+
+  const toggleCharacteristic = (id: string) => {
+    setCharacteristics(prev => {
+      const next = prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id];
+      localStorage.setItem('ai-characteristics', JSON.stringify(next));
+      return next;
+    });
+  };
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem('ai-custom-instructions') || ''
   );
@@ -363,6 +384,31 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
               </button>
             ))}
+          </div>
+
+          {/* Characteristics */}
+          <div className="space-y-3 pt-2">
+            <label className="text-sm font-medium">Characteristics</label>
+            <p className="text-xs text-muted-foreground">Toggle specific traits you'd like the AI to use in responses.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {CHARACTERISTICS.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => toggleCharacteristic(c.id)}
+                  className={`text-left rounded-lg border p-3 transition-all flex items-center gap-3 ${
+                    characteristics.includes(c.id)
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <Checkbox checked={characteristics.includes(c.id)} className="pointer-events-none" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm">{c.label}</div>
+                    <p className="text-xs text-muted-foreground">{c.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 

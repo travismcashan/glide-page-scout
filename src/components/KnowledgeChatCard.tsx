@@ -1131,6 +1131,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           sources: { ...searchSources, analytics: searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
           rag_depth: ragDepth,
           tonePreset: localStorage.getItem('ai-tone-preset') || 'default',
+          characteristics: (() => { try { const s = localStorage.getItem('ai-characteristics'); return s ? JSON.parse(s) : []; } catch { return []; } })(),
           customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
           aboutMe: (() => { try { const s = localStorage.getItem('ai-about-me'); return s ? JSON.parse(s) : undefined; } catch { return undefined; } })(),
           personalBio: localStorage.getItem('ai-personal-bio') || undefined,
