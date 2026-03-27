@@ -233,7 +233,13 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
-  const [allCollapsed, setAllCollapsed] = useState(false);
+  const [allCollapsed, setAllCollapsed] = useState(() => {
+    try { return localStorage.getItem('all-cards-collapsed') === 'true'; } catch { return false; }
+  });
+  const handleSetAllCollapsed = (v: boolean) => {
+    setAllCollapsed(v);
+    try { localStorage.setItem('all-cards-collapsed', String(v)); } catch {}
+  };
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
   const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
@@ -1948,7 +1954,7 @@ export default function ResultsPage() {
                       <Eye className="h-3.5 w-3.5 mr-1.5" />
                       {showAllIntegrations ? 'Active Only' : 'Show All'}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setAllCollapsed(!allCollapsed)}>
+                    <DropdownMenuItem onClick={() => handleSetAllCollapsed(!allCollapsed)}>
                       {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
                       {allCollapsed ? 'Expand All' : 'Collapse All'}
                     </DropdownMenuItem>
