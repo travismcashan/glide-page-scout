@@ -471,7 +471,8 @@ export async function autoIngestIntegrations(
 }
 
 /**
- * Ingest scraped page content into RAG
+ * Ingest scraped page content into RAG.
+ * Phase 1: Register all as 'pending'. Phase 2: Index via rag-ingest.
  */
 export async function autoIngestPages(
   sessionId: string,
@@ -505,6 +506,11 @@ export async function autoIngestPages(
 
   if (docsToIngest.length === 0) return 0;
 
+  // Phase 1: Register all documents as 'pending' (visible immediately)
+  const registered = await registerDocuments(sessionId, docsToIngest);
+  if (registered.length === 0) return 0;
+
+  // Phase 2: Index via rag-ingest
   try {
     const response = await fetch(INGEST_URL, {
       method: 'POST',
@@ -513,7 +519,16 @@ export async function autoIngestPages(
         'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        documents: registered.map(d => ({
+          document_id: d.document_id,
+          name: d.name,
+          content: d.content,
+          source_type: d.source_type,
+          source_key: d.source_key,
+        })),
+      }),
     });
 
     if (!response.ok) return 0;
