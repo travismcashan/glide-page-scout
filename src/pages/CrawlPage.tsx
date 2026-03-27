@@ -265,7 +265,7 @@ export default function CrawlPage() {
                     className="group aspect-square rounded-xl border border-border bg-card p-4 flex flex-col justify-between transition-colors hover:border-primary/20 hover:bg-primary/[0.03]"
                   >
                     <integration.icon className="h-6 w-6 text-primary/70 group-hover:text-primary transition-colors" />
-                    <span className="text-[13px] font-medium leading-snug text-foreground/80">
+                    <span className="text-base font-medium leading-snug text-foreground/80">
                       {integration.label}
                     </span>
                   </div>
