@@ -369,6 +369,9 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
                       <Maximize2 className="h-3 w-3 mr-1" /> Full
                     </Button>
                   </a>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedShot(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
               <div className="p-4">
