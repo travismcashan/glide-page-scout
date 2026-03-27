@@ -1845,21 +1845,11 @@ export default function ResultsPage() {
                   )}
                 </div>
               )}
-              {activeTab === 'ai-research' && !isSharedView && (
-                <>
-                  {session?.deep_research_data?.report && (
-                    <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      Deep Research PDF
-                    </Button>
-                  )}
-                  {session?.observations_data && (
-                    <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      Observations PDF
-                    </Button>
-                  )}
-                </>
+              {activeTab === 'prompts' && !isSharedView && session?.deep_research_data?.report && (
+                <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Deep Research PDF
+                </Button>
               )}
             </div>
             <AlertDialog open={rerunConfirmOpen} onOpenChange={setRerunConfirmOpen}>
