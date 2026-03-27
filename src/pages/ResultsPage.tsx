@@ -391,7 +391,12 @@ export default function ResultsPage() {
      detectzestackTriggeredRef, gtmetrixTriggeredRef, carbonTriggeredRef, cruxTriggeredRef,
      waveTriggeredRef, observatoryTriggeredRef, httpstatusTriggeredRef, w3cTriggeredRef,
      schemaTriggeredRef, readableTriggeredRef, navTriggeredRef, sitemapTriggeredRef,
-     contentTypesTriggeredRef, ga4TriggeredRef, gscTriggeredRef].forEach(ref => { ref.current = true; });
+     contentTypesTriggeredRef, ga4TriggeredRef, gscTriggeredRef,
+     oceanTriggeredRef, avomaTriggeredRef, hubspotTriggeredRef,
+     yellowlabPollingRef, linkcheckRunningRef, formsAutoRunRef, autoTagTriedRef,
+    ].forEach(ref => { ref.current = true; });
+    // Abort link checker if running
+    if (linkcheckAbortRef.current) linkcheckAbortRef.current.abort();
     toast.info('Analysis stopped — completed integrations are preserved.');
   }, []);
 
