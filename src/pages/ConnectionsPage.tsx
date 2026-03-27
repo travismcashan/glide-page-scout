@@ -245,8 +245,13 @@ export default function ConnectionsPage() {
     },
   ];
 
+  const rowProps = {
+    connectingProvider, disconnecting, pickerProvider, pickerProperties,
+    pickerLoading, savingProperty, connectProvider, loadProperties,
+    saveProperty, disconnectConnection, setPickerProvider,
+  };
+
   return (
-    <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
