@@ -152,19 +152,29 @@ function extractSchema(session: any): number | null {
 
 function extractWave(session: any): number | null {
   const wave = session.wave_data;
-  if (!wave?.categories) return null;
-  const errors = wave.categories?.error?.count ?? 0;
-  const contrast = wave.categories?.contrast?.count ?? 0;
-  const alerts = wave.categories?.alert?.count ?? 0;
+  if (!wave) return null;
+  // Support both formats: wave.categories.error.count and wave.summary.errors
+  const errors = wave.categories?.error?.count ?? wave.summary?.errors ?? 0;
+  const contrast = wave.categories?.contrast?.count ?? wave.summary?.contrast ?? 0;
+  const alerts = wave.categories?.alert?.count ?? wave.summary?.alerts ?? 0;
+  if (errors === 0 && contrast === 0 && alerts === 0 && !wave.categories && !wave.summary) return null;
   return clamp(100 - (errors * 5) - (contrast * 3) - (alerts * 1));
 }
 
 function extractW3c(session: any): number | null {
   const w3c = session.w3c_data;
-  if (!w3c?.messages) return null;
-  const errors = w3c.messages.filter((m: any) => m.type === 'error').length;
-  const warnings = w3c.messages.filter((m: any) => m.type === 'info' && m.subType === 'warning').length;
-  return clamp(100 - (errors * 5) - (warnings * 1));
+  if (!w3c) return null;
+  // Support both formats: w3c.messages array and w3c.html/css structure
+  if (w3c.messages) {
+    const errors = w3c.messages.filter((m: any) => m.type === 'error').length;
+    const warnings = w3c.messages.filter((m: any) => m.type === 'info' && m.subType === 'warning').length;
+    return clamp(100 - (errors * 5) - (warnings * 1));
+  }
+  const htmlErrors = w3c.html?.errors?.length ?? 0;
+  const htmlWarnings = w3c.html?.warnings?.length ?? 0;
+  const cssErrors = w3c.css?.errors?.length ?? 0;
+  if (htmlErrors === 0 && htmlWarnings === 0 && cssErrors === 0 && !w3c.html && !w3c.css) return null;
+  return clamp(100 - ((htmlErrors + cssErrors) * 5) - (htmlWarnings * 1));
 }
 
 function extractObservatory(session: any): number | null {
