@@ -19,22 +19,20 @@ import { getRecentViews, type RecentView } from '@/lib/recentViews';
 
 /* ── Integration showcase data ── */
 const INTEGRATIONS = [
-  { name: 'PageSpeed Insights', desc: 'Core Web Vitals and Lighthouse performance scores for mobile & desktop.', icon: Gauge },
-  { name: 'BuiltWith', desc: 'Detect every technology, CMS, analytics tool, and framework on a site.', icon: Code },
-  { name: 'SEMrush', desc: 'Domain authority, organic keywords, backlink profile, and traffic estimates.', icon: BarChart3 },
-  { name: 'SSL Labs', desc: 'Full TLS/SSL certificate grading and security configuration audit.', icon: Lock },
-  { name: 'WAVE', desc: 'Accessibility evaluation with WCAG compliance checking and error counts.', icon: Accessibility },
-  { name: 'Observatory', desc: 'Mozilla security headers analysis — CSP, HSTS, X-Frame and more.', icon: Shield },
-  { name: 'Website Carbon', desc: 'Estimate the carbon footprint and environmental impact of any webpage.', icon: Leaf },
-  { name: 'W3C Validator', desc: 'HTML markup validation against W3C standards for clean, semantic code.', icon: FileText },
-  { name: 'CrUX', desc: 'Real-user Chrome UX Report data — LCP, FID, CLS from actual visitors.', icon: Eye },
-  { name: 'Apollo', desc: 'Enrich contacts with job titles, company size, funding, and email addresses.', icon: Users },
-  { name: 'Nav Extractor', desc: 'Automatically map site navigation structure and information architecture.', icon: Navigation },
-  { name: 'AI Research', desc: 'RAG-powered deep research across all crawl data with source citations.', icon: Brain },
-  { name: 'Schema Validator', desc: 'Validate JSON-LD structured data and rich snippet eligibility.', icon: Layers },
-  { name: 'Broken Links', desc: 'Crawl every internal and external link to find 404s and redirect chains.', icon: Link2 },
-  { name: 'Gmail Lookup', desc: 'Search your inbox for prior conversations with the prospect domain.', icon: Mail },
-  { name: 'HTTP Status', desc: 'Check response codes, redirects, and server headers for any URL.', icon: Globe },
+  { label: 'Uncover performance bottlenecks', icon: Gauge },
+  { label: 'Detect every technology on a site', icon: Code },
+  { label: 'Analyze domain authority & traffic', icon: BarChart3 },
+  { label: 'Audit SSL & security headers', icon: Shield },
+  { label: 'Check accessibility compliance', icon: Accessibility },
+  { label: 'Measure environmental impact', icon: Leaf },
+  { label: 'Validate markup & structured data', icon: FileText },
+  { label: 'See real-user experience metrics', icon: Eye },
+  { label: 'Enrich contacts & companies', icon: Users },
+  { label: 'Map site navigation structure', icon: Navigation },
+  { label: 'Deep-research with AI citations', icon: Brain },
+  { label: 'Find broken links & redirects', icon: Link2 },
+  { label: 'Search prior prospect emails', icon: Mail },
+  { label: 'Check HTTP status & headers', icon: Globe },
 ];
 
 const ROTATING_WORDS = ['Research', 'Analyze', 'Prospect', 'Chat', 'Discover'];
@@ -206,18 +204,15 @@ export default function CrawlPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {featuredIntegrations.map((integration) => (
                 <div
-                  key={integration.name}
-                  className="group relative rounded-xl border border-border bg-card p-4 flex flex-col justify-between min-h-[140px] transition-colors hover:border-primary/20 hover:bg-primary/[0.02]"
+                  key={integration.label}
+                  className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:border-primary/20 hover:bg-primary/[0.03]"
                 >
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 pr-1">
-                    {integration.desc}
-                  </p>
-                  <div className="flex items-end justify-between mt-3">
-                    <span className="text-[11px] font-semibold text-foreground/70 tracking-tight">
-                      {integration.name}
-                    </span>
-                    <integration.icon className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary/50 transition-colors" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                    <integration.icon className="h-4.5 w-4.5" />
                   </div>
+                  <span className="text-xs font-medium leading-snug text-foreground/80">
+                    {integration.label}
+                  </span>
                 </div>
               ))}
             </div>
