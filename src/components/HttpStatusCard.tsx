@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, CheckCircle, AlertTriangle, Clock, Globe, ChevronDown, ChevronUp, Server, FileText } from 'lucide-react';
+import { ArrowRight, CheckCircle, AlertTriangle, Clock, Globe, ChevronDown, ChevronUp, Server } from 'lucide-react';
 import { useState } from 'react';
 
 type TimingPhases = {
@@ -132,9 +132,7 @@ function TimingBar({ timings }: { timings: TimingPhases }) {
 }
 
 export function HttpStatusCard({ data }: { data: HttpStatusData }) {
-  const { hops, redirectCount, meta, apiMeta } = data;
-  // Support legacy shape
-  const pageMeta = meta || data.metadata || null;
+  const { hops, redirectCount, apiMeta } = data;
 
   return (
     <div className="space-y-5">
@@ -246,96 +244,6 @@ export function HttpStatusCard({ data }: { data: HttpStatusData }) {
           );
         })}
       </div>
-
-      {/* Page Metadata */}
-      {pageMeta && (
-        <div className="border-t border-border pt-4 space-y-2">
-          <div className="flex items-center gap-1.5">
-            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Page Metadata</p>
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            {pageMeta.title && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Title</p>
-                <p className="text-sm text-foreground">{pageMeta.title}</p>
-              </div>
-            )}
-            {pageMeta.description && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Meta Description</p>
-                <p className="text-sm text-foreground">{pageMeta.description}</p>
-              </div>
-            )}
-            {pageMeta.canonical && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Canonical</p>
-                <p className="text-sm font-mono text-foreground truncate">{pageMeta.canonical}</p>
-              </div>
-            )}
-            {pageMeta.robots && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Meta Robots</p>
-                <p className="text-sm font-mono text-foreground">{pageMeta.robots}</p>
-              </div>
-            )}
-            {pageMeta.keywords && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Keywords</p>
-                <p className="text-sm text-foreground">{pageMeta.keywords}</p>
-              </div>
-            )}
-            {pageMeta.language && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Language</p>
-                <p className="text-sm text-foreground">{pageMeta.language}</p>
-              </div>
-            )}
-            {pageMeta.author && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Author</p>
-                <p className="text-sm text-foreground">{pageMeta.author}</p>
-              </div>
-            )}
-            {pageMeta.published && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Published</p>
-                <p className="text-sm text-foreground">{pageMeta.published}</p>
-              </div>
-            )}
-            {pageMeta.modified && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Modified</p>
-                <p className="text-sm text-foreground">{pageMeta.modified}</p>
-              </div>
-            )}
-            {pageMeta.image && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">OG Image</p>
-                <p className="text-sm font-mono text-foreground truncate">{pageMeta.image}</p>
-              </div>
-            )}
-            {pageMeta.type && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Type</p>
-                <p className="text-sm text-foreground">{pageMeta.type}</p>
-              </div>
-            )}
-            {pageMeta.hreflang && Array.isArray(pageMeta.hreflang) && pageMeta.hreflang.length > 0 && (
-              <div>
-                <p className="text-[10px] text-muted-foreground">Hreflang Tags</p>
-                <div className="flex flex-wrap gap-1 mt-0.5">
-                  {pageMeta.hreflang.map((tag: any, i: number) => (
-                    <Badge key={i} variant="secondary" className="text-[10px] px-1 py-0">
-                      {tag.lang || tag.hreflang}: {tag.href || tag.url}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Final hop parsed URL */}
       {(() => {
