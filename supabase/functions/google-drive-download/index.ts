@@ -61,9 +61,47 @@ async function getValidAccessToken(supabase: any): Promise<string | null> {
   return tokenData.access_token;
 }
 
-/** Extract all text from a Google Doc using the Docs API (supports tabs) */
-async function extractGoogleDocAllTabs(accessToken: string, fileId: string): Promise<string> {
-  // Use includeTabsContent to get all tabs
+/** Extract text from structural elements */
+function extractText(elements: any[]): string {
+  const parts: string[] = [];
+  for (const el of elements || []) {
+    if (el.paragraph) {
+      const line = (el.paragraph.elements || [])
+        .map((pe: any) => pe.textRun?.content || '')
+        .join('');
+      parts.push(line);
+    } else if (el.table) {
+      for (const row of el.table.tableRows || []) {
+        const cells = (row.tableCells || []).map((cell: any) =>
+          extractText(cell.content || []).trim()
+        );
+        parts.push(cells.join('\t'));
+      }
+      parts.push('');
+    }
+  }
+  return parts.join('');
+}
+
+/** Flatten tabs including nested child tabs */
+function flattenTabs(tabs: any[]): { id: string; title: string; body: any }[] {
+  const result: { id: string; title: string; body: any }[] = [];
+  for (const tab of tabs || []) {
+    const id = tab.tabProperties?.tabId || '';
+    const title = tab.tabProperties?.title || 'Untitled';
+    const body = tab.documentTab?.body;
+    if (body?.content) {
+      result.push({ id, title, body });
+    }
+    if (tab.childTabs) {
+      result.push(...flattenTabs(tab.childTabs));
+    }
+  }
+  return result;
+}
+
+/** Fetch a Google Doc and return its parsed tab structure */
+async function fetchGoogleDocTabs(accessToken: string, fileId: string) {
   const url = `https://docs.googleapis.com/v1/documents/${fileId}?includeTabsContent=true`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -76,61 +114,25 @@ async function extractGoogleDocAllTabs(accessToken: string, fileId: string): Pro
   }
 
   const doc = await response.json();
-  const sections: string[] = [];
 
-  // Extract text from structural elements
-  function extractText(elements: any[]): string {
-    const parts: string[] = [];
-    for (const el of elements || []) {
-      if (el.paragraph) {
-        const line = (el.paragraph.elements || [])
-          .map((pe: any) => pe.textRun?.content || '')
-          .join('');
-        parts.push(line);
-      } else if (el.table) {
-        for (const row of el.table.tableRows || []) {
-          const cells = (row.tableCells || []).map((cell: any) =>
-            extractText(cell.content || []).trim()
-          );
-          parts.push(cells.join('\t'));
-        }
-        parts.push('');
-      } else if (el.sectionBreak) {
-        // just continue
-      }
-    }
-    return parts.join('');
-  }
-
-  // Process tabs (new API structure)
   if (doc.tabs && doc.tabs.length > 0) {
-    for (const tab of doc.tabs) {
-      const tabTitle = tab.tabProperties?.title;
-      const body = tab.documentTab?.body;
-      if (body?.content) {
-        if (doc.tabs.length > 1 && tabTitle) {
-          sections.push(`\n=== ${tabTitle} ===\n`);
-        }
-        sections.push(extractText(body.content));
-      }
-      // Process child tabs (nested tabs)
-      if (tab.childTabs) {
-        for (const child of tab.childTabs) {
-          const childTitle = child.tabProperties?.title;
-          const childBody = child.documentTab?.body;
-          if (childBody?.content) {
-            if (childTitle) sections.push(`\n=== ${childTitle} ===\n`);
-            sections.push(extractText(childBody.content));
-          }
-        }
-      }
-    }
-  } else if (doc.body?.content) {
-    // Fallback: old-style response without tabs
-    sections.push(extractText(doc.body.content));
+    return flattenTabs(doc.tabs);
   }
 
-  return sections.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  // Fallback: single-tab doc
+  if (doc.body?.content) {
+    return [{ id: 'default', title: doc.title || 'Document', body: doc.body }];
+  }
+
+  return [];
+}
+
+async function resolveAccessToken(clientToken: string | undefined) {
+  if (clientToken) return clientToken;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  return await getValidAccessToken(supabase);
 }
 
 serve(async (req) => {
@@ -139,16 +141,10 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken: clientToken, fileId, mimeType, fileName, multiTab } = await req.json();
+    const body = await req.json();
+    const { accessToken: clientToken, fileId, mimeType, fileName, action, tabIds, multiTab } = body;
 
-    // Resolve token
-    let accessToken = clientToken;
-    if (!accessToken) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, serviceRoleKey);
-      accessToken = await getValidAccessToken(supabase);
-    }
+    const accessToken = await resolveAccessToken(clientToken);
 
     if (!accessToken || !fileId) {
       return new Response(JSON.stringify({ error: !accessToken ? 'drive_auth_required' : 'fileId is required' }), {
@@ -157,11 +153,53 @@ serve(async (req) => {
       });
     }
 
-    // Google Docs with multi-tab enabled: use Docs API
+    // ── ACTION: list-tabs ──
+    // Returns tab metadata for a Google Doc (id + title, no content)
+    if (action === 'list-tabs' && mimeType === 'application/vnd.google-apps.document') {
+      console.log(`[google-drive-download] Listing tabs for ${fileName}`);
+      const tabs = await fetchGoogleDocTabs(accessToken, fileId);
+      return new Response(JSON.stringify({
+        tabs: tabs.map(t => ({ id: t.id, title: t.title })),
+        tabCount: tabs.length,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── ACTION: download-tabs ──
+    // Downloads specific tabs as separate text results
+    if (action === 'download-tabs' && mimeType === 'application/vnd.google-apps.document' && Array.isArray(tabIds)) {
+      console.log(`[google-drive-download] Downloading ${tabIds.length} tabs for ${fileName}`);
+      const allTabs = await fetchGoogleDocTabs(accessToken, fileId);
+      const selectedTabs = tabIds.length > 0
+        ? allTabs.filter(t => tabIds.includes(t.id))
+        : allTabs;
+
+      const results = selectedTabs.map(tab => ({
+        tabId: tab.id,
+        tabTitle: tab.title,
+        fileName: `${fileName || fileId} — ${tab.title}`,
+        mimeType: 'text/plain',
+        content: extractText(tab.body.content).replace(/\n{3,}/g, '\n\n').trim(),
+        isText: true,
+      }));
+
+      return new Response(JSON.stringify({ tabs: results }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── LEGACY: multiTab=true (import all tabs as single document) ──
     if (multiTab && mimeType === 'application/vnd.google-apps.document') {
       console.log(`[google-drive-download] Multi-tab Docs API export for ${fileName}`);
       try {
-        const content = await extractGoogleDocAllTabs(accessToken, fileId);
+        const tabs = await fetchGoogleDocTabs(accessToken, fileId);
+        const sections: string[] = [];
+        for (const tab of tabs) {
+          if (tabs.length > 1) sections.push(`\n=== ${tab.title} ===\n`);
+          sections.push(extractText(tab.body.content));
+        }
+        const content = sections.join('\n').replace(/\n{3,}/g, '\n\n').trim();
         return new Response(JSON.stringify({
           fileName: fileName || fileId,
           mimeType: 'text/plain',
@@ -172,10 +210,10 @@ serve(async (req) => {
         });
       } catch (err) {
         console.error('Multi-tab extraction failed, falling back to export:', err);
-        // Fall through to standard export
       }
     }
 
+    // ── Standard download ──
     const isGoogleWorkspaceFile = mimeType?.startsWith('application/vnd.google-apps.');
     let downloadUrl: string;
     let finalMimeType = mimeType;
