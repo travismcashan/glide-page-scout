@@ -28,31 +28,23 @@ Deno.serve(async (req) => {
 
     console.log('Apollo team search for domain:', domain);
 
-    // Two searches: Marketing team + C-Suite/VP+
     const searches = [
       {
         label: 'marketing',
-        params: new URLSearchParams([
-          ['q_organization_domains', domain],
-          ['person_seniorities[]', 'director'],
-          ['person_seniorities[]', 'vp'],
-          ['person_seniorities[]', 'c_suite'],
-          ['person_seniorities[]', 'manager'],
-          ['person_seniorities[]', 'senior'],
-          ['person_departments[]', 'marketing'],
-          ['per_page', '10'],
-        ]),
+        body: {
+          q_organization_domains: domain,
+          person_seniorities: ['director', 'vp', 'c_suite', 'manager', 'senior'],
+          person_departments: ['marketing'],
+          per_page: 10,
+        },
       },
       {
         label: 'c_suite',
-        params: new URLSearchParams([
-          ['q_organization_domains', domain],
-          ['person_seniorities[]', 'c_suite'],
-          ['person_seniorities[]', 'vp'],
-          ['person_seniorities[]', 'founder'],
-          ['person_seniorities[]', 'owner'],
-          ['per_page', '10'],
-        ]),
+        body: {
+          q_organization_domains: domain,
+          person_seniorities: ['c_suite', 'vp', 'founder', 'owner'],
+          per_page: 10,
+        },
       },
     ];
 
@@ -67,7 +59,7 @@ Deno.serve(async (req) => {
             'Cache-Control': 'no-cache',
             'X-Api-Key': apiKey,
           },
-          body: JSON.stringify(Object.fromEntries(search.params.entries())),
+          body: JSON.stringify(search.body),
         });
 
         const contentType = response.headers.get('content-type') || '';
