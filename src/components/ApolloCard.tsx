@@ -8,14 +8,19 @@ import { ApolloPersonHeader } from './apollo/ApolloPersonHeader';
 import { ApolloContactSection } from './apollo/ApolloContactSection';
 import { ApolloOrgSection } from './apollo/ApolloOrgSection';
 import { ApolloEmploymentSection } from './apollo/ApolloEmploymentSection';
+import { ApolloTeamContacts, type ApolloTeamData } from './apollo/ApolloTeamContacts';
 
 type Props = {
   data: ApolloData | null;
   isLoading: boolean;
   onSearch: (email: string, firstName?: string, lastName?: string) => void;
+  teamData?: ApolloTeamData | null;
+  teamLoading?: boolean;
+  onTeamSearch?: () => void;
+  prospectDomain?: string | null;
 };
 
-export function ApolloCard({ data, isLoading, onSearch }: Props) {
+export function ApolloCard({ data, isLoading, onSearch, teamData, teamLoading, onTeamSearch, prospectDomain }: Props) {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -25,6 +30,8 @@ export function ApolloCard({ data, isLoading, onSearch }: Props) {
     if (!email.trim()) { toast.error('Email is required'); return; }
     onSearch(email.trim(), firstName.trim() || undefined, lastName.trim() || undefined);
   };
+
+  const domain = prospectDomain || data?.organizationDomain || null;
 
   return (
     <div className="space-y-4">
@@ -60,8 +67,26 @@ export function ApolloCard({ data, isLoading, onSearch }: Props) {
             <ApolloContactSection data={data} />
             <ApolloOrgSection data={data} />
             <ApolloEmploymentSection data={data} />
+            {onTeamSearch && (
+              <ApolloTeamContacts
+                data={teamData || null}
+                isLoading={teamLoading || false}
+                onSearch={onTeamSearch}
+                domain={domain}
+              />
+            )}
           </div>
         </div>
+      )}
+
+      {/* Show team search even without a primary contact if we have a domain */}
+      {(!data || !data.found) && domain && onTeamSearch && (
+        <ApolloTeamContacts
+          data={teamData || null}
+          isLoading={teamLoading || false}
+          onSearch={onTeamSearch}
+          domain={domain}
+        />
       )}
     </div>
   );
