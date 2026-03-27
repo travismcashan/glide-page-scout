@@ -1411,7 +1411,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     if (!text.trim() || isStreaming) return;
 
     const userMsg: Message = { role: 'user', content: text, isDeepResearch: true };
-    const assistantPlaceholder: Message = { role: 'assistant', content: '', isDeepResearch: true, deepResearchSteps: [] };
+    const assistantPlaceholder: Message = { role: 'assistant', content: '', isDeepResearch: true, deepResearchSteps: [], webCitations: [] };
     const newMessages = [...messages, userMsg];
     setMessages([...newMessages, assistantPlaceholder]);
     chatInputRef.current?.clear();
@@ -1427,6 +1427,43 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
       const defaultDocs = await loadDefaultDocs();
 
+      // Auto-retrieve RAG knowledge based on prompt
+      const RAG_SEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-search`;
+      let ragDocs: { name: string; content: string }[] = [];
+      try {
+        const ragRes = await fetch(RAG_SEARCH_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            session_id: session.id,
+            query: text.slice(0, 2000),
+            match_count: ragDepth.match_count,
+            match_threshold: ragDepth.match_threshold,
+          }),
+        });
+        if (ragRes.ok) {
+          const ragData = await ragRes.json();
+          const matches = ragData.matches || [];
+          // Group chunks by document
+          const grouped: Record<string, string[]> = {};
+          for (const chunk of matches) {
+            const key = chunk.document_name || 'Unknown';
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(chunk.chunk_text);
+          }
+          ragDocs = Object.entries(grouped).map(([name, texts]) => ({ name, content: texts.join('\n\n') }));
+        }
+      } catch (e) {
+        console.error('RAG fetch for deep research failed:', e);
+      }
+
+      // Combine default docs + RAG docs
+      const allDocs = [...defaultDocs, ...ragDocs];
+
       // Start the deep research interaction
       const startRes = await fetch(DEEP_RESEARCH_URL, {
         method: 'POST',
@@ -1439,7 +1476,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           action: 'start',
           prompt: text,
           crawlContext: crawlCtx,
-          documents: defaultDocs,
+          documents: allDocs,
         }),
       });
 
@@ -1464,7 +1501,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
       deepResearchInteractionRef.current = interactionId;
       const steps: string[] = [];
+      const collectedSources: Set<string> = new Set();
       let finalReport = '';
+
+      const updateAssistantWithSources = () => {
+        const sourcesArray = Array.from(collectedSources);
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: m.content, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
+          }
+          return prev;
+        });
+      };
 
       // Try SSE stream first
       const streamRes = await fetch(DEEP_RESEARCH_URL, {
@@ -1480,7 +1529,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       const isSSE = streamRes.ok && (streamRes.headers.get('content-type') || '').includes('text/event-stream');
 
       if (isSSE && streamRes.body) {
-        // Parse SSE stream for thinking steps and final report
+        // Parse SSE stream for thinking steps, sources, and final report
         const reader = streamRes.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -1489,10 +1538,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
         const updateAssistant = () => {
           const report = reportParts.join('');
+          const sourcesArray = Array.from(collectedSources);
           setMessages(prev => {
             const last = prev[prev.length - 1];
             if (last?.role === 'assistant') {
-              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: report, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: report, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
             }
             return prev;
           });
@@ -1523,16 +1573,39 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                   const content = delta?.content;
 
                   if (delta?.type === 'thought_summary' && content?.text) {
-                    const cleanText = content.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
-                    if (cleanText && !steps.includes(cleanText)) {
-                      steps.push(cleanText);
-                      setIsThinking(false);
-                      updateAssistant();
+                    const text = content.text.trim();
+                    if (text) {
+                      // Extract URLs from thinking text as sources
+                      const urlMatches = text.match(/https?:\/\/[^\s)>\]"']+/g);
+                      if (urlMatches) {
+                        urlMatches.forEach((u: string) => collectedSources.add(u));
+                      }
+
+                      const cleanText = text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                      if (cleanText && !steps.includes(cleanText)) {
+                        // Split multi-line thinking into individual steps
+                        const chunks = cleanText.split(/\n\n+/).filter(Boolean);
+                        for (const chunk of chunks) {
+                          if (!steps.includes(chunk)) steps.push(chunk);
+                        }
+                        setIsThinking(false);
+                        updateAssistant();
+                      }
                     }
                   } else if (delta?.type === 'text' || (content?.type === 'text')) {
                     const t = content?.text || delta?.text || '';
                     if (t) reportParts.push(t);
                     updateAssistant();
+                  }
+
+                  // Extract source annotations
+                  const annotations = delta?.annotations || content?.annotations || parsed.annotations;
+                  if (annotations && Array.isArray(annotations)) {
+                    for (const ann of annotations) {
+                      if (ann.source) collectedSources.add(ann.source);
+                      if (ann.url) collectedSources.add(ann.url);
+                    }
+                    updateAssistantWithSources();
                   }
                 }
 
@@ -1592,6 +1665,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               for (const item of output.summary) {
                 const cleanText = (item.text || '').replace(/^\*\*.*?\*\*\n+/, '').trim();
                 if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+                // Extract URLs
+                const urlMatches = (item.text || '').match(/https?:\/\/[^\s)>\]"']+/g);
+                if (urlMatches) urlMatches.forEach((u: string) => collectedSources.add(u));
               }
             }
           }
@@ -1600,15 +1676,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               if (part.thought && part.text) {
                 const cleanText = part.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
                 if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+                const urlMatches = part.text.match(/https?:\/\/[^\s)>\]"']+/g);
+                if (urlMatches) urlMatches.forEach((u: string) => collectedSources.add(u));
               }
             }
           }
 
           // Update UI during polling
+          const sourcesArray = Array.from(collectedSources);
           setMessages(prev => {
             const last = prev[prev.length - 1];
             if (last?.role === 'assistant') {
-              return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
             }
             return prev;
           });
@@ -1626,10 +1705,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
           if (attempts % 6 === 0) {
             if (!steps.includes('Still researching…')) steps.push('Still researching…');
+            const sourcesArray = Array.from(collectedSources);
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
               }
               return prev;
             });
@@ -1638,21 +1718,23 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       }
 
       // Finalize
+      const finalSources = Array.from(collectedSources);
+      const ragDocRefs: RagDocument[] = ragDocs.map(d => ({ name: d.name, source_type: 'rag' }));
       if (finalReport) {
         setMessages(prev => {
           const last = prev[prev.length - 1];
           if (last?.role === 'assistant') {
-            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: finalReport, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: finalReport, deepResearchSteps: [...steps], webCitations: finalSources, ragDocuments: ragDocRefs, isDeepResearch: true } : m);
           }
           return prev;
         });
         toast.success('Deep Research report ready!');
-        saveMessage('assistant', finalReport);
+        saveMessage('assistant', finalReport, [], ragDocRefs, finalSources);
 
         // Also save to deep_research_data for backward compat
         await supabase
           .from('crawl_sessions')
-          .update({ deep_research_data: { report: finalReport, prompt: text, updated_at: new Date().toISOString() } as any })
+          .update({ deep_research_data: { report: finalReport, prompt: text, sources: finalSources, updated_at: new Date().toISOString() } as any })
           .eq('id', session.id);
 
         // Auto-title thread
@@ -1674,7 +1756,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     deepResearchInteractionRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage]);
+  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth]);
 
   // ── Handle pending prompt from Prompts tab ──
   useEffect(() => {
