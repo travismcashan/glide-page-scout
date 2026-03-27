@@ -67,7 +67,8 @@ serve(async (req) => {
   }
 
   try {
-    const { domain } = await req.json();
+    const body = await req.json();
+    const { domain, propertyId: requestedPropertyId } = body;
     if (!domain) {
       return new Response(JSON.stringify({ success: false, error: 'domain is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -87,8 +88,8 @@ serve(async (req) => {
 
     const { accessToken } = connection;
 
-    // Always auto-detect GA4 property by domain (no global property override)
-    let propertyId: string | null = null;
+    // If client provided a specific propertyId, use it directly
+    let propertyId: string | null = requestedPropertyId?.replace('properties/', '') || null;
     let propertyName: string = '';
 
     console.log(`[ga4] Auto-detecting GA4 property for domain: ${domain}`);
