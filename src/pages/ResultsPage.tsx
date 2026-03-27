@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
