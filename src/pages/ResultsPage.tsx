@@ -2529,6 +2529,7 @@ export default function ResultsPage() {
                 }
               >
                 <GmailCard
+                  sessionId={sessionId}
                   ref={gmailRef}
                   domain={prospectingDomain}
                   lookbackDays={lookbackDays}
