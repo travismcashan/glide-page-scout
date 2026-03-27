@@ -1250,7 +1250,7 @@ export default function ResultsPage() {
           if (industry) {
             console.log(`[auto-tag] Industry: ${industry} (${industryConfidence})`);
           }
-          fetchData();
+          updateSession({ page_tags: merged } as any);
         } else {
           // Fallback to pure pattern matching
           const ctData = (session as any).content_types_data;
@@ -1258,7 +1258,7 @@ export default function ResultsPage() {
           const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
           if (Object.keys(seeded).length > 0) {
             await supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id);
-            fetchData();
+            updateSession({ page_tags: seeded } as any);
           }
         }
       } catch (e) {
@@ -1268,7 +1268,7 @@ export default function ResultsPage() {
         const seeded = autoSeedPageTags(null, effectiveDiscoveredUrls, classified, session.base_url);
         if (Object.keys(seeded).length > 0) {
           await supabase.from('crawl_sessions').update({ page_tags: seeded } as any).eq('id', session.id);
-          fetchData();
+          updateSession({ page_tags: seeded } as any);
         }
       } finally {
         setAutoTagging(false);
@@ -1283,8 +1283,8 @@ export default function ResultsPage() {
     if (!session) return;
     const updated = setPageTemplate((session as any).page_tags, url, template);
     await supabase.from('crawl_sessions').update({ page_tags: updated } as any).eq('id', session.id);
-    fetchData();
-  }, [session, fetchData]);
+    updateSession({ page_tags: updated } as any);
+  }, [session]);
 
   useEffect(() => {
     const pending = pages.filter(p => p.status === 'pending' && !processingPages.has(p.id));
@@ -1328,9 +1328,9 @@ export default function ResultsPage() {
     if (!session || session.status !== 'crawling') return;
     const allDone = pages.length > 0 && pages.every(p => p.status !== 'pending');
     if (allDone) {
-      supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => fetchData());
+      supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => updateSession({ status: 'completed' } as any));
     }
-  }, [pages, session, fetchData]);
+  }, [pages, session]);
 
   // ── Re-run helpers ──
   const rerunIntegration = useCallback(async (key: string, dbColumn: string) => {
@@ -1376,8 +1376,8 @@ export default function ResultsPage() {
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
-    fetchData();
-  }, [session, fetchData]);
+    updateSession({ [dbColumn]: null } as any);
+  }, [session]);
 
   const integrationList: { key: string; dbColumn: string }[] = [
     { key: 'sitemap', dbColumn: 'sitemap_data' },
