@@ -161,8 +161,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    } // end auto-detect block
 
-    console.log(`[ga4] Using property: ${propertyName} (${propertyId})`);
+    console.log(`[ga4] Using property: ${propertyName || 'user-selected'} (${propertyId})`);
 
     // Run GA4 Data API reports
     const endDate = new Date().toISOString().split('T')[0];
