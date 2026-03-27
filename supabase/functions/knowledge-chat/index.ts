@@ -35,7 +35,20 @@ const ALLOWED_GATEWAY_MODELS = [
   'openai/gpt-5.2',
 ];
 
-function buildSystemPrompt(contextBlock: string, customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
+const TONE_INSTRUCTIONS: Record<string, string> = {
+  professional: 'Communicate in a polished, precise, and business-appropriate tone. Use clear structure, avoid colloquialisms, and maintain a formal yet approachable style.',
+  friendly: 'Be warm, chatty, and approachable. Use a conversational tone with encouragement and enthusiasm. Feel free to use casual language.',
+  candid: 'Be direct, honest, and encouraging. Get straight to the point without sugarcoating, but remain supportive and constructive.',
+  quirky: 'Be playful, imaginative, and creative with language. Use unexpected analogies, humor, and a distinctive voice that makes interactions memorable.',
+  efficient: 'Be extremely concise and plain. Use short sentences, bullet points, and minimal prose. Skip pleasantries and get to the information quickly.',
+  cynical: 'Be critical, sarcastic, and bluntly honest. Challenge assumptions and point out flaws directly. Use dry wit but remain ultimately helpful.',
+};
+
+function buildSystemPrompt(contextBlock: string, tonePreset?: string, customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
+  const toneBlock = tonePreset && tonePreset !== 'default' && TONE_INSTRUCTIONS[tonePreset]
+    ? `\n\n---\n\n**Communication Style**: ${TONE_INSTRUCTIONS[tonePreset]}\n`
+    : '';
+
   const customBlock = customInstructions?.trim()
     ? `\n\n---\n\n**User's Custom Instructions** (always follow these preferences):\n${customInstructions.trim()}\n`
     : '';

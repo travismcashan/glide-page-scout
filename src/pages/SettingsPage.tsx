@@ -67,6 +67,21 @@ export default function SettingsPage() {
     () => (localStorage.getItem('drive-tab-doc-mode') as 'separate' | 'merged') || 'separate'
   );
 
+  // Style & tone preset
+  const TONE_PRESETS = [
+    { id: 'default', label: 'Default', description: 'Preset style and tone' },
+    { id: 'professional', label: 'Professional', description: 'Polished and precise' },
+    { id: 'friendly', label: 'Friendly', description: 'Warm and chatty' },
+    { id: 'candid', label: 'Candid', description: 'Direct and encouraging' },
+    { id: 'quirky', label: 'Quirky', description: 'Playful and imaginative' },
+    { id: 'efficient', label: 'Efficient', description: 'Concise and plain' },
+    { id: 'cynical', label: 'Cynical', description: 'Critical and sarcastic' },
+  ] as const;
+
+  const [tonePreset, setTonePreset] = useState(
+    () => localStorage.getItem('ai-tone-preset') || 'default'
+  );
+
   // Custom instructions
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem('ai-custom-instructions') || ''
@@ -318,6 +333,36 @@ export default function SettingsPage() {
                   : 'The AI reads as much as possible but only from highly relevant sources. Maximum depth with maximum precision — best for thorough research on well-documented topics. Slowest but cleanest results.'}
               </p>
             </div>
+          </div>
+        </section>
+
+        <div className="border-t border-border" />
+
+        {/* ── Style & Tone ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><Sparkles className="h-5 w-5" /> Style &amp; Tone</h2>
+            <p className="text-sm text-muted-foreground mt-1">Set a personality preset for how the AI communicates with you.</p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {TONE_PRESETS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setTonePreset(t.id);
+                  localStorage.setItem('ai-tone-preset', t.id);
+                }}
+                className={`text-left rounded-lg border p-4 transition-all ${
+                  tonePreset === t.id
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                    : 'border-border hover:border-muted-foreground/30'
+                }`}
+              >
+                <div className="font-medium text-sm">{t.label}</div>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+              </button>
+            ))}
           </div>
         </section>
 
