@@ -176,7 +176,8 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
       const failed: string[] = [];
       for (const file of filesToImport) {
         try {
-          const result = await downloadFile(file);
+          const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
+          const result = await downloadFile(file, { multiTab: multiTab && isGoogleDoc });
           if (result) {
             imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
           } else {
