@@ -2409,11 +2409,12 @@ export default function ResultsPage() {
                         if (result.success) {
                           await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
                           clearError('avoma');
-                          fetchData();
+                          updateSession({ avoma_data: result } as any);
                         } else {
                           setError('avoma', result.error || 'No results');
-                          await supabase.from('crawl_sessions').update({ avoma_data: { ...result, domain, totalMatches: 0, meetings: [] } } as any).eq('id', session!.id);
-                          fetchData();
+                          const noResultData = { ...result, domain, totalMatches: 0, meetings: [] };
+                          await supabase.from('crawl_sessions').update({ avoma_data: noResultData } as any).eq('id', session!.id);
+                          updateSession({ avoma_data: noResultData } as any);
                         }
                       } catch (e: any) {
                         setError('avoma', e?.message || 'Search failed');
@@ -2425,7 +2426,7 @@ export default function ResultsPage() {
                       if (!current) return;
                       const updated = { ...current, excludedMeetings: excludedUuids };
                       await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
-                      fetchData();
+                      updateSession({ avoma_data: updated } as any);
                     }}
                   /> : null}
                 </SectionCard>
