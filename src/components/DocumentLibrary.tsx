@@ -583,7 +583,59 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
       <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
 
-      {/* Document list */}
+      {/* Add Note modal */}
+      <Dialog open={noteModalOpen} onOpenChange={(open) => { if (!noteSubmitting) setNoteModalOpen(open); }}>
+        <DialogContent className="sm:max-w-xl [&>button:last-child]:hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="h-5 w-5" />
+              Add Note
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="note-title" className="text-sm text-muted-foreground">
+                Title <span className="text-xs">(optional — auto-generated if empty)</span>
+              </Label>
+              <Input
+                id="note-title"
+                placeholder="e.g. Competitor analysis notes"
+                value={noteTitle}
+                onChange={e => setNoteTitle(e.target.value)}
+                disabled={noteSubmitting}
+                maxLength={200}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="note-body" className="text-sm">Content</Label>
+              <Textarea
+                id="note-body"
+                placeholder="Paste or type your content here…"
+                value={noteBody}
+                onChange={e => setNoteBody(e.target.value)}
+                disabled={noteSubmitting}
+                className="min-h-[200px] resize-y font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {noteBody.length > 0 ? `${noteBody.length.toLocaleString()} characters` : ''}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setNoteModalOpen(false)} disabled={noteSubmitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleNoteSubmit} disabled={noteSubmitting || noteBody.trim().length < 20}>
+                {noteSubmitting ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Adding…</>
+                ) : (
+                  'Add to Knowledge Base'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-8">
