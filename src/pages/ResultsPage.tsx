@@ -148,6 +148,25 @@ type CrawlSession = {
 };
 
 
+function BackToTopButton() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  if (!visible) return null;
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className="fixed bottom-6 right-6 z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
+      aria-label="Back to top"
+    >
+      <ArrowUp className="h-5 w-5" />
+    </button>
+  );
+}
+
 export default function ResultsPage() {
   const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string; tab?: string }>();
   const navigate = useNavigate();
