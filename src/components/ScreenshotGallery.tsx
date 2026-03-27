@@ -23,7 +23,7 @@ type Props = {
   collapsed?: boolean;
 };
 
-const STORAGE_KEY = 'screenshot-gallery-mode';
+const STORAGE_KEY = 'screenshot-gallery-mode-v2';
 
 export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapsed: controlledCollapsed }: Props) {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
