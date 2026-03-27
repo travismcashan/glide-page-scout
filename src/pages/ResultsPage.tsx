@@ -174,7 +174,8 @@ export default function ResultsPage() {
   const [allCollapsed, setAllCollapsed] = useState(false);
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
-  const [prospectDomainEditing, setProspectDomainEditing] = useState(false);
+  const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
+  const [lookbackDays, setLookbackDays] = useState<number>(90);
   const prospectingDomain = session?.prospect_domain || session?.domain || '';
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
     return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
@@ -315,6 +316,7 @@ export default function ResultsPage() {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
       if (sessionData.prospect_domain) setProspectDomainInput(sessionData.prospect_domain);
+      if (sessionData.lookback_days != null) setLookbackDays(sessionData.lookback_days);
       // Restore persisted integration durations & timestamps
       if (sessionData.integration_durations && typeof sessionData.integration_durations === 'object') {
         setIntegrationDurations(prev => ({ ...sessionData.integration_durations, ...prev }));
@@ -658,7 +660,7 @@ export default function ResultsPage() {
     const searchDomain = apolloEmail
       ? apolloEmail.split('@').pop()?.toLowerCase() || prospectingDomain
       : prospectingDomain;
-    avomaApi.lookup(searchDomain, (session as any).lookback_days || 90).then(async (result) => {
+    avomaApi.lookup(searchDomain, lookbackDays).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
@@ -1946,46 +1948,62 @@ export default function ResultsPage() {
                 </DropdownMenu>
               )}
               {activeTab === 'prospecting' && !isSharedView && (
-                <div className="flex items-center gap-2">
-                  {prospectDomainEditing ? (
-                    <form className="flex items-center gap-1.5" onSubmit={async (e) => {
-                      e.preventDefault();
-                      const val = prospectDomainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '') || null;
-                      if (session) {
-                        await supabase.from('crawl_sessions').update({ prospect_domain: val } as any).eq('id', session.id);
-                        setSession({ ...session, prospect_domain: val });
-                      }
-                      setProspectDomainEditing(false);
-                      if (val) toast.success(`Prospecting domain set to ${val}`);
-                      else toast.success('Prospecting domain reset to site domain');
-                    }}>
-                      <Input
-                        value={prospectDomainInput}
-                        onChange={(e) => setProspectDomainInput(e.target.value)}
-                        placeholder={session?.domain || 'company.com'}
-                        className="h-7 w-48 text-xs"
-                        autoFocus
-                      />
-                      <Button type="submit" size="sm" variant="outline" className="h-7 px-2 text-xs">Save</Button>
-                      <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => {
-                        setProspectDomainInput(session?.prospect_domain || '');
-                        setProspectDomainEditing(false);
-                      }}>Cancel</Button>
-                    </form>
-                  ) : (
-                    <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-xs text-muted-foreground" onClick={() => {
-                      setProspectDomainInput(session?.prospect_domain || '');
-                      setProspectDomainEditing(true);
-                    }}>
-                      <Building2 className="h-3.5 w-3.5" />
-                      {session?.prospect_domain ? (
-                        <span>Domain: <span className="text-foreground font-medium">{session.prospect_domain}</span></span>
-                      ) : (
-                        'Set Company Domain'
-                      )}
+                <DropdownMenu open={prospectSettingsOpen} onOpenChange={setProspectSettingsOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground">
+                      <Settings className="h-4 w-4" />
+                      Settings
                     </Button>
-                  )}
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72 p-3 space-y-3" onCloseAutoFocus={(e) => e.preventDefault()}>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Company Domain</label>
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const val = prospectDomainInput.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '') || null;
+                        if (session) {
+                          await supabase.from('crawl_sessions').update({ prospect_domain: val } as any).eq('id', session.id);
+                          setSession({ ...session, prospect_domain: val });
+                        }
+                        if (val) toast.success(`Domain set to ${val}`);
+                        else toast.success('Domain reset to site domain');
+                      }}>
+                        <div className="flex gap-1.5">
+                          <Input
+                            value={prospectDomainInput}
+                            onChange={(e) => setProspectDomainInput(e.target.value)}
+                            placeholder={session?.domain || 'company.com'}
+                            className="h-8 text-xs flex-1"
+                          />
+                          <Button type="submit" size="sm" variant="outline" className="h-8 px-2.5 text-xs">Save</Button>
+                        </div>
+                      </form>
+                      <p className="text-[10px] text-muted-foreground">Override domain for HubSpot, Gmail, Avoma, etc.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Lookback Period</label>
+                      <select
+                        value={lookbackDays}
+                        onChange={async (e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setLookbackDays(val);
+                          if (session) {
+                            await supabase.from('crawl_sessions').update({ lookback_days: val } as any).eq('id', session.id);
+                            toast.success(`Lookback set to ${val === 0 ? 'all time' : `${val} days`}`);
+                          }
+                        }}
+                        className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
+                      >
+                        <option value={30}>Last 30 days</option>
+                        <option value={90}>Last 90 days</option>
+                        <option value={180}>Last 6 months</option>
+                        <option value={365}>Last 1 year</option>
+                        <option value={0}>All time</option>
+                      </select>
+                      <p className="text-[10px] text-muted-foreground">Filters Gmail threads and Avoma calls by date</p>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               {activeTab === 'prompts' && !isSharedView && session?.deep_research_data?.report && (
                 <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
@@ -2470,7 +2488,7 @@ export default function ResultsPage() {
                 <GmailCard
                   ref={gmailRef}
                   domain={prospectingDomain}
-                  lookbackDays={(session as any)?.lookback_days || 90}
+                  lookbackDays={lookbackDays}
                   onStateChange={setGmailState}
                   contactEmails={
                     (session as any)?.hubspot_data?.contacts
@@ -2499,7 +2517,7 @@ export default function ResultsPage() {
                       setAvomaLoading(true);
                       setAvomaFailed(false);
                       try {
-                        const result = await avomaApi.lookup(domain, (session as any).lookback_days || 90);
+                        const result = await avomaApi.lookup(domain, lookbackDays);
                         if (result.success) {
                           await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
                           clearError('avoma');
