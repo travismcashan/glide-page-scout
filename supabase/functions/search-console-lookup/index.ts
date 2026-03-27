@@ -85,48 +85,45 @@ serve(async (req) => {
       });
     }
 
-    const { accessToken, config } = connection;
+    const { accessToken } = connection;
 
-    // Use stored site URL from provider_config if available
-    let siteUrl: string | null = config?.propertyId || null;
+    // Always auto-detect Search Console site by domain (no global property override)
+    let siteUrl: string | null = null;
 
-    // If no stored site, try auto-detecting
-    if (!siteUrl) {
-      console.log(`[gsc] No stored site, auto-detecting for domain: ${domain}`);
-      const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
-        headers: { Authorization: `Bearer ${accessToken}` },
+    console.log(`[gsc] Auto-detecting Search Console site for domain: ${domain}`);
+    const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!sitesRes.ok) {
+      const err = await sitesRes.text();
+      console.error('[gsc] Sites list failed:', err);
+      return new Response(JSON.stringify({ success: false, error: `Search Console API error: ${sitesRes.status}` }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
 
-      if (!sitesRes.ok) {
-        const err = await sitesRes.text();
-        console.error('[gsc] Sites list failed:', err);
-        return new Response(JSON.stringify({ success: false, error: `Search Console API error: ${sitesRes.status}` }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+    const sitesData = await sitesRes.json();
+    const sites = sitesData.siteEntry || [];
+    const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
+
+    for (const site of sites) {
+      const url = (site.siteUrl || '').toLowerCase();
+      if (url.includes(cleanDomain)) {
+        siteUrl = site.siteUrl;
+        break;
       }
+    }
 
-      const sitesData = await sitesRes.json();
-      const sites = sitesData.siteEntry || [];
-      const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
-
-      for (const site of sites) {
-        const url = (site.siteUrl || '').toLowerCase();
-        if (url.includes(cleanDomain)) {
-          siteUrl = site.siteUrl;
-          break;
-        }
-      }
-
-      if (!siteUrl) {
-        return new Response(JSON.stringify({
-          success: true,
-          found: false,
-          message: `No Search Console property found for "${domain}". Please select a site in Connections settings.`,
-          availableSites: sites.map((s: any) => ({ url: s.siteUrl, permissionLevel: s.permissionLevel })),
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    if (!siteUrl) {
+      return new Response(JSON.stringify({
+        success: true,
+        found: false,
+        message: `No Search Console property found for "${domain}".`,
+        availableSites: sites.map((s: any) => ({ url: s.siteUrl, permissionLevel: s.permissionLevel })),
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log(`[gsc] Using site: ${siteUrl}`);

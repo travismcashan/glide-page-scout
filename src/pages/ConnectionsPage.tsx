@@ -106,19 +106,7 @@ function ProviderRow({ p, connectingProvider, disconnecting, pickerProvider, pic
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {conn ? (
-                <>
-                  Signed in as {conn.provider_email}
-                  {p.hasPropertyPicker && selectedProperty && (
-                    <span className="ml-1.5 text-foreground font-medium">
-                      · {selectedProperty.propertyName}
-                    </span>
-                  )}
-                  {p.hasPropertyPicker && !selectedProperty && (
-                    <span className="ml-1.5 text-amber-600 font-medium">
-                      · No {p.propertyLabel?.toLowerCase()} selected
-                    </span>
-                  )}
-                </>
+                <>Signed in as {conn.provider_email}</>
               ) : p.description}
             </p>
           </div>
@@ -405,10 +393,9 @@ export default function ConnectionsPage() {
       icon: BarChart3,
       iconBg: 'bg-amber-500/10',
       iconColor: 'text-amber-600',
-      description: 'Read-only access to GA4 traffic, engagement, and conversion data',
+      description: 'Read-only access to GA4 traffic, engagement, and conversion data. Property auto-detected per domain.',
       connection: ga4Connection,
-      hasPropertyPicker: true,
-      propertyLabel: 'GA4 Property',
+      hasPropertyPicker: false,
     },
     {
       id: 'google-search-console',
@@ -417,10 +404,9 @@ export default function ConnectionsPage() {
       icon: Search,
       iconBg: 'bg-emerald-500/10',
       iconColor: 'text-emerald-600',
-      description: 'Read-only access to search queries, impressions, clicks, and indexing data',
+      description: 'Read-only access to search queries, impressions, clicks, and indexing data. Site auto-detected per domain.',
       connection: gscConnection,
-      hasPropertyPicker: true,
-      propertyLabel: 'Site',
+      hasPropertyPicker: false,
     },
   ];
 
