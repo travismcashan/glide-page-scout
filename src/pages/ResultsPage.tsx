@@ -1475,6 +1475,8 @@ export default function ResultsPage() {
     { key: 'content-types', dbColumn: 'content_types_data' },
     { key: 'avoma', dbColumn: 'avoma_data' },
     { key: 'hubspot', dbColumn: 'hubspot_data' },
+    { key: 'ga4', dbColumn: 'ga4_data' },
+    { key: 'search-console', dbColumn: 'search_console_data' },
   ];
 
   const [rerunningAll, setRerunningAll] = useState(false);
@@ -1518,6 +1520,8 @@ export default function ResultsPage() {
     setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false;
     setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false;
     setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null);
+    setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false;
+    setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false;
     formsAutoRunRef.current = false; autoTagTriedRef.current = false;
     await fetchData();
     setRerunningAll(false);
