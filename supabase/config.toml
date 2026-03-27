@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.auto-tag-pages]
 verify_jwt = false
+
+[functions.caption-screenshots]
+verify_jwt = false
