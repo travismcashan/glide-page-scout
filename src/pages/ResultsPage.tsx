@@ -739,25 +739,30 @@ export default function ResultsPage() {
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
   const [avomaFailed, setAvomaFailed] = useState(false);
+  const [avomaProgress, setAvomaProgress] = useState<{ page: number; meetingsScanned: number; totalMeetings: number; matchesFound: number; phase: string } | null>(null);
   const avomaTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
     if (avomaTriggeredRef.current) return;
     avomaTriggeredRef.current = true;
     setAvomaLoading(true);
+    setAvomaProgress(null);
     // Prefer Apollo contact email for Avoma search, fallback to domain
     const apolloEmail = session.apollo_data?.email;
     const searchDomain = apolloEmail
       ? apolloEmail.split('@').pop()?.toLowerCase() || prospectingDomain
       : prospectingDomain;
-    avomaApi.lookup(searchDomain, lookbackDays).then(async (result) => {
+    avomaApi.lookupStreaming(searchDomain, lookbackDays, (progress) => {
+      setAvomaProgress(progress);
+    }).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
         updateSession({ avoma_data: result } as any);
       } else { const msg = result.error || 'Avoma returned an error'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); }
       setAvomaLoading(false);
-    }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); });
+      setAvomaProgress(null);
+    }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); setAvomaProgress(null); });
   }, [session, avomaLoading, avomaFailed, pauseVersion]);
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
