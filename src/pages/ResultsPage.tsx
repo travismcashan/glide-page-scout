@@ -608,13 +608,14 @@ export default function ResultsPage() {
     setObservatoryLoading(true);
     observatoryApi.scan(session.domain).then(async (result) => {
       if (result.success) {
-        await supabase.from('crawl_sessions').update({ observatory_data: { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests, rawHeaders: result.rawHeaders || null, cspRaw: result.cspRaw || null, cspDirectives: result.cspDirectives || null, cookies: result.cookies || null } } as any).eq('id', session.id);
+        const saved = { grade: result.grade, score: result.score, scannedAt: result.scannedAt, detailsUrl: result.detailsUrl, tests: result.tests, rawHeaders: result.rawHeaders || null, cspRaw: result.cspRaw || null, cspDirectives: result.cspDirectives || null, cookies: result.cookies || null };
+        await supabase.from('crawl_sessions').update({ observatory_data: saved } as any).eq('id', session.id);
         clearError('observatory');
-        fetchData();
+        updateSession({ observatory_data: saved } as any);
       } else { const msg = result.error || 'Observatory returned an error'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); }
       setObservatoryLoading(false);
     }).catch((e) => { const msg = e?.message || 'Observatory request failed'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); setObservatoryLoading(false); });
-  }, [session, observatoryLoading, observatoryFailed, fetchData, pauseVersion]);
+  }, [session, observatoryLoading, observatoryFailed, pauseVersion]);
   // Ocean.io
   const [oceanLoading, setOceanLoading] = useState(false);
   const [oceanFailed, setOceanFailed] = useState(false);
@@ -628,11 +629,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
         clearError('ocean');
-        fetchData();
+        updateSession({ ocean_data: result } as any);
       } else { const msg = result.error || 'Ocean.io returned an error'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); }
       setOceanLoading(false);
     }).catch((e) => { const msg = e?.message || 'Ocean.io request failed'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); setOceanLoading(false); });
-  }, [session, oceanLoading, oceanFailed, fetchData, pauseVersion]);
+  }, [session, oceanLoading, oceanFailed, pauseVersion]);
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
   const [avomaFailed, setAvomaFailed] = useState(false);
@@ -651,11 +652,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
-        fetchData();
+        updateSession({ avoma_data: result } as any);
       } else { const msg = result.error || 'Avoma returned an error'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); }
       setAvomaLoading(false);
     }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); });
-  }, [session, avomaLoading, avomaFailed, fetchData, pauseVersion]);
+  }, [session, avomaLoading, avomaFailed, pauseVersion]);
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
   const [hubspotFailed, setHubspotFailed] = useState(false);
@@ -669,11 +670,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
-        fetchData();
+        updateSession({ hubspot_data: result } as any);
       } else { const msg = result.error || 'HubSpot returned an error'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); }
       setHubspotLoading(false);
     }).catch((e) => { const msg = e?.message || 'HubSpot request failed'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); setHubspotLoading(false); });
-  }, [session, hubspotLoading, hubspotFailed, fetchData, pauseVersion]);
+  }, [session, hubspotLoading, hubspotFailed, pauseVersion]);
   // Apollo.io contact enrichment (manual search, persisted)
   const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
   const [apolloLoading, setApolloLoading] = useState(false);
