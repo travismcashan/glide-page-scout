@@ -1,0 +1,1 @@
+ALTER TABLE public.wishlist_items ADD COLUMN effort_estimate text;
