@@ -98,12 +98,12 @@ export default function CrawlPage() {
 
   const firstName = profile?.display_name?.split(' ')[0] || null;
 
-  // Compute multiDomain map for recent sessions
+  // Compute multiDomain map for recent views
   const multiDomains = useMemo(() => {
     const counts = new Map<string, number>();
-    recentSessions.forEach(s => counts.set(s.domain, (counts.get(s.domain) ?? 0) + 1));
+    recentViews.forEach(s => counts.set(s.domain, (counts.get(s.domain) ?? 0) + 1));
     return counts;
-  }, [recentSessions]);
+  }, [recentViews]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -188,17 +188,17 @@ export default function CrawlPage() {
             </div>
           </form>
 
-          {/* ── Recent sites ── */}
-          {recentSessions.length > 0 && (
+          {/* ── Recently viewed ── */}
+          {recentViews.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Recent
+                Recently Viewed
               </h2>
               <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-                {recentSessions.map((s) => (
+                {recentViews.map((s) => (
                   <button
-                    key={s.id}
-                    onClick={() => navigate(buildSitePath(s.domain, s.created_at, (multiDomains.get(s.domain) ?? 0) > 1))}
+                    key={s.sessionId}
+                    onClick={() => navigate(buildSitePath(s.domain, s.createdAt, (multiDomains.get(s.domain) ?? 0) > 1))}
                     className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -208,7 +208,7 @@ export default function CrawlPage() {
                     <div className="flex items-center gap-3 shrink-0">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {format(new Date(s.created_at), 'MMM d, yyyy')}
+                        {format(new Date(s.createdAt), 'MMM d, yyyy')}
                       </span>
                       <ExternalLink className="h-3 w-3 text-muted-foreground/40" />
                     </div>
