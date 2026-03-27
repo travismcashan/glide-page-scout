@@ -1872,17 +1872,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       } else {
         setDeepResearchMode(false);
       }
-      // Queue the prompt to fire after messages reset
-      queuedPromptRef.current = { text, deepResearch };
+      // Queue the prompt to fire only after the fresh thread has finished loading
+      queuedPromptRef.current = { text, deepResearch, threadId: newThread.id };
       setMessages([]);
       setActiveThreadId(newThread.id);
       setSidebarRefreshKey(k => k + 1);
     })();
   }, [pendingPrompt, loadingHistory]);
 
-  // Step 2: Fire the queued prompt once messages have settled to []
+  // Step 2: Fire the queued prompt once the new thread is active and history has settled
   useEffect(() => {
-    if (!queuedPromptRef.current || messages.length !== 0 || isStreaming) return;
+    if (!queuedPromptRef.current || isStreaming || loadingHistory || messages.length !== 0) return;
+    if (activeThreadId !== queuedPromptRef.current.threadId) return;
+
     const { text, deepResearch } = queuedPromptRef.current;
     queuedPromptRef.current = null;
     if (deepResearch) {
@@ -1890,7 +1892,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     } else {
       handleSend(text);
     }
-  }, [messages, isStreaming, handleSend, handleDeepResearchSend]);
+  }, [messages, isStreaming, loadingHistory, activeThreadId, handleSend, handleDeepResearchSend]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
