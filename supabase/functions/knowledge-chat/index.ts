@@ -811,6 +811,47 @@ const ANALYTICS_TOOLS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'query_hubspot',
+      description: 'Query HubSpot CRM for live data about contacts, deals, and companies. Use when the user asks about MQLs, SQLs, lifecycle stages, deal pipeline, pipeline value, contact counts, lead status, or CRM metrics — especially for custom date ranges or data not in the static audit snapshot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entity: {
+            type: 'string',
+            enum: ['contacts', 'deals', 'companies'],
+            description: 'CRM entity type to query',
+          },
+          startDate: { type: 'string', description: 'Filter by creation date start (YYYY-MM-DD)' },
+          endDate: { type: 'string', description: 'Filter by creation date end (YYYY-MM-DD)' },
+          properties: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Specific HubSpot properties to return. Contacts: email, firstname, lastname, jobtitle, lifecyclestage, hs_lead_status. Deals: dealname, amount, dealstage, pipeline, closedate. Companies: name, domain, industry, lifecyclestage, annualrevenue.',
+          },
+          filters: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                propertyName: { type: 'string' },
+                operator: { type: 'string', enum: ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE', 'CONTAINS_TOKEN', 'NOT_CONTAINS_TOKEN'] },
+                value: { type: 'string' },
+              },
+              required: ['propertyName', 'operator', 'value'],
+            },
+            description: 'Additional HubSpot property filters (e.g., lifecyclestage=marketingqualifiedlead for MQLs)',
+          },
+          limit: { type: 'number', description: 'Max rows (default 25, max 100)' },
+          query: { type: 'string', description: 'Free-text search query to filter results' },
+        },
+        required: ['entity'],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 /**
