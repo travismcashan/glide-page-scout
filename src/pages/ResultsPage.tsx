@@ -8,14 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail } from 'lucide-react';
+import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi } from '@/lib/api/firecrawl';
-import { DeepResearchCard } from '@/components/DeepResearchCard';
-import { ObservationsInsightsCard } from '@/components/ObservationsInsightsCard';
+import { PromptLibrary, type PromptTemplate } from '@/components/PromptLibrary';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
@@ -212,6 +211,8 @@ export default function ResultsPage() {
     localStorage.setItem('chat-model', id);
   };
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
+  // Pending prompt from Prompts tab → passed to chat
+  const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
   const activeTab = searchParams.get('tab') || 'raw-data';
   const setActiveTab = useCallback((tab: string) => {
@@ -1629,8 +1630,8 @@ export default function ResultsPage() {
           <UserPlus className="h-4 w-4 mr-2" />Prospecting
         </TabsTrigger>
       )}
-      <TabsTrigger value="ai-research" style={tabTriggerStyle('ai-research')} className={tabTriggerClass}>
-        <Brain className="h-4 w-4 mr-2" />AI Research
+      <TabsTrigger value="prompts" style={tabTriggerStyle('prompts')} className={tabTriggerClass}>
+        <FileQuestion className="h-4 w-4 mr-2" />Prompts
       </TabsTrigger>
       <TabsTrigger value="knowledge" style={tabTriggerStyle('knowledge')} className={tabTriggerClass}>
         <BookOpen className="h-4 w-4 mr-2" />Knowledge
@@ -1844,21 +1845,11 @@ export default function ResultsPage() {
                   )}
                 </div>
               )}
-              {activeTab === 'ai-research' && !isSharedView && (
-                <>
-                  {session?.deep_research_data?.report && (
-                    <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      Deep Research PDF
-                    </Button>
-                  )}
-                  {session?.observations_data && (
-                    <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      Observations PDF
-                    </Button>
-                  )}
-                </>
+              {activeTab === 'prompts' && !isSharedView && session?.deep_research_data?.report && (
+                <Button variant="outline" size="sm" onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Deep Research PDF
+                </Button>
               )}
             </div>
             <AlertDialog open={rerunConfirmOpen} onOpenChange={setRerunConfirmOpen}>
@@ -2235,26 +2226,18 @@ export default function ResultsPage() {
             </div>}
           </TabsContent>
 
-          <TabsContent value="ai-research" className="mt-8 space-y-6" forceMount={activeTab === 'ai-research' ? true : undefined}>
-            {activeTab === 'ai-research' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'ai-research' ? null : <div className="animate-fade-in space-y-6">
+          <TabsContent value="prompts" className="mt-8 space-y-6" forceMount={activeTab === 'prompts' ? true : undefined}>
+            {activeTab === 'prompts' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prompts' ? null : <div className="animate-fade-in space-y-6">
             {session && (
-              <>
-                <SectionCard
-                  sectionId="deep-research" persistedCollapsed={isSectionCollapsed("deep-research")} onCollapseChange={toggleSection} title="Gemini Deep Research"
-                  icon={<Brain className="h-5 w-5 text-foreground" />}
-                  collapsed={allCollapsed}
-                >
-                  <DeepResearchCard session={session} pages={scrapedPages} collapsed={allCollapsed} />
-                </SectionCard>
-
-                <SectionCard
-                  sectionId="observations" persistedCollapsed={isSectionCollapsed("observations")} onCollapseChange={toggleSection} title="Observations & Insights"
-                  icon={<Lightbulb className="h-5 w-5 text-foreground" />}
-                  collapsed={allCollapsed}
-                >
-                  <ObservationsInsightsCard session={session} pages={scrapedPages} />
-                </SectionCard>
-              </>
+              <PromptLibrary
+                domain={session.domain}
+                companyName={session.ocean_data?.companyName || session.domain}
+                onRunPrompt={(template: PromptTemplate) => {
+                  const isDeepResearch = template.mode === 'deep-research' || template.mode === 'observations';
+                  setPendingPrompt({ text: template.prompt, deepResearch: isDeepResearch });
+                  setActiveTab('chat');
+                }}
+              />
             )}
             </div>}
           </TabsContent>
@@ -2411,6 +2394,8 @@ export default function ResultsPage() {
                 onModelChange={setChatModel}
                 onReasoningChange={setChatReasoning}
                 stickyTabVisible={stickyTabVisible}
+                pendingPrompt={pendingPrompt}
+                onPendingPromptConsumed={() => setPendingPrompt(null)}
               />
             )}
             </div>}

@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,7 +32,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 
 type RagDocument = { name: string; source_type: string };
-type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[] };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[] };
 
 type SessionData = {
   id: string;
@@ -60,8 +60,12 @@ type Props = {
   onReasoningChange: (reasoning: ReasoningEffort) => void;
   onDocumentsChanged?: () => void;
   stickyTabVisible?: boolean;
+  /** When set, auto-fills the prompt and optionally enables deep research mode */
+  pendingPrompt?: { text: string; deepResearch: boolean } | null;
+  onPendingPromptConsumed?: () => void;
 };
 
+const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
 
 const SUGGESTED_QUESTIONS = [
@@ -315,6 +319,42 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
+function DeepResearchStepsBlock({ steps, isStreaming }: { steps: string[]; isStreaming?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const lastSteps = steps.slice(-3);
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {isStreaming ? (
+          <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 24, height: 24 }} />
+        ) : (
+          <Telescope className="flex-shrink-0 text-muted-foreground" style={{ width: 24, height: 24 }} />
+        )}
+        <span className="text-sm font-bold">
+          {isStreaming ? `Researching… (${steps.length} steps)` : `Deep Research (${steps.length} steps)`}
+        </span>
+        {expanded ? <ChevronDown className="h-4 w-4 -ml-1" strokeWidth={3} /> : <ChevronRight className="h-4 w-4 -ml-1" strokeWidth={3} />}
+      </button>
+      {!expanded && isStreaming && lastSteps.length > 0 && (
+        <div className="mt-1.5 text-xs text-muted-foreground/70 leading-relaxed" style={{ marginLeft: 32 }}>
+          {lastSteps[lastSteps.length - 1]}
+        </div>
+      )}
+      {expanded && (
+        <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground leading-relaxed space-y-1" style={{ marginLeft: 11, paddingLeft: 20 }}>
+          {steps.map((step, i) => (
+            <div key={i} className="animate-in fade-in duration-200">{step}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean }) {
   return <AssistantBubbleInner content={content} thinking={thinking} isStreamingThis={isStreamingThis} onSaveNote={onSaveNote} onToggleFavorite={onToggleFavorite} isFavorited={isFavorited} />;
 }
@@ -506,7 +546,7 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick, webCitations }:
   );
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments, searchLabel }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[]; searchLabel?: string }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments, searchLabel, deepResearchSteps, isDeepResearch }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[]; searchLabel?: string; deepResearchSteps?: string[]; isDeepResearch?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
@@ -657,16 +697,20 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
       )}
+      {/* Deep Research steps */}
+      {isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0 && (
+        <DeepResearchStepsBlock steps={deepResearchSteps} isStreaming={isStreamingThis && !content} />
+      )}
       <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{content}</div>}>
         <div className="chat-prose max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
       </Suspense>
-      {isStreamingThis && !content && !thinking && (
+      {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && (
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
-            <AnimatedThinkingText label={searchLabel || 'Thinking'} />
+            <AnimatedThinkingText label={isDeepResearch ? 'Starting Deep Research' : (searchLabel || 'Thinking')} />
           </div>
         </div>
       )}
@@ -754,7 +798,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -777,6 +821,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   const [composerHeight, setComposerHeight] = useState(176);
+
+  // Deep Research mode
+  const [deepResearchMode, setDeepResearchMode] = useState(false);
+  const deepResearchInteractionRef = useRef<string | null>(null);
 
   // Thread management
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -1299,6 +1347,296 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     setIsThinking(false);
   }, []);
 
+  // ── Deep Research send flow ──
+  const handleDeepResearchSend = useCallback(async (text: string) => {
+    if (!text.trim() || isStreaming) return;
+
+    const userMsg: Message = { role: 'user', content: text, isDeepResearch: true };
+    const assistantPlaceholder: Message = { role: 'assistant', content: '', isDeepResearch: true, deepResearchSteps: [] };
+    const newMessages = [...messages, userMsg];
+    setMessages([...newMessages, assistantPlaceholder]);
+    chatInputRef.current?.clear();
+    setIsStreaming(true);
+    setIsThinking(true);
+    scrollToLastUserMessage();
+
+    // Save user message
+    saveMessage('user', text);
+
+    try {
+      const crawlCtx = buildCrawlContext(session, pages);
+      const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
+      const defaultDocs = await loadDefaultDocs();
+
+      // Start the deep research interaction
+      const startRes = await fetch(DEEP_RESEARCH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          action: 'start',
+          prompt: text,
+          crawlContext: crawlCtx,
+          documents: defaultDocs,
+        }),
+      });
+
+      if (!startRes.ok) {
+        const errData = await startRes.json().catch(() => ({}));
+        toast.error(errData.error || `Failed to start Deep Research (${startRes.status})`);
+        setMessages(newMessages); // remove placeholder
+        setIsStreaming(false);
+        setIsThinking(false);
+        return;
+      }
+
+      const startData = await startRes.json();
+      const interactionId = startData.interactionId;
+      if (!interactionId) {
+        toast.error('No interaction ID returned');
+        setMessages(newMessages);
+        setIsStreaming(false);
+        setIsThinking(false);
+        return;
+      }
+
+      deepResearchInteractionRef.current = interactionId;
+      const steps: string[] = [];
+      let finalReport = '';
+
+      // Try SSE stream first
+      const streamRes = await fetch(DEEP_RESEARCH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ action: 'stream', interactionId }),
+      });
+
+      const isSSE = streamRes.ok && (streamRes.headers.get('content-type') || '').includes('text/event-stream');
+
+      if (isSSE && streamRes.body) {
+        // Parse SSE stream for thinking steps and final report
+        const reader = streamRes.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let sseEventType = '';
+        const reportParts: string[] = [];
+
+        const updateAssistant = () => {
+          const report = reportParts.join('');
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant') {
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: report, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+            }
+            return prev;
+          });
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let idx: number;
+          while ((idx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, idx).replace(/\r$/, '');
+            buffer = buffer.slice(idx + 1);
+
+            if (line.startsWith('event: ')) { sseEventType = line.slice(7).trim(); continue; }
+
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr || jsonStr === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(jsonStr);
+
+                // Thinking steps
+                if (sseEventType === 'content.delta' || parsed.event_type === 'content.delta') {
+                  const delta = parsed.delta || parsed;
+                  const content = delta?.content;
+
+                  if (delta?.type === 'thought_summary' && content?.text) {
+                    const cleanText = content.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                    if (cleanText && !steps.includes(cleanText)) {
+                      steps.push(cleanText);
+                      setIsThinking(false);
+                      updateAssistant();
+                    }
+                  } else if (delta?.type === 'text' || (content?.type === 'text')) {
+                    const t = content?.text || delta?.text || '';
+                    if (t) reportParts.push(t);
+                    updateAssistant();
+                  }
+                }
+
+                // Completion
+                if (sseEventType === 'interaction.complete' || parsed.state === 'completed' || parsed.state === 'COMPLETED') {
+                  const finalParts = parsed.output?.parts || parsed.candidates?.[0]?.content?.parts || [];
+                  if (finalParts.length > 0) {
+                    const finalText = finalParts.map((p: any) => p.text || '').join('\n');
+                    if (finalText) { reportParts.length = 0; reportParts.push(finalText); }
+                  }
+                  updateAssistant();
+                }
+
+                if (parsed.state === 'failed' || parsed.state === 'FAILED') {
+                  toast.error('Deep Research task failed');
+                  setIsStreaming(false);
+                  setIsThinking(false);
+                  return;
+                }
+              } catch { /* partial JSON */ }
+              sseEventType = '';
+            }
+            if (line === '') sseEventType = '';
+          }
+        }
+        finalReport = reportParts.join('');
+      }
+
+      // Fall back to polling if stream didn't produce a report
+      if (!finalReport) {
+        let attempts = 0;
+        while (attempts < 120) {
+          attempts++;
+          await new Promise(r => setTimeout(r, 5000));
+          const pollRes = await fetch(DEEP_RESEARCH_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ action: 'poll', interactionId }),
+          });
+
+          if (!pollRes.ok) continue;
+          const data = await pollRes.json();
+
+          if (data.success === false && data.terminal) {
+            toast.error(data.error || 'Research failed');
+            break;
+          }
+
+          // Extract thinking steps from poll
+          const outputs = data.outputs || [];
+          for (const output of outputs) {
+            if (output.type === 'thought' && output.summary) {
+              for (const item of output.summary) {
+                const cleanText = (item.text || '').replace(/^\*\*.*?\*\*\n+/, '').trim();
+                if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+              }
+            }
+          }
+          if (data.output?.parts) {
+            for (const part of data.output.parts) {
+              if (part.thought && part.text) {
+                const cleanText = part.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+              }
+            }
+          }
+
+          // Update UI during polling
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant') {
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+            }
+            return prev;
+          });
+
+          const state = data.status || data.state || '';
+          if (state === 'completed' || state === 'COMPLETED') {
+            const parts = data.output?.parts || [];
+            finalReport = parts.filter((p: any) => !p.thought).map((p: any) => p.text || '').join('\n');
+            break;
+          }
+          if (state === 'failed' || state === 'FAILED') {
+            toast.error('Deep Research task failed');
+            break;
+          }
+
+          if (attempts % 6 === 0) {
+            if (!steps.includes('Still researching…')) steps.push('Still researching…');
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === 'assistant') {
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+              }
+              return prev;
+            });
+          }
+        }
+      }
+
+      // Finalize
+      if (finalReport) {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: finalReport, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+          }
+          return prev;
+        });
+        toast.success('Deep Research report ready!');
+        saveMessage('assistant', finalReport);
+
+        // Also save to deep_research_data for backward compat
+        await supabase
+          .from('crawl_sessions')
+          .update({ deep_research_data: { report: finalReport, prompt: text, updated_at: new Date().toISOString() } as any })
+          .eq('id', session.id);
+
+        // Auto-title thread
+        if (activeThreadId && newMessages.length === 1) {
+          const shortTitle = text.slice(0, 30).replace(/\n/g, ' ').trim();
+          await supabase.from('chat_threads').update({ title: `🔬 ${shortTitle}`, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
+          setSidebarRefreshKey(k => k + 1);
+        }
+
+        // Auto-ingest
+        const allMsgs = [...newMessages, { role: 'assistant' as const, content: finalReport }];
+        ingestChatConversation(session.id, allMsgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))).then(() => onDocumentsChanged?.()).catch(() => {});
+      }
+    } catch (e: any) {
+      console.error('Deep Research error:', e);
+      toast.error(e?.message || 'Deep Research failed');
+    }
+
+    deepResearchInteractionRef.current = null;
+    setIsStreaming(false);
+    setIsThinking(false);
+  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage]);
+
+  // ── Handle pending prompt from Prompts tab ──
+  useEffect(() => {
+    if (!pendingPrompt || !activeThreadId || loadingHistory || isStreaming) return;
+    const { text, deepResearch } = pendingPrompt;
+    onPendingPromptConsumed?.();
+
+    if (deepResearch) {
+      setDeepResearchMode(true);
+      // Ensure Gemini is selected for deep research
+      if (provider !== 'gemini') {
+        onProviderChange('gemini');
+      }
+      // Start deep research after a tick to allow state updates
+      setTimeout(() => handleDeepResearchSend(text), 100);
+    } else {
+      setDeepResearchMode(false);
+      setTimeout(() => handleSend(text), 100);
+    }
+  }, [pendingPrompt, activeThreadId, loadingHistory]);
+
   const handleSaveNote = useCallback(async (content: string) => {
     try {
       // Generate a short AI title for the note
@@ -1561,9 +1899,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       ragDocuments={msg.ragDocuments}
                       searchLabel={
                         isStreaming && i === messages.length - 1
-                          ? 'Searching + Thinking'
+                          ? (msg.isDeepResearch ? 'Starting Deep Research' : 'Searching + Thinking')
                           : undefined
                       }
+                      deepResearchSteps={msg.deepResearchSteps}
+                      isDeepResearch={msg.isDeepResearch}
                     />
                   )}
                 </div>
@@ -1664,7 +2004,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         {/* Textarea - auto-grows up to 4 lines, then scrolls */}
         <ChatInput
           ref={chatInputRef}
-          onSubmit={(text) => handleSend(text)}
+          onSubmit={(text) => deepResearchMode ? handleDeepResearchSend(text) : handleSend(text)}
           disabled={isStreaming}
           onChange={(val) => setHasInputText(!!val?.trim())}
         />
@@ -1678,6 +2018,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             disabled={isStreaming}
             onHandleFilesRef={handleFilesRef}
           />
+
+          {/* Deep Research toggle (Gemini only) */}
+          {provider === 'gemini' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeepResearchMode(prev => !prev)}
+              disabled={isStreaming}
+              className={`shrink-0 rounded-full h-8 gap-1.5 text-xs px-3 transition-colors ${
+                deepResearchMode
+                  ? 'bg-primary/15 text-primary hover:bg-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Telescope className="h-3.5 w-3.5" />
+              Deep Research
+            </Button>
+          )}
 
           {/* Sources selector */}
           <Popover>
@@ -1789,7 +2147,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             <Button
               variant="ghost"
               size="icon"
-              onClick={isStreaming ? handleStop : () => handleSend()}
+              onClick={isStreaming ? handleStop : () => deepResearchMode ? handleDeepResearchSend(chatInputRef.current?.getValue()?.trim() || '') : handleSend()}
               disabled={!isStreaming && (attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText))}
               className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted overflow-visible text-muted-foreground hover:text-foreground"
               style={{ width: 44, height: 44 }}
