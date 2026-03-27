@@ -1950,6 +1950,9 @@ export default function ResultsPage() {
           <TabsContent value="raw-data" className="mt-8 space-y-8" forceMount={activeTab === 'raw-data' ? true : undefined}>
             {activeTab === 'raw-data' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'raw-data' ? null : <div className="animate-fade-in space-y-8">
 
+        {/* Score Overview */}
+        {overallScore && <ScoreOverview overallScore={overallScore} />}
+
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(
           (session && shouldShowIntegration('sitemap', !!session.sitemap_data, showAllIntegrations, isSharedView)) ||
