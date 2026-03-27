@@ -47,11 +47,13 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 5. **Cross-reference**: When multiple integrations provide related data, connect the dots to give a holistic picture.
 6. **File attachments**: When users attach files or images, analyze them in the context of the website audit. For images/screenshots, describe what you see and relate it to audit findings.
 
-**Live Analytics Tools**: You have access to tools that query Google Analytics 4 and Google Search Console in real-time. Use these tools when:
+**Live Analytics Tools**: You have access to tools that query Google Analytics 4, Google Search Console, and HubSpot CRM in real-time. Use these tools when:
 - The user asks for custom date ranges not in the static audit snapshot
 - The user wants year-over-year or period-over-period comparisons
 - The user asks for dimensions or metrics not included in the audit (e.g., country breakdown, device category, specific page performance)
 - The user wants the very latest data (the audit snapshot may be hours or days old)
+- The user asks about MQLs, SQLs, lifecycle stages, deal pipeline, pipeline value, or CRM metrics (use query_hubspot)
+- When combining web analytics (GA4/GSC) with CRM data (HubSpot), call multiple tools and synthesize the results
 
 Today's date is ${new Date().toISOString().split('T')[0]}. Use this when computing date ranges (e.g., "last year" = one year ago to today, "Q1 2025" = 2025-01-01 to 2025-03-31).
 
@@ -807,6 +809,47 @@ const ANALYTICS_TOOLS = [
           limit: { type: 'number', description: 'Max rows (default 25, max 100)' },
         },
         required: ['startDate', 'endDate'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'query_hubspot',
+      description: 'Query HubSpot CRM for live data about contacts, deals, and companies. Use when the user asks about MQLs, SQLs, lifecycle stages, deal pipeline, pipeline value, contact counts, lead status, or CRM metrics — especially for custom date ranges or data not in the static audit snapshot.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entity: {
+            type: 'string',
+            enum: ['contacts', 'deals', 'companies'],
+            description: 'CRM entity type to query',
+          },
+          startDate: { type: 'string', description: 'Filter by creation date start (YYYY-MM-DD)' },
+          endDate: { type: 'string', description: 'Filter by creation date end (YYYY-MM-DD)' },
+          properties: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Specific HubSpot properties to return. Contacts: email, firstname, lastname, jobtitle, lifecyclestage, hs_lead_status. Deals: dealname, amount, dealstage, pipeline, closedate. Companies: name, domain, industry, lifecyclestage, annualrevenue.',
+          },
+          filters: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                propertyName: { type: 'string' },
+                operator: { type: 'string', enum: ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE', 'CONTAINS_TOKEN', 'NOT_CONTAINS_TOKEN'] },
+                value: { type: 'string' },
+              },
+              required: ['propertyName', 'operator', 'value'],
+            },
+            description: 'Additional HubSpot property filters (e.g., lifecyclestage=marketingqualifiedlead for MQLs)',
+          },
+          limit: { type: 'number', description: 'Max rows (default 25, max 100)' },
+          query: { type: 'string', description: 'Free-text search query to filter results' },
+        },
+        required: ['entity'],
         additionalProperties: false,
       },
     },
