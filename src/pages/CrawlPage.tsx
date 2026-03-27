@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Globe, Loader2, Search, Zap } from 'lucide-react';
+import { Globe, Loader2, Search, Zap, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function CrawlPage() {
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
+  const [lookbackDays, setLookbackDays] = useState('90');
   const [isStarting, setIsStarting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,7 +24,7 @@ export default function CrawlPage() {
 
       const { data: session, error } = await supabase
         .from('crawl_sessions')
-        .insert({ domain, base_url: formattedUrl, status: 'analyzing' })
+        .insert({ domain, base_url: formattedUrl, status: 'analyzing', lookback_days: parseInt(lookbackDays, 10) } as any)
         .select()
         .single();
 
@@ -68,7 +70,7 @@ export default function CrawlPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-3">
           <div className="flex gap-3">
             <div className="relative flex-1">
               <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -88,6 +90,22 @@ export default function CrawlPage() {
                 <><Search className="h-4 w-4 mr-2" />Analyze Site</>
               )}
             </Button>
+          </div>
+          <div className="flex items-center gap-2 justify-center">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Import data from the last</span>
+            <Select value={lookbackDays} onValueChange={setLookbackDays}>
+              <SelectTrigger className="w-[140px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 days</SelectItem>
+                <SelectItem value="90">90 days</SelectItem>
+                <SelectItem value="180">6 months</SelectItem>
+                <SelectItem value="365">1 year</SelectItem>
+                <SelectItem value="0">All time</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </form>
       </main>
