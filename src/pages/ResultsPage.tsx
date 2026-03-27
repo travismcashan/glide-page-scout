@@ -739,25 +739,30 @@ export default function ResultsPage() {
   // Avoma
   const [avomaLoading, setAvomaLoading] = useState(false);
   const [avomaFailed, setAvomaFailed] = useState(false);
+  const [avomaProgress, setAvomaProgress] = useState<{ page: number; meetingsScanned: number; totalMeetings: number; matchesFound: number; phase: string } | null>(null);
   const avomaTriggeredRef = useRef(false);
   useEffect(() => {
     if (!session || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
     if (avomaTriggeredRef.current) return;
     avomaTriggeredRef.current = true;
     setAvomaLoading(true);
+    setAvomaProgress(null);
     // Prefer Apollo contact email for Avoma search, fallback to domain
     const apolloEmail = session.apollo_data?.email;
     const searchDomain = apolloEmail
       ? apolloEmail.split('@').pop()?.toLowerCase() || prospectingDomain
       : prospectingDomain;
-    avomaApi.lookup(searchDomain, lookbackDays).then(async (result) => {
+    avomaApi.lookupStreaming(searchDomain, lookbackDays, (progress) => {
+      setAvomaProgress(progress);
+    }).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
         updateSession({ avoma_data: result } as any);
       } else { const msg = result.error || 'Avoma returned an error'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); }
       setAvomaLoading(false);
-    }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); });
+      setAvomaProgress(null);
+    }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); setAvomaProgress(null); });
   }, [session, avomaLoading, avomaFailed, pauseVersion]);
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
@@ -2546,7 +2551,11 @@ export default function ResultsPage() {
                   sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
                   icon={<Phone className="h-5 w-5 text-foreground" />}
                   loading={avomaLoading && !(session as any)?.avoma_data}
-                  loadingText="Searching Avoma for meetings with @domain attendees..."
+                  loadingText={avomaProgress
+                    ? avomaProgress.phase === 'enriching'
+                      ? `Found ${avomaProgress.matchesFound} meetings — loading transcripts & insights…`
+                      : `Scanning page ${avomaProgress.page} · ${avomaProgress.meetingsScanned.toLocaleString()} of ${avomaProgress.totalMeetings.toLocaleString()} meetings checked · ${avomaProgress.matchesFound} match${avomaProgress.matchesFound !== 1 ? 'es' : ''} so far`
+                    : 'Searching Avoma for meetings with @domain attendees...'}
                   error={avomaFailed}
                   errorText={integrationErrors.avoma}
                   headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
@@ -2560,8 +2569,11 @@ export default function ResultsPage() {
                     onSearchDomain={async (domain) => {
                       setAvomaLoading(true);
                       setAvomaFailed(false);
+                      setAvomaProgress(null);
                       try {
-                        const result = await avomaApi.lookup(domain, lookbackDays);
+                        const result = await avomaApi.lookupStreaming(domain, lookbackDays, (progress) => {
+                          setAvomaProgress(progress);
+                        });
                         if (result.success) {
                           await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
                           clearError('avoma');
@@ -2576,6 +2588,7 @@ export default function ResultsPage() {
                         setError('avoma', e?.message || 'Search failed');
                       }
                       setAvomaLoading(false);
+                      setAvomaProgress(null);
                     }}
                     onExcludedChange={async (excludedUuids) => {
                       const current = (session as any).avoma_data;
