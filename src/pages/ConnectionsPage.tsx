@@ -475,6 +475,9 @@ export default function ConnectionsPage() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
               History
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/wishlist')}>
+              Wishlist
+            </Button>
           </div>
         </div>
       </header>

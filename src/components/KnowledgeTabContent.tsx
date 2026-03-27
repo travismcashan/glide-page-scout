@@ -17,12 +17,12 @@ export function KnowledgeTabContent({
   const [ingesting, setIngesting] = useState(false);
   const ingestTriggeredRef = useRef(false);
   const screenshotIngestRunning = useRef(false);
+  const abortRef = useRef(false);
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
   const runScreenshotIngest = useCallback((sessionId: string) => {
-    // Guard against concurrent runs
-    if (screenshotIngestRunning.current) return;
+    if (screenshotIngestRunning.current || abortRef.current) return;
     screenshotIngestRunning.current = true;
 
     toast.info('Captioning screenshots in background…', { duration: 4000 });
@@ -40,9 +40,9 @@ export function KnowledgeTabContent({
   }, [triggerRefresh]);
 
   const runIngest = useCallback(async () => {
+    abortRef.current = false;
     setIngesting(true);
     try {
-      // Trigger refresh early — documents are registered as 'pending' before indexing starts
       const refreshEarly = setTimeout(() => triggerRefresh(), 500);
 
       const [integrationResult, pageCount] = await Promise.all([
@@ -51,6 +51,12 @@ export function KnowledgeTabContent({
       ]);
       
       clearTimeout(refreshEarly);
+
+      if (abortRef.current) {
+        toast.info('Sync stopped');
+        return;
+      }
+
       const total = integrationResult.ingested + pageCount;
       if (total > 0) {
         toast.success(`Indexed ${total} document${total !== 1 ? 's' : ''} into knowledge base`);
@@ -58,14 +64,21 @@ export function KnowledgeTabContent({
       triggerRefresh();
     } catch (err) {
       console.error('Ingest error:', err);
-      toast.error('Failed to ingest documents');
+      if (!abortRef.current) toast.error('Failed to ingest documents');
     } finally {
       setIngesting(false);
     }
 
-    // Screenshots process one-by-one in background (don't block the sync spinner)
-    runScreenshotIngest(session.id);
+    if (!abortRef.current) {
+      runScreenshotIngest(session.id);
+    }
   }, [session, scrapedPages, triggerRefresh, runScreenshotIngest]);
+
+  const stopIngest = useCallback(() => {
+    abortRef.current = true;
+    setIngesting(false);
+    toast.info('Sync stopped — indexed documents are preserved.');
+  }, []);
 
   // Auto-ingest on first mount
   useEffect(() => {
@@ -80,6 +93,7 @@ export function KnowledgeTabContent({
         sessionId={session.id}
         refreshKey={refreshKey}
         onIngestIntegrations={runIngest}
+        onStopIngestion={stopIngest}
         ingesting={ingesting}
       />
     </div>

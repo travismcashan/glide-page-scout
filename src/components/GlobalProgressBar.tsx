@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { Check, Loader2, AlertTriangle } from 'lucide-react';
+import { Check, Loader2, AlertTriangle, Square } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 
 type IntegrationStep = {
@@ -10,9 +11,11 @@ type IntegrationStep = {
 
 type Props = {
   steps: IntegrationStep[];
+  onStop?: () => void;
+  stopped?: boolean;
 };
 
-export function GlobalProgressBar({ steps }: Props) {
+export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
   const activeSteps = steps.filter(s => s.status !== 'paused');
   const sortedSteps = [...activeSteps].sort((a, b) => {
     const order = { done: 0, failed: 1, loading: 2, pending: 3, paused: 4 };
@@ -99,6 +102,23 @@ export function GlobalProgressBar({ steps }: Props) {
               {step.label}
             </span>
           ))}
+          {onStop && !allDone && !stopped && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onStop}
+              className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full shrink-0"
+            >
+              <Square className="h-3 w-3 mr-1 fill-current" />
+              Stop
+            </Button>
+          )}
+          {stopped && !allDone && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium text-muted-foreground bg-muted shrink-0">
+              <Square className="h-3 w-3 fill-current" />
+              Stopped
+            </span>
+          )}
         </div>
       </div>
     </div>

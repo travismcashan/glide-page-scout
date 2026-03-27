@@ -379,6 +379,27 @@ export default function ResultsPage() {
     });
   }, [fetchData]);
 
+  // ── Analysis stop control ──
+  const [analysisStopped, setAnalysisStopped] = useState(false);
+  const analysisStoppedRef = useRef(false);
+
+  const handleStopAnalysis = useCallback(() => {
+    analysisStoppedRef.current = true;
+    setAnalysisStopped(true);
+    // Set all trigger refs to prevent any new effects from firing
+    [builtwithTriggeredRef, semrushTriggeredRef, psiTriggeredRef, wappalyzerTriggeredRef,
+     detectzestackTriggeredRef, gtmetrixTriggeredRef, carbonTriggeredRef, cruxTriggeredRef,
+     waveTriggeredRef, observatoryTriggeredRef, httpstatusTriggeredRef, w3cTriggeredRef,
+     schemaTriggeredRef, readableTriggeredRef, navTriggeredRef, sitemapTriggeredRef,
+     contentTypesTriggeredRef, ga4TriggeredRef, gscTriggeredRef,
+     oceanTriggeredRef, avomaTriggeredRef, hubspotTriggeredRef,
+     yellowlabPollingRef, linkcheckRunningRef, formsAutoRunRef, autoTagTriedRef,
+    ].forEach(ref => { ref.current = true; });
+    // Abort link checker if running
+    if (linkcheckAbortRef.current) linkcheckAbortRef.current.abort();
+    toast.info('Analysis stopped — completed integrations are preserved.');
+  }, []);
+
   // ── Integration trigger refs (prevent duplicate API calls during React re-renders) ──
   const builtwithTriggeredRef = useRef(false);
   const semrushTriggeredRef = useRef(false);
@@ -1857,7 +1878,7 @@ export default function ResultsPage() {
       </header>
 
       {/* Global integration progress bar */}
-      {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} />}
+      {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
 
       <main className={`max-w-6xl mx-auto px-6 py-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
