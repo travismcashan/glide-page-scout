@@ -166,6 +166,8 @@ export default function ResultsPage() {
   const [cruxLoading, setCruxLoading] = useState(false);
   const [waveLoading, setWaveLoading] = useState(false);
   const [observatoryLoading, setObservatoryLoading] = useState(false);
+  const [ga4Loading, setGa4Loading] = useState(false);
+  const [gscLoading, setGscLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
@@ -344,6 +346,8 @@ export default function ResultsPage() {
         ['avoma_data', setAvomaFailed, 'avoma'],
         ['hubspot_data', setHubspotFailed, 'hubspot'],
         ['tech_analysis_data', setTechAnalysisFailed, 'tech-analysis'],
+        ['ga4_data', setGa4Failed, 'ga4'],
+        ['search_console_data', setGscFailed, 'search-console'],
       ];
       for (const [col, setFailed, key] of errorColumns) {
         const val = sessionData[col];
@@ -391,6 +395,8 @@ export default function ResultsPage() {
   const navTriggeredRef = useRef(false);
   const sitemapTriggeredRef = useRef(false);
   const contentTypesTriggeredRef = useRef(false);
+  const ga4TriggeredRef = useRef(false);
+  const gscTriggeredRef = useRef(false);
 
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
@@ -1164,6 +1170,52 @@ export default function ResultsPage() {
       setContentTypesProgress('');
     }).catch((e) => { const msg = e?.message || 'Content type classification request failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); setContentTypesLoading(false); setContentTypesProgress(''); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, pauseVersion]);
+
+  // GA4
+  const [ga4Failed, setGa4Failed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).ga4_data || ga4Loading || ga4Failed || isIntegrationPaused('ga4')) return;
+    if (ga4TriggeredRef.current) return;
+    ga4TriggeredRef.current = true;
+    setGa4Loading(true);
+    ga4Api.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        const saved = result.data || result;
+        await supabase.from('crawl_sessions').update({ ga4_data: saved } as any).eq('id', session.id);
+        clearError('ga4');
+        updateSession({ ga4_data: saved } as any);
+      } else {
+        setGa4Failed(true);
+        const msg = result.error || 'GA4 lookup failed';
+        setError('ga4', msg);
+        persistFailure('ga4_data', msg);
+      }
+      setGa4Loading(false);
+    }).catch((e) => { const msg = e?.message || 'GA4 request failed'; setGa4Failed(true); setError('ga4', msg); persistFailure('ga4_data', msg); setGa4Loading(false); });
+  }, [session, ga4Loading, ga4Failed, pauseVersion]);
+
+  // Search Console
+  const [gscFailed, setGscFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).search_console_data || gscLoading || gscFailed || isIntegrationPaused('search-console')) return;
+    if (gscTriggeredRef.current) return;
+    gscTriggeredRef.current = true;
+    setGscLoading(true);
+    searchConsoleApi.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        const saved = result.data || result;
+        await supabase.from('crawl_sessions').update({ search_console_data: saved } as any).eq('id', session.id);
+        clearError('search-console');
+        updateSession({ search_console_data: saved } as any);
+      } else {
+        setGscFailed(true);
+        const msg = result.error || 'Search Console lookup failed';
+        setError('search-console', msg);
+        persistFailure('search_console_data', msg);
+      }
+      setGscLoading(false);
+    }).catch((e) => { const msg = e?.message || 'Search Console request failed'; setGscFailed(true); setError('search-console', msg); persistFailure('search_console_data', msg); setGscLoading(false); });
+  }, [session, gscLoading, gscFailed, pauseVersion]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
     if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
@@ -1391,6 +1443,8 @@ export default function ResultsPage() {
         // Also clear forms_tiers
         supabase.from('crawl_sessions').update({ forms_tiers: null } as any).eq('id', session!.id).then();
       },
+      'ga4': () => { setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false; },
+      'search-console': () => { setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false; },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
@@ -1421,6 +1475,8 @@ export default function ResultsPage() {
     { key: 'content-types', dbColumn: 'content_types_data' },
     { key: 'avoma', dbColumn: 'avoma_data' },
     { key: 'hubspot', dbColumn: 'hubspot_data' },
+    { key: 'ga4', dbColumn: 'ga4_data' },
+    { key: 'search-console', dbColumn: 'search_console_data' },
   ];
 
   const [rerunningAll, setRerunningAll] = useState(false);
@@ -1464,6 +1520,8 @@ export default function ResultsPage() {
     setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false;
     setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false;
     setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null);
+    setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false;
+    setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false;
     formsAutoRunRef.current = false; autoTagTriedRef.current = false;
     await fetchData();
     setRerunningAll(false);
@@ -1495,6 +1553,7 @@ export default function ResultsPage() {
     apollo: apolloLoading,
     forms: formsLoading, templates: templatesRerunning,
     'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
+    ga4: ga4Loading, 'search-console': gscLoading,
   };
 
   useEffect(() => {
@@ -1571,6 +1630,8 @@ export default function ResultsPage() {
     { key: 'templates', label: 'Templates', loading: templatesRerunning || (autoTagging && !(session as any).template_tiers), failed: false, data: (session as any).template_tiers, paused: false },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
     { key: 'hubspot', label: 'HubSpot', loading: hubspotLoading, failed: hubspotFailed, data: (session as any).hubspot_data, paused: isIntegrationPaused('hubspot') },
+    { key: 'ga4', label: 'Google Analytics', loading: ga4Loading, failed: ga4Failed, data: (session as any).ga4_data, paused: isIntegrationPaused('ga4') },
+    { key: 'search-console', label: 'Search Console', loading: gscLoading, failed: gscFailed, data: (session as any).search_console_data, paused: isIntegrationPaused('search-console') },
   ].map(s => ({
     key: s.key,
     label: s.label,
@@ -2231,12 +2292,24 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔍 SEO & Search ══════ */}
-        {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView)) && (
+        {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView) || shouldShowIntegration('ga4', !!(session as any)?.ga4_data, showAllIntegrations, isSharedView) || shouldShowIntegration('search-console', !!(session as any)?.search_console_data, showAllIntegrations, isSharedView)) && (
           <CollapsibleSection title="SEO & Search" collapsed={isSectionCollapsed("section-seo") ?? false} onToggle={(c) => toggleSection("section-seo", c)} {...catGrade("section-seo")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView) && (
               <SectionCard collapsed={allCollapsed} sectionId="semrush" {...intGrade("semrush")} persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)} reportUrl={getReportUrl('semrush')} paused={isIntegrationPaused('semrush') && !session?.semrush_data} onTogglePause={() => handleTogglePause('semrush')}>
                 {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('search-console', !!(session as any)?.search_console_data, showAllIntegrations, isSharedView) && (
+              <SectionCard collapsed={allCollapsed} sectionId="search-console" {...intGrade("search-console")} persistedCollapsed={isSectionCollapsed("search-console")} onCollapseChange={toggleSection} title="Google Search Console" icon={<Search className="h-5 w-5 text-foreground" />} loading={gscLoading && !(session as any)?.search_console_data} loadingText="Fetching Search Console data..." error={gscFailed} errorText={integrationErrors['search-console']} headerExtra={rerunButton('search-console', 'search_console_data', gscLoading)} paused={isIntegrationPaused('search-console') && !(session as any)?.search_console_data} onTogglePause={() => handleTogglePause('search-console')}>
+                {(session as any)?.search_console_data ? <SearchConsoleCard data={(session as any).search_console_data} /> : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('ga4', !!(session as any)?.ga4_data, showAllIntegrations, isSharedView) && (
+              <SectionCard collapsed={allCollapsed} sectionId="ga4" persistedCollapsed={isSectionCollapsed("ga4")} onCollapseChange={toggleSection} title="Google Analytics (GA4)" icon={<BarChart3 className="h-5 w-5 text-foreground" />} loading={ga4Loading && !(session as any)?.ga4_data} loadingText="Fetching GA4 analytics data..." error={ga4Failed} errorText={integrationErrors.ga4} headerExtra={rerunButton('ga4', 'ga4_data', ga4Loading)} paused={isIntegrationPaused('ga4') && !(session as any)?.ga4_data} onTogglePause={() => handleTogglePause('ga4')}>
+                {(session as any)?.ga4_data ? <GA4Card data={(session as any).ga4_data} /> : null}
               </SectionCard>
               )}
 
