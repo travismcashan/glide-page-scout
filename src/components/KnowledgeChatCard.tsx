@@ -884,6 +884,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   // Deep Research mode
   const [deepResearchMode, setDeepResearchMode] = useState(false);
   const deepResearchInteractionRef = useRef<string | null>(null);
+  // Track the last completed interaction ID per thread for follow-up chaining
+  const lastDeepResearchIdRef = useRef<string | null>(null);
+  // Track last SSE event ID for stream reconnection
+  const lastEventIdRef = useRef<string | null>(null);
 
   // Thread management
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
