@@ -50,9 +50,12 @@ function buildSystemPrompt(contextBlock: string, customInstructions?: string, ab
     if (aboutMe.city || aboutMe.state || aboutMe.country) parts.push(`Location: ${[aboutMe.city, aboutMe.state, aboutMe.country].filter(Boolean).join(', ')}`);
     if (aboutMe.seniority) parts.push(`Seniority: ${aboutMe.seniority}`);
     if (aboutMe.departments?.length) parts.push(`Departments: ${aboutMe.departments.join(', ')}`);
+    if (personalBio?.trim()) parts.push(`\nUser's own bio:\n${personalBio.trim()}`);
     if (parts.length > 0) {
       aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses — address them by name, understand their role and company context):\n${parts.join('\n')}\n`;
     }
+  } else if (personalBio?.trim()) {
+    aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses):\n${personalBio.trim()}\n`;
   }
 
   return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${customBlock}
