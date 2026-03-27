@@ -1544,6 +1544,7 @@ export default function ResultsPage() {
       : s.data ? 'done' as const
       : s.failed ? 'failed' as const
       : s.loading ? 'loading' as const
+      : (s as any).manual ? 'paused' as const
       : 'pending' as const,
   })) : [];
 
