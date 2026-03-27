@@ -4,8 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -13,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Folder, FileText, FileSpreadsheet, FileImage, File, ChevronRight,
-  Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter, Layers,
+  Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
