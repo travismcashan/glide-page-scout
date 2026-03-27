@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { ArrowLeft, Zap, Brain, Sparkles, Monitor, SlidersHorizontal } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ArrowLeft, Zap, Brain, Sparkles, SlidersHorizontal, LogOut, Shield } from 'lucide-react';
 import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TIER_DOT: Record<string, string> = {
   fast: 'bg-emerald-500',
@@ -27,6 +29,7 @@ const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { user, profile, isAdmin, signOut } = useAuth();
 
   // Model settings
   const [provider, setProvider] = useState<ModelProvider>(
@@ -210,12 +213,37 @@ export default function SettingsPage() {
 
         <div className="border-t border-border" />
 
-        {/* ── More settings placeholder ── */}
-        <section className="space-y-4">
+        {/* ── Account ── */}
+        <section className="space-y-6">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight text-muted-foreground/50">More coming soon</h2>
-            <p className="text-sm text-muted-foreground/40 mt-1">Account management, team settings, and notification preferences will appear here.</p>
+            <h2 className="text-xl font-semibold tracking-tight">Account</h2>
+            <p className="text-sm text-muted-foreground mt-1">Manage your profile and access.</p>
           </div>
+
+          {user ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 rounded-lg border border-border">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback>{(profile?.display_name || '?')[0]?.toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium truncate">{profile?.display_name || 'User'}</p>
+                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                </div>
+                {isAdmin && (
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/admin')}>
+                    <Shield className="h-3.5 w-3.5" /> Admin Panel
+                  </Button>
+                )}
+              </div>
+              <Button variant="outline" className="gap-2" onClick={() => signOut()}>
+                <LogOut className="h-4 w-4" /> Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={() => navigate('/login')}>Sign In with Google</Button>
+          )}
         </section>
       </main>
     </div>
