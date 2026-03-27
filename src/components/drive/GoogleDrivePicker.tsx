@@ -639,18 +639,30 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
             <p className="text-sm text-muted-foreground">
               {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Click to select · Space to preview'}
             </p>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={multiTab}
-                onCheckedChange={(checked) => {
-                  const val = checked === true;
-                  setMultiTab(val);
-                  try { localStorage.setItem('drive-multi-tab', String(val)); } catch {}
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5" />
+                Doc tabs:
+              </span>
+              <RadioGroup
+                value={tabMode}
+                onValueChange={(v: string) => {
+                  const val = v as TabMode;
+                  setTabMode(val);
+                  try { localStorage.setItem('drive-tab-mode', val); } catch {}
                 }}
-                className="h-4 w-4"
-              />
-              <span className="text-xs text-muted-foreground">Import all Google Doc tabs</span>
-            </label>
+                className="flex items-center gap-3"
+              >
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="all" id="tab-all" className="h-3.5 w-3.5" />
+                  <Label htmlFor="tab-all" className="text-xs text-muted-foreground cursor-pointer">Import all</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <RadioGroupItem value="choose" id="tab-choose" className="h-3.5 w-3.5" />
+                  <Label htmlFor="tab-choose" className="text-xs text-muted-foreground cursor-pointer">Let me choose</Label>
+                </div>
+              </RadioGroup>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -659,6 +671,87 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
             </Button>
           </div>
         </div>
+
+        {/* Tab picker overlay modal */}
+        {tabPickerOpen && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+            <div className="bg-background border rounded-lg shadow-lg w-full max-w-md mx-4">
+              <div className="flex items-center justify-between px-4 py-3 border-b">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-sm">Select tabs to import</h3>
+                  {tabPickerFile && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{tabPickerFile.name}</p>
+                  )}
+                </div>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => { setTabPickerOpen(false); setTabPickerPending([]); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {tabPickerLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground ml-2">Loading tabs…</span>
+                </div>
+              ) : (
+                <>
+                  <div className="px-4 py-2 border-b">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <Checkbox
+                        checked={tabPickerSelected.size === tabPickerTabs.length && tabPickerTabs.length > 0}
+                        onCheckedChange={(checked) => {
+                          setTabPickerSelected(checked ? new Set(tabPickerTabs.map(t => t.id)) : new Set());
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-xs font-medium">Select all ({tabPickerTabs.length} tabs)</span>
+                    </label>
+                  </div>
+                  <ScrollArea className="max-h-[300px]">
+                    <div className="divide-y">
+                      {tabPickerTabs.map(tab => (
+                        <label
+                          key={tab.id}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent/50 cursor-pointer transition-colors"
+                        >
+                          <Checkbox
+                            checked={tabPickerSelected.has(tab.id)}
+                            onCheckedChange={(checked) => {
+                              setTabPickerSelected(prev => {
+                                const next = new Set(prev);
+                                checked ? next.add(tab.id) : next.delete(tab.id);
+                                return next;
+                              });
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                          <span className="text-sm truncate">{tab.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </>
+              )}
+
+              <div className="flex items-center justify-between px-4 py-3 border-t">
+                <p className="text-xs text-muted-foreground">
+                  {tabPickerSelected.size > 0
+                    ? `${tabPickerSelected.size} tab${tabPickerSelected.size !== 1 ? 's' : ''} · each imported as separate document`
+                    : 'Select at least one tab'}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setTabPickerOpen(false); setTabPickerPending([]); }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleTabPickerConfirm} disabled={tabPickerSelected.size === 0}>
+                    Import
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
