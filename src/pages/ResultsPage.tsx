@@ -658,7 +658,7 @@ export default function ResultsPage() {
     const searchDomain = apolloEmail
       ? apolloEmail.split('@').pop()?.toLowerCase() || prospectingDomain
       : prospectingDomain;
-    avomaApi.lookup(searchDomain).then(async (result) => {
+    avomaApi.lookup(searchDomain, (session as any).lookback_days || 90).then(async (result) => {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
         clearError('avoma');
@@ -2470,6 +2470,7 @@ export default function ResultsPage() {
                 <GmailCard
                   ref={gmailRef}
                   domain={prospectingDomain}
+                  lookbackDays={(session as any)?.lookback_days || 90}
                   onStateChange={setGmailState}
                   contactEmails={
                     (session as any)?.hubspot_data?.contacts
