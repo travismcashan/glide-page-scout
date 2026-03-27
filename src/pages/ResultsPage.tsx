@@ -240,6 +240,16 @@ export default function ResultsPage() {
     setAllCollapsed(v);
     try { localStorage.setItem('all-cards-collapsed', String(v)); } catch {}
   };
+
+  const SECTION_IDS = [
+    'section-url-analysis', 'section-content-analysis', 'section-design-analysis',
+    'section-tech-detection', 'section-performance', 'section-seo',
+    'section-security', 'section-ux-accessibility',
+  ];
+  const allSectionsCollapsed = SECTION_IDS.every(id => isSectionCollapsed(id) === true);
+  const handleToggleAllSections = (collapsed: boolean) => {
+    SECTION_IDS.forEach(id => toggleSection(id, collapsed));
+  };
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
   const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
@@ -1954,9 +1964,13 @@ export default function ResultsPage() {
                       <Eye className="h-3.5 w-3.5 mr-1.5" />
                       {showAllIntegrations ? 'Active Only' : 'Show All'}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleToggleAllSections(!allSectionsCollapsed)}>
+                      {allSectionsCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
+                      {allSectionsCollapsed ? 'Expand All Sections' : 'Collapse All Sections'}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleSetAllCollapsed(!allCollapsed)}>
                       {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
-                      {allCollapsed ? 'Expand All' : 'Collapse All'}
+                      {allCollapsed ? 'Expand All Cards' : 'Collapse All Cards'}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel className="text-xs text-muted-foreground">Actions</DropdownMenuLabel>
