@@ -375,6 +375,83 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     setUploading(false);
   };
 
+  const handleNoteSubmit = async () => {
+    const body = noteBody.trim();
+    if (!body) { toast.error('Please enter some content'); return; }
+    if (body.length < 20) { toast.error('Content is too short (minimum 20 characters)'); return; }
+
+    setNoteSubmitting(true);
+    try {
+      let title = noteTitle.trim();
+
+      // Auto-generate title if empty
+      if (!title) {
+        try {
+          const aiResp = await supabase.functions.invoke('knowledge-chat', {
+            body: {
+              session_id: sessionId,
+              messages: [
+                { role: 'system', content: 'Generate a concise, descriptive title (3-8 words) for the following content. Return ONLY the title text, nothing else.' },
+                { role: 'user', content: body.slice(0, 2000) },
+              ],
+              skipRag: true,
+            },
+          });
+          const generated = aiResp.data?.reply?.trim();
+          if (generated && generated.length > 0 && generated.length < 120) {
+            title = generated.replace(/^["']|["']$/g, '');
+          }
+        } catch {
+          // Fallback below
+        }
+        if (!title) {
+          const firstLine = body.split('\n')[0].trim();
+          title = firstLine.length > 60 ? firstLine.slice(0, 57) + '…' : firstLine;
+        }
+      }
+
+      // Insert placeholder
+      const { data: inserted, error: insertErr } = await supabase
+        .from('knowledge_documents')
+        .insert({
+          session_id: sessionId,
+          name: title,
+          source_type: 'note',
+          status: 'uploading',
+          char_count: 0,
+          chunk_count: 0,
+        })
+        .select('id')
+        .single();
+      if (insertErr || !inserted) { toast.error('Failed to create note'); setNoteSubmitting(false); return; }
+      fetchDocuments();
+
+      // Ingest
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ session_id: sessionId, documents: [{ document_id: inserted.id, name: title, content: body, source_type: 'note' }] }),
+      });
+      const result = await response.json().catch(() => null);
+      const ingestResult = result?.results?.[0];
+
+      if (!response.ok || ingestResult?.status === 'error') {
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: ingestResult?.reason || 'Indexing failed' }).eq('id', inserted.id);
+      } else {
+        toast.success('Note added to knowledge base');
+      }
+
+      setNoteTitle('');
+      setNoteBody('');
+      setNoteModalOpen(false);
+      fetchDocuments();
+    } catch {
+      toast.error('Failed to add note');
+    } finally {
+      setNoteSubmitting(false);
+    }
+  };
+
   const readyCount = documents.filter(d => d.status === 'ready').length;
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
   const totalChars = documents.reduce((sum, d) => sum + d.char_count, 0);
