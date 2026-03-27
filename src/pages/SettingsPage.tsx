@@ -65,6 +65,11 @@ export default function SettingsPage() {
     () => (localStorage.getItem('drive-tab-doc-mode') as 'separate' | 'merged') || 'separate'
   );
 
+  // Custom instructions
+  const [customInstructions, setCustomInstructions] = useState(
+    () => localStorage.getItem('ai-custom-instructions') || ''
+  );
+
   const handleProviderChange = (p: ModelProvider) => {
     setProvider(p);
     localStorage.setItem('chat-provider', p);
