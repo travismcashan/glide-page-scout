@@ -60,6 +60,8 @@ function formatPct(n: number): string {
 export function SearchConsoleCard({ data }: Props) {
   const [showQueries, setShowQueries] = useState(true);
   const [showPages, setShowPages] = useState(false);
+  const [showTrend, setShowTrend] = useState(false);
+  const [trendMetric, setTrendMetric] = useState<'clicks' | 'impressions'>('clicks');
 
   if (!data.found) {
     return (
