@@ -182,10 +182,10 @@ serve(async (req) => {
     let nextUrl = data.next || null;
     let pageCount = 1;
     let consecutiveEmpty = 0;
-    while (nextUrl && pageCount < 15) {
-      // Early-stop: if we already have 5+ matches, stop after 2 empty pages
-      // If fewer matches, allow up to 5 empty pages to find older meetings
-      const emptyLimit = matchedMeetings.length >= 5 ? 2 : 5;
+    while (nextUrl && pageCount < 40) {
+      // Early-stop: if we already have 10+ matches, stop after 3 empty pages
+      // If fewer matches, allow up to 10 empty pages to find older meetings spread across many pages
+      const emptyLimit = matchedMeetings.length >= 10 ? 3 : 10;
       if (consecutiveEmpty >= emptyLimit) break;
       pageCount++;
       try {
