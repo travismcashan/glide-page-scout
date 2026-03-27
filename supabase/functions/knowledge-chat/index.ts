@@ -1163,7 +1163,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, customInstructions, aboutMe, personalBio, myRole } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, customInstructions, aboutMe, personalBio, myRole } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1241,7 +1241,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions, aboutMe, personalBio, myRole);
+    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, customInstructions, aboutMe, personalBio, myRole);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available
