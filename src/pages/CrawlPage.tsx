@@ -45,6 +45,9 @@ export default function CrawlPage() {
             <span className="text-lg font-semibold tracking-tight">Glide Sales Prep</span>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/connections')}>
+              Connections
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/integrations')}>
               Integrations
             </Button>
