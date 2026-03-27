@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X, Wand2, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { AppHeader } from '@/components/AppHeader';
 
 type WishlistItem = {
   id: string;
@@ -16,7 +19,17 @@ type WishlistItem = {
   category: string;
   status: string;
   priority: string;
+  effort_estimate: string | null;
   created_at: string;
+};
+
+type ParsedItem = {
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  effort_estimate: string;
+  selected: boolean;
 };
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Sparkles; color: string }> = {
@@ -32,15 +45,27 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   done: { label: 'Done', color: 'bg-green-600/10 text-green-600 border-green-600/20' },
 };
 
+const EFFORT_CONFIG: Record<string, { label: string; color: string }> = {
+  small: { label: 'Small', color: 'bg-green-600/10 text-green-600 border-green-600/20' },
+  medium: { label: 'Medium', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  large: { label: 'Large', color: 'bg-destructive/10 text-destructive border-destructive/20' },
+};
+
 export default function WishlistPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Form state
+  // Brain dump state
+  const [rawInput, setRawInput] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const [parsedItems, setParsedItems] = useState<ParsedItem[] | null>(null);
+
+  // Manual form state
+  const [showManual, setShowManual] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('feature');
@@ -57,7 +82,48 @@ export default function WishlistPage() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  const addItem = async () => {
+  const breakItDown = async () => {
+    if (!rawInput.trim()) return;
+    setParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('wishlist-parse', {
+        body: { rawInput: rawInput.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: 'AI Error', description: data.error, variant: 'destructive' });
+        setParsing(false);
+        return;
+      }
+      const items = (data?.items || []).map((item: any) => ({ ...item, selected: true }));
+      setParsedItems(items);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'Failed to parse ideas', variant: 'destructive' });
+    }
+    setParsing(false);
+  };
+
+  const saveSelected = async () => {
+    if (!parsedItems) return;
+    const selected = parsedItems.filter((i) => i.selected);
+    if (selected.length === 0) return;
+    setSaving(true);
+    const rows = selected.map((i) => ({
+      title: i.title,
+      description: i.description || null,
+      category: i.category,
+      priority: i.priority,
+      effort_estimate: i.effort_estimate || null,
+    }));
+    await supabase.from('wishlist_items').insert(rows as any);
+    setParsedItems(null);
+    setRawInput('');
+    setSaving(false);
+    fetchItems();
+    toast({ title: `${selected.length} item${selected.length > 1 ? 's' : ''} added` });
+  };
+
+  const addManualItem = async () => {
     if (!title.trim()) return;
     setSaving(true);
     await supabase.from('wishlist_items').insert({
@@ -70,7 +136,7 @@ export default function WishlistPage() {
     setDescription('');
     setCategory('feature');
     setPriority('medium');
-    setShowForm(false);
+    setShowManual(false);
     setSaving(false);
     fetchItems();
   };
@@ -78,55 +144,79 @@ export default function WishlistPage() {
   const deleteItem = async (id: string) => {
     setDeleting(id);
     await supabase.from('wishlist_items').delete().eq('id', id);
-    setItems(prev => prev.filter(i => i.id !== id));
+    setItems((prev) => prev.filter((i) => i.id !== id));
     setDeleting(null);
   };
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('wishlist_items').update({ status } as any).eq('id', id);
-    setItems(prev => prev.map(i => i.id === id ? { ...i, status } : i));
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)));
+  };
+
+  const toggleParsedItem = (index: number) => {
+    setParsedItems((prev) =>
+      prev ? prev.map((item, i) => (i === index ? { ...item, selected: !item.selected } : item)) : prev
+    );
+  };
+
+  const updateParsedItem = (index: number, field: string, value: string) => {
+    setParsedItems((prev) =>
+      prev ? prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)) : prev
+    );
   };
 
   const grouped = {
-    wishlist: items.filter(i => i.status === 'wishlist'),
-    planned: items.filter(i => i.status === 'planned'),
-    'in-progress': items.filter(i => i.status === 'in-progress'),
-    done: items.filter(i => i.status === 'done'),
+    wishlist: items.filter((i) => i.status === 'wishlist'),
+    planned: items.filter((i) => i.status === 'planned'),
+    'in-progress': items.filter((i) => i.status === 'in-progress'),
+    done: items.filter((i) => i.status === 'done'),
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h1 className="text-xl font-semibold tracking-tight">Wishlist</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => setShowForm(true)} disabled={showForm}>
-              <Plus className="h-3 w-3 mr-1" />
-              Add Item
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        <p className="text-muted-foreground text-sm mb-6">
-          Track feature requests, bugs, and ideas. Drag items between statuses to build your roadmap.
-        </p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Wishlist</h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              Brain dump your ideas and let AI break them into actionable items.
+            </p>
+          </div>
+        </div>
 
-        {/* Add form */}
-        {showForm && (
-          <Card className="p-5 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold">New Item</h3>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowForm(false)}>
+        {/* Brain dump input */}
+        {!parsedItems && (
+          <Card className="p-5 mb-4">
+            <Textarea
+              placeholder="What's on your mind? Describe features, bugs, ideas — anything. AI will break it down..."
+              value={rawInput}
+              onChange={(e) => setRawInput(e.target.value)}
+              rows={3}
+              className="resize-none mb-3"
+            />
+            <div className="flex items-center justify-between">
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowManual(!showManual)}
+              >
+                {showManual ? 'Hide manual form' : 'or add manually'}
+              </button>
+              <Button onClick={breakItDown} disabled={parsing || !rawInput.trim()} size="sm">
+                {parsing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
+                Break it down
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Manual form */}
+        {showManual && !parsedItems && (
+          <Card className="p-5 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Add Manually</h3>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowManual(false)}>
                 <X className="h-3 w-3" />
               </Button>
             </div>
@@ -135,19 +225,12 @@ export default function WishlistPage() {
                 placeholder="Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addItem()}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addManualItem()}
               />
-              <Textarea
-                placeholder="Description (optional)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-              />
+              <Textarea placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
               <div className="flex gap-3">
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="feature">Feature</SelectItem>
                     <SelectItem value="bug">Bug</SelectItem>
@@ -155,16 +238,14 @@ export default function WishlistPage() {
                   </SelectContent>
                 </Select>
                 <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button onClick={addItem} disabled={saving || !title.trim()} className="ml-auto">
+                <Button onClick={addManualItem} disabled={saving || !title.trim()} className="ml-auto" size="sm">
                   {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
                   Add
                 </Button>
@@ -173,6 +254,88 @@ export default function WishlistPage() {
           </Card>
         )}
 
+        {/* Review parsed items */}
+        {parsedItems && (
+          <Card className="p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold">
+                AI found {parsedItems.length} item{parsedItems.length !== 1 ? 's' : ''}
+              </h3>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setParsedItems(null); }}>
+                  Discard
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveSelected}
+                  disabled={saving || parsedItems.filter((i) => i.selected).length === 0}
+                >
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+                  Add {parsedItems.filter((i) => i.selected).length} Selected
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {parsedItems.map((item, idx) => {
+                const cat = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.feature;
+                const CatIcon = cat.icon;
+                return (
+                  <div
+                    key={idx}
+                    className={`flex items-start gap-3 p-3 rounded-lg border transition-opacity ${item.selected ? 'border-border' : 'border-border/50 opacity-50'}`}
+                  >
+                    <Checkbox
+                      checked={item.selected}
+                      onCheckedChange={() => toggleParsedItem(idx)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <Input
+                        value={item.title}
+                        onChange={(e) => updateParsedItem(idx, 'title', e.target.value)}
+                        className="h-8 text-sm font-medium"
+                      />
+                      <Input
+                        value={item.description}
+                        onChange={(e) => updateParsedItem(idx, 'description', e.target.value)}
+                        className="h-8 text-xs"
+                        placeholder="Description"
+                      />
+                      <div className="flex gap-2 flex-wrap">
+                        <Select value={item.category} onValueChange={(v) => updateParsedItem(idx, 'category', v)}>
+                          <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="feature">Feature</SelectItem>
+                            <SelectItem value="bug">Bug</SelectItem>
+                            <SelectItem value="idea">Idea</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={item.priority} onValueChange={(v) => updateParsedItem(idx, 'priority', v)}>
+                          <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={item.effort_estimate} onValueChange={(v) => updateParsedItem(idx, 'effort_estimate', v)}>
+                          <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="small">Small</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="large">Large</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* Existing items list */}
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -181,7 +344,7 @@ export default function WishlistPage() {
         ) : items.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             <Sparkles className="h-8 w-8 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No items yet. Add your first feature request or idea.</p>
+            <p className="text-sm">No items yet. Brain dump your first idea above.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -200,6 +363,7 @@ export default function WishlistPage() {
                     {statusItems.map((item) => {
                       const cat = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.feature;
                       const CatIcon = cat.icon;
+                      const effort = item.effort_estimate ? EFFORT_CONFIG[item.effort_estimate] : null;
                       return (
                         <Card key={item.id} className="px-4 py-3">
                           <div className="flex items-start justify-between gap-3">
@@ -216,6 +380,11 @@ export default function WishlistPage() {
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                     {item.priority}
                                   </Badge>
+                                  {effort && (
+                                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${effort.color}`}>
+                                      {effort.label}
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
                             </div>
