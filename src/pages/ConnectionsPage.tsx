@@ -106,19 +106,7 @@ function ProviderRow({ p, connectingProvider, disconnecting, pickerProvider, pic
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {conn ? (
-                <>
-                  Signed in as {conn.provider_email}
-                  {p.hasPropertyPicker && selectedProperty && (
-                    <span className="ml-1.5 text-foreground font-medium">
-                      · {selectedProperty.propertyName}
-                    </span>
-                  )}
-                  {p.hasPropertyPicker && !selectedProperty && (
-                    <span className="ml-1.5 text-amber-600 font-medium">
-                      · No {p.propertyLabel?.toLowerCase()} selected
-                    </span>
-                  )}
-                </>
+                <>Signed in as {conn.provider_email}</>
               ) : p.description}
             </p>
           </div>
