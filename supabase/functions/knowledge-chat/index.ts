@@ -89,7 +89,7 @@ function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteri
     aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses):\n${userParts.join('\n\n')}\n`;
   }
 
-  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${toneBlock}${customBlock}
+  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${toneBlock}${charBlock}${customBlock}
 
 You have access to comprehensive audit data from multiple integration tools. When answering questions:
 
