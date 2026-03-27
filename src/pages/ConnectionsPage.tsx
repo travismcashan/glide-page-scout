@@ -486,6 +486,12 @@ export default function ConnectionsPage() {
           </p>
         </div>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm">Loading connections…</span>
+          </div>
+        ) : (<>
         {/* Live Sources */}
         <div className="mb-8">
           <div className="mb-3">
