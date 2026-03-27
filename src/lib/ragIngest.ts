@@ -522,3 +522,90 @@ export async function ingestChatConversation(
     console.error('[chat-ingest] Error:', err);
   }
 }
+
+const CAPTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/caption-screenshots`;
+
+/**
+ * Auto-ingest screenshots into RAG by AI-captioning each image
+ * and indexing the descriptions as knowledge documents.
+ */
+export async function autoIngestScreenshots(sessionId: string): Promise<number> {
+  // Fetch completed screenshots for this session
+  const { data: screenshots, error } = await supabase
+    .from('crawl_screenshots')
+    .select('url, screenshot_url')
+    .eq('session_id', sessionId)
+    .eq('status', 'done')
+    .not('screenshot_url', 'is', null);
+
+  if (error || !screenshots?.length) return 0;
+
+  // Check which screenshots are already ingested
+  const { data: existing } = await supabase
+    .from('knowledge_documents')
+    .select('source_key')
+    .eq('session_id', sessionId)
+    .eq('source_type', 'screenshot');
+
+  const existingKeys = new Set((existing || []).map((d: any) => d.source_key));
+
+  const newScreenshots = screenshots.filter(s => !existingKeys.has(`screenshot:${s.url}`));
+  if (newScreenshots.length === 0) return 0;
+
+  console.log(`[screenshot-ingest] Captioning ${newScreenshots.length} new screenshots`);
+
+  try {
+    // Call caption edge function
+    const captionRes = await fetch(CAPTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ screenshots: newScreenshots }),
+    });
+
+    if (!captionRes.ok) {
+      console.error('[screenshot-ingest] Caption failed:', await captionRes.text());
+      return 0;
+    }
+
+    const { results: captions } = await captionRes.json();
+
+    // Build docs from successful captions
+    const docsToIngest = captions
+      .filter((c: any) => c.caption)
+      .map((c: any) => {
+        const urlPath = new URL(c.url).pathname || '/';
+        return {
+          name: `📸 Screenshot: ${urlPath === '/' ? c.url.replace(/^https?:\/\//, '') : urlPath}`,
+          content: `# Screenshot Analysis: ${c.url}\n\n${c.caption}`,
+          source_type: 'screenshot',
+          source_key: `screenshot:${c.url}`,
+        };
+      });
+
+    if (docsToIngest.length === 0) return 0;
+
+    // Send to RAG ingest
+    const ingestRes = await fetch(INGEST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+    });
+
+    if (!ingestRes.ok) return 0;
+    const result = await ingestRes.json();
+    const count = result.results?.filter((r: any) => r.status === 'ready').length || 0;
+    console.log(`[screenshot-ingest] Indexed ${count} screenshot descriptions`);
+    return count;
+  } catch (err) {
+    console.error('[screenshot-ingest] Error:', err);
+    return 0;
+  }
+}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Database } from 'lucide-react';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
-import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
+import { autoIngestIntegrations, autoIngestPages, autoIngestScreenshots } from '@/lib/ragIngest';
 
 type Props = {
   session: Record<string, any> & { id: string; domain: string; base_url: string };
@@ -22,12 +22,13 @@ export function KnowledgeTabContent({
   const runIngest = useCallback(async () => {
     setIngesting(true);
     try {
-      const [integrationResult, pageCount] = await Promise.all([
+      const [integrationResult, pageCount, screenshotCount] = await Promise.all([
         autoIngestIntegrations(session.id, session),
         scrapedPages.length > 0 ? autoIngestPages(session.id, scrapedPages) : Promise.resolve(0),
+        autoIngestScreenshots(session.id),
       ]);
       
-      const total = integrationResult.ingested + pageCount;
+      const total = integrationResult.ingested + pageCount + screenshotCount;
       if (total > 0) {
         toast.success(`Indexed ${total} document${total !== 1 ? 's' : ''} into knowledge base`);
       }
