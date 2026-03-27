@@ -115,9 +115,12 @@ export default function SettingsPage() {
     }
   }, [user, profile]);
 
-  // Personal bio
+  // Personal bio & role
   const [personalBio, setPersonalBio] = useState(
     () => localStorage.getItem('ai-personal-bio') || ''
+  );
+  const [myRole, setMyRole] = useState(
+    () => localStorage.getItem('ai-my-role') || ''
   );
 
   // Auto-enrich on first visit if logged in and no data yet
@@ -456,6 +459,28 @@ export default function SettingsPage() {
           {!aboutMe && !enriching && (
             <p className="text-sm text-muted-foreground py-2">No profile data yet. Click "Look me up" to auto-populate from your professional profile.</p>
           )}
+
+          {/* My Role */}
+          <div className="space-y-3 pt-2">
+            <label className="text-sm font-medium">My Role</label>
+            <p className="text-xs text-muted-foreground">Describe what you do day-to-day so the AI understands your perspective and priorities.</p>
+            <Textarea
+              placeholder="e.g. I lead the marketing team and oversee website strategy, content production, and lead generation. I work closely with sales to align on messaging and evaluate new tools for our martech stack."
+              value={myRole}
+              onChange={(e) => {
+                setMyRole(e.target.value);
+                localStorage.setItem('ai-my-role', e.target.value);
+              }}
+              className="min-h-[80px] resize-y text-sm"
+              maxLength={1000}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {myRole.length > 0 ? 'The AI will tailor recommendations to your responsibilities.' : 'Optional — helps the AI frame advice for your specific role.'}
+              </p>
+              <span className="text-xs text-muted-foreground tabular-nums">{myRole.length}/1,000</span>
+            </div>
+          </div>
 
           {/* Personal bio */}
           <div className="space-y-3 pt-2">
