@@ -286,7 +286,7 @@ export default function ResultsPage() {
     setChatModelRaw(id);
     localStorage.setItem('chat-model', id);
   };
-  const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
+  const [showAllIntegrations, setShowAllIntegrations] = useState(false);
   // Pending prompt from Prompts tab → passed to chat
   const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
