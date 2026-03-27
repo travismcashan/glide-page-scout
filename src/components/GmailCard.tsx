@@ -291,11 +291,12 @@ export interface GmailCardHandle {
 export interface GmailCardProps {
   domain: string;
   contactEmails?: string[];
+  lookbackDays?: number;
   onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }) => void;
   onRefresh?: () => void;
 }
 
-export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, contactEmails, onStateChange }, ref) {
+export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, contactEmails, lookbackDays, onStateChange }, ref) {
   const params = useParams<{ id?: string; sessionId?: string }>();
   const sessionId = params.sessionId ?? params.id;
   const { isConnected, isLoading, emails: liveEmails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
@@ -357,17 +358,25 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
     setIsRefreshing(true);
     const start = Date.now();
     try {
+      // Compute afterDate from lookbackDays (Gmail format: YYYY/MM/DD)
+      let afterDate: string | undefined;
+      if (lookbackDays && lookbackDays > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() - lookbackDays);
+        afterDate = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+      }
       await searchEmails({
         contactEmails: contactEmails?.length ? contactEmails : undefined,
         domain: !contactEmails?.length ? domain : undefined,
         maxResults: 50,
+        afterDate,
       });
       setLastFetched(new Date().toISOString());
       setDurationSec(Math.round((Date.now() - start) / 1000));
     } finally {
       setIsRefreshing(false);
     }
-  }, [searchEmails, contactEmails, domain]);
+  }, [searchEmails, contactEmails, domain, lookbackDays]);
 
   // Auto-fetch only if no cached data and connected
   useEffect(() => {

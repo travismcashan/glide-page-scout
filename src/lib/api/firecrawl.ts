@@ -495,7 +495,7 @@ export const readableApi = {
 };
 
 export const avomaApi = {
-  async lookup(domain: string): Promise<{
+  async lookup(domain: string, lookbackDays?: number): Promise<{
     success: boolean;
     domain?: string;
     totalMatches?: number;
@@ -503,7 +503,7 @@ export const avomaApi = {
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('avoma-lookup', {
-      body: { domain },
+      body: { domain, lookbackDays },
     });
     if (error) return { success: false, error: error.message };
     return data;
