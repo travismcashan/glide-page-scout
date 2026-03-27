@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import AppHeader from '@/components/AppHeader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -1853,84 +1853,28 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header>
-        <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
-           <div className="flex items-center justify-between">
-             <div>
-               <h1 className="text-4xl font-light tracking-tight text-foreground leading-none pt-2.5">
-                 {session?.domain?.replace(/^www\./i, '')}
-               </h1>
-               {session?.created_at && (
-                 <div className="flex items-center gap-4 text-sm text-muted-foreground tabular-nums mt-2">
-                   <span className="flex items-center gap-1">
-                     <Clock className="h-3 w-3" />
-                     <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
-                   </span>
-                   {session?.updated_at && session.updated_at !== session.created_at && (
-                     <span className="flex items-center gap-1">
-                       <RefreshCw className="h-3 w-3" />
-                       <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
-                     </span>
-                   )}
-                 </div>
-               )}
-             </div>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground h-16 w-16 [&>svg]:h-10 [&>svg]:w-10">
-                  <Menu className="!h-10 !w-10" strokeWidth={2} />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-72 p-0">
-                <nav className="flex flex-col h-full">
-                  {/* Main section */}
-                  <div className="flex flex-col gap-1 p-4 pt-12">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-2">Navigate</p>
-                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/')}>
-                      <Search className="h-5 w-5" /> New Search
-                    </Button>
-                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/history')}>
-                      <History className="h-5 w-5" /> History
-                    </Button>
-                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/wishlist')}>
-                      <Lightbulb className="h-5 w-5" /> Wishlist
-                    </Button>
-                  </div>
+      <AppHeader />
 
-                  {/* Tools section */}
-                  <div className="border-t border-border mx-4" />
-                  <div className="flex flex-col gap-1 p-4">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 mb-2">Tools</p>
-                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/connections')}>
-                      <Plug className="h-5 w-5" /> Connections
-                    </Button>
-                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/integrations')}>
-                      <Layers className="h-5 w-5" /> Integrations
-                    </Button>
-                  </div>
-
-                  {/* Spacer */}
-                  <div className="flex-1" />
-
-                  {/* Bottom section */}
-                  <div className="border-t border-border mx-4" />
-                  <div className="flex flex-col gap-1 p-4 pb-8">
-                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/settings')}>
-                      <Settings className="h-5 w-5" /> Settings
-                    </Button>
-                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/admin')}>
-                      <Shield className="h-5 w-5" /> Admin
-                    </Button>
-                    <Button variant="ghost" className="justify-start gap-3 text-base text-muted-foreground" onClick={() => navigate('/login')}>
-                      <Users className="h-5 w-5" /> Account
-                    </Button>
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
+      {/* Domain + crawl info */}
+      <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
+        <h1 className="text-4xl font-light tracking-tight text-foreground leading-none pt-2.5">
+          {session?.domain?.replace(/^www\./i, '')}
+        </h1>
+        {session?.created_at && (
+          <div className="flex items-center gap-4 text-sm text-muted-foreground tabular-nums mt-2">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
+            </span>
+            {session?.updated_at && session.updated_at !== session.created_at && (
+              <span className="flex items-center gap-1">
+                <RefreshCw className="h-3 w-3" />
+                <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
+              </span>
+            )}
           </div>
-        </div>
-      </header>
+        )}
+      </div>
 
       {/* Global integration progress bar */}
       {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}

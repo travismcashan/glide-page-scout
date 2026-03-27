@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Shield, Users, Crown, Loader2 } from 'lucide-react';
+import { Shield, Users, Crown, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import AppHeader from '@/components/AppHeader';
 import { toast } from 'sonner';
 
 type UserRow = {
@@ -76,17 +77,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-lg">Admin · User Management</span>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="max-w-3xl mx-auto px-6 py-10 space-y-6">
         <div className="flex items-center justify-between">

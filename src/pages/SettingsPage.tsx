@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Zap, Brain, Sparkles, SlidersHorizontal, LogOut, Shield } from 'lucide-react';
+import { Brain, Sparkles, Zap, LogOut, Shield } from 'lucide-react';
+import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -82,17 +83,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-lg">Settings</span>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="max-w-3xl mx-auto px-6 py-10 space-y-12">
         {/* ── AI Model ── */}

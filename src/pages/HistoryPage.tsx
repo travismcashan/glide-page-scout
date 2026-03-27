@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Globe, Clock, Zap } from 'lucide-react';
+import { Globe, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
+import AppHeader from '@/components/AppHeader';
 
 type CrawlSession = {
   id: string;
@@ -40,7 +40,6 @@ export default function HistoryPage() {
       } else {
         const data_ = (data ?? []) as CrawlSession[];
         setSessions(data_);
-        // Track which domains appear more than once
         const domainCounts = new Map<string, number>();
         data_.forEach(s => domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1));
         setMultiDomains(domainCounts);
@@ -54,22 +53,11 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Crawl History</span>
-            </div>
-          </div>
-          <Button onClick={() => navigate('/')}>New Crawl</Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
+        <h1 className="text-2xl font-semibold tracking-tight mb-6">Crawl History</h1>
+
         {loading ? (
           <p className="py-16 text-center text-muted-foreground">Loading...</p>
         ) : error ? (
