@@ -36,7 +36,7 @@ export default function CrawlPage() {
         .select('id', { count: 'exact', head: true })
         .eq('domain', domain);
       const needsTimestamp = (count ?? 0) > 1;
-      navigate(buildResultsPath(domain, session.created_at, needsTimestamp));
+      navigate(buildSitePath(domain, session.created_at, needsTimestamp));
     } catch (error) {
       console.error(error);
       toast.error('Failed to start analysis');
