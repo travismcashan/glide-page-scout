@@ -6,7 +6,7 @@ import {
   gradeToColor,
   gradeToBgColor,
 } from '@/lib/siteScore';
-import { Gauge, Shield, Search, Accessibility, FileText, Code, Zap } from 'lucide-react';
+import { Gauge, Shield, Search, Accessibility, FileText, Code, Zap, Link } from 'lucide-react';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   performance: <Zap className="h-4 w-4" />,
@@ -15,6 +15,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   security: <Shield className="h-4 w-4" />,
   content: <FileText className="h-4 w-4" />,
   technology: <Code className="h-4 w-4" />,
+  'url-analysis': <Link className="h-4 w-4" />,
 };
 
 function ScoreRing({ score, grade, size = 120 }: { score: number; grade: string; size?: number }) {

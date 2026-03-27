@@ -251,7 +251,7 @@ function extractTechCoverage(session: any): number | null {
 
 // ── Category definitions ───────────────────────────────────────
 
-export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology';
+export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis';
 
 export type CategoryScore = {
   key: CategoryKey;
@@ -323,6 +323,13 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
     weight: 15,
     integrations: [
       { key: 'readable', label: 'Readability', extract: extractReadable },
+    ],
+  },
+  {
+    key: 'url-analysis',
+    label: 'URL Health',
+    weight: 5,
+    integrations: [
       { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatus },
       { key: 'link-checker', label: 'Broken Links', extract: extractBrokenLinks },
     ],
@@ -401,6 +408,7 @@ export function getCategoryScore(overall: OverallScore | null, categoryKey: Cate
 
 /** Map section IDs from ResultsPage to category keys */
 export const SECTION_TO_CATEGORY: Record<string, CategoryKey> = {
+  'section-url-analysis': 'url-analysis',
   'section-performance': 'performance',
   'section-seo': 'seo',
   'section-ux-accessibility': 'accessibility',
