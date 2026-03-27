@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Globe, Clock, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { buildResultsPath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
 
 type CrawlSession = {
@@ -18,6 +19,7 @@ type CrawlSession = {
 export default function HistoryPage() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<CrawlSession[]>([]);
+  const [multiDomains, setMultiDomains] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +38,12 @@ export default function HistoryPage() {
         setError('Failed to load crawl history. Please refresh and try again.');
         setSessions([]);
       } else {
-        setSessions((data ?? []) as CrawlSession[]);
+        const data_ = (data ?? []) as CrawlSession[];
+        setSessions(data_);
+        // Track which domains appear more than once
+        const domainCounts = new Map<string, number>();
+        data_.forEach(s => domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1));
+        setMultiDomains(domainCounts);
       }
 
       setLoading(false);
@@ -81,7 +88,7 @@ export default function HistoryPage() {
               <Card
                 key={session.id}
                 className="cursor-pointer px-5 py-4 transition-colors hover:bg-muted/50"
-                onClick={() => navigate(`/results/${session.id}`)}
+                onClick={() => navigate(buildResultsPath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1))}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Globe, Loader2, Search, Zap, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { buildResultsPath } from '@/lib/sessionSlug';
 
 export default function CrawlPage() {
   const navigate = useNavigate();
@@ -30,7 +31,13 @@ export default function CrawlPage() {
 
       if (error) throw error;
 
-      navigate(`/results/${session.id}`);
+      // Check if there are other sessions for this domain to decide if we need a timestamp
+      const { count } = await supabase
+        .from('crawl_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('domain', domain);
+      const needsTimestamp = (count ?? 0) > 1;
+      navigate(buildResultsPath(domain, session.created_at, needsTimestamp));
     } catch (error) {
       console.error(error);
       toast.error('Failed to start analysis');

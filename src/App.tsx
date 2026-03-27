@@ -22,6 +22,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<CrawlPage />} />
           <Route path="/results/:sessionId" element={<ResultsPage />} />
+          <Route path="/results/:domain/:dateSlug" element={<ResultsPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/connections" element={<ConnectionsPage />} />
