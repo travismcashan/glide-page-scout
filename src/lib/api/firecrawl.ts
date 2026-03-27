@@ -508,6 +508,66 @@ export const avomaApi = {
     if (error) return { success: false, error: error.message };
     return data;
   },
+
+  async lookupStreaming(
+    domain: string,
+    lookbackDays: number | undefined,
+    onProgress: (progress: { page: number; meetingsScanned: number; totalMeetings: number; matchesFound: number; phase: string }) => void,
+  ): Promise<{ success: boolean; domain?: string; totalMatches?: number; meetings?: any[]; matchBreakdown?: any; error?: string }> {
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const url = `https://${projectId}.supabase.co/functions/v1/avoma-lookup`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+      },
+      body: JSON.stringify({ domain, lookbackDays, stream: true }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      return { success: false, error: `HTTP ${res.status}: ${text.substring(0, 200)}` };
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) return { success: false, error: 'No response body' };
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalResult: any = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE events from buffer
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // keep incomplete line
+
+      let eventType = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (eventType === 'progress') {
+              onProgress(data);
+            } else if (eventType === 'result') {
+              finalResult = data;
+            }
+          } catch { /* skip malformed */ }
+        }
+      }
+    }
+
+    return finalResult || { success: false, error: 'No result received' };
+  },
 };
 
 export const apolloApi = {
