@@ -1,53 +1,48 @@
 
 
-## AI-Powered Wishlist Brain Dump
+## Brand Architecture Plan: Hybrid Approach for Glide Platform
 
-### What it does
-Replace the current "Add Item" button/form with a prominent textarea at the top of the wishlist page. Users type a stream-of-consciousness idea (any length), hit a "Break it down" button, and AI parses it into multiple structured wishlist items with titles, descriptions, categories, and priorities — presented for review before saving.
+### Strategic Decision
 
-### Flow
+Adopt the **Hybrid model** — branded house for internal tools, flexible branding for client-facing surfaces.
 
-```text
-┌─────────────────────────────────────────────────┐
-│  "What's on your mind?"                         │
-│  ┌─────────────────────────────────────────────┐ │
-│  │ I think we need better onboarding. Like a   │ │
-│  │ wizard that walks people through setup...    │ │
-│  └─────────────────────────────────────────────┘ │
-│                          [Break it down ✨]      │
-└─────────────────────────────────────────────────┘
+### Product Lines & Names
 
-        ↓ AI processes ↓
+| Product | Name | Audience | White-label? |
+|---|---|---|---|
+| Sales Prospecting | **Glide Scout** | Your sales team | No |
+| Marketing Audit | **Glide Audit** | Shared with clients | Optional |
+| Client Portal | **Lens** (by Glide, or unbranded) | End clients | Yes |
+| Agency Operations | **Glide Command** | Delivery team | No |
+| Parent Platform | **Glide** | Everyone | N/A |
 
-┌─────────────────────────────────────────────────┐
-│  AI found 3 items:                              │
-│  ☑ Setup Wizard — feature, high                 │
-│  ☑ Progress Indicators — feature, medium        │
-│  ☑ Skip Option for Power Users — idea, low      │
-│                    [Add Selected] [Discard]      │
-└─────────────────────────────────────────────────┘
-```
+### Naming Theme: Navigation
 
-### Implementation
+"Glide" implies movement — the navigation family (Scout, Compass, Lens, Command) reinforces that. All names are short, memorable, and not trademarked in this space.
 
-1. **New edge function `supabase/functions/wishlist-parse/index.ts`**
-   - Accepts `{ rawInput: string }` 
-   - Uses Lovable AI (gemini-3-flash-preview) with tool calling to extract structured output: array of `{ title, description, category (feature|bug|idea), priority (low|medium|high) }`
-   - Returns the parsed items for user review
+### Implementation Phases
 
-2. **Add `effort_estimate` column to `wishlist_items` table**
-   - New field: `effort_estimate text` (nullable) — values like "small", "medium", "large"
-   - AI will suggest effort estimates alongside priority
+**Phase 1 — Rebrand current app as Glide Scout**
+- Update `AppHeader.tsx`: replace "Agency Atlas" with "Glide Scout" wordmark + new icon
+- Update `CrawlPage.tsx` homepage greeting and tagline
+- Update `index.html` title and meta tags
+- Update favicon/logo assets
 
-3. **Update `WishlistPage.tsx`**
-   - Replace the header "Add Item" button with a persistent input area at the top (textarea + "Break it down" button)
-   - Keep the manual "Add Item" form as a secondary option (small link: "or add manually")
-   - New "review" state: after AI returns parsed items, show them as a checklist with editable fields (title, description, category, priority, effort) — user can toggle items on/off, edit, then bulk-save
-   - Each item card in the list also shows the new `effort_estimate` badge
+**Phase 2 — Add product switcher**
+- Add a dropdown or segmented control in the header (next to brand) showing available products
+- For now, only "Scout" is active; others show as "Coming Soon"
+- Store selected product in context/localStorage
+- This sets the groundwork for showing different nav items and features per product
 
-### Technical details
-- Edge function uses tool calling (not JSON mode) for structured extraction — returns `{ items: [{ title, description, category, priority, effort_estimate }] }`
-- Non-streaming call via `supabase.functions.invoke('wishlist-parse', { body: { rawInput } })`
-- Review UI uses local state; only saves to DB on explicit confirmation
-- Handles 429/402 errors with toast messages
+**Phase 3 — Prepare multi-product routing (future)**
+- Namespace routes: `/scout/...`, `/audit/...`, `/command/...`
+- Product context determines which tabs, integrations, and features are visible
+- Lens (client portal) would be a separate deployed instance or subdomain
+
+### Technical Details
+
+- New `ProductContext` wrapping the app to track active product
+- `AppHeader` reads product context to show correct brand name and available nav links
+- Product switcher uses a `DropdownMenu` with product icons and labels
+- No database changes needed for Phase 1-2; product association with sessions comes in Phase 3
 
