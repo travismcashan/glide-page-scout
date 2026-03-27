@@ -92,7 +92,7 @@ export default function AppHeader() {
             onClick={() => navigate('/history')}
             className={cn(linkBase, (location.pathname === '/history' || location.pathname.startsWith('/sites/')) && linkActive)}
           >
-            History
+            Sites
           </button>
           <NavLink to="/integrations" className={linkBase} activeClassName={linkActive}>
             Integrations
