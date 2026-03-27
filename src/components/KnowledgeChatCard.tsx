@@ -661,16 +661,20 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
       )}
+      {/* Deep Research steps */}
+      {isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0 && (
+        <DeepResearchStepsBlock steps={deepResearchSteps} isStreaming={isStreamingThis && !content} />
+      )}
       <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{content}</div>}>
         <div className="chat-prose max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
       </Suspense>
-      {isStreamingThis && !content && !thinking && (
+      {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && (
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 28, height: 28 }} />
-            <AnimatedThinkingText label={searchLabel || 'Thinking'} />
+            <AnimatedThinkingText label={isDeepResearch ? 'Starting Deep Research' : (searchLabel || 'Thinking')} />
           </div>
         </div>
       )}
