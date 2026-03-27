@@ -695,4 +695,5 @@ export const SECTION_TO_CATEGORY: Record<string, CategoryKey> = {
   'section-security': 'security',
   'section-content-analysis': 'content',
   'section-tech-detection': 'technology',
+  'section-navigation': 'navigation',
 };
