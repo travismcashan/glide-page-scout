@@ -865,7 +865,7 @@ export default function ResultsPage() {
       setSsllabsLoading(false);
       ssllabsPollingRef.current = false;
     }
-  }, [session, fetchData]);
+  }, [session]);
 
   // httpstatus.io
   const [httpstatusLoading, setHttpstatusLoading] = useState(false);
