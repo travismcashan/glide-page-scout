@@ -228,8 +228,6 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
-            </div>
-          </div>
         </section>
 
         <div className="border-t border-border" />
