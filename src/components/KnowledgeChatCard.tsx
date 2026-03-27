@@ -2332,16 +2332,32 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     </span>
                     {searchSources.web && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
                   </button>
-                  <button
-                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
-                    onClick={() => setSearchSources(prev => ({ ...prev, analytics: !prev.analytics }))}
-                  >
-                    <span className="flex items-center gap-2">
-                      <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-                      Analytics
-                    </span>
-                    {searchSources.analytics && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
-                  </button>
+                  {(() => {
+                    const supportsAnalytics = !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-');
+                    return (
+                      <button
+                        className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsAnalytics ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`}
+                        onClick={() => {
+                          if (!supportsAnalytics) {
+                            // Auto-switch to Gemini and enable analytics
+                            onModelChange('google/gemini-3-flash-preview');
+                            onProviderChange('gateway' as ModelProvider);
+                            setSearchSources(prev => ({ ...prev, analytics: true }));
+                          } else {
+                            setSearchSources(prev => ({ ...prev, analytics: !prev.analytics }));
+                          }
+                        }}
+                        title={!supportsAnalytics ? 'Analytics requires a Gemini or GPT model — click to switch' : undefined}
+                      >
+                        <span className="flex items-center gap-2">
+                          <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                          Analytics
+                          {!supportsAnalytics && <span className="text-[10px] text-muted-foreground">(Gemini/GPT only)</span>}
+                        </span>
+                        {supportsAnalytics && searchSources.analytics && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 {/* RAG Depth */}
