@@ -147,7 +147,47 @@ type CrawlSession = {
 
 
 export default function ResultsPage() {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string }>();
+  const navigate = useNavigate();
+  const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
+
+  // Resolve friendly slug to session ID
+  useEffect(() => {
+    const resolve = async () => {
+      // Direct UUID route
+      if (params.sessionId && /^[0-9a-f]{8}-/i.test(params.sessionId)) {
+        setResolvedSessionId(params.sessionId);
+        return;
+      }
+      // Friendly domain route
+      const domain = params.sessionId || params.domain;
+      if (!domain) return;
+      const domainVariants = [domain, `www.${domain}`];
+      let query = supabase
+        .from('crawl_sessions')
+        .select('id, created_at')
+        .in('domain', domainVariants)
+        .order('created_at', { ascending: false });
+      
+      const { data } = await query;
+      if (!data || data.length === 0) { navigate('/'); return; }
+      
+      if (params.dateSlug && data.length > 1) {
+        // Match against date slug
+        const { format } = await import('date-fns');
+        const match = data.find(s => {
+          const slug = format(new Date(s.created_at), "MMM-dd-yyyy-hh-mma").toLowerCase();
+          return slug === params.dateSlug;
+        });
+        setResolvedSessionId(match ? match.id : data[0].id);
+      } else {
+        setResolvedSessionId(data[0].id);
+      }
+    };
+    resolve();
+  }, [params.sessionId, params.domain, params.dateSlug]);
+
+  const sessionId = resolvedSessionId;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isSharedView = searchParams.get('view') === 'shared';
