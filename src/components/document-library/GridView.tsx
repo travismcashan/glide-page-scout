@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, X } from 'lucide-react';
-import { KnowledgeDocument, STATUS_CONFIG, SOURCE_ICONS, getDocumentIcon } from './types';
+import { KnowledgeDocument, STATUS_CONFIG, SOURCE_ICONS, getDocumentIcon, getSourceLabel } from './types';
 
 type Props = {
   documents: KnowledgeDocument[];
