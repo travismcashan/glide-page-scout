@@ -2499,7 +2499,7 @@ export default function ResultsPage() {
                       setAvomaLoading(true);
                       setAvomaFailed(false);
                       try {
-                        const result = await avomaApi.lookup(domain);
+                        const result = await avomaApi.lookup(domain, (session as any).lookback_days || 90);
                         if (result.success) {
                           await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
                           clearError('avoma');
