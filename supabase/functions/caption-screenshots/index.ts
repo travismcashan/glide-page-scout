@@ -27,7 +27,7 @@ serve(async (req) => {
 
     console.log(`[caption-screenshots] Captioning: ${page_url}`);
 
-    // Fetch image and convert to base64 (Gemini doesn't support arbitrary HTTP URLs via file_data)
+    // Fetch image and convert to base64 efficiently
     const imgRes = await fetch(screenshot_url);
     if (!imgRes.ok) {
       console.error(`[caption-screenshots] Failed to fetch image: ${imgRes.status}`);
@@ -38,9 +38,22 @@ serve(async (req) => {
 
     const buf = await imgRes.arrayBuffer();
     const bytes = new Uint8Array(buf);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const base64 = btoa(binary);
+
+    // Check size — skip images over 4MB to avoid compute limits
+    if (bytes.length > 4 * 1024 * 1024) {
+      console.warn(`[caption-screenshots] Image too large (${(bytes.length / 1024 / 1024).toFixed(1)}MB), skipping`);
+      return new Response(JSON.stringify({ caption: null, error: 'Image too large' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Use chunk-based base64 encoding to avoid CPU limit
+    const CHUNK = 32768;
+    const chunks: string[] = [];
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      chunks.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
+    }
+    const base64 = btoa(chunks.join(''));
     const mimeType = imgRes.headers.get('content-type')?.split(';')[0] || 'image/png';
 
     const prompt = `Describe this screenshot of the web page "${page_url}" for a knowledge base. Cover: layout, visual elements (hero, CTAs, nav, images, forms), colors, typography, content hierarchy, and notable UI patterns. Be thorough but concise, 2-4 paragraphs.`;
