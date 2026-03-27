@@ -85,6 +85,7 @@ import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
 import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 import { computeOverallScore, getIntegrationScore, getCategoryScore, SECTION_TO_CATEGORY, type OverallScore, scoreToGrade } from '@/lib/siteScore';
+import { buildSitePath, tabSlugToValue, TAB_SLUGS } from '@/lib/sessionSlug';
 import { ScoreOverview } from '@/components/ScoreOverview';
 import {
   DropdownMenu,
@@ -147,21 +148,22 @@ type CrawlSession = {
 
 
 export default function ResultsPage() {
-  const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string }>();
+  const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string; tab?: string }>();
   const navigate = useNavigate();
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
 
   // Resolve friendly slug to session ID
   useEffect(() => {
     const resolve = async () => {
-      // Direct UUID route
+      // Direct UUID route (/results/:sessionId)
       if (params.sessionId && /^[0-9a-f]{8}-/i.test(params.sessionId)) {
         setResolvedSessionId(params.sessionId);
         return;
       }
-      // Friendly domain route
+      // Friendly domain route (/sites/:domain or /results/:domain)
       const domain = params.sessionId || params.domain;
       if (!domain) return;
+      // Skip if "domain" is actually a tab slug (from /sites/:domain/:tab)
       const domainVariants = [domain, `www.${domain}`];
       let query = supabase
         .from('crawl_sessions')
@@ -176,7 +178,7 @@ export default function ResultsPage() {
         // Match against date slug
         const { format } = await import('date-fns');
         const match = data.find(s => {
-          const slug = format(new Date(s.created_at), "MMM-dd-yyyy-hh-mma").toLowerCase();
+          const slug = format(new Date(s.created_at), "MMM-dd-yyyy").toLowerCase();
           return slug === params.dateSlug;
         });
         setResolvedSessionId(match ? match.id : data[0].id);
@@ -261,13 +263,19 @@ export default function ResultsPage() {
   // Pending prompt from Prompts tab → passed to chat
   const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
-  const activeTab = searchParams.get('tab') || 'raw-data';
+  // Tab from URL path param or query string fallback
+  const urlTab = params.tab;
+  const activeTab = urlTab && TAB_SLUGS.includes(urlTab as any) ? tabSlugToValue(urlTab) : (searchParams.get('tab') || 'raw-data');
   const setActiveTab = useCallback((tab: string) => {
-    setSearchParams(prev => {
-      prev.set('tab', tab);
-      return prev;
-    }, { replace: true });
-  }, [setSearchParams]);
+    if (session) {
+      navigate(buildSitePath(session.domain, session.created_at, !!params.dateSlug, tab), { replace: true });
+    } else {
+      setSearchParams(prev => {
+        prev.set('tab', tab);
+        return prev;
+      }, { replace: true });
+    }
+  }, [session, params.dateSlug, navigate, setSearchParams]);
   const [tabReady, setTabReady] = useState(true);
   const prevTabRef = useRef(activeTab);
 

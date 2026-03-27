@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Globe, Loader2, Search, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { buildResultsPath } from '@/lib/sessionSlug';
+import { buildSitePath } from '@/lib/sessionSlug';
 
 export default function CrawlPage() {
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ export default function CrawlPage() {
         .select('id', { count: 'exact', head: true })
         .eq('domain', domain);
       const needsTimestamp = (count ?? 0) > 1;
-      navigate(buildResultsPath(domain, session.created_at, needsTimestamp));
+      navigate(buildSitePath(domain, session.created_at, needsTimestamp));
     } catch (error) {
       console.error(error);
       toast.error('Failed to start analysis');

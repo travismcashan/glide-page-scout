@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Globe, Clock, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { buildResultsPath } from '@/lib/sessionSlug';
+import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
 
 type CrawlSession = {
@@ -88,7 +88,7 @@ export default function HistoryPage() {
               <Card
                 key={session.id}
                 className="cursor-pointer px-5 py-4 transition-colors hover:bg-muted/50"
-                onClick={() => navigate(buildResultsPath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1))}
+                onClick={() => navigate(buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1))}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">
