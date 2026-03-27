@@ -147,21 +147,22 @@ type CrawlSession = {
 
 
 export default function ResultsPage() {
-  const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string }>();
+  const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string; tab?: string }>();
   const navigate = useNavigate();
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
 
   // Resolve friendly slug to session ID
   useEffect(() => {
     const resolve = async () => {
-      // Direct UUID route
+      // Direct UUID route (/results/:sessionId)
       if (params.sessionId && /^[0-9a-f]{8}-/i.test(params.sessionId)) {
         setResolvedSessionId(params.sessionId);
         return;
       }
-      // Friendly domain route
+      // Friendly domain route (/sites/:domain or /results/:domain)
       const domain = params.sessionId || params.domain;
       if (!domain) return;
+      // Skip if "domain" is actually a tab slug (from /sites/:domain/:tab)
       const domainVariants = [domain, `www.${domain}`];
       let query = supabase
         .from('crawl_sessions')
@@ -176,7 +177,7 @@ export default function ResultsPage() {
         // Match against date slug
         const { format } = await import('date-fns');
         const match = data.find(s => {
-          const slug = format(new Date(s.created_at), "MMM-dd-yyyy-hh-mma").toLowerCase();
+          const slug = format(new Date(s.created_at), "MMM-dd-yyyy").toLowerCase();
           return slug === params.dateSlug;
         });
         setResolvedSessionId(match ? match.id : data[0].id);
