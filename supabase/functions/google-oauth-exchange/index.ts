@@ -218,8 +218,9 @@ serve(async (req) => {
         const res = await fetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries', {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
+        const data = await res.json();
+        console.log('[oauth-exchange] GA4 accountSummaries status:', res.status, JSON.stringify(data).slice(0, 500));
         if (res.ok) {
-          const data = await res.json();
           properties = (data.accountSummaries || []).flatMap((a: any) =>
             (a.propertySummaries || []).map((p: any) => ({
               id: p.property,
