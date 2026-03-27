@@ -648,6 +648,8 @@ const CAPTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/caption-s
 /**
  * Auto-ingest screenshots into RAG by AI-captioning each image one-by-one
  * and indexing the descriptions as knowledge documents.
+ * Phase 1: Register all placeholder rows as 'pending' (visible immediately).
+ * Phase 2: Caption + index each one sequentially.
  */
 export async function autoIngestScreenshots(sessionId: string): Promise<number> {
   // Fetch completed screenshots for this session
@@ -671,12 +673,58 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
   const newScreenshots = screenshots.filter(s => !existingKeys.has(`screenshot:${s.url}`));
   if (newScreenshots.length === 0) return 0;
 
-  console.log(`[screenshot-ingest] Captioning ${newScreenshots.length} new screenshots (one at a time)`);
+  console.log(`[screenshot-ingest] Registering ${newScreenshots.length} screenshots, then captioning`);
 
+  // Phase 1: Register all screenshot placeholders at once
+  const placeholders = newScreenshots.map(s => {
+    let urlPath: string;
+    try { urlPath = new URL(s.url).pathname || '/'; } catch { urlPath = s.url; }
+    const docName = `📸 Screenshot: ${urlPath === '/' ? s.url.replace(/^https?:\/\//, '') : urlPath}`;
+    return {
+      name: docName,
+      content: '', // will be filled after captioning
+      source_type: 'screenshot' as const,
+      source_key: `screenshot:${s.url}`,
+    };
+  });
+
+  // Insert all as pending
+  const rows = placeholders.map(d => ({
+    session_id: sessionId,
+    name: d.name,
+    source_type: d.source_type,
+    source_key: d.source_key,
+    char_count: 0,
+    chunk_count: 0,
+    status: 'pending',
+    content_hash: null,
+  }));
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('knowledge_documents')
+    .insert(rows)
+    .select('id, source_key');
+
+  if (insertError || !inserted) {
+    console.error('[screenshot-ingest] Failed to register placeholders:', insertError);
+    return 0;
+  }
+
+  // Build a map of source_key → document_id
+  const docIdMap = new Map<string, string>();
+  for (const row of inserted) {
+    docIdMap.set(row.source_key, row.id);
+  }
+
+  // Phase 2: Caption and index each screenshot sequentially
   let ingestedCount = 0;
 
   for (let i = 0; i < newScreenshots.length; i++) {
     const screenshot = newScreenshots[i];
+    const sourceKey = `screenshot:${screenshot.url}`;
+    const documentId = docIdMap.get(sourceKey);
+    if (!documentId) continue;
+
     try {
       // Rate-limit: wait 3s between calls (skip first)
       if (i > 0) await new Promise(r => setTimeout(r, 3000));
@@ -697,25 +745,20 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
 
       if (!captionRes.ok) {
         console.error(`[screenshot-ingest] Caption failed for ${screenshot.url}:`, await captionRes.text());
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Caption failed' }).eq('id', documentId);
         continue;
       }
 
       const { caption } = await captionRes.json();
       if (!caption) {
         console.warn(`[screenshot-ingest] No caption returned for ${screenshot.url}`);
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'No caption' }).eq('id', documentId);
         continue;
       }
 
-      // Build the document name
-      let urlPath: string;
-      try {
-        urlPath = new URL(screenshot.url).pathname || '/';
-      } catch {
-        urlPath = screenshot.url;
-      }
-      const docName = `📸 Screenshot: ${urlPath === '/' ? screenshot.url.replace(/^https?:\/\//, '') : urlPath}`;
+      const content = `# Screenshot Analysis: ${screenshot.url}\n\n${caption}`;
 
-      // Ingest the caption as a knowledge document
+      // Ingest with document_id so it updates the existing placeholder
       const ingestRes = await fetch(INGEST_URL, {
         method: 'POST',
         headers: {
@@ -726,10 +769,11 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
         body: JSON.stringify({
           session_id: sessionId,
           documents: [{
-            name: docName,
-            content: `# Screenshot Analysis: ${screenshot.url}\n\n${caption}`,
+            document_id: documentId,
+            name: placeholders[i].name,
+            content,
             source_type: 'screenshot',
-            source_key: `screenshot:${screenshot.url}`,
+            source_key: sourceKey,
           }],
         }),
       });
@@ -738,11 +782,12 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
         const result = await ingestRes.json();
         if (result.results?.[0]?.status === 'ready') {
           ingestedCount++;
-          console.log(`[screenshot-ingest] ✓ (${ingestedCount}/${newScreenshots.length}) ${docName}`);
+          console.log(`[screenshot-ingest] ✓ (${ingestedCount}/${newScreenshots.length}) ${placeholders[i].name}`);
         }
       }
     } catch (err) {
       console.error(`[screenshot-ingest] Error processing ${screenshot.url}:`, err);
+      await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Processing error' }).eq('id', documentId);
     }
   }
 
