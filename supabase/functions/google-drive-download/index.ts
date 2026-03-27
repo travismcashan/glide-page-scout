@@ -53,6 +53,15 @@ serve(async (req) => {
 
     if (!downloadResponse.ok) {
       const errorText = await downloadResponse.text();
+
+      if (downloadResponse.status === 401) {
+        console.warn('Drive download token expired or is invalid');
+        return new Response(JSON.stringify({ error: 'token_expired' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        });
+      }
+
       console.error('Download error:', errorText);
       return new Response(JSON.stringify({ error: 'Failed to download file' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export interface DriveFile {
   id: string;
@@ -13,6 +12,8 @@ export interface DriveFile {
 
 const STORAGE_KEY = 'google-drive-folder-state';
 const TOKEN_KEY = 'google-drive-access-token';
+const TOKEN_EXPIRY_KEY = 'google-drive-access-token-expires-at';
+const TOKEN_EXPIRY_BUFFER_MS = 60_000;
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
 
 interface FolderState {
@@ -35,9 +36,40 @@ function saveFolderState(state: FolderState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 
+function clearStoredToken() {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  } catch {}
+}
+
+function persistToken(token: string, expiresInSeconds?: number) {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+
+    if (typeof expiresInSeconds === 'number' && Number.isFinite(expiresInSeconds)) {
+      const expiresAt = Date.now() + (expiresInSeconds * 1000);
+      localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiresAt));
+    } else {
+      localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    }
+  } catch {}
+}
+
 function getStoredToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return null;
+
+    const rawExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+    const expiresAt = rawExpiry ? Number(rawExpiry) : Number.NaN;
+
+    if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt - TOKEN_EXPIRY_BUFFER_MS) {
+      clearStoredToken();
+      return null;
+    }
+
+    return token;
   } catch {
     return null;
   }
@@ -72,28 +104,45 @@ export function useGoogleDrive() {
     saveFolderState({ folderStack, currentFolder });
   }, [folderStack, currentFolder]);
 
-  const saveToken = useCallback((token: string) => {
+  const saveToken = useCallback((token: string, expiresInSeconds?: number) => {
     setAccessToken(token);
-    try { localStorage.setItem(TOKEN_KEY, token); } catch {}
+    persistToken(token, expiresInSeconds);
   }, []);
 
   const clearToken = useCallback(() => {
     setAccessToken(null);
-    try { localStorage.removeItem(TOKEN_KEY); } catch {}
+    clearStoredToken();
+    setFiles([]);
     setIsConnected(false);
   }, []);
 
   const getActiveToken = useCallback((overrideToken?: string | null) => {
-    const token = overrideToken || accessToken || getStoredToken();
-    if (token && token !== accessToken) {
+    if (overrideToken) {
+      if (overrideToken !== accessToken) {
+        setAccessToken(overrideToken);
+      }
+      return overrideToken;
+    }
+
+    const token = getStoredToken();
+    if (!token) {
+      if (accessToken !== null) {
+        setAccessToken(null);
+      }
+      return null;
+    }
+
+    if (token !== accessToken) {
       setAccessToken(token);
     }
+
     return token;
   }, [accessToken]);
 
   const listFiles = useCallback(async (folderId: string = 'root', tokenOverride?: string) => {
     const tok = getActiveToken(tokenOverride);
     if (!tok) {
+      setFiles([]);
       setIsConnected(false);
       return;
     }
@@ -110,15 +159,16 @@ export function useGoogleDrive() {
         body: JSON.stringify({ accessToken: tok, folderId }),
       });
 
+      if (response.status === 401) {
+        clearToken();
+        return;
+      }
+
       if (!response.ok) {
-        if (response.status === 401) {
-          clearToken();
-          return;
-        }
         throw new Error('Failed to list files');
       }
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (data.error === 'token_expired') {
         clearToken();
         return;
@@ -138,11 +188,11 @@ export function useGoogleDrive() {
   const checkConnection = useCallback(async () => {
     const latestToken = getActiveToken();
     if (!latestToken) {
-      setIsConnected(false);
+      clearToken();
       return;
     }
     await listFiles(currentFolder, latestToken);
-  }, [currentFolder, getActiveToken, listFiles]);
+  }, [clearToken, currentFolder, getActiveToken, listFiles]);
 
   const connect = useCallback(async () => {
     try {
@@ -160,25 +210,33 @@ export function useGoogleDrive() {
 
       await loadScript('https://accounts.google.com/gsi/client');
 
-      const token = await new Promise<string>((resolve, reject) => {
+      const tokenResponse = await new Promise<{ accessToken: string; expiresIn?: number }>((resolve, reject) => {
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: clientId,
           scope: SCOPES,
-          callback: (resp: any) => {
-            if (resp.error) reject(new Error(resp.error));
-            else resolve(resp.access_token);
+          callback: (resp: { error?: string; access_token?: string; expires_in?: number | string }) => {
+            if (resp.error || !resp.access_token) {
+              reject(new Error(resp.error || 'missing_access_token'));
+              return;
+            }
+
+            const expiresIn = typeof resp.expires_in === 'string'
+              ? Number(resp.expires_in)
+              : resp.expires_in;
+
+            resolve({ accessToken: resp.access_token, expiresIn });
           },
         });
         tokenClient.requestAccessToken();
       });
 
-      saveToken(token);
-      await listFiles('root', token);
+      saveToken(tokenResponse.accessToken, tokenResponse.expiresIn);
+      await listFiles('root', tokenResponse.accessToken);
     } catch (error) {
       console.error('Google Drive connect error:', error);
-      setIsConnected(false);
+      clearToken();
     }
-  }, [saveToken, listFiles]);
+  }, [clearToken, saveToken, listFiles]);
 
   const navigateToFolder = useCallback((folderId: string, folderName: string) => {
     setFolderStack(prev => [...prev, { id: folderId, name: folderName }]);
@@ -212,13 +270,26 @@ export function useGoogleDrive() {
           fileName: file.name,
         }),
       });
+
+      if (response.status === 401) {
+        clearToken();
+        return null;
+      }
+
       if (!response.ok) throw new Error('Download failed');
-      return await response.json();
+
+      const data = await response.json();
+      if (data.error === 'token_expired') {
+        clearToken();
+        return null;
+      }
+
+      return data;
     } catch (error) {
       console.error('Error downloading file:', error);
       return null;
     }
-  }, [getActiveToken]);
+  }, [clearToken, getActiveToken]);
 
   return {
     isConnected,

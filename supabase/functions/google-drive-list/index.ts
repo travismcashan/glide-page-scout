@@ -34,13 +34,16 @@ serve(async (req) => {
 
     if (!driveResponse.ok) {
       const errorText = await driveResponse.text();
-      console.error('Drive API error:', errorText);
+
       if (driveResponse.status === 401) {
+        console.warn('Drive access token expired or is invalid');
         return new Response(JSON.stringify({ error: 'token_expired' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401,
         });
       }
+
+      console.error('Drive API error:', errorText);
       return new Response(JSON.stringify({ error: 'Drive API error' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
