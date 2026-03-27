@@ -13,7 +13,10 @@ export default {
       },
     },
     extend: {
-      colors: {
+      fontFamily: {
+        sans: ["'Space Grotesk'", "sans-serif"],
+        mono: ["'JetBrains Mono'", "monospace"],
+      },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
