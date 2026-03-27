@@ -120,7 +120,7 @@ export default function CrawlPage() {
                 <>Hello.</>
               )}
             </h1>
-            <div className="flex items-baseline gap-3 text-3xl sm:text-4xl font-light tracking-tight text-muted-foreground">
+            <div className="flex items-baseline gap-3 text-4xl sm:text-5xl font-bold tracking-tight text-muted-foreground">
               <span>Let's</span>
               <span className="relative inline-block h-[1.2em] w-[5.5em] overflow-hidden align-baseline">
                 <AnimatePresence mode="wait">
