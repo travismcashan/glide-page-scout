@@ -1918,6 +1918,12 @@ export default function ResultsPage() {
                     <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/settings')}>
                       <Settings className="h-5 w-5" /> Settings
                     </Button>
+                    <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/admin')}>
+                      <Shield className="h-5 w-5" /> Admin
+                    </Button>
+                    <Button variant="ghost" className="justify-start gap-3 text-base text-muted-foreground" onClick={() => navigate('/login')}>
+                      <Users className="h-5 w-5" /> Account
+                    </Button>
                   </div>
                 </nav>
               </SheetContent>
