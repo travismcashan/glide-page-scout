@@ -42,11 +42,15 @@ export function KnowledgeTabContent({
   const runIngest = useCallback(async () => {
     setIngesting(true);
     try {
+      // Trigger refresh early — documents are registered as 'pending' before indexing starts
+      const refreshEarly = setTimeout(() => triggerRefresh(), 500);
+
       const [integrationResult, pageCount] = await Promise.all([
         autoIngestIntegrations(session.id, session),
         scrapedPages.length > 0 ? autoIngestPages(session.id, scrapedPages) : Promise.resolve(0),
       ]);
       
+      clearTimeout(refreshEarly);
       const total = integrationResult.ingested + pageCount;
       if (total > 0) {
         toast.success(`Indexed ${total} document${total !== 1 ? 's' : ''} into knowledge base`);
