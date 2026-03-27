@@ -1851,12 +1851,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth]);
 
   // ── Handle pending prompt from Prompts tab — always start a new chat ──
+  // Step 1: Create thread, reset messages, queue the prompt
   useEffect(() => {
     if (!pendingPrompt || loadingHistory || isStreaming) return;
     const { text, deepResearch } = pendingPrompt;
     onPendingPromptConsumed?.();
 
-    // Always create a fresh thread for prompt library items
     (async () => {
       const { data: newThread } = await supabase
         .from('chat_threads')
@@ -1866,23 +1866,31 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       if (!newThread) return;
 
       loadedSessionRef.current = null;
+      if (deepResearch) {
+        setDeepResearchMode(true);
+        if (provider !== 'gemini') onProviderChange('gemini');
+      } else {
+        setDeepResearchMode(false);
+      }
+      // Queue the prompt to fire after messages reset
+      queuedPromptRef.current = { text, deepResearch };
       setMessages([]);
       setActiveThreadId(newThread.id);
       setSidebarRefreshKey(k => k + 1);
-
-      if (deepResearch) {
-        setDeepResearchMode(true);
-        if (provider !== 'gemini') {
-          onProviderChange('gemini');
-        }
-        // Wait a tick for state to settle before sending
-        setTimeout(() => handleDeepResearchSend(text), 200);
-      } else {
-        setDeepResearchMode(false);
-        setTimeout(() => handleSend(text), 200);
-      }
     })();
   }, [pendingPrompt, loadingHistory]);
+
+  // Step 2: Fire the queued prompt once messages have settled to []
+  useEffect(() => {
+    if (!queuedPromptRef.current || messages.length !== 0 || isStreaming) return;
+    const { text, deepResearch } = queuedPromptRef.current;
+    queuedPromptRef.current = null;
+    if (deepResearch) {
+      handleDeepResearchSend(text);
+    } else {
+      handleSend(text);
+    }
+  }, [messages, isStreaming, handleSend, handleDeepResearchSend]);
 
   const handleSaveNote = useCallback(async (content: string) => {
     try {
