@@ -1170,6 +1170,52 @@ export default function ResultsPage() {
       setContentTypesProgress('');
     }).catch((e) => { const msg = e?.message || 'Content type classification request failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); setContentTypesLoading(false); setContentTypesProgress(''); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, pauseVersion]);
+
+  // GA4
+  const [ga4Failed, setGa4Failed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).ga4_data || ga4Loading || ga4Failed || isIntegrationPaused('ga4')) return;
+    if (ga4TriggeredRef.current) return;
+    ga4TriggeredRef.current = true;
+    setGa4Loading(true);
+    ga4Api.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        const saved = result.data || result;
+        await supabase.from('crawl_sessions').update({ ga4_data: saved } as any).eq('id', session.id);
+        clearError('ga4');
+        updateSession({ ga4_data: saved } as any);
+      } else {
+        setGa4Failed(true);
+        const msg = result.error || 'GA4 lookup failed';
+        setError('ga4', msg);
+        persistFailure('ga4_data', msg);
+      }
+      setGa4Loading(false);
+    }).catch((e) => { const msg = e?.message || 'GA4 request failed'; setGa4Failed(true); setError('ga4', msg); persistFailure('ga4_data', msg); setGa4Loading(false); });
+  }, [session, ga4Loading, ga4Failed, pauseVersion]);
+
+  // Search Console
+  const [gscFailed, setGscFailed] = useState(false);
+  useEffect(() => {
+    if (!session || (session as any).search_console_data || gscLoading || gscFailed || isIntegrationPaused('search-console')) return;
+    if (gscTriggeredRef.current) return;
+    gscTriggeredRef.current = true;
+    setGscLoading(true);
+    searchConsoleApi.lookup(session.domain).then(async (result) => {
+      if (result.success) {
+        const saved = result.data || result;
+        await supabase.from('crawl_sessions').update({ search_console_data: saved } as any).eq('id', session.id);
+        clearError('search-console');
+        updateSession({ search_console_data: saved } as any);
+      } else {
+        setGscFailed(true);
+        const msg = result.error || 'Search Console lookup failed';
+        setError('search-console', msg);
+        persistFailure('search_console_data', msg);
+      }
+      setGscLoading(false);
+    }).catch((e) => { const msg = e?.message || 'Search Console request failed'; setGscFailed(true); setError('search-console', msg); persistFailure('search_console_data', msg); setGscLoading(false); });
+  }, [session, gscLoading, gscFailed, pauseVersion]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
     if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
@@ -1397,6 +1443,8 @@ export default function ResultsPage() {
         // Also clear forms_tiers
         supabase.from('crawl_sessions').update({ forms_tiers: null } as any).eq('id', session!.id).then();
       },
+      'ga4': () => { setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false; },
+      'search-console': () => { setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false; },
     };
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
