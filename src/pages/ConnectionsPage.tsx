@@ -231,7 +231,7 @@ function ProviderRow({ p, connectingProvider, disconnecting, pickerProvider, pic
   );
 }
 
-
+export default function ConnectionsPage() {
   const navigate = useNavigate();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
