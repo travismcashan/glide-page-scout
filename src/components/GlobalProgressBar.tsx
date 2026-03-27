@@ -51,29 +51,16 @@ export function GlobalProgressBar({ steps }: Props) {
         />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-4">
-        {/* Status text */}
-        <div className="flex items-center gap-2 shrink-0">
-          {allDone ? (
-            <Check className="h-4 w-4 text-primary shrink-0" />
-          ) : (
-            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-          )}
-          <span className="text-xs font-medium text-foreground tabular-nums">
-            {allDone ? 'All complete' : `${doneCount}/${totalCount}`}
-          </span>
-        </div>
-
-        {/* Scrollable step ticker */}
-        <div className="flex-1 flex items-center gap-1.5 flex-wrap min-w-0">
+      <div className="max-w-6xl mx-auto px-6 py-3">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           {activeSteps.map((step) => (
             <span
               key={step.key}
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 transition-all duration-300 ${
                 step.status === 'done'
-                  ? 'bg-primary/10 text-primary'
+                  ? 'bg-green-500/15 text-green-600 dark:text-green-400'
                   : step.status === 'loading'
-                  ? 'bg-accent text-accent-foreground ring-1 ring-primary/30'
+                  ? 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'
                   : step.status === 'failed'
                   ? 'bg-destructive/10 text-destructive'
                   : 'bg-muted text-muted-foreground/50'
@@ -86,7 +73,6 @@ export function GlobalProgressBar({ steps }: Props) {
             </span>
           ))}
         </div>
-
       </div>
     </div>
   );
