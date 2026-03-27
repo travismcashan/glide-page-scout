@@ -290,15 +290,16 @@ export interface GmailCardHandle {
 
 export interface GmailCardProps {
   domain: string;
+  sessionId?: string;
   contactEmails?: string[];
   lookbackDays?: number;
   onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }) => void;
   onRefresh?: () => void;
 }
 
-export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, contactEmails, lookbackDays, onStateChange }, ref) {
+export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, sessionId: sessionIdProp, contactEmails, lookbackDays, onStateChange }, ref) {
   const params = useParams<{ id?: string; sessionId?: string }>();
-  const sessionId = params.sessionId ?? params.id;
+  const sessionId = sessionIdProp || params.sessionId || params.id;
   const { isConnected, isLoading, emails: liveEmails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
   const [cachedEmails, setCachedEmails] = useState<GmailEmail[]>([]);
   const [loadedFromDb, setLoadedFromDb] = useState(false);
