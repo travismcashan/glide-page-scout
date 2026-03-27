@@ -1307,6 +1307,296 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     setIsThinking(false);
   }, []);
 
+  // ── Deep Research send flow ──
+  const handleDeepResearchSend = useCallback(async (text: string) => {
+    if (!text.trim() || isStreaming) return;
+
+    const userMsg: Message = { role: 'user', content: text, isDeepResearch: true };
+    const assistantPlaceholder: Message = { role: 'assistant', content: '', isDeepResearch: true, deepResearchSteps: [] };
+    const newMessages = [...messages, userMsg];
+    setMessages([...newMessages, assistantPlaceholder]);
+    chatInputRef.current?.clear();
+    setIsStreaming(true);
+    setIsThinking(true);
+    scrollToLastUserMessage();
+
+    // Save user message
+    saveMessage('user', text);
+
+    try {
+      const crawlCtx = buildCrawlContext(session, pages);
+      const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
+      const defaultDocs = await loadDefaultDocs();
+
+      // Start the deep research interaction
+      const startRes = await fetch(DEEP_RESEARCH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          action: 'start',
+          prompt: text,
+          crawlContext: crawlCtx,
+          documents: defaultDocs,
+        }),
+      });
+
+      if (!startRes.ok) {
+        const errData = await startRes.json().catch(() => ({}));
+        toast.error(errData.error || `Failed to start Deep Research (${startRes.status})`);
+        setMessages(newMessages); // remove placeholder
+        setIsStreaming(false);
+        setIsThinking(false);
+        return;
+      }
+
+      const startData = await startRes.json();
+      const interactionId = startData.interactionId;
+      if (!interactionId) {
+        toast.error('No interaction ID returned');
+        setMessages(newMessages);
+        setIsStreaming(false);
+        setIsThinking(false);
+        return;
+      }
+
+      deepResearchInteractionRef.current = interactionId;
+      const steps: string[] = [];
+      let finalReport = '';
+
+      // Try SSE stream first
+      const streamRes = await fetch(DEEP_RESEARCH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ action: 'stream', interactionId }),
+      });
+
+      const isSSE = streamRes.ok && (streamRes.headers.get('content-type') || '').includes('text/event-stream');
+
+      if (isSSE && streamRes.body) {
+        // Parse SSE stream for thinking steps and final report
+        const reader = streamRes.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let sseEventType = '';
+        const reportParts: string[] = [];
+
+        const updateAssistant = () => {
+          const report = reportParts.join('');
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant') {
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: report, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+            }
+            return prev;
+          });
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let idx: number;
+          while ((idx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, idx).replace(/\r$/, '');
+            buffer = buffer.slice(idx + 1);
+
+            if (line.startsWith('event: ')) { sseEventType = line.slice(7).trim(); continue; }
+
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr || jsonStr === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(jsonStr);
+
+                // Thinking steps
+                if (sseEventType === 'content.delta' || parsed.event_type === 'content.delta') {
+                  const delta = parsed.delta || parsed;
+                  const content = delta?.content;
+
+                  if (delta?.type === 'thought_summary' && content?.text) {
+                    const cleanText = content.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                    if (cleanText && !steps.includes(cleanText)) {
+                      steps.push(cleanText);
+                      setIsThinking(false);
+                      updateAssistant();
+                    }
+                  } else if (delta?.type === 'text' || (content?.type === 'text')) {
+                    const t = content?.text || delta?.text || '';
+                    if (t) reportParts.push(t);
+                    updateAssistant();
+                  }
+                }
+
+                // Completion
+                if (sseEventType === 'interaction.complete' || parsed.state === 'completed' || parsed.state === 'COMPLETED') {
+                  const finalParts = parsed.output?.parts || parsed.candidates?.[0]?.content?.parts || [];
+                  if (finalParts.length > 0) {
+                    const finalText = finalParts.map((p: any) => p.text || '').join('\n');
+                    if (finalText) { reportParts.length = 0; reportParts.push(finalText); }
+                  }
+                  updateAssistant();
+                }
+
+                if (parsed.state === 'failed' || parsed.state === 'FAILED') {
+                  toast.error('Deep Research task failed');
+                  setIsStreaming(false);
+                  setIsThinking(false);
+                  return;
+                }
+              } catch { /* partial JSON */ }
+              sseEventType = '';
+            }
+            if (line === '') sseEventType = '';
+          }
+        }
+        finalReport = reportParts.join('');
+      }
+
+      // Fall back to polling if stream didn't produce a report
+      if (!finalReport) {
+        let attempts = 0;
+        while (attempts < 120) {
+          attempts++;
+          await new Promise(r => setTimeout(r, 5000));
+          const pollRes = await fetch(DEEP_RESEARCH_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ action: 'poll', interactionId }),
+          });
+
+          if (!pollRes.ok) continue;
+          const data = await pollRes.json();
+
+          if (data.success === false && data.terminal) {
+            toast.error(data.error || 'Research failed');
+            break;
+          }
+
+          // Extract thinking steps from poll
+          const outputs = data.outputs || [];
+          for (const output of outputs) {
+            if (output.type === 'thought' && output.summary) {
+              for (const item of output.summary) {
+                const cleanText = (item.text || '').replace(/^\*\*.*?\*\*\n+/, '').trim();
+                if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+              }
+            }
+          }
+          if (data.output?.parts) {
+            for (const part of data.output.parts) {
+              if (part.thought && part.text) {
+                const cleanText = part.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+              }
+            }
+          }
+
+          // Update UI during polling
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant') {
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+            }
+            return prev;
+          });
+
+          const state = data.status || data.state || '';
+          if (state === 'completed' || state === 'COMPLETED') {
+            const parts = data.output?.parts || [];
+            finalReport = parts.filter((p: any) => !p.thought).map((p: any) => p.text || '').join('\n');
+            break;
+          }
+          if (state === 'failed' || state === 'FAILED') {
+            toast.error('Deep Research task failed');
+            break;
+          }
+
+          if (attempts % 6 === 0) {
+            if (!steps.includes('Still researching…')) steps.push('Still researching…');
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === 'assistant') {
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+              }
+              return prev;
+            });
+          }
+        }
+      }
+
+      // Finalize
+      if (finalReport) {
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: finalReport, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+          }
+          return prev;
+        });
+        toast.success('Deep Research report ready!');
+        saveMessage('assistant', finalReport);
+
+        // Also save to deep_research_data for backward compat
+        await supabase
+          .from('crawl_sessions')
+          .update({ deep_research_data: { report: finalReport, prompt: text, updated_at: new Date().toISOString() } as any })
+          .eq('id', session.id);
+
+        // Auto-title thread
+        if (activeThreadId && newMessages.length === 1) {
+          const shortTitle = text.slice(0, 30).replace(/\n/g, ' ').trim();
+          await supabase.from('chat_threads').update({ title: `🔬 ${shortTitle}`, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
+          setSidebarRefreshKey(k => k + 1);
+        }
+
+        // Auto-ingest
+        const allMsgs = [...newMessages, { role: 'assistant' as const, content: finalReport }];
+        ingestChatConversation(session.id, allMsgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))).then(() => onDocumentsChanged?.()).catch(() => {});
+      }
+    } catch (e: any) {
+      console.error('Deep Research error:', e);
+      toast.error(e?.message || 'Deep Research failed');
+    }
+
+    deepResearchInteractionRef.current = null;
+    setIsStreaming(false);
+    setIsThinking(false);
+  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage]);
+
+  // ── Handle pending prompt from Prompts tab ──
+  useEffect(() => {
+    if (!pendingPrompt || !activeThreadId || loadingHistory || isStreaming) return;
+    const { text, deepResearch } = pendingPrompt;
+    onPendingPromptConsumed?.();
+
+    if (deepResearch) {
+      setDeepResearchMode(true);
+      // Ensure Gemini is selected for deep research
+      if (provider !== 'gemini') {
+        onProviderChange('gemini');
+      }
+      // Start deep research after a tick to allow state updates
+      setTimeout(() => handleDeepResearchSend(text), 100);
+    } else {
+      setDeepResearchMode(false);
+      setTimeout(() => handleSend(text), 100);
+    }
+  }, [pendingPrompt, activeThreadId, loadingHistory]);
+
   const handleSaveNote = useCallback(async (content: string) => {
     try {
       // Generate a short AI title for the note
