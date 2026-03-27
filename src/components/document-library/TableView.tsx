@@ -158,16 +158,25 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
   );
 
   return (
-    <Table>
+    <Table className="table-fixed">
+      <colgroup>
+        <col className="w-auto" />
+        <col className="w-[140px]" />
+        <col className="w-[80px]" />
+        <col className="w-[70px]" />
+        <col className="w-[120px]" />
+        <col className="w-[90px]" />
+        <col className="w-[40px]" />
+      </colgroup>
       <TableHeader>
         <TableRow>
-          {sortable('name', 'Name', 'min-w-[200px]')}
-          {sortable('source_type', 'Source', 'w-48 whitespace-nowrap')}
-          {sortable('char_count', 'Size', 'w-28 text-center whitespace-nowrap')}
-          {sortable('chunk_count', 'Chunks', 'w-24 text-center whitespace-nowrap')}
-          {sortable('created_at', 'Date Added', 'w-36 text-center whitespace-nowrap')}
-          <TableHead className="h-9 text-sm w-24 text-center whitespace-nowrap">Status</TableHead>
-          <TableHead className="h-9 text-sm w-10"></TableHead>
+          {sortable('name', 'Name', '')}
+          {sortable('source_type', 'Source', 'whitespace-nowrap')}
+          {sortable('char_count', 'Size', 'text-center whitespace-nowrap')}
+          {sortable('chunk_count', 'Chunks', 'text-center whitespace-nowrap')}
+          {sortable('created_at', 'Date Added', 'text-center whitespace-nowrap')}
+          <TableHead className="h-9 text-sm text-center whitespace-nowrap">Status</TableHead>
+          <TableHead className="h-9 text-sm"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
