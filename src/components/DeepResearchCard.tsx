@@ -874,6 +874,13 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                 </p>
               </div>
 
+              {/* ── Knowledge Base ── */}
+              <KnowledgePicker
+                sessionId={session.id}
+                prompt={prompt}
+                onKnowledgeChange={setKnowledgeDocs}
+              />
+
               {/* ── Context Preview ── */}
               <Accordion type="single" collapsible className="border rounded-lg">
                 <AccordionItem value="context-preview" className="border-0">
@@ -884,7 +891,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="px-3 pb-3">
-                    <ContextPreview session={session} pages={pages} documents={documents} />
+                    <ContextPreview session={session} pages={pages} documents={[...documents, ...knowledgeDocs]} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
