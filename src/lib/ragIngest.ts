@@ -205,6 +205,50 @@ function expandAvomaDocs(
   return docs;
 }
 
+/** Format Apollo team discovery data as a readable markdown document */
+function formatApolloTeamDoc(teamData: any): string {
+  const parts: string[] = ['# Apollo Team Discovery'];
+  if (teamData.domain) parts.push(`**Domain:** ${teamData.domain}`);
+  parts.push(`**Total Contacts Found:** ${teamData.totalFound || 0}`);
+
+  function formatContact(c: any): string {
+    const lines: string[] = [];
+    lines.push(`### ${c.name || 'Unknown'}`);
+    if (c.title) lines.push(`**Title:** ${c.title}`);
+    if (c.headline) lines.push(`**Headline:** ${c.headline}`);
+    if (c.email) lines.push(`**Email:** ${c.email}`);
+    if (c.seniority) lines.push(`**Seniority:** ${c.seniority}`);
+    const location = [c.city, c.state, c.country].filter(Boolean).join(', ');
+    if (location) lines.push(`**Location:** ${location}`);
+    if (c.linkedinUrl) lines.push(`**LinkedIn:** ${c.linkedinUrl}`);
+    if (c.organizationName) lines.push(`**Organization:** ${c.organizationName}`);
+
+    if (c.employmentHistory?.length) {
+      lines.push('\n**Employment History:**');
+      for (const eh of c.employmentHistory) {
+        if (eh.kind === 'education') {
+          lines.push(`- 🎓 ${eh.organizationName || ''}${eh.degree ? ` — ${eh.degree}` : ''}`);
+        } else {
+          const dates = [eh.startDate, eh.endDate || (eh.current ? 'Present' : '')].filter(Boolean).join(' – ');
+          lines.push(`- ${eh.title || 'Role'} at ${eh.organizationName || 'Unknown'}${dates ? ` (${dates})` : ''}`);
+        }
+      }
+    }
+    return lines.join('\n');
+  }
+
+  if (teamData.c_suite?.length) {
+    parts.push('\n## C-Suite & Leadership');
+    for (const c of teamData.c_suite) parts.push(formatContact(c));
+  }
+  if (teamData.marketing?.length) {
+    parts.push('\n## Marketing Team');
+    for (const c of teamData.marketing) parts.push(formatContact(c));
+  }
+
+  return parts.join('\n');
+}
+
 /**
  * Check which integrations have data but haven't been ingested yet,
  * and send them to the RAG ingest pipeline.
