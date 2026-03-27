@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,6 +23,66 @@ interface GmailMessage {
   snippet: string;
   body: string;
   attachments: GmailAttachment[];
+}
+
+async function getValidAccessToken(supabase: any): Promise<string | null> {
+  // Get the Gmail connection from the DB
+  const { data: connections } = await supabase
+    .from('oauth_connections')
+    .select('*')
+    .eq('provider', 'gmail')
+    .limit(1);
+
+  const conn = connections?.[0];
+  if (!conn) return null;
+
+  // Check if token is still valid (with 5 min buffer)
+  const expiresAt = new Date(conn.token_expires_at).getTime();
+  if (Date.now() < expiresAt - 5 * 60 * 1000) {
+    return conn.access_token;
+  }
+
+  // Token expired — refresh it
+  console.log('[gmail] Access token expired, refreshing...');
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+
+  if (!clientId || !clientSecret || !conn.refresh_token) {
+    console.error('[gmail] Cannot refresh: missing credentials or refresh token');
+    return null;
+  }
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: conn.refresh_token,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) {
+    console.error('[gmail] Token refresh failed:', tokenData);
+    return null;
+  }
+
+  const newExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
+
+  // Update stored tokens
+  await supabase
+    .from('oauth_connections')
+    .update({
+      access_token: tokenData.access_token,
+      token_expires_at: newExpiresAt,
+      ...(tokenData.refresh_token ? { refresh_token: tokenData.refresh_token } : {}),
+    })
+    .eq('id', conn.id);
+
+  console.log('[gmail] Token refreshed successfully');
+  return tokenData.access_token;
 }
 
 async function gmailFetch(path: string, token: string) {
@@ -84,10 +145,7 @@ function extractBodyAndAttachments(payload: any): { body: string; attachments: G
     return { text, html };
   }
 
-  if (payload) {
-    collectAttachments(payload);
-  }
-
+  if (payload) collectAttachments(payload);
   const { text, html } = extractText(payload);
   let body = text;
   if (!body && html) {
@@ -106,9 +164,14 @@ serve(async (req) => {
   }
 
   try {
-    const { action, accessToken, contactEmails, domain, maxResults, messageId, attachmentId } = await req.json();
+    const reqBody = await req.json();
+    const { action, accessToken, contactEmails, domain, maxResults, messageId, attachmentId } = reqBody;
 
-    // Return client ID for OAuth initialization
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Return client ID for OAuth initialization (legacy support)
     if (action === 'get-client-id') {
       const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
       if (!clientId) {
@@ -121,16 +184,31 @@ serve(async (req) => {
       });
     }
 
+    // Resolve the access token: use provided one, or fetch from DB
+    let token = accessToken;
+    if (!token) {
+      token = await getValidAccessToken(supabase);
+      if (!token) {
+        return new Response(JSON.stringify({
+          error: 'gmail_auth_required',
+          message: 'Gmail is not connected. Please connect Gmail in the Connections page.',
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Download a specific attachment
     if (action === 'get-attachment') {
-      if (!accessToken || !messageId || !attachmentId) {
-        return new Response(JSON.stringify({ error: 'accessToken, messageId, and attachmentId are required' }), {
+      if (!messageId || !attachmentId) {
+        return new Response(JSON.stringify({ error: 'messageId and attachmentId are required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       const att = await gmailFetch(
         `/users/me/messages/${messageId}/attachments/${attachmentId}`,
-        accessToken,
+        token,
       );
       return new Response(JSON.stringify({ success: true, data: att.data, size: att.size }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -139,12 +217,6 @@ serve(async (req) => {
 
     // Search emails
     if (action === 'search') {
-      if (!accessToken) {
-        return new Response(JSON.stringify({ error: 'accessToken is required' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
       const emails: string[] = contactEmails || [];
       const searchDomain: string = domain || '';
       const limit = Math.min(maxResults || 50, 100);
@@ -165,7 +237,7 @@ serve(async (req) => {
 
       const searchRes = await gmailFetch(
         `/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${limit}`,
-        accessToken,
+        token,
       );
 
       const messageIds = (searchRes.messages || []).map((m: any) => m.id);
@@ -185,7 +257,7 @@ serve(async (req) => {
         const fetched = await Promise.all(
           batch.map(async (id: string) => {
             try {
-              const msg = await gmailFetch(`/users/me/messages/${id}?format=full`, accessToken);
+              const msg = await gmailFetch(`/users/me/messages/${id}?format=full`, token);
               const headers = msg.payload?.headers || [];
               const { body, attachments } = extractBodyAndAttachments(msg.payload);
 
@@ -234,7 +306,7 @@ serve(async (req) => {
     if (error?.status === 401) {
       return new Response(JSON.stringify({
         error: 'gmail_auth_required',
-        message: 'Gmail session expired. Please reconnect.',
+        message: 'Gmail session expired. Please reconnect in the Connections page.',
       }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -247,7 +319,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         error: isApiDisabled ? 'gmail_api_disabled' : 'gmail_forbidden',
         message: isApiDisabled
-          ? 'Gmail API is not enabled in the Google Cloud project. Please enable it in the Google Cloud Console.'
+          ? 'Gmail API is not enabled in the Google Cloud project.'
           : 'Access denied by Gmail. Please reconnect with the required permissions.',
       }), {
         status: 403,

@@ -487,6 +487,42 @@ export type Database = {
           },
         ]
       }
+      oauth_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          provider: string
+          provider_email: string | null
+          refresh_token: string
+          scopes: string | null
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          provider: string
+          provider_email?: string | null
+          refresh_token: string
+          scopes?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          provider?: string
+          provider_email?: string | null
+          refresh_token?: string
+          scopes?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
