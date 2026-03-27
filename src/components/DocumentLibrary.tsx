@@ -384,30 +384,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     try {
       let title = noteTitle.trim();
 
-      // Auto-generate title if empty
+      // Auto-generate title from first line if empty (instant, no AI call)
       if (!title) {
-        try {
-          const aiResp = await supabase.functions.invoke('knowledge-chat', {
-            body: {
-              session_id: sessionId,
-              messages: [
-                { role: 'system', content: 'Generate a concise, descriptive title (3-8 words) for the following content. Return ONLY the title text, nothing else.' },
-                { role: 'user', content: body.slice(0, 2000) },
-              ],
-              skipRag: true,
-            },
-          });
-          const generated = aiResp.data?.reply?.trim();
-          if (generated && generated.length > 0 && generated.length < 120) {
-            title = generated.replace(/^["']|["']$/g, '');
-          }
-        } catch {
-          // Fallback below
-        }
-        if (!title) {
-          const firstLine = body.split('\n')[0].trim();
-          title = firstLine.length > 60 ? firstLine.slice(0, 57) + '…' : firstLine;
-        }
+        const firstLine = body.split('\n').find(l => l.trim().length > 0)?.trim() || 'Untitled Note';
+        title = firstLine.length > 60 ? firstLine.slice(0, 57) + '…' : firstLine;
       }
 
       // Insert placeholder
