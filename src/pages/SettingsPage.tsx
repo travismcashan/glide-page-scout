@@ -7,7 +7,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe } from 'lucide-react';
+import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -651,6 +652,35 @@ export default function SettingsPage() {
                 </div>
               </RadioGroup>
             </div>
+          </div>
+        </section>
+
+        <div className="border-t border-border" />
+
+        {/* ── Appearance ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><Sun className="h-5 w-5" /> Appearance</h2>
+            <p className="text-sm text-muted-foreground mt-1">Choose your preferred color mode.</p>
+          </div>
+
+          <div className="flex gap-2">
+            {([
+              { value: 'light', label: 'Light', icon: Sun },
+              { value: 'dark', label: 'Dark', icon: Moon },
+              { value: 'system', label: 'Auto', icon: Monitor },
+            ] as const).map(({ value, label, icon: Icon }) => (
+              <Button
+                key={value}
+                variant={theme === value ? 'default' : 'outline'}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setTheme(value)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </Button>
+            ))}
           </div>
         </section>
 
