@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -237,6 +237,7 @@ export default function ConnectionsPage() {
   const [loading, setLoading] = useState(true);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [hubspotConfigured, setHubspotConfigured] = useState<boolean | null>(null);
 
   // Property picker state
   const [pickerProvider, setPickerProvider] = useState<string | null>(null);
@@ -261,6 +262,24 @@ export default function ConnectionsPage() {
   }, []);
 
   useEffect(() => { fetchConnections(); }, [fetchConnections]);
+
+  // Check HubSpot API key status
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/integration-health`, {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({ checks: ['hubspot'] }),
+        });
+        const data = await res.json();
+        const hs = (data.results || []).find((r: any) => r.id === 'hubspot');
+        setHubspotConfigured(hs?.ok ?? false);
+      } catch {
+        setHubspotConfigured(false);
+      }
+    })();
+  }, []);
 
   const connectProvider = async (provider: string, scope: string) => {
     setConnectingProvider(provider);
