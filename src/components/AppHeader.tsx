@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, Shield, ChevronDown, Check } from 'lucide-react';
+import { LogOut, Settings, Shield, ChevronDown, Check, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +95,9 @@ export default function AppHeader() {
           </NavLink>
           <NavLink to="/integrations" className={linkBase} activeClassName={linkActive}>
             Integrations
+          </NavLink>
+          <NavLink to="/wishlist" className={linkBase} activeClassName={linkActive}>
+            Wishlist
           </NavLink>
           <NavLink to="/settings" className={linkBase} activeClassName={linkActive}>
             Settings
