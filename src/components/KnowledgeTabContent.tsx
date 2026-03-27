@@ -22,13 +22,12 @@ export function KnowledgeTabContent({
   const runIngest = useCallback(async () => {
     setIngesting(true);
     try {
-      const [integrationResult, pageCount, screenshotCount] = await Promise.all([
+      const [integrationResult, pageCount] = await Promise.all([
         autoIngestIntegrations(session.id, session),
         scrapedPages.length > 0 ? autoIngestPages(session.id, scrapedPages) : Promise.resolve(0),
-        autoIngestScreenshots(session.id),
       ]);
       
-      const total = integrationResult.ingested + pageCount + screenshotCount;
+      const total = integrationResult.ingested + pageCount;
       if (total > 0) {
         toast.success(`Indexed ${total} document${total !== 1 ? 's' : ''} into knowledge base`);
       }
@@ -39,6 +38,14 @@ export function KnowledgeTabContent({
     } finally {
       setIngesting(false);
     }
+
+    // Screenshots process one-by-one in background (don't block the sync spinner)
+    autoIngestScreenshots(session.id).then(count => {
+      if (count > 0) {
+        toast.success(`Indexed ${count} screenshot${count !== 1 ? 's' : ''} into knowledge base`);
+        triggerRefresh();
+      }
+    }).catch(err => console.error('Screenshot ingest error:', err));
   }, [session, scrapedPages, triggerRefresh]);
 
   // Auto-ingest on first mount
