@@ -211,6 +211,276 @@ function extractBrokenLinks(session: any): number | null {
   return clamp(((results.length - broken) / results.length) * 100);
 }
 
+// ── XML Sitemap scoring ────────────────────────────────────────
+
+function extractSitemap(session: any): number | null {
+  const sm = session.sitemap_data;
+  if (!sm || !sm.found) return null;
+
+  const stats = sm.stats;
+  const groups: any[] = sm.groups || [];
+  if (!stats || stats.totalUrls === 0) return 0;
+
+  let score = 0;
+
+  // 1. Sitemap exists (20 pts)
+  score += 20;
+
+  // 2. URL coverage vs discovered URLs (25 pts)
+  const discoveredUrls = session.discovered_urls;
+  const discoveredCount = Array.isArray(discoveredUrls) ? discoveredUrls.length : 0;
+  if (discoveredCount > 0) {
+    const coverageRatio = Math.min(1, stats.totalUrls / discoveredCount);
+    score += Math.round(coverageRatio * 25);
+  } else {
+    // No discovered URLs to compare — give benefit of doubt
+    score += 20;
+  }
+
+  // 3. Sitemap index structure (15 pts)
+  if (groups.length > 2) {
+    score += 15; // Well-organized sitemap index
+  } else if (groups.length === 2) {
+    score += 10;
+  } else {
+    score += 8; // Single flat sitemap
+  }
+
+  // 4. Content type segmentation (15 pts)
+  const contentTypeHints = sm.contentTypeHints || [];
+  if (contentTypeHints.length >= 3) {
+    score += 15;
+  } else if (contentTypeHints.length >= 1) {
+    score += 8;
+  } else {
+    score += 3;
+  }
+
+  // 5. URL count health — no sitemap should exceed 50k (10 pts)
+  const hasOversized = groups.some((g: any) => g.urls?.length > 50000);
+  const hasEmpty = groups.some((g: any) => !g.urls?.length);
+  if (!hasOversized && !hasEmpty) {
+    score += 10;
+  } else if (hasEmpty) {
+    score += 5;
+  }
+
+  // 6. No orphan/dead URLs — cross-ref with linkcheck (15 pts)
+  const lc = session.linkcheck_data;
+  if (lc) {
+    const results = lc.results || lc;
+    if (Array.isArray(results) && results.length > 0) {
+      const broken = results.filter((r: any) => r.status === 'broken' || (r.statusCode && r.statusCode >= 400)).length;
+      score += Math.round(Math.max(0, 1 - broken / results.length) * 15);
+    } else {
+      score += 12;
+    }
+  } else {
+    score += 12; // No link check data — don't penalize
+  }
+
+  return clamp(score);
+}
+
+// ── URL Health scoring (broken links + redirects) ──────────────
+
+function extractUrlHealth(session: any): number | null {
+  const lc = session.linkcheck_data;
+  if (!lc) return null;
+  const results = lc.results || lc;
+  if (!Array.isArray(results) || results.length === 0) return null;
+
+  const total = results.length;
+  const broken = results.filter((r: any) => r.status === 'broken' || (r.statusCode && r.statusCode >= 400)).length;
+  const redirects = results.filter((r: any) => r.statusCode && r.statusCode >= 300 && r.statusCode < 400).length;
+  const ok = results.filter((r: any) => r.statusCode && r.statusCode >= 200 && r.statusCode < 300).length;
+
+  let score = 0;
+
+  // 1. Broken links (40 pts) — each broken link costs 4 pts
+  score += Math.max(0, 40 - broken * 4);
+
+  // 2. Redirect ratio (25 pts)
+  const redirectPct = redirects / total;
+  score += Math.max(0, Math.round(25 - redirectPct * 25));
+
+  // 3. Clean hit rate (20 pts)
+  score += Math.round((ok / total) * 20);
+
+  // 4. Coverage checked vs discovered (15 pts)
+  const discoveredUrls = session.discovered_urls;
+  const discoveredCount = Array.isArray(discoveredUrls) ? discoveredUrls.length : 0;
+  if (discoveredCount > 0) {
+    score += Math.round(Math.min(1, total / discoveredCount) * 15);
+  } else {
+    score += 10;
+  }
+
+  return clamp(score);
+}
+
+// ── HTTP Status scoring ────────────────────────────────────────
+
+function extractHttpStatusDetailed(session: any): number | null {
+  const hs = session.httpstatus_data;
+  if (!hs) return null;
+
+  // httpstatus_data is a single URL check result with hops array
+  const hops: any[] = hs.hops || [];
+  if (hops.length === 0) return null;
+
+  const finalStatusCode = hs.finalStatusCode || hops[hops.length - 1]?.statusCode || 0;
+  const redirectCount = hs.redirectCount ?? (hops.length - 1);
+
+  let score = 0;
+
+  // 1. Final status is 2xx (35 pts)
+  if (finalStatusCode >= 200 && finalStatusCode < 300) {
+    score += 35;
+  } else if (finalStatusCode >= 300 && finalStatusCode < 400) {
+    score += 15; // Ends on redirect — not great
+  }
+  // 5xx or 4xx = 0 pts
+
+  // 2. No 5xx in chain (25 pts)
+  const has5xx = hops.some((h: any) => h.statusCode >= 500);
+  if (!has5xx) score += 25;
+
+  // 3. No 4xx in chain (20 pts)
+  const has4xx = hops.some((h: any) => h.statusCode >= 400 && h.statusCode < 500);
+  if (!has4xx) score += 20;
+
+  // 4. Redirect efficiency (10 pts) — single hop = 10, 2 hops = 7, 3+ = 2
+  if (redirectCount === 0) {
+    score += 10;
+  } else if (redirectCount === 1) {
+    score += 7;
+  } else if (redirectCount === 2) {
+    score += 4;
+  } else {
+    score += 1;
+  }
+
+  // 5. Response time health (10 pts) — based on first byte timing
+  const finalHop = hops[hops.length - 1];
+  const ttfb = finalHop?.timings?.firstByte ?? finalHop?.latency;
+  if (ttfb != null) {
+    if (ttfb < 200) score += 10;
+    else if (ttfb < 500) score += 7;
+    else if (ttfb < 1000) score += 4;
+    else score += 1;
+  } else {
+    score += 5; // No timing data — neutral
+  }
+
+  return clamp(score);
+}
+
+// ── Site Navigation scoring ────────────────────────────────────
+
+function extractNavigation(session: any): number | null {
+  const nav = session.nav_structure;
+  if (!nav) return null;
+
+  // Combine all nav sections
+  const primary: any[] = nav.primary || nav.items || [];
+  const secondary: any[] = nav.secondary || [];
+  const footer: any[] = nav.footer || [];
+
+  if (primary.length === 0 && secondary.length === 0 && footer.length === 0) return null;
+
+  // Helper: compute max depth of a nav tree
+  function maxDepth(items: any[], depth = 1): number {
+    let max = depth;
+    for (const item of items) {
+      if (item.children?.length) {
+        max = Math.max(max, maxDepth(item.children, depth + 1));
+      }
+    }
+    return max;
+  }
+
+  // Helper: count all links
+  function countLinks(items: any[]): number {
+    let count = 0;
+    for (const item of items) {
+      if (item.url) count++;
+      if (item.children?.length) count += countLinks(item.children);
+    }
+    return count;
+  }
+
+  // Helper: count items with children
+  function countWithChildren(items: any[]): number {
+    return items.filter((i: any) => i.children?.length).length;
+  }
+
+  // Helper: collect all labels
+  function collectLabels(items: any[]): string[] {
+    const labels: string[] = [];
+    for (const item of items) {
+      if (item.label) labels.push(item.label);
+      if (item.children?.length) labels.push(...collectLabels(item.children));
+    }
+    return labels;
+  }
+
+  const topLevel = primary.length;
+  const depth = maxDepth(primary);
+  const totalLinks = countLinks(primary) + countLinks(secondary) + countLinks(footer);
+  const allLabels = collectLabels(primary);
+
+  let score = 0;
+
+  // 1. Depth balance (20 pts)
+  if (depth >= 2 && depth <= 3) score += 20;
+  else if (depth === 1) score += 12;
+  else if (depth === 4) score += 10;
+  else score += 5;
+
+  // 2. Breadth balance (20 pts) — top-level item count
+  if (topLevel >= 4 && topLevel <= 8) score += 20;
+  else if (topLevel === 3 || (topLevel >= 9 && topLevel <= 10)) score += 15;
+  else if (topLevel === 2 || (topLevel >= 11 && topLevel <= 12)) score += 8;
+  else score += 3;
+
+  // 3. Total link count (15 pts)
+  if (totalLinks >= 10 && totalLinks <= 50) score += 15;
+  else if (totalLinks >= 51 && totalLinks <= 80) score += 10;
+  else if (totalLinks >= 81 && totalLinks <= 120) score += 6;
+  else if (totalLinks > 120) score += 2;
+  else score += 3; // < 5
+
+  // 4. Hierarchy coverage (15 pts)
+  if (topLevel > 0) {
+    const withChildren = countWithChildren(primary);
+    score += Math.round((withChildren / topLevel) * 15);
+  }
+
+  // 5. Label quality (15 pts)
+  if (allLabels.length > 0) {
+    const avgLen = allLabels.reduce((s, l) => s + l.length, 0) / allLabels.length;
+    const uniqueLabels = new Set(allLabels.map(l => l.toLowerCase()));
+    const dupeRatio = 1 - uniqueLabels.size / allLabels.length;
+
+    let labelScore = 15;
+    if (avgLen < 2 || avgLen > 40) labelScore = 5;
+    labelScore -= Math.round(dupeRatio * 8); // Penalize duplicates
+    score += Math.max(0, labelScore);
+  }
+
+  // 6. Key pages present (15 pts) — 3 pts each
+  const labelStr = allLabels.map(l => l.toLowerCase()).join(' ');
+  const keyPages = [
+    /about/i, /contact/i, /service|product|solution/i, /blog|resource|news|insight/i, /home|^$/i,
+  ];
+  for (const pattern of keyPages) {
+    if (pattern.test(labelStr)) score += 3;
+  }
+
+  return clamp(score);
+}
+
 function extractTechCoverage(session: any): number | null {
   let points = 0;
   let checks = 0;
@@ -251,7 +521,7 @@ function extractTechCoverage(session: any): number | null {
 
 // ── Category definitions ───────────────────────────────────────
 
-export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis';
+export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis' | 'navigation';
 
 export type CategoryScore = {
   key: CategoryKey;
@@ -291,17 +561,18 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'seo',
     label: 'SEO & Search',
-    weight: 20,
+    weight: 18,
     integrations: [
       { key: 'semrush', label: 'SEMrush', extract: extractSemrush },
       { key: 'psi-seo', label: 'PageSpeed SEO', extract: extractPsiSeo },
       { key: 'schema', label: 'Schema.org', extract: extractSchema },
+      { key: 'sitemap', label: 'XML Sitemap', extract: extractSitemap },
     ],
   },
   {
     key: 'accessibility',
     label: 'Accessibility',
-    weight: 20,
+    weight: 18,
     integrations: [
       { key: 'psi-accessibility', label: 'Lighthouse', extract: extractPsiAccessibility },
       { key: 'wave', label: 'WAVE', extract: extractWave },
@@ -311,7 +582,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'security',
     label: 'Security',
-    weight: 15,
+    weight: 14,
     integrations: [
       { key: 'observatory', label: 'Observatory', extract: extractObservatory },
       { key: 'ssllabs', label: 'SSL Labs', extract: extractSslLabs },
@@ -320,7 +591,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'content',
     label: 'Content',
-    weight: 15,
+    weight: 12,
     integrations: [
       { key: 'readable', label: 'Readability', extract: extractReadable },
     ],
@@ -328,10 +599,19 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'url-analysis',
     label: 'URL Health',
+    weight: 8,
+    integrations: [
+      { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatusDetailed },
+      { key: 'link-checker', label: 'Broken Links', extract: extractBrokenLinks },
+      { key: 'url-health', label: 'URL Health', extract: extractUrlHealth },
+    ],
+  },
+  {
+    key: 'navigation',
+    label: 'Navigation',
     weight: 5,
     integrations: [
-      { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatus },
-      { key: 'link-checker', label: 'Broken Links', extract: extractBrokenLinks },
+      { key: 'nav-structure', label: 'Site Navigation', extract: extractNavigation },
     ],
   },
   {
@@ -415,4 +695,5 @@ export const SECTION_TO_CATEGORY: Record<string, CategoryKey> = {
   'section-security': 'security',
   'section-content-analysis': 'content',
   'section-tech-detection': 'technology',
+  'section-navigation': 'navigation',
 };
