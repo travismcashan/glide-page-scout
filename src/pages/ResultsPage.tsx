@@ -2551,7 +2551,11 @@ export default function ResultsPage() {
                   sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
                   icon={<Phone className="h-5 w-5 text-foreground" />}
                   loading={avomaLoading && !(session as any)?.avoma_data}
-                  loadingText="Searching Avoma for meetings with @domain attendees..."
+                  loadingText={avomaProgress
+                    ? avomaProgress.phase === 'enriching'
+                      ? `Found ${avomaProgress.matchesFound} meetings — loading transcripts & insights…`
+                      : `Scanning page ${avomaProgress.page} · ${avomaProgress.meetingsScanned.toLocaleString()} of ${avomaProgress.totalMeetings.toLocaleString()} meetings checked · ${avomaProgress.matchesFound} match${avomaProgress.matchesFound !== 1 ? 'es' : ''} so far`
+                    : 'Searching Avoma for meetings with @domain attendees...'}
                   error={avomaFailed}
                   errorText={integrationErrors.avoma}
                   headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
