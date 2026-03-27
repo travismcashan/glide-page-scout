@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
-const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
-const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
-const GA4_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
-const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
+const EMAIL_SCOPE = 'email profile';
+const GMAIL_SCOPE = `https://www.googleapis.com/auth/gmail.readonly ${EMAIL_SCOPE}`;
+const DRIVE_SCOPES = `https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file ${EMAIL_SCOPE}`;
+const GA4_SCOPE = `https://www.googleapis.com/auth/analytics.readonly ${EMAIL_SCOPE}`;
+const GSC_SCOPE = `https://www.googleapis.com/auth/webmasters.readonly ${EMAIL_SCOPE}`;
 
 type Connection = {
   id: string;
