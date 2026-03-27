@@ -1130,6 +1130,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           reasoning: reasoning !== 'none' ? reasoning : undefined,
           sources: { ...searchSources, analytics: searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
           rag_depth: ragDepth,
+          tonePreset: localStorage.getItem('ai-tone-preset') || 'default',
           customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
           aboutMe: (() => { try { const s = localStorage.getItem('ai-about-me'); return s ? JSON.parse(s) : undefined; } catch { return undefined; } })(),
           personalBio: localStorage.getItem('ai-personal-bio') || undefined,

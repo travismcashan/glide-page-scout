@@ -35,7 +35,20 @@ const ALLOWED_GATEWAY_MODELS = [
   'openai/gpt-5.2',
 ];
 
-function buildSystemPrompt(contextBlock: string, customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
+const TONE_INSTRUCTIONS: Record<string, string> = {
+  professional: 'Communicate in a polished, precise, and business-appropriate tone. Use clear structure, avoid colloquialisms, and maintain a formal yet approachable style.',
+  friendly: 'Be warm, chatty, and approachable. Use a conversational tone with encouragement and enthusiasm. Feel free to use casual language.',
+  candid: 'Be direct, honest, and encouraging. Get straight to the point without sugarcoating, but remain supportive and constructive.',
+  quirky: 'Be playful, imaginative, and creative with language. Use unexpected analogies, humor, and a distinctive voice that makes interactions memorable.',
+  efficient: 'Be extremely concise and plain. Use short sentences, bullet points, and minimal prose. Skip pleasantries and get to the information quickly.',
+  cynical: 'Be critical, sarcastic, and bluntly honest. Challenge assumptions and point out flaws directly. Use dry wit but remain ultimately helpful.',
+};
+
+function buildSystemPrompt(contextBlock: string, tonePreset?: string, customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
+  const toneBlock = tonePreset && tonePreset !== 'default' && TONE_INSTRUCTIONS[tonePreset]
+    ? `\n\n---\n\n**Communication Style**: ${TONE_INSTRUCTIONS[tonePreset]}\n`
+    : '';
+
   const customBlock = customInstructions?.trim()
     ? `\n\n---\n\n**User's Custom Instructions** (always follow these preferences):\n${customInstructions.trim()}\n`
     : '';
@@ -62,7 +75,7 @@ function buildSystemPrompt(contextBlock: string, customInstructions?: string, ab
     aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses):\n${userParts.join('\n\n')}\n`;
   }
 
-  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${customBlock}
+  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${aboutBlock}${toneBlock}${customBlock}
 
 You have access to comprehensive audit data from multiple integration tools. When answering questions:
 
@@ -1150,7 +1163,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, customInstructions, aboutMe, personalBio, myRole } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, customInstructions, aboutMe, personalBio, myRole } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1228,7 +1241,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions, aboutMe, personalBio, myRole);
+    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, customInstructions, aboutMe, personalBio, myRole);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available
