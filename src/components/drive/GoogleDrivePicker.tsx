@@ -518,9 +518,23 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30 flex-shrink-0">
-          <p className="text-sm text-muted-foreground">
-            {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Click to select · Space to preview'}
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Click to select · Space to preview'}
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <Checkbox
+                checked={multiTab}
+                onCheckedChange={(checked) => {
+                  const val = checked === true;
+                  setMultiTab(val);
+                  try { localStorage.setItem('drive-multi-tab', String(val)); } catch {}
+                }}
+                className="h-4 w-4"
+              />
+              <span className="text-xs text-muted-foreground">Import all Google Doc tabs</span>
+            </label>
+          </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button onClick={handleImport} disabled={selectedFiles.size === 0 || isImporting}>
