@@ -21,6 +21,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<CrawlPage />} />
+          {/* New taxonomy: /sites/{domain}, with optional /crawls/{date} and /{tab} */}
+          <Route path="/sites/:domain/:tab" element={<ResultsPage />} />
+          <Route path="/sites/:domain/crawls/:dateSlug/:tab" element={<ResultsPage />} />
+          <Route path="/sites/:domain/crawls/:dateSlug" element={<ResultsPage />} />
+          <Route path="/sites/:domain" element={<ResultsPage />} />
+          {/* Legacy routes — redirect-compatible */}
           <Route path="/results/:sessionId" element={<ResultsPage />} />
           <Route path="/results/:domain/:dateSlug" element={<ResultsPage />} />
           <Route path="/history" element={<HistoryPage />} />
