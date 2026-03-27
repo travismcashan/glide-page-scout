@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Globe, Loader2, Search, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { buildResultsPath } from '@/lib/sessionSlug';
+import { buildSitePath } from '@/lib/sessionSlug';
 
 export default function CrawlPage() {
   const navigate = useNavigate();
