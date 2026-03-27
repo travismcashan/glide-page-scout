@@ -85,82 +85,79 @@ serve(async (req) => {
       });
     }
 
-    const { accessToken, config } = connection;
+    const { accessToken } = connection;
 
-    // Use stored property from provider_config if available
-    let propertyId: string | null = config?.propertyId?.replace('properties/', '') || null;
-    let propertyName: string = config?.propertyName || '';
+    // Always auto-detect GA4 property by domain (no global property override)
+    let propertyId: string | null = null;
+    let propertyName: string = '';
 
-    // If no stored property, try auto-detecting
-    if (!propertyId) {
-      console.log(`[ga4] No stored property, auto-detecting for domain: ${domain}`);
-      const accountsRes = await fetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries', {
-        headers: { Authorization: `Bearer ${accessToken}` },
+    console.log(`[ga4] Auto-detecting GA4 property for domain: ${domain}`);
+    const accountsRes = await fetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!accountsRes.ok) {
+      const err = await accountsRes.text();
+      console.error('[ga4] Account list failed:', err);
+      return new Response(JSON.stringify({ success: false, error: `GA4 API error: ${accountsRes.status}` }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
 
-      if (!accountsRes.ok) {
-        const err = await accountsRes.text();
-        console.error('[ga4] Account list failed:', err);
-        return new Response(JSON.stringify({ success: false, error: `GA4 API error: ${accountsRes.status}` }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+    const accountsData = await accountsRes.json();
+    const summaries = accountsData.accountSummaries || [];
+    const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
+
+    for (const account of summaries) {
+      for (const prop of account.propertySummaries || []) {
+        const propName = (prop.displayName || '').toLowerCase();
+        if (propName.includes(cleanDomain) || cleanDomain.includes(propName.replace(/[^a-z0-9.]/g, ''))) {
+          propertyId = prop.property?.replace('properties/', '');
+          propertyName = prop.displayName;
+          break;
+        }
       }
+      if (propertyId) break;
+    }
 
-      const accountsData = await accountsRes.json();
-      const summaries = accountsData.accountSummaries || [];
-      const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
-
+    // Try data streams if name match failed
+    if (!propertyId) {
       for (const account of summaries) {
         for (const prop of account.propertySummaries || []) {
-          const propName = (prop.displayName || '').toLowerCase();
-          if (propName.includes(cleanDomain) || cleanDomain.includes(propName.replace(/[^a-z0-9.]/g, ''))) {
-            propertyId = prop.property?.replace('properties/', '');
-            propertyName = prop.displayName;
-            break;
-          }
+          const pid = prop.property?.replace('properties/', '');
+          if (!pid) continue;
+          try {
+            const streamsRes = await fetch(
+              `https://analyticsadmin.googleapis.com/v1beta/properties/${pid}/dataStreams`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            if (streamsRes.ok) {
+              const streamsData = await streamsRes.json();
+              for (const stream of streamsData.dataStreams || []) {
+                const streamUri = (stream.webStreamData?.defaultUri || '').toLowerCase();
+                if (streamUri.includes(cleanDomain)) {
+                  propertyId = pid;
+                  propertyName = prop.displayName;
+                  break;
+                }
+              }
+            }
+          } catch {}
+          if (propertyId) break;
         }
         if (propertyId) break;
       }
+    }
 
-      // Try data streams if name match failed
-      if (!propertyId) {
-        for (const account of summaries) {
-          for (const prop of account.propertySummaries || []) {
-            const pid = prop.property?.replace('properties/', '');
-            if (!pid) continue;
-            try {
-              const streamsRes = await fetch(
-                `https://analyticsadmin.googleapis.com/v1beta/properties/${pid}/dataStreams`,
-                { headers: { Authorization: `Bearer ${accessToken}` } }
-              );
-              if (streamsRes.ok) {
-                const streamsData = await streamsRes.json();
-                for (const stream of streamsData.dataStreams || []) {
-                  const streamUri = (stream.webStreamData?.defaultUri || '').toLowerCase();
-                  if (streamUri.includes(cleanDomain)) {
-                    propertyId = pid;
-                    propertyName = prop.displayName;
-                    break;
-                  }
-                }
-              }
-            } catch {}
-            if (propertyId) break;
-          }
-          if (propertyId) break;
-        }
-      }
-
-      if (!propertyId) {
-        return new Response(JSON.stringify({
-          success: true,
-          found: false,
-          message: `No GA4 property found matching "${domain}". Please select a property in Connections settings.`,
-          availableProperties: summaries.flatMap((a: any) => (a.propertySummaries || []).map((p: any) => ({ name: p.displayName, id: p.property }))),
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    if (!propertyId) {
+      return new Response(JSON.stringify({
+        success: true,
+        found: false,
+        message: `No GA4 property found matching "${domain}".`,
+        availableProperties: summaries.flatMap((a: any) => (a.propertySummaries || []).map((p: any) => ({ name: p.displayName, id: p.property }))),
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log(`[ga4] Using property: ${propertyName} (${propertyId})`);
