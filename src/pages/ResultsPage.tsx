@@ -1460,8 +1460,9 @@ export default function ResultsPage() {
     clearError('gtmetrix');
     setGtmetrixFailed(false);
     setRunningGtmetrix(false);
-    fetchData();
-  }, [session, fetchData]);
+    gtmetrixTriggeredRef.current = false;
+    updateSession({ gtmetrix_grade: null, gtmetrix_scores: null, gtmetrix_test_id: null } as any);
+  }, [session]);
 
   // Track loading → done transitions for timing
   const prevLoadingRef = useRef<Record<string, boolean>>({});
@@ -1588,7 +1589,7 @@ export default function ResultsPage() {
               await supabase.from('crawl_sessions').update({ ssllabs_data: null } as any).eq('id', session!.id);
               ssllabsPollingRef.current = false;
               setSsllabsFailed(false);
-              await fetchData();
+              updateSession({ ssllabs_data: null } as any);
               runSslLabsScan();
             }
             else { rerunIntegration(key, dbColumn); }
@@ -1644,7 +1645,7 @@ export default function ResultsPage() {
       const result = await aiApi.generateOutline(page.raw_content, page.title || undefined, page.url);
       if (result.success && result.outline) {
         await supabase.from('crawl_pages').update({ ai_outline: result.outline }).eq('id', page.id);
-        fetchData();
+        setPages(prev => prev.map(p => p.id === page.id ? { ...p, ai_outline: result.outline } : p));
         toast.success('Outline generated!');
       } else { toast.error(result.error || 'Failed to generate outline'); }
     } catch { toast.error('Failed to generate outline'); } finally {
@@ -1983,7 +1984,7 @@ export default function ResultsPage() {
                     linkcheckRunningRef.current = false;
                     setLinkcheckProgress(null);
                     console.log('Discovered URLs persisted, link check data cleared for re-run');
-                    fetchData();
+                    updateSession({ discovered_urls: urls, linkcheck_data: null } as any);
                   }}
                 />
               )}
@@ -2030,7 +2031,7 @@ export default function ResultsPage() {
               <SectionCard collapsed={allCollapsed} sectionId="content-types" persistedCollapsed={isSectionCollapsed("content-types")} onCollapseChange={toggleSection} title="Bulk Content (Posts & CPTs)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={contentTypesLoading && !(session as any)?.content_types_data} loadingText={contentTypesProgress || "Classifying content types across discovered URLs..."} error={contentTypesFailed} errorText={integrationErrors['content-types']} headerExtra={<div className="flex items-center gap-1.5">{rerunButton('content-types', 'content_types_data', contentTypesLoading)}{(session as any)?.content_types_data && innerExpandToggle(contentTypesInnerExpand, setContentTypesInnerExpand)}</div>} paused={isIntegrationPaused('content-types') && !(session as any)?.content_types_data} onTogglePause={() => handleTogglePause('content-types')}>
                 {(session as any)?.content_types_data ? <ContentTypesCard data={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} pageTags={(session as any).page_tags} onPageTagChange={isSharedView ? undefined : handlePageTagChange} globalInnerExpand={contentTypesInnerExpand} onDataChange={isSharedView ? undefined : async (updated) => {
                   await supabase.from('crawl_sessions').update({ content_types_data: updated as any }).eq('id', sessionId!);
-                  fetchData();
+                  updateSession({ content_types_data: updated } as any);
                 }} /> : null}
               </SectionCard>
               )}
@@ -2067,7 +2068,7 @@ export default function ResultsPage() {
               {shouldShowIntegration('forms', !!(session as any)?.forms_data, showAllIntegrations) && (
               <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Analysis (Form Recommendations)" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)} paused={isIntegrationPaused('forms') && !(session as any)?.forms_data} onTogglePause={() => handleTogglePause('forms')}>
                 {(session as any)?.forms_data ? (
-                  <FormsCard data={(session as any).forms_data} domain={(session as any).domain} savedTiers={(session as any).forms_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { formsRerunFnRef.current = fn; }} />
+                  <FormsCard data={(session as any).forms_data} domain={(session as any).domain} savedTiers={(session as any).forms_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId!); updateSession({ forms_tiers: tiers } as any); }} onRerunRequest={(fn) => { formsRerunFnRef.current = fn; }} />
                 ) : !formsLoading && !isSharedView ? (
                   <div className="text-center py-4">
                     <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
@@ -2090,7 +2091,7 @@ export default function ResultsPage() {
               {session && (
               <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis (Recommended Layouts)" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? rerunButton('templates', 'template_tiers', templatesRerunning) : undefined}>
                 {(session as any)?.page_tags ? (
-                  <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); fetchData(); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
+                  <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} savedTiers={(session as any).template_tiers} onTiersChange={async (tiers) => { await supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId!); updateSession({ template_tiers: tiers } as any); }} onRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }} />
                 ) : null}
               </SectionCard>
               )}
@@ -2130,7 +2131,7 @@ export default function ResultsPage() {
                       setTechAnalysisFailed(false);
                       clearError('tech-analysis');
                       if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
-                      fetchData();
+                      updateSession({ tech_analysis_data: null } as any);
                     }} title="Run again">
                       <RefreshCw className={`h-3.5 w-3.5 ${techAnalysisLoading ? 'animate-spin' : ''}`} />
                     </Button>
