@@ -199,7 +199,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                         </DropdownMenuItem>
                         {threads.length > 1 && (
                           <DropdownMenuItem
-                            onClick={() => onDeleteThread(thread.id)}
+                            onClick={() => setDeleteConfirmId(thread.id)}
                             className="text-destructive focus:text-destructive"
                           >
                             <Trash2 className="h-3.5 w-3.5 mr-2" />
