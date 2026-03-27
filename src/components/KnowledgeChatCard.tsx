@@ -319,9 +319,29 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
-function DeepResearchStepsBlock({ steps, isStreaming }: { steps: string[]; isStreaming?: boolean }) {
+function classifyResearchStep(text: string): 'searching' | 'reading' | 'writing' | 'source' | 'thinking' {
+  const lower = text.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return 'source';
+  if (lower.includes('searching') || lower.includes('search for') || lower.includes('querying') || lower.includes('looking up')) return 'searching';
+  if (lower.includes('reading') || lower.includes('browsing') || lower.includes('visiting') || lower.includes('looking at') || lower.includes('reviewing')) return 'reading';
+  if (lower.includes('writing') || lower.includes('drafting') || lower.includes('composing') || lower.includes('finalizing') || lower.includes('summariz')) return 'writing';
+  return 'thinking';
+}
+
+function ResearchStepIcon({ type }: { type: ReturnType<typeof classifyResearchStep> }) {
+  switch (type) {
+    case 'searching': return <Search className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+    case 'reading': return <BookOpen className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
+    case 'writing': return <FileText className="h-3.5 w-3.5 text-green-500 shrink-0" />;
+    case 'source': return <Globe className="h-3.5 w-3.5 text-purple-500 shrink-0" />;
+    default: return <Brain className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+  }
+}
+
+function DeepResearchStepsBlock({ steps, sources, isStreaming }: { steps: string[]; sources?: string[]; isStreaming?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const lastSteps = steps.slice(-3);
+  const sourceCount = sources?.length || 0;
 
   return (
     <div className="mb-4">
@@ -337,18 +357,57 @@ function DeepResearchStepsBlock({ steps, isStreaming }: { steps: string[]; isStr
         <span className="text-sm font-bold">
           {isStreaming ? `Researching… (${steps.length} steps)` : `Deep Research (${steps.length} steps)`}
         </span>
+        {sourceCount > 0 && (
+          <span className="text-xs font-normal text-muted-foreground/70">
+            · {sourceCount} source{sourceCount !== 1 ? 's' : ''}
+          </span>
+        )}
         {expanded ? <ChevronDown className="h-4 w-4 -ml-1" strokeWidth={3} /> : <ChevronRight className="h-4 w-4 -ml-1" strokeWidth={3} />}
       </button>
       {!expanded && isStreaming && lastSteps.length > 0 && (
-        <div className="mt-1.5 text-xs text-muted-foreground/70 leading-relaxed" style={{ marginLeft: 32 }}>
-          {lastSteps[lastSteps.length - 1]}
+        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground/70 leading-relaxed" style={{ marginLeft: 32 }}>
+          <ResearchStepIcon type={classifyResearchStep(lastSteps[lastSteps.length - 1])} />
+          <span>{lastSteps[lastSteps.length - 1]}</span>
         </div>
       )}
       {expanded && (
-        <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground leading-relaxed space-y-1" style={{ marginLeft: 11, paddingLeft: 20 }}>
-          {steps.map((step, i) => (
-            <div key={i} className="animate-in fade-in duration-200">{step}</div>
-          ))}
+        <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground leading-relaxed space-y-1.5" style={{ marginLeft: 11, paddingLeft: 20 }}>
+          {steps.map((step, i) => {
+            const type = classifyResearchStep(step);
+            return (
+              <div key={i} className="flex items-start gap-1.5 animate-in fade-in duration-200">
+                <ResearchStepIcon type={type} />
+                {type === 'source' ? (
+                  <a href={step} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-[400px]">
+                    {(() => { try { return new URL(step).hostname; } catch { return step; } })()}
+                  </a>
+                ) : (
+                  <span>{step}</span>
+                )}
+              </div>
+            );
+          })}
+          {sources && sources.length > 0 && (
+            <div className="mt-3 pt-2 border-t border-primary/10">
+              <p className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mb-1.5">Sources Found</p>
+              {sources.map((url, i) => {
+                let hostname = url;
+                try { hostname = new URL(url).hostname; } catch {}
+                return (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-0.5"
+                  >
+                    <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate max-w-[350px]">{hostname}</span>
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -699,7 +758,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       )}
       {/* Deep Research steps */}
       {isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0 && (
-        <DeepResearchStepsBlock steps={deepResearchSteps} isStreaming={isStreamingThis && !content} />
+        <DeepResearchStepsBlock steps={deepResearchSteps} sources={webCitations} isStreaming={isStreamingThis && !content} />
       )}
       <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{content}</div>}>
         <div className="chat-prose max-w-none">
@@ -1352,7 +1411,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     if (!text.trim() || isStreaming) return;
 
     const userMsg: Message = { role: 'user', content: text, isDeepResearch: true };
-    const assistantPlaceholder: Message = { role: 'assistant', content: '', isDeepResearch: true, deepResearchSteps: [] };
+    const assistantPlaceholder: Message = { role: 'assistant', content: '', isDeepResearch: true, deepResearchSteps: [], webCitations: [] };
     const newMessages = [...messages, userMsg];
     setMessages([...newMessages, assistantPlaceholder]);
     chatInputRef.current?.clear();
@@ -1368,6 +1427,43 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
       const defaultDocs = await loadDefaultDocs();
 
+      // Auto-retrieve RAG knowledge based on prompt
+      const RAG_SEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-search`;
+      let ragDocs: { name: string; content: string }[] = [];
+      try {
+        const ragRes = await fetch(RAG_SEARCH_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            session_id: session.id,
+            query: text.slice(0, 2000),
+            match_count: ragDepth.match_count,
+            match_threshold: ragDepth.match_threshold,
+          }),
+        });
+        if (ragRes.ok) {
+          const ragData = await ragRes.json();
+          const matches = ragData.matches || [];
+          // Group chunks by document
+          const grouped: Record<string, string[]> = {};
+          for (const chunk of matches) {
+            const key = chunk.document_name || 'Unknown';
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(chunk.chunk_text);
+          }
+          ragDocs = Object.entries(grouped).map(([name, texts]) => ({ name, content: texts.join('\n\n') }));
+        }
+      } catch (e) {
+        console.error('RAG fetch for deep research failed:', e);
+      }
+
+      // Combine default docs + RAG docs
+      const allDocs = [...defaultDocs, ...ragDocs];
+
       // Start the deep research interaction
       const startRes = await fetch(DEEP_RESEARCH_URL, {
         method: 'POST',
@@ -1380,7 +1476,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           action: 'start',
           prompt: text,
           crawlContext: crawlCtx,
-          documents: defaultDocs,
+          documents: allDocs,
         }),
       });
 
@@ -1405,7 +1501,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
       deepResearchInteractionRef.current = interactionId;
       const steps: string[] = [];
+      const collectedSources: Set<string> = new Set();
       let finalReport = '';
+
+      const updateAssistantWithSources = () => {
+        const sourcesArray = Array.from(collectedSources);
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: m.content, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
+          }
+          return prev;
+        });
+      };
 
       // Try SSE stream first
       const streamRes = await fetch(DEEP_RESEARCH_URL, {
@@ -1421,7 +1529,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       const isSSE = streamRes.ok && (streamRes.headers.get('content-type') || '').includes('text/event-stream');
 
       if (isSSE && streamRes.body) {
-        // Parse SSE stream for thinking steps and final report
+        // Parse SSE stream for thinking steps, sources, and final report
         const reader = streamRes.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -1430,10 +1538,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
         const updateAssistant = () => {
           const report = reportParts.join('');
+          const sourcesArray = Array.from(collectedSources);
           setMessages(prev => {
             const last = prev[prev.length - 1];
             if (last?.role === 'assistant') {
-              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: report, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: report, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
             }
             return prev;
           });
@@ -1464,16 +1573,39 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                   const content = delta?.content;
 
                   if (delta?.type === 'thought_summary' && content?.text) {
-                    const cleanText = content.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
-                    if (cleanText && !steps.includes(cleanText)) {
-                      steps.push(cleanText);
-                      setIsThinking(false);
-                      updateAssistant();
+                    const text = content.text.trim();
+                    if (text) {
+                      // Extract URLs from thinking text as sources
+                      const urlMatches = text.match(/https?:\/\/[^\s)>\]"']+/g);
+                      if (urlMatches) {
+                        urlMatches.forEach((u: string) => collectedSources.add(u));
+                      }
+
+                      const cleanText = text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                      if (cleanText && !steps.includes(cleanText)) {
+                        // Split multi-line thinking into individual steps
+                        const chunks = cleanText.split(/\n\n+/).filter(Boolean);
+                        for (const chunk of chunks) {
+                          if (!steps.includes(chunk)) steps.push(chunk);
+                        }
+                        setIsThinking(false);
+                        updateAssistant();
+                      }
                     }
                   } else if (delta?.type === 'text' || (content?.type === 'text')) {
                     const t = content?.text || delta?.text || '';
                     if (t) reportParts.push(t);
                     updateAssistant();
+                  }
+
+                  // Extract source annotations
+                  const annotations = delta?.annotations || content?.annotations || parsed.annotations;
+                  if (annotations && Array.isArray(annotations)) {
+                    for (const ann of annotations) {
+                      if (ann.source) collectedSources.add(ann.source);
+                      if (ann.url) collectedSources.add(ann.url);
+                    }
+                    updateAssistantWithSources();
                   }
                 }
 
@@ -1533,6 +1665,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               for (const item of output.summary) {
                 const cleanText = (item.text || '').replace(/^\*\*.*?\*\*\n+/, '').trim();
                 if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+                // Extract URLs
+                const urlMatches = (item.text || '').match(/https?:\/\/[^\s)>\]"']+/g);
+                if (urlMatches) urlMatches.forEach((u: string) => collectedSources.add(u));
               }
             }
           }
@@ -1541,15 +1676,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               if (part.thought && part.text) {
                 const cleanText = part.text.replace(/^\*\*.*?\*\*\n+/, '').trim();
                 if (cleanText && !steps.includes(cleanText)) steps.push(cleanText);
+                const urlMatches = part.text.match(/https?:\/\/[^\s)>\]"']+/g);
+                if (urlMatches) urlMatches.forEach((u: string) => collectedSources.add(u));
               }
             }
           }
 
           // Update UI during polling
+          const sourcesArray = Array.from(collectedSources);
           setMessages(prev => {
             const last = prev[prev.length - 1];
             if (last?.role === 'assistant') {
-              return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
             }
             return prev;
           });
@@ -1567,10 +1705,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
           if (attempts % 6 === 0) {
             if (!steps.includes('Still researching…')) steps.push('Still researching…');
+            const sourcesArray = Array.from(collectedSources);
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, deepResearchSteps: [...steps], webCitations: sourcesArray, isDeepResearch: true } : m);
               }
               return prev;
             });
@@ -1579,21 +1718,23 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       }
 
       // Finalize
+      const finalSources = Array.from(collectedSources);
+      const ragDocRefs: RagDocument[] = ragDocs.map(d => ({ name: d.name, source_type: 'rag' }));
       if (finalReport) {
         setMessages(prev => {
           const last = prev[prev.length - 1];
           if (last?.role === 'assistant') {
-            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: finalReport, deepResearchSteps: [...steps], isDeepResearch: true } : m);
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: finalReport, deepResearchSteps: [...steps], webCitations: finalSources, ragDocuments: ragDocRefs, isDeepResearch: true } : m);
           }
           return prev;
         });
         toast.success('Deep Research report ready!');
-        saveMessage('assistant', finalReport);
+        saveMessage('assistant', finalReport, [], ragDocRefs, finalSources);
 
         // Also save to deep_research_data for backward compat
         await supabase
           .from('crawl_sessions')
-          .update({ deep_research_data: { report: finalReport, prompt: text, updated_at: new Date().toISOString() } as any })
+          .update({ deep_research_data: { report: finalReport, prompt: text, sources: finalSources, updated_at: new Date().toISOString() } as any })
           .eq('id', session.id);
 
         // Auto-title thread
@@ -1615,7 +1756,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     deepResearchInteractionRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage]);
+  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth]);
 
   // ── Handle pending prompt from Prompts tab ──
   useEffect(() => {
