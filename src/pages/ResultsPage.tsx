@@ -166,6 +166,8 @@ export default function ResultsPage() {
   const [cruxLoading, setCruxLoading] = useState(false);
   const [waveLoading, setWaveLoading] = useState(false);
   const [observatoryLoading, setObservatoryLoading] = useState(false);
+  const [ga4Loading, setGa4Loading] = useState(false);
+  const [gscLoading, setGscLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
@@ -344,6 +346,8 @@ export default function ResultsPage() {
         ['avoma_data', setAvomaFailed, 'avoma'],
         ['hubspot_data', setHubspotFailed, 'hubspot'],
         ['tech_analysis_data', setTechAnalysisFailed, 'tech-analysis'],
+        ['ga4_data', setGa4Failed, 'ga4'],
+        ['search_console_data', setGscFailed, 'search-console'],
       ];
       for (const [col, setFailed, key] of errorColumns) {
         const val = sessionData[col];
@@ -391,6 +395,8 @@ export default function ResultsPage() {
   const navTriggeredRef = useRef(false);
   const sitemapTriggeredRef = useRef(false);
   const contentTypesTriggeredRef = useRef(false);
+  const ga4TriggeredRef = useRef(false);
+  const gscTriggeredRef = useRef(false);
 
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
