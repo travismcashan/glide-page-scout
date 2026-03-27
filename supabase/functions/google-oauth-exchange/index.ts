@@ -12,23 +12,23 @@ serve(async (req) => {
   }
 
   try {
-    const { action, code, redirectUri, provider } = await req.json();
+    const body = await req.json();
+    const { action, code, redirectUri, provider, id } = body;
 
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    if (!clientId || !clientSecret) {
-      return new Response(JSON.stringify({ error: 'Google OAuth not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Return client ID for the frontend to initiate auth code flow
     if (action === 'get-config') {
+      if (!clientId) {
+        return new Response(JSON.stringify({ error: 'GOOGLE_CLIENT_ID not configured' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify({ clientId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -36,6 +36,11 @@ serve(async (req) => {
 
     // Exchange authorization code for tokens
     if (action === 'exchange') {
+      if (!clientId || !clientSecret) {
+        return new Response(JSON.stringify({ error: 'Google OAuth not configured' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       if (!code || !redirectUri) {
         return new Response(JSON.stringify({ error: 'code and redirectUri are required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -65,6 +70,10 @@ serve(async (req) => {
         });
       }
 
+      if (!tokenData.refresh_token) {
+        console.warn('[oauth-exchange] No refresh_token returned — user may have previously authorized');
+      }
+
       // Get user info to identify the account
       const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
@@ -76,16 +85,21 @@ serve(async (req) => {
       const expiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
 
       // Upsert the connection
+      const upsertData: any = {
+        provider: providerName,
+        provider_email: providerEmail,
+        access_token: tokenData.access_token,
+        token_expires_at: expiresAt,
+        scopes: tokenData.scope || '',
+      };
+      // Only overwrite refresh_token if we got a new one
+      if (tokenData.refresh_token) {
+        upsertData.refresh_token = tokenData.refresh_token;
+      }
+
       const { error: dbError } = await supabase
         .from('oauth_connections')
-        .upsert({
-          provider: providerName,
-          provider_email: providerEmail,
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          token_expires_at: expiresAt,
-          scopes: tokenData.scope || '',
-        }, { onConflict: 'provider,provider_email' });
+        .upsert(upsertData, { onConflict: 'provider,provider_email' });
 
       if (dbError) {
         console.error('[oauth-exchange] DB error:', dbError);
@@ -125,13 +139,43 @@ serve(async (req) => {
 
     // Disconnect (delete) a connection
     if (action === 'disconnect') {
-      const { id } = await req.json().catch(() => ({}));
       if (!id) {
-        // Try from original parsed body
+        return new Response(JSON.stringify({ error: 'id is required' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-      const body = { action, code, redirectUri, provider, id: undefined as any };
-      // Re-parse since we already consumed the body
-      // We need the id from the original parse - let me restructure
+
+      // Also revoke the token with Google
+      const { data: conn } = await supabase
+        .from('oauth_connections')
+        .select('access_token')
+        .eq('id', id)
+        .single();
+
+      if (conn?.access_token) {
+        try {
+          await fetch(`https://oauth2.googleapis.com/revoke?token=${conn.access_token}`, {
+            method: 'POST',
+          });
+        } catch (e) {
+          console.warn('[oauth-exchange] Token revoke failed (non-fatal):', e);
+        }
+      }
+
+      const { error: dbError } = await supabase
+        .from('oauth_connections')
+        .delete()
+        .eq('id', id);
+
+      if (dbError) {
+        return new Response(JSON.stringify({ error: dbError.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
