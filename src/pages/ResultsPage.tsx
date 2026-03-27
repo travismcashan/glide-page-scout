@@ -1294,6 +1294,7 @@ export default function ResultsPage() {
 
   // Search Console
   const [gscFailed, setGscFailed] = useState(false);
+  const [gscSelecting, setGscSelecting] = useState(false);
   useEffect(() => {
     if (!session || (session as any).search_console_data || gscLoading || gscFailed || isIntegrationPaused('search-console')) return;
     if (gscTriggeredRef.current) return;
