@@ -135,10 +135,11 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
   useEffect(() => {
     const processing = documents.some(d => d.status === 'processing' || d.status === 'pending' || d.status === 'uploading');
-    if (!processing) return;
+    // Also poll when ingesting is active (documents may not have been created yet)
+    if (!processing && !ingesting) return;
     const interval = setInterval(fetchDocuments, 3000);
     return () => clearInterval(interval);
-  }, [documents, fetchDocuments]);
+  }, [documents, fetchDocuments, ingesting]);
 
   // Derive unique source types for filter
   const sourceTypes = useMemo(() => {
@@ -455,6 +456,12 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : documents.length === 0 && ingesting ? (
+          <div className="text-center py-8 px-4">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-2 opacity-50" />
+            <p className="text-sm text-muted-foreground mb-1">Indexing integration data…</p>
+            <p className="text-xs text-muted-foreground">Documents will appear here as they're processed. This usually takes 30-60 seconds.</p>
           </div>
         ) : documents.length === 0 ? (
           <div className="text-center py-8 px-4">
