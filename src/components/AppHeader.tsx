@@ -64,11 +64,9 @@ export default function AppHeader() {
                     onClick={() => product.active && setCurrentProduct(product.id)}
                     className="flex items-center gap-3 py-2"
                   >
-                    <div className={`h-7 w-7 rounded-md flex items-center justify-center ${
-                      isCurrent ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      <Icon className="h-3.5 w-3.5" />
-                    </div>
+                    <Icon className={`h-5 w-5 ${
+                      isCurrent ? 'text-primary' : 'text-muted-foreground'
+                    }`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{product.fullName}</span>
