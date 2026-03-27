@@ -15,6 +15,7 @@ import { buildSitePath } from '@/lib/sessionSlug';
 import { useAuth } from '@/contexts/AuthContext';
 import AppHeader from '@/components/AppHeader';
 import { format } from 'date-fns';
+import { getRecentViews, type RecentView } from '@/lib/recentViews';
 
 /* ── Integration showcase data ── */
 const INTEGRATIONS = [
