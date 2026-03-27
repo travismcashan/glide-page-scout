@@ -1339,7 +1339,7 @@ export default function ResultsPage() {
       ocean: () => { setOceanFailed(false); setOceanLoading(false); oceanTriggeredRef.current = false; },
       avoma: () => { setAvomaFailed(false); setAvomaLoading(false); avomaTriggeredRef.current = false; },
       hubspot: () => { setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false; },
-      apollo: () => { setApolloLoading(false); apolloAutoTriggered.current = false; },
+      apollo: () => { setApolloData(null); setApolloTeamData(null); setApolloLoading(false); apolloAutoTriggered.current = false; apolloTeamAutoTriggered.current = false; supabase.from('crawl_sessions').update({ apollo_team_data: null } as any).eq('id', session!.id).then(); },
       ssllabs: () => { setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false; },
       httpstatus: () => { setHttpstatusFailed(false); setHttpstatusLoading(false); httpstatusTriggeredRef.current = false; },
       w3c: () => { setW3cFailed(false); setW3cLoading(false); w3cTriggeredRef.current = false; },
@@ -1458,6 +1458,7 @@ export default function ResultsPage() {
     'link-checker': linkcheckLoading, 'nav-structure': navLoading,
     sitemap: sitemapLoading, 'content-types': contentTypesLoading,
     gtmetrix: runningGtmetrix, avoma: avomaLoading, hubspot: hubspotLoading,
+    apollo: apolloLoading,
     forms: formsLoading, templates: templatesRerunning,
     'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
   };
@@ -2292,7 +2293,7 @@ export default function ResultsPage() {
                 </SectionCard>
               )}
               {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations) && (
-                <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
+                <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('apollo', 'apollo_data', apolloLoading)} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
                   <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
                 </SectionCard>
               )}
