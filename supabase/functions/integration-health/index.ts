@@ -55,7 +55,20 @@ async function checkPageSpeed(): Promise<HealthResult> {
   }
 }
 
-Deno.serve(async (req) => {
+async function checkHubSpot(): Promise<HealthResult> {
+  const start = Date.now();
+  try {
+    const token = Deno.env.get('HUBSPOT_ACCESS_TOKEN');
+    if (!token) return { id: 'hubspot', ok: false, latencyMs: 0, detail: 'No API key' };
+    const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    return { id: 'hubspot', ok: res.ok, latencyMs: Date.now() - start };
+  } catch (e) {
+    return { id: 'hubspot', ok: false, latencyMs: Date.now() - start, detail: (e as Error).message };
+  }
+}
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -67,6 +80,7 @@ Deno.serve(async (req) => {
       checkGtmetrix(),
       checkWebsiteCarbon(),
       checkPageSpeed(),
+      checkHubSpot(),
     ]);
 
     const map: Record<string, HealthResult> = {};
