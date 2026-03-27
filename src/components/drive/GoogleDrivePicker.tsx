@@ -8,6 +8,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Folder, FileText, FileSpreadsheet, FileImage, File, ChevronRight,
   Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter,
@@ -92,6 +93,9 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [foldersOnTop, setFoldersOnTop] = useState(true);
+  const [multiTab, setMultiTab] = useState(() => {
+    try { return localStorage.getItem('drive-multi-tab') === 'true'; } catch { return false; }
+  });
 
   const previewFileRef = useRef(previewFile);
   const focusedFileIdRef = useRef(focusedFileId);
@@ -172,7 +176,8 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
       const failed: string[] = [];
       for (const file of filesToImport) {
         try {
-          const result = await downloadFile(file);
+          const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
+          const result = await downloadFile(file, { multiTab: multiTab && isGoogleDoc });
           if (result) {
             imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
           } else {
@@ -513,9 +518,23 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30 flex-shrink-0">
-          <p className="text-sm text-muted-foreground">
-            {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Click to select · Space to preview'}
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : 'Click to select · Space to preview'}
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <Checkbox
+                checked={multiTab}
+                onCheckedChange={(checked) => {
+                  const val = checked === true;
+                  setMultiTab(val);
+                  try { localStorage.setItem('drive-multi-tab', String(val)); } catch {}
+                }}
+                className="h-4 w-4"
+              />
+              <span className="text-xs text-muted-foreground">Import all Google Doc tabs</span>
+            </label>
+          </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button onClick={handleImport} disabled={selectedFiles.size === 0 || isImporting}>

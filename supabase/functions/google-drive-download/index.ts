@@ -61,13 +61,85 @@ async function getValidAccessToken(supabase: any): Promise<string | null> {
   return tokenData.access_token;
 }
 
+/** Extract all text from a Google Doc using the Docs API (supports tabs) */
+async function extractGoogleDocAllTabs(accessToken: string, fileId: string): Promise<string> {
+  // Use includeTabsContent to get all tabs
+  const url = `https://docs.googleapis.com/v1/documents/${fileId}?includeTabsContent=true`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Docs API error:', response.status, errText);
+    throw new Error(`Docs API failed (${response.status})`);
+  }
+
+  const doc = await response.json();
+  const sections: string[] = [];
+
+  // Extract text from structural elements
+  function extractText(elements: any[]): string {
+    const parts: string[] = [];
+    for (const el of elements || []) {
+      if (el.paragraph) {
+        const line = (el.paragraph.elements || [])
+          .map((pe: any) => pe.textRun?.content || '')
+          .join('');
+        parts.push(line);
+      } else if (el.table) {
+        for (const row of el.table.tableRows || []) {
+          const cells = (row.tableCells || []).map((cell: any) =>
+            extractText(cell.content || []).trim()
+          );
+          parts.push(cells.join('\t'));
+        }
+        parts.push('');
+      } else if (el.sectionBreak) {
+        // just continue
+      }
+    }
+    return parts.join('');
+  }
+
+  // Process tabs (new API structure)
+  if (doc.tabs && doc.tabs.length > 0) {
+    for (const tab of doc.tabs) {
+      const tabTitle = tab.tabProperties?.title;
+      const body = tab.documentTab?.body;
+      if (body?.content) {
+        if (doc.tabs.length > 1 && tabTitle) {
+          sections.push(`\n=== ${tabTitle} ===\n`);
+        }
+        sections.push(extractText(body.content));
+      }
+      // Process child tabs (nested tabs)
+      if (tab.childTabs) {
+        for (const child of tab.childTabs) {
+          const childTitle = child.tabProperties?.title;
+          const childBody = child.documentTab?.body;
+          if (childBody?.content) {
+            if (childTitle) sections.push(`\n=== ${childTitle} ===\n`);
+            sections.push(extractText(childBody.content));
+          }
+        }
+      }
+    }
+  } else if (doc.body?.content) {
+    // Fallback: old-style response without tabs
+    sections.push(extractText(doc.body.content));
+  }
+
+  return sections.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { accessToken: clientToken, fileId, mimeType, fileName } = await req.json();
+    const { accessToken: clientToken, fileId, mimeType, fileName, multiTab } = await req.json();
 
     // Resolve token
     let accessToken = clientToken;
@@ -83,6 +155,25 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: !accessToken ? 401 : 400,
       });
+    }
+
+    // Google Docs with multi-tab enabled: use Docs API
+    if (multiTab && mimeType === 'application/vnd.google-apps.document') {
+      console.log(`[google-drive-download] Multi-tab Docs API export for ${fileName}`);
+      try {
+        const content = await extractGoogleDocAllTabs(accessToken, fileId);
+        return new Response(JSON.stringify({
+          fileName: fileName || fileId,
+          mimeType: 'text/plain',
+          content,
+          isText: true,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        console.error('Multi-tab extraction failed, falling back to export:', err);
+        // Fall through to standard export
+      }
     }
 
     const isGoogleWorkspaceFile = mimeType?.startsWith('application/vnd.google-apps.');
