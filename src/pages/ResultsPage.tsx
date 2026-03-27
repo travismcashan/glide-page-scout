@@ -2286,6 +2286,16 @@ export default function ResultsPage() {
           {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations)) && (
             <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
               {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <div className="animate-fade-in space-y-6">
+              {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) && (
+                <SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
+                  {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
+                </SectionCard>
+              )}
+              {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations) && (
+                <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
+                  <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
+                </SectionCard>
+              )}
               {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) && (
                 <SectionCard
                   sectionId="hubspot" persistedCollapsed={isSectionCollapsed("hubspot")} onCollapseChange={toggleSection} title="HubSpot CRM"
@@ -2352,16 +2362,6 @@ export default function ResultsPage() {
                   }
                 />
               </SectionCard>
-              {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations) && (
-                <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
-                  <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
-                </SectionCard>
-              )}
-              {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) && (
-                <SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
-                  {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
-                </SectionCard>
-              )}
               {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) && (
                 <SectionCard
                   sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
