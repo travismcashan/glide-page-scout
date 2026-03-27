@@ -1,9 +1,65 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+async function getValidAccessToken(supabase: any): Promise<string | null> {
+  const { data: connections } = await supabase
+    .from('oauth_connections')
+    .select('*')
+    .eq('provider', 'google-drive')
+    .limit(1);
+
+  const conn = connections?.[0];
+  if (!conn) return null;
+
+  const expiresAt = new Date(conn.token_expires_at).getTime();
+  if (Date.now() < expiresAt - 5 * 60 * 1000) {
+    return conn.access_token;
+  }
+
+  console.log('[drive-list] Access token expired, refreshing...');
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+
+  if (!clientId || !clientSecret || !conn.refresh_token) {
+    console.error('[drive-list] Cannot refresh: missing credentials or refresh token');
+    return null;
+  }
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: conn.refresh_token,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) {
+    console.error('[drive-list] Token refresh failed:', tokenData);
+    return null;
+  }
+
+  const newExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
+  await supabase
+    .from('oauth_connections')
+    .update({
+      access_token: tokenData.access_token,
+      token_expires_at: newExpiresAt,
+      ...(tokenData.refresh_token ? { refresh_token: tokenData.refresh_token } : {}),
+    })
+    .eq('id', conn.id);
+
+  console.log('[drive-list] Token refreshed successfully');
+  return tokenData.access_token;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,12 +67,21 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, folderId = 'root', pageToken } = await req.json();
+    const { accessToken: clientToken, folderId = 'root', pageToken } = await req.json();
+
+    // Resolve token: use provided one or fetch from DB
+    let accessToken = clientToken;
+    if (!accessToken) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+      accessToken = await getValidAccessToken(supabase);
+    }
 
     if (!accessToken) {
-      return new Response(JSON.stringify({ error: 'accessToken is required' }), {
+      return new Response(JSON.stringify({ error: 'drive_auth_required', message: 'Google Drive is not connected.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 401,
       });
     }
 
@@ -34,7 +99,6 @@ serve(async (req) => {
 
     if (!driveResponse.ok) {
       const errorText = await driveResponse.text();
-
       if (driveResponse.status === 401) {
         console.warn('Drive access token expired or is invalid');
         return new Response(JSON.stringify({ error: 'token_expired' }), {
@@ -42,7 +106,6 @@ serve(async (req) => {
           status: 401,
         });
       }
-
       console.error('Drive API error:', errorText);
       return new Response(JSON.stringify({ error: 'Drive API error' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -51,7 +114,6 @@ serve(async (req) => {
     }
 
     const driveData = await driveResponse.json();
-
     return new Response(JSON.stringify(driveData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

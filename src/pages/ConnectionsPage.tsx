@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
+const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
 
 type Connection = {
   id: string;
@@ -30,18 +30,18 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
+const apiHeaders = {
+  'Content-Type': 'application/json',
+  'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+};
+
 export default function ConnectionsPage() {
   const navigate = useNavigate();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
+  const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
-
-  const apiHeaders = {
-    'Content-Type': 'application/json',
-    'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-  };
 
   const fetchConnections = useCallback(async () => {
     try {
@@ -61,10 +61,9 @@ export default function ConnectionsPage() {
 
   useEffect(() => { fetchConnections(); }, [fetchConnections]);
 
-  const connectGmail = async () => {
-    setConnecting(true);
+  const connectProvider = async (provider: string, scope: string) => {
+    setConnectingProvider(provider);
     try {
-      // 1. Get client ID
       const configRes = await fetch(OAUTH_URL, {
         method: 'POST',
         headers: apiHeaders,
@@ -73,14 +72,12 @@ export default function ConnectionsPage() {
       const { clientId } = await configRes.json();
       if (!clientId) throw new Error('Could not get Google config');
 
-      // 2. Load Google Identity Services
       await loadScript('https://accounts.google.com/gsi/client');
 
-      // 3. Use authorization code flow (not implicit) for refresh tokens
       const code = await new Promise<string>((resolve, reject) => {
         const client = (window as any).google.accounts.oauth2.initCodeClient({
           client_id: clientId,
-          scope: GMAIL_SCOPE,
+          scope,
           ux_mode: 'popup',
           callback: (response: any) => {
             if (response.error) reject(new Error(response.error));
@@ -90,7 +87,6 @@ export default function ConnectionsPage() {
         client.requestCode();
       });
 
-      // 4. Exchange code for tokens on the server
       const exchangeRes = await fetch(OAUTH_URL, {
         method: 'POST',
         headers: apiHeaders,
@@ -98,18 +94,17 @@ export default function ConnectionsPage() {
           action: 'exchange',
           code,
           redirectUri: window.location.origin,
-          provider: 'gmail',
+          provider,
         }),
       });
       const result = await exchangeRes.json();
       if (!exchangeRes.ok) throw new Error(result.message || result.error);
 
-      // 5. Refresh the list
       await fetchConnections();
     } catch (err: any) {
-      console.error('Gmail connect error:', err);
+      console.error(`${provider} connect error:`, err);
     } finally {
-      setConnecting(false);
+      setConnectingProvider(null);
     }
   };
 
@@ -121,8 +116,11 @@ export default function ConnectionsPage() {
         headers: apiHeaders,
         body: JSON.stringify({ action: 'disconnect', id }),
       });
-      // Also clear legacy localStorage token
-      try { localStorage.removeItem('gmail-access-token'); } catch {}
+      try {
+        localStorage.removeItem('gmail-access-token');
+        localStorage.removeItem('google-drive-access-token');
+        localStorage.removeItem('google-drive-access-token-expires-at');
+      } catch {}
       setConnections(prev => prev.filter(c => c.id !== id));
     } catch (err) {
       console.error('Disconnect error:', err);
@@ -132,6 +130,30 @@ export default function ConnectionsPage() {
   };
 
   const gmailConnection = connections.find(c => c.provider === 'gmail');
+  const driveConnection = connections.find(c => c.provider === 'google-drive');
+
+  const providers = [
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      scope: GMAIL_SCOPE,
+      icon: Mail,
+      iconBg: 'bg-destructive/10',
+      iconColor: 'text-destructive',
+      description: 'Read-only access to search email threads for prospect intelligence',
+      connection: gmailConnection,
+    },
+    {
+      id: 'google-drive',
+      name: 'Google Drive',
+      scope: DRIVE_SCOPES,
+      icon: HardDrive,
+      iconBg: 'bg-primary/10',
+      iconColor: 'text-primary',
+      description: 'Import documents, spreadsheets, and files into the knowledge base',
+      connection: driveConnection,
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -164,77 +186,82 @@ export default function ConnectionsPage() {
           </p>
         </div>
 
-        <div className="space-y-4">
-          {/* Gmail Connection */}
-          <Card className="p-0 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-destructive" />
-                </div>
-                <div>
+        <div className="space-y-3">
+          {providers.map((p) => {
+            const Icon = p.icon;
+            const conn = p.connection;
+            const isConnecting = connectingProvider === p.id;
+            const isDisconnecting = disconnecting === conn?.id;
+
+            return (
+              <Card key={p.id} className="p-0 overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`h-10 w-10 rounded-lg ${p.iconBg} flex items-center justify-center`}>
+                      <Icon className={`h-5 w-5 ${p.iconColor}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{p.name}</span>
+                        {conn ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Connected
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-xs">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Not connected
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {conn ? `Signed in as ${conn.provider_email}` : p.description}
+                      </p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">Gmail</span>
-                    {gmailConnection ? (
-                      <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Connected
-                      </Badge>
+                    {conn ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => connectProvider(p.id, p.scope)}
+                          disabled={isConnecting}
+                          className="text-xs"
+                        >
+                          {isConnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                          Reconnect
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => disconnectConnection(conn.id)}
+                          disabled={isDisconnecting}
+                          className="text-destructive hover:text-destructive text-xs"
+                        >
+                          {isDisconnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                          Disconnect
+                        </Button>
+                      </>
                     ) : (
-                      <Badge variant="outline" className="text-muted-foreground text-xs">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Not connected
-                      </Badge>
+                      <Button
+                        size="sm"
+                        onClick={() => connectProvider(p.id, p.scope)}
+                        disabled={isConnecting}
+                      >
+                        {isConnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Icon className="h-3 w-3 mr-1" />}
+                        Connect {p.name}
+                      </Button>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {gmailConnection
-                      ? `Signed in as ${gmailConnection.provider_email}`
-                      : 'Read-only access to search email threads for prospect intelligence'}
-                  </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {gmailConnection ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={connectGmail}
-                      disabled={connecting}
-                      className="text-xs"
-                    >
-                      {connecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                      Reconnect
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => disconnectConnection(gmailConnection.id)}
-                      disabled={disconnecting === gmailConnection.id}
-                      className="text-destructive hover:text-destructive text-xs"
-                    >
-                      {disconnecting === gmailConnection.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
-                      Disconnect
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={connectGmail}
-                    disabled={connecting}
-                  >
-                    {connecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mail className="h-3 w-3 mr-1" />}
-                    Connect Gmail
-                  </Button>
-                )}
-              </div>
-            </div>
-          </Card>
+              </Card>
+            );
+          })}
 
-          {/* Placeholder for future connections */}
           <div className="text-center py-8 text-muted-foreground/50 text-sm">
-            More connections coming soon — Google Drive, HubSpot CRM, and more.
+            More connections coming soon — HubSpot CRM, Slack, and more.
           </div>
         </div>
       </main>
