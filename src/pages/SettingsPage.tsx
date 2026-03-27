@@ -227,6 +227,32 @@ export default function SettingsPage() {
                   : 'Very strict matching — only highly relevant documents are considered. Best when you want precise, focused answers and your knowledge base is well-organized. May return fewer results.'}
               </p>
             </div>
+
+            {/* Combined interaction callout */}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 space-y-1">
+              <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                💡 How these combine
+              </p>
+              <p className="text-xs text-foreground/80 leading-relaxed">
+                {matchCount <= 25 && matchThreshold <= 0.20
+                  ? 'The AI will quickly scan a small number of loosely related documents. Fast and exploratory, but answers may lack depth or include tangential information.'
+                  : matchCount <= 25 && matchThreshold <= 0.45
+                  ? 'The AI reads a small set of reasonably relevant documents. Quick and fairly focused — good for simple, direct questions.'
+                  : matchCount <= 25
+                  ? 'The AI reads very few, highly relevant documents. Lightning-fast and laser-focused, but may miss useful context that doesn\'t exactly match your question.'
+                  : matchCount <= 60 && matchThreshold <= 0.20
+                  ? 'The AI reads a good amount of broadly related material. Balanced speed with wide coverage — great for general exploration and open-ended questions.'
+                  : matchCount <= 60 && matchThreshold <= 0.45
+                  ? 'The AI reads a solid amount of well-matched documents. The sweet spot for most use cases — thorough answers without too much noise or wait time.'
+                  : matchCount <= 60
+                  ? 'The AI reads a moderate amount of strictly relevant documents. Focused and thorough — ideal when you want precise answers from well-organized knowledge.'
+                  : matchThreshold <= 0.20
+                  ? 'The AI casts the widest possible net, reading extensively from loosely related sources. Best for deep research where you don\'t want to miss anything, but expect slower responses with some noise.'
+                  : matchThreshold <= 0.45
+                  ? 'The AI reads extensively but filters for reasonable relevance. Comprehensive and balanced — great for complex questions that span multiple topics in your knowledge base.'
+                  : 'The AI reads as much as possible but only from highly relevant sources. Maximum depth with maximum precision — best for thorough research on well-documented topics. Slowest but cleanest results.'}
+              </p>
+            </div>
           </div>
         </section>
 
