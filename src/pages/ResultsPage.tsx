@@ -1686,7 +1686,7 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="px-6">
+      <header>
         <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
            <div className="flex items-center justify-between">
              <div>

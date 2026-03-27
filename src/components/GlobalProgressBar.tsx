@@ -51,24 +51,24 @@ export function GlobalProgressBar({ steps }: Props) {
         />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-3">
+      <div className="max-w-6xl mx-auto px-12 py-3">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           {activeSteps.map((step) => (
             <span
               key={step.key}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 transition-all duration-300 ${
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-300 ${
                 step.status === 'done'
-                  ? 'bg-green-500/15 text-green-600 dark:text-green-400'
+                  ? 'bg-green-600/20 text-green-700 dark:bg-green-500/20 dark:text-green-300'
                   : step.status === 'loading'
-                  ? 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'
+                  ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300'
                   : step.status === 'failed'
-                  ? 'bg-destructive/10 text-destructive'
-                  : 'bg-muted text-muted-foreground/50'
+                  ? 'bg-destructive/15 text-destructive'
+                  : 'bg-muted text-muted-foreground/60'
               }`}
             >
-              {step.status === 'done' && <Check className="h-2.5 w-2.5" />}
-              {step.status === 'loading' && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
-              {step.status === 'failed' && <AlertTriangle className="h-2.5 w-2.5" />}
+              {step.status === 'done' && <Check className="h-3 w-3" />}
+              {step.status === 'loading' && <Loader2 className="h-3 w-3 animate-spin" />}
+              {step.status === 'failed' && <AlertTriangle className="h-3 w-3" />}
               {step.label}
             </span>
           ))}
