@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { toast } from 'sonner';
 import { Brain, Loader2, Upload, X, FileText, Play, RefreshCw, Globe, Search, BookOpen, PenTool, ExternalLink, Eye, Download } from 'lucide-react';
+import { KnowledgePicker } from '@/components/deep-research/KnowledgePicker';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +96,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   const stepsEndRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
   const reportRef = useRef<string | null>(null);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<AttachedDoc[]>([]);
 
   // Keep reportRef in sync
   useEffect(() => { reportRef.current = report; }, [report]);
@@ -551,6 +553,9 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     try {
       const crawlContext = buildCrawlContext(session, pages);
 
+      // Merge manual file attachments + RAG knowledge docs
+      const allDocuments = [...documents, ...knowledgeDocs];
+
       const response = await fetch(FUNC_URL, {
         method: 'POST',
         headers: {
@@ -562,7 +567,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           action: 'start',
           prompt,
           crawlContext,
-          documents,
+          documents: allDocuments,
         }),
       });
 
@@ -869,6 +874,13 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                 </p>
               </div>
 
+              {/* ── Knowledge Base ── */}
+              <KnowledgePicker
+                sessionId={session.id}
+                prompt={prompt}
+                onKnowledgeChange={setKnowledgeDocs}
+              />
+
               {/* ── Context Preview ── */}
               <Accordion type="single" collapsible className="border rounded-lg">
                 <AccordionItem value="context-preview" className="border-0">
@@ -879,7 +891,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="px-3 pb-3">
-                    <ContextPreview session={session} pages={pages} documents={documents} />
+                    <ContextPreview session={session} pages={pages} documents={[...documents, ...knowledgeDocs]} />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
