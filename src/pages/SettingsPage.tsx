@@ -264,6 +264,50 @@ export default function SettingsPage() {
 
         <div className="border-t border-border" />
 
+        {/* ── Custom Instructions ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Custom Instructions</h2>
+            <p className="text-sm text-muted-foreground mt-1">Tell the AI how you'd like it to respond. These instructions are included in every conversation.</p>
+          </div>
+
+          <div className="space-y-3">
+            <Textarea
+              placeholder="e.g. Always respond in bullet points. Focus on actionable recommendations. Use a consultative tone. When analyzing competitors, prioritize SEO and content strategy insights."
+              value={customInstructions}
+              onChange={(e) => {
+                setCustomInstructions(e.target.value);
+                localStorage.setItem('ai-custom-instructions', e.target.value);
+              }}
+              className="min-h-[120px] resize-y text-sm"
+              maxLength={2000}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {customInstructions.length > 0
+                  ? 'These instructions will be applied to all future conversations.'
+                  : 'No custom instructions set — the AI will use its default behavior.'}
+              </p>
+              <span className="text-xs text-muted-foreground tabular-nums">{customInstructions.length}/2,000</span>
+            </div>
+            {customInstructions.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  setCustomInstructions('');
+                  localStorage.removeItem('ai-custom-instructions');
+                }}
+              >
+                Clear instructions
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <div className="border-t border-border" />
+
         {/* ── Google Docs Import ── */}
         <section className="space-y-6">
           <div>
