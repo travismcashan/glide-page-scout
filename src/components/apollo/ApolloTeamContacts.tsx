@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, Megaphone, Crown, Linkedin, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Users, Megaphone, Crown, Linkedin, Mail, ChevronDown, ChevronUp, Briefcase, GraduationCap } from 'lucide-react';
+
+type EmploymentEntry = {
+  title?: string;
+  organizationName?: string;
+  startDate?: string;
+  endDate?: string;
+  current?: boolean;
+  description?: string;
+  degree?: string;
+  kind?: string;
+};
 
 export type TeamContact = {
   id: string;
@@ -21,6 +32,7 @@ export type TeamContact = {
   departments?: string[];
   organizationName?: string;
   organizationLogo?: string;
+  employmentHistory?: EmploymentEntry[];
 };
 
 export type ApolloTeamData = {
@@ -39,39 +51,108 @@ type Props = {
   domain: string | null;
 };
 
-function ContactRow({ contact }: { contact: TeamContact }) {
+function formatDate(d?: string) {
+  if (!d) return null;
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return d;
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function EmploymentTimeline({ history }: { history: EmploymentEntry[] }) {
+  if (!history || history.length === 0) return null;
+
+  const jobs = history.filter(e => e.kind !== 'education');
+  const education = history.filter(e => e.kind === 'education');
+
   return (
-    <div className="flex items-center gap-3 py-2 px-3 rounded-md hover:bg-muted/50 transition-colors">
-      {contact.photoUrl ? (
-        <img src={contact.photoUrl} alt="" className="h-8 w-8 rounded-full object-cover border border-border shrink-0" />
-      ) : (
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-          {(contact.firstName?.[0] || '?')}{(contact.lastName?.[0] || '')}
+    <div className="mt-2 ml-11 space-y-1.5">
+      {jobs.slice(0, 4).map((entry, i) => (
+        <div key={i} className="flex items-start gap-2 text-xs">
+          <Briefcase className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+          <div className="min-w-0">
+            <span className="font-medium">{entry.title}</span>
+            {entry.organizationName && (
+              <span className="text-muted-foreground"> · {entry.organizationName}</span>
+            )}
+            {(entry.startDate || entry.endDate) && (
+              <span className="text-muted-foreground/70 ml-1">
+                ({formatDate(entry.startDate)}{entry.endDate ? ` – ${formatDate(entry.endDate)}` : entry.current ? ' – Present' : ''})
+              </span>
+            )}
+          </div>
         </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-sm font-medium truncate">{contact.name}</span>
-          {contact.seniority && (
-            <Badge variant="secondary" className="text-[9px] capitalize px-1 py-0">{contact.seniority}</Badge>
+      ))}
+      {education.slice(0, 2).map((entry, i) => (
+        <div key={`edu-${i}`} className="flex items-start gap-2 text-xs">
+          <GraduationCap className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+          <div className="min-w-0">
+            <span className="font-medium">{entry.organizationName}</span>
+            {entry.degree && (
+              <span className="text-muted-foreground"> · {entry.degree}</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ContactRow({ contact }: { contact: TeamContact }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasHistory = contact.employmentHistory && contact.employmentHistory.length > 0;
+
+  return (
+    <div className="py-2 px-3 rounded-md hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-3">
+        {contact.photoUrl ? (
+          <img src={contact.photoUrl} alt="" className="h-8 w-8 rounded-full object-cover border border-border shrink-0" />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+            {(contact.firstName?.[0] || '?')}{(contact.lastName?.[0] || '')}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => hasHistory && setExpanded(!expanded)}
+              className={`text-sm font-medium truncate ${hasHistory ? 'hover:underline cursor-pointer' : ''}`}
+            >
+              {contact.name}
+            </button>
+            {contact.seniority && (
+              <Badge variant="secondary" className="text-[9px] capitalize px-1 py-0">{contact.seniority}</Badge>
+            )}
+            {hasHistory && (
+              <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground transition-colors">
+                {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            )}
+          </div>
+          {contact.title && (
+            <p className="text-xs text-muted-foreground truncate">{contact.title}</p>
+          )}
+          {contact.city && (
+            <p className="text-[10px] text-muted-foreground/70 truncate">
+              {[contact.city, contact.state, contact.country].filter(Boolean).join(', ')}
+            </p>
           )}
         </div>
-        {contact.title && (
-          <p className="text-xs text-muted-foreground truncate">{contact.title}</p>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {contact.email && (
+            <a href={`mailto:${contact.email}`} title={contact.email} className="text-muted-foreground hover:text-primary transition-colors">
+              <Mail className="h-3.5 w-3.5" />
+            </a>
+          )}
+          {contact.linkedinUrl && (
+            <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" title="LinkedIn" className="text-muted-foreground hover:text-primary transition-colors">
+              <Linkedin className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {contact.email && (
-          <a href={`mailto:${contact.email}`} title={contact.email} className="text-muted-foreground hover:text-primary transition-colors">
-            <Mail className="h-3.5 w-3.5" />
-          </a>
-        )}
-        {contact.linkedinUrl && (
-          <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" title="LinkedIn" className="text-muted-foreground hover:text-primary transition-colors">
-            <Linkedin className="h-3.5 w-3.5" />
-          </a>
-        )}
-      </div>
+      {expanded && contact.employmentHistory && (
+        <EmploymentTimeline history={contact.employmentHistory} />
+      )}
     </div>
   );
 }

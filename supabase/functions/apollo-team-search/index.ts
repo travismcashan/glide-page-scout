@@ -99,6 +99,16 @@ Deno.serve(async (req) => {
           departments: p.departments || [],
           organizationName: p.organization?.name || null,
           organizationLogo: p.organization?.logo_url || null,
+          employmentHistory: (p.employment_history || []).map((eh: any) => ({
+            title: eh.title,
+            organizationName: eh.organization_name,
+            startDate: eh.start_date,
+            endDate: eh.end_date,
+            current: eh.current,
+            description: eh.description,
+            degree: eh.degree,
+            kind: eh.kind,
+          })),
         }));
       } catch (err) {
         console.error(`Apollo ${search.label} search error:`, err);
