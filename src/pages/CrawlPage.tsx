@@ -11,7 +11,7 @@ import { buildResultsPath } from '@/lib/sessionSlug';
 export default function CrawlPage() {
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
-  const [lookbackDays, setLookbackDays] = useState('90');
+  
   const [isStarting, setIsStarting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,7 +25,7 @@ export default function CrawlPage() {
 
       const { data: session, error } = await supabase
         .from('crawl_sessions')
-        .insert({ domain, base_url: formattedUrl, status: 'analyzing', lookback_days: parseInt(lookbackDays, 10) } as any)
+        .insert({ domain, base_url: formattedUrl, status: 'analyzing' } as any)
         .select()
         .single();
 
@@ -101,22 +101,8 @@ export default function CrawlPage() {
               )}
             </Button>
           </div>
-          <div className="flex items-center gap-2 justify-center">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Import data from the last</span>
-            <Select value={lookbackDays} onValueChange={setLookbackDays}>
-              <SelectTrigger className="w-[140px] h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30">30 days</SelectItem>
-                <SelectItem value="90">90 days</SelectItem>
-                <SelectItem value="180">6 months</SelectItem>
-                <SelectItem value="365">1 year</SelectItem>
-                <SelectItem value="0">All time</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+
+
         </form>
       </main>
     </div>
