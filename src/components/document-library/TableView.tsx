@@ -228,8 +228,9 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
 function groupBySource(docs: KnowledgeDocument[]): [string, KnowledgeDocument[]][] {
   const map = new Map<string, KnowledgeDocument[]>();
   for (const d of docs) {
-    if (!map.has(d.source_type)) map.set(d.source_type, []);
-    map.get(d.source_type)!.push(d);
+    const label = getSourceLabel(d.source_type, d.source_key);
+    if (!map.has(label)) map.set(label, []);
+    map.get(label)!.push(d);
   }
   return Array.from(map.entries());
 }
