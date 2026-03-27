@@ -5,7 +5,8 @@ import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Brain, Sparkles, Zap, LogOut, Shield, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,6 +63,11 @@ export default function SettingsPage() {
   );
   const [tabDocMode, setTabDocMode] = useState<'separate' | 'merged'>(
     () => (localStorage.getItem('drive-tab-doc-mode') as 'separate' | 'merged') || 'separate'
+  );
+
+  // Custom instructions
+  const [customInstructions, setCustomInstructions] = useState(
+    () => localStorage.getItem('ai-custom-instructions') || ''
   );
 
   const handleProviderChange = (p: ModelProvider) => {
@@ -253,6 +259,50 @@ export default function SettingsPage() {
                   : 'The AI reads as much as possible but only from highly relevant sources. Maximum depth with maximum precision — best for thorough research on well-documented topics. Slowest but cleanest results.'}
               </p>
             </div>
+          </div>
+        </section>
+
+        <div className="border-t border-border" />
+
+        {/* ── Custom Instructions ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Custom Instructions</h2>
+            <p className="text-sm text-muted-foreground mt-1">Tell the AI how you'd like it to respond. These instructions are included in every conversation.</p>
+          </div>
+
+          <div className="space-y-3">
+            <Textarea
+              placeholder="e.g. Always respond in bullet points. Focus on actionable recommendations. Use a consultative tone. When analyzing competitors, prioritize SEO and content strategy insights."
+              value={customInstructions}
+              onChange={(e) => {
+                setCustomInstructions(e.target.value);
+                localStorage.setItem('ai-custom-instructions', e.target.value);
+              }}
+              className="min-h-[120px] resize-y text-sm"
+              maxLength={2000}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {customInstructions.length > 0
+                  ? 'These instructions will be applied to all future conversations.'
+                  : 'No custom instructions set — the AI will use its default behavior.'}
+              </p>
+              <span className="text-xs text-muted-foreground tabular-nums">{customInstructions.length}/2,000</span>
+            </div>
+            {customInstructions.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  setCustomInstructions('');
+                  localStorage.removeItem('ai-custom-instructions');
+                }}
+              >
+                Clear instructions
+              </Button>
+            )}
           </div>
         </section>
 

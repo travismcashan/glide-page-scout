@@ -35,8 +35,11 @@ const ALLOWED_GATEWAY_MODELS = [
   'openai/gpt-5.2',
 ];
 
-function buildSystemPrompt(contextBlock: string): string {
-  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.
+function buildSystemPrompt(contextBlock: string, customInstructions?: string): string {
+  const customBlock = customInstructions?.trim()
+    ? `\n\n---\n\n**User's Custom Instructions** (always follow these preferences):\n${customInstructions.trim()}\n`
+    : '';
+  return `You are an expert website analyst and digital strategist with deep knowledge of SEO, performance optimization, security, accessibility, and marketing technology.${customBlock}
 
 You have access to comprehensive audit data from multiple integration tools. When answering questions:
 
@@ -1124,7 +1127,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, customInstructions } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1202,7 +1205,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext);
+    const systemPrompt = buildSystemPrompt(combinedContext, customInstructions);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available

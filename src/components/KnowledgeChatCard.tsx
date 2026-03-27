@@ -1130,6 +1130,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           reasoning: reasoning !== 'none' ? reasoning : undefined,
           sources: { ...searchSources, analytics: searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
           rag_depth: ragDepth,
+          customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
         }),
       });
 
