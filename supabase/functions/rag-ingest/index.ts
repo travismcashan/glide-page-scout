@@ -160,10 +160,10 @@ serve(async (req) => {
         }
       }
 
-      // Create document record
+      // Create document record (skip if duplicate source_key exists)
       const { data: docRecord, error: docError } = await supabase
         .from('knowledge_documents')
-        .insert({
+        .upsert({
           session_id,
           name,
           source_type,
@@ -171,7 +171,7 @@ serve(async (req) => {
           content_hash: contentHash,
           char_count: content.length,
           status: 'processing',
-        })
+        }, { onConflict: 'session_id,source_type,source_key', ignoreDuplicates: true })
         .select('id')
         .single();
 
