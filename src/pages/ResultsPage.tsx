@@ -1553,6 +1553,7 @@ export default function ResultsPage() {
     apollo: apolloLoading,
     forms: formsLoading, templates: templatesRerunning,
     'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
+    ga4: ga4Loading, 'search-console': gscLoading,
   };
 
   useEffect(() => {
@@ -1629,6 +1630,8 @@ export default function ResultsPage() {
     { key: 'templates', label: 'Templates', loading: templatesRerunning || (autoTagging && !(session as any).template_tiers), failed: false, data: (session as any).template_tiers, paused: false },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
     { key: 'hubspot', label: 'HubSpot', loading: hubspotLoading, failed: hubspotFailed, data: (session as any).hubspot_data, paused: isIntegrationPaused('hubspot') },
+    { key: 'ga4', label: 'Google Analytics', loading: ga4Loading, failed: ga4Failed, data: (session as any).ga4_data, paused: isIntegrationPaused('ga4') },
+    { key: 'search-console', label: 'Search Console', loading: gscLoading, failed: gscFailed, data: (session as any).search_console_data, paused: isIntegrationPaused('search-console') },
   ].map(s => ({
     key: s.key,
     label: s.label,
