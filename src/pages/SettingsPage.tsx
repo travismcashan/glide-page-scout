@@ -56,6 +56,14 @@ export default function SettingsPage() {
     () => parseFloat(localStorage.getItem('rag-match-threshold') || '0.15')
   );
 
+  // Google Docs import settings
+  const [tabMode, setTabMode] = useState<'all' | 'choose'>(
+    () => (localStorage.getItem('drive-tab-mode') as 'all' | 'choose') || 'all'
+  );
+  const [tabDocMode, setTabDocMode] = useState<'separate' | 'merged'>(
+    () => (localStorage.getItem('drive-tab-doc-mode') as 'separate' | 'merged') || 'separate'
+  );
+
   const handleProviderChange = (p: ModelProvider) => {
     setProvider(p);
     localStorage.setItem('chat-provider', p);
