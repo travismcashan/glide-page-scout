@@ -486,6 +486,12 @@ export default function ConnectionsPage() {
           </p>
         </div>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm">Loading connections…</span>
+          </div>
+        ) : (<>
         {/* Live Sources */}
         <div className="mb-8">
           <div className="mb-3">
@@ -551,6 +557,7 @@ export default function ConnectionsPage() {
         <div className="text-center py-4 text-muted-foreground/50 text-sm">
           More connections coming soon — HubSpot CRM, Slack, and more.
         </div>
+        </>)}
       </main>
     </div>
   );
