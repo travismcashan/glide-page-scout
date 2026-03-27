@@ -35,6 +35,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
   const [collapsed, setCollapsed] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const loadThreads = useCallback(async () => {
