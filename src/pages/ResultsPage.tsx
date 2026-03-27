@@ -1725,6 +1725,10 @@ export default function ResultsPage() {
                     <History className="h-5 w-5" />
                     History
                   </Button>
+                  <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/connections')}>
+                    <Plug className="h-5 w-5" />
+                    Connections
+                  </Button>
                   <Button variant="ghost" className="justify-start gap-3 text-base" onClick={() => navigate('/integrations')}>
                     <Settings className="h-5 w-5" />
                     Integrations
