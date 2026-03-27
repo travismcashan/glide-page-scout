@@ -132,9 +132,7 @@ function TimingBar({ timings }: { timings: TimingPhases }) {
 }
 
 export function HttpStatusCard({ data }: { data: HttpStatusData }) {
-  const { hops, redirectCount, meta, apiMeta } = data;
-  // Support legacy shape
-  const pageMeta = meta || data.metadata || null;
+  const { hops, redirectCount, apiMeta } = data;
 
   return (
     <div className="space-y-5">
