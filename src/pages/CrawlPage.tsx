@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,9 @@ import {
   Gauge, Code, Shield, Leaf, Eye, Lock, Link2,
   FileText, BarChart3, Brain, Layers, Users,
   Navigation, Accessibility, Mail, ExternalLink,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Zap, ScanSearch,
+  PieChart, Server, Paintbrush, GitCompare,
+  Activity, Smartphone,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +36,16 @@ const INTEGRATIONS = [
   { label: 'Find broken links & redirects', icon: Link2 },
   { label: 'Search prior prospect emails', icon: Mail },
   { label: 'Check HTTP status & headers', icon: Globe },
+  { label: 'Scan for security vulnerabilities', icon: Lock },
+  { label: 'Classify content types with AI', icon: Layers },
+  { label: 'Benchmark site speed over time', icon: Activity },
+  { label: 'Audit mobile responsiveness', icon: Smartphone },
+  { label: 'Analyze visual design quality', icon: Paintbrush },
+  { label: 'Compare competitor tech stacks', icon: GitCompare },
+  { label: 'Monitor server response times', icon: Server },
+  { label: 'Track SEO ranking changes', icon: PieChart },
+  { label: 'Test page load optimizations', icon: Zap },
+  { label: 'Audit site search experience', icon: ScanSearch },
 ];
 
 const ROTATING_WORDS = ['Research', 'Analyze', 'Prospect', 'Chat', 'Discover'];
@@ -54,24 +66,15 @@ export default function CrawlPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Carousel state
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  // Paginated carousel: 4 tiles per page
+  const TILES_PER_PAGE = 4;
+  const totalPages = Math.ceil(INTEGRATIONS.length / TILES_PER_PAGE);
+  const [carouselPage, setCarouselPage] = useState(0);
 
-  const updateScrollButtons = () => {
-    const el = carouselRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 2);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
-  };
-
-  const scrollCarousel = (dir: 'left' | 'right') => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const amount = el.clientWidth * 0.7;
-    el.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' });
-  };
+  const visibleTiles = INTEGRATIONS.slice(
+    carouselPage * TILES_PER_PAGE,
+    carouselPage * TILES_PER_PAGE + TILES_PER_PAGE
+  );
 
   // Load recently viewed from localStorage
   useEffect(() => {
@@ -216,42 +219,48 @@ export default function CrawlPage() {
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 What Can You Do?
               </h2>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground/60 tabular-nums mr-1">
+                  {carouselPage + 1}/{totalPages}
+                </span>
                 <button
-                  onClick={() => scrollCarousel('left')}
-                  disabled={!canScrollLeft}
+                  onClick={() => setCarouselPage(p => p - 1)}
+                  disabled={carouselPage === 0}
                   className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
                 <button
-                  onClick={() => scrollCarousel('right')}
-                  disabled={!canScrollRight}
+                  onClick={() => setCarouselPage(p => p + 1)}
+                  disabled={carouselPage >= totalPages - 1}
                   className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
-            <div
-              ref={carouselRef}
-              onScroll={updateScrollButtons}
-              className="flex gap-3 overflow-x-auto no-scrollbar -mx-6 px-6 snap-x snap-mandatory"
-            >
-              {INTEGRATIONS.map((integration) => (
-                <div
-                  key={integration.label}
-                  className="group flex-none w-[140px] snap-start rounded-xl border border-border bg-card p-5 flex flex-col items-center gap-3 text-center transition-colors hover:border-primary/20 hover:bg-primary/[0.03]"
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
-                    <integration.icon className="h-5 w-5" />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={carouselPage}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="grid grid-cols-4 gap-3"
+              >
+                {visibleTiles.map((integration) => (
+                  <div
+                    key={integration.label}
+                    className="group aspect-square rounded-xl border border-border bg-card p-4 flex flex-col justify-between transition-colors hover:border-primary/20 hover:bg-primary/[0.03]"
+                  >
+                    <integration.icon className="h-6 w-6 text-primary/70 group-hover:text-primary transition-colors" />
+                    <span className="text-[13px] font-medium leading-snug text-foreground/80">
+                      {integration.label}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium leading-snug text-foreground/80">
-                    {integration.label}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </main>
