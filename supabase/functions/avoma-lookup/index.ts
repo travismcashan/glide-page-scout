@@ -41,7 +41,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action } = body;
+    const { action, lookbackDays } = body;
 
     // === On-demand full transcript fetch for a single meeting ===
     if (action === 'transcript') {
@@ -92,7 +92,8 @@ serve(async (req) => {
 
     const now = new Date();
     const lookbackDate = new Date(now);
-    lookbackDate.setMonth(lookbackDate.getMonth() - 12);
+    const daysBack = (typeof lookbackDays === 'number' && lookbackDays > 0) ? lookbackDays : 365;
+    lookbackDate.setDate(lookbackDate.getDate() - daysBack);
     const fromDate = lookbackDate.toISOString();
     const toDate = now.toISOString();
 
