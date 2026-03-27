@@ -768,9 +768,9 @@ export const hubspotApi = {
 };
 
 export const ga4Api = {
-  async lookup(domain: string): Promise<any> {
+  async lookup(domain: string, propertyId?: string): Promise<any> {
     const { data, error } = await supabase.functions.invoke('ga4-lookup', {
-      body: { domain },
+      body: { domain, ...(propertyId ? { propertyId } : {}) },
     });
     if (error) return { success: false, error: error.message };
     return data;
@@ -778,9 +778,9 @@ export const ga4Api = {
 };
 
 export const searchConsoleApi = {
-  async lookup(domain: string): Promise<any> {
+  async lookup(domain: string, siteUrl?: string): Promise<any> {
     const { data, error } = await supabase.functions.invoke('search-console-lookup', {
-      body: { domain },
+      body: { domain, ...(siteUrl ? { siteUrl } : {}) },
     });
     if (error) return { success: false, error: error.message };
     return data;

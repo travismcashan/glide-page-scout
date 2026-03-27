@@ -67,7 +67,8 @@ serve(async (req) => {
   }
 
   try {
-    const { domain } = await req.json();
+    const body = await req.json();
+    const { domain, siteUrl: requestedSiteUrl } = body;
     if (!domain) {
       return new Response(JSON.stringify({ success: false, error: 'domain is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -87,43 +88,45 @@ serve(async (req) => {
 
     const { accessToken } = connection;
 
-    // Always auto-detect Search Console site by domain (no global property override)
-    let siteUrl: string | null = null;
-
-    console.log(`[gsc] Auto-detecting Search Console site for domain: ${domain}`);
-    const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    if (!sitesRes.ok) {
-      const err = await sitesRes.text();
-      console.error('[gsc] Sites list failed:', err);
-      return new Response(JSON.stringify({ success: false, error: `Search Console API error: ${sitesRes.status}` }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const sitesData = await sitesRes.json();
-    const sites = sitesData.siteEntry || [];
-    const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
-
-    for (const site of sites) {
-      const url = (site.siteUrl || '').toLowerCase();
-      if (url.includes(cleanDomain)) {
-        siteUrl = site.siteUrl;
-        break;
-      }
-    }
+    // Use client-provided siteUrl or auto-detect
+    let siteUrl: string | null = requestedSiteUrl || null;
 
     if (!siteUrl) {
-      return new Response(JSON.stringify({
-        success: true,
-        found: false,
-        message: `No Search Console property found for "${domain}".`,
-        availableSites: sites.map((s: any) => ({ url: s.siteUrl, permissionLevel: s.permissionLevel })),
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      console.log(`[gsc] Auto-detecting Search Console site for domain: ${domain}`);
+      const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
+
+      if (!sitesRes.ok) {
+        const err = await sitesRes.text();
+        console.error('[gsc] Sites list failed:', err);
+        return new Response(JSON.stringify({ success: false, error: `Search Console API error: ${sitesRes.status}` }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const sitesData = await sitesRes.json();
+      const sites = sitesData.siteEntry || [];
+      const cleanDomain = domain.replace(/^www\./, '').toLowerCase();
+
+      for (const site of sites) {
+        const url = (site.siteUrl || '').toLowerCase();
+        if (url.includes(cleanDomain)) {
+          siteUrl = site.siteUrl;
+          break;
+        }
+      }
+
+      if (!siteUrl) {
+        return new Response(JSON.stringify({
+          success: true,
+          found: false,
+          message: `No Search Console property found for "${domain}".`,
+          availableSites: sites.map((s: any) => ({ url: s.siteUrl, permissionLevel: s.permissionLevel })),
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     console.log(`[gsc] Using site: ${siteUrl}`);

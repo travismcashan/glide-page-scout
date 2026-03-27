@@ -1270,6 +1270,7 @@ export default function ResultsPage() {
 
   // GA4
   const [ga4Failed, setGa4Failed] = useState(false);
+  const [ga4Selecting, setGa4Selecting] = useState(false);
   useEffect(() => {
     if (!session || (session as any).ga4_data || ga4Loading || ga4Failed || isIntegrationPaused('ga4')) return;
     if (ga4TriggeredRef.current) return;
@@ -1293,6 +1294,7 @@ export default function ResultsPage() {
 
   // Search Console
   const [gscFailed, setGscFailed] = useState(false);
+  const [gscSelecting, setGscSelecting] = useState(false);
   useEffect(() => {
     if (!session || (session as any).search_console_data || gscLoading || gscFailed || isIntegrationPaused('search-console')) return;
     if (gscTriggeredRef.current) return;
@@ -2369,13 +2371,45 @@ export default function ResultsPage() {
 
               {shouldShowIntegration('search-console', !!(session as any)?.search_console_data, showAllIntegrations, isSharedView) && (
               <SectionCard collapsed={allCollapsed} sectionId="search-console" {...intGrade("search-console")} persistedCollapsed={isSectionCollapsed("search-console")} onCollapseChange={toggleSection} title="Google Search Console" icon={<Search className="h-5 w-5 text-foreground" />} loading={gscLoading && !(session as any)?.search_console_data} loadingText="Fetching Search Console data..." error={gscFailed} errorText={integrationErrors['search-console']} headerExtra={rerunButton('search-console', 'search_console_data', gscLoading)} paused={isIntegrationPaused('search-console') && !(session as any)?.search_console_data} onTogglePause={() => handleTogglePause('search-console')}>
-                {(session as any)?.search_console_data ? <SearchConsoleCard data={(session as any).search_console_data} /> : null}
+                {(session as any)?.search_console_data ? <SearchConsoleCard
+                  data={(session as any).search_console_data}
+                  isSelecting={gscSelecting}
+                  onSelectSite={async (siteUrl) => {
+                    setGscSelecting(true);
+                    try {
+                      const result = await searchConsoleApi.lookup(session!.domain, siteUrl);
+                      if (result.success) {
+                        const saved = result.data || result;
+                        await supabase.from('crawl_sessions').update({ search_console_data: saved } as any).eq('id', session!.id);
+                        clearError('search-console');
+                        updateSession({ search_console_data: saved } as any);
+                      }
+                    } catch {}
+                    setGscSelecting(false);
+                  }}
+                /> : null}
               </SectionCard>
               )}
 
               {shouldShowIntegration('ga4', !!(session as any)?.ga4_data, showAllIntegrations, isSharedView) && (
               <SectionCard collapsed={allCollapsed} sectionId="ga4" persistedCollapsed={isSectionCollapsed("ga4")} onCollapseChange={toggleSection} title="Google Analytics (GA4)" icon={<BarChart3 className="h-5 w-5 text-foreground" />} loading={ga4Loading && !(session as any)?.ga4_data} loadingText="Fetching GA4 analytics data..." error={ga4Failed} errorText={integrationErrors.ga4} headerExtra={rerunButton('ga4', 'ga4_data', ga4Loading)} paused={isIntegrationPaused('ga4') && !(session as any)?.ga4_data} onTogglePause={() => handleTogglePause('ga4')}>
-                {(session as any)?.ga4_data ? <GA4Card data={(session as any).ga4_data} /> : null}
+                {(session as any)?.ga4_data ? <GA4Card
+                  data={(session as any).ga4_data}
+                  isSelecting={ga4Selecting}
+                  onSelectProperty={async (propertyId) => {
+                    setGa4Selecting(true);
+                    try {
+                      const result = await ga4Api.lookup(session!.domain, propertyId);
+                      if (result.success) {
+                        const saved = result.data || result;
+                        await supabase.from('crawl_sessions').update({ ga4_data: saved } as any).eq('id', session!.id);
+                        clearError('ga4');
+                        updateSession({ ga4_data: saved } as any);
+                      }
+                    } catch {}
+                    setGa4Selecting(false);
+                  }}
+                /> : null}
               </SectionCard>
               )}
 

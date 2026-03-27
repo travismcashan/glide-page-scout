@@ -1,7 +1,7 @@
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 type DailyTrendItem = {
@@ -45,6 +45,8 @@ type SearchConsoleData = {
 
 type Props = {
   data: SearchConsoleData;
+  onSelectSite?: (siteUrl: string) => void;
+  isSelecting?: boolean;
 };
 
 function formatNumber(n: number): string {
@@ -57,26 +59,43 @@ function formatPct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
 }
 
-export function SearchConsoleCard({ data }: Props) {
+export function SearchConsoleCard({ data, onSelectSite, isSelecting }: Props) {
   const [showQueries, setShowQueries] = useState(true);
   const [showPages, setShowPages] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [trendMetric, setTrendMetric] = useState<'clicks' | 'impressions'>('clicks');
+  const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
 
   if (!data.found) {
     return (
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground italic">
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
           {data.message || 'No Search Console property found for this domain.'}
         </p>
-        {data.availableSites && data.availableSites.length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            <p className="font-medium mb-1">Available sites:</p>
-            <ul className="list-disc list-inside space-y-0.5">
+        {data.availableSites && data.availableSites.length > 0 && onSelectSite && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium">Select a Search Console site:</p>
+            <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
               {data.availableSites.map((s, i) => (
-                <li key={i}>{s.url} ({s.permissionLevel})</li>
+                <button
+                  key={i}
+                  onClick={() => {
+                    setSelectedUrl(s.url);
+                    onSelectSite(s.url);
+                  }}
+                  disabled={isSelecting}
+                  className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors text-sm disabled:opacity-50"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium font-mono">{s.url}</span>
+                    {isSelecting && selectedUrl === s.url && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{s.permissionLevel}</p>
+                </button>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </div>
