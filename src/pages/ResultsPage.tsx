@@ -1857,31 +1857,33 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      {/* Domain + crawl info */}
-      <div className="max-w-6xl mx-auto px-6 pt-8 pb-4">
-        <h1 className="text-4xl font-light tracking-tight text-foreground leading-none pt-2.5">
-          {session?.domain?.replace(/^www\./i, '')}
-        </h1>
-        {session?.created_at && (
-          <div className="flex items-center gap-4 text-sm text-muted-foreground tabular-nums mt-2">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
-            </span>
-            {session?.updated_at && session.updated_at !== session.created_at && (
+      {/* Domain + crawl info — compact single row */}
+      <div className="max-w-6xl mx-auto px-6 pt-3 pb-1">
+        <div className="flex items-baseline justify-between gap-4">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground leading-none">
+            {session?.domain?.replace(/^www\./i, '')}
+          </h1>
+          {session?.created_at && (
+            <div className="flex items-center gap-4 text-xs text-muted-foreground tabular-nums shrink-0">
               <span className="flex items-center gap-1">
-                <RefreshCw className="h-3 w-3" />
-                <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
+                <Clock className="h-3 w-3" />
+                <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
               </span>
-            )}
-          </div>
-        )}
+              {session?.updated_at && session.updated_at !== session.created_at && (
+                <span className="flex items-center gap-1">
+                  <RefreshCw className="h-3 w-3" />
+                  <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'MMM d, yyyy h:mm a')}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Global integration progress bar */}
       {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
 
-      <main className={`max-w-6xl mx-auto px-6 py-8 space-y-6 w-full`}>
+      <main className={`max-w-6xl mx-auto px-6 pt-2 pb-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Sticky tab bar - shown when scrolling up and past the original */}
           <div
