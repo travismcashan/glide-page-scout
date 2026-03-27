@@ -1012,6 +1012,19 @@ export default function ResultsPage() {
   const linkcheckAbortRef = useRef<AbortController | null>(null);
   const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
 
+  // Unified scoring system
+  const overallScore = useMemo(() => computeOverallScore(session), [session]);
+  const intGrade = (key: string) => {
+    const s = getIntegrationScore(session, key);
+    return s != null ? { integrationGrade: scoreToGrade(s) as any, integrationScore: s } : {};
+  };
+  const catGrade = (sectionId: string) => {
+    const catKey = SECTION_TO_CATEGORY[sectionId];
+    if (!catKey) return {};
+    const cat = getCategoryScore(overallScore, catKey);
+    return cat ? { grade: cat.grade, score: cat.score } : {};
+  };
+
   const stopLinkcheck = useCallback(async () => {
     linkcheckAbortRef.current?.abort();
   }, []);
