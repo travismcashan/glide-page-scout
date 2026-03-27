@@ -241,15 +241,6 @@ export default function ResultsPage() {
     try { localStorage.setItem('all-cards-collapsed', String(v)); } catch {}
   };
 
-  const SECTION_IDS = [
-    'section-url-analysis', 'section-content-analysis', 'section-design-analysis',
-    'section-tech-detection', 'section-performance', 'section-seo',
-    'section-security', 'section-ux-accessibility',
-  ];
-  const allSectionsCollapsed = SECTION_IDS.every(id => isSectionCollapsed(id) === true);
-  const handleToggleAllSections = (collapsed: boolean) => {
-    SECTION_IDS.forEach(id => toggleSection(id, collapsed));
-  };
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
   const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
@@ -362,6 +353,17 @@ export default function ResultsPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
+
+  const SECTION_IDS = [
+    'section-url-analysis', 'section-content-analysis', 'section-design-analysis',
+    'section-tech-detection', 'section-performance', 'section-seo',
+    'section-security', 'section-ux-accessibility',
+  ];
+  const allSectionsCollapsed = SECTION_IDS.every(id => isSectionCollapsed(id) === true);
+  const handleToggleAllSections = (collapsed: boolean) => {
+    SECTION_IDS.forEach(id => toggleSection(id, collapsed));
+  };
+
   const navRef = useRef<NavStructureCardHandle>(null);
   const gmailRef = useRef<GmailCardHandle>(null);
   const [gmailState, setGmailState] = useState<{ canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }>({ canIngest: false, isIngesting: false, emailCount: 0, isRefreshing: false, lastFetched: null, durationSec: null });
