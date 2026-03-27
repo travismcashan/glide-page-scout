@@ -1,7 +1,7 @@
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react';
 
 type GA4Data = {
   success: boolean;
@@ -21,6 +21,8 @@ type GA4Data = {
 
 type Props = {
   data: GA4Data;
+  onSelectProperty?: (propertyId: string, propertyName: string) => void;
+  isSelecting?: boolean;
 };
 
 function formatNumber(n: number): string {
@@ -48,24 +50,41 @@ function ChangeIndicator({ current, previous }: { current: number; previous: num
     : <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium"><TrendingDown className="h-3 w-3" />{change.toFixed(0)}%</span>;
 }
 
-export function GA4Card({ data }: Props) {
+export function GA4Card({ data, onSelectProperty, isSelecting }: Props) {
   const [showPages, setShowPages] = useState(false);
   const [showSources, setShowSources] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (!data.found) {
     return (
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground italic">
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
           {data.message || 'No GA4 property found for this domain.'}
         </p>
-        {data.availableProperties && data.availableProperties.length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            <p className="font-medium mb-1">Available properties:</p>
-            <ul className="list-disc list-inside space-y-0.5">
-              {data.availableProperties.map((p, i) => (
-                <li key={i}>{p.name}</li>
+        {data.availableProperties && data.availableProperties.length > 0 && onSelectProperty && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium">Select a GA4 property:</p>
+            <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+              {data.availableProperties.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setSelectedId(p.id);
+                    onSelectProperty(p.id, p.name);
+                  }}
+                  disabled={isSelecting}
+                  className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors text-sm disabled:opacity-50"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{p.name}</span>
+                    {isSelecting && selectedId === p.id && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{p.id}</p>
+                </button>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </div>
