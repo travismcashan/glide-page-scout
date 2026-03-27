@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { Crosshair, ClipboardCheck, Eye, Command } from 'lucide-react';
+import { Radar, ScanSearch, Aperture, TerminalSquare } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type ProductId = 'scout' | 'audit' | 'lens' | 'command';
@@ -14,10 +14,10 @@ export interface Product {
 }
 
 export const PRODUCTS: Product[] = [
-  { id: 'scout', name: 'Scout', fullName: 'Glide Scout', description: 'Sales prospecting & pre-call intel', icon: Crosshair, active: true },
-  { id: 'audit', name: 'Audit', fullName: 'Glide Audit', description: 'Marketing website analysis', icon: ClipboardCheck, active: false },
-  { id: 'lens', name: 'Lens', fullName: 'Lens', description: 'Client-facing report portal', icon: Eye, active: false },
-  { id: 'command', name: 'Command', fullName: 'Glide Command', description: 'Agency delivery operations', icon: Command, active: false },
+  { id: 'scout', name: 'Scout', fullName: 'Glide Scout', description: 'Sales prospecting & pre-call intel', icon: Radar, active: true },
+  { id: 'audit', name: 'Audit', fullName: 'Glide Audit', description: 'Marketing website analysis', icon: ScanSearch, active: false },
+  { id: 'lens', name: 'Lens', fullName: 'Lens', description: 'Client-facing report portal', icon: Aperture, active: false },
+  { id: 'command', name: 'Command', fullName: 'Glide Command', description: 'Agency delivery operations', icon: TerminalSquare, active: false },
 ];
 
 interface ProductContextValue {
