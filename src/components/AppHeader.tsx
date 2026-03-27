@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -17,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function AppHeader() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile, isAdmin, signOut } = useAuth();
   const { currentProduct, setCurrentProduct } = useProduct();
 
@@ -90,9 +92,12 @@ export default function AppHeader() {
 
         {/* Nav links */}
         <nav className="flex items-center gap-1">
-          <NavLink to="/history" className={linkBase} activeClassName={linkActive}>
+          <button
+            onClick={() => navigate('/history')}
+            className={cn(linkBase, (location.pathname === '/history' || location.pathname.startsWith('/sites/') || location.pathname === '/') && linkActive)}
+          >
             History
-          </NavLink>
+          </button>
           <NavLink to="/integrations" className={linkBase} activeClassName={linkActive}>
             Integrations
           </NavLink>
