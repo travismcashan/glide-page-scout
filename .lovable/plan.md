@@ -1,54 +1,53 @@
 
 
-## Navigation Redesign: Consistent Header, No Hamburger
+## AI-Powered Wishlist Brain Dump
 
-### Problem
-- CrawlPage has one header style, ResultsPage has a different one with a hamburger menu
-- The hamburger creates "mystery meat navigation" — users can't see options until they click
-- No consistent brand presence (logo, wordmark) across pages
-- Admin/account links are hidden in the hamburger or avatar dropdown inconsistently
+### What it does
+Replace the current "Add Item" button/form with a prominent textarea at the top of the wishlist page. Users type a stream-of-consciousness idea (any length), hit a "Break it down" button, and AI parses it into multiple structured wishlist items with titles, descriptions, categories, and priorities — presented for review before saving.
 
-### Design Principles (Nielsen heuristics)
-1. **Consistency & standards** — same header on every page
-2. **Recognition over recall** — visible nav items, not hidden behind a menu icon
-3. **Visibility of system status** — show which section is active
-
-### Proposed Header (all pages)
+### Flow
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│ [⚡ Agency Atlas]     History  Integrations  Settings  [👤] │
-└──────────────────────────────────────────────────────────────┘
-```
+┌─────────────────────────────────────────────────┐
+│  "What's on your mind?"                         │
+│  ┌─────────────────────────────────────────────┐ │
+│  │ I think we need better onboarding. Like a   │ │
+│  │ wizard that walks people through setup...    │ │
+│  └─────────────────────────────────────────────┘ │
+│                          [Break it down ✨]      │
+└─────────────────────────────────────────────────┘
 
-- **Left**: Logo + "Agency Atlas" wordmark, links to home (/)
-- **Center/Right nav**: History, Integrations, Settings — always visible as text links
-- **Far right**: Avatar dropdown (Sign In button if logged out) with Account, Admin (if admin), Sign Out
-- On the ResultsPage, the domain name + crawl date move below the header into the page content area (not part of the shared header)
+        ↓ AI processes ↓
+
+┌─────────────────────────────────────────────────┐
+│  AI found 3 items:                              │
+│  ☑ Setup Wizard — feature, high                 │
+│  ☑ Progress Indicators — feature, medium        │
+│  ☑ Skip Option for Power Users — idea, low      │
+│                    [Add Selected] [Discard]      │
+└─────────────────────────────────────────────────┘
+```
 
 ### Implementation
 
-1. **Create `src/components/AppHeader.tsx`** — shared header component
-   - Accepts no page-specific props; uses `useAuth()` and `useNavigate()`
-   - Brand: Zap icon + "Agency Atlas" text
-   - Nav links: History, Integrations, Settings (use NavLink for active state highlighting)
-   - Avatar dropdown: display name, email, Admin (conditional), Sign Out
-   - Sign In button when logged out
+1. **New edge function `supabase/functions/wishlist-parse/index.ts`**
+   - Accepts `{ rawInput: string }` 
+   - Uses Lovable AI (gemini-3-flash-preview) with tool calling to extract structured output: array of `{ title, description, category (feature|bug|idea), priority (low|medium|high) }`
+   - Returns the parsed items for user review
 
-2. **Update `src/pages/CrawlPage.tsx`** — replace inline header with `<AppHeader />`
+2. **Add `effort_estimate` column to `wishlist_items` table**
+   - New field: `effort_estimate text` (nullable) — values like "small", "medium", "large"
+   - AI will suggest effort estimates alongside priority
 
-3. **Update `src/pages/ResultsPage.tsx`**:
-   - Replace the entire hamburger Sheet + inline header with `<AppHeader />`
-   - Keep domain/date info as page content below the header
-   - Remove Sheet import and all hamburger-related code
+3. **Update `WishlistPage.tsx`**
+   - Replace the header "Add Item" button with a persistent input area at the top (textarea + "Break it down" button)
+   - Keep the manual "Add Item" form as a secondary option (small link: "or add manually")
+   - New "review" state: after AI returns parsed items, show them as a checklist with editable fields (title, description, category, priority, effort) — user can toggle items on/off, edit, then bulk-save
+   - Each item card in the list also shows the new `effort_estimate` badge
 
-4. **Update `src/pages/HistoryPage.tsx`**, **SettingsPage.tsx**, **AdminPage.tsx** — add `<AppHeader />` for consistency (currently some have back-arrow patterns)
-
-5. **Fix build error** in `src/integrations/lovable/index.ts` — remove `"microsoft"` from the OAuth provider union since it's not supported by the Supabase SDK type
-
-### Technical Details
-- `AppHeader` uses `NavLink` component (already exists) for active-state highlighting
-- Mobile: nav items stay visible (5 items fit); if needed later, collapse to a compact bar
-- The sticky tab bar on ResultsPage remains unchanged (it's content-level navigation, not app-level)
-- Connections, Wishlist move into Settings sub-sections or remain accessible from their existing routes via Settings page links
+### Technical details
+- Edge function uses tool calling (not JSON mode) for structured extraction — returns `{ items: [{ title, description, category, priority, effort_estimate }] }`
+- Non-streaming call via `supabase.functions.invoke('wishlist-parse', { body: { rawInput } })`
+- Review UI uses local state; only saves to DB on explicit confirmation
+- Handles 429/402 errors with toast messages
 
