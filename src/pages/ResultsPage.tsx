@@ -240,6 +240,16 @@ export default function ResultsPage() {
     setAllCollapsed(v);
     try { localStorage.setItem('all-cards-collapsed', String(v)); } catch {}
   };
+
+  const SECTION_IDS = [
+    'section-url-analysis', 'section-content-analysis', 'section-design-analysis',
+    'section-tech-detection', 'section-performance', 'section-seo',
+    'section-security', 'section-accessibility', 'section-prospecting',
+  ];
+  const allSectionsCollapsed = SECTION_IDS.every(id => isSectionCollapsed(id) === true);
+  const handleToggleAllSections = (collapsed: boolean) => {
+    SECTION_IDS.forEach(id => toggleSection(id, collapsed));
+  };
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
   const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
