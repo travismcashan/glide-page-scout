@@ -250,8 +250,58 @@ function formatApolloTeamDoc(teamData: any): string {
 }
 
 /**
+ * Insert placeholder document rows into knowledge_documents so they
+ * appear in the library immediately, then return docs needing indexing.
+ */
+async function registerDocuments(
+  sessionId: string,
+  docs: { name: string; content: string; source_type: string; source_key: string }[]
+): Promise<{ document_id: string; name: string; content: string; source_type: string; source_key: string }[]> {
+  const registered: { document_id: string; name: string; content: string; source_type: string; source_key: string }[] = [];
+
+  // Batch insert all placeholder rows at once
+  const rows = docs.map(d => ({
+    session_id: sessionId,
+    name: d.name,
+    source_type: d.source_type,
+    source_key: d.source_key,
+    char_count: d.content.length,
+    chunk_count: 0,
+    status: 'pending',
+    content_hash: null,
+  }));
+
+  const { data: inserted, error } = await supabase
+    .from('knowledge_documents')
+    .insert(rows)
+    .select('id, name, source_key');
+
+  if (error || !inserted) {
+    console.error('[register] Bulk insert failed:', error);
+    return [];
+  }
+
+  for (const row of inserted) {
+    const original = docs.find(d => d.source_key === row.source_key && d.name === row.name);
+    if (original) {
+      registered.push({
+        document_id: row.id,
+        name: row.name,
+        content: original.content,
+        source_type: original.source_type,
+        source_key: original.source_key,
+      });
+    }
+  }
+
+  return registered;
+}
+
+/**
  * Check which integrations have data but haven't been ingested yet,
  * and send them to the RAG ingest pipeline.
+ * Phase 1: Insert all document rows as 'pending' (visible immediately).
+ * Phase 2: Call rag-ingest with document_ids to index them.
  */
 export async function autoIngestIntegrations(
   sessionId: string,
@@ -309,12 +359,10 @@ export async function autoIngestIntegrations(
   const hubspotData = sessionData.hubspot_data;
   if (hubspotData && typeof hubspotData === 'object' && !hubspotData._error) {
     const hubspotTimestamp = integrationTimestamps.hubspot_data;
-    // Check if any hubspot doc already exists and is up-to-date
     const hubspotExisting = existingMap.get('hubspot_data:summary');
     const needsReIngest = !hubspotExisting || (hubspotTimestamp && new Date(hubspotTimestamp) > new Date(hubspotExisting));
 
     if (needsReIngest) {
-      // Delete all old hubspot docs (summary + individual engagements)
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -322,7 +370,6 @@ export async function autoIngestIntegrations(
         .eq('source_type', 'integration')
         .like('source_key', 'hubspot_data:%');
 
-      // Also delete the legacy single-blob hubspot doc
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -346,13 +393,11 @@ export async function autoIngestIntegrations(
   const avomaData = sessionData.avoma_data;
   if (avomaData && typeof avomaData === 'object' && !avomaData._error) {
     const avomaTimestamp = integrationTimestamps.avoma_data;
-    // Check if expanded docs exist; if only the legacy blob exists, re-ingest to expand
     const hasExpandedDocs = Array.from(existingMap.keys()).some(k => k.startsWith('avoma_data:'));
     const avomaLegacy = existingMap.get('avoma_data');
     const needsReIngest = !hasExpandedDocs || (avomaLegacy && !hasExpandedDocs) || (avomaTimestamp && hasExpandedDocs && new Date(avomaTimestamp) > new Date(existingMap.get('avoma_data:meeting:0') || '0'));
 
     if (needsReIngest) {
-      // Delete all old avoma docs
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -360,7 +405,6 @@ export async function autoIngestIntegrations(
         .eq('source_type', 'integration')
         .like('source_key', 'avoma_data:%');
 
-      // Delete legacy single-blob avoma doc
       await supabase
         .from('knowledge_documents')
         .delete()
@@ -384,6 +428,13 @@ export async function autoIngestIntegrations(
     return { ingested: 0, skipped: existingMap.size };
   }
 
+  // Phase 1: Register all documents as 'pending' (visible immediately)
+  const registered = await registerDocuments(sessionId, docsToIngest);
+  if (registered.length === 0) {
+    return { ingested: 0, skipped: existingMap.size };
+  }
+
+  // Phase 2: Send to rag-ingest with document_ids for background indexing
   try {
     const response = await fetch(INGEST_URL, {
       method: 'POST',
@@ -392,7 +443,16 @@ export async function autoIngestIntegrations(
         'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        documents: registered.map(d => ({
+          document_id: d.document_id,
+          name: d.name,
+          content: d.content,
+          source_type: d.source_type,
+          source_key: d.source_key,
+        })),
+      }),
     });
 
     if (!response.ok) {
@@ -411,7 +471,8 @@ export async function autoIngestIntegrations(
 }
 
 /**
- * Ingest scraped page content into RAG
+ * Ingest scraped page content into RAG.
+ * Phase 1: Register all as 'pending'. Phase 2: Index via rag-ingest.
  */
 export async function autoIngestPages(
   sessionId: string,
@@ -445,6 +506,11 @@ export async function autoIngestPages(
 
   if (docsToIngest.length === 0) return 0;
 
+  // Phase 1: Register all documents as 'pending' (visible immediately)
+  const registered = await registerDocuments(sessionId, docsToIngest);
+  if (registered.length === 0) return 0;
+
+  // Phase 2: Index via rag-ingest
   try {
     const response = await fetch(INGEST_URL, {
       method: 'POST',
@@ -453,7 +519,16 @@ export async function autoIngestPages(
         'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ session_id: sessionId, documents: docsToIngest }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        documents: registered.map(d => ({
+          document_id: d.document_id,
+          name: d.name,
+          content: d.content,
+          source_type: d.source_type,
+          source_key: d.source_key,
+        })),
+      }),
     });
 
     if (!response.ok) return 0;
@@ -573,6 +648,8 @@ const CAPTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/caption-s
 /**
  * Auto-ingest screenshots into RAG by AI-captioning each image one-by-one
  * and indexing the descriptions as knowledge documents.
+ * Phase 1: Register all placeholder rows as 'pending' (visible immediately).
+ * Phase 2: Caption + index each one sequentially.
  */
 export async function autoIngestScreenshots(sessionId: string): Promise<number> {
   // Fetch completed screenshots for this session
@@ -596,12 +673,58 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
   const newScreenshots = screenshots.filter(s => !existingKeys.has(`screenshot:${s.url}`));
   if (newScreenshots.length === 0) return 0;
 
-  console.log(`[screenshot-ingest] Captioning ${newScreenshots.length} new screenshots (one at a time)`);
+  console.log(`[screenshot-ingest] Registering ${newScreenshots.length} screenshots, then captioning`);
 
+  // Phase 1: Register all screenshot placeholders at once
+  const placeholders = newScreenshots.map(s => {
+    let urlPath: string;
+    try { urlPath = new URL(s.url).pathname || '/'; } catch { urlPath = s.url; }
+    const docName = `📸 Screenshot: ${urlPath === '/' ? s.url.replace(/^https?:\/\//, '') : urlPath}`;
+    return {
+      name: docName,
+      content: '', // will be filled after captioning
+      source_type: 'screenshot' as const,
+      source_key: `screenshot:${s.url}`,
+    };
+  });
+
+  // Insert all as pending
+  const rows = placeholders.map(d => ({
+    session_id: sessionId,
+    name: d.name,
+    source_type: d.source_type,
+    source_key: d.source_key,
+    char_count: 0,
+    chunk_count: 0,
+    status: 'pending',
+    content_hash: null,
+  }));
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('knowledge_documents')
+    .insert(rows)
+    .select('id, source_key');
+
+  if (insertError || !inserted) {
+    console.error('[screenshot-ingest] Failed to register placeholders:', insertError);
+    return 0;
+  }
+
+  // Build a map of source_key → document_id
+  const docIdMap = new Map<string, string>();
+  for (const row of inserted) {
+    docIdMap.set(row.source_key, row.id);
+  }
+
+  // Phase 2: Caption and index each screenshot sequentially
   let ingestedCount = 0;
 
   for (let i = 0; i < newScreenshots.length; i++) {
     const screenshot = newScreenshots[i];
+    const sourceKey = `screenshot:${screenshot.url}`;
+    const documentId = docIdMap.get(sourceKey);
+    if (!documentId) continue;
+
     try {
       // Rate-limit: wait 3s between calls (skip first)
       if (i > 0) await new Promise(r => setTimeout(r, 3000));
@@ -622,25 +745,20 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
 
       if (!captionRes.ok) {
         console.error(`[screenshot-ingest] Caption failed for ${screenshot.url}:`, await captionRes.text());
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Caption failed' }).eq('id', documentId);
         continue;
       }
 
       const { caption } = await captionRes.json();
       if (!caption) {
         console.warn(`[screenshot-ingest] No caption returned for ${screenshot.url}`);
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'No caption' }).eq('id', documentId);
         continue;
       }
 
-      // Build the document name
-      let urlPath: string;
-      try {
-        urlPath = new URL(screenshot.url).pathname || '/';
-      } catch {
-        urlPath = screenshot.url;
-      }
-      const docName = `📸 Screenshot: ${urlPath === '/' ? screenshot.url.replace(/^https?:\/\//, '') : urlPath}`;
+      const content = `# Screenshot Analysis: ${screenshot.url}\n\n${caption}`;
 
-      // Ingest the caption as a knowledge document
+      // Ingest with document_id so it updates the existing placeholder
       const ingestRes = await fetch(INGEST_URL, {
         method: 'POST',
         headers: {
@@ -651,10 +769,11 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
         body: JSON.stringify({
           session_id: sessionId,
           documents: [{
-            name: docName,
-            content: `# Screenshot Analysis: ${screenshot.url}\n\n${caption}`,
+            document_id: documentId,
+            name: placeholders[i].name,
+            content,
             source_type: 'screenshot',
-            source_key: `screenshot:${screenshot.url}`,
+            source_key: sourceKey,
           }],
         }),
       });
@@ -663,11 +782,12 @@ export async function autoIngestScreenshots(sessionId: string): Promise<number> 
         const result = await ingestRes.json();
         if (result.results?.[0]?.status === 'ready') {
           ingestedCount++;
-          console.log(`[screenshot-ingest] ✓ (${ingestedCount}/${newScreenshots.length}) ${docName}`);
+          console.log(`[screenshot-ingest] ✓ (${ingestedCount}/${newScreenshots.length}) ${placeholders[i].name}`);
         }
       }
     } catch (err) {
       console.error(`[screenshot-ingest] Error processing ${screenshot.url}:`, err);
+      await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Processing error' }).eq('id', documentId);
     }
   }
 
