@@ -1458,6 +1458,7 @@ export default function ResultsPage() {
     'link-checker': linkcheckLoading, 'nav-structure': navLoading,
     sitemap: sitemapLoading, 'content-types': contentTypesLoading,
     gtmetrix: runningGtmetrix, avoma: avomaLoading, hubspot: hubspotLoading,
+    apollo: apolloLoading,
     forms: formsLoading, templates: templatesRerunning,
     'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
   };
