@@ -65,7 +65,7 @@ export function GlobalProgressBar({ steps }: Props) {
         </div>
 
         {/* Scrollable step ticker */}
-        <div className="flex-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar min-w-0">
+        <div className="flex-1 flex items-center gap-1.5 flex-wrap min-w-0">
           {activeSteps.map((step) => (
             <span
               key={step.key}
