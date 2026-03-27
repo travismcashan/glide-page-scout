@@ -855,7 +855,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [hasInputText, setHasInputText] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean }>({ documents: true, web: false, analytics: true });
+  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean }>({ documents: true, web: false, analytics: false });
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
