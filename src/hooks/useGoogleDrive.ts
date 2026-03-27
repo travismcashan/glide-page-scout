@@ -197,22 +197,62 @@ export function useGoogleDrive() {
         }),
       });
 
-      if (response.status === 401) {
-        setIsConnected(false);
-        return null;
-      }
-
+      if (response.status === 401) { setIsConnected(false); return null; }
       if (!response.ok) throw new Error('Download failed');
-
       const data = await response.json();
-      if (data.error === 'token_expired' || data.error === 'drive_auth_required') {
-        setIsConnected(false);
-        return null;
-      }
-
+      if (data.error === 'token_expired' || data.error === 'drive_auth_required') { setIsConnected(false); return null; }
       return data;
     } catch (error) {
       console.error('Error downloading file:', error);
+      return null;
+    }
+  }, []);
+
+  /** List tabs in a Google Doc */
+  const listDocTabs = useCallback(async (file: DriveFile): Promise<{ id: string; title: string }[] | null> => {
+    try {
+      const response = await fetch(DOWNLOAD_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({
+          action: 'list-tabs',
+          fileId: file.id,
+          mimeType: file.mimeType,
+          fileName: file.name,
+        }),
+      });
+      if (response.status === 401) { setIsConnected(false); return null; }
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.tabs || null;
+    } catch (error) {
+      console.error('Error listing tabs:', error);
+      return null;
+    }
+  }, []);
+
+  /** Download specific tabs from a Google Doc as separate results */
+  const downloadDocTabs = useCallback(async (file: DriveFile, tabIds: string[]): Promise<{
+    tabId: string; tabTitle: string; fileName: string; content: string; mimeType: string; isText: boolean;
+  }[] | null> => {
+    try {
+      const response = await fetch(DOWNLOAD_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({
+          action: 'download-tabs',
+          fileId: file.id,
+          mimeType: file.mimeType,
+          fileName: file.name,
+          tabIds,
+        }),
+      });
+      if (response.status === 401) { setIsConnected(false); return null; }
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.tabs || null;
+    } catch (error) {
+      console.error('Error downloading tabs:', error);
       return null;
     }
   }, []);
@@ -229,5 +269,7 @@ export function useGoogleDrive() {
     navigateToFolder,
     navigateToBreadcrumb,
     downloadFile,
+    listDocTabs,
+    downloadDocTabs,
   };
 }
