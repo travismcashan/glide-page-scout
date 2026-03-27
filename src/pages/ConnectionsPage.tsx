@@ -193,29 +193,7 @@ export default function ConnectionsPage() {
   const ga4Connection = connections.find(c => c.provider === 'google-analytics');
   const gscConnection = connections.find(c => c.provider === 'google-search-console');
 
-  const providers = [
-    {
-      id: 'gmail',
-      name: 'Gmail',
-      scope: GMAIL_SCOPE,
-      icon: Mail,
-      iconBg: 'bg-destructive/10',
-      iconColor: 'text-destructive',
-      description: 'Read-only access to search email threads for prospect intelligence',
-      connection: gmailConnection,
-      hasPropertyPicker: false,
-    },
-    {
-      id: 'google-drive',
-      name: 'Google Drive',
-      scope: DRIVE_SCOPES,
-      icon: HardDrive,
-      iconBg: 'bg-primary/10',
-      iconColor: 'text-primary',
-      description: 'Import documents, spreadsheets, and files into the knowledge base',
-      connection: driveConnection,
-      hasPropertyPicker: false,
-    },
+  const liveSources = [
     {
       id: 'google-analytics',
       name: 'Google Analytics',
@@ -239,6 +217,31 @@ export default function ConnectionsPage() {
       connection: gscConnection,
       hasPropertyPicker: true,
       propertyLabel: 'Site',
+    },
+  ];
+
+  const accountAccess = [
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      scope: GMAIL_SCOPE,
+      icon: Mail,
+      iconBg: 'bg-destructive/10',
+      iconColor: 'text-destructive',
+      description: 'Read-only access to search email threads for prospect intelligence',
+      connection: gmailConnection,
+      hasPropertyPicker: false,
+    },
+    {
+      id: 'google-drive',
+      name: 'Google Drive',
+      scope: DRIVE_SCOPES,
+      icon: HardDrive,
+      iconBg: 'bg-primary/10',
+      iconColor: 'text-primary',
+      description: 'Import documents, spreadsheets, and files into the knowledge base',
+      connection: driveConnection,
+      hasPropertyPicker: false,
     },
   ];
 
