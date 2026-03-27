@@ -18,31 +18,54 @@ export function GlobalProgressBar({ steps }: Props) {
   const totalCount = activeSteps.length;
   const percent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
-  const currentStep = activeSteps.find(s => s.status === 'loading');
   const allDone = doneCount === totalCount && totalCount > 0;
 
-  // Auto-hide after all done with a brief delay
-  const [visible, setVisible] = useState(true);
-  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  // Two-phase hide: fade out, then collapse height, then remove
+  const [phase, setPhase] = useState<'visible' | 'fading' | 'collapsing' | 'hidden'>('visible');
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
 
   useEffect(() => {
-    if (allDone) {
-      hideTimer.current = setTimeout(() => setVisible(false), 4000);
-    } else {
-      setVisible(true);
-      if (hideTimer.current) clearTimeout(hideTimer.current);
+    if (allDone && phase === 'visible') {
+      // Measure current height before starting animation
+      if (contentRef.current) {
+        setContentHeight(contentRef.current.offsetHeight);
+      }
+      timerRef.current = setTimeout(() => setPhase('fading'), 3000);
+    } else if (!allDone) {
+      setPhase('visible');
+      setContentHeight(undefined);
+      if (timerRef.current) clearTimeout(timerRef.current);
     }
-    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [allDone]);
 
-  if (!visible || totalCount === 0) return null;
+  // After fade completes, start collapsing
+  useEffect(() => {
+    if (phase === 'fading') {
+      const t = setTimeout(() => setPhase('collapsing'), 500);
+      return () => clearTimeout(t);
+    }
+    if (phase === 'collapsing') {
+      const t = setTimeout(() => setPhase('hidden'), 400);
+      return () => clearTimeout(t);
+    }
+  }, [phase]);
 
-  // Show the scrolling ticker of completed + current items
-  const recentDone = activeSteps.filter(s => s.status === 'done');
-  const failedSteps = activeSteps.filter(s => s.status === 'failed');
+  if (phase === 'hidden' || totalCount === 0) return null;
 
   return (
-    <div className="border-b border-border bg-muted/30 relative">
+    <div
+      className="border-b border-border bg-muted/30 relative overflow-hidden transition-all ease-out"
+      style={{
+        maxHeight: phase === 'collapsing' ? 0 : contentHeight ?? 'none',
+        opacity: phase === 'fading' || phase === 'collapsing' ? 0 : 1,
+        transitionDuration: phase === 'collapsing' ? '400ms' : '500ms',
+        transitionProperty: 'max-height, opacity',
+      }}
+      ref={contentRef}
+    >
       {/* Progress bar track */}
       <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-border">
         <div
