@@ -648,6 +648,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
       { key: 'psi-seo', label: 'PageSpeed SEO', extract: extractPsiSeo },
       { key: 'schema', label: 'Schema.org', extract: extractSchema },
       { key: 'sitemap', label: 'XML Sitemap', extract: extractSitemap },
+      { key: 'search-console', label: 'Search Console', extract: extractSearchConsole },
     ],
   },
   {
