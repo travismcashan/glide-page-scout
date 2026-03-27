@@ -527,6 +527,79 @@ function extractTechCoverage(session: any): number | null {
   return checks > 0 ? clamp((points / checks) * 100) : null;
 }
 
+// ── Google Analytics (GA4) scoring ─────────────────────────────
+
+function extractGa4(session: any): number | null {
+  const ga4 = session.ga4_data;
+  if (!ga4) return null;
+
+  let score = 0;
+  let factors = 0;
+
+  // Engagement rate (0-1, higher is better) → scale to 0-100
+  if (ga4.engagementRate != null) {
+    score += clamp(ga4.engagementRate * 100);
+    factors++;
+  }
+
+  // Bounce rate (0-1, lower is better) → invert
+  if (ga4.bounceRate != null) {
+    score += clamp((1 - ga4.bounceRate) * 100);
+    factors++;
+  }
+
+  // Sessions per user (1-10 range → normalize)
+  if (ga4.sessionsPerUser != null) {
+    score += clamp(Math.min(ga4.sessionsPerUser / 5, 1) * 100);
+    factors++;
+  }
+
+  // Average session duration (seconds → normalize, 120s+ = good)
+  if (ga4.avgSessionDuration != null) {
+    score += clamp(Math.min(ga4.avgSessionDuration / 180, 1) * 100);
+    factors++;
+  }
+
+  return factors > 0 ? clamp(score / factors) : null;
+}
+
+// ── Google Search Console scoring ──────────────────────────────
+
+function extractSearchConsole(session: any): number | null {
+  const gsc = session.search_console_data;
+  if (!gsc) return null;
+
+  let score = 0;
+  let factors = 0;
+
+  // CTR (0-1, higher is better) — 5%+ is good for most sites
+  if (gsc.ctr != null) {
+    score += clamp(Math.min(gsc.ctr / 0.08, 1) * 100);
+    factors++;
+  }
+
+  // Average position (1-100, lower is better) — position 1 = 100, 50+ = 0
+  if (gsc.position != null) {
+    score += clamp(Math.max(0, (1 - (gsc.position - 1) / 49)) * 100);
+    factors++;
+  }
+
+  // Indexed pages ratio (if available)
+  if (gsc.indexedPages != null && gsc.totalPages != null && gsc.totalPages > 0) {
+    score += clamp((gsc.indexedPages / gsc.totalPages) * 100);
+    factors++;
+  }
+
+  // Impressions as a signal (having any is positive)
+  if (gsc.impressions != null && gsc.impressions > 0) {
+    // Log scale: 100 impressions = ~50, 10000+ = ~100
+    score += clamp(Math.min(Math.log10(gsc.impressions) / 4, 1) * 100);
+    factors++;
+  }
+
+  return factors > 0 ? clamp(score / factors) : null;
+}
+
 // ── Category definitions ───────────────────────────────────────
 
 export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis' | 'navigation';
