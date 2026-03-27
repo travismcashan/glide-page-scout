@@ -184,17 +184,97 @@ export function SearchConsoleCard({ data }: Props) {
         </div>
       )}
 
+      {/* Daily Trend */}
+      {data.dailyTrend && data.dailyTrend.length > 0 && (
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <button
+            onClick={() => setShowTrend(!showTrend)}
+            className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+          >
+            {showTrend ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+            <span className="text-xs font-semibold">Daily Trend</span>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{data.dailyTrend.length}d</Badge>
+          </button>
+          {showTrend && (
+            <div className="p-3 space-y-2">
+              <div className="flex gap-1">
+                {(['clicks', 'impressions'] as const).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setTrendMetric(m)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                      trendMetric === m
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="h-[160px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.dailyTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 9 }}
+                      className="text-muted-foreground"
+                      tickFormatter={(d: string) => {
+                        const dt = new Date(d);
+                        return `${dt.getMonth() + 1}/${dt.getDate()}`;
+                      }}
+                      interval={Math.max(0, Math.floor((data.dailyTrend?.length || 0) / 8))}
+                    />
+                    <YAxis tick={{ fontSize: 9 }} className="text-muted-foreground" width={40} tickFormatter={(v: number) => formatNumber(v)} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                      labelFormatter={(d: string) => new Date(d).toLocaleDateString()}
+                      formatter={(value: number) => [formatNumber(value), trendMetric.charAt(0).toUpperCase() + trendMetric.slice(1)]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={trendMetric}
+                      className="fill-primary/20 stroke-primary"
+                      fill="hsl(var(--primary) / 0.2)"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={1.5}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Sitemaps info */}
       {data.sitemaps && data.sitemaps.length > 0 && (
-        <div className="text-xs text-muted-foreground">
-          <span className="font-medium">Submitted sitemaps:</span>{' '}
-          {data.sitemaps.map((sm, i) => (
-            <span key={i}>
-              {i > 0 && ', '}
-              {sm.path}
-              {sm.errors > 0 && <span className="text-red-500 ml-1">({sm.errors} errors)</span>}
-            </span>
-          ))}
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+          <span className="text-xs font-semibold">Submitted Sitemaps</span>
+          <div className="space-y-1.5">
+            {data.sitemaps.map((sm: SitemapItem, i: number) => (
+              <div key={i} className="text-xs space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-muted-foreground truncate">{sm.path}</span>
+                  {sm.errors && sm.errors > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">{sm.errors} errors</Badge>}
+                  {sm.warnings && sm.warnings > 0 && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-yellow-600">{sm.warnings} warnings</Badge>}
+                  {sm.isPending && <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">Pending</Badge>}
+                </div>
+                <div className="flex gap-3 text-[10px] text-muted-foreground">
+                  {sm.lastSubmitted && <span>Submitted: {new Date(sm.lastSubmitted).toLocaleDateString()}</span>}
+                  {sm.lastDownloaded && <span>Downloaded: {new Date(sm.lastDownloaded).toLocaleDateString()}</span>}
+                </div>
+                {sm.contents && sm.contents.length > 0 && (
+                  <div className="flex gap-3 text-[10px] text-muted-foreground">
+                    {sm.contents.map((c, ci) => (
+                      <span key={ci}>{c.type}: {c.submitted ?? '?'} submitted{c.indexed != null ? `, ${c.indexed} indexed` : ''}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
