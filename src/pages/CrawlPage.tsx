@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Globe, Loader2, Search, Zap } from 'lucide-react';
+import { Globe, Loader2, Search, Zap, ArrowRight, BarChart3, Brain, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 
 export default function CrawlPage() {
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
-  
   const [isStarting, setIsStarting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,7 +29,6 @@ export default function CrawlPage() {
 
       if (error) throw error;
 
-      // Check if there are other sessions for this domain to decide if we need a timestamp
       const { count } = await supabase
         .from('crawl_sessions')
         .select('id', { count: 'exact', head: true })
@@ -44,65 +42,84 @@ export default function CrawlPage() {
     }
   };
 
+  const features = [
+    { icon: BarChart3, title: '30+ Integrations', desc: 'SEO, performance, security, and tech stack analysis in one sweep.' },
+    { icon: Brain, title: 'AI Knowledge Base', desc: 'Chat with your findings using RAG-powered research across all crawl data.' },
+    { icon: Shield, title: 'Prospect Intel', desc: 'Pull contacts, company data, and CRM history before your next call.' },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold tracking-tight">Glide Sales Prep</span>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Minimal header */}
+      <header className="px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Zap className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="text-lg font-semibold tracking-tight">Glide</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/connections')}>
-              Connections
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/integrations')}>
-              Integrations
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>
-              History
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/wishlist')}>
-              Wishlist
-            </Button>
-          </div>
+          <nav className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate('/history')}>History</Button>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => navigate('/settings')}>Settings</Button>
+          </nav>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight mb-3">
-            Prep for your next sales call
-          </h1>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Paste a prospect's URL — we'll run a full site analysis and discover all their pages.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-3">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="example.com"
-                className="pl-10 h-12 text-base"
-                disabled={isStarting}
-              />
-            </div>
-            <Button type="submit" size="lg" disabled={isStarting || !url.trim()}>
-              {isStarting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Starting...</>
-              ) : (
-                <><Search className="h-4 w-4 mr-2" />Analyze Site</>
-              )}
-            </Button>
+      {/* Hero */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 pb-24">
+        <div className="max-w-2xl w-full text-center space-y-8">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+            Sales prep, automated
           </div>
 
+          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-[1.1]">
+            Know everything
+            <br />
+            <span className="text-primary">before the call</span>
+          </h1>
 
-        </form>
+          <p className="text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
+            Paste any URL — Glide runs 30+ analyses, builds a knowledge base, and gives you an AI research partner for your sales prep.
+          </p>
+
+          {/* Search form */}
+          <form onSubmit={handleSubmit} className="max-w-xl mx-auto">
+            <div className="flex gap-2 p-2 rounded-2xl border border-border bg-card shadow-lg shadow-primary/5">
+              <div className="relative flex-1">
+                <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="example.com"
+                  className="pl-10 h-12 text-base border-0 bg-transparent shadow-none focus-visible:ring-0"
+                  disabled={isStarting}
+                />
+              </div>
+              <Button type="submit" size="lg" disabled={isStarting || !url.trim()} className="rounded-xl px-6 gap-2">
+                {isStarting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Analyzing...</>
+                ) : (
+                  <>Analyze<ArrowRight className="h-4 w-4" /></>
+                )}
+              </Button>
+            </div>
+          </form>
+
+          {/* Feature cards */}
+          <div className="grid sm:grid-cols-3 gap-4 pt-8">
+            {features.map(f => (
+              <div key={f.title} className="text-left rounded-xl border border-border bg-card/50 p-5 space-y-2">
+                <f.icon className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">{f.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </main>
     </div>
   );
