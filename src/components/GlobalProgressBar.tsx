@@ -14,6 +14,10 @@ type Props = {
 
 export function GlobalProgressBar({ steps }: Props) {
   const activeSteps = steps.filter(s => s.status !== 'paused');
+  const sortedSteps = [...activeSteps].sort((a, b) => {
+    const order = { done: 0, failed: 1, loading: 2, pending: 3, paused: 4 };
+    return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+  });
   const doneCount = activeSteps.filter(s => s.status === 'done' || s.status === 'failed').length;
   const totalCount = activeSteps.length;
   const percent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
@@ -76,7 +80,7 @@ export function GlobalProgressBar({ steps }: Props) {
 
       <div className="max-w-6xl mx-auto px-12 py-3">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-          {activeSteps.map((step) => (
+          {sortedSteps.map((step) => (
             <span
               key={step.key}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-300 ${
