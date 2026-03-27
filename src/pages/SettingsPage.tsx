@@ -190,6 +190,15 @@ export default function SettingsPage() {
                 <span>Less · Faster</span>
                 <span>More · Slower</span>
               </div>
+              <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 leading-relaxed">
+                {matchCount <= 15
+                  ? 'Minimal context — the AI reads only the most relevant snippets. Responses are fast but may miss important details spread across your knowledge base.'
+                  : matchCount <= 35
+                  ? 'Moderate context — a good balance of speed and coverage. The AI pulls in enough material to give informed answers without being overwhelmed.'
+                  : matchCount <= 65
+                  ? 'Broad context — the AI reads a large portion of matching documents. Great for complex questions that draw on multiple sources, though responses may take a bit longer.'
+                  : 'Maximum context — the AI considers nearly everything relevant in your knowledge base. Best for deep research or comprehensive answers, but expect slower response times.'}
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -208,6 +217,15 @@ export default function SettingsPage() {
                 <span>Less picky · Broader</span>
                 <span>More picky · Precise</span>
               </div>
+              <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 leading-relaxed">
+                {matchThreshold <= 0.15
+                  ? 'Very loose matching — the AI will consider documents even if they\'re only loosely related to your question. Good for exploratory queries, but may include some irrelevant context.'
+                  : matchThreshold <= 0.30
+                  ? 'Balanced matching — documents need to be reasonably related to your question. This filters out noise while still surfacing useful context that isn\'t an exact match.'
+                  : matchThreshold <= 0.55
+                  ? 'Strict matching — only documents closely related to your question are included. Reduces noise significantly, but may miss tangentially relevant information.'
+                  : 'Very strict matching — only highly relevant documents are considered. Best when you want precise, focused answers and your knowledge base is well-organized. May return fewer results.'}
+              </p>
             </div>
           </div>
         </section>
