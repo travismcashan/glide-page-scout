@@ -96,6 +96,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
   const stepsEndRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<string | null>(null);
   const reportRef = useRef<string | null>(null);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<AttachedDoc[]>([]);
 
   // Keep reportRef in sync
   useEffect(() => { reportRef.current = report; }, [report]);
