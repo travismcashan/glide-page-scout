@@ -553,6 +553,9 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
     try {
       const crawlContext = buildCrawlContext(session, pages);
 
+      // Merge manual file attachments + RAG knowledge docs
+      const allDocuments = [...documents, ...knowledgeDocs];
+
       const response = await fetch(FUNC_URL, {
         method: 'POST',
         headers: {
@@ -564,7 +567,7 @@ export function DeepResearchCard({ session, pages, collapsed }: Props) {
           action: 'start',
           prompt,
           crawlContext,
-          documents,
+          documents: allDocuments,
         }),
       });
 
