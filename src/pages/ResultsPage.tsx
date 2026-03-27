@@ -1964,9 +1964,13 @@ export default function ResultsPage() {
                       <Eye className="h-3.5 w-3.5 mr-1.5" />
                       {showAllIntegrations ? 'Active Only' : 'Show All'}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleToggleAllSections(!allSectionsCollapsed)}>
+                      {allSectionsCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
+                      {allSectionsCollapsed ? 'Expand All Sections' : 'Collapse All Sections'}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleSetAllCollapsed(!allCollapsed)}>
                       {allCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" /> : <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />}
-                      {allCollapsed ? 'Expand All' : 'Collapse All'}
+                      {allCollapsed ? 'Expand All Cards' : 'Collapse All Cards'}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel className="text-xs text-muted-foreground">Actions</DropdownMenuLabel>
