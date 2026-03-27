@@ -85,7 +85,7 @@ function getFileTypeLabel(mimeType: string): string {
 export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: GoogleDrivePickerProps) {
   const {
     isConnected, isLoading, files, folderStack,
-    connect, checkConnection, navigateToFolder, navigateToBreadcrumb, downloadFile,
+    connect, checkConnection, navigateToFolder, navigateToBreadcrumb, downloadFile, listDocTabs, downloadDocTabs,
   } = useGoogleDrive();
 
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
