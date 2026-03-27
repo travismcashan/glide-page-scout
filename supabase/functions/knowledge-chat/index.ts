@@ -1084,6 +1084,7 @@ serve(async (req) => {
     const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
+    const useAnalytics = sources?.analytics !== false; // default true
     const ragMatchCount = Math.min(Math.max(rag_depth?.match_count ?? 25, 5), 100);
     const ragMatchThreshold = Math.min(Math.max(rag_depth?.match_threshold ?? 0.25, 0.05), 0.8);
 
@@ -1190,7 +1191,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb} analytics=${useAnalytics}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
 
     // Build metadata events to send before the AI stream
     const metadataEvents: string[] = [];
@@ -1239,7 +1240,7 @@ serve(async (req) => {
     } else if (isPerplexityModel) {
       return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
     } else {
-      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, true));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, useAnalytics));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
