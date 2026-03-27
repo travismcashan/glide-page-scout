@@ -182,6 +182,17 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   const handleImport = async () => {
     const filesToImport = files.filter(f => selectedFiles.has(f.id) && isFileSupported(f.mimeType));
     if (filesToImport.length === 0) return;
+
+    // Check if any Google Docs need tab selection (tabMode === 'choose')
+    const googleDocs = filesToImport.filter(f => f.mimeType === 'application/vnd.google-apps.document');
+    if (tabMode === 'choose' && googleDocs.length > 0) {
+      // Queue all files, start tab picker flow for first Google Doc
+      setTabPickerPending(filesToImport);
+      await startTabPicker(googleDocs[0], filesToImport);
+      return;
+    }
+
+    // tabMode === 'all' — import all tabs as separate documents for Google Docs
     setIsImporting(true);
     try {
       const imported: { name: string; content?: string; mimeType: string; isText: boolean }[] = [];
@@ -189,27 +200,121 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
       for (const file of filesToImport) {
         try {
           const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
-          const result = await downloadFile(file, { multiTab: multiTab && isGoogleDoc });
-          if (result) {
-            imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
+          if (isGoogleDoc) {
+            // Download all tabs as separate docs
+            const tabResults = await downloadDocTabs(file, []);
+            if (tabResults && tabResults.length > 0) {
+              for (const tab of tabResults) {
+                imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+              }
+            } else {
+              // Fallback to single download
+              const result = await downloadFile(file);
+              if (result) imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
+              else failed.push(file.name);
+            }
           } else {
-            failed.push(file.name);
+            const result = await downloadFile(file);
+            if (result) imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
+            else failed.push(file.name);
           }
         } catch {
           failed.push(file.name);
         }
       }
-      if (imported.length > 0) {
-        onFilesSelected(imported);
-      }
-      if (failed.length > 0) {
-        toast.error(`Failed to import ${failed.length} file${failed.length > 1 ? 's' : ''}: ${failed.join(', ')}`);
-      }
+      if (imported.length > 0) onFilesSelected(imported);
+      if (failed.length > 0) toast.error(`Failed to import ${failed.length} file${failed.length > 1 ? 's' : ''}: ${failed.join(', ')}`);
       setSelectedFiles(new Set());
       onOpenChange(false);
     } finally {
       setIsImporting(false);
     }
+  };
+
+  /** Start the tab picker for a Google Doc */
+  const startTabPicker = async (file: DriveFile, allFiles: DriveFile[]) => {
+    setTabPickerFile(file);
+    setTabPickerLoading(true);
+    setTabPickerOpen(true);
+    setTabPickerSelected(new Set());
+    try {
+      const tabs = await listDocTabs(file);
+      if (!tabs || tabs.length <= 1) {
+        // Single tab — skip picker, just import normally
+        setTabPickerOpen(false);
+        await importFilesWithTabSelections(allFiles, file, null);
+        return;
+      }
+      setTabPickerTabs(tabs);
+      // Pre-select all tabs
+      setTabPickerSelected(new Set(tabs.map(t => t.id)));
+    } catch {
+      setTabPickerOpen(false);
+      toast.error(`Failed to read tabs for ${file.name}`);
+    } finally {
+      setTabPickerLoading(false);
+    }
+  };
+
+  /** Import files, applying tab selections for a specific Google Doc */
+  const importFilesWithTabSelections = async (
+    allFiles: DriveFile[],
+    tabFile: DriveFile,
+    selectedTabIds: string[] | null, // null = import as single doc (no tab selection)
+  ) => {
+    setIsImporting(true);
+    setTabPickerOpen(false);
+    try {
+      const imported: { name: string; content?: string; mimeType: string; isText: boolean }[] = [];
+      const failed: string[] = [];
+
+      for (const file of allFiles) {
+        try {
+          if (file.id === tabFile.id && selectedTabIds !== null) {
+            // Download selected tabs as separate documents
+            const tabResults = await downloadDocTabs(file, selectedTabIds);
+            if (tabResults) {
+              for (const tab of tabResults) {
+                imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+              }
+            } else {
+              failed.push(file.name);
+            }
+          } else if (file.mimeType === 'application/vnd.google-apps.document') {
+            // Other Google Docs in 'choose' mode — import all tabs
+            const tabResults = await downloadDocTabs(file, []);
+            if (tabResults && tabResults.length > 0) {
+              for (const tab of tabResults) {
+                imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+              }
+            } else {
+              const result = await downloadFile(file);
+              if (result) imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
+              else failed.push(file.name);
+            }
+          } else {
+            const result = await downloadFile(file);
+            if (result) imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
+            else failed.push(file.name);
+          }
+        } catch {
+          failed.push(file.name);
+        }
+      }
+
+      if (imported.length > 0) onFilesSelected(imported);
+      if (failed.length > 0) toast.error(`Failed to import ${failed.length} file${failed.length > 1 ? 's' : ''}`);
+      setSelectedFiles(new Set());
+      onOpenChange(false);
+    } finally {
+      setIsImporting(false);
+      setTabPickerPending([]);
+    }
+  };
+
+  const handleTabPickerConfirm = () => {
+    if (!tabPickerFile || tabPickerSelected.size === 0) return;
+    importFilesWithTabSelections(tabPickerPending, tabPickerFile, Array.from(tabPickerSelected));
   };
 
   const getFileCategory = (mimeType: string): FilterOption => {
