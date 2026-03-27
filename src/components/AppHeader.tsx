@@ -8,31 +8,85 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { Zap, LogOut, Settings, Shield } from 'lucide-react';
+import { LogOut, Settings, Shield, ChevronDown, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
+import { Badge } from '@/components/ui/badge';
 
 export default function AppHeader() {
   const navigate = useNavigate();
   const { user, profile, isAdmin, signOut } = useAuth();
+  const { currentProduct, setCurrentProduct } = useProduct();
 
   const linkBase =
     'text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md';
-  const linkActive = 'text-foreground bg-accent';
+  const linkActive = 'text-foreground bg-accent/10';
+
+  const ProductIcon = currentProduct.icon;
 
   return (
     <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sticky top-0 z-40">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-        {/* Brand */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-        >
-          <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
-            <Zap className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-          <span className="text-base font-semibold tracking-tight">Agency Atlas</span>
-        </button>
+        {/* Brand + Product Switcher */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          >
+            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
+              <ProductIcon className="h-3.5 w-3.5 text-primary-foreground" />
+            </div>
+            <span className="text-base font-semibold tracking-tight">
+              {currentProduct.fullName}
+            </span>
+          </button>
+
+          {/* Product switcher */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 ml-0.5">
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                Glide Products
+              </DropdownMenuLabel>
+              {PRODUCTS.map((product) => {
+                const Icon = product.icon;
+                const isCurrent = product.id === currentProduct.id;
+                return (
+                  <DropdownMenuItem
+                    key={product.id}
+                    disabled={!product.active}
+                    onClick={() => product.active && setCurrentProduct(product.id)}
+                    className="flex items-center gap-3 py-2"
+                  >
+                    <div className={`h-7 w-7 rounded-md flex items-center justify-center ${
+                      isCurrent ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{product.fullName}</span>
+                        {!product.active && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                            Soon
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{product.description}</span>
+                    </div>
+                    {isCurrent && <Check className="h-4 w-4 text-primary shrink-0" />}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         {/* Nav links */}
         <nav className="flex items-center gap-1">

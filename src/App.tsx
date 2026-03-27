@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProductProvider } from "@/contexts/ProductContext";
 import CrawlPage from "./pages/CrawlPage";
 import ResultsPage from "./pages/ResultsPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -20,31 +21,31 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<CrawlPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            {/* New taxonomy: /sites/{domain}, with optional /crawls/{date} and /{tab} */}
-            <Route path="/sites/:domain/:tab" element={<ResultsPage />} />
-            <Route path="/sites/:domain/crawls/:dateSlug/:tab" element={<ResultsPage />} />
-            <Route path="/sites/:domain/crawls/:dateSlug" element={<ResultsPage />} />
-            <Route path="/sites/:domain" element={<ResultsPage />} />
-            {/* Legacy routes — redirect-compatible */}
-            <Route path="/results/:sessionId" element={<ResultsPage />} />
-            <Route path="/results/:domain/:dateSlug" element={<ResultsPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/integrations" element={<IntegrationsPage />} />
-            <Route path="/connections" element={<ConnectionsPage />} />
-            <Route path="/wishlist" element={<WishlistPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <ProductProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<CrawlPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/sites/:domain/:tab" element={<ResultsPage />} />
+              <Route path="/sites/:domain/crawls/:dateSlug/:tab" element={<ResultsPage />} />
+              <Route path="/sites/:domain/crawls/:dateSlug" element={<ResultsPage />} />
+              <Route path="/sites/:domain" element={<ResultsPage />} />
+              <Route path="/results/:sessionId" element={<ResultsPage />} />
+              <Route path="/results/:domain/:dateSlug" element={<ResultsPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/integrations" element={<IntegrationsPage />} />
+              <Route path="/connections" element={<ConnectionsPage />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ProductProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
