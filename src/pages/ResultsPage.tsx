@@ -1526,7 +1526,7 @@ export default function ResultsPage() {
     { key: 'schema', label: 'Schema', loading: schemaLoading, failed: schemaFailed, data: session.schema_data, paused: isIntegrationPaused('schema') },
     { key: 'readable', label: 'Readable', loading: readableLoading, failed: readableFailed, data: (session as any).readable_data, paused: isIntegrationPaused('readable') },
     { key: 'observatory', label: 'Observatory', loading: observatoryLoading, failed: observatoryFailed, data: session.observatory_data, paused: isIntegrationPaused('observatory') },
-    { key: 'ssllabs', label: 'SSL Labs', loading: ssllabsLoading, failed: ssllabsFailed, data: session.ssllabs_data, paused: isIntegrationPaused('ssllabs') },
+    { key: 'ssllabs', label: 'SSL Labs', loading: ssllabsLoading, failed: ssllabsFailed, data: session.ssllabs_data, paused: isIntegrationPaused('ssllabs'), manual: true },
     { key: 'yellowlab', label: 'Yellow Lab', loading: yellowlabLoading, failed: yellowlabFailed, data: (session as any).yellowlab_data, paused: isIntegrationPaused('yellowlab') },
     { key: 'ocean', label: 'Ocean.io', loading: oceanLoading, failed: oceanFailed, data: session.ocean_data, paused: isIntegrationPaused('ocean') },
     { key: 'nav-structure', label: 'Nav Structure', loading: navLoading, failed: navFailed, data: (session as any).nav_structure, paused: isIntegrationPaused('nav-structure') },
@@ -1544,6 +1544,7 @@ export default function ResultsPage() {
       : s.data ? 'done' as const
       : s.failed ? 'failed' as const
       : s.loading ? 'loading' as const
+      : (s as any).manual ? 'paused' as const
       : 'pending' as const,
   })) : [];
 
