@@ -2569,8 +2569,11 @@ export default function ResultsPage() {
                     onSearchDomain={async (domain) => {
                       setAvomaLoading(true);
                       setAvomaFailed(false);
+                      setAvomaProgress(null);
                       try {
-                        const result = await avomaApi.lookup(domain, lookbackDays);
+                        const result = await avomaApi.lookupStreaming(domain, lookbackDays, (progress) => {
+                          setAvomaProgress(progress);
+                        });
                         if (result.success) {
                           await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
                           clearError('avoma');
@@ -2585,6 +2588,7 @@ export default function ResultsPage() {
                         setError('avoma', e?.message || 'Search failed');
                       }
                       setAvomaLoading(false);
+                      setAvomaProgress(null);
                     }}
                     onExcludedChange={async (excludedUuids) => {
                       const current = (session as any).avoma_data;
