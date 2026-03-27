@@ -14,8 +14,11 @@ type Props = {
 
 export function GlobalProgressBar({ steps }: Props) {
   const activeSteps = steps.filter(s => s.status !== 'paused');
+  const sortedSteps = [...activeSteps].sort((a, b) => {
+    const order = { done: 0, failed: 1, loading: 2, pending: 3, paused: 4 };
+    return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+  });
   const doneCount = activeSteps.filter(s => s.status === 'done' || s.status === 'failed').length;
-  const totalCount = activeSteps.length;
   const percent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   const allDone = doneCount === totalCount && totalCount > 0;
