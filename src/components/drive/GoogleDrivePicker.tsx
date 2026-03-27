@@ -8,6 +8,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Folder, FileText, FileSpreadsheet, FileImage, File, ChevronRight,
   Loader2, HardDrive, Check, Search, X, Eye, ArrowUpDown, Filter,
