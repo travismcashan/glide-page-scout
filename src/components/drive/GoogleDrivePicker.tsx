@@ -192,7 +192,8 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
       return;
     }
 
-    // tabMode === 'all' — import all tabs as separate documents for Google Docs
+    // tabMode === 'all' — import all tabs for Google Docs
+    const docMode = (() => { try { return localStorage.getItem('drive-tab-doc-mode') || 'separate'; } catch { return 'separate'; } })();
     setIsImporting(true);
     try {
       const imported: { name: string; content?: string; mimeType: string; isText: boolean }[] = [];
@@ -201,14 +202,17 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
         try {
           const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
           if (isGoogleDoc) {
-            // Download all tabs as separate docs
             const tabResults = await downloadDocTabs(file, []);
             if (tabResults && tabResults.length > 0) {
-              for (const tab of tabResults) {
-                imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+              if (docMode === 'merged') {
+                const mergedContent = tabResults.map(t => `## ${t.fileName.split(' — ').pop() || t.fileName}\n\n${t.content}`).join('\n\n---\n\n');
+                imported.push({ name: file.name, content: mergedContent, mimeType: tabResults[0].mimeType, isText: true });
+              } else {
+                for (const tab of tabResults) {
+                  imported.push({ name: tab.fileName, content: tab.content, mimeType: tab.mimeType, isText: tab.isText });
+                }
               }
             } else {
-              // Fallback to single download
               const result = await downloadFile(file);
               if (result) imported.push({ name: result.fileName, content: result.content, mimeType: result.mimeType, isText: result.isText });
               else failed.push(file.name);
