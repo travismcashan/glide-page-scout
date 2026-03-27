@@ -1468,6 +1468,30 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       // Combine default docs + RAG docs
       const allDocs = [...defaultDocs, ...ragDocs];
 
+      // Fetch screenshots for multimodal input (up to 5)
+      let screenshotPayloads: { base64: string; mimeType: string }[] = [];
+      if (pages && pages.length > 0) {
+        const screenshotUrls = pages
+          .filter(p => p.screenshot_url)
+          .slice(0, 5)
+          .map(p => p.screenshot_url!);
+        
+        const fetches = screenshotUrls.map(async (url) => {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            const buffer = await blob.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            return { base64, mimeType: blob.type || 'image/png' };
+          } catch { return null; }
+        });
+        screenshotPayloads = (await Promise.all(fetches)).filter(Boolean) as { base64: string; mimeType: string }[];
+        if (screenshotPayloads.length > 0) {
+          console.log(`[deep-research] Sending ${screenshotPayloads.length} screenshots as multimodal input`);
+        }
+      }
+
       // Start the deep research interaction
       const startRes = await fetch(DEEP_RESEARCH_URL, {
         method: 'POST',
@@ -1481,6 +1505,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           prompt: text,
           crawlContext: crawlCtx,
           documents: allDocs,
+          previousInteractionId: lastDeepResearchIdRef.current || undefined,
+          screenshots: screenshotPayloads.length > 0 ? screenshotPayloads : undefined,
         }),
       });
 
