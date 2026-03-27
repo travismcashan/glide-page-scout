@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
         for (const d of params.departments) sp.append('person_departments[]', d);
       }
       sp.set('per_page', String(params.perPage));
-      return `https://api.apollo.io/api/v1/mixed_people/search?${sp.toString()}`;
+      return `https://api.apollo.io/api/v1/mixed_people/api_search?${sp.toString()}`;
     }
 
     const searches = [
