@@ -70,29 +70,36 @@ export function useGoogleDrive() {
   const listFiles = useCallback(async (folderId: string = 'root') => {
     setIsLoading(true);
     try {
-      // No accessToken passed — edge function resolves from DB
-      const response = await fetch(LIST_URL, {
-        method: 'POST',
-        headers: apiHeaders,
-        body: JSON.stringify({ folderId }),
-      });
+      let allFiles: DriveFile[] = [];
+      let pageToken: string | undefined;
 
-      if (response.status === 401) {
-        setIsConnected(false);
-        setFiles([]);
-        return;
-      }
+      do {
+        const response = await fetch(LIST_URL, {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({ folderId, ...(pageToken ? { pageToken } : {}) }),
+        });
 
-      if (!response.ok) throw new Error('Failed to list files');
+        if (response.status === 401) {
+          setIsConnected(false);
+          setFiles([]);
+          return;
+        }
 
-      const data = await response.json().catch(() => ({}));
-      if (data.error === 'token_expired' || data.error === 'drive_auth_required') {
-        setIsConnected(false);
-        setFiles([]);
-        return;
-      }
+        if (!response.ok) throw new Error('Failed to list files');
 
-      setFiles(data.files || []);
+        const data = await response.json().catch(() => ({}));
+        if (data.error === 'token_expired' || data.error === 'drive_auth_required') {
+          setIsConnected(false);
+          setFiles([]);
+          return;
+        }
+
+        allFiles = allFiles.concat(data.files || []);
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      setFiles(allFiles);
       setCurrentFolder(folderId);
       setIsConnected(true);
     } catch (err) {
