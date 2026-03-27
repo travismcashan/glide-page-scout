@@ -65,37 +65,47 @@ export function SearchConsoleCard({ data, onSelectSite, isSelecting }: Props) {
   const [showTrend, setShowTrend] = useState(false);
   const [trendMetric, setTrendMetric] = useState<'clicks' | 'impressions'>('clicks');
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   if (!data.found) {
+    const count = data.availableSites?.length || 0;
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
           {data.message || 'No Search Console property found for this domain.'}
         </p>
-        {data.availableSites && data.availableSites.length > 0 && onSelectSite && (
+        {count > 0 && onSelectSite && (
           <div className="space-y-2">
-            <p className="text-xs font-medium">Select a Search Console site:</p>
-            <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-              {data.availableSites.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    setSelectedUrl(s.url);
-                    onSelectSite(s.url);
-                  }}
-                  disabled={isSelecting}
-                  className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors text-sm disabled:opacity-50"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium font-mono">{s.url}</span>
-                    {isSelecting && selectedUrl === s.url && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{s.permissionLevel}</p>
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => setPickerOpen(!pickerOpen)}
+              className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              {pickerOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              Select a Search Console site ({count} available)
+            </button>
+            {pickerOpen && (
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pl-6">
+                {data.availableSites!.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setSelectedUrl(s.url);
+                      onSelectSite(s.url);
+                    }}
+                    disabled={isSelecting}
+                    className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors text-sm disabled:opacity-50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium font-mono">{s.url}</span>
+                      {isSelecting && selectedUrl === s.url && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{s.permissionLevel}</p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

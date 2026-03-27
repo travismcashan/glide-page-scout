@@ -54,37 +54,47 @@ export function GA4Card({ data, onSelectProperty, isSelecting }: Props) {
   const [showPages, setShowPages] = useState(false);
   const [showSources, setShowSources] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   if (!data.found) {
+    const count = data.availableProperties?.length || 0;
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
           {data.message || 'No GA4 property found for this domain.'}
         </p>
-        {data.availableProperties && data.availableProperties.length > 0 && onSelectProperty && (
+        {count > 0 && onSelectProperty && (
           <div className="space-y-2">
-            <p className="text-xs font-medium">Select a GA4 property:</p>
-            <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-              {data.availableProperties.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    setSelectedId(p.id);
-                    onSelectProperty(p.id, p.name);
-                  }}
-                  disabled={isSelecting}
-                  className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors text-sm disabled:opacity-50"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{p.name}</span>
-                    {isSelecting && selectedId === p.id && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{p.id}</p>
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => setPickerOpen(!pickerOpen)}
+              className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              {pickerOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              Select a GA4 property ({count} available)
+            </button>
+            {pickerOpen && (
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pl-6">
+                {data.availableProperties!.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setSelectedId(p.id);
+                      onSelectProperty(p.id, p.name);
+                    }}
+                    disabled={isSelecting}
+                    className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent/50 transition-colors text-sm disabled:opacity-50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{p.name}</span>
+                      {isSelecting && selectedId === p.id && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{p.id}</p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
