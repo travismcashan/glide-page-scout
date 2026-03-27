@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const EXPORT_MIMES: Record<string, string> = {
@@ -12,7 +13,53 @@ const EXPORT_MIMES: Record<string, string> = {
   'application/vnd.google-apps.presentation': 'text/plain',
 };
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB limit
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+async function getValidAccessToken(supabase: any): Promise<string | null> {
+  const { data: connections } = await supabase
+    .from('oauth_connections')
+    .select('*')
+    .eq('provider', 'google-drive')
+    .limit(1);
+
+  const conn = connections?.[0];
+  if (!conn) return null;
+
+  const expiresAt = new Date(conn.token_expires_at).getTime();
+  if (Date.now() < expiresAt - 5 * 60 * 1000) {
+    return conn.access_token;
+  }
+
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+  if (!clientId || !clientSecret || !conn.refresh_token) return null;
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: conn.refresh_token,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) return null;
+
+  const newExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
+  await supabase
+    .from('oauth_connections')
+    .update({
+      access_token: tokenData.access_token,
+      token_expires_at: newExpiresAt,
+      ...(tokenData.refresh_token ? { refresh_token: tokenData.refresh_token } : {}),
+    })
+    .eq('id', conn.id);
+
+  return tokenData.access_token;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -20,12 +67,21 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, fileId, mimeType, fileName } = await req.json();
+    const { accessToken: clientToken, fileId, mimeType, fileName } = await req.json();
+
+    // Resolve token
+    let accessToken = clientToken;
+    if (!accessToken) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+      accessToken = await getValidAccessToken(supabase);
+    }
 
     if (!accessToken || !fileId) {
-      return new Response(JSON.stringify({ error: 'accessToken and fileId are required' }), {
+      return new Response(JSON.stringify({ error: !accessToken ? 'drive_auth_required' : 'fileId is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: !accessToken ? 401 : 400,
       });
     }
 
@@ -53,15 +109,12 @@ serve(async (req) => {
 
     if (!downloadResponse.ok) {
       const errorText = await downloadResponse.text();
-
       if (downloadResponse.status === 401) {
-        console.warn('Drive download token expired or is invalid');
         return new Response(JSON.stringify({ error: 'token_expired' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401,
         });
       }
-
       console.error('Download error:', errorText);
       return new Response(JSON.stringify({ error: 'Failed to download file' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -69,7 +122,6 @@ serve(async (req) => {
       });
     }
 
-    // For text-based content, return as text
     const textTypes = ['text/', 'application/json', 'application/xml', 'application/csv'];
     if (textTypes.some(t => finalMimeType?.startsWith(t) || finalMimeType?.includes(t))) {
       const content = await downloadResponse.text();
@@ -83,9 +135,7 @@ serve(async (req) => {
       });
     }
 
-    // For binary, read as ArrayBuffer and use std library base64
     const fileData = await downloadResponse.arrayBuffer();
-    
     if (fileData.byteLength > MAX_FILE_SIZE) {
       return new Response(JSON.stringify({ 
         error: `File too large (${Math.round(fileData.byteLength / 1024 / 1024)}MB). Maximum is ${MAX_FILE_SIZE / 1024 / 1024}MB.` 
@@ -96,7 +146,6 @@ serve(async (req) => {
     }
 
     const base64Content = base64Encode(new Uint8Array(fileData));
-
     return new Response(JSON.stringify({
       fileName: fileName || fileId,
       mimeType: finalMimeType,
