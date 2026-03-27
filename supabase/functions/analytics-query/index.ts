@@ -194,6 +194,106 @@ async function queryGSC(
   };
 }
 
+async function queryHubSpot(
+  token: string,
+  params: {
+    entity: string;
+    startDate?: string;
+    endDate?: string;
+    properties?: string[];
+    filters?: any[];
+    limit?: number;
+    query?: string;
+  }
+) {
+  const entity = params.entity || 'contacts';
+  const limit = Math.min(params.limit || 25, 100);
+
+  const hubFetch = async (path: string, method = 'GET', body?: any) => {
+    const opts: RequestInit = {
+      method,
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`https://api.hubapi.com${path}`, opts);
+    if (!res.ok) {
+      const err = await res.text();
+      return { error: `HubSpot API error (${res.status}): ${err.substring(0, 500)}` };
+    }
+    return res.json();
+  };
+
+  // Build date filters if provided
+  const dateFilters: any[] = [];
+  const dateProperty = entity === 'deals' ? 'createdate' : 'createdate';
+  if (params.startDate) {
+    dateFilters.push({ propertyName: dateProperty, operator: 'GTE', value: new Date(params.startDate).getTime().toString() });
+  }
+  if (params.endDate) {
+    dateFilters.push({ propertyName: dateProperty, operator: 'LTE', value: new Date(params.endDate + 'T23:59:59Z').getTime().toString() });
+  }
+
+  const allFilters = [...dateFilters, ...(params.filters || [])];
+
+  // Default properties per entity
+  const defaultProps: Record<string, string[]> = {
+    contacts: ['email', 'firstname', 'lastname', 'jobtitle', 'lifecyclestage', 'hs_lead_status', 'createdate'],
+    deals: ['dealname', 'amount', 'dealstage', 'pipeline', 'closedate', 'createdate', 'hs_lastmodifieddate'],
+    companies: ['name', 'domain', 'industry', 'lifecyclestage', 'numberofemployees', 'annualrevenue', 'createdate'],
+  };
+  const properties = params.properties?.length ? params.properties : (defaultProps[entity] || defaultProps.contacts);
+
+  const searchBody: any = {
+    properties,
+    limit,
+    sorts: [{ propertyName: 'createdate', direction: 'DESCENDING' }],
+  };
+  if (allFilters.length > 0) {
+    searchBody.filterGroups = [{ filters: allFilters }];
+  }
+  if (params.query) {
+    searchBody.query = params.query;
+  }
+
+  const data = await hubFetch(`/crm/v3/objects/${entity}/search`, 'POST', searchBody);
+  if (data.error) return data;
+
+  const rows = (data.results || []).map((r: any) => ({ id: r.id, ...r.properties }));
+
+  // Build summary stats
+  const summary: Record<string, any> = { total: data.total || rows.length, returned: rows.length };
+
+  if (entity === 'contacts') {
+    // Count by lifecycle stage
+    const stages: Record<string, number> = {};
+    for (const r of rows) {
+      const stage = r.lifecyclestage || 'unknown';
+      stages[stage] = (stages[stage] || 0) + 1;
+    }
+    summary.lifecycleStages = stages;
+  }
+
+  if (entity === 'deals') {
+    // Sum amounts and group by stage
+    const stages: Record<string, { count: number; totalAmount: number }> = {};
+    for (const r of rows) {
+      const stage = r.dealstage || 'unknown';
+      if (!stages[stage]) stages[stage] = { count: 0, totalAmount: 0 };
+      stages[stage].count++;
+      stages[stage].totalAmount += parseFloat(r.amount || '0');
+    }
+    summary.dealStages = stages;
+    summary.totalPipelineValue = rows.reduce((s: number, r: any) => s + parseFloat(r.amount || '0'), 0);
+  }
+
+  return {
+    entity,
+    dateRange: params.startDate ? { start: params.startDate, end: params.endDate || 'now' } : undefined,
+    summary,
+    rows,
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -239,6 +339,19 @@ serve(async (req) => {
         });
       }
       const result = await queryGSC(conn.accessToken, siteUrl, params);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (tool === 'query_hubspot') {
+      const token = Deno.env.get('HUBSPOT_ACCESS_TOKEN');
+      if (!token) {
+        return new Response(JSON.stringify({ error: 'HubSpot not connected. Add HUBSPOT_ACCESS_TOKEN.' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const result = await queryHubSpot(token, params);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
