@@ -2292,12 +2292,24 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔍 SEO & Search ══════ */}
-        {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView)) && (
+        {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView) || shouldShowIntegration('ga4', !!(session as any)?.ga4_data, showAllIntegrations, isSharedView) || shouldShowIntegration('search-console', !!(session as any)?.search_console_data, showAllIntegrations, isSharedView)) && (
           <CollapsibleSection title="SEO & Search" collapsed={isSectionCollapsed("section-seo") ?? false} onToggle={(c) => toggleSection("section-seo", c)} {...catGrade("section-seo")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView) && (
               <SectionCard collapsed={allCollapsed} sectionId="semrush" {...intGrade("semrush")} persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)} reportUrl={getReportUrl('semrush')} paused={isIntegrationPaused('semrush') && !session?.semrush_data} onTogglePause={() => handleTogglePause('semrush')}>
                 {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('search-console', !!(session as any)?.search_console_data, showAllIntegrations, isSharedView) && (
+              <SectionCard collapsed={allCollapsed} sectionId="search-console" {...intGrade("search-console")} persistedCollapsed={isSectionCollapsed("search-console")} onCollapseChange={toggleSection} title="Google Search Console" icon={<Search className="h-5 w-5 text-foreground" />} loading={gscLoading && !(session as any)?.search_console_data} loadingText="Fetching Search Console data..." error={gscFailed} errorText={integrationErrors['search-console']} headerExtra={rerunButton('search-console', 'search_console_data', gscLoading)} paused={isIntegrationPaused('search-console') && !(session as any)?.search_console_data} onTogglePause={() => handleTogglePause('search-console')}>
+                {(session as any)?.search_console_data ? <SearchConsoleCard data={(session as any).search_console_data} /> : null}
+              </SectionCard>
+              )}
+
+              {shouldShowIntegration('ga4', !!(session as any)?.ga4_data, showAllIntegrations, isSharedView) && (
+              <SectionCard collapsed={allCollapsed} sectionId="ga4" persistedCollapsed={isSectionCollapsed("ga4")} onCollapseChange={toggleSection} title="Google Analytics (GA4)" icon={<BarChart3 className="h-5 w-5 text-foreground" />} loading={ga4Loading && !(session as any)?.ga4_data} loadingText="Fetching GA4 analytics data..." error={ga4Failed} errorText={integrationErrors.ga4} headerExtra={rerunButton('ga4', 'ga4_data', ga4Loading)} paused={isIntegrationPaused('ga4') && !(session as any)?.ga4_data} onTogglePause={() => handleTogglePause('ga4')}>
+                {(session as any)?.ga4_data ? <GA4Card data={(session as any).ga4_data} /> : null}
               </SectionCard>
               )}
 
