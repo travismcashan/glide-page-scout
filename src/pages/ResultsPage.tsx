@@ -262,13 +262,22 @@ export default function ResultsPage() {
   // Pending prompt from Prompts tab → passed to chat
   const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
-  const activeTab = searchParams.get('tab') || 'raw-data';
+  // Tab from URL path param or query string fallback
+  const { tabSlugToValue, tabValueToSlug, TAB_SLUGS } = require('@/lib/sessionSlug');
+  const urlTab = params.tab;
+  const activeTab = urlTab && TAB_SLUGS.includes(urlTab) ? tabSlugToValue(urlTab) : (searchParams.get('tab') || 'raw-data');
   const setActiveTab = useCallback((tab: string) => {
-    setSearchParams(prev => {
-      prev.set('tab', tab);
-      return prev;
-    }, { replace: true });
-  }, [setSearchParams]);
+    // Update URL path to include the tab slug
+    if (session) {
+      const { buildSitePath } = require('@/lib/sessionSlug');
+      navigate(buildSitePath(session.domain, session.created_at, !!params.dateSlug, tab), { replace: true });
+    } else {
+      setSearchParams(prev => {
+        prev.set('tab', tab);
+        return prev;
+      }, { replace: true });
+    }
+  }, [session, params.dateSlug, navigate, setSearchParams]);
   const [tabReady, setTabReady] = useState(true);
   const prevTabRef = useRef(activeTab);
 
