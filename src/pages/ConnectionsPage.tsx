@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search } from 'lucide-react';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+const GA4_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
 
 type Connection = {
   id: string;
@@ -131,6 +133,8 @@ export default function ConnectionsPage() {
 
   const gmailConnection = connections.find(c => c.provider === 'gmail');
   const driveConnection = connections.find(c => c.provider === 'google-drive');
+  const ga4Connection = connections.find(c => c.provider === 'google-analytics');
+  const gscConnection = connections.find(c => c.provider === 'google-search-console');
 
   const providers = [
     {
@@ -152,6 +156,26 @@ export default function ConnectionsPage() {
       iconColor: 'text-primary',
       description: 'Import documents, spreadsheets, and files into the knowledge base',
       connection: driveConnection,
+    },
+    {
+      id: 'google-analytics',
+      name: 'Google Analytics',
+      scope: GA4_SCOPE,
+      icon: BarChart3,
+      iconBg: 'bg-amber-500/10',
+      iconColor: 'text-amber-600',
+      description: 'Read-only access to GA4 traffic, engagement, and conversion data',
+      connection: ga4Connection,
+    },
+    {
+      id: 'google-search-console',
+      name: 'Search Console',
+      scope: GSC_SCOPE,
+      icon: Search,
+      iconBg: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-600',
+      description: 'Read-only access to search queries, impressions, clicks, and indexing data',
+      connection: gscConnection,
     },
   ];
 
