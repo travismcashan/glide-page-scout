@@ -23,6 +23,7 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   yellowlab_data: 'Yellow Lab Tools',
   ocean_data: 'Ocean.io Company Data',
   apollo_data: 'Apollo Contact Data',
+  apollo_team_data: 'Apollo Team Discovery',
   nav_structure: 'Site Navigation Structure',
   content_types_data: 'Content Types Analysis',
   sitemap_data: 'Sitemap Analysis',
