@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import { recordView } from '@/lib/recentViews';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -363,6 +364,7 @@ export default function ResultsPage() {
     if (sessionRes.data) {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
+      recordView(sessionData.id, sessionData.domain, sessionData.created_at);
       if (sessionData.prospect_domain) setProspectDomainInput(sessionData.prospect_domain);
       if (sessionData.lookback_days != null) setLookbackDays(sessionData.lookback_days);
       // Restore persisted integration durations & timestamps
