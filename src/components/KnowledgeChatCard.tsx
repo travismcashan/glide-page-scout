@@ -1132,6 +1132,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           rag_depth: ragDepth,
           customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
           aboutMe: (() => { try { const s = localStorage.getItem('ai-about-me'); return s ? JSON.parse(s) : undefined; } catch { return undefined; } })(),
+          personalBio: localStorage.getItem('ai-personal-bio') || undefined,
         }),
       });
 
