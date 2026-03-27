@@ -1270,6 +1270,7 @@ export default function ResultsPage() {
 
   // GA4
   const [ga4Failed, setGa4Failed] = useState(false);
+  const [ga4Selecting, setGa4Selecting] = useState(false);
   useEffect(() => {
     if (!session || (session as any).ga4_data || ga4Loading || ga4Failed || isIntegrationPaused('ga4')) return;
     if (ga4TriggeredRef.current) return;
