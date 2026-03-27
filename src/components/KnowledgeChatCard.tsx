@@ -1899,9 +1899,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       ragDocuments={msg.ragDocuments}
                       searchLabel={
                         isStreaming && i === messages.length - 1
-                          ? 'Searching + Thinking'
+                          ? (msg.isDeepResearch ? 'Starting Deep Research' : 'Searching + Thinking')
                           : undefined
                       }
+                      deepResearchSteps={msg.deepResearchSteps}
+                      isDeepResearch={msg.isDeepResearch}
                     />
                   )}
                 </div>
