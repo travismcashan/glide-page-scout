@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -866,7 +866,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [hasInputText, setHasInputText] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean }>({ documents: true, web: false });
+  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean }>({ documents: true, web: false, analytics: true });
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
@@ -2331,6 +2331,16 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       Web
                     </span>
                     {searchSources.web && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button
+                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
+                    onClick={() => setSearchSources(prev => ({ ...prev, analytics: !prev.analytics }))}
+                  >
+                    <span className="flex items-center gap-2">
+                      <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                      Analytics
+                    </span>
+                    {searchSources.analytics && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
                   </button>
                 </div>
 
