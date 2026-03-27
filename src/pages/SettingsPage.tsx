@@ -115,6 +115,11 @@ export default function SettingsPage() {
     }
   }, [user, profile]);
 
+  // Personal bio
+  const [personalBio, setPersonalBio] = useState(
+    () => localStorage.getItem('ai-personal-bio') || ''
+  );
+
   // Auto-enrich on first visit if logged in and no data yet
   useEffect(() => {
     if (user?.email && !aboutMe && !enriching) {
@@ -451,6 +456,28 @@ export default function SettingsPage() {
           {!aboutMe && !enriching && (
             <p className="text-sm text-muted-foreground py-2">No profile data yet. Click "Look me up" to auto-populate from your professional profile.</p>
           )}
+
+          {/* Personal bio */}
+          <div className="space-y-3 pt-2">
+            <label className="text-sm font-medium">Your Bio</label>
+            <p className="text-xs text-muted-foreground">Add anything else the AI should know about you — your background, expertise, how you like to work, etc.</p>
+            <Textarea
+              placeholder="e.g. I'm a digital marketing strategist specializing in B2B SaaS. I focus on conversion optimization and content strategy. I prefer data-driven recommendations with specific action items."
+              value={personalBio}
+              onChange={(e) => {
+                setPersonalBio(e.target.value);
+                localStorage.setItem('ai-personal-bio', e.target.value);
+              }}
+              className="min-h-[100px] resize-y text-sm"
+              maxLength={2000}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {personalBio.length > 0 ? 'This bio is included alongside your enriched profile in every conversation.' : 'Optional — add a personal touch beyond what Apollo knows.'}
+              </p>
+              <span className="text-xs text-muted-foreground tabular-nums">{personalBio.length}/2,000</span>
+            </div>
+          </div>
         </section>
 
         <div className="border-t border-border" />
