@@ -72,6 +72,55 @@ export default function SettingsPage() {
     () => localStorage.getItem('ai-custom-instructions') || ''
   );
 
+  // About Me - enriched profile
+  const [aboutMe, setAboutMe] = useState<Record<string, any> | null>(() => {
+    try { const s = localStorage.getItem('ai-about-me'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [enriching, setEnriching] = useState(false);
+
+  const enrichProfile = useCallback(async () => {
+    if (!user?.email) { toast.error('No email available'); return; }
+    setEnriching(true);
+    try {
+      const nameParts = (profile?.display_name || '').split(' ');
+      const { data, error } = await supabase.functions.invoke('apollo-enrich', {
+        body: { email: user.email, firstName: nameParts[0] || undefined, lastName: nameParts.slice(1).join(' ') || undefined },
+      });
+      if (error || !data?.success) { toast.error('Could not enrich profile — you may not be in Apollo\'s database'); return; }
+      const person = data.data?.person || data.data;
+      if (!person) { toast.error('No profile data found'); return; }
+
+      const enriched = {
+        name: person.name || profile?.display_name,
+        title: person.title,
+        headline: person.headline,
+        organization: person.organization?.name,
+        orgIndustry: person.organization?.industry,
+        orgSize: person.organization?.estimated_num_employees ? `~${person.organization.estimated_num_employees} employees` : null,
+        orgWebsite: person.organization?.website_url || person.organization?.primary_domain,
+        city: person.city,
+        state: person.state,
+        country: person.country,
+        linkedin: person.linkedin_url,
+        seniority: person.seniority,
+        departments: person.departments,
+      };
+      setAboutMe(enriched);
+      localStorage.setItem('ai-about-me', JSON.stringify(enriched));
+      toast.success('Profile enriched!');
+    } catch {
+      toast.error('Failed to enrich profile');
+    } finally {
+      setEnriching(false);
+    }
+  }, [user, profile]);
+
+  // Auto-enrich on first visit if logged in and no data yet
+  useEffect(() => {
+    if (user?.email && !aboutMe && !enriching) {
+      enrichProfile();
+    }
+  }, [user?.email]);
   const handleProviderChange = (p: ModelProvider) => {
     setProvider(p);
     localStorage.setItem('chat-provider', p);
