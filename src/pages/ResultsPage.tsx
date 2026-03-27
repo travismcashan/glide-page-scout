@@ -1339,7 +1339,7 @@ export default function ResultsPage() {
       ocean: () => { setOceanFailed(false); setOceanLoading(false); oceanTriggeredRef.current = false; },
       avoma: () => { setAvomaFailed(false); setAvomaLoading(false); avomaTriggeredRef.current = false; },
       hubspot: () => { setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false; },
-      apollo: () => { setApolloLoading(false); apolloAutoTriggered.current = false; },
+      apollo: () => { setApolloData(null); setApolloTeamData(null); setApolloLoading(false); apolloAutoTriggered.current = false; apolloTeamAutoTriggered.current = false; supabase.from('crawl_sessions').update({ apollo_team_data: null } as any).eq('id', session!.id).then(); },
       ssllabs: () => { setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false; },
       httpstatus: () => { setHttpstatusFailed(false); setHttpstatusLoading(false); httpstatusTriggeredRef.current = false; },
       w3c: () => { setW3cFailed(false); setW3cLoading(false); w3cTriggeredRef.current = false; },
