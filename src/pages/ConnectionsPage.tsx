@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -237,6 +237,7 @@ export default function ConnectionsPage() {
   const [loading, setLoading] = useState(true);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [hubspotConfigured, setHubspotConfigured] = useState<boolean | null>(null);
 
   // Property picker state
   const [pickerProvider, setPickerProvider] = useState<string | null>(null);
@@ -261,6 +262,24 @@ export default function ConnectionsPage() {
   }, []);
 
   useEffect(() => { fetchConnections(); }, [fetchConnections]);
+
+  // Check HubSpot API key status
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/integration-health`, {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({ checks: ['hubspot'] }),
+        });
+        const data = await res.json();
+        const hs = data.results?.hubspot;
+        setHubspotConfigured(hs?.ok ?? false);
+      } catch {
+        setHubspotConfigured(false);
+      }
+    })();
+  }, []);
 
   const connectProvider = async (provider: string, scope: string) => {
     setConnectingProvider(provider);
@@ -476,6 +495,42 @@ export default function ConnectionsPage() {
           </div>
           <div className="space-y-3">
             {liveSources.map((p) => <ProviderRow key={p.id} p={p} {...rowProps} />)}
+            {/* HubSpot — API key based, not OAuth */}
+            <Card className="p-0 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">HubSpot CRM</span>
+                      {hubspotConfigured === null ? (
+                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                          Checking...
+                        </Badge>
+                      ) : hubspotConfigured ? (
+                        <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Not configured
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {hubspotConfigured
+                        ? 'AI can query contacts, deals, MQLs, and pipeline data in real-time'
+                        : 'Requires a HubSpot access token configured as a server secret'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
 
