@@ -211,6 +211,8 @@ export default function ResultsPage() {
     localStorage.setItem('chat-model', id);
   };
   const [showAllIntegrations, setShowAllIntegrations] = useState(!isSharedView);
+  // Pending prompt from Prompts tab → passed to chat
+  const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
   const activeTab = searchParams.get('tab') || 'raw-data';
   const setActiveTab = useCallback((tab: string) => {
