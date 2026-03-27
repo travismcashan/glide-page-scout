@@ -1035,14 +1035,14 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ linkcheck_data: result } as any).eq('id', session.id);
         clearError('link-checker');
         setLinkcheckStreamingResults(null);
-        await fetchData();
+        updateSession({ linkcheck_data: result } as any);
       } else { const msg = result.error || 'Link checker returned an error'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); }
       setLinkcheckLoading(false);
       setLinkcheckProgress(null);
       linkcheckRunningRef.current = false;
       linkcheckAbortRef.current = null;
     }).catch((e) => { const msg = e?.message || 'Link checker request failed'; setLinkcheckFailed(true); setError('link-checker', msg); persistFailure('linkcheck_data', msg); setLinkcheckLoading(false); setLinkcheckProgress(null); linkcheckRunningRef.current = false; linkcheckAbortRef.current = null; });
-  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
+  }, [session, linkcheckLoading, linkcheckFailed, effectiveDiscoveredUrls, pauseVersion]);
   // Nav Structure extraction
   const [navLoading, setNavLoading] = useState(false);
   const [navFailed, setNavFailed] = useState(false);
@@ -1055,11 +1055,11 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ nav_structure: result } as any).eq('id', session.id);
         clearError('nav-structure');
-        fetchData();
+        updateSession({ nav_structure: result } as any);
       } else { const msg = result.error || 'Nav structure extraction failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); }
       setNavLoading(false);
     }).catch((e) => { const msg = e?.message || 'Nav structure request failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); setNavLoading(false); });
-  }, [session, navLoading, navFailed, fetchData, pauseVersion]);
+  }, [session, navLoading, navFailed, pauseVersion]);
   // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapFailed, setSitemapFailed] = useState(false);
@@ -1076,11 +1076,11 @@ export default function ResultsPage() {
         if (result.contentTypeHints?.length) {
           setSitemapHints(result.contentTypeHints);
         }
-        fetchData();
+        updateSession({ sitemap_data: result } as any);
       } else { const msg = result.error || 'Sitemap parsing failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); }
       setSitemapLoading(false);
     }).catch((e) => { const msg = e?.message || 'Sitemap parsing request failed'; setSitemapFailed(true); setError('sitemap', msg); persistFailure('sitemap_data', msg); setSitemapLoading(false); });
-  }, [session, sitemapLoading, sitemapFailed, fetchData, pauseVersion]);
+  }, [session, sitemapLoading, sitemapFailed, pauseVersion]);
   // Hydrate sitemapHints from persisted sitemap_data on load
   useEffect(() => {
     if (session?.sitemap_data?.contentTypeHints?.length && sitemapHints.length === 0) {
@@ -1102,7 +1102,7 @@ export default function ResultsPage() {
       if (result.success && result.data) {
         await supabase.from('crawl_sessions').update({ forms_data: result.data } as any).eq('id', session.id);
         clearError('forms');
-        fetchData();
+        updateSession({ forms_data: result.data } as any);
         toast.success(`Found ${result.data.summary?.uniqueForms || 0} unique forms`);
       } else {
         setFormsFailed(true);
@@ -1118,7 +1118,7 @@ export default function ResultsPage() {
     } finally {
       setFormsLoading(false);
     }
-  }, [session, formsLoading, effectiveDiscoveredUrls, fetchData]);
+  }, [session, formsLoading, effectiveDiscoveredUrls]);
 
   const formsAutoRunRef = useRef(false);
 
@@ -1141,12 +1141,12 @@ export default function ResultsPage() {
       if (result.success) {
         await supabase.from('crawl_sessions').update({ content_types_data: result } as any).eq('id', session.id);
         clearError('content-types');
-        fetchData();
+        updateSession({ content_types_data: result } as any);
       } else { const msg = result.error || 'Content type classification failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); }
       setContentTypesLoading(false);
       setContentTypesProgress('');
     }).catch((e) => { const msg = e?.message || 'Content type classification request failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); setContentTypesLoading(false); setContentTypesProgress(''); });
-  }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, fetchData, pauseVersion]);
+  }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, pauseVersion]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
     if (!session || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
