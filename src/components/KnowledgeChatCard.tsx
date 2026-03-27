@@ -1962,7 +1962,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         {/* Textarea - auto-grows up to 4 lines, then scrolls */}
         <ChatInput
           ref={chatInputRef}
-          onSubmit={(text) => handleSend(text)}
+          onSubmit={(text) => deepResearchMode ? handleDeepResearchSend(text) : handleSend(text)}
           disabled={isStreaming}
           onChange={(val) => setHasInputText(!!val?.trim())}
         />
