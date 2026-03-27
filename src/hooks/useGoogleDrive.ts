@@ -182,7 +182,7 @@ export function useGoogleDrive() {
     listFiles(newStack[newStack.length - 1].id);
   }, [folderStack, listFiles]);
 
-  const downloadFile = useCallback(async (file: DriveFile): Promise<{
+  const downloadFile = useCallback(async (file: DriveFile, options?: { multiTab?: boolean }): Promise<{
     content?: string; mimeType: string; fileName: string; isText: boolean; size?: number;
   } | null> => {
     try {
@@ -193,6 +193,7 @@ export function useGoogleDrive() {
           fileId: file.id,
           mimeType: file.mimeType,
           fileName: file.name,
+          ...(options?.multiTab ? { multiTab: true } : {}),
         }),
       });
 
