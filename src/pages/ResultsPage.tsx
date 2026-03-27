@@ -1912,8 +1912,8 @@ export default function ResultsPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="gap-1 px-2 text-muted-foreground">
-                      <Menu className="h-4 w-4" />
                       Actions
+                      <ChevronDown className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
