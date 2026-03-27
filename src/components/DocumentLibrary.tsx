@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive, StickyNote } from 'lucide-react';
 import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { GridView } from './document-library/GridView';
@@ -84,6 +86,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortDir, setSortDir] = useState<SortDir>(initial.sortDir);
   const [groupBy, setGroupBy] = useState<string>(initial.groupBy);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteBody, setNoteBody] = useState('');
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
   const [gridPreviewDoc, setGridPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [gridPreviewContent, setGridPreviewContent] = useState<string | null>(null);
   const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
@@ -369,6 +375,83 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     setUploading(false);
   };
 
+  const handleNoteSubmit = async () => {
+    const body = noteBody.trim();
+    if (!body) { toast.error('Please enter some content'); return; }
+    if (body.length < 20) { toast.error('Content is too short (minimum 20 characters)'); return; }
+
+    setNoteSubmitting(true);
+    try {
+      let title = noteTitle.trim();
+
+      // Auto-generate title if empty
+      if (!title) {
+        try {
+          const aiResp = await supabase.functions.invoke('knowledge-chat', {
+            body: {
+              session_id: sessionId,
+              messages: [
+                { role: 'system', content: 'Generate a concise, descriptive title (3-8 words) for the following content. Return ONLY the title text, nothing else.' },
+                { role: 'user', content: body.slice(0, 2000) },
+              ],
+              skipRag: true,
+            },
+          });
+          const generated = aiResp.data?.reply?.trim();
+          if (generated && generated.length > 0 && generated.length < 120) {
+            title = generated.replace(/^["']|["']$/g, '');
+          }
+        } catch {
+          // Fallback below
+        }
+        if (!title) {
+          const firstLine = body.split('\n')[0].trim();
+          title = firstLine.length > 60 ? firstLine.slice(0, 57) + '…' : firstLine;
+        }
+      }
+
+      // Insert placeholder
+      const { data: inserted, error: insertErr } = await supabase
+        .from('knowledge_documents')
+        .insert({
+          session_id: sessionId,
+          name: title,
+          source_type: 'note',
+          status: 'uploading',
+          char_count: 0,
+          chunk_count: 0,
+        })
+        .select('id')
+        .single();
+      if (insertErr || !inserted) { toast.error('Failed to create note'); setNoteSubmitting(false); return; }
+      fetchDocuments();
+
+      // Ingest
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ session_id: sessionId, documents: [{ document_id: inserted.id, name: title, content: body, source_type: 'note' }] }),
+      });
+      const result = await response.json().catch(() => null);
+      const ingestResult = result?.results?.[0];
+
+      if (!response.ok || ingestResult?.status === 'error') {
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: ingestResult?.reason || 'Indexing failed' }).eq('id', inserted.id);
+      } else {
+        toast.success('Note added to knowledge base');
+      }
+
+      setNoteTitle('');
+      setNoteBody('');
+      setNoteModalOpen(false);
+      fetchDocuments();
+    } catch {
+      toast.error('Failed to add note');
+    } finally {
+      setNoteSubmitting(false);
+    }
+  };
+
   const readyCount = documents.filter(d => d.status === 'ready').length;
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
   const totalChars = documents.reduce((sum, d) => sum + d.char_count, 0);
@@ -480,6 +563,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <HardDrive className="h-3.5 w-3.5 mr-1.5" />
           Google Drive
         </Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => setNoteModalOpen(true)} disabled={uploading || noteSubmitting}>
+          <StickyNote className="h-3.5 w-3.5 mr-1.5" />
+          Add Note
+        </Button>
         {onIngestIntegrations && !ingesting && (
           <Button variant="outline" size="sm" onClick={onIngestIntegrations} disabled={uploading} title="Re-sync integration data">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
@@ -496,7 +583,59 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
       <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
 
-      {/* Document list */}
+      {/* Add Note modal */}
+      <Dialog open={noteModalOpen} onOpenChange={(open) => { if (!noteSubmitting) setNoteModalOpen(open); }}>
+        <DialogContent className="sm:max-w-xl [&>button:last-child]:hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="h-5 w-5" />
+              Add Note
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="note-title" className="text-sm text-muted-foreground">
+                Title <span className="text-xs">(optional — auto-generated if empty)</span>
+              </Label>
+              <Input
+                id="note-title"
+                placeholder="e.g. Competitor analysis notes"
+                value={noteTitle}
+                onChange={e => setNoteTitle(e.target.value)}
+                disabled={noteSubmitting}
+                maxLength={200}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="note-body" className="text-sm">Content</Label>
+              <Textarea
+                id="note-body"
+                placeholder="Paste or type your content here…"
+                value={noteBody}
+                onChange={e => setNoteBody(e.target.value)}
+                disabled={noteSubmitting}
+                className="min-h-[200px] resize-y font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {noteBody.length > 0 ? `${noteBody.length.toLocaleString()} characters` : ''}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setNoteModalOpen(false)} disabled={noteSubmitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleNoteSubmit} disabled={noteSubmitting || noteBody.trim().length < 20}>
+                {noteSubmitting ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Adding…</>
+                ) : (
+                  'Add to Knowledge Base'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-8">

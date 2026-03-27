@@ -23,6 +23,7 @@ export const SOURCE_ICONS: Record<string, typeof FileText> = {
   chat: MessageSquare,
   'chat_note': Bookmark,
   'google-drive': HardDrive,
+  note: StickyNote,
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
@@ -33,6 +34,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   chat: 'Chat History',
   'chat_note': 'Chat Bookmark',
   'google-drive': 'Google Drive',
+  note: 'Note',
 };
 
 export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
@@ -51,6 +53,7 @@ export function getSourceLabel(sourceType: string, sourceKey: string | null): st
 }
 
 export function getDocumentIcon(_name: string, sourceType: string, sourceKey?: string | null) {
+  if (sourceType === 'note') return StickyNote;
   if (sourceType === 'upload' || sourceType === 'google-drive') {
     const ext = _name.split('.').pop()?.toLowerCase() || '';
     if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
