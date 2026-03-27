@@ -139,26 +139,6 @@ export default function CrawlPage() {
             </div>
           </div>
 
-          {/* ── Integration showcase cards ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {featuredIntegrations.map((integration) => (
-              <div
-                key={integration.name}
-                className="group relative rounded-xl border border-border bg-card p-4 flex flex-col justify-between min-h-[140px] transition-colors hover:border-primary/20 hover:bg-primary/[0.02]"
-              >
-                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 pr-1">
-                  {integration.desc}
-                </p>
-                <div className="flex items-end justify-between mt-3">
-                  <span className="text-[11px] font-semibold text-foreground/70 tracking-tight">
-                    {integration.name}
-                  </span>
-                  <integration.icon className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary/50 transition-colors" />
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* ── Search bar ── */}
           <form onSubmit={handleSubmit}>
             <div className="flex items-center gap-2 p-2 rounded-2xl bg-card shadow-lg shadow-primary/5">
@@ -217,6 +197,31 @@ export default function CrawlPage() {
               </div>
             </div>
           )}
+
+          {/* ── What can you do? ── */}
+          <div className="space-y-3">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              What Can You Do?
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {featuredIntegrations.map((integration) => (
+                <div
+                  key={integration.name}
+                  className="group relative rounded-xl border border-border bg-card p-4 flex flex-col justify-between min-h-[140px] transition-colors hover:border-primary/20 hover:bg-primary/[0.02]"
+                >
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 pr-1">
+                    {integration.desc}
+                  </p>
+                  <div className="flex items-end justify-between mt-3">
+                    <span className="text-[11px] font-semibold text-foreground/70 tracking-tight">
+                      {integration.name}
+                    </span>
+                    <integration.icon className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary/50 transition-colors" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </main>
 
