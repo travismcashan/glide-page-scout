@@ -16,8 +16,28 @@ export function KnowledgeTabContent({
   const [refreshKey, setRefreshKey] = useState(0);
   const [ingesting, setIngesting] = useState(false);
   const ingestTriggeredRef = useRef(false);
+  const screenshotIngestRunning = useRef(false);
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  const runScreenshotIngest = useCallback((sessionId: string) => {
+    // Guard against concurrent runs
+    if (screenshotIngestRunning.current) return;
+    screenshotIngestRunning.current = true;
+
+    toast.info('Captioning screenshots in background…', { duration: 4000 });
+
+    autoIngestScreenshots(sessionId).then(count => {
+      if (count > 0) {
+        toast.success(`Indexed ${count} screenshot${count !== 1 ? 's' : ''} into knowledge base`);
+        triggerRefresh();
+      }
+    }).catch(err => {
+      console.error('Screenshot ingest error:', err);
+    }).finally(() => {
+      screenshotIngestRunning.current = false;
+    });
+  }, [triggerRefresh]);
 
   const runIngest = useCallback(async () => {
     setIngesting(true);
@@ -40,13 +60,8 @@ export function KnowledgeTabContent({
     }
 
     // Screenshots process one-by-one in background (don't block the sync spinner)
-    autoIngestScreenshots(session.id).then(count => {
-      if (count > 0) {
-        toast.success(`Indexed ${count} screenshot${count !== 1 ? 's' : ''} into knowledge base`);
-        triggerRefresh();
-      }
-    }).catch(err => console.error('Screenshot ingest error:', err));
-  }, [session, scrapedPages, triggerRefresh]);
+    runScreenshotIngest(session.id);
+  }, [session, scrapedPages, triggerRefresh, runScreenshotIngest]);
 
   // Auto-ingest on first mount
   useEffect(() => {
