@@ -19,6 +19,7 @@ export const SOURCE_ICONS: Record<string, typeof FileText> = {
   integration: Database,
   upload: Upload,
   scrape: Globe,
+  screenshot: FileImage,
   chat: MessageSquare,
   'chat_note': Bookmark,
   'google-drive': HardDrive,
@@ -28,6 +29,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   integration: 'Integration',
   upload: 'Upload',
   scrape: 'Scraped',
+  screenshot: 'Screenshot',
   chat: 'Chat History',
   'chat_note': 'Chat Bookmark',
   'google-drive': 'Google Drive',
@@ -58,6 +60,7 @@ export function getDocumentIcon(_name: string, sourceType: string, sourceKey?: s
   if (sourceType === 'chat_note') return Bookmark;
   if (sourceType === 'chat') return MessageSquare;
   if (sourceType === 'scrape') return Globe;
+  if (sourceType === 'screenshot') return FileImage;
 
   // HubSpot activity-specific icons
   if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data:engagement:')) {
