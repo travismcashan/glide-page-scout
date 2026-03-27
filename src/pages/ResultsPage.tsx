@@ -379,6 +379,22 @@ export default function ResultsPage() {
     });
   }, [fetchData]);
 
+  // ── Analysis stop control ──
+  const [analysisStopped, setAnalysisStopped] = useState(false);
+  const analysisStoppedRef = useRef(false);
+
+  const handleStopAnalysis = useCallback(() => {
+    analysisStoppedRef.current = true;
+    setAnalysisStopped(true);
+    // Set all trigger refs to prevent any new effects from firing
+    [builtwithTriggeredRef, semrushTriggeredRef, psiTriggeredRef, wappalyzerTriggeredRef,
+     detectzestackTriggeredRef, gtmetrixTriggeredRef, carbonTriggeredRef, cruxTriggeredRef,
+     waveTriggeredRef, observatoryTriggeredRef, httpstatusTriggeredRef, w3cTriggeredRef,
+     schemaTriggeredRef, readableTriggeredRef, navTriggeredRef, sitemapTriggeredRef,
+     contentTypesTriggeredRef, ga4TriggeredRef, gscTriggeredRef].forEach(ref => { ref.current = true; });
+    toast.info('Analysis stopped — completed integrations are preserved.');
+  }, []);
+
   // ── Integration trigger refs (prevent duplicate API calls during React re-renders) ──
   const builtwithTriggeredRef = useRef(false);
   const semrushTriggeredRef = useRef(false);
