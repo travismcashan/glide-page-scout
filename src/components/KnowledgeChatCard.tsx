@@ -758,7 +758,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -781,6 +781,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   const [composerHeight, setComposerHeight] = useState(176);
+
+  // Deep Research mode
+  const [deepResearchMode, setDeepResearchMode] = useState(false);
+  const deepResearchInteractionRef = useRef<string | null>(null);
 
   // Thread management
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
