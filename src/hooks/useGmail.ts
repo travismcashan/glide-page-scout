@@ -43,6 +43,7 @@ export function useGmail() {
     contactEmails?: string[];
     domain?: string;
     maxResults?: number;
+    afterDate?: string;
   }) => {
     setIsLoading(true);
     setError(null);

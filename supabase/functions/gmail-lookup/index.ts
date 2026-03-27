@@ -165,7 +165,7 @@ serve(async (req) => {
 
   try {
     const reqBody = await req.json();
-    const { action, accessToken, contactEmails, domain, maxResults, messageId, attachmentId } = reqBody;
+    const { action, accessToken, contactEmails, domain, maxResults, messageId, attachmentId, afterDate } = reqBody;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -231,6 +231,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: 'contactEmails or domain is required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      // Apply date filter if provided (format: YYYY/MM/DD)
+      if (afterDate) {
+        query += ` after:${afterDate}`;
       }
 
       console.log(`[gmail] Searching: ${query} (limit: ${limit})`);
