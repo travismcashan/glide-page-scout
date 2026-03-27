@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import {
   Gauge, Code, Shield, Leaf, Eye, Lock, Link2,
   FileText, BarChart3, Brain, Layers, Users,
   Navigation, Accessibility, Mail, ExternalLink,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,11 +54,24 @@ export default function CrawlPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Pick 4 random integrations on mount
-  const featuredIntegrations = useMemo(() => {
-    const shuffled = [...INTEGRATIONS].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 4);
-  }, []);
+  // Carousel state
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const updateScrollButtons = () => {
+    const el = carouselRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+  };
+
+  const scrollCarousel = (dir: 'left' | 'right') => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.7;
+    el.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' });
+  };
 
   // Load recently viewed from localStorage
   useEffect(() => {
@@ -197,20 +211,42 @@ export default function CrawlPage() {
           )}
 
           {/* ── What can you do? ── */}
-          <div className="space-y-3">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              What Can You Do?
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {featuredIntegrations.map((integration) => (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                What Can You Do?
+              </h2>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => scrollCarousel('left')}
+                  disabled={!canScrollLeft}
+                  className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => scrollCarousel('right')}
+                  disabled={!canScrollRight}
+                  className="h-7 w-7 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <div
+              ref={carouselRef}
+              onScroll={updateScrollButtons}
+              className="flex gap-3 overflow-x-auto no-scrollbar -mx-6 px-6 snap-x snap-mandatory"
+            >
+              {INTEGRATIONS.map((integration) => (
                 <div
                   key={integration.label}
-                  className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:border-primary/20 hover:bg-primary/[0.03]"
+                  className="group flex-none w-[140px] snap-start rounded-xl border border-border bg-card p-5 flex flex-col items-center gap-3 text-center transition-colors hover:border-primary/20 hover:bg-primary/[0.03]"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
-                    <integration.icon className="h-4.5 w-4.5" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                    <integration.icon className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-medium leading-snug text-foreground/80">
+                  <span className="text-sm font-medium leading-snug text-foreground/80">
                     {integration.label}
                   </span>
                 </div>
