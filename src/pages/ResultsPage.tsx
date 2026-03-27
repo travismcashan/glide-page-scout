@@ -2394,6 +2394,8 @@ export default function ResultsPage() {
                 onModelChange={setChatModel}
                 onReasoningChange={setChatReasoning}
                 stickyTabVisible={stickyTabVisible}
+                pendingPrompt={pendingPrompt}
+                onPendingPromptConsumed={() => setPendingPrompt(null)}
               />
             )}
             </div>}
