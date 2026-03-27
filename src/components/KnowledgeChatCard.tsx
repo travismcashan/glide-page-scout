@@ -1564,6 +1564,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         const decoder = new TextDecoder();
         let buffer = '';
         let sseEventType = '';
+        let currentEventId = '';
         const reportParts: string[] = [];
 
         const updateAssistant = () => {
@@ -1578,89 +1579,144 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           });
         };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+        const processSSELine = (line: string) => {
+          // Track event IDs for reconnection
+          if (line.startsWith('id: ')) {
+            currentEventId = line.slice(4).trim();
+            lastEventIdRef.current = currentEventId;
+            return;
+          }
+          if (line.startsWith('event: ')) { sseEventType = line.slice(7).trim(); return; }
 
-          let idx: number;
-          while ((idx = buffer.indexOf('\n')) !== -1) {
-            const line = buffer.slice(0, idx).replace(/\r$/, '');
-            buffer = buffer.slice(idx + 1);
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr || jsonStr === '[DONE]') return;
 
-            if (line.startsWith('event: ')) { sseEventType = line.slice(7).trim(); continue; }
+            try {
+              const parsed = JSON.parse(jsonStr);
 
-            if (line.startsWith('data: ')) {
-              const jsonStr = line.slice(6).trim();
-              if (!jsonStr || jsonStr === '[DONE]') continue;
+              // Thinking steps
+              if (sseEventType === 'content.delta' || parsed.event_type === 'content.delta') {
+                const delta = parsed.delta || parsed;
+                const content = delta?.content;
 
-              try {
-                const parsed = JSON.parse(jsonStr);
-
-                // Thinking steps
-                if (sseEventType === 'content.delta' || parsed.event_type === 'content.delta') {
-                  const delta = parsed.delta || parsed;
-                  const content = delta?.content;
-
-                  if (delta?.type === 'thought_summary' && content?.text) {
-                    const text = content.text.trim();
-                    if (text) {
-                      // Extract URLs from thinking text as sources
-                      const urlMatches = text.match(/https?:\/\/[^\s)>\]"']+/g);
-                      if (urlMatches) {
-                        urlMatches.forEach((u: string) => collectedSources.add(u));
-                      }
-
-                      const cleanText = text.replace(/^\*\*.*?\*\*\n+/, '').trim();
-                      if (cleanText && !steps.includes(cleanText)) {
-                        // Split multi-line thinking into individual steps
-                        const chunks = cleanText.split(/\n\n+/).filter(Boolean);
-                        for (const chunk of chunks) {
-                          if (!steps.includes(chunk)) steps.push(chunk);
-                        }
-                        setIsThinking(false);
-                        updateAssistant();
-                      }
+                if (delta?.type === 'thought_summary' && content?.text) {
+                  const text = content.text.trim();
+                  if (text) {
+                    const urlMatches = text.match(/https?:\/\/[^\s)>\]"']+/g);
+                    if (urlMatches) {
+                      urlMatches.forEach((u: string) => collectedSources.add(u));
                     }
-                  } else if (delta?.type === 'text' || (content?.type === 'text')) {
-                    const t = content?.text || delta?.text || '';
-                    if (t) reportParts.push(t);
-                    updateAssistant();
-                  }
 
-                  // Extract source annotations
-                  const annotations = delta?.annotations || content?.annotations || parsed.annotations;
-                  if (annotations && Array.isArray(annotations)) {
-                    for (const ann of annotations) {
-                      if (ann.source) collectedSources.add(ann.source);
-                      if (ann.url) collectedSources.add(ann.url);
+                    const cleanText = text.replace(/^\*\*.*?\*\*\n+/, '').trim();
+                    if (cleanText && !steps.includes(cleanText)) {
+                      const chunks = cleanText.split(/\n\n+/).filter(Boolean);
+                      for (const chunk of chunks) {
+                        if (!steps.includes(chunk)) steps.push(chunk);
+                      }
+                      setIsThinking(false);
+                      updateAssistant();
                     }
-                    updateAssistantWithSources();
                   }
-                }
-
-                // Completion
-                if (sseEventType === 'interaction.complete' || parsed.state === 'completed' || parsed.state === 'COMPLETED') {
-                  const finalParts = parsed.output?.parts || parsed.candidates?.[0]?.content?.parts || [];
-                  if (finalParts.length > 0) {
-                    const finalText = finalParts.map((p: any) => p.text || '').join('\n');
-                    if (finalText) { reportParts.length = 0; reportParts.push(finalText); }
-                  }
+                } else if (delta?.type === 'text' || (content?.type === 'text')) {
+                  const t = content?.text || delta?.text || '';
+                  if (t) reportParts.push(t);
                   updateAssistant();
                 }
 
-                if (parsed.state === 'failed' || parsed.state === 'FAILED') {
-                  toast.error('Deep Research task failed');
-                  setIsStreaming(false);
-                  setIsThinking(false);
-                  return;
+                // Extract source annotations
+                const annotations = delta?.annotations || content?.annotations || parsed.annotations;
+                if (annotations && Array.isArray(annotations)) {
+                  for (const ann of annotations) {
+                    if (ann.source) collectedSources.add(ann.source);
+                    if (ann.url) collectedSources.add(ann.url);
+                  }
+                  updateAssistantWithSources();
                 }
-              } catch { /* partial JSON */ }
-              sseEventType = '';
+              }
+
+              // Completion
+              if (sseEventType === 'interaction.complete' || parsed.state === 'completed' || parsed.state === 'COMPLETED') {
+                const finalParts = parsed.output?.parts || parsed.candidates?.[0]?.content?.parts || [];
+                if (finalParts.length > 0) {
+                  const finalText = finalParts.map((p: any) => p.text || '').join('\n');
+                  if (finalText) { reportParts.length = 0; reportParts.push(finalText); }
+                }
+                updateAssistant();
+              }
+
+              if (parsed.state === 'failed' || parsed.state === 'FAILED') {
+                toast.error('Deep Research task failed');
+                setIsStreaming(false);
+                setIsThinking(false);
+                return;
+              }
+            } catch { /* partial JSON */ }
+            sseEventType = '';
+          }
+          if (line === '') sseEventType = '';
+        };
+
+        // Stream with reconnection support
+        let streamComplete = false;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECTS = 3;
+
+        const readStream = async (rdr: ReadableStreamDefaultReader<Uint8Array>) => {
+          while (true) {
+            const { done, value } = await rdr.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            let idx: number;
+            while ((idx = buffer.indexOf('\n')) !== -1) {
+              const line = buffer.slice(0, idx).replace(/\r$/, '');
+              buffer = buffer.slice(idx + 1);
+              processSSELine(line);
             }
-            if (line === '') sseEventType = '';
+          }
+        };
+
+        try {
+          await readStream(reader);
+          streamComplete = true;
+        } catch (streamErr) {
+          console.warn('[deep-research] Stream interrupted, attempting reconnection…', streamErr);
+        }
+
+        // Reconnect if stream dropped before completion
+        while (!streamComplete && reconnectAttempts < MAX_RECONNECTS && reportParts.join('').length === 0) {
+          reconnectAttempts++;
+          await new Promise(r => setTimeout(r, 2000 * reconnectAttempts));
+          
+          try {
+            const reconnRes = await fetch(DEEP_RESEARCH_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ 
+                action: 'stream', 
+                interactionId,
+                lastEventId: lastEventIdRef.current || undefined,
+              }),
+            });
+            
+            const isReconnSSE = reconnRes.ok && (reconnRes.headers.get('content-type') || '').includes('text/event-stream');
+            if (isReconnSSE && reconnRes.body) {
+              console.log(`[deep-research] Reconnected to stream (attempt ${reconnectAttempts})`);
+              steps.push('Reconnected to research stream…');
+              updateAssistant();
+              await readStream(reconnRes.body.getReader());
+              streamComplete = true;
+            }
+          } catch (reconnErr) {
+            console.warn(`[deep-research] Reconnection attempt ${reconnectAttempts} failed`, reconnErr);
           }
         }
+
         finalReport = reportParts.join('');
       }
 
