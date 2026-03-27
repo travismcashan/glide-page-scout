@@ -53,6 +53,7 @@ export function getSourceLabel(sourceType: string, sourceKey: string | null): st
 }
 
 export function getDocumentIcon(_name: string, sourceType: string, sourceKey?: string | null) {
+  if (sourceType === 'note') return StickyNote;
   if (sourceType === 'upload' || sourceType === 'google-drive') {
     const ext = _name.split('.').pop()?.toLowerCase() || '';
     if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) return FileImage;
