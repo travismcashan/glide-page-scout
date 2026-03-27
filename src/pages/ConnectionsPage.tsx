@@ -557,6 +557,7 @@ export default function ConnectionsPage() {
         <div className="text-center py-4 text-muted-foreground/50 text-sm">
           More connections coming soon — HubSpot CRM, Slack, and more.
         </div>
+        </>)}
       </main>
     </div>
   );
