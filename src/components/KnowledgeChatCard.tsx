@@ -32,7 +32,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 
 type RagDocument = { name: string; source_type: string };
-type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[] };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[] };
 
 type SessionData = {
   id: string;
@@ -60,6 +60,9 @@ type Props = {
   onReasoningChange: (reasoning: ReasoningEffort) => void;
   onDocumentsChanged?: () => void;
   stickyTabVisible?: boolean;
+  /** When set, auto-fills the prompt and optionally enables deep research mode */
+  pendingPrompt?: { text: string; deepResearch: boolean } | null;
+  onPendingPromptConsumed?: () => void;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
