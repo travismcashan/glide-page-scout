@@ -85,6 +85,7 @@ import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
 import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 import { computeOverallScore, getIntegrationScore, getCategoryScore, SECTION_TO_CATEGORY, type OverallScore, scoreToGrade } from '@/lib/siteScore';
+import { buildSitePath, tabSlugToValue, TAB_SLUGS } from '@/lib/sessionSlug';
 import { ScoreOverview } from '@/components/ScoreOverview';
 import {
   DropdownMenu,
