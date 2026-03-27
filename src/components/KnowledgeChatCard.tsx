@@ -319,6 +319,42 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
+function DeepResearchStepsBlock({ steps, isStreaming }: { steps: string[]; isStreaming?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const lastSteps = steps.slice(-3);
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {isStreaming ? (
+          <Loader2 className="flex-shrink-0 animate-spin text-muted-foreground" style={{ width: 24, height: 24 }} />
+        ) : (
+          <Telescope className="flex-shrink-0 text-muted-foreground" style={{ width: 24, height: 24 }} />
+        )}
+        <span className="text-sm font-bold">
+          {isStreaming ? `Researching… (${steps.length} steps)` : `Deep Research (${steps.length} steps)`}
+        </span>
+        {expanded ? <ChevronDown className="h-4 w-4 -ml-1" strokeWidth={3} /> : <ChevronRight className="h-4 w-4 -ml-1" strokeWidth={3} />}
+      </button>
+      {!expanded && isStreaming && lastSteps.length > 0 && (
+        <div className="mt-1.5 text-xs text-muted-foreground/70 leading-relaxed" style={{ marginLeft: 32 }}>
+          {lastSteps[lastSteps.length - 1]}
+        </div>
+      )}
+      {expanded && (
+        <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground leading-relaxed space-y-1" style={{ marginLeft: 11, paddingLeft: 20 }}>
+          {steps.map((step, i) => (
+            <div key={i} className="animate-in fade-in duration-200">{step}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AssistantBubbleWrapper({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean }) {
   return <AssistantBubbleInner content={content} thinking={thinking} isStreamingThis={isStreamingThis} onSaveNote={onSaveNote} onToggleFavorite={onToggleFavorite} isFavorited={isFavorited} />;
 }
