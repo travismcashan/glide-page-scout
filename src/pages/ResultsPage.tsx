@@ -1630,8 +1630,8 @@ export default function ResultsPage() {
           <UserPlus className="h-4 w-4 mr-2" />Prospecting
         </TabsTrigger>
       )}
-      <TabsTrigger value="ai-research" style={tabTriggerStyle('ai-research')} className={tabTriggerClass}>
-        <Brain className="h-4 w-4 mr-2" />AI Research
+      <TabsTrigger value="prompts" style={tabTriggerStyle('prompts')} className={tabTriggerClass}>
+        <FileQuestion className="h-4 w-4 mr-2" />Prompts
       </TabsTrigger>
       <TabsTrigger value="knowledge" style={tabTriggerStyle('knowledge')} className={tabTriggerClass}>
         <BookOpen className="h-4 w-4 mr-2" />Knowledge
@@ -2236,26 +2236,18 @@ export default function ResultsPage() {
             </div>}
           </TabsContent>
 
-          <TabsContent value="ai-research" className="mt-8 space-y-6" forceMount={activeTab === 'ai-research' ? true : undefined}>
-            {activeTab === 'ai-research' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'ai-research' ? null : <div className="animate-fade-in space-y-6">
+          <TabsContent value="prompts" className="mt-8 space-y-6" forceMount={activeTab === 'prompts' ? true : undefined}>
+            {activeTab === 'prompts' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prompts' ? null : <div className="animate-fade-in space-y-6">
             {session && (
-              <>
-                <SectionCard
-                  sectionId="deep-research" persistedCollapsed={isSectionCollapsed("deep-research")} onCollapseChange={toggleSection} title="Gemini Deep Research"
-                  icon={<Brain className="h-5 w-5 text-foreground" />}
-                  collapsed={allCollapsed}
-                >
-                  <DeepResearchCard session={session} pages={scrapedPages} collapsed={allCollapsed} />
-                </SectionCard>
-
-                <SectionCard
-                  sectionId="observations" persistedCollapsed={isSectionCollapsed("observations")} onCollapseChange={toggleSection} title="Observations & Insights"
-                  icon={<Lightbulb className="h-5 w-5 text-foreground" />}
-                  collapsed={allCollapsed}
-                >
-                  <ObservationsInsightsCard session={session} pages={scrapedPages} />
-                </SectionCard>
-              </>
+              <PromptLibrary
+                domain={session.domain}
+                companyName={session.ocean_data?.companyName || session.domain}
+                onRunPrompt={(template: PromptTemplate) => {
+                  const isDeepResearch = template.mode === 'deep-research' || template.mode === 'observations';
+                  setPendingPrompt({ text: template.prompt, deepResearch: isDeepResearch });
+                  setActiveTab('chat');
+                }}
+              />
             )}
             </div>}
           </TabsContent>
