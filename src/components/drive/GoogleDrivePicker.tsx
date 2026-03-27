@@ -93,6 +93,9 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [foldersOnTop, setFoldersOnTop] = useState(true);
+  const [multiTab, setMultiTab] = useState(() => {
+    try { return localStorage.getItem('drive-multi-tab') === 'true'; } catch { return false; }
+  });
 
   const previewFileRef = useRef(previewFile);
   const focusedFileIdRef = useRef(focusedFileId);
