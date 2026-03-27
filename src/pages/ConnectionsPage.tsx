@@ -273,7 +273,7 @@ export default function ConnectionsPage() {
           body: JSON.stringify({ checks: ['hubspot'] }),
         });
         const data = await res.json();
-        const hs = (data.results || []).find((r: any) => r.id === 'hubspot');
+        const hs = data.results?.hubspot;
         setHubspotConfigured(hs?.ok ?? false);
       } catch {
         setHubspotConfigured(false);
