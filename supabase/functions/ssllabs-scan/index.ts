@@ -46,14 +46,33 @@ Deno.serve(async (req) => {
 
     const analyzeUrl = `${API_BASE}/analyze?${params}`;
     
-    // Retry on transient errors (502, 503)
+    // Retry on transient errors (502, 503) and timeouts
     let analyzeRes: Response | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
-      analyzeRes = await fetch(analyzeUrl, { headers: { email } });
-      if (analyzeRes.status !== 502 && analyzeRes.status !== 503) break;
-      console.log(`SSL Labs returned ${analyzeRes.status}, retry ${attempt + 1}/3`);
-      await analyzeRes.text(); // consume body
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
+        analyzeRes = await fetch(analyzeUrl, { headers: { email }, signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (analyzeRes.status !== 502 && analyzeRes.status !== 503) break;
+        console.log(`SSL Labs returned ${analyzeRes.status}, retry ${attempt + 1}/3`);
+        await analyzeRes.text();
+      } catch (fetchErr) {
+        console.log(`SSL Labs fetch error on attempt ${attempt + 1}/3:`, (fetchErr as Error).message);
+        analyzeRes = null;
+      }
       if (attempt < 2) await new Promise(r => setTimeout(r, 3000));
+    }
+
+    if (!analyzeRes) {
+      return new Response(JSON.stringify({
+        success: true,
+        status: 'IN_PROGRESS',
+        host,
+        error: 'SSL Labs is slow to respond — will retry on next poll.',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (analyzeRes!.status === 529) {
