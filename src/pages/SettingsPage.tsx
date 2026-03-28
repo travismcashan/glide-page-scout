@@ -280,65 +280,143 @@ export default function SettingsPage() {
         <section className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">AI Model Defaults</h2>
-            <p className="text-sm text-muted-foreground mt-1">Choose which model powers your chat and research workflows.</p>
+            <p className="text-sm text-muted-foreground mt-1">Choose your default chat mode and configure models for each.</p>
           </div>
 
-          {/* Provider tabs */}
-          <div className="flex gap-2">
-            {PROVIDERS.map(p => (
+          {/* Mode toggle */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Default Chat Mode</label>
+            <div className="flex gap-2">
               <Button
-                key={p.id}
-                variant={provider === p.id ? 'default' : 'outline'}
+                variant={chatMode === 'individual' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => handleProviderChange(p.id)}
+                onClick={() => setChatMode('individual')}
+                className="gap-1.5"
               >
-                {p.label}
+                <MessageSquare className="h-3.5 w-3.5" />
+                Individual
               </Button>
-            ))}
-          </div>
-
-          {/* Model grid */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {versions.map(v => (
-              <button
-                key={v.id}
-                onClick={() => handleModelChange(v.id)}
-                className={`text-left rounded-lg border p-4 transition-all ${
-                  model === v.id
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                    : 'border-border hover:border-muted-foreground/30'
-                }`}
+              <Button
+                variant={chatMode === 'council' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setChatMode('council')}
+                className="gap-1.5"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${TIER_DOT[v.tier]}`} />
-                  <span className="font-medium">{v.label}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{v.description}</p>
-              </button>
-            ))}
+                <Sparkles className="h-3.5 w-3.5" />
+                Model Council
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {chatMode === 'individual'
+                ? 'Chat uses a single model. Fast and focused.'
+                : 'Chat runs 3 models in parallel, then synthesizes the best answer from all three.'}
+            </p>
           </div>
 
-          {/* Reasoning effort */}
-          {activeModel && activeModel.reasoning.length > 1 && (
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Reasoning Effort</label>
+          {/* ── Individual model settings ── */}
+          {chatMode === 'individual' && (
+            <div className="space-y-6">
+              {/* Provider tabs — exclude council */}
               <div className="flex gap-2">
-                {activeModel.reasoning.map(r => {
-                  const label = activeModel.reasoningLabels?.[r] || (r === 'none' ? 'Fast' : r === 'medium' ? 'Thinking' : r === 'high' ? 'Pro' : r);
-                  const Icon = r === 'high' ? Sparkles : r === 'medium' ? Brain : Zap;
-                  return (
-                    <Button
-                      key={r}
-                      variant={reasoning === r ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setReasoning(r)}
-                      className="gap-1.5"
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {label}
-                    </Button>
-                  );
-                })}
+                {PROVIDERS.filter(p => p.id !== 'council').map(p => (
+                  <Button
+                    key={p.id}
+                    variant={provider === p.id ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleProviderChange(p.id)}
+                  >
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Model grid */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {versions.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => handleModelChange(v.id)}
+                    className={`text-left rounded-lg border p-4 transition-all ${
+                      model === v.id
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${TIER_DOT[v.tier]}`} />
+                      <span className="font-medium">{v.label}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{v.description}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Reasoning effort */}
+              {activeModel && activeModel.reasoning.length > 1 && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">Reasoning Effort</label>
+                  <div className="flex gap-2">
+                    {activeModel.reasoning.map(r => {
+                      const label = activeModel.reasoningLabels?.[r] || (r === 'none' ? 'Fast' : r === 'medium' ? 'Thinking' : r === 'high' ? 'Pro' : r);
+                      const Icon = r === 'high' ? Sparkles : r === 'medium' ? Brain : Zap;
+                      return (
+                        <Button
+                          key={r}
+                          variant={reasoning === r ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setReasoning(r)}
+                          className="gap-1.5"
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Model Council settings ── */}
+          {chatMode === 'council' && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Choose which 3 models participate in the council. Each runs independently, then a synthesis model merges the results.</p>
+              {councilSlots.map((slot, i) => {
+                const slotModel = MODEL_OPTIONS.find(m => m.id === slot.modelId);
+                // All non-council models available for selection
+                const availableModels = MODEL_OPTIONS.filter(m => m.provider !== 'council' && m.provider !== 'perplexity');
+                return (
+                  <div key={i} className="space-y-1.5">
+                    <label className="text-sm font-medium">Model {i + 1}</label>
+                    <Select value={slot.modelId} onValueChange={(v) => updateCouncilSlot(i, v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {slotModel ? `${PROVIDERS.find(p => p.id === slotModel.provider)?.label} — ${slotModel.label}` : 'Select model'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROVIDERS.filter(p => p.id !== 'council' && p.id !== 'perplexity').map(p => {
+                          const models = VERSIONS[p.id] || [];
+                          return models.map(m => (
+                            <SelectItem key={m.id} value={m.id}>
+                              <div className="flex items-center gap-2">
+                                <span className={`h-2 w-2 rounded-full shrink-0 ${TIER_DOT[m.tier]}`} />
+                                <span>{p.label} — {m.label}</span>
+                                <span className="text-muted-foreground text-xs ml-auto">{m.description}</span>
+                              </div>
+                            </SelectItem>
+                          ));
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="text-xs text-foreground/80 leading-relaxed">
+                  💡 For best results, choose models from different providers (e.g., one Gemini, one GPT, one Claude) to get diverse perspectives.
+                </p>
               </div>
             </div>
           )}
