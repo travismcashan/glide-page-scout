@@ -77,7 +77,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
   const handleTechTierChange = useCallback((counts: TechTierCounts) => {
     if (!estimate) return;
-    const weightedScore = (counts.pluginCount ?? 0) * 1 + (counts.thirdPartyCount ?? 0) * 2 + (counts.specialSetupCount ?? 0) * 4;
+    const weightedScore = (counts.plugins ?? 0) * 1 + (counts.thirdParty ?? 0) * 2 + (counts.specialSetup ?? 0) * 4;
     const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2, complexity_score: weightedScore };
     const derived = {
       ...updated,
