@@ -136,51 +136,6 @@ export default function GlobalChatPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
 
-      {/* Attached sites bar */}
-      {(attachedSites.length > 0 || showSitePicker) && (
-        <div className="border-b border-border px-6 py-2 flex items-center gap-2 bg-muted/30">
-          <span className="text-xs text-muted-foreground font-medium mr-1">Sources:</span>
-          {attachedSites.map(s => (
-            <div key={s.session_id} className="flex items-center gap-1.5 bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-medium">
-              <Globe className="h-3 w-3" />
-              {s.domain}
-              <button onClick={() => handleDetachSite(s.session_id)} className="hover:text-destructive ml-0.5">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-          <DropdownMenu open={showSitePicker} onOpenChange={setShowSitePicker}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-6 gap-1 text-xs rounded-full px-2">
-                <Plus className="h-3 w-3" />
-                Add
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64 max-h-80 overflow-y-auto">
-              <DropdownMenuLabel className="text-xs">Attach a Site</DropdownMenuLabel>
-              {availableSites.map(site => {
-                const alreadyAttached = attachedSites.some(a => a.session_id === site.id);
-                return (
-                  <DropdownMenuItem
-                    key={site.id}
-                    disabled={alreadyAttached}
-                    onClick={() => handleSelectSite(site.id, site.domain)}
-                    className="text-xs"
-                  >
-                    <Globe className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                    <span className="truncate">{site.domain}</span>
-                    {alreadyAttached && <span className="ml-auto text-muted-foreground text-[10px]">Added</span>}
-                  </DropdownMenuItem>
-                );
-              })}
-              {availableSites.length === 0 && (
-                <p className="text-xs text-muted-foreground px-2 py-3 text-center">No sites available.</p>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
-
       <div className="flex-1">
         <KnowledgeChatCard
           session={globalSession}
@@ -194,7 +149,7 @@ export default function GlobalChatPage() {
           globalMode
           attachedSessionIds={attachedSites.map(s => s.session_id)}
           attachedSites={attachedSites}
-          onAttachSite={handleAttachSite}
+          onSelectSite={handleSelectSite}
           onDetachSite={handleDetachSite}
         />
       </div>
