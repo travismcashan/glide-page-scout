@@ -226,7 +226,7 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
         </div>
       )}
 
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <MetaStat value={visibleCount} label="Technologies" />
         <MetaStatDivider />
         <MetaStat value={superGroupData.length} label="Categories" />

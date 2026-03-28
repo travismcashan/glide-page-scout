@@ -28,7 +28,7 @@ export function SchemaCard({ data }: { data: SchemaData }) {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         {hasSchemas ? (
           <MetaStat value={summary.totalSchemas} label={summary.totalSchemas !== 1 ? 'Schemas Found' : 'Schema Found'} />
         ) : (

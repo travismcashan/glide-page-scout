@@ -70,7 +70,7 @@ export function SitemapCard({ data, globalInnerExpand = null, pageTags, onPageTa
     <div className="space-y-4">
       {/* Summary stats */}
       {stats && (
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <MetaStat value={stats.sitemapsFound} label={stats.sitemapsFound !== 1 ? 'XML Sitemaps' : 'XML Sitemap'} />
           <MetaStatDivider />
           <MetaStat value={stats.totalUrls.toLocaleString()} label="Total URLs" />

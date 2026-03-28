@@ -14,7 +14,7 @@ export function MetaStat({ value, label }: MetaStatProps) {
   const line2 = words.slice(mid).join(' ');
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <span className="meta-value text-4xl font-bold text-foreground leading-none tracking-tight">
         {value}
       </span>
@@ -28,5 +28,5 @@ export function MetaStat({ value, label }: MetaStatProps) {
 }
 
 export function MetaStatDivider() {
-  return <span className="text-border mx-1">·</span>;
+  return <span className="text-border mx-0.5">·</span>;
 }
