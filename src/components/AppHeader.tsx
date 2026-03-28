@@ -97,6 +97,9 @@ export default function AppHeader() {
           >
             Sites
           </button>
+          <NavLink to="/groups" className={linkBase} activeClassName={linkActive}>
+            Groups
+          </NavLink>
           <NavLink to="/integrations" className={linkBase} activeClassName={linkActive}>
             Integrations
           </NavLink>
