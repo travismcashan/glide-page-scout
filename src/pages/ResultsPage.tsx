@@ -1322,7 +1322,24 @@ export default function ResultsPage() {
     setFormsFailed(false);
     clearError('forms');
     try {
-      const urls = effectiveDiscoveredUrls.length > 0 ? effectiveDiscoveredUrls : [session.base_url];
+      // Merge discovered URLs with nav structure URLs to catch form pages not in sitemap
+      const baseUrls = effectiveDiscoveredUrls.length > 0 ? effectiveDiscoveredUrls : [session.base_url];
+      const navUrls: string[] = [];
+      const nav = (session as any).nav_structure;
+      if (nav) {
+        const extract = (items: any[]) => {
+          for (const item of items) {
+            if (item?.url) navUrls.push(item.url);
+            if (item?.children) extract(item.children);
+          }
+        };
+        if (nav.items) extract(nav.items);
+        if (nav.primary) extract(nav.primary);
+        if (nav.secondary) extract(nav.secondary);
+        if (nav.footer) extract(nav.footer);
+      }
+      const urlSet = new Set([...baseUrls, ...navUrls]);
+      const urls = Array.from(urlSet);
       const result = await formsDetectApi.detect(urls, session.domain);
       if (result.success && result.data) {
         await supabase.from('crawl_sessions').update({ forms_data: result.data } as any).eq('id', session.id);
