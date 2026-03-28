@@ -49,7 +49,9 @@ function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
   return map;
 }
 
-export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange, globalInnerExpand = null }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void; globalInnerExpand?: boolean | null }) {
+type BulkTier = 'S' | 'M' | 'L';
+
+export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange, globalInnerExpand = null, mode = 'analysis', onTierChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void; globalInnerExpand?: boolean | null; mode?: 'analysis' | 'estimate'; onTierChange?: (tier: BulkTier, includedTypes: number, totalUrls: number) => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
