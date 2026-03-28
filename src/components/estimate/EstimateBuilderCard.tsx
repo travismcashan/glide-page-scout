@@ -518,8 +518,6 @@ function getProjectDuration(totalHours: number): string {
                   <Settings2 className="h-3.5 w-3.5" />Scope
                 </TabsTrigger>
                 <TabsTrigger value="all" className="text-xs">All Tasks</TabsTrigger>
-                <TabsTrigger value="phase" className="text-xs">By Phase</TabsTrigger>
-                <TabsTrigger value="role" className="text-xs">By Role</TabsTrigger>
                 <TabsTrigger value="timeline" className="gap-1.5 text-xs">
                   <CalendarDays className="h-3.5 w-3.5" />Timeline
                 </TabsTrigger>
