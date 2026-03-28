@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';

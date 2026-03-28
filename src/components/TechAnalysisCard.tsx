@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { Brain, AlertTriangle, TrendingUp, Server, Wrench, ChevronRight, ChevronDown } from 'lucide-react';
