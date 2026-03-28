@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
-import { Plus, X, FileText, Image as ImageIcon, Loader2, Upload, HardDrive } from 'lucide-react';
+import { useRef, useState, useCallback } from 'react';
+import { Plus, X, FileText, Image as ImageIcon, Loader2, Upload, HardDrive, BookOpen } from 'lucide-react';
 import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
+import { KnowledgeBasePickerDialog } from '@/components/deep-research/KnowledgeBasePickerDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -56,11 +57,13 @@ type Props = {
   setAttachments: React.Dispatch<React.SetStateAction<ChatAttachment[]>>;
   disabled?: boolean;
   onHandleFilesRef?: React.MutableRefObject<((files: FileList) => void) | null>;
+  sessionId?: string;
 };
 
-export function ChatFileUpload({ attachments, setAttachments, disabled, onHandleFilesRef }: Props) {
+export function ChatFileUpload({ attachments, setAttachments, disabled, onHandleFilesRef, sessionId }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [parsing, setParsing] = useState(false);
+  const [kbPickerOpen, setKbPickerOpen] = useState(false);
 
   const handleFiles = async (files: FileList) => {
     for (const file of Array.from(files)) {
