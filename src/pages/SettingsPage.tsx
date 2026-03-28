@@ -1041,11 +1041,11 @@ export default function SettingsPage() {
                     onClick={() => {
                       localStorage.removeItem('ai-location');
                       setLocationData(null);
-                      fetch('https://ip-api.com/json/?fields=city,regionName,country,timezone,lat,lon')
+                       fetch('https://ipapi.co/json/')
                         .then(r => r.json())
                         .then(data => {
                           if (data?.city) {
-                            const loc = { city: data.city, region: data.regionName, country: data.country, timezone: data.timezone };
+                            const loc = { city: data.city, region: data.region, country: data.country_name, timezone: data.timezone };
                             setLocationData(loc);
                             localStorage.setItem('ai-location', JSON.stringify(loc));
                             toast.success('Location re-detected');
