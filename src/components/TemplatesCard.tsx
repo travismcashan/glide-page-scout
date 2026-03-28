@@ -324,29 +324,31 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
           <MetaStatDivider />
           <MetaStat value={blockBuiltCount} label="Block-Built Pages" />
         </div>
-        <div className="flex items-center gap-2">
-          {!aiTiers && !aiLoading && (
-            <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
-              <Sparkles className="h-3 w-3" /> AI Recommend
-            </button>
-          )}
-          {aiTiers && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Sparkles className="h-2.5 w-2.5" /> AI
-            </span>
-          )}
-          <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
-            {TIER_KEYS.map(tier => (
-              <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
-                {tierLabel(tier)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
+        {isEstimate && (
+          <div className="flex items-center gap-2">
+            {!aiTiers && !aiLoading && (
+              <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
+                <Sparkles className="h-3 w-3" /> AI Recommend
+              </button>
+            )}
+            {aiTiers && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" /> AI
+              </span>
+            )}
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
+              {TIER_KEYS.map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+                  {tierLabel(tier)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        )}
       </div>
 
       {/* AI Loading indicator */}
-      {aiLoading && (
+      {isEstimate && aiLoading && (
         <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border border-border animate-in fade-in">
           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
           <span className="text-xs text-muted-foreground">{loadingMsg}</span>
