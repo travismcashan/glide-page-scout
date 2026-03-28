@@ -74,6 +74,19 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
 
+  const handleTechTierChange = useCallback((counts: TechTierCounts) => {
+    if (!estimate) return;
+    const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2 };
+    const derived = {
+      ...updated,
+      project_size: deriveProjectSize(updated),
+      project_complexity: deriveProjectComplexity(updated),
+    };
+    setEstimate(derived as Estimate);
+    const updatedTasks = recalculateAllTasks(tasks, derived, formulas);
+    setTasks(updatedTasks as EstimateTask[]);
+  }, [estimate, tasks, formulas]);
+
   const crawlDefaults = useMemo((): Partial<EstimateVariables> => {
     const defaults: Partial<EstimateVariables> = {};
     if (pageTags) {
