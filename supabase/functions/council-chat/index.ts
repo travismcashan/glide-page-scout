@@ -289,7 +289,7 @@ serve(async (req) => {
               messages: [{ role: 'user', content: synthUserContent }],
             };
             if (synthReasoning !== 'none') {
-              const budgetMap: Record<string, number> = { low: 3000, medium: 6000, high: 10000 };
+              const budgetMap: Record<string, number> = { low: 16000, medium: 32000, high: 64000 };
               synthBody.thinking = { type: 'enabled', budget_tokens: budgetMap[synthReasoning] || 10000 };
             }
 
