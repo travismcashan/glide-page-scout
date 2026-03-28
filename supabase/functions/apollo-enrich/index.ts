@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
           errorCode: isCredits ? 'CREDITS_EXHAUSTED' : 'API_ERROR',
           error: isCredits ? 'Apollo API credits exhausted' : (data?.message || `Apollo returned ${response.status}`),
         }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
