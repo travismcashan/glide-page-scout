@@ -22,9 +22,9 @@ type Props = {
 
 function CreditsBanner({ error }: { error?: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-      <span className="text-amber-500 text-sm">⚠</span>
-      <p className="text-xs text-amber-600 dark:text-amber-400">{error || 'Apollo API credits have been exhausted. Enrichment will resume once credits are replenished.'}</p>
+    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
+      <span className="text-sm">⚠</span>
+      <p className="text-xs text-muted-foreground">{error || 'Apollo API credits have been exhausted. Enrichment will resume once credits are replenished.'}</p>
     </div>
   );
 }
