@@ -272,16 +272,20 @@ serve(async (req) => {
             `## ${r.name}\n\n${r.response}`
           ).join('\n\n---\n\n');
 
-          const synthResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          const synthResp = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+            headers: {
+              'x-api-key': ANTHROPIC_KEY,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              messages: [
-                { role: 'system', content: SYNTHESIS_SYSTEM },
-                { role: 'user', content: `Original question: ${prompt}\n\n--- Model Responses ---\n\n${synthesisInput}` },
-              ],
+              model: 'claude-opus-4-6',
+              max_tokens: 16000,
+              thinking: { type: 'enabled', budget_tokens: 10000 },
               stream: true,
+              system: SYNTHESIS_SYSTEM,
+              messages: [{ role: 'user', content: `Original question: ${prompt}\n\nThe 3 model names are: ${results.map(r => r.name).join(', ')}\n\n--- Model Responses ---\n\n${synthesisInput}` }],
             }),
           });
 
@@ -306,10 +310,13 @@ serve(async (req) => {
                 const payload = line.slice(6).trim();
                 if (payload === '[DONE]') continue;
                 try {
-                  const chunk = JSON.parse(payload);
-                  const delta = chunk.choices?.[0]?.delta?.content;
-                  if (delta) {
-                    send('synthesis_chunk', { text: delta });
+                  const event = JSON.parse(payload);
+                  if (event.type === 'content_block_delta') {
+                    if (event.delta?.type === 'thinking_delta' && event.delta?.thinking) {
+                      send('synthesis_thinking', { text: event.delta.thinking });
+                    } else if (event.delta?.text) {
+                      send('synthesis_chunk', { text: event.delta.text });
+                    }
                   }
                 } catch {}
               }
