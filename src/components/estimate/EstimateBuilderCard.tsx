@@ -531,6 +531,7 @@ function getProjectDuration(totalHours: number): string {
                       domain={domain}
                       savedTiers={templateTiers}
                       mode="estimate"
+                      onRerunRequest={onTemplatesRerunRequest}
                       onTiersChange={(tiers) => {
                         const nonToolkitCount = (tiers.L || []).length;
                         const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';
