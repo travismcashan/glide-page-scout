@@ -76,9 +76,9 @@ const complexityColors: Record<string, string> = {
 function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true, complexity }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean; complexity?: string }) {
   return (
     <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
-      <td className="px-3 py-1 text-center align-middle">
+      <td className="px-3 py-1 text-left align-middle">
         {showCheckbox ? (
-          <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+          <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} />
         ) : (
           <span className="text-xs text-muted-foreground">{t.count}</span>
         )}
