@@ -30,46 +30,15 @@ type CrawlSession = {
   created_at: string;
 };
 
-const INTEGRATION_KEYS = [
-  'psi_data','wappalyzer_data','builtwith_data','carbon_data','crux_data',
-  'wave_data','observatory_data','ocean_data','ssllabs_data','httpstatus_data',
-  'linkcheck_data','w3c_data','schema_data','readable_data','yellowlab_data',
-  'semrush_data','nav_structure','content_types_data','page_tags','sitemap_data',
-  'forms_data','tech_analysis_data','deep_research_data','observations_data',
-  'avoma_data','apollo_data','hubspot_data','gmail_data','apollo_team_data',
-  'ga4_data','search_console_data','detectzestack_data',
-] as const;
-
 type SortKey = 'domain' | 'integrations' | 'files' | 'date' | 'status';
 type SortDir = 'asc' | 'desc';
 type GroupBy = 'none' | 'domain' | 'status';
-const HISTORY_COUNT_BATCH_SIZE = 12;
 
 function resolveStatus(session: CrawlSession): string {
   if (session.status === 'analyzing' && Date.now() - new Date(session.created_at).getTime() > 10 * 60 * 1000) {
     return 'completed';
   }
   return session.status;
-}
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-
-  return chunks;
-}
-
-function countLoadedIntegrations(session: Record<string, unknown>): number {
-  let count = 0;
-
-  for (const key of INTEGRATION_KEYS) {
-    if (session[key] != null) count += 1;
-  }
-
-  return count;
 }
 
 export default function HistoryPage() {
@@ -127,7 +96,7 @@ export default function HistoryPage() {
           domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1);
         });
         setMultiDomains(domainCounts);
-        setIntegrationCounts(new Map(data_.map((session) => [session.id, 0] as const)));
+        setIntegrationCounts(new Map());
         setDocCounts(new Map(data_.map((session) => [session.id, 0] as const)));
         setLoading(false);
 
@@ -154,13 +123,11 @@ export default function HistoryPage() {
             setDocCounts(dCounts);
           })();
 
+          // Fetch integration counts via lightweight RPC
           void (async () => {
-            for (const batchIds of chunkArray(sessionIds, HISTORY_COUNT_BATCH_SIZE)) {
-              const { data: countBatch, error: countError } = await withQueryTimeout(
-                supabase
-                  .from('crawl_sessions')
-                  .select(`id, ${INTEGRATION_KEYS.join(',')}`)
-                  .in('id', batchIds),
+            try {
+              const { data: counts, error: countError } = await withQueryTimeout(
+                supabase.rpc('count_integrations', { session_ids: sessionIds }),
                 12000,
                 'Loading integration counts timed out'
               );
@@ -171,16 +138,13 @@ export default function HistoryPage() {
                 return;
               }
 
-              setIntegrationCounts((prev) => {
-                const next = new Map(prev);
-                const countRows = ((countBatch ?? []) as unknown[]) as Array<Record<string, unknown> & { id: string }>;
-
-                countRows.forEach((session) => {
-                  next.set(session.id, countLoadedIntegrations(session));
-                });
-
-                return next;
+              const intCounts = new Map<string, number>();
+              ((counts ?? []) as Array<{ session_id: string; integration_count: number }>).forEach(r => {
+                intCounts.set(r.session_id, r.integration_count);
               });
+              setIntegrationCounts(intCounts);
+            } catch (err) {
+              console.error('Integration count RPC failed:', err);
             }
           })();
         } else {
