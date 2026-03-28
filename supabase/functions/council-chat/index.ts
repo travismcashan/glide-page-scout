@@ -6,9 +6,9 @@ const corsHeaders = {
 };
 
 const DEFAULT_COUNCIL_MODELS = [
-  { key: 'gemini', id: 'google/gemini-2.5-flash', name: 'Gemini Flash', provider: 'gateway' as const },
+  { key: 'gemini', id: 'google/gemini-3-flash-preview', name: 'Gemini Flash 3.0', provider: 'gateway' as const },
+  { key: 'claude', id: 'claude-sonnet', name: 'Claude Sonnet', provider: 'anthropic' as const },
   { key: 'gpt', id: 'openai/gpt-5-mini', name: 'GPT-5 Mini', provider: 'gateway' as const },
-  { key: 'claude', id: 'claude-haiku', name: 'Claude Haiku', provider: 'anthropic' as const },
 ];
 
 // Model ID to display name map
@@ -20,15 +20,20 @@ const MODEL_NAMES: Record<string, string> = {
   'google/gemini-3.1-pro-preview': 'Gemini Pro 3.1',
   'openai/gpt-5': 'GPT-5',
   'openai/gpt-5-mini': 'GPT-5 Mini',
+  'openai/gpt-5-nano': 'GPT-5 Nano',
   'openai/gpt-5.2': 'GPT-5.2',
   'claude-haiku': 'Claude Haiku',
   'claude-sonnet': 'Claude Sonnet',
   'claude-opus': 'Claude Opus',
+  'perplexity-sonar': 'Perplexity Sonar',
+  'perplexity-sonar-pro': 'Perplexity Sonar Pro',
+  'perplexity-sonar-reasoning-pro': 'Perplexity Reasoning Pro',
 };
 
 const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-haiku': { model: 'claude-haiku-4-5-20251001', maxOutput: 8192 },
   'claude-sonnet': { model: 'claude-sonnet-4-6', maxOutput: 16000 },
+  'claude-opus': { model: 'claude-opus-4-6', maxOutput: 16000 },
 };
 
 // Stream a gateway model, emitting chunks via callback
@@ -150,24 +155,37 @@ async function streamAnthropic(
 
 const COUNCIL_SYSTEM = `You are one of 3 AI models in a Model Council. Give your best, most thoughtful and specific response to the user's question. Be concise but substantive — aim for 300-500 words. Take clear positions and provide actionable recommendations.`;
 
-const SYNTHESIS_SYSTEM = `You are synthesizing responses from 3 different AI models who independently answered the same question. Your job is to produce a structured analysis with these exact markdown sections:
+const SYNTHESIS_SYSTEM = `You are synthesizing responses from 3 different AI models who independently answered the same question. You will receive their model names. Use those exact names as column headers.
+
+Produce a structured analysis using these exact markdown sections:
 
 ## 🤝 Where the Models Agreed
-Summarize the key points where all or most models converged. Be specific about what they agreed on.
+
+Present as a markdown table with these columns:
+| Finding | [Model1] | [Model2] | [Model3] | Evidence |
+
+For each agreed-upon point, put ✓ under each model that mentioned it. In the Evidence column, provide a brief supporting detail.
 
 ## ⚡ Where They Disagreed
-Highlight meaningful differences in perspective, recommendations, or conclusions. Explain the nature of each disagreement.
+
+Present as a markdown table:
+| Topic | [Model1] | [Model2] | [Model3] |
+
+For each disagreement, summarize each model's position in its column. Use "—" if a model didn't address the topic.
 
 ## 💡 Unique Contributions
-Call out the most interesting or valuable insight from each model that the others missed. Attribute by model name.
+
+Call out the most valuable insight from each model that the others missed. Use the model's name as attribution.
 
 ## 🎯 Synthesis
-Provide your unified, best-possible answer that combines the strongest elements from all models. This should be actionable and definitive.
+
+Provide your unified, best-possible answer combining the strongest elements. Be actionable and definitive.
 
 Rules:
-- Be specific and substantive in each section
-- If there were no real disagreements, say so briefly and focus on the other sections
-- Do NOT use generic filler — every point should be meaningful
+- Use the actual model names provided as table column headers
+- Be specific and substantive — no generic filler
+- If no real disagreements exist, say so briefly
+- Keep table cells concise (1-2 sentences max)
 - Write in a clear, professional tone`;
 
 function sseEvent(event: string, data: unknown): string {
@@ -254,16 +272,20 @@ serve(async (req) => {
             `## ${r.name}\n\n${r.response}`
           ).join('\n\n---\n\n');
 
-          const synthResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          const synthResp = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+            headers: {
+              'x-api-key': ANTHROPIC_KEY,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              messages: [
-                { role: 'system', content: SYNTHESIS_SYSTEM },
-                { role: 'user', content: `Original question: ${prompt}\n\n--- Model Responses ---\n\n${synthesisInput}` },
-              ],
+              model: 'claude-opus-4-6',
+              max_tokens: 16000,
+              thinking: { type: 'enabled', budget_tokens: 10000 },
               stream: true,
+              system: SYNTHESIS_SYSTEM,
+              messages: [{ role: 'user', content: `Original question: ${prompt}\n\nThe 3 model names are: ${results.map(r => r.name).join(', ')}\n\n--- Model Responses ---\n\n${synthesisInput}` }],
             }),
           });
 
@@ -288,10 +310,13 @@ serve(async (req) => {
                 const payload = line.slice(6).trim();
                 if (payload === '[DONE]') continue;
                 try {
-                  const chunk = JSON.parse(payload);
-                  const delta = chunk.choices?.[0]?.delta?.content;
-                  if (delta) {
-                    send('synthesis_chunk', { text: delta });
+                  const event = JSON.parse(payload);
+                  if (event.type === 'content_block_delta') {
+                    if (event.delta?.type === 'thinking_delta' && event.delta?.thinking) {
+                      send('synthesis_thinking', { text: event.delta.thinking });
+                    } else if (event.delta?.text) {
+                      send('synthesis_chunk', { text: event.delta.text });
+                    }
                   }
                 } catch {}
               }
