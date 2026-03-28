@@ -109,7 +109,28 @@ export default function SettingsPage() {
     localStorage.setItem('council-models', JSON.stringify(next));
   };
 
-  // RAG context settings
+  // Synthesis model for council
+  const [synthesisModel, setSynthesisModel] = useState<CouncilSlot>(() => {
+    try {
+      const saved = localStorage.getItem('council-synthesis-model');
+      return saved ? JSON.parse(saved) : { provider: 'claude' as ModelProvider, modelId: 'claude-opus', reasoning: 'high' };
+    } catch { return { provider: 'claude' as ModelProvider, modelId: 'claude-opus', reasoning: 'high' }; }
+  });
+  const updateSynthesisModel = (modelId: string) => {
+    const modelOpt = MODEL_OPTIONS.find(m => m.id === modelId);
+    if (!modelOpt) return;
+    const currentReasoning = synthesisModel.reasoning || 'none';
+    const newReasoning = modelOpt.reasoning.includes(currentReasoning) ? currentReasoning : 'none';
+    const next = { provider: modelOpt.provider, modelId, reasoning: newReasoning };
+    setSynthesisModel(next);
+    localStorage.setItem('council-synthesis-model', JSON.stringify(next));
+  };
+  const updateSynthesisReasoning = (reasoning: ReasoningEffort) => {
+    const next = { ...synthesisModel, reasoning };
+    setSynthesisModel(next);
+    localStorage.setItem('council-synthesis-model', JSON.stringify(next));
+  };
+
   const [matchCount, setMatchCount] = useState(
     () => parseInt(localStorage.getItem('rag-match-count') || '15', 10)
   );
@@ -559,6 +580,60 @@ export default function SettingsPage() {
                   </div>
                 );
               })}
+              {/* Synthesis model */}
+              <div className="space-y-1.5 pt-2 border-t border-border">
+                <label className="text-sm font-medium">Synthesis Model</label>
+                <p className="text-xs text-muted-foreground">Merges all three responses into a final answer.</p>
+                <div className="flex gap-2">
+                  <Select value={synthesisModel.modelId} onValueChange={updateSynthesisModel}>
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue>
+                        {MODEL_OPTIONS.find(m => m.id === synthesisModel.modelId)?.label || 'Select model'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[260px]">
+                      {PROVIDERS.filter(p => p.id !== 'council').map(p => {
+                        const models = VERSIONS[p.id] || [];
+                        if (models.length === 0) return null;
+                        return [
+                          <div key={`synth-hdr-${p.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium mt-1 first:mt-0">
+                            {p.label}
+                          </div>,
+                          ...models.map(m => (
+                            <SelectItem key={m.id} value={m.id}>
+                              <div className="flex items-center gap-2">
+                                <span className={`h-2 w-2 rounded-full shrink-0 ${TIER_DOT[m.tier]}`} />
+                                <span className="truncate">{m.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        ];
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {(() => {
+                    const synthModelOpt = MODEL_OPTIONS.find(m => m.id === synthesisModel.modelId);
+                    const synthReasoning = synthModelOpt?.reasoning || ['none'];
+                    if (synthReasoning.length <= 1) return null;
+                    return (
+                      <Select value={synthesisModel.reasoning || 'none'} onValueChange={(v) => updateSynthesisReasoning(v as ReasoningEffort)}>
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue>
+                            {synthModelOpt?.reasoningLabels?.[synthesisModel.reasoning || 'none'] || (synthesisModel.reasoning === 'none' ? 'Fast' : synthesisModel.reasoning === 'medium' ? 'Thinking' : 'Pro')}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {synthReasoning.map(r => (
+                            <SelectItem key={r} value={r}>
+                              {synthModelOpt?.reasoningLabels?.[r] || (r === 'none' ? 'Fast' : r === 'medium' ? 'Thinking' : r === 'high' ? 'Pro' : r)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
+                </div>
+              </div>
               <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
                 <p className="text-xs text-foreground/80 leading-relaxed">
                   💡 For best results, choose models from different providers (e.g., one Gemini, one GPT, one Claude) to get diverse perspectives.
