@@ -153,7 +153,7 @@ export function ChatProviderPicker({ provider, model, onProviderChange, disabled
   const [open, setOpen] = useState(false);
   const selected = PROVIDERS.find(p => p.id === provider) || PROVIDERS[0];
   const selectedModel = model ? MODEL_OPTIONS.find(m => m.id === model) : undefined;
-  const displayLabel = selectedModel ? `${selected.label} ${selectedModel.label}` : selected.label;
+  const displayLabel = provider === 'council' ? selected.label : (selectedModel ? `${selected.label} ${selectedModel.label}` : selected.label);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
