@@ -191,13 +191,14 @@ function ScopeTab({ scope, mode = 'analysis' }: { scope: Scope; mode?: 'analysis
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <MetaStat value={totalItems} label="Scope Items" />
+        <MetaStat value={totalItems} label={isEstimate ? 'Detected TPAs' : 'Scope Items'} />
         {sections.map((s, i) => (
           <span key={s.key} className="contents">
             <MetaStatDivider />
             <MetaStat value={s.items.length} label={s.title} />
           </span>
         ))}
+        {tierSelector}
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
