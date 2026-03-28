@@ -950,6 +950,30 @@ const ANALYTICS_TOOLS = [
 ];
 
 /**
+ * Execute a Beautiful.ai presentation generation
+ */
+async function executeBeautifulAi(params: { prompt: string; themeId?: string }): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/beautiful-ai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ prompt: params.prompt, themeId: params.themeId }),
+    });
+
+    const result = await response.json();
+    return JSON.stringify(result, null, 2);
+  } catch (e) {
+    return JSON.stringify({ error: `Beautiful.ai generation failed: ${e instanceof Error ? e.message : String(e)}` });
+  }
+}
+
+/**
  * Execute an analytics tool call by invoking the analytics-query edge function
  */
 async function executeAnalyticsTool(toolName: string, params: any): Promise<string> {
