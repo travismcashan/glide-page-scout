@@ -401,11 +401,11 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
                   </div>
                 </Suspense>
                 {!isFull && (
-                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none" />
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleFull(m.key); }}
-                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mx-auto mt-2 justify-center w-full"
+                  className="relative z-10 text-xs text-foreground/70 hover:text-foreground flex items-center gap-1 mx-auto mt-2 justify-center w-full font-medium"
                 >
                   {isFull ? (
                     <><ChevronDown className="h-3 w-3" /> Show less</>
