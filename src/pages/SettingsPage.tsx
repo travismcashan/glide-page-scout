@@ -388,9 +388,66 @@ export default function SettingsPage() {
           )}
 
           {/* ── Model Council settings ── */}
-          {chatMode === 'council' && (
+          {chatMode === 'council' && (() => {
+            const COUNCIL_PRESETS: { id: string; label: string; icon: typeof Zap; description: string; slots: CouncilSlot[] }[] = [
+              {
+                id: 'faster', label: 'Faster', icon: Zap, description: 'Cheapest & fastest',
+                slots: [
+                  { provider: 'gemini', modelId: 'google/gemini-2.5-flash-lite', reasoning: 'none' },
+                  { provider: 'claude', modelId: 'claude-haiku', reasoning: 'none' },
+                  { provider: 'gpt', modelId: 'openai/gpt-5-nano', reasoning: 'none' },
+                ],
+              },
+              {
+                id: 'default', label: 'Balanced', icon: Brain, description: 'Good quality, reasonable speed',
+                slots: [
+                  { provider: 'gemini', modelId: 'google/gemini-3-flash-preview', reasoning: 'none' },
+                  { provider: 'claude', modelId: 'claude-sonnet', reasoning: 'none' },
+                  { provider: 'gpt', modelId: 'openai/gpt-5-mini', reasoning: 'none' },
+                ],
+              },
+              {
+                id: 'deeper', label: 'Deeper', icon: Sparkles, description: 'Best models with reasoning',
+                slots: [
+                  { provider: 'gemini', modelId: 'google/gemini-3.1-pro-preview', reasoning: 'high' },
+                  { provider: 'claude', modelId: 'claude-opus', reasoning: 'high' },
+                  { provider: 'gpt', modelId: 'openai/gpt-5.2', reasoning: 'high' },
+                ],
+              },
+            ];
+            const activePresetId = COUNCIL_PRESETS.find(p =>
+              p.slots.every((s, i) => councilSlots[i]?.modelId === s.modelId && (councilSlots[i]?.reasoning || 'none') === s.reasoning)
+            )?.id || null;
+
+            return (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">Choose which 3 models participate in the council. Each runs independently, then a synthesis model merges the results.</p>
+
+              {/* Presets */}
+              <div className="flex gap-2">
+                {COUNCIL_PRESETS.map(preset => {
+                  const Icon = preset.icon;
+                  return (
+                    <Button
+                      key={preset.id}
+                      variant={activePresetId === preset.id ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => {
+                        setCouncilSlots(preset.slots);
+                        localStorage.setItem('council-models', JSON.stringify(preset.slots));
+                      }}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {preset.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {activePresetId ? COUNCIL_PRESETS.find(p => p.id === activePresetId)?.description : 'Custom configuration'}
+              </p>
+
               {councilSlots.map((slot, i) => {
                 const slotModel = MODEL_OPTIONS.find(m => m.id === slot.modelId);
                 const slotReasoning = slotModel?.reasoning || ['none'];
@@ -400,7 +457,7 @@ export default function SettingsPage() {
                     <label className="text-sm font-medium">Model {i + 1}</label>
                     <div className="flex gap-2">
                       <Select value={slot.modelId} onValueChange={(v) => updateCouncilSlot(i, v)}>
-                        <SelectTrigger className={hasReasoning ? 'w-[220px]' : 'w-[220px]'}>
+                        <SelectTrigger className="w-[220px]">
                           <SelectValue>
                             {slotModel ? `${slotModel.label}` : 'Select model'}
                           </SelectValue>
@@ -451,7 +508,8 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-          )}
+            );
+          })()}
         </section>
 
         <div className="border-t border-border" />
