@@ -322,29 +322,31 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
 }
 
 function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[]; isStreaming?: boolean }) {
-  const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
-  const [fullyExpandedModels, setFullyExpandedModels] = useState<Set<string>>(new Set());
+  // Each model can be: 'collapsed' | 'capped' | 'full'
+  type ViewState = 'collapsed' | 'capped' | 'full';
+  const [modelStates, setModelStates] = useState<Record<string, ViewState>>({});
   const allDone = models.every(m => m.status !== 'thinking');
 
-  // Auto-expand all while streaming
-  const effectiveExpanded = isStreaming ? new Set(models.map(m => m.key)) : expandedModels;
+  // Default state: while streaming show capped, after done show collapsed
+  const getState = (key: string): ViewState => {
+    if (modelStates[key]) return modelStates[key];
+    return isStreaming ? 'capped' : 'capped';
+  };
 
-  const toggleModel = (key: string) => {
-    if (isStreaming) return;
-    setExpandedModels(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+  const toggleHeader = (key: string) => {
+    setModelStates(prev => {
+      const current = prev[key] || (isStreaming ? 'capped' : 'capped');
+      // Header click: if showing content → collapse. If collapsed → show capped.
+      const next = current === 'collapsed' ? 'capped' : 'collapsed';
+      return { ...prev, [key]: next };
     });
   };
 
-  const toggleFullExpand = (key: string) => {
-    setFullyExpandedModels(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+  const toggleFull = (key: string) => {
+    setModelStates(prev => {
+      const current = prev[key] || 'capped';
+      const next = current === 'full' ? 'capped' : 'full';
+      return { ...prev, [key]: next };
     });
   };
 
@@ -363,13 +365,14 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
         </span>
       </div>
       {models.map(m => {
-        const isExpanded = effectiveExpanded.has(m.key);
-        const isFullyExpanded = fullyExpandedModels.has(m.key);
+        const state = getState(m.key);
+        const isOpen = state !== 'collapsed';
+        const isFull = state === 'full';
         const statusIcon = m.status === 'done' ? '✅' : m.status === 'error' ? '❌' : undefined;
         return (
           <div key={m.key} className="border border-border rounded-lg overflow-hidden">
             <button
-              onClick={() => toggleModel(m.key)}
+              onClick={() => toggleHeader(m.key)}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-muted/50 hover:bg-muted transition-colors text-left"
             >
               {m.status === 'thinking' ? (
@@ -382,33 +385,31 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
                 {m.status === 'thinking' ? 'Thinking…' : m.status === 'done' ? 'Complete' : 'Error'}
               </span>
               <span className="ml-auto">
-                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
               </span>
             </button>
-            {isExpanded && m.response && (
+            {isOpen && m.response && (
               <div className="px-4 py-3 text-sm border-t border-border">
                 <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
                   <div
-                    className={`chat-prose max-w-none text-sm transition-all ${isFullyExpanded ? '' : 'max-h-[15rem] overflow-y-auto'}`}
+                    className={`chat-prose max-w-none text-sm transition-all ${isFull ? '' : 'max-h-[15rem] overflow-y-auto'}`}
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.response}</ReactMarkdown>
                   </div>
                 </Suspense>
-                {m.status === 'done' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleFullExpand(m.key); }}
-                    className="text-xs text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1"
-                  >
-                    {isFullyExpanded ? (
-                      <><ChevronDown className="h-3 w-3" /> Show less</>
-                    ) : (
-                      <><ChevronRight className="h-3 w-3" /> Show more</>
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleFull(m.key); }}
+                  className="text-xs text-muted-foreground hover:text-foreground mt-3 pt-2 border-t border-border/50 flex items-center gap-1 w-full"
+                >
+                  {isFull ? (
+                    <><ChevronDown className="h-3 w-3" /> Show less</>
+                  ) : (
+                    <><ChevronRight className="h-3 w-3" /> Show full</>
+                  )}
+                </button>
               </div>
             )}
-            {isExpanded && m.status === 'thinking' && !m.response && (
+            {isOpen && m.status === 'thinking' && !m.response && (
               <div className="px-4 py-3 border-t border-border">
                 <AnimatedThinkingText label="Thinking" />
               </div>
