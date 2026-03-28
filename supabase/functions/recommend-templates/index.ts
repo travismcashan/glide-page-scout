@@ -125,13 +125,17 @@ For each tier, list ONLY template names that need custom design. Everything not 
                     items: { type: 'string' },
                     description: `Template names for Large tier (${lRange.min}–${lRange.max} custom designs)`,
                   },
-                  effort: {
-                    type: 'object',
-                    additionalProperties: {
-                      type: 'string',
-                      enum: ['low', 'medium', 'high'],
+                  complexity: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        name: { type: 'string', description: 'Exact template name from the input list' },
+                        level: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Design complexity rating' },
+                      },
+                      required: ['name', 'level'],
                     },
-                    description: 'Design effort rating for EVERY template (key = exact template name, value = low/medium/high). Homepage is always high. Simple utility pages (Thank You, 404, Privacy Policy) are low. Core marketing pages (About, Services, Pricing) are medium-high. Resource lists and detail pages are medium.',
+                    description: 'Design complexity rating for EVERY template. Homepage is always high. Simple utility pages (Thank You, 404, Privacy Policy) are low. Core marketing pages (About, Services, Pricing) are medium-high. Resource lists and detail pages are medium.',
                   },
                   reasoning: {
                     type: 'string',
@@ -150,7 +154,7 @@ For each tier, list ONLY template names that need custom design. Everything not 
                     description: 'Markdown-formatted explanation for ONLY the templates added in Large beyond Medium. Do NOT repeat Small or Medium tier reasoning. Explain what new templates were added and why. Use **bold** for template names.',
                   },
                 },
-                required: ['S', 'M', 'L', 'effort', 'reasoning', 'reasoning_S', 'reasoning_M', 'reasoning_L'],
+                required: ['S', 'M', 'L', 'complexity', 'reasoning', 'reasoning_S', 'reasoning_M', 'reasoning_L'],
                 additionalProperties: false,
               },
             },
@@ -184,7 +188,7 @@ For each tier, list ONLY template names that need custom design. Everything not 
     const aiData = await response.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    let result = { S: [] as string[], M: [] as string[], L: [] as string[], effort: {} as Record<string, string>, reasoning: '', reasoning_S: '', reasoning_M: '', reasoning_L: '' };
+    let result = { S: [] as string[], M: [] as string[], L: [] as string[], complexity: {} as Record<string, string>, reasoning: '', reasoning_S: '', reasoning_M: '', reasoning_L: '' };
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
@@ -192,11 +196,11 @@ For each tier, list ONLY template names that need custom design. Everything not 
         result.S = (parsed.S || []).filter((n: string) => validNames.has(n));
         result.M = (parsed.M || []).filter((n: string) => validNames.has(n));
         result.L = (parsed.L || []).filter((n: string) => validNames.has(n));
-        // Only keep effort entries for valid template names
-        if (parsed.effort && typeof parsed.effort === 'object') {
-          for (const [name, level] of Object.entries(parsed.effort)) {
-            if (validNames.has(name) && ['low', 'medium', 'high'].includes(level as string)) {
-              result.effort[name] = level as string;
+        // Convert complexity array to map
+        if (Array.isArray(parsed.complexity)) {
+          for (const entry of parsed.complexity) {
+            if (entry?.name && validNames.has(entry.name) && ['low', 'medium', 'high'].includes(entry.level)) {
+              result.complexity[entry.name] = entry.level;
             }
           }
         }
@@ -209,7 +213,7 @@ For each tier, list ONLY template names that need custom design. Everything not 
       }
     }
 
-    console.log(`[recommend-templates] Results — S:${result.S.length}, M:${result.M.length}, L:${result.L.length}`);
+    console.log(`[recommend-templates] Results — S:${result.S.length}, M:${result.M.length}, L:${result.L.length}, complexity:${Object.keys(result.complexity).length}`);
 
     return new Response(
       JSON.stringify({ success: true, tiers: result }),

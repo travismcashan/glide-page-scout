@@ -59,20 +59,21 @@ interface AiTiers {
   S: string[];
   M: string[];
   L: string[];
-  effort?: Record<string, string>;
+  complexity?: Record<string, string>;
+  effort?: Record<string, string>; // legacy compat
   reasoning: string;
   reasoning_S?: string;
   reasoning_M?: string;
   reasoning_L?: string;
 }
 
-const effortColors: Record<string, string> = {
+const complexityColors: Record<string, string> = {
   low: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
   medium: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
   high: 'bg-red-500/10 text-red-600 border-red-500/30',
 };
 
-function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true, effort }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean; effort?: string }) {
+function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true, complexity }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean; complexity?: string }) {
   return (
     <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
       <td className="px-3 py-1 text-center align-middle">
@@ -92,9 +93,9 @@ function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheck
       <td className="px-3 py-1 text-center text-muted-foreground">
         {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
       </td>
-      {effort !== undefined && (
+      {complexity !== undefined && (
         <td className="px-3 py-1 text-center">
-          {effort ? <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${effortColors[effort] || ''}`}>{effort}</Badge> : <span className="text-[10px] text-muted-foreground">—</span>}
+          {complexity ? <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${complexityColors[complexity] || ''}`}>{complexity}</Badge> : <span className="text-[10px] text-muted-foreground">—</span>}
         </td>
       )}
       <td className="px-3 py-1 text-right text-xs text-muted-foreground">{t.count}</td>
@@ -318,8 +319,9 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const isEstimate = mode === 'estimate';
 
   const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
-  const hasEffort = !!(aiTiers?.effort && Object.keys(aiTiers.effort).length > 0);
-  const colCount = hasEffort ? 6 : 5;
+  const complexityMap = aiTiers?.complexity || aiTiers?.effort || {};
+  const hasComplexity = isEstimate && Object.keys(complexityMap).length > 0;
+  const colCount = hasComplexity ? 6 : 5;
   const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const toggleTableSection = (key: string) => {
     setCollapsedTableSections(prev => {
@@ -379,7 +381,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
-              {hasEffort && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Effort</th>}
+              {hasComplexity && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Complexity</th>}
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
             </tr>
           </thead>
@@ -414,7 +416,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {recommendedTemplates.map((t, i) => (
-                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
+                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -473,7 +475,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {notIncludedTemplates.map((t, i) => (
-                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
+                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -506,7 +508,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               </>
             ) : (
               templates.map((t, i) => (
-                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
+                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
               ))
             )}
           </tbody>
