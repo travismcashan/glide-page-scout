@@ -59,13 +59,20 @@ interface AiTiers {
   S: string[];
   M: string[];
   L: string[];
+  effort?: Record<string, string>;
   reasoning: string;
   reasoning_S?: string;
   reasoning_M?: string;
   reasoning_L?: string;
 }
 
-function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean }) {
+const effortColors: Record<string, string> = {
+  low: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  medium: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  high: 'bg-red-500/10 text-red-600 border-red-500/30',
+};
+
+function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true, effort }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean; effort?: string }) {
   return (
     <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
       <td className="px-3 py-1 text-center align-middle">
@@ -85,6 +92,11 @@ function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheck
       <td className="px-3 py-1 text-center text-muted-foreground">
         {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
       </td>
+      {effort !== undefined && (
+        <td className="px-3 py-1 text-center">
+          {effort ? <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${effortColors[effort] || ''}`}>{effort}</Badge> : <span className="text-[10px] text-muted-foreground">—</span>}
+        </td>
+      )}
       <td className="px-3 py-1 text-right text-xs text-muted-foreground">{t.count}</td>
     </tr>
   );
@@ -306,6 +318,8 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const isEstimate = mode === 'estimate';
 
   const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
+  const hasEffort = !!(aiTiers?.effort && Object.keys(aiTiers.effort).length > 0);
+  const colCount = hasEffort ? 6 : 5;
   const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const toggleTableSection = (key: string) => {
     setCollapsedTableSections(prev => {
@@ -360,11 +374,12 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm table-fixed">
           <thead>
-            <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
+             <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">{isEstimate ? 'Design' : '#'}</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
+              {hasEffort && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Effort</th>}
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
             </tr>
           </thead>
@@ -373,7 +388,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               <>
                 {/* Recommended section */}
                 <tr>
-                  <td colSpan={5} className="p-0">
+                  <td colSpan={colCount} className="p-0">
                     <button
                       onClick={() => toggleTableSection('recommended')}
                       className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
@@ -394,12 +409,12 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                   return (
                     <>
                       <tr>
-                        <td colSpan={5} className="p-0">
+                        <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {recommendedTemplates.map((t, i) => (
-                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
+                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -408,7 +423,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                       </tr>
                       {hasMore && (
                         <tr>
-                          <td colSpan={5} className="p-0 relative">
+                          <td colSpan={colCount} className="p-0 relative">
                             {!isExpanded && (
                               <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
                             )}
@@ -432,7 +447,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
                 {/* Not included section */}
                 <tr>
-                  <td colSpan={5} className="p-0">
+                  <td colSpan={colCount} className="p-0">
                     <button
                       onClick={() => toggleTableSection('not-included')}
                       className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
@@ -453,12 +468,12 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                   return (
                     <>
                       <tr>
-                        <td colSpan={5} className="p-0">
+                        <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {notIncludedTemplates.map((t, i) => (
-                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
+                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -467,7 +482,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                       </tr>
                       {hasMore && (
                         <tr>
-                          <td colSpan={5} className="p-0 relative">
+                          <td colSpan={colCount} className="p-0 relative">
                             {!isExpanded && (
                               <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
                             )}
@@ -491,7 +506,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               </>
             ) : (
               templates.map((t, i) => (
-                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} />
+                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
               ))
             )}
           </tbody>
