@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain, RefreshCw } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
@@ -47,6 +48,10 @@ interface Props {
   templateTiers: any;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
   techAnalysisData: any;
+  integrationTimestamps?: Record<string, string>;
+  integrationDurations?: Record<string, number>;
+  onRerunIntegration?: (key: string, dbColumn: string) => void;
+  isIntegrationLoading?: (key: string) => boolean;
 }
 
 interface Estimate extends EstimateVariables {
@@ -54,7 +59,7 @@ interface Estimate extends EstimateVariables {
   status: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -422,6 +427,33 @@ function getProjectDuration(totalHours: number): string {
   return `~${lowMo}–${highMo} mo`;
 }
 
+  const rerunButton = (key: string, dbColumn: string) => {
+    if (!onRerunIntegration) return null;
+    const loading = isIntegrationLoading?.(key) ?? false;
+    return (
+      <div className="flex items-center gap-1">
+        {integrationTimestamps[key] && !loading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps[key]), 'MMM d, yyyy h:mm a')}`}>
+            {format(new Date(integrationTimestamps[key]), 'MMM d, h:mm a')}
+          </span>
+        )}
+        {integrationDurations[key] != null && !loading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations[key]}s)</span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={loading}
+          onClick={() => onRerunIntegration(key, dbColumn)}
+          title="Run again"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -487,6 +519,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-templates"
                     title="Template Analysis (Recommended Layouts)"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('templates', 'template_tiers')}
                   >
                     <TemplatesCard
                       pageTags={pageTags}
@@ -516,6 +549,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-tech-analysis"
                     title="AI Tech Analysis — Merged Stack Intelligence"
                     icon={<Brain className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >
                     <TechAnalysisCard data={techAnalysisData} isLoading={false} />
                   </SectionCard>
@@ -526,6 +560,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-forms"
                     title="Forms Analysis"
                     icon={<FileText className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('forms', 'forms_data')}
                   >
                     <FormsCard data={formsData} domain={domain} mode="estimate" />
                   </SectionCard>
@@ -536,6 +571,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-content-types"
                     title="Bulk Content (Posts & CPTs)"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('content-types', 'content_types_data')}
                   >
                     <ContentTypesCard
                       data={contentTypesData}
