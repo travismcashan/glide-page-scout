@@ -73,7 +73,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [roleCollapsed, setRoleCollapsed] = useState(false);
   const [phaseCollapsed, setPhaseCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const { isSectionCollapse, toggleSection } = useSectionCollapse(sessionId);
 
   const handleTechTierChange = useCallback((counts: TechTierCounts) => {
     if (!estimate || tasks.length === 0) return;
