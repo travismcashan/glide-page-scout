@@ -203,8 +203,8 @@ export default function GlobalChatPage() {
     const customInstructions = localStorage.getItem('ai-custom-instructions') || '';
     let aboutMe: any = null;
     try { aboutMe = JSON.parse(localStorage.getItem('ai-about-me') || 'null'); } catch {}
-    const personalBio = localStorage.getItem('ai-bio') || '';
-    const myRole = localStorage.getItem('ai-role') || '';
+    const personalBio = localStorage.getItem('ai-personal-bio') || '';
+    const myRole = localStorage.getItem('ai-my-role') || '';
     let locationData: any = null;
     try { locationData = JSON.parse(localStorage.getItem('ai-location') || 'null'); } catch {}
 
