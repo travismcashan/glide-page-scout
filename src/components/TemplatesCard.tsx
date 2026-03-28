@@ -422,6 +422,14 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                         <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
+                              <colgroup>
+                                <col className="w-10" />
+                                <col />
+                                <col className="w-24" />
+                                <col className="w-20" />
+                                {hasComplexity && <col className="w-28" />}
+                                <col className="w-16" />
+                              </colgroup>
                               <tbody>
                                 {recommendedTemplates.map((t, i) => (
                                   <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
@@ -481,6 +489,14 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                         <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
+                              <colgroup>
+                                <col className="w-10" />
+                                <col />
+                                <col className="w-24" />
+                                <col className="w-20" />
+                                {hasComplexity && <col className="w-28" />}
+                                <col className="w-16" />
+                              </colgroup>
                               <tbody>
                                 {notIncludedTemplates.map((t, i) => (
                                   <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
