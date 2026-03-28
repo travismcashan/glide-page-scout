@@ -37,14 +37,6 @@ export function GroupScoreGrid({ sessions }: Props) {
       .filter(Boolean) as ScoredSession[];
   }, [sessions]);
 
-  if (scored.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <p className="text-sm text-muted-foreground">No score data available yet. Sites need completed analyses to compare.</p>
-      </div>
-    );
-  }
-
   // Find best/worst per category
   const bestWorst = useMemo(() => {
     const map: Record<string, { best: string; worst: string }> = {};
