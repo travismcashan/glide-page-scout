@@ -26,7 +26,7 @@ const DEFAULT_BEST: Record<ModelProvider, string> = {
   claude: 'claude-opus',
   gpt: 'openai/gpt-5.2',
   perplexity: 'perplexity-sonar-reasoning-pro',
-  council: 'council-convergence',
+  council: 'council-synthesis',
 };
 
 const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
