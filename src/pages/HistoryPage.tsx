@@ -154,6 +154,19 @@ export default function HistoryPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        const path = buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1);
+                        const url = `${window.location.origin}${path}?view=shared`;
+                        navigator.clipboard.writeText(url);
+                        toast.success('View-only link copied to clipboard');
+                      }}
+                      className="p-1.5 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="Copy share link"
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setDeleteTarget(session);
                       }}
                       className="p-1.5 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
