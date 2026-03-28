@@ -50,7 +50,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
       // Use template tiers for design layouts if available
       if (templateTiers) {
         // Auto-select best tier based on template count (same logic as TemplatesCard)
-        const designTemplates = Object.values(pageTags).filter(t => t.baseType !== 'toolkit');
+        const designTemplates = Object.values(pageTags).filter(t => (t.baseType as string) !== 'toolkit');
         const count = designTemplates.length;
         const bestTier = count <= 8 ? 'S' : count <= 15 ? 'M' : 'L';
         const tierLayouts = templateTiers[bestTier];
