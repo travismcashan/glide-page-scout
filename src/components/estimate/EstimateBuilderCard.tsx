@@ -540,7 +540,7 @@ function getProjectDuration(totalHours: number): string {
                       savedActiveTier={estimate.template_tier}
                       mode="estimate"
                       onRerunRequest={onTemplatesRerunRequest}
-                      onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, template_tier: tier } : prev)}
+                      onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, template_tier: tier } : prev); supabase.from('project_estimates').update({ template_tier: tier }).eq('id', estimate.id).then(); }}
                       onTiersChange={(tiers) => {
                         // Save tiers to DB
                         supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId).then();
@@ -574,7 +574,7 @@ function getProjectDuration(totalHours: number): string {
                       navStructure={navStructure}
                       mode="estimate"
                       savedTier={estimate.page_tier}
-                      onTierChange={(tier) => setEstimate(prev => prev ? { ...prev, page_tier: tier } : prev)}
+                      onTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, page_tier: tier } : prev); supabase.from('project_estimates').update({ page_tier: tier }).eq('id', estimate.id).then(); }}
                       onSelectionChange={(count) => {
                         if (estimate && count !== estimate.pages_for_integration) {
                           handleVariablesChange({ ...estimate, pages_for_integration: count });
@@ -599,7 +599,7 @@ function getProjectDuration(totalHours: number): string {
                       pageTags={pageTags}
                       mode="estimate"
                       savedTier={estimate.content_tier}
-                      onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, content_tier: tier } : prev)}
+                      onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, content_tier: tier } : prev); supabase.from('project_estimates').update({ content_tier: tier }).eq('id', estimate.id).then(); }}
                       onTierChange={(tier, includedTypes, totalUrls) => {
                         if (estimate) {
                           const bulkAmount = tier === 'S' ? 'none' : totalUrls < 500 ? '<500' : totalUrls < 1000 ? '500-1000' : totalUrls < 5000 ? '1000-5000' : '>5000';
@@ -619,7 +619,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >
-                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} savedTier={estimate.tech_tier} onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, tech_tier: tier } : prev)} />
+                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} savedTier={estimate.tech_tier} onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, tech_tier: tier } : prev); supabase.from('project_estimates').update({ tech_tier: tier }).eq('id', estimate.id).then(); }} />
                   </SectionCard>
                 )}
 
@@ -632,7 +632,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
-                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev)} />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev); supabase.from('project_estimates').update({ forms_tier: tier }).eq('id', estimate.id).then(); }} />
                   </SectionCard>
                 )}
 
