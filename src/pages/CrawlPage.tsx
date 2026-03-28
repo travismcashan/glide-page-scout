@@ -208,7 +208,7 @@ export default function CrawlPage() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="Enter a URL to analyze…"
-                  className="pl-12 h-full text-lg border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="pl-12 h-full text-xl border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   disabled={isStarting}
                 />
               </div>
