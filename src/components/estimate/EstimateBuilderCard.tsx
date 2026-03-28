@@ -36,6 +36,7 @@ interface Props {
   formsData: any;
   wappalyzerData: any;
   templateTiers: any;
+  formsTiers: any;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
   techAnalysisData: any;
   integrationTimestamps?: Record<string, string>;
@@ -55,7 +56,7 @@ interface Estimate extends EstimateVariables {
   forms_tier?: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
