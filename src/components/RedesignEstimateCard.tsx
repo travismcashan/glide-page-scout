@@ -5,32 +5,52 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
-const baseTypeColors: Record<string, string> = {
-  Page: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-  Post: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
-  CPT: 'bg-violet-500/10 text-violet-600 border-violet-500/30',
-  Archive: 'bg-sky-500/10 text-sky-600 border-sky-500/30',
-  Search: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/30',
-};
+type NavItem = { label: string; url?: string | null; children?: NavItem[] };
+type NavStructure = { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
 
 interface Props {
   pageTags: PageTagsMap | null;
   contentTypesData: ContentTypesData | null;
+  navStructure?: NavStructure;
   globalInnerExpand?: boolean | null;
 }
 
-export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerExpand = null }: Props) {
+/** Count unique URLs from nav items (top-level only, not children) */
+function countNavUrls(items: NavItem[] | undefined): number {
+  if (!items) return 0;
+  const urls = new Set<string>();
+  for (const item of items) {
+    if (item.url) urls.add(item.url.replace(/\/$/, ''));
+  }
+  return urls.size;
+}
+
+/** Count unique URLs from children of nav items (second level) */
+function countNavChildUrls(items: NavItem[] | undefined): number {
+  if (!items) return 0;
+  const urls = new Set<string>();
+  for (const item of items) {
+    if (item.children) {
+      for (const child of item.children) {
+        if (child.url) urls.add(child.url.replace(/\/$/, ''));
+      }
+    }
+  }
+  return urls.size;
+}
+
+export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure, globalInnerExpand = null }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (globalInnerExpand === true) {
       setCollapsedSections(new Set());
     } else if (globalInnerExpand === false) {
-      setCollapsedSections(new Set(['base-types', 'repeating']));
+      setCollapsedSections(new Set(['base-types', 'page-types']));
     }
   }, [globalInnerExpand]);
 
-  const { baseTypeCounts, contentTypes, totalPages } = useMemo(() => {
+  const { baseTypeCounts, totalPages, primaryPages, secondaryPages, tertiaryPages } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
 
     if (pageTags) {
@@ -40,21 +60,21 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
       }
     }
 
-    const ctList: { type: string; count: number; baseType?: string }[] = [];
-    if (contentTypesData?.summary) {
-      for (const s of contentTypesData.summary) {
-        if (s.baseType === 'Post' || s.baseType === 'CPT') {
-          ctList.push({ type: s.type, count: s.count, baseType: s.baseType });
-        }
-      }
-    }
+    const total = pageTags ? Object.keys(pageTags).length : 0;
+
+    // Derive page types from nav structure
+    const primary = countNavUrls(navStructure?.primary);
+    const secondary = countNavChildUrls(navStructure?.primary);
+    const tertiary = Math.max(0, total - primary - secondary);
 
     return {
       baseTypeCounts: Object.entries(counts).filter(([, c]) => c > 0),
-      contentTypes: ctList,
-      totalPages: pageTags ? Object.keys(pageTags).length : 0,
+      totalPages: total,
+      primaryPages: primary,
+      secondaryPages: secondary,
+      tertiaryPages: tertiary,
     };
-  }, [pageTags, contentTypesData]);
+  }, [pageTags, navStructure]);
 
   if (!pageTags || Object.keys(pageTags).length === 0) {
     return <p className="text-sm text-muted-foreground">No page classification data available yet.</p>;
@@ -68,7 +88,11 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
     });
   };
 
-  const totalRepeating = contentTypes.reduce((sum, ct) => sum + ct.count, 0);
+  const pageTypes = [
+    { label: 'Primary', count: primaryPages, desc: 'Custom designed, top-level nav pages' },
+    { label: 'Secondary', count: secondaryPages, desc: 'Sub-navigation pages off primary nav' },
+    { label: 'Tertiary', count: tertiaryPages, desc: 'Supporting & footer-only pages' },
+  ];
 
   return (
     <div className="space-y-4">
@@ -76,13 +100,11 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
       <div className="flex items-center gap-4 flex-wrap">
         <MetaStat value={totalPages} label="Total URLs" />
         <MetaStatDivider />
-        <MetaStat value={baseTypeCounts.length} label="Base Types" />
-        {contentTypes.length > 0 && (
-          <>
-            <MetaStatDivider />
-            <MetaStat value={contentTypes.length} label="Repeating CPTs" />
-          </>
-        )}
+        <MetaStat value={primaryPages} label="Primary" />
+        <MetaStatDivider />
+        <MetaStat value={secondaryPages} label="Secondary" />
+        <MetaStatDivider />
+        <MetaStat value={tertiaryPages} label="Tertiary" />
       </div>
 
       {/* Unified container with collapsible sections */}
@@ -92,10 +114,34 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
           <span className="flex-1 text-xs font-medium text-muted-foreground">Type</span>
           <span className="text-xs font-medium text-muted-foreground">Count</span>
         </div>
+
+        {/* Page Types section */}
+        <button
+          onClick={() => toggleSection('page-types')}
+          className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+        >
+          {collapsedSections.has('page-types')
+            ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          }
+          <span className="text-xs font-semibold text-foreground">Page Types</span>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{totalPages}</Badge>
+        </button>
+        {!collapsedSections.has('page-types') && (
+          <div>
+            {pageTypes.map((pt) => (
+              <div key={pt.label} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
+                <span className="text-xs font-mono leading-5 text-muted-foreground flex-1" title={pt.desc}>{pt.label}</span>
+                <span className="text-xs text-muted-foreground font-mono">{pt.count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Base Types section */}
         <button
           onClick={() => toggleSection('base-types')}
-          className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+          className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
         >
           {collapsedSections.has('base-types')
             ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -113,35 +159,6 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, globalInnerEx
               </div>
             ))}
           </div>
-        )}
-
-        {/* Repeating Content section */}
-        {contentTypes.length > 0 && (
-          <>
-            <button
-              onClick={() => toggleSection('repeating')}
-              className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
-            >
-              {collapsedSections.has('repeating')
-                ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              }
-              <span className="text-xs font-semibold text-foreground">Bulk Content</span>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{totalRepeating}</Badge>
-            </button>
-            {!collapsedSections.has('repeating') && (
-              <div>
-                {contentTypes.map((ct) => (
-                  <div key={ct.type} className="flex items-center px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors">
-                    <span className="text-xs font-mono leading-5 text-muted-foreground flex-1 truncate">
-                      {ct.type}{ct.baseType ? ` (${ct.baseType})` : ''}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-mono">{ct.count}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
         )}
       </div>
     </div>

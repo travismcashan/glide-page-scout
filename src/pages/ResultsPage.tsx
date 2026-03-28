@@ -2290,7 +2290,7 @@ export default function ResultsPage() {
               {session && (
               <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{integrationTimestamps['page-tags'] && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps['page-tags']), 'MMM d, yyyy h:mm a')}`}>{format(new Date(integrationTimestamps['page-tags']), 'MMM d, h:mm a')}</span>)}{integrationDurations['page-tags'] != null && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations['page-tags']}s)</span>)}{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
                 {(session as any)?.page_tags ? (
-                  <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} globalInnerExpand={redesignInnerExpand} />
+                  <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} globalInnerExpand={redesignInnerExpand} />
                 ) : null}
               </SectionCard>
               )}
