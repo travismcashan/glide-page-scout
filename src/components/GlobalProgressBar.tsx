@@ -73,11 +73,18 @@ export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
       }}
       ref={contentRef}
     >
-      {/* Progress bar track */}
-      <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-border">
+      {/* Progress bar track — Rainbow Signature Moment accent */}
+      <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-border overflow-hidden">
         <div
-          className="h-full bg-primary transition-all duration-700 ease-out"
-          style={{ width: `${percent}%` }}
+          className="h-full transition-all duration-700 ease-out"
+          style={{
+            width: `${percent}%`,
+            background: allDone
+              ? 'hsl(var(--accent))'
+              : 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0000)',
+            backgroundSize: '200% auto',
+            animation: allDone ? 'none' : 'rainbow-shift 8s linear infinite',
+          }}
         />
       </div>
 
