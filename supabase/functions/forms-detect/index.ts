@@ -68,6 +68,7 @@ const PLATFORM_SIGNATURES: Record<string, { patterns: RegExp[]; label: string }>
 // URL patterns likely to contain forms
 const FORM_URL_PATTERNS = [
   /contact/i, /get-in-touch/i, /reach-out/i,
+  /lets-talk/i,
   /apply/i, /application/i, /register/i, /signup/i, /sign-up/i,
   /request/i, /quote/i, /demo/i, /trial/i, /get-started/i,
   /subscribe/i, /newsletter/i,
@@ -79,6 +80,25 @@ const FORM_URL_PATTERNS = [
   /donate/i, /contribute/i,
   /checkout/i, /order/i, /buy/i,
 ];
+
+function getPathname(url: string): string {
+  try {
+    return new URL(url).pathname.toLowerCase();
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+function getPathDepth(url: string): number {
+  return getPathname(url).split('/').filter(Boolean).length;
+}
+
+function isHighPrioritySiteUrl(url: string): boolean {
+  const pathname = getPathname(url);
+  if (pathname === '/' || pathname === '') return true;
+  if (/^\/(blog|author|category|tag)(\/|$)/i.test(pathname)) return false;
+  return getPathDepth(url) <= 1;
+}
 
 interface FormData {
   id: string;
@@ -273,20 +293,31 @@ Deno.serve(async (req) => {
     const formLikelyUrls = allUrls.filter(u => FORM_URL_PATTERNS.some(p => p.test(u)));
     const otherUrls = allUrls.filter(u => !FORM_URL_PATTERNS.some(p => p.test(u)));
 
-    // Always include homepage + form-likely + sample of others (max 30 total)
+    // Always include homepage + form-likely + shallow top-level site pages + sample of others (max 30 total)
     const homepage = allUrls.find(u => {
       try { return new URL(u).pathname === '/' || new URL(u).pathname === ''; } catch { return false; }
     });
     const prioritizedUrls = new Set<string>();
     if (homepage) prioritizedUrls.add(homepage);
     for (const u of formLikelyUrls) prioritizedUrls.add(u);
-    // Add random sample of other URLs to detect global forms
-    const sampleSize = Math.min(10, otherUrls.length);
-    const shuffled = otherUrls.sort(() => Math.random() - 0.5);
+
+    const highPriorityOtherUrls = otherUrls
+      .filter(isHighPrioritySiteUrl)
+      .sort((a, b) => getPathDepth(a) - getPathDepth(b));
+
+    for (const u of highPriorityOtherUrls) {
+      if (prioritizedUrls.size >= 30) break;
+      prioritizedUrls.add(u);
+    }
+
+    // Add random sample of the remaining URLs to detect global/embed forms
+    const remainingOtherUrls = otherUrls.filter(u => !highPriorityOtherUrls.includes(u));
+    const sampleSize = Math.min(Math.max(0, 30 - prioritizedUrls.size), 10, remainingOtherUrls.length);
+    const shuffled = [...remainingOtherUrls].sort(() => Math.random() - 0.5);
     for (let i = 0; i < sampleSize; i++) prioritizedUrls.add(shuffled[i]);
 
     const urlsToScrape = Array.from(prioritizedUrls).slice(0, 30);
-    console.log(`[forms-detect] Scraping ${urlsToScrape.length} pages (${formLikelyUrls.length} form-likely, ${sampleSize} sampled)`);
+    console.log(`[forms-detect] Scraping ${urlsToScrape.length} pages (${formLikelyUrls.length} form-likely, ${highPriorityOtherUrls.length} high-priority, ${sampleSize} sampled)`);
 
     // Step 2: Scrape pages in parallel batches
     const pageFormsList: PageForms[] = [];
