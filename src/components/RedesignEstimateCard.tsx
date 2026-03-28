@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
@@ -8,11 +9,15 @@ import type { ContentTypesData } from '@/components/content-types/types';
 type NavItem = { label: string; url?: string | null; children?: NavItem[] };
 type NavStructure = { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
 
+type TierKey = 'S' | 'M' | 'L';
+
 interface Props {
   pageTags: PageTagsMap | null;
   contentTypesData: ContentTypesData | null;
   navStructure?: NavStructure;
   globalInnerExpand?: boolean | null;
+  mode?: 'analysis' | 'estimate';
+  onSelectionChange?: (count: number) => void;
 }
 
 /** Count unique URLs from nav items (top-level only, not children) */
@@ -39,8 +44,19 @@ function countNavChildUrls(items: NavItem[] | undefined): number {
   return urls.size;
 }
 
-export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure, globalInnerExpand = null }: Props) {
+function tierLabel(t: TierKey): string {
+  return t === 'S' ? 'Small' : t === 'M' ? 'Medium' : 'Large';
+}
+
+function tierCount(t: TierKey, primary: number, secondary: number, tertiary: number): number {
+  if (t === 'S') return primary;
+  if (t === 'M') return primary + secondary;
+  return primary + secondary + tertiary;
+}
+
+export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure, globalInnerExpand = null, mode = 'analysis', onSelectionChange }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [activeTier, setActiveTier] = useState<TierKey>('M');
 
   useEffect(() => {
     if (globalInnerExpand === true) {
@@ -76,6 +92,15 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     };
   }, [pageTags, navStructure]);
 
+  const selectedPages = tierCount(activeTier, primaryPages, secondaryPages, tertiaryPages);
+
+  // Fire onSelectionChange when tier or counts change (estimate mode only)
+  useEffect(() => {
+    if (mode === 'estimate' && onSelectionChange) {
+      onSelectionChange(selectedPages);
+    }
+  }, [mode, selectedPages, onSelectionChange]);
+
   if (!pageTags || Object.keys(pageTags).length === 0) {
     return <p className="text-sm text-muted-foreground">No page classification data available yet.</p>;
   }
@@ -94,18 +119,49 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     { label: 'Tertiary', count: tertiaryPages, desc: 'Supporting & footer-only pages' },
   ];
 
+  const isEstimate = mode === 'estimate';
+
   return (
     <div className="space-y-4">
       {/* Summary */}
       <div className="flex items-center gap-4 flex-wrap">
-        <MetaStat value={totalPages} label="Total URLs" />
-        <MetaStatDivider />
-        <MetaStat value={primaryPages} label="Primary" />
-        <MetaStatDivider />
-        <MetaStat value={secondaryPages} label="Secondary" />
-        <MetaStatDivider />
-        <MetaStat value={tertiaryPages} label="Tertiary" />
+        <MetaStat value={totalPages} label="Detected Pages" />
+        {isEstimate && (
+          <>
+            <MetaStatDivider />
+            <MetaStat value={selectedPages} label="Selected Pages" />
+          </>
+        )}
+        {!isEstimate && (
+          <>
+            <MetaStatDivider />
+            <MetaStat value={primaryPages} label="Primary" />
+            <MetaStatDivider />
+            <MetaStat value={secondaryPages} label="Secondary" />
+            <MetaStatDivider />
+            <MetaStat value={tertiaryPages} label="Tertiary" />
+          </>
+        )}
       </div>
+
+      {/* Tier selector (estimate mode only) */}
+      {isEstimate && (
+        <div className="flex items-center gap-2">
+          <ToggleGroup
+            type="single"
+            value={activeTier}
+            onValueChange={(v) => v && setActiveTier(v as TierKey)}
+            size="sm"
+            variant="outline"
+          >
+            {(['S', 'M', 'L'] as TierKey[]).map(tier => (
+              <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
+                {tierLabel(tier)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+      )}
 
       {/* Unified container with collapsible sections */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
