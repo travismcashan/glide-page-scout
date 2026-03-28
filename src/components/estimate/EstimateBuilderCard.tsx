@@ -384,109 +384,107 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     );
   }
 
+  const [roleCollapsed, setRoleCollapsed] = useState(false);
+  const [phaseCollapsed, setPhaseCollapsed] = useState(false);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <Input
-              value={estimate.name}
-              onChange={(e) => setEstimate({ ...estimate, name: e.target.value })}
-              className="text-lg font-semibold border-none px-0 h-auto focus-visible:ring-0 bg-transparent"
-            />
-            <Badge variant="outline" className="shrink-0">{estimate.status}</Badge>
+    <div className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex items-center justify-between">
+          <TabsList className="flex-wrap h-auto gap-1">
+            <TabsTrigger value="variables" className="gap-1.5 text-xs">
+              <Settings2 className="h-3.5 w-3.5" />Variables
+            </TabsTrigger>
+            <TabsTrigger value="all" className="text-xs">All Tasks</TabsTrigger>
+            <TabsTrigger value="phase" className="text-xs">By Phase</TabsTrigger>
+            <TabsTrigger value="role" className="text-xs">By Role</TabsTrigger>
+            <TabsTrigger value="timeline" className="gap-1.5 text-xs">
+              <CalendarDays className="h-3.5 w-3.5" />Timeline
+            </TabsTrigger>
+            <TabsTrigger value="sow" className="gap-1.5 text-xs">
+              <FileText className="h-3.5 w-3.5" />SOW View
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? 'Saving…' : 'Save'}
+            </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {estimate.client_name || domain} • {estimate.project_size} • {estimate.project_complexity}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
-            <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Summary Sidebar */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Selected Tasks</span>
-                <span className="text-sm font-medium">{totals.selectedCount} / {tasks.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Total Hours
-                </span>
-                <span className="text-sm font-medium">{totals.totalHours.toFixed(0)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <CalendarDays className="h-3 w-3" /> Work Weeks
-                </span>
-                <span className="text-sm font-medium">{totals.lowWeeks} – {totals.highWeeks}</span>
-              </div>
-              <div className="flex items-center justify-between border-t pt-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <DollarSign className="h-3 w-3" /> Project Budget
-                </span>
-                <span className="font-bold text-base">{formatCurrency(totals.totalCost)}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {Object.keys(totals.byRole).length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" /> By Role
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5">
-                {Object.entries(totals.byRole)
-                  .sort((a, b) => b[1].hours - a[1].hours)
-                  .map(([role, data]) => (
-                    <div key={role} className="flex items-center justify-between text-xs">
-                      <span>{role}</span>
-                      <span className="text-muted-foreground">{data.hours.toFixed(1)}h</span>
-                    </div>
-                  ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {Object.keys(totals.byPhase).length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5" /> By Phase
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5">
-                {Object.entries(totals.byPhase).map(([phase, data]) => (
-                  <div key={phase} className="flex items-center justify-between text-xs">
-                    <span>{phase}</span>
-                    <span className="text-muted-foreground">{data.hours.toFixed(1)}h</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
         </div>
 
-        {/* Main Content with Tabs */}
-        <div className="lg:col-span-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4 flex-wrap h-auto gap-1">
+        {/* Summary bar */}
+        <div className="flex items-center gap-6 py-3 px-4 bg-muted/50 rounded-lg mt-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Tasks</span>
+            <span className="text-sm font-medium">{totals.selectedCount}/{tasks.length}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span className="text-sm font-medium">{totals.totalHours.toFixed(0)}h</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CalendarDays className="h-3 w-3 text-muted-foreground" />
+            <span className="text-sm font-medium">{totals.lowWeeks}–{totals.highWeeks} wks</span>
+          </div>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <DollarSign className="h-3 w-3 text-muted-foreground" />
+            <span className="font-bold text-base">{formatCurrency(totals.totalCost)}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar */}
+          <div className="lg:col-span-1 space-y-4">
+            {Object.keys(totals.byRole).length > 0 && (
+              <Card>
+                <CardHeader className="pb-2 cursor-pointer" onClick={() => setRoleCollapsed(!roleCollapsed)}>
+                  <CardTitle className="text-sm flex items-center gap-1.5">
+                    {roleCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    <Users className="h-3.5 w-3.5" /> By Role
+                  </CardTitle>
+                </CardHeader>
+                {!roleCollapsed && (
+                  <CardContent className="space-y-1.5">
+                    {Object.entries(totals.byRole)
+                      .sort((a, b) => b[1].hours - a[1].hours)
+                      .map(([role, data]) => (
+                        <div key={role} className="flex items-center justify-between text-xs">
+                          <span>{role}</span>
+                          <span className="text-muted-foreground">{data.hours.toFixed(1)}h</span>
+                        </div>
+                      ))}
+                  </CardContent>
+                )}
+              </Card>
+            )}
+
+            {Object.keys(totals.byPhase).length > 0 && (
+              <Card>
+                <CardHeader className="pb-2 cursor-pointer" onClick={() => setPhaseCollapsed(!phaseCollapsed)}>
+                  <CardTitle className="text-sm flex items-center gap-1.5">
+                    {phaseCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    <Layers className="h-3.5 w-3.5" /> By Phase
+                  </CardTitle>
+                </CardHeader>
+                {!phaseCollapsed && (
+                  <CardContent className="space-y-1.5">
+                    {Object.entries(totals.byPhase).map(([phase, data]) => (
+                      <div key={phase} className="flex items-center justify-between text-xs">
+                        <span>{phase}</span>
+                        <span className="text-muted-foreground">{data.hours.toFixed(1)}h</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                )}
+              </Card>
+            )}
+          </div>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3">
               <TabsTrigger value="variables" className="gap-1.5 text-xs">
                 <Settings2 className="h-3.5 w-3.5" />Variables
               </TabsTrigger>
