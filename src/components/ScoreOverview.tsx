@@ -28,7 +28,7 @@ function ScoreRing({ score, grade, size = 120, placeholder }: { score: number; g
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+      <svg width={size} height={size} className={placeholder ? 'animate-spin' : '-rotate-90'} style={placeholder ? { animationDuration: '2s' } : undefined}>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -37,7 +37,18 @@ function ScoreRing({ score, grade, size = 120, placeholder }: { score: number; g
           stroke="hsl(var(--border))"
           strokeWidth={strokeWidth}
         />
-        {!placeholder && (
+        {placeholder ? (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="hsl(var(--primary) / 0.4)"
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${circumference * 0.3} ${circumference * 0.7}`}
+            strokeLinecap="round"
+          />
+        ) : (
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -54,7 +65,7 @@ function ScoreRing({ score, grade, size = 120, placeholder }: { score: number; g
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         {placeholder ? (
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">Analyzing</span>
         ) : (
           <>
             <span className={`text-3xl font-bold ${gradeToColor(grade as any)}`}>{grade}</span>
