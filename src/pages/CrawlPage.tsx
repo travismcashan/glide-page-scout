@@ -202,36 +202,6 @@ export default function CrawlPage() {
             </div>
           </form>
 
-          {/* ── Recently viewed ── */}
-          {recentViews.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Recently Viewed
-              </h2>
-              <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-                {recentViews.map((s) => (
-                  <button
-                    key={s.sessionId}
-                    onClick={() => navigate(buildSitePath(s.domain, s.createdAt, (multiDomains.get(s.domain) ?? 0) > 1))}
-                    className="w-full flex items-center justify-between gap-4 px-4 h-12 text-left hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Globe className="h-4 w-4 shrink-0 text-primary/60" />
-                      <span className="text-sm font-medium truncate">{s.domain}</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {format(new Date(s.createdAt), 'MMM d, yyyy')}
-                      </span>
-                      <ExternalLink className="h-3 w-3 text-muted-foreground/40" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* ── What can you do? ── */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -281,6 +251,36 @@ export default function CrawlPage() {
               </motion.div>
             </AnimatePresence>
           </div>
+
+          {/* ── Recently viewed ── */}
+          {recentViews.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Recently Viewed
+              </h2>
+              <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
+                {recentViews.map((s) => (
+                  <button
+                    key={s.sessionId}
+                    onClick={() => navigate(buildSitePath(s.domain, s.createdAt, (multiDomains.get(s.domain) ?? 0) > 1))}
+                    className="w-full flex items-center justify-between gap-4 px-4 h-12 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Globe className="h-4 w-4 shrink-0 text-primary/60" />
+                      <span className="text-sm font-medium truncate">{s.domain}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(s.createdAt), 'MMM d, yyyy')}
+                      </span>
+                      <ExternalLink className="h-3 w-3 text-muted-foreground/40" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
