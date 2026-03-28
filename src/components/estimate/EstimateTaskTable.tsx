@@ -140,7 +140,7 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
 
       {/* Table */}
       <div className="border rounded-lg overflow-hidden">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-10" />
