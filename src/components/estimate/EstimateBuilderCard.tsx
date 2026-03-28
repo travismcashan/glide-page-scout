@@ -427,6 +427,33 @@ function getProjectDuration(totalHours: number): string {
   return `~${lowMo}–${highMo} mo`;
 }
 
+  const rerunButton = (key: string, dbColumn: string) => {
+    if (!onRerunIntegration) return null;
+    const loading = isIntegrationLoading?.(key) ?? false;
+    return (
+      <div className="flex items-center gap-1">
+        {integrationTimestamps[key] && !loading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps[key]), 'MMM d, yyyy h:mm a')}`}>
+            {format(new Date(integrationTimestamps[key]), 'MMM d, h:mm a')}
+          </span>
+        )}
+        {integrationDurations[key] != null && !loading && (
+          <span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations[key]}s)</span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={loading}
+          onClick={() => onRerunIntegration(key, dbColumn)}
+          title="Run again"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
