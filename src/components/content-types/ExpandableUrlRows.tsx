@@ -43,6 +43,9 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           const pageTag = getPageTag(pageTags, item.url);
           return (
             <div key={item.url} className="flex items-center px-3 hover:bg-muted/20 transition-colors group border-t border-border/50" style={{ height: '28px' }}>
+              {showCheckbox && (
+                <Checkbox checked={isIncluded} disabled className="mr-2 shrink-0" />
+              )}
               {/* Left: URL */}
               <div className="flex items-center flex-1 min-w-0 gap-2">
                 <Tooltip>
