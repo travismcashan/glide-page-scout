@@ -414,13 +414,10 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
  *  Calibrated: 300hrs ≈ 12–16 wks, 600hrs ≈ 16–24 wks.
  *  Throughput scales: smaller projects ~20 hrs/wk, larger ~30 hrs/wk. */
 function getProjectDuration(totalHours: number): string {
-  if (totalHours <= 0) return '0 mo';
+  if (totalHours <= 0) return '0 wks';
   const throughput = 15 + 5 * Math.log2(Math.max(totalHours, 100) / 100);
-  const calWeeks = totalHours / throughput;
-  const months = calWeeks / 4.33;
-  // Round to nearest 0.5
-  const rounded = Math.round(months * 2) / 2;
-  return `~${Math.max(0.5, rounded)} mo`;
+  const calWeeks = Math.round(totalHours / throughput);
+  return `~${Math.max(1, calWeeks)} wks`;
 }
 
   const rerunButton = (key: string, dbColumn: string) => {
