@@ -10,16 +10,17 @@ export type CardTab = {
   visible?: boolean;
 };
 
-type CardTabsProps = {
+export type CardTabsProps = {
   tabs: CardTab[];
   defaultValue?: string;
+  headerExtra?: React.ReactNode;
 };
 
 /**
  * Unified tabbed layout for multi-section integration cards.
  * Large, clear tab strip at the top — consistent across all cards.
  */
-export function CardTabs({ tabs, defaultValue }: CardTabsProps) {
+export function CardTabs({ tabs, defaultValue, headerExtra }: CardTabsProps) {
   const visibleTabs = tabs.filter(t => t.visible !== false);
   const firstValue = defaultValue || visibleTabs[0]?.value;
 
@@ -27,18 +28,21 @@ export function CardTabs({ tabs, defaultValue }: CardTabsProps) {
 
   return (
     <Tabs defaultValue={firstValue} className="w-full">
-      <TabsList className="w-full justify-start h-auto flex-wrap gap-1.5 bg-transparent p-0 border-b border-foreground rounded-none pb-3 mb-0">
-        {visibleTabs.map((tab) => (
-          <TabsTrigger
-            key={tab.value}
-            value={tab.value}
-            className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-foreground data-[state=active]:shadow-sm transition-all"
-          >
-            {tab.icon && <span className="mr-1.5 inline-flex">{tab.icon}</span>}
-            {tab.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      <div className="flex items-center justify-between border-b border-foreground pb-3 mb-0">
+        <TabsList className="w-auto justify-start h-auto flex-wrap gap-1.5 bg-transparent p-0 rounded-none">
+          {visibleTabs.map((tab) => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              className="text-sm font-medium px-4 py-2 rounded-md border border-transparent data-[state=active]:bg-muted data-[state=active]:border-foreground data-[state=active]:shadow-sm transition-all"
+            >
+              {tab.icon && <span className="mr-1.5 inline-flex">{tab.icon}</span>}
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {headerExtra}
+      </div>
 
       {visibleTabs.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="mt-4">
