@@ -725,7 +725,7 @@ async function handleClaudeRequest(
   });
 
   // Build Anthropic request — use each model's full output capacity
-  const claudeMaxTokens = contextPreset.claude[model] || claudeConfig.maxOutput;
+  const claudeMaxTokens = contextPreset.claude[claudeModelId] || claudeConfig.maxOutput;
   const requestBody: any = {
     model: claudeConfig.model,
     max_tokens: claudeMaxTokens,
