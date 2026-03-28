@@ -553,6 +553,13 @@ export default function SettingsPage() {
                 )}
               </div>
 
+              {locationData && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Globe className="h-4 w-4 shrink-0" />
+                  <span>{[locationData.city, locationData.region].filter(Boolean).join(', ')} · {locationData.timezone}</span>
+                </div>
+              )}
+
               <div className="rounded-md bg-muted/50 px-3 py-2">
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   This information is included in every AI conversation so responses are tailored to your role and company.
