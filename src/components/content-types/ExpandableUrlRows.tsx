@@ -40,7 +40,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
   return (
     <TooltipProvider>
       <div>
-        <div style={showAll && urls.length > 12 ? { maxHeight: '336px', overflowY: 'auto' } : undefined}>
+        <div style={{ maxHeight: showAll ? '336px' : `${ROW_LIMIT * 28}px`, overflowY: 'auto' }}>
         {visibleUrls.map((item) => {
           let pathname: string;
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
