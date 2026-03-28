@@ -39,7 +39,7 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
 
   return (
     <TooltipProvider>
-      <div className="relative">
+      <div>
         <div style={showAll && urls.length > 12 ? { maxHeight: '336px', overflowY: 'auto' } : undefined}>
         {visibleUrls.map((item) => {
           let pathname: string;
@@ -115,12 +115,12 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
         })}
         </div>
         {hasMore && !showAll && (
-          <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+          <div className="h-10 bg-gradient-to-t from-card to-transparent pointer-events-none -mt-10" />
         )}
         {hasMore && (
           <button
             onClick={() => setShowAll(prev => !prev)}
-            className="w-full flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="relative z-10 w-full flex items-center justify-center gap-1 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors bg-card"
           >
             <ChevronsUpDown className="h-3 w-3" />
             {showAll ? 'Show less' : `Show all ${urls.length}`}
