@@ -602,7 +602,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >
-                    <TechAnalysisCard data={techAnalysisData} isLoading={false} />
+                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} />
                   </SectionCard>
                 )}
 
