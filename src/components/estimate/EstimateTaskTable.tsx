@@ -144,14 +144,14 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-10" />
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('task_name')}>
-                <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
-              </TableHead>
               {groupBy !== 'phase' && (
-                <TableHead className="cursor-pointer select-none w-[140px]" onClick={() => toggleSort('phase_name')}>
+                <TableHead className="cursor-pointer select-none w-[180px] whitespace-nowrap" onClick={() => toggleSort('phase_name')}>
                   <span className="flex items-center text-xs">Phase<SortIcon field="phase_name" /></span>
                 </TableHead>
               )}
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('task_name')}>
+                <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
+              </TableHead>
               <TableHead className="w-[100px] text-xs">Role(s)</TableHead>
               <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
               <TableHead className="w-[60px] text-xs text-center">#</TableHead>
@@ -265,15 +265,15 @@ function TaskTableRow({
         />
       </TableCell>
 
+      {/* Phase — first data column */}
+      {showPhaseCol && (
+        <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">{task.phase_name || '-'}</TableCell>
+      )}
+
       {/* Task name */}
       <TableCell className={`py-1.5 text-sm truncate ${formulaDriven ? 'text-muted-foreground' : ''}`}>
         {task.task_name}
       </TableCell>
-
-      {/* Phase */}
-      {showPhaseCol && (
-        <TableCell className="py-1.5 text-xs text-muted-foreground">{task.phase_name || '-'}</TableCell>
-      )}
 
       {/* Roles */}
       <TableCell className="py-1.5">
