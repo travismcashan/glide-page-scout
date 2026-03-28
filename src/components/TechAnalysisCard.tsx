@@ -160,7 +160,7 @@ type ScopeSection = {
   showEffort: boolean;
 };
 
-function ScopeTab({ scope }: { scope: Scope }) {
+function ScopeTab({ scope, mode = 'analysis' }: { scope: Scope; mode?: 'analysis' | 'estimate' }) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const toggleSection = (key: string) => {
@@ -171,18 +171,20 @@ function ScopeTab({ scope }: { scope: Scope }) {
     });
   };
 
+  const isEstimate = mode === 'estimate';
   const sections: ScopeSection[] = [];
-  if (scope.platforms?.length > 0) sections.push({ key: 'platforms', title: 'Platforms', items: scope.platforms, showEffort: false });
+  if (!isEstimate && scope.platforms?.length > 0) sections.push({ key: 'platforms', title: 'Platforms', items: scope.platforms, showEffort: false });
   if (scope.plugins?.length > 0) sections.push({ key: 'plugins', title: 'Plugins', items: scope.plugins, showEffort: true });
   if (scope.thirdPartyIntegrations?.length > 0) sections.push({ key: 'thirdParty', title: 'Third-Party Integrations', items: scope.thirdPartyIntegrations, showEffort: true });
   if (scope.specialSetup?.length > 0) sections.push({ key: 'specialSetup', title: 'Special Setup', items: scope.specialSetup, showEffort: true });
 
-  // Tag management as a virtual section
-  const tagItems: ScopeItem[] = [];
-  if (scope.tagManagement?.manager) {
-    tagItems.push({ name: scope.tagManagement.manager, role: 'Tag Manager', note: scope.tagManagement.coveredTags?.length ? `Covers: ${scope.tagManagement.coveredTags.join(', ')}` : undefined });
+  if (!isEstimate) {
+    const tagItems: ScopeItem[] = [];
+    if (scope.tagManagement?.manager) {
+      tagItems.push({ name: scope.tagManagement.manager, role: 'Tag Manager', note: scope.tagManagement.coveredTags?.length ? `Covers: ${scope.tagManagement.coveredTags.join(', ')}` : undefined });
+    }
+    if (tagItems.length > 0) sections.push({ key: 'tagManagement', title: 'Tag Management', items: tagItems, showEffort: false });
   }
-  if (tagItems.length > 0) sections.push({ key: 'tagManagement', title: 'Tag Management', items: tagItems, showEffort: false });
 
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
@@ -310,6 +312,16 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
     </div>
   ) : null;
 
+  // In estimate mode: no tabs, just the filtered scope view directly
+  if (isEstimate) {
+    return (
+      <div className="space-y-3">
+        {tierSelector && <div className="flex justify-end">{tierSelector}</div>}
+        {scope ? <ScopeTab scope={scope} mode="estimate" /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>}
+      </div>
+    );
+  }
+
   return (
     <CardTabs
       tabs={[
@@ -326,7 +338,6 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
           content: <FindingsTab findings={findings} techCount={techCount} sources={sources} />,
         },
       ]}
-      headerExtra={tierSelector}
     />
   );
 }
