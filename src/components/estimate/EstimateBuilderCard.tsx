@@ -641,6 +641,61 @@ function getProjectDuration(totalHours: number): string {
                     <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} />
                   </SectionCard>
                 )}
+
+                {/* Derived Values Summary */}
+                {estimate && (
+                  <Card className="border-dashed">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Derived from Analysis</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-1.5 text-xs text-muted-foreground">
+                        <li className="flex justify-between">
+                          <span>Design Layouts</span>
+                          <span className="font-medium text-foreground">{estimate.design_layouts ?? 5} <span className="text-muted-foreground font-normal">— from Template Analysis</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Pages for Integration</span>
+                          <span className="font-medium text-foreground">{estimate.pages_for_integration ?? 20} <span className="text-muted-foreground font-normal">— from Page Analysis</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Custom Post Types</span>
+                          <span className="font-medium text-foreground">{estimate.custom_posts ?? 2} <span className="text-muted-foreground font-normal">— from Bulk Content</span></span>
+                        </li>
+                        {((estimate.form_count_s ?? 0) > 0 || (estimate.form_count_m ?? 0) > 0 || (estimate.form_count_l ?? 0) > 0) ? (
+                          <li className="flex justify-between">
+                            <span>Form Integration Hours</span>
+                            <span className="font-medium text-foreground">
+                              {(((estimate.form_count_s ?? 0) * 0.25) + ((estimate.form_count_m ?? 0) * 0.5) + ((estimate.form_count_l ?? 0) * 1.5)).toFixed(1)}h
+                              <span className="text-muted-foreground font-normal"> — {estimate.form_count_s ?? 0}S × 0.25 + {estimate.form_count_m ?? 0}M × 0.5 + {estimate.form_count_l ?? 0}L × 1.5</span>
+                            </span>
+                          </li>
+                        ) : (
+                          <li className="flex justify-between">
+                            <span>Forms</span>
+                            <span className="font-medium text-foreground">{estimate.form_count ?? 2} <span className="text-muted-foreground font-normal">— flat count</span></span>
+                          </li>
+                        )}
+                        <li className="flex justify-between">
+                          <span>Bulk Import Tier</span>
+                          <span className="font-medium text-foreground">{estimate.bulk_import_amount ?? '<500'} <span className="text-muted-foreground font-normal">— from Bulk Content URLs</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Project Size</span>
+                          <span className="font-medium text-foreground">{estimate.project_size ?? 'Medium'} <span className="text-muted-foreground font-normal">— {estimate.pages_for_integration ?? 20} pages + {estimate.design_layouts ?? 5} layouts + {estimate.custom_posts ?? 2} CPTs</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Project Complexity</span>
+                          <span className="font-medium text-foreground">{estimate.project_complexity ?? 'Simple'} <span className="text-muted-foreground font-normal">— score: {estimate.complexity_score ?? 0} from TPA weighted tiers</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>301 Redirects</span>
+                          <span className="font-medium text-foreground">{Math.max((estimate.pages_for_integration ?? 20) * 0.1, 2).toFixed(1)}h <span className="text-muted-foreground font-normal">— {estimate.pages_for_integration ?? 20} pages × 0.1</span></span>
+                        </li>
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
 
