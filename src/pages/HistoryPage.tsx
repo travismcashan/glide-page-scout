@@ -127,7 +127,7 @@ export default function HistoryPage() {
           void (async () => {
             try {
               const { data: counts, error: countError } = await withQueryTimeout(
-                supabase.rpc('count_integrations', { session_ids: sessionIds }),
+                (supabase.rpc as any)('count_integrations', { session_ids: sessionIds }),
                 12000,
                 'Loading integration counts timed out'
               );
@@ -139,7 +139,7 @@ export default function HistoryPage() {
               }
 
               const intCounts = new Map<string, number>();
-              ((counts ?? []) as Array<{ session_id: string; integration_count: number }>).forEach(r => {
+              ((counts ?? []) as unknown as Array<{ session_id: string; integration_count: number }>).forEach(r => {
                 intCounts.set(r.session_id, r.integration_count);
               });
               setIntegrationCounts(intCounts);
