@@ -260,11 +260,11 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   }
 
   return (
-    <div className="max-w-[85%]">
+    <div className="max-w-[85%] group/userbubble">
       <div className="bg-muted text-secondary-foreground rounded-[24px] rounded-tr-none px-5 py-4 text-base">
         <UserBubbleContent content={content} attachmentNames={attachmentNames} />
       </div>
-      <div className="flex items-center gap-1 mt-1.5 justify-end">
+      <div className="flex items-center gap-1 mt-1.5 justify-end opacity-0 group-hover/userbubble:opacity-100 transition-opacity">
         {!disabled && (
           <button
             onClick={startEdit}
