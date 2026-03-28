@@ -250,9 +250,12 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
       }
     }
 
+    const integrable = pUrls.length + sUrls.length + tUrls.length;
+
     return {
       baseTypeCounts: Object.entries(counts).filter(([, c]) => c > 0) as [string, number][],
       totalPages: total,
+      integrablePages: integrable,
       primaryUrls: pUrls,
       secondaryUrls: sUrls,
       tertiaryUrls: tUrls,
