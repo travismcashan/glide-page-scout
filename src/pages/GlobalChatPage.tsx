@@ -85,18 +85,7 @@ export default function GlobalChatPage() {
     init();
   }, []);
 
-  // Load available sites for attachment
-  useEffect(() => {
-    supabase
-      .from('crawl_sessions')
-      .select('id, domain')
-      .neq('domain', GLOBAL_SESSION_DOMAIN)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        if (data) setAvailableSites(data);
-      });
-  }, []);
+
 
   const handleSelectSite = useCallback((sessionId: string, domain: string) => {
     if (attachedSites.some(s => s.session_id === sessionId)) {
