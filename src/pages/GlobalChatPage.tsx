@@ -4,15 +4,7 @@ import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
-import { Loader2, Globe, X, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+import { Loader2 } from 'lucide-react';
 
 const GLOBAL_SESSION_DOMAIN = '__global_chat__';
 
@@ -24,8 +16,7 @@ export default function GlobalChatPage() {
 
   // Attached sites
   const [attachedSites, setAttachedSites] = useState<AttachedSite[]>([]);
-  const [availableSites, setAvailableSites] = useState<{ id: string; domain: string }[]>([]);
-  const [showSitePicker, setShowSitePicker] = useState(false);
+
 
   // Model state (persisted to localStorage)
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
