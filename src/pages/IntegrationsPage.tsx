@@ -249,6 +249,7 @@ export default function IntegrationsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {activeCount} active{pausedCount > 0 && <> · {pausedCount} paused</>}
+              {' · '}{activeIntegrations.filter(i => i.tier === 'free').length} free · {activeIntegrations.filter(i => i.tier === 'premium').length} premium
             </p>
           </div>
           <div className="flex items-center gap-2">
