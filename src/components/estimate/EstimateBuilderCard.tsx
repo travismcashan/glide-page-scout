@@ -11,6 +11,7 @@ import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2,
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
+import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
@@ -419,25 +420,17 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
         {/* Summary bar */}
         <div className="flex items-center gap-6 py-3 px-4 bg-muted/50 rounded-lg mt-3 mb-4 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Tasks</span>
-            <span className="text-sm font-medium">{totals.selectedCount}/{tasks.length}</span>
+          <MetaStat value={`${totals.selectedCount}/${tasks.length}`} label="Selected Tasks" />
+          <MetaStatDivider />
+          <MetaStat value={totals.totalHours.toFixed(0)} label="Total Hours" />
+          <MetaStatDivider />
+          <MetaStat value={`${totals.lowWeeks}–${totals.highWeeks}`} label="Work Weeks" />
+          <div className="ml-auto flex items-center gap-2">
+            <MetaStat value={formatCurrency(totals.totalCost)} label="Project Budget" />
+            <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0">
+              {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+            </Button>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm font-medium">{totals.totalHours.toFixed(0)}h</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <CalendarDays className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm font-medium">{totals.lowWeeks}–{totals.highWeeks} wks</span>
-          </div>
-          <div className="flex items-center gap-1.5 ml-auto">
-            <DollarSign className="h-3 w-3 text-muted-foreground" />
-            <span className="font-bold text-base">{formatCurrency(totals.totalCost)}</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="ml-2 shrink-0">
-            {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-          </Button>
         </div>
 
         <div className={`grid grid-cols-1 ${sidebarOpen ? 'lg:grid-cols-4' : ''} gap-6`}>
