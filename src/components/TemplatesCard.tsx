@@ -288,10 +288,6 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
     }
   }, [aiTiers, autoSelected, activeTier, templates]);
 
-  if (!pageTags || Object.keys(pageTags).length === 0) {
-    return <p className="text-sm text-muted-foreground">No page classification data available yet.</p>;
-  }
-
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
 
@@ -301,6 +297,10 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       onSelectionChange(designCount);
     }
   }, [designCount, mode, onSelectionChange]);
+
+  if (!pageTags || Object.keys(pageTags).length === 0) {
+    return <p className="text-sm text-muted-foreground">No page classification data available yet.</p>;
+  }
 
   const isEstimate = mode === 'estimate';
 
