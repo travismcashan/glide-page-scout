@@ -321,6 +321,80 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
+function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[]; isStreaming?: boolean }) {
+  const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
+  const allDone = models.every(m => m.status !== 'thinking');
+
+  // Auto-expand all while streaming
+  const effectiveExpanded = isStreaming ? new Set(models.map(m => m.key)) : expandedModels;
+
+  const toggleModel = (key: string) => {
+    if (isStreaming) return; // Don't allow collapse while streaming
+    setExpandedModels(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  return (
+    <div className="mb-6 space-y-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+        {isStreaming && !allDone ? (
+          <Loader2 className="h-5 w-5 animate-spin text-foreground shrink-0" />
+        ) : (
+          <Sparkles className="h-5 w-5 text-foreground shrink-0" />
+        )}
+        <span className="text-base text-foreground font-medium">
+          {isStreaming && !allDone
+            ? `Model Council — ${models.filter(m => m.status === 'done').length}/${models.length} complete`
+            : 'Model Council Thinking'}
+        </span>
+      </div>
+      {models.map(m => {
+        const isExpanded = effectiveExpanded.has(m.key);
+        const statusIcon = m.status === 'done' ? '✅' : m.status === 'error' ? '❌' : undefined;
+        return (
+          <div key={m.key} className="border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleModel(m.key)}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-muted/50 hover:bg-muted transition-colors text-left"
+            >
+              {m.status === 'thinking' ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+              ) : (
+                <span className="text-sm shrink-0">{statusIcon}</span>
+              )}
+              <span className="text-sm font-medium text-foreground">{m.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {m.status === 'thinking' ? 'Thinking…' : m.status === 'done' ? 'Complete' : 'Error'}
+              </span>
+              <span className="ml-auto">
+                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              </span>
+            </button>
+            {isExpanded && m.response && (
+              <div className="px-4 py-3 text-sm border-t border-border">
+                <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
+                  <div className="chat-prose max-w-none text-sm">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.response}</ReactMarkdown>
+                  </div>
+                </Suspense>
+              </div>
+            )}
+            {isExpanded && m.status === 'thinking' && (
+              <div className="px-4 py-3 border-t border-border">
+                <AnimatedThinkingText label="Thinking" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function classifyResearchStep(text: string): 'searching' | 'reading' | 'writing' | 'source' | 'thinking' {
   const lower = text.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return 'source';
