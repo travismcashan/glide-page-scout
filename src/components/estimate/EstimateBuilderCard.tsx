@@ -23,8 +23,8 @@ function TaskRowHeader() {
       <div className="w-24 text-right shrink-0">Role</div>
       <div className="w-16 text-center shrink-0">Variable</div>
       <div className="w-12 text-center shrink-0">#</div>
-      <div className="w-24 text-center">Hrs/Person</div>
-      <div className="w-22 text-center">Total</div>
+      <div className="w-[5.5rem] text-center shrink-0">Hrs/Person</div>
+      <div className="w-[5.5rem] text-center shrink-0">Total</div>
     </div>
   );
 }
