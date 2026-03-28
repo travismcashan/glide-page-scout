@@ -308,12 +308,16 @@ export function getBulkImportHours(amount: string | null, siteBuilderAcf: boolea
     switch (amount) {
       case '<500': case '< 500': return 28;
       case '500-1000': case '500 +': return 38;
+      case '1000-5000': return 52;
+      case '>5000': return 72;
       default: return 28;
     }
   } else {
     switch (amount) {
       case '<500': case '< 500': return 16;
       case '500-1000': case '500 +': return 22;
+      case '1000-5000': return 32;
+      case '>5000': return 44;
       default: return 16;
     }
   }
@@ -324,6 +328,8 @@ function getBulkImportCheckHours(amount: string | null): number {
   switch (amount) {
     case '<500': case '< 500': return 4;
     case '500-1000': case '500 +': return 6;
+    case '1000-5000': return 10;
+    case '>5000': return 16;
     default: return 4;
   }
 }
