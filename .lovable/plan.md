@@ -1,37 +1,36 @@
 
 
-## Separate Analysis vs. Estimate Modes for Templates & Forms Cards
+## Connect Page Tiers to Pages for Integration Variable
 
-**Goal**: Analysis tab shows raw data (what exists on the site). Estimate tab shows the AI recommendation tiers (S/M/L) for choosing what goes into the estimate calculation.
+**Goal**: Add S/M/L tier selection to the RedesignEstimateCard (estimate mode only) that dynamically sets `pages_for_integration` in the project variables.
+
+### Tier Logic (no AI needed)
+- **Small**: Primary pages count
+- **Medium**: Primary + Secondary
+- **Large**: Primary + Secondary + Tertiary
 
 ### Approach
-
-Add a `mode` prop (`'analysis' | 'estimate'`) to both `TemplatesCard` and `FormsCard`. Default to `'analysis'`.
-
-**When `mode === 'analysis'`:**
-- Do NOT auto-trigger AI recommendations
-- Hide the S/M/L `ToggleGroup` tier selector
-- Hide the AI sparkle badge and reasoning sections
-- Hide checkboxes for including/excluding templates
-- Show all templates/forms as a flat read-only list (no "recommended" vs "not included" split)
-
-**When `mode === 'estimate'`:**
-- Keep all current behavior: auto-trigger AI, show tier toggles, checkboxes, reasoning, etc.
+Add the same `mode` prop pattern used by TemplatesCard.
 
 ### Files changed
 
-1. **`src/components/TemplatesCard.tsx`**
+1. **`src/components/RedesignEstimateCard.tsx`**
    - Add `mode?: 'analysis' | 'estimate'` prop (default `'analysis'`)
-   - Skip `fetchAiRecommendations` auto-run when mode is `'analysis'`
-   - Conditionally hide tier toggle, AI badge, reasoning, checkboxes
+   - Add `onSelectionChange?: (count: number) => void` prop
+   - In estimate mode: render S/M/L `ToggleGroup` (same styling as TemplatesCard)
+   - Track `activeTier` state; on tier change, compute the sum and call `onSelectionChange`
+   - Add "Detected Pages" and "Selected Pages" MetaStats (matching template card pattern)
+   - Analysis mode: show all three counts read-only as today, no toggles
 
-2. **`src/components/FormsCard.tsx`**
-   - Same `mode` prop and conditional rendering as above
+2. **`src/components/estimate/EstimateBuilderCard.tsx`**
+   - Pass `mode="estimate"` to `RedesignEstimateCard`
+   - Wire `onSelectionChange` to update `estimate.pages_for_integration` via `handleVariablesChange`
 
 3. **`src/pages/ResultsPage.tsx`**
-   - Pass `mode="analysis"` to both cards in the Analysis tab (no change needed since that's the default)
-   - Remove `savedTiers`, `onTiersChange`, `onRerunRequest` props from the Analysis tab instances
+   - Ensure analysis tab passes `mode="analysis"` (default) — no functional change needed
 
-4. **`src/components/estimate/EstimateBuilderCard.tsx`**
-   - Pass `mode="estimate"` to both `TemplatesCard` and `FormsCard` in the Variables tab
+### Technical detail
+- Tier state stored locally in component (like TemplatesCard), no DB persistence needed beyond the estimate variable
+- Default tier on mount: auto-select M (Primary + Secondary) as a sensible default
+- The `onSelectionChange` callback fires on tier change with the computed page count
 
