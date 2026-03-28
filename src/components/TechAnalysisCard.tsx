@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { Brain, AlertTriangle, TrendingUp, Server, Wrench, ChevronRight, ChevronDown } from 'lucide-react';
 import { CardTabs } from '@/components/CardTabs';
@@ -323,7 +324,37 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
   if (isEstimate) {
     const selectedCount = tier === 'S' ? pluginCount : tier === 'M' ? pluginCount + thirdPartyCount : pluginCount + thirdPartyCount + specialSetupCount;
     return (
-      scope ? <ScopeTab scope={scope} mode="estimate" tierSelector={tierSelector} selectedTpaCount={selectedCount} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>
+      <div className="space-y-4">
+        {scope ? <ScopeTab scope={scope} mode="estimate" tierSelector={tierSelector} selectedTpaCount={selectedCount} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>}
+        
+        {/* Tier reasoning */}
+        <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+          {tier === 'S' && (
+            <>
+              <div className="text-xs font-semibold text-foreground">Small Scope</div>
+              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+                <ReactMarkdown>{`Covers **Plugins only** — ${pluginCount} detected items. These are typically CMS plugins, widgets, and extensions that require configuration during the build phase. Third-party integrations and special setup items are excluded and would need to be handled separately or deferred to a post-launch phase.`}</ReactMarkdown>
+              </div>
+            </>
+          )}
+          {tier === 'M' && (
+            <>
+              <div className="text-xs font-semibold text-foreground">Medium Scope</div>
+              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+                <ReactMarkdown>{`Includes **Plugins and Third-Party Integrations** — ${pluginCount + thirdPartyCount} items total. Beyond CMS plugins, this adds the ${thirdPartyCount} external service connections (analytics, CRMs, marketing tools, etc.) that require API configuration or embed setup. Special setup items with complex implementation needs are excluded.`}</ReactMarkdown>
+              </div>
+            </>
+          )}
+          {tier === 'L' && (
+            <>
+              <div className="text-xs font-semibold text-foreground">Large Scope</div>
+              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+                <ReactMarkdown>{`**Comprehensive integration coverage** — all ${pluginCount + thirdPartyCount + specialSetupCount} items including Plugins, Third-Party Integrations, and ${specialSetupCount} Special Setup items. Special setup items typically require custom development, complex API integrations, or significant configuration effort beyond standard plugin installation.`}</ReactMarkdown>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     );
   }
 
