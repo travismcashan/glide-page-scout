@@ -2431,6 +2431,7 @@ export default function ResultsPage() {
                       setIntegrationDurations(d => { const next = { ...d }; delete next['tech-analysis']; return next; });
                       setTechAnalysisData(null);
                       setTechAnalysisFailed(false);
+                      techAnalysisTriggeredRef.current = false;
                       clearError('tech-analysis');
                       if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
                       updateSession({ tech_analysis_data: null } as any);
