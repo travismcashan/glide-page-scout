@@ -61,7 +61,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  
   const [creating, setCreating] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('variables');
   const [roleCollapsed, setRoleCollapsed] = useState(false);
