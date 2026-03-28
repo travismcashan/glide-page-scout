@@ -420,13 +420,12 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
         {/* Summary bar */}
         <div className="flex items-center gap-6 py-3 px-4 bg-muted/50 rounded-lg mt-3 mb-4 flex-wrap">
-          <MetaStat value={`${totals.selectedCount}/${tasks.length}`} label="Selected Tasks" />
+          <MetaStat value={formatCurrency(Math.round(totals.totalCost / 100) * 100)} label="Project Budget" />
+          <MetaStatDivider />
+          <MetaStat value={`${Math.round(totals.lowWeeks)}–${Math.round(totals.highWeeks)}`} label="Work Weeks" />
           <MetaStatDivider />
           <MetaStat value={totals.totalHours.toFixed(0)} label="Total Hours" />
-          <MetaStatDivider />
-          <MetaStat value={`${totals.lowWeeks}–${totals.highWeeks}`} label="Work Weeks" />
-          <div className="ml-auto flex items-center gap-2">
-            <MetaStat value={formatCurrency(totals.totalCost)} label="Project Budget" />
+          <div className="ml-auto">
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0">
               {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
             </Button>
