@@ -137,6 +137,9 @@ export default function SettingsPage() {
   const [matchThreshold, setMatchThreshold] = useState(
     () => parseFloat(localStorage.getItem('rag-match-threshold') || '0.15')
   );
+  const [contextWindowSize, setContextWindowSize] = useState<'small' | 'medium' | 'large'>(
+    () => (localStorage.getItem('ai-context-window') as 'small' | 'medium' | 'large') || 'medium'
+  );
 
   // Google Docs import settings
   const [tabMode, setTabMode] = useState<'all' | 'choose'>(
@@ -781,7 +784,47 @@ export default function SettingsPage() {
 
         <div className="border-t border-border" />
 
-        {/* ── Style & Tone ── */}
+        {/* ── Response Size ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Response Size</h2>
+            <p className="text-sm text-muted-foreground mt-1">Control how long the AI's responses can be. This sets the maximum output tokens for the model.</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {([
+              { key: 'small' as const, emoji: '⚡', label: 'Short', desc: 'Concise, quick answers. ~16K tokens max. Best for simple questions where you want fast, focused responses.' },
+              { key: 'medium' as const, emoji: '⚖️', label: 'Medium', desc: 'Balanced depth and speed. ~64K tokens max. Recommended default for most conversations.' },
+              { key: 'large' as const, emoji: '📖', label: 'Long', desc: 'Deep, thorough analysis. ~128K tokens max. Use for complex research or when you need exhaustive detail.' },
+            ]).map(p => {
+              const active = contextWindowSize === p.key;
+              return (
+                <button
+                  key={p.key}
+                  onClick={() => {
+                    setContextWindowSize(p.key);
+                    localStorage.setItem('ai-context-window', p.key);
+                  }}
+                  className={`text-left rounded-lg border px-3 py-2.5 transition-all ${active ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-border hover:border-primary/40 hover:bg-muted/50'}`}
+                >
+                  <p className={`text-sm font-semibold ${active ? 'text-primary' : ''}`}>{p.emoji} {p.label}</p>
+                  <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{p.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              💡 <strong>How this works:</strong> This controls the maximum number of tokens the AI can use in its response. "Short" keeps answers concise and fast. "Medium" gives the AI room for detailed explanations. "Long" allows maximum-depth analysis — useful for research questions but responses take longer.
+              {contextWindowSize === 'small' && ' Claude models get 16K tokens, Gemini/GPT get 16K, Perplexity gets 4K.'}
+              {contextWindowSize === 'medium' && ' Claude Opus gets 128K tokens, other Claude models get 64K, Gemini/GPT get 64K, Perplexity gets 16K.'}
+              {contextWindowSize === 'large' && ' Claude Opus gets 128K tokens (max), Gemini/GPT get 128K, Perplexity gets 16K (max).'}
+            </p>
+          </div>
+        </section>
+
+        <div className="border-t border-border" />
         <section className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><Sparkles className="h-5 w-5" /> Style &amp; Tone</h2>
