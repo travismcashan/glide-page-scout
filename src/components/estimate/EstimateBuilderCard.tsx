@@ -76,7 +76,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
 
   const handleTechTierChange = useCallback((counts: TechTierCounts) => {
-    if (!estimate) return;
+    if (!estimate || tasks.length === 0) return;
     const weightedScore = (counts.plugins ?? 0) * 1 + (counts.thirdParty ?? 0) * 2 + (counts.specialSetup ?? 0) * 4;
     const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2, complexity_score: weightedScore };
     const derived = {
@@ -90,7 +90,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   }, [estimate, tasks, formulas]);
 
   const handleFormTierChange = useCallback((tierCounts: { s: number; m: number; l: number; total: number }) => {
-    if (!estimate) return;
+    if (!estimate || tasks.length === 0) return;
     const updated = { ...estimate, form_count_s: tierCounts.s, form_count_m: tierCounts.m, form_count_l: tierCounts.l, form_count: tierCounts.total };
     const derived = {
       ...updated,
