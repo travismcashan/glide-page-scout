@@ -292,6 +292,128 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
     setMergeOpen(true);
   };
 
+  const tierLabel = (tier: BulkTier) => {
+    const labels = { S: 'Small', M: 'Medium', L: 'Large' };
+    const tc = tierCounts[tier];
+    return `${labels[tier]} · ${tc.types} type${tc.types !== 1 ? 's' : ''}`;
+  };
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const renderContentRow = (row: typeof summary[number], isIncluded: boolean) => {
+    const isExpanded = expandedTypes.has(row.type);
+    const typeUrls = urlsByType[row.type] || [];
+    const hasClassified = typeUrls.length > 0;
+    const fallbackUrls: ClassifiedUrl[] = !hasClassified
+      ? row.urls.map(u => ({ url: u, contentType: row.type, confidence: 'medium' as const, source: '', baseType: row.baseType }))
+      : [];
+    const displayUrls = hasClassified ? typeUrls : fallbackUrls;
+
+    return (
+      <div key={row.type} className={`${selected.has(row.type) ? 'bg-primary/5' : ''} ${!isIncluded && isEstimate ? 'opacity-50' : ''}`}>
+        <button
+          className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 cursor-pointer transition-colors text-left border-t border-border first:border-t-0"
+          onClick={() => setExpandedTypes(prev => { const next = new Set(prev); if (isExpanded) next.delete(row.type); else next.add(row.type); return next; })}
+        >
+          {isEstimate && (
+            <Checkbox
+              checked={isIncluded}
+              className="mx-0"
+              disabled
+            />
+          )}
+          {mergeMode && !isEstimate && (
+            <Checkbox
+              checked={selected.has(row.type)}
+              onCheckedChange={() => toggleSelect(row.type)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+          {isExpanded
+            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          }
+          <span
+            className={`text-xs font-semibold text-foreground ${onDataChange ? 'hover:text-primary hover:underline' : ''}`}
+            onClick={(e) => {
+              if (!onDataChange) return;
+              e.stopPropagation();
+              setEditingType(row.type);
+              setEditValue(row.type);
+            }}
+          >
+            {editingType === row.type ? (
+              <Input
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => handleRename(row.type)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRename(row.type);
+                  if (e.key === 'Escape') setEditingType(null);
+                }}
+                className="h-6 text-xs px-1.5 py-0 w-40"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : `${row.type}${row.baseType ? ` (${row.baseType === 'Archive' ? 'Taxonomy' : row.baseType === 'Search' ? 'Search — i.e. query strings' : row.baseType})` : ''}`}
+          </span>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{row.count}</Badge>
+        </button>
+
+        {isExpanded && (
+          <div>
+            <ExpandableUrlRows
+              urls={displayUrls}
+              allTypes={allTypes}
+              onChangeType={onDataChange ? handleChangeUrlType : undefined}
+              readOnly={!onDataChange}
+              navMap={navMap}
+              pageTags={pageTags}
+              onPageTagChange={onPageTagChange}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderShowMore = (sectionKey: string, items: typeof summary) => {
+    const LIMIT = 5;
+    const isExpanded = expandedSections.has(sectionKey);
+    const hasMore = items.length > LIMIT;
+    const visible = isExpanded ? items : items.slice(0, LIMIT);
+    const isIncluded = sectionKey === 'included';
+    return (
+      <>
+        {visible.map(row => renderContentRow(row, isIncluded))}
+        {hasMore && (
+          <div className="relative">
+            {!isExpanded && (
+              <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+            )}
+            <button
+              onClick={() => setExpandedSections(prev => {
+                const next = new Set(prev);
+                if (next.has(sectionKey)) next.delete(sectionKey); else next.add(sectionKey);
+                return next;
+              })}
+              className="w-full flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronsUpDown className="h-3 w-3" />
+              {isExpanded ? 'Show less' : `Show all ${items.length}`}
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Stats row */}
@@ -300,20 +422,35 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           <MetaStat value={repeatingCount} label="Total URLs" />
           <MetaStatDivider />
           <MetaStat value={summary.length} label="Content Types" />
-          <MetaStatDivider />
-          <MetaStat value={stats.total} label="Total URLs Analyzed" />
+          {isEstimate && activeTier && (
+            <>
+              <MetaStatDivider />
+              <MetaStat value={tierCounts[activeTier].types} label="Included Types" />
+            </>
+          )}
         </div>
-        {onDataChange && (
-          <Button
-            variant={mergeMode ? 'secondary' : 'outline'}
-            size="sm"
-            className="text-xs h-7 gap-1"
-            onClick={() => { setMergeMode(!mergeMode); if (mergeMode) setSelected(new Set()); }}
-          >
-            <Merge className="h-3 w-3" />
-            {mergeMode ? 'Cancel' : 'Merge Types'}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isEstimate && (
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && setActiveTier(v as BulkTier)} size="sm" variant="outline">
+              {(['S', 'M', 'L'] as BulkTier[]).map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
+                  {tierLabel(tier)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
+          {onDataChange && !isEstimate && (
+            <Button
+              variant={mergeMode ? 'secondary' : 'outline'}
+              size="sm"
+              className="text-xs h-7 gap-1"
+              onClick={() => { setMergeMode(!mergeMode); if (mergeMode) setSelected(new Set()); }}
+            >
+              <Merge className="h-3 w-3" />
+              {mergeMode ? 'Cancel' : 'Merge Types'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Merge action bar */}
@@ -326,90 +463,71 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
         </div>
       )}
 
-
-      {/* Expandable rows */}
+      {/* Content rows */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
-        {/* Sticky header — matches other tables */}
         <div className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 flex items-center px-3 py-1.5 border-b border-border">
+          {isEstimate && <span className="w-6 shrink-0" />}
           <span className="flex-1 text-xs font-medium text-muted-foreground">URL</span>
           <span className="w-[70px] text-center text-xs font-medium text-muted-foreground">Type</span>
           <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
         </div>
-        {summary.map((row) => {
-          const isExpanded = expandedTypes.has(row.type);
-          const typeUrls = urlsByType[row.type] || [];
-          const hasClassified = typeUrls.length > 0;
-          const fallbackUrls: ClassifiedUrl[] = !hasClassified
-            ? row.urls.map(u => ({ url: u, contentType: row.type, confidence: 'medium' as const, source: '', baseType: row.baseType }))
-            : [];
-          const displayUrls = hasClassified ? typeUrls : fallbackUrls;
 
-          return (
-            <div key={row.type} className={selected.has(row.type) ? 'bg-primary/5' : ''}>
-              {/* Collapsible header — unified style */}
-              <button
-                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 cursor-pointer transition-colors text-left border-t border-border first:border-t-0"
-                onClick={() => setExpandedTypes(prev => { const next = new Set(prev); if (isExpanded) next.delete(row.type); else next.add(row.type); return next; })}
-              >
-                {mergeMode && (
-                  <Checkbox
-                    checked={selected.has(row.type)}
-                    onCheckedChange={(e) => { e; toggleSelect(row.type); }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                )}
-                {isExpanded
-                  ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                }
-                <span
-                  className={`text-xs font-semibold text-foreground ${onDataChange ? 'hover:text-primary hover:underline' : ''}`}
-                  onClick={(e) => {
-                    if (!onDataChange) return;
-                    e.stopPropagation();
-                    setEditingType(row.type);
-                    setEditValue(row.type);
-                  }}
+        {isEstimate && activeTier ? (
+          <>
+            {/* Included section */}
+            <button
+              onClick={() => toggleSection('included')}
+              className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+            >
+              {collapsedSections.has('included')
+                ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              }
+              <span className="text-xs font-semibold text-foreground">Included in Migration</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{includedRows.length}</Badge>
+            </button>
+            {!collapsedSections.has('included') && (
+              includedRows.length > 0
+                ? renderShowMore('included', includedRows)
+                : <p className="px-3 py-2 text-xs text-muted-foreground">No bulk content included at this tier.</p>
+            )}
+
+            {/* Not included section */}
+            {excludedRows.length > 0 && (
+              <>
+                <button
+                  onClick={() => toggleSection('not-included')}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
                 >
-                  {editingType === row.type ? (
-                    <Input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleRename(row.type)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleRename(row.type);
-                        if (e.key === 'Escape') setEditingType(null);
-                      }}
-                      className="h-6 text-xs px-1.5 py-0 w-40"
-                      autoFocus
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : `${row.type}${row.baseType ? ` (${row.baseType === 'Archive' ? 'Taxonomy' : row.baseType === 'Search' ? 'Search — i.e. query strings' : row.baseType})` : ''}`}
-                </span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{row.count}</Badge>
-              </button>
-
-              {/* Expanded content */}
-              {isExpanded && (
-                <div>
-                  <ExpandableUrlRows
-                    urls={displayUrls}
-                    allTypes={allTypes}
-                    onChangeType={onDataChange ? handleChangeUrlType : undefined}
-                    readOnly={!onDataChange}
-                    navMap={navMap}
-                    pageTags={pageTags}
-                    onPageTagChange={onPageTagChange}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
+                  {collapsedSections.has('not-included')
+                    ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  }
+                  <span className="text-xs font-semibold text-foreground">Not Included</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{excludedRows.length}</Badge>
+                </button>
+                {!collapsedSections.has('not-included') && renderShowMore('not-included', excludedRows)}
+              </>
+            )}
+          </>
+        ) : (
+          summary.map(row => renderContentRow(row, true))
+        )}
       </div>
 
+      {/* Tier reasoning */}
+      {isEstimate && activeTier && (
+        <div className="space-y-1 border-l-2 border-primary/30 pl-3">
+          <p className="text-xs text-muted-foreground">
+            {activeTier === 'S' && 'No bulk content migration — all posts and custom post types will be excluded from the estimate.'}
+            {activeTier === 'M' && `Blog posts included for migration (${tierCounts.M.urls} URLs across ${tierCounts.M.types} type${tierCounts.M.types !== 1 ? 's' : ''}). Custom post types are excluded.`}
+            {activeTier === 'L' && `All bulk content included — blog posts and custom post types (${tierCounts.L.urls} URLs across ${tierCounts.L.types} type${tierCounts.L.types !== 1 ? 's' : ''}).`}
+          </p>
+        </div>
+      )}
+
       {/* How content types were identified */}
-      {Object.values(stats.bySource).some(c => c > 0) && (
+      {!isEstimate && Object.values(stats.bySource).some(c => c > 0) && (
         <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
           <span>How content types were identified:</span>
           {Object.entries(stats.bySource)
