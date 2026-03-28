@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X, Presentation } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -2725,125 +2725,79 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     );
                   })()}
                 </div>
-
-                {/* RAG Depth */}
-                <div className="space-y-2 border-t pt-3">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 flex items-center gap-1">
-                    <Gauge className="h-3 w-3" />
-                    Context
-                  </p>
-                  {/* Presets */}
-                  <div className="grid grid-cols-3 gap-1.5 px-1">
-                    {[
-                      { emoji: '🎯', label: 'Everyday', chunks: 15, threshold: 0.25 },
-                      { emoji: '⚖️', label: 'Default', chunks: 50, threshold: 0.20 },
-                      { emoji: '🔬', label: 'Be Right', chunks: 100, threshold: 0.50 },
-                    ].map(p => {
-                      const active = ragDepth.match_count === p.chunks && Math.abs(ragDepth.match_threshold - p.threshold) < 0.01;
-                      return (
-                        <button
-                          key={p.label}
-                          onClick={() => setRagDepth({ match_count: p.chunks, match_threshold: p.threshold })}
-                          className={`rounded-md border px-1.5 py-1 text-center transition-all ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 text-muted-foreground hover:text-foreground'}`}
-                        >
-                          <span className="text-xs">{p.emoji}</span>
-                          <p className="text-[10px] font-medium leading-tight">{p.label}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="px-1 space-y-2.5">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-muted-foreground">How much to read</label>
-                        <span className="text-xs font-mono font-medium text-foreground">{ragDepth.match_count}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={5}
-                        max={100}
-                        step={5}
-                        value={ragDepth.match_count}
-                        onChange={e => setRagDepth(prev => ({ ...prev, match_count: Number(e.target.value) }))}
-                        className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
-                      />
-                      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
-                        <span>Less <span className="opacity-60">(faster)</span></span>
-                        <span>More <span className="opacity-60">(slower)</span></span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-muted-foreground">How picky to be</label>
-                        <span className="text-xs font-mono font-medium text-foreground">{ragDepth.match_threshold.toFixed(2)}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0.05}
-                        max={0.8}
-                        step={0.05}
-                        value={ragDepth.match_threshold}
-                        onChange={e => setRagDepth(prev => ({ ...prev, match_threshold: Number(e.target.value) }))}
-                        className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-primary"
-                      />
-                      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
-                        <span>Less picky <span className="opacity-60">(broader)</span></span>
-                        <span>More picky <span className="opacity-60">(precise)</span></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Context Window / Response Size */}
-                <div className="space-y-2 border-t pt-3">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 flex items-center gap-1">
-                    <MessageSquare className="h-3 w-3" />
-                    Response Size
-                  </p>
-                  <div className="grid grid-cols-3 gap-1.5 px-1">
-                    {([
-                      { key: 'small' as const, emoji: '⚡', label: 'Short', desc: 'Quick answers' },
-                      { key: 'medium' as const, emoji: '⚖️', label: 'Medium', desc: 'Default' },
-                      { key: 'large' as const, emoji: '📖', label: 'Long', desc: 'Deep analysis' },
-                    ]).map(p => {
-                      const active = contextWindowSize === p.key;
-                      return (
-                        <button
-                          key={p.key}
-                          onClick={() => { setContextWindowSize(p.key); localStorage.setItem('ai-context-window', p.key); }}
-                          className={`rounded-md border px-1.5 py-1 text-center transition-all ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 text-muted-foreground hover:text-foreground'}`}
-                        >
-                          <span className="text-xs">{p.emoji}</span>
-                          <p className="text-[10px] font-medium leading-tight">{p.label}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground px-1">
-                    {contextWindowSize === 'small' ? 'Concise responses — faster, less tokens' : contextWindowSize === 'large' ? 'Detailed responses — slower, more thorough' : 'Balanced depth and speed'}
-                  </p>
-                </div>
               </div>
             </PopoverContent>
           </Popover>
 
-          {/* Deep Research toggle (Gemini only) */}
-          {provider === 'gemini' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDeepResearchMode(prev => !prev)}
-              disabled={isStreaming}
-              className={`shrink-0 rounded-full h-8 gap-1.5 text-xs px-3 transition-colors ${
-                deepResearchMode
-                  ? 'bg-primary/15 text-primary hover:bg-primary/20'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Telescope className="h-3.5 w-3.5" />
-              Deep Research
-            </Button>
-          )}
+          {/* Modes popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isStreaming}
+                className={`shrink-0 rounded-full h-8 gap-1.5 text-xs px-3 transition-colors ${
+                  deepResearchMode
+                    ? 'bg-primary/15 text-primary hover:bg-primary/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {deepResearchMode ? <Telescope className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {deepResearchMode ? 'Deep Research' : 'Modes'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-3 rounded-2xl" align="start" side="top" sideOffset={10}>
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Modes</p>
+                <button
+                  className={`flex items-center gap-2 text-sm rounded-xl px-2 py-2 w-full text-left transition-colors ${
+                    !deepResearchMode
+                      ? 'hover:bg-muted/50 text-foreground'
+                      : 'hover:bg-muted/50 text-muted-foreground'
+                  }`}
+                  onClick={() => setDeepResearchMode(false)}
+                >
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-tight">Chat</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Standard conversation</p>
+                  </div>
+                  {!deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 ml-auto shrink-0" />}
+                </button>
+                <button
+                  className={`flex items-center gap-2 text-sm rounded-xl px-2 py-2 w-full text-left transition-colors ${
+                    deepResearchMode
+                      ? 'bg-primary/10 text-primary'
+                      : 'hover:bg-muted/50 text-foreground'
+                  }`}
+                  onClick={() => {
+                    setDeepResearchMode(true);
+                    if (provider !== 'gemini') onProviderChange('gemini');
+                  }}
+                >
+                  <Telescope className="h-3.5 w-3.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-tight">Deep Research</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Multi-step AI research report</p>
+                  </div>
+                  {deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 ml-auto shrink-0" />}
+                </button>
+                <button
+                  className="flex items-center gap-2 text-sm rounded-xl px-2 py-2 w-full text-left transition-colors hover:bg-muted/50 text-foreground"
+                  onClick={() => {
+                    setDeepResearchMode(false);
+                    toast.info('Presentation mode: Ask the AI to create a presentation and it will generate a Beautiful.ai deck for you.');
+                  }}
+                >
+                  <Presentation className="h-3.5 w-3.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-tight">Presentation</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Generate Beautiful.ai decks</p>
+                  </div>
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* Provider & Reasoning selectors */}
           <div className="ml-auto flex items-center gap-0.5" style={{ marginRight: -11 }}>
