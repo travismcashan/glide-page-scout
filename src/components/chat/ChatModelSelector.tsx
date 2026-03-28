@@ -48,6 +48,8 @@ export const VERSIONS: Record<ModelProvider, ModelOption[]> = {
     { id: 'claude-opus', label: 'Opus 4.6', provider: 'claude', description: '1M context, most capable', tier: 'powerful', reasoning: CLAUDE_REASONING, reasoningLabels: { none: 'Regular', high: 'Extended Thinking' } },
   ],
   gpt: [
+    { id: 'openai/gpt-5-nano', label: 'GPT-5 Nano', provider: 'gpt', description: 'Fastest, cheapest', tier: 'fast', reasoning: NO_REASONING, reasoningLabels: { none: 'Instant' } },
+    { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', provider: 'gpt', description: 'Fast & capable', tier: 'fast', reasoning: GPT_REASONING, reasoningLabels: { none: 'Instant', medium: 'Thinking', high: 'Pro' } },
     { id: 'openai/gpt-5', label: 'GPT-5', provider: 'gpt', description: 'Powerful all-rounder', tier: 'powerful', reasoning: GPT_REASONING, reasoningLabels: { none: 'Instant', medium: 'Thinking', high: 'Pro' } },
     { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'gpt', description: 'Latest, best reasoning', tier: 'powerful', reasoning: GPT_REASONING, reasoningLabels: { none: 'Instant', medium: 'Thinking', high: 'Pro' } },
   ],
