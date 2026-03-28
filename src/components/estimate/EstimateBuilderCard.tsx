@@ -534,12 +534,15 @@ function getProjectDuration(totalHours: number): string {
                   <FileText className="h-3.5 w-3.5" />SOW View
                 </TabsTrigger>
               </TabsList>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {saveStatus === 'saving' && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Saving…</span>
+                )}
+                {saveStatus === 'saved' && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Save className="h-3 w-3" />Saved</span>
+                )}
                 <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
                   <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" onClick={handleSave} disabled={saving}>
-                  <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </div>
