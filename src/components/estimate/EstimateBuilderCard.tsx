@@ -102,7 +102,15 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     if (formsData?.forms) {
       defaults.form_count = Array.isArray(formsData.forms) ? formsData.forms.length : 0;
     }
-    if (wappalyzerData?.technologies) {
+    // Prefer Tech Analysis scope counts; fall back to Wappalyzer categories
+    if (techAnalysisData?.scope) {
+      const scope = techAnalysisData.scope;
+      const combined =
+        (Array.isArray(scope.plugins) ? scope.plugins.length : 0) +
+        (Array.isArray(scope.thirdPartyIntegrations) ? scope.thirdPartyIntegrations.length : 0) +
+        (Array.isArray(scope.specialSetup) ? scope.specialSetup.length : 0);
+      defaults.third_party_integrations = combined || 2;
+    } else if (wappalyzerData?.technologies) {
       const integrationCats = ['marketing-automation', 'analytics', 'crm', 'email', 'payment-processors'];
       const integrations = wappalyzerData.technologies.filter((t: any) =>
         t.categories?.some((c: any) => integrationCats.includes(c.slug))
@@ -110,7 +118,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
       defaults.third_party_integrations = integrations.length || 2;
     }
     return defaults;
-  }, [pageTags, contentTypesData, formsData, wappalyzerData]);
+  }, [pageTags, contentTypesData, formsData, wappalyzerData, techAnalysisData]);
 
   useEffect(() => { loadEstimate(); }, [sessionId]);
 
