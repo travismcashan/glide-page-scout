@@ -283,30 +283,84 @@ export default function GroupDetailPage() {
                 <Plus className="h-4 w-4" /> Add Site
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Add Site to Group</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">URL</label>
-                  <div className="flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <Input
-                      placeholder="Enter a URL to analyze…"
-                      value={newUrl}
-                      onChange={e => setNewUrl(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleAddSite()}
-                    />
+              <Tabs value={addTab} onValueChange={setAddTab} className="w-full">
+                <TabsList className="w-full">
+                  <TabsTrigger value="existing" className="flex-1 gap-1.5">
+                    <History className="h-3.5 w-3.5" /> Existing Sites
+                  </TabsTrigger>
+                  <TabsTrigger value="new" className="flex-1 gap-1.5">
+                    <Plus className="h-3.5 w-3.5" /> New URL
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="existing" className="mt-4 space-y-4">
+                  {loadingExisting ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : existingSessions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No available sites to add.
+                    </p>
+                  ) : (
+                    <ScrollArea className="h-[280px] -mx-1 px-1">
+                      <div className="space-y-1">
+                        {existingSessions.map(s => (
+                          <label
+                            key={s.id}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                          >
+                            <Checkbox
+                              checked={selectedSessionIds.has(s.id)}
+                              onCheckedChange={() => toggleSession(s.id)}
+                            />
+                            <Globe className="h-4 w-4 shrink-0 text-primary/60" />
+                            <span className="text-sm font-medium flex-1 truncate">{s.domain}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(s.created_at), 'MMM d, yyyy')}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                  <DialogFooter>
+                    <Button
+                      onClick={handleAddExisting}
+                      disabled={selectedSessionIds.size === 0 || adding}
+                      className="gap-2"
+                    >
+                      {adding && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Add {selectedSessionIds.size || ''} Site{selectedSessionIds.size !== 1 ? 's' : ''}
+                    </Button>
+                  </DialogFooter>
+                </TabsContent>
+
+                <TabsContent value="new" className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">URL</label>
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Input
+                        placeholder="Enter a URL to analyze…"
+                        value={newUrl}
+                        onChange={e => setNewUrl(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddSite()}
+                      />
+                    </div>
                   </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleAddSite} disabled={!newUrl.trim() || adding} className="gap-2">
-                  {adding && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Add & Analyze
-                </Button>
-              </DialogFooter>
+                  <DialogFooter>
+                    <Button onClick={handleAddSite} disabled={!newUrl.trim() || adding} className="gap-2">
+                      {adding && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Add & Analyze
+                    </Button>
+                  </DialogFooter>
+                </TabsContent>
+              </Tabs>
             </DialogContent>
           </Dialog>
         </div>
