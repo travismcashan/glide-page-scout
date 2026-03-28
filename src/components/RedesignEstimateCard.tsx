@@ -214,7 +214,7 @@ function PageGroupSection({
           {hasMore && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="w-full flex items-center justify-center gap-1 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors border-t border-border/50"
+              className="w-full flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <ChevronsUpDown className="h-3 w-3" />
               {expanded ? 'Show less' : `Show all ${urls.length}`}
