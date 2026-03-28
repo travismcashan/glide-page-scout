@@ -635,6 +635,18 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
             Stop Sync
           </Button>
         )}
+        {!renaming && documents.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleRenameAll} disabled={uploading || ingesting} title="AI-rename all documents based on content">
+            <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+            Rename All
+          </Button>
+        )}
+        {renaming && (
+          <Button variant="outline" size="sm" onClick={() => { renameAbortRef.current = true; }} className="text-destructive hover:text-destructive" title="Stop renaming">
+            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            Stop ({renameProgress.done}/{renameProgress.total})
+          </Button>
+        )}
       </div>
 
       <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
