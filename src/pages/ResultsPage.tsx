@@ -1322,14 +1322,14 @@ export default function ResultsPage() {
     setFormsFailed(false);
     clearError('forms');
     try {
-      // Merge discovered URLs with nav structure URLs to catch form pages not in sitemap
+      // Merge discovered URLs + nav structure URLs + sitemap URLs for maximum coverage
       const baseUrls = effectiveDiscoveredUrls.length > 0 ? effectiveDiscoveredUrls : [session.base_url];
-      const navUrls: string[] = [];
+      const extraUrls: string[] = [];
       const nav = (session as any).nav_structure;
       if (nav) {
         const extract = (items: any[]) => {
           for (const item of items) {
-            if (item?.url) navUrls.push(item.url);
+            if (item?.url) extraUrls.push(item.url);
             if (item?.children) extract(item.children);
           }
         };
@@ -1338,7 +1338,12 @@ export default function ResultsPage() {
         if (nav.secondary) extract(nav.secondary);
         if (nav.footer) extract(nav.footer);
       }
-      const urlSet = new Set([...baseUrls, ...navUrls]);
+      // Include sitemap URLs
+      const sitemapData = (session as any).sitemap_data;
+      if (sitemapData?.urls && Array.isArray(sitemapData.urls)) {
+        extraUrls.push(...sitemapData.urls);
+      }
+      const urlSet = new Set([...baseUrls, ...extraUrls]);
       const urls = Array.from(urlSet);
       const result = await formsDetectApi.detect(urls, session.domain);
       if (result.success && result.data) {
