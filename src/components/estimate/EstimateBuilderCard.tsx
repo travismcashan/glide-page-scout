@@ -619,7 +619,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >
-                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} />
+                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} savedTier={estimate.tech_tier} onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, tech_tier: tier } : prev)} />
                   </SectionCard>
                 )}
 
@@ -632,7 +632,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
-                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev)} />
                   </SectionCard>
                 )}
 
