@@ -694,19 +694,22 @@ export default function ResultsPage() {
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
   const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
+  const techAnalysisTriggeredRef = useRef(false);
 
   useEffect(() => {
     if (session?.tech_analysis_data && !isErrorSentinel(session.tech_analysis_data) && !techAnalysisData) {
       setTechAnalysisData(session.tech_analysis_data);
+      techAnalysisTriggeredRef.current = true;
     }
   }, [session]);
 
   useEffect(() => {
+    if (techAnalysisTriggeredRef.current) return;
     if (techAnalysisData || techAnalysisLoading || techAnalysisFailed) return;
     if (!session) return;
     if (isIntegrationPaused('tech-analysis')) return;
     // Skip if already persisted
-    if (session.tech_analysis_data) return;
+    if (session.tech_analysis_data) { techAnalysisTriggeredRef.current = true; return; }
     const bw = session.builtwith_data;
     const dz = (session as any).detectzestack_data;
     const wp = session.wappalyzer_data;
@@ -716,6 +719,7 @@ export default function ResultsPage() {
     const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed || (!wappalyzerLoading && !wp);
     if (!bwReady || !dzReady || !wpReady) return;
 
+    techAnalysisTriggeredRef.current = true;
     setTechAnalysisLoading(true);
     techAnalysisApi.analyze(bw, dz, wp, session.domain).then(async (result) => {
       if (result.success) {
