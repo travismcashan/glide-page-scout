@@ -224,15 +224,13 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   };
 
   const handleVariablesChange = (variables: EstimateVariables) => {
-    if (estimate) setEstimate({ ...estimate, ...variables });
-  };
-
-  const handleRecalculate = useCallback(() => {
     if (!estimate) return;
-    const updatedTasks = recalculateAllTasks(tasks, estimate, formulas);
+    const updated = { ...estimate, ...variables };
+    setEstimate(updated);
+    // Auto-recalculate tasks when variables change
+    const updatedTasks = recalculateAllTasks(tasks, updated, formulas);
     setTasks(updatedTasks as EstimateTask[]);
-    toast.success('Task hours recalculated based on variables');
-  }, [estimate, tasks, formulas]);
+  };
 
   const handleSave = async () => {
     if (!estimate) return;
