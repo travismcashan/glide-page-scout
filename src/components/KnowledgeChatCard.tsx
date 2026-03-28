@@ -1257,8 +1257,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                 const data = JSON.parse(payload);
                 switch (currentEvent) {
                   case 'model_start':
-                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'thinking' };
+                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'thinking', response: '' };
                     updateCouncilMessage();
+                    break;
+                  case 'model_chunk':
+                    if (modelStatuses[data.key]) {
+                      modelStatuses[data.key].response = (modelStatuses[data.key].response || '') + data.text;
+                      updateCouncilMessage();
+                    }
                     break;
                   case 'model_done':
                     modelStatuses[data.key] = { key: data.key, name: data.name, status: 'done', response: data.response };
