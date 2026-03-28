@@ -314,60 +314,83 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     setTasks(updatedTasks as EstimateTask[]);
   }, [estimate, tasks, formulas, initialLoadDone]);
 
-  // Auto-save: debounced persistence for estimate variables and tasks
+  // Auto-save: debounced persistence — only saves changed tasks
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const isFirstRender = useRef(true);
+  const lastSavedEstimateRef = useRef<string>('');
+  const lastSavedTasksRef = useRef<string>('');
 
   useEffect(() => {
-    // Skip the initial render (loading from DB)
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      // Snapshot initial state so we can diff later
+      if (estimate) lastSavedEstimateRef.current = JSON.stringify(estimate);
+      if (tasks.length) lastSavedTasksRef.current = JSON.stringify(tasks.map(t => ({ id: t.id, is_selected: t.is_selected, hours: t.hours, hours_per_person: t.hours_per_person, variable_qty: t.variable_qty })));
       return;
     }
     if (!estimate || tasks.length === 0 || !initialLoadDone) return;
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    setSaveStatus('idle');
 
     saveTimerRef.current = setTimeout(async () => {
       setSaveStatus('saving');
       try {
-        const { error: estimateError } = await supabase
-          .from('project_estimates')
-          .update({
-            name: estimate.name, client_name: estimate.client_name, description: estimate.description,
-            project_size: estimate.project_size, project_complexity: estimate.project_complexity,
-            user_personas: estimate.user_personas, content_pages: estimate.content_pages,
-            design_layouts: estimate.design_layouts, form_count: estimate.form_count,
-            integration_count: estimate.integration_count, paid_discovery: estimate.paid_discovery,
-            pages_for_integration: estimate.pages_for_integration, custom_posts: estimate.custom_posts,
-            bulk_import_amount: estimate.bulk_import_amount, site_builder_acf: estimate.site_builder_acf,
-            third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
-            form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
-            complexity_score: estimate.complexity_score,
-            template_tier: estimate.template_tier, page_tier: estimate.page_tier,
-            content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
-          })
-          .eq('id', estimate.id);
-        if (estimateError) throw estimateError;
-
-        for (const task of tasks) {
-          await supabase
-            .from('estimate_tasks')
+        // Check if estimate variables changed
+        const estSnapshot = JSON.stringify(estimate);
+        if (estSnapshot !== lastSavedEstimateRef.current) {
+          const { error: estimateError } = await supabase
+            .from('project_estimates')
             .update({
+              name: estimate.name, client_name: estimate.client_name, description: estimate.description,
+              project_size: estimate.project_size, project_complexity: estimate.project_complexity,
+              user_personas: estimate.user_personas, content_pages: estimate.content_pages,
+              design_layouts: estimate.design_layouts, form_count: estimate.form_count,
+              integration_count: estimate.integration_count, paid_discovery: estimate.paid_discovery,
+              pages_for_integration: estimate.pages_for_integration, custom_posts: estimate.custom_posts,
+              bulk_import_amount: estimate.bulk_import_amount, site_builder_acf: estimate.site_builder_acf,
+              third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
+              form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
+              complexity_score: estimate.complexity_score,
+              template_tier: estimate.template_tier, page_tier: estimate.page_tier,
+              content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
+            })
+            .eq('id', estimate.id);
+          if (estimateError) throw estimateError;
+          lastSavedEstimateRef.current = estSnapshot;
+        }
+
+        // Diff tasks — only save changed ones, in parallel
+        const currentTaskMap = new Map(tasks.map(t => [t.id, { is_selected: t.is_selected, hours: t.hours, hours_per_person: t.hours_per_person, variable_qty: t.variable_qty }]));
+        const prevMap = new Map<string, any>();
+        try {
+          const prev = JSON.parse(lastSavedTasksRef.current || '[]') as any[];
+          prev.forEach((t: any) => prevMap.set(t.id, t));
+        } catch {}
+
+        const changedTasks = tasks.filter(t => {
+          const prev = prevMap.get(t.id);
+          if (!prev) return true;
+          return prev.is_selected !== t.is_selected || prev.hours !== t.hours || prev.hours_per_person !== t.hours_per_person || prev.variable_qty !== t.variable_qty;
+        });
+
+        if (changedTasks.length > 0) {
+          await Promise.all(changedTasks.map(task =>
+            supabase.from('estimate_tasks').update({
               is_selected: task.is_selected, hours: task.hours,
               hours_per_person: task.hours_per_person, variable_qty: task.variable_qty,
-            })
-            .eq('id', task.id);
+            }).eq('id', task.id)
+          ));
+          lastSavedTasksRef.current = JSON.stringify(tasks.map(t => ({ id: t.id, is_selected: t.is_selected, hours: t.hours, hours_per_person: t.hours_per_person, variable_qty: t.variable_qty })));
         }
+
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch {
         toast.error('Failed to auto-save');
         setSaveStatus('idle');
       }
-    }, 1000);
+    }, 800);
 
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [estimate, tasks, initialLoadDone]);
