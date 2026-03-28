@@ -14,6 +14,19 @@ import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles,
 import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
+function TaskRowHeader() {
+  return (
+    <div className="flex items-center gap-3 px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="w-4 shrink-0" />
+      <div className="flex-1">Task / Role</div>
+      <div className="w-16 text-center shrink-0">Variable</div>
+      <div className="w-12 text-center shrink-0">#</div>
+      <div className="w-24 text-center">Hrs/Person</div>
+      <div className="w-22 text-center">Total</div>
+    </div>
+  );
+}
+
 interface Props {
   sessionId: string;
   domain: string;
@@ -503,6 +516,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                     <p className="text-sm text-muted-foreground text-center py-8">No master tasks configured yet.</p>
                   ) : (
                     <div className="space-y-1.5">
+                      <TaskRowHeader />
                       {tasks.map((task) => (
                         <EstimateTaskRow
                           key={task.id}
@@ -525,6 +539,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                   <CardTitle className="text-base">Tasks by Phase</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <TaskRowHeader />
                   <div className="space-y-6">
                     {Object.entries(groupedByPhase).map(([phase, phaseTasks]) => {
                       const phaseHours = phaseTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours), 0);
@@ -561,6 +576,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                   <CardTitle className="text-base">Tasks by Role</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <TaskRowHeader />
                   <div className="space-y-6">
                     {Object.entries(groupedByRole).map(([role, roleTasks]) => {
                       const roleHours = roleTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours_per_person ?? t.hours), 0);
