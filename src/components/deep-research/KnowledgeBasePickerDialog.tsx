@@ -202,14 +202,14 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
                 <p className="text-sm">{searchQuery || filterBy !== 'all' ? 'Try a different search or filter' : 'Add documents from the Knowledge tab'}</p>
               </div>
             ) : (
-              <div className="divide-y">
+              <div>
                 {/* Column headers */}
-                <div className="flex items-center gap-4 px-4 py-2 bg-muted/40 text-xs font-medium text-muted-foreground sticky top-0 z-10">
-                  <div className="w-6" />
-                  <div className="w-6" />
-                  <div className="flex-1 min-w-0">Name</div>
-                  <div className="flex-shrink-0 hidden sm:block">Source</div>
-                  <div className="flex-shrink-0 hidden sm:block pr-1">Date Added</div>
+                <div className="grid grid-cols-[2rem_1.5rem_1fr_6rem_5.5rem] items-center gap-2 px-4 py-2 bg-muted/40 text-xs font-medium text-muted-foreground sticky top-0 z-10 border-b">
+                  <div />
+                  <div />
+                  <div>Name</div>
+                  <div>Source</div>
+                  <div>Date Added</div>
                 </div>
                 {processedDocs.map(doc => {
                   const Icon = getDocumentIcon(doc.name, doc.source_type, doc.source_key);
@@ -224,14 +224,14 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
                       onFocus={() => setFocusedId(doc.id)}
                       tabIndex={isAlreadyPicked ? -1 : 0}
                       className={cn(
-                        'flex items-center gap-4 px-4 py-3 transition-colors group outline-none',
-                        isAlreadyPicked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-accent/50',
+                        'grid grid-cols-[2rem_1.5rem_1fr_6rem_5.5rem] items-center gap-2 px-4 py-2.5 transition-colors group outline-none border-b border-border/40',
+                        isAlreadyPicked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-muted/50',
                         isSelected && 'bg-primary/10',
                         isFocused && !isSelected && 'ring-1 ring-inset ring-primary/50'
                       )}
                     >
                       {/* Checkbox */}
-                      <div className="w-6 flex items-center justify-center">
+                      <div className="flex items-center justify-center">
                         <div className={cn(
                           'w-5 h-5 rounded border-2 flex items-center justify-center transition-all',
                           isSelected || isAlreadyPicked
@@ -243,25 +243,20 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
                       </div>
 
                       {/* Icon */}
-                      <div className="flex-shrink-0">
-                        <Icon className="w-6 h-6 text-muted-foreground" />
-                      </div>
+                      <Icon className="w-5 h-5 text-muted-foreground" />
 
                       {/* Name */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{doc.name}</p>
-                      </div>
+                      <p className="text-sm truncate min-w-0">{doc.name}</p>
 
-                      {/* Source label */}
-                      <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block">
+                      {/* Source */}
+                      <p className="text-xs text-muted-foreground truncate">
                         {getSourceLabel(doc.source_type, doc.source_key)}
-                      </div>
-
+                      </p>
 
                       {/* Date */}
-                      <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block pr-1">
+                      <p className="text-xs text-muted-foreground">
                         {formatDate(doc.created_at)}
-                      </div>
+                      </p>
                     </div>
                   );
                 })}
