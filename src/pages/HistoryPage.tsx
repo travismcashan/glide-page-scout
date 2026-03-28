@@ -138,10 +138,7 @@ export default function HistoryPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">
                     <Globe className="h-4 w-4 shrink-0 text-primary" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{session.domain}</p>
-                      <p className="truncate font-mono text-xs text-muted-foreground">{session.base_url}</p>
-                    </div>
+                    <p className="truncate font-medium">{session.domain}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
