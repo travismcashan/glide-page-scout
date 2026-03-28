@@ -2120,7 +2120,7 @@ export default function ResultsPage() {
             {activeTab === 'raw-data' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'raw-data' ? null : <div className="animate-fade-in space-y-8">
 
         {/* Score Overview */}
-        {overallScore && <ScoreOverview overallScore={overallScore} />}
+        {overallScore && <ScoreOverview overallScore={overallScore} analyzing={!integrationsAllDone && !analysisStopped && !isSharedView} />}
 
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(
