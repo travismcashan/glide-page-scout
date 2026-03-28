@@ -353,7 +353,7 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
   return (
     <div className="mb-6 space-y-2">
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-        {isStreaming && !allDone ? (
+        {isStreaming ? (
           <Loader2 className="h-5 w-5 animate-spin text-foreground shrink-0" />
         ) : (
           <Sparkles className="h-5 w-5 text-foreground shrink-0" />
@@ -362,7 +362,7 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
           {isStreaming && !allDone
             ? `Model Council — ${models.filter(m => m.status === 'done').length}/${models.length} complete`
             : isStreaming
-              ? 'Model Council — Synthesizing…'
+              ? <AnimatedThinkingText label="Model Council — Synthesizing" />
               : 'Model Council'}
         </span>
       </div>
