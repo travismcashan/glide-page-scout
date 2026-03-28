@@ -694,19 +694,22 @@ export default function ResultsPage() {
   const [techAnalysisData, setTechAnalysisData] = useState<any>(null);
   const [techAnalysisLoading, setTechAnalysisLoading] = useState(false);
   const [techAnalysisFailed, setTechAnalysisFailed] = useState(false);
+  const techAnalysisTriggeredRef = useRef(false);
 
   useEffect(() => {
     if (session?.tech_analysis_data && !isErrorSentinel(session.tech_analysis_data) && !techAnalysisData) {
       setTechAnalysisData(session.tech_analysis_data);
+      techAnalysisTriggeredRef.current = true;
     }
   }, [session]);
 
   useEffect(() => {
+    if (techAnalysisTriggeredRef.current) return;
     if (techAnalysisData || techAnalysisLoading || techAnalysisFailed) return;
     if (!session) return;
     if (isIntegrationPaused('tech-analysis')) return;
     // Skip if already persisted
-    if (session.tech_analysis_data) return;
+    if (session.tech_analysis_data) { techAnalysisTriggeredRef.current = true; return; }
     const bw = session.builtwith_data;
     const dz = (session as any).detectzestack_data;
     const wp = session.wappalyzer_data;
@@ -716,6 +719,7 @@ export default function ResultsPage() {
     const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed || (!wappalyzerLoading && !wp);
     if (!bwReady || !dzReady || !wpReady) return;
 
+    techAnalysisTriggeredRef.current = true;
     setTechAnalysisLoading(true);
     techAnalysisApi.analyze(bw, dz, wp, session.domain).then(async (result) => {
       if (result.success) {
@@ -1756,7 +1760,7 @@ export default function ResultsPage() {
     setNavFailed(false); setNavLoading(false); navTriggeredRef.current = false;
     setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false;
     setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false;
-    setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null);
+    setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null); techAnalysisTriggeredRef.current = false;
     setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false;
     setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false;
     formsAutoRunRef.current = false; autoTagTriedRef.current = false;
@@ -2427,6 +2431,7 @@ export default function ResultsPage() {
                       setIntegrationDurations(d => { const next = { ...d }; delete next['tech-analysis']; return next; });
                       setTechAnalysisData(null);
                       setTechAnalysisFailed(false);
+                      techAnalysisTriggeredRef.current = false;
                       clearError('tech-analysis');
                       if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
                       updateSession({ tech_analysis_data: null } as any);
