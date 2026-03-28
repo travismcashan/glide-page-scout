@@ -198,23 +198,22 @@ export default function CrawlPage() {
 
           {/* ── Search bar ── */}
           <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-2 px-2 h-12 rounded-2xl bg-card shadow-lg shadow-primary/5">
+            <div className="flex items-center gap-3 px-3 h-[4.5rem] rounded-2xl bg-card shadow-lg shadow-primary/5">
               <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="Enter a URL to analyze…"
-                  className="pl-10 h-full text-base border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="pl-12 h-full text-lg border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   disabled={isStarting}
                 />
               </div>
               <Button
                 type="submit"
-                size="sm"
                 disabled={isStarting || !url.trim()}
-                className="rounded-xl px-5 gap-2 h-8"
+                className="rounded-xl px-6 gap-2 h-11 text-base"
               >
                 {isStarting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" />Analyzing…</>
