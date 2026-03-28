@@ -2793,7 +2793,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       return (
                         <button
                           key={p.key}
-                          onClick={() => setContextWindowSize(p.key)}
+                          onClick={() => { setContextWindowSize(p.key); localStorage.setItem('ai-context-window', p.key); }}
                           className={`rounded-md border px-1.5 py-1 text-center transition-all ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 text-muted-foreground hover:text-foreground'}`}
                         >
                           <span className="text-xs">{p.emoji}</span>
