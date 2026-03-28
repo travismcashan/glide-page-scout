@@ -148,6 +148,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
   async function loadEstimate() {
     setLoading(true);
+    setInitialLoadDone(false);
     const { data: existing } = await supabase
       .from('project_estimates')
       .select('*')
@@ -169,6 +170,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     const formulasData = await fetchFormulas();
     setFormulas(formulasData);
     setLoading(false);
+    // Allow a tick for state to settle before enabling recalculation from card callbacks
+    setTimeout(() => setInitialLoadDone(true), 500);
   }
 
   async function createEstimate() {
