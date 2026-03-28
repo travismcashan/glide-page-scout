@@ -17,6 +17,8 @@ import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import GlobalChatPage from "./pages/GlobalChatPage";
 import BrandGuidePage from "./pages/BrandGuidePage";
+import GroupsPage from "./pages/GroupsPage";
+import GroupDetailPage from "./pages/GroupDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,8 @@ const App = () => (
               <Route path="/results/:sessionId" element={<ResultsPage />} />
               <Route path="/results/:domain/:dateSlug" element={<ResultsPage />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/groups" element={<GroupsPage />} />
+              <Route path="/groups/:groupId" element={<GroupDetailPage />} />
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/connections" element={<ConnectionsPage />} />
               <Route path="/wishlist" element={<WishlistPage />} />

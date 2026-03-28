@@ -1,65 +1,43 @@
 
+# Multi-Site Groups Feature
 
-# Multi-Site Groups — Phase 1 Implementation
+## Status: Phase 1 Complete ✅
 
-Builds on the approved plan, incorporating the batch URL input flow.
+### What's Done (Phase 1)
+1. **`site_groups` table** — Stores group name, description, timestamps.
+2. **`site_group_members` table** — Join table linking groups to crawl_sessions with priority and notes fields. Unique on (group_id, session_id).
+3. **`/groups` page** — Lists all groups with member counts, creation dates. "New Group" dialog to create groups.
+4. **`/groups/:groupId` page** — Group detail with member sites list, realtime progress tracking via integration_runs, add/remove sites, links to individual results pages.
+5. **Navigation** — "Groups" link added to AppHeader.
+6. **Routes** — `/groups` and `/groups/:groupId` wired in App.tsx.
 
-## Database
+### What's Next (Phase 2) — Comparison Dashboard
+- Score comparison grid pulling from each member's crawl_sessions data
+- Technology matrix (builtwith/wappalyzer data cross-referenced)
+- Performance charts (PSI/GTmetrix/CrUX data)
+- Side-by-side score cards per site
 
-Two new tables:
+### Phase 3 — AI Strategy Generation
+- New edge function `group-strategy` loading all member sessions' key data
+- Generates unified platform recommendation, priority ranking rationale, consolidation roadmap
+- Renders as downloadable report or on-screen brief
 
-**`site_groups`** — id, name, description, created_at, updated_at
-
-**`site_group_members`** — id, group_id (FK → site_groups), session_id (uuid), priority (int, default 0), notes (text), created_at. Unique on (group_id, session_id).
-
-Both with permissive RLS (matching existing tables).
-
-## CrawlPage — Batch Mode
-
-- Add a "Multi-Site" toggle/button near the URL input
-- When active, swap the single URL input for:
-  - A group name field (auto-defaults to shared domain or "Untitled Group")
-  - A textarea for pasting multiple URLs (one per line)
-- On submit:
-  1. Create `site_groups` row
-  2. For each URL: create `crawl_sessions` row, create `site_group_members` row
-  3. Fire `crawl-start` for each session (fire-and-forget, all parallel)
-  4. Navigate to `/groups/:groupId`
-
-## New Pages
-
-**`/groups`** — list page showing all groups with member count, newest first
-**`/groups/:groupId`** — detail page:
-- Group name/description header
-- Member sites list with status indicators (subscribes to `integration_runs` for live progress)
-- Each row links to its individual `/sites/:domain` results page
-- Progress summary ("3/5 sites complete")
-- "Add Site" button (enter URL or pick from history)
-
-## New Route in App.tsx
-
-```
-/groups → GroupsPage
-/groups/:groupId → GroupDetailPage
-```
-
-Add navigation link in AppHeader.
-
-## Files Created/Modified
-
-| File | Change |
-|------|--------|
-| Migration SQL | Create `site_groups` + `site_group_members` tables |
-| `src/pages/GroupsPage.tsx` | New — list all groups |
-| `src/pages/GroupDetailPage.tsx` | New — group detail with realtime member status |
-| `src/pages/CrawlPage.tsx` | Add multi-site toggle + textarea batch input |
-| `src/App.tsx` | Add two new routes |
-| `src/components/AppHeader.tsx` | Add "Groups" nav link |
-
-## What's Deferred (Phases 2-4)
-
-- Comparison dashboard (tech matrix, performance charts, score grids)
-- AI strategy brief generation
+### Phase 4 — Batch Operations (Deferred)
+- Batch URL input on CrawlPage (paste multiple URLs, auto-create group)
+- "Run All" to trigger crawl-start for multiple sites
+- "Refresh Stale" to re-crawl sites older than N days
+- Group-level progress tracking
 - Drag-to-reorder priority
-- "Run All" / "Refresh Stale" batch operations
 
+### Architecture
+```
+GroupsPage → list all groups → click to open detail
+GroupDetailPage → shows member sites with live progress
+  ↓ "Add Site" dialog
+  Creates crawl_session → creates site_group_members row
+  Fires crawl-start (fire-and-forget)
+  ↓
+  Realtime subscription on integration_runs
+  Shows per-site completion percentage
+  Links to individual /sites/:domain results
+```

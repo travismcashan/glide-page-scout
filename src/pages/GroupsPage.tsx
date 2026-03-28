@@ -1,0 +1,166 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import AppHeader from '@/components/AppHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+} from '@/components/ui/dialog';
+import { Plus, FolderOpen, Globe, Clock, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+
+interface SiteGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  member_count: number;
+}
+
+export default function GroupsPage() {
+  const navigate = useNavigate();
+  const [groups, setGroups] = useState<SiteGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const fetchGroups = async () => {
+    const { data: groupRows } = await supabase
+      .from('site_groups')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!groupRows) { setLoading(false); return; }
+
+    // Get member counts
+    const { data: members } = await supabase
+      .from('site_group_members')
+      .select('group_id');
+
+    const counts = new Map<string, number>();
+    members?.forEach(m => counts.set(m.group_id, (counts.get(m.group_id) ?? 0) + 1));
+
+    setGroups(groupRows.map(g => ({
+      ...g,
+      member_count: counts.get(g.id) ?? 0,
+    })));
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchGroups(); }, []);
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    setCreating(true);
+    const { data, error } = await supabase
+      .from('site_groups')
+      .insert({ name: name.trim(), description: description.trim() || null })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Failed to create group');
+      setCreating(false);
+      return;
+    }
+    setDialogOpen(false);
+    setName('');
+    setDescription('');
+    setCreating(false);
+    navigate(`/groups/${data.id}`);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <AppHeader />
+      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Site Groups</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Organize related sites for comparative analysis
+            </p>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" /> New Group
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Site Group</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Group Name</label>
+                  <Input
+                    placeholder="e.g. Acme Corp Network"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description <span className="text-muted-foreground">(optional)</span></label>
+                  <Textarea
+                    placeholder="Franchise locations, subsidiary brands…"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleCreate} disabled={!name.trim() || creating} className="gap-2">
+                  {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Create Group
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="text-center py-20 space-y-3">
+            <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40" />
+            <p className="text-muted-foreground">No groups yet. Create one to get started.</p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
+            {groups.map(g => (
+              <button
+                key={g.id}
+                onClick={() => navigate(`/groups/${g.id}`)}
+                className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-muted/50 transition-colors"
+              >
+                <div className="min-w-0">
+                  <span className="text-sm font-semibold">{g.name}</span>
+                  {g.description && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{g.description}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Globe className="h-3 w-3" /> {g.member_count} site{g.member_count !== 1 ? 's' : ''}
+                  </span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> {format(new Date(g.created_at), 'MMM d, yyyy')}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

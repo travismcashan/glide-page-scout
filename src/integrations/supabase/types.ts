@@ -910,6 +910,65 @@ export type Database = {
         }
         Relationships: []
       }
+      site_group_members: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          notes: string | null
+          priority: number | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          notes?: string | null
+          priority?: number | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          notes?: string | null
+          priority?: number | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "site_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       task_formulas: {
         Row: {
           base_hours: number
