@@ -66,7 +66,13 @@ interface AiTiers {
   reasoning_L?: string;
 }
 
-function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean }) {
+const effortColors: Record<string, string> = {
+  low: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  medium: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  high: 'bg-red-500/10 text-red-600 border-red-500/30',
+};
+
+function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true, effort }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean; effort?: string }) {
   return (
     <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
       <td className="px-3 py-1 text-center align-middle">
@@ -86,6 +92,11 @@ function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheck
       <td className="px-3 py-1 text-center text-muted-foreground">
         {t.navSection ? <span className="text-xs">{t.navSection}</span> : null}
       </td>
+      {effort !== undefined && (
+        <td className="px-3 py-1 text-center">
+          {effort ? <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${effortColors[effort] || ''}`}>{effort}</Badge> : <span className="text-[10px] text-muted-foreground">—</span>}
+        </td>
+      )}
       <td className="px-3 py-1 text-right text-xs text-muted-foreground">{t.count}</td>
     </tr>
   );
