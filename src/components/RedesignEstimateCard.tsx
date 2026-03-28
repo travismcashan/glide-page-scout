@@ -222,7 +222,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     }
   }, [globalInnerExpand]);
 
-  const { baseTypeCounts, totalPages, primaryUrls, secondaryUrls, tertiaryUrls } = useMemo(() => {
+  const { baseTypeCounts, totalPages, integrablePages, primaryUrls, secondaryUrls, tertiaryUrls } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
 
     if (pageTags) {
@@ -250,9 +250,12 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
       }
     }
 
+    const integrable = pUrls.length + sUrls.length + tUrls.length;
+
     return {
       baseTypeCounts: Object.entries(counts).filter(([, c]) => c > 0) as [string, number][],
       totalPages: total,
+      integrablePages: integrable,
       primaryUrls: pUrls,
       secondaryUrls: sUrls,
       tertiaryUrls: tUrls,
@@ -339,7 +342,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     <div className="space-y-4">
       {/* Summary + Tier selector */}
       <div className="flex items-center gap-4 flex-wrap">
-        <MetaStat value={totalPages} label="Detected Pages" />
+        <MetaStat value={integrablePages} label="Detected Pages" />
         <MetaStatDivider />
         <MetaStat value={selectedUrls.size} label="Selected Pages" />
         <div className="ml-auto">
