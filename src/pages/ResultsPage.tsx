@@ -1872,9 +1872,9 @@ export default function ResultsPage() {
 
   const tabTriggerStyle = (value: string) =>
     activeTab === value
-      ? { borderBottomColor: 'transparent', marginBottom: '-1px', paddingBottom: 'calc(0.625rem + 1px)', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
+      ? { borderBottomColor: 'transparent', marginBottom: '-1px', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
       : undefined;
-  const tabTriggerClass = "relative text-base font-medium px-5 pt-1.5 pb-2.5 rounded-t-md !rounded-b-none border border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground";
+  const tabTriggerClass = "relative h-14 inline-flex items-center text-base font-medium px-5 rounded-none border-y-0 border-x border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground";
   const showProspecting = shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations);
 
   const tabTriggers = (
@@ -1936,24 +1936,24 @@ export default function ResultsPage() {
             className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
             style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
           >
-              <div className="max-w-6xl mx-auto px-6 h-14 flex items-end">
-                <div className="relative flex items-end w-full">
+              <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
+                <div className="relative flex items-center justify-between w-full h-14">
                   <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
-                  <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
+                  <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
                     {tabTriggers}
                   </TabsList>
                 </div>
               </div>
             </div>
-          <div ref={tabBarRef} className="relative h-14 flex items-end justify-between">
+          <div ref={tabBarRef} className="relative h-14 flex items-center justify-between">
             {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
             <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
-            <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
+            <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
               {tabTriggers}
             </TabsList>
 
             {/* Unified actions dropdown */}
-            <div className="flex items-center gap-2 pb-2 no-print">
+            <div className="flex h-14 items-center gap-2 no-print">
               {activeTab === 'raw-data' && !isSharedView && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
