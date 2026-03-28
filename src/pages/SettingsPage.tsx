@@ -86,26 +86,27 @@ export default function SettingsPage() {
     () => localStorage.getItem('ai-tone-preset') || 'default'
   );
 
-  // Characteristics toggles
-  const CHARACTERISTICS = [
-    { id: 'warm', label: 'Warm', description: 'Caring, empathetic tone' },
-    { id: 'enthusiastic', label: 'Enthusiastic', description: 'Energetic and excited' },
-    { id: 'headers-lists', label: 'Headers & Lists', description: 'Structured with headings and bullet points' },
-    { id: 'emoji', label: 'Emoji', description: 'Sprinkle in relevant emoji 🎯' },
-    { id: 'tables', label: 'Tables', description: 'Use tables to organize data' },
-    { id: 'gifs', label: 'GIFs', description: 'Include unexpected fun GIFs via Giphy' },
+  // Characteristics level
+  const CHARACTERISTICS_LEVELS = [
+    { id: 'more', label: 'More', description: 'Friendlier and more personable' },
+    { id: 'default', label: 'Default', description: '' },
+    { id: 'less', label: 'Less', description: 'More professional and factual' },
   ] as const;
 
-  const [characteristics, setCharacteristics] = useState<string[]>(() => {
-    try { const s = localStorage.getItem('ai-characteristics'); return s ? JSON.parse(s) : []; } catch { return []; }
-  });
+  const [characteristicsLevel, setCharacteristicsLevel] = useState<string>(
+    () => localStorage.getItem('ai-characteristics-level') || 'default'
+  );
 
-  const toggleCharacteristic = (id: string) => {
-    setCharacteristics(prev => {
-      const next = prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id];
-      localStorage.setItem('ai-characteristics', JSON.stringify(next));
-      return next;
-    });
+  const handleCharacteristicsLevel = (val: string) => {
+    setCharacteristicsLevel(val);
+    localStorage.setItem('ai-characteristics-level', val);
+    // Map level to characteristics array for backward compat
+    const mapping: Record<string, string[]> = {
+      more: ['warm', 'enthusiastic', 'headers-lists', 'emoji'],
+      default: ['headers-lists'],
+      less: [],
+    };
+    localStorage.setItem('ai-characteristics', JSON.stringify(mapping[val] || []));
   };
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem('ai-custom-instructions') || ''
@@ -419,26 +420,22 @@ export default function SettingsPage() {
           {/* Characteristics */}
           <div className="space-y-3 pt-2">
             <label className="text-sm font-medium">Characteristics</label>
-            <p className="text-xs text-muted-foreground">Toggle specific traits you'd like the AI to use in responses.</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {CHARACTERISTICS.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => toggleCharacteristic(c.id)}
-                  className={`text-left rounded-lg border p-3 transition-all flex items-center gap-3 ${
-                    characteristics.includes(c.id)
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                      : 'border-border hover:border-muted-foreground/30'
-                  }`}
-                >
-                  <Checkbox checked={characteristics.includes(c.id)} className="pointer-events-none" />
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm">{c.label}</div>
-                    <p className="text-xs text-muted-foreground">{c.description}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <p className="text-xs text-muted-foreground">Controls how personable vs. factual the AI's responses are.</p>
+            <Select value={characteristicsLevel} onValueChange={handleCharacteristicsLevel}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHARACTERISTICS_LEVELS.map(l => (
+                  <SelectItem key={l.id} value={l.id}>
+                    <div>
+                      <span className="font-medium">{l.label}</span>
+                      {l.description && <span className="text-muted-foreground ml-2 text-xs">{l.description}</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </section>
 
