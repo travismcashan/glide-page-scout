@@ -88,7 +88,7 @@ const LOADING_MESSAGES = [
   'Rating form aesthetics…',
 ];
 
-export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis' }: Props) {
+export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequest, onFormTierChange, mode = 'analysis' }: Props) {
   const [expandedForms, setExpandedForms] = useState<Set<number>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
