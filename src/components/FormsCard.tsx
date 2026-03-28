@@ -59,6 +59,7 @@ interface Props {
   savedTiers?: AiTiers | null;
   onTiersChange?: (tiers: AiTiers) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
+  onFormTierChange?: (counts: { s: number; m: number; l: number; total: number }) => void;
   mode?: 'analysis' | 'estimate';
 }
 
@@ -87,7 +88,7 @@ const LOADING_MESSAGES = [
   'Rating form aesthetics…',
 ];
 
-export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis' }: Props) {
+export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequest, onFormTierChange, mode = 'analysis' }: Props) {
   const [expandedForms, setExpandedForms] = useState<Set<number>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
@@ -197,6 +198,23 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
       setExcluded(newExcluded);
     }
   }, [aiTiers, activeTier, forms]);
+
+  // Fire form tier counts to parent when selection changes
+  useEffect(() => {
+    if (!onFormTierChange || !aiTiers) return;
+    const includedForms = forms.filter(f => !excluded.has(f.formType));
+    const sSet = new Set(aiTiers.S);
+    const mSet = new Set(aiTiers.M);
+    const lNames = (aiTiers.L || []).filter(n => !sSet.has(n) && !mSet.has(n));
+    const mOnly = (aiTiers.M || []).filter(n => !sSet.has(n));
+    let sCount = 0, mCount = 0, lCount = 0;
+    for (const f of includedForms) {
+      if (sSet.has(f.formType)) sCount++;
+      else if (mSet.has(f.formType)) mCount++;
+      else lCount++;
+    }
+    onFormTierChange({ s: sCount, m: mCount, l: lCount, total: includedForms.length });
+  }, [excluded, aiTiers, forms, onFormTierChange]);
 
   // Auto-select best tier
   useEffect(() => {

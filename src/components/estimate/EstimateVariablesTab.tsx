@@ -25,7 +25,6 @@ export function EstimateVariablesTab({ variables, onChange }: Props) {
         <Field label="Pages for Integration" value={variables.pages_for_integration ?? 20} onChange={(v) => handleChange('pages_for_integration', v)} />
         <Field label="User Personas" value={variables.user_personas ?? 3} onChange={(v) => handleChange('user_personas', v)} />
         <Field label="Custom Posts" value={variables.custom_posts ?? 2} onChange={(v) => handleChange('custom_posts', v)} min={0} />
-        <Field label="Number of Forms" value={variables.form_count ?? 2} onChange={(v) => handleChange('form_count', v)} min={0} />
         <Field label="Third Party Integrations" value={variables.third_party_integrations ?? 2} onChange={(v) => handleChange('third_party_integrations', v)} min={0} />
         <div className="space-y-1.5">
           <Label className="text-xs">Bulk Import Amount</Label>

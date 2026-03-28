@@ -20,6 +20,9 @@ export interface EstimateVariables {
   content_pages: number | null;
   design_layouts: number | null;
   form_count: number | null;
+  form_count_s: number | null;
+  form_count_m: number | null;
+  form_count_l: number | null;
   integration_count: number | null;
   paid_discovery: string | null;
   pages_for_integration: number | null;
@@ -28,6 +31,7 @@ export interface EstimateVariables {
   site_builder_acf: boolean | null;
   third_party_integrations: number | null;
   post_launch_services: number | null;
+  complexity_score: number | null;
 }
 
 let cachedFormulas: TaskFormula[] | null = null;
@@ -59,11 +63,11 @@ export function deriveProjectSize(v: EstimateVariables): string {
   return 'Large';
 }
 
-/** Derive project complexity from variables: Simple/Moderate/Complex */
+/** Derive project complexity from weighted score: Simple/Moderate/Complex */
 export function deriveProjectComplexity(v: EstimateVariables): string {
-  const integrations = v.third_party_integrations ?? 2;
-  if (integrations <= 5) return 'Simple';
-  if (integrations <= 10) return 'Moderate';
+  const score = v.complexity_score ?? (v.third_party_integrations ?? 2);
+  if (score <= 8) return 'Simple';
+  if (score <= 20) return 'Moderate';
   return 'Complex';
 }
 
@@ -252,7 +256,10 @@ export function calculateTaskFromXlsx(
   } else if (/^Bulk Import > Check \+ Clean$/i.test(name)) {
     hpp = getBulkImportCheckHours(bulkImport);
   } else if (/^Form Integration$/i.test(name)) {
-    hpp = forms * 0.5;
+    const sF = variables.form_count_s ?? 0;
+    const mF = variables.form_count_m ?? 0;
+    const lF = variables.form_count_l ?? 0;
+    hpp = (sF > 0 || mF > 0 || lF > 0) ? (sF * 0.25) + (mF * 0.5) + (lF * 1.5) : forms * 0.5;
   } else if (/^Content \+ CMS Review$/i.test(name)) {
     hpp = (pages + customPosts) * 0.1;
   } else if (/^URL Swap \+ Check$/i.test(name)) {
@@ -272,7 +279,7 @@ export function calculateTaskFromXlsx(
 
   // === OPTIMIZATION ===
   else if (/^301 Redirect Setup$/i.test(name)) {
-    hpp = bySizeNum(size, 2, 4, 6);
+    hpp = Math.max(pages * 0.1, 2);
   } else if (/^Technical On-Page SEO$/i.test(name)) {
     hpp = bySizeNum(size, 4, 6, 8);
   } else if (/^Alt Image\/Title Integraton$/i.test(name) || /^Alt Image.Title Integration$/i.test(name)) {
@@ -283,7 +290,10 @@ export function calculateTaskFromXlsx(
 
   // === QA ===
   else if (/^QA Forms$/i.test(name)) {
-    hpp = forms * 0.25;
+    const sF = variables.form_count_s ?? 0;
+    const mF = variables.form_count_m ?? 0;
+    const lF = variables.form_count_l ?? 0;
+    hpp = (sF > 0 || mF > 0 || lF > 0) ? (sF * 0.15) + (mF * 0.25) + (lF * 0.5) : forms * 0.25;
   } else if (/^Proof Reading$/i.test(name)) {
     hpp = pages * 0.05;
   } else if (/^DoneDone Management$/i.test(name)) {

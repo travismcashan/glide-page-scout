@@ -834,12 +834,16 @@ export type Database = {
         Row: {
           bulk_import_amount: string | null
           client_name: string | null
+          complexity_score: number | null
           content_pages: number | null
           created_at: string
           custom_posts: number | null
           description: string | null
           design_layouts: number | null
           form_count: number | null
+          form_count_l: number | null
+          form_count_m: number | null
+          form_count_s: number | null
           id: string
           integration_count: number | null
           name: string
@@ -858,12 +862,16 @@ export type Database = {
         Insert: {
           bulk_import_amount?: string | null
           client_name?: string | null
+          complexity_score?: number | null
           content_pages?: number | null
           created_at?: string
           custom_posts?: number | null
           description?: string | null
           design_layouts?: number | null
           form_count?: number | null
+          form_count_l?: number | null
+          form_count_m?: number | null
+          form_count_s?: number | null
           id?: string
           integration_count?: number | null
           name: string
@@ -882,12 +890,16 @@ export type Database = {
         Update: {
           bulk_import_amount?: string | null
           client_name?: string | null
+          complexity_score?: number | null
           content_pages?: number | null
           created_at?: string
           custom_posts?: number | null
           description?: string | null
           design_layouts?: number | null
           form_count?: number | null
+          form_count_l?: number | null
+          form_count_m?: number | null
+          form_count_s?: number | null
           id?: string
           integration_count?: number | null
           name?: string

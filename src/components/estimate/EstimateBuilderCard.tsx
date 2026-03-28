@@ -77,7 +77,21 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
   const handleTechTierChange = useCallback((counts: TechTierCounts) => {
     if (!estimate) return;
-    const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2 };
+    const weightedScore = (counts.plugins ?? 0) * 1 + (counts.thirdParty ?? 0) * 2 + (counts.specialSetup ?? 0) * 4;
+    const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2, complexity_score: weightedScore };
+    const derived = {
+      ...updated,
+      project_size: deriveProjectSize(updated),
+      project_complexity: deriveProjectComplexity(updated),
+    };
+    setEstimate(derived as Estimate);
+    const updatedTasks = recalculateAllTasks(tasks, derived, formulas);
+    setTasks(updatedTasks as EstimateTask[]);
+  }, [estimate, tasks, formulas]);
+
+  const handleFormTierChange = useCallback((tierCounts: { s: number; m: number; l: number; total: number }) => {
+    if (!estimate) return;
+    const updated = { ...estimate, form_count_s: tierCounts.s, form_count_m: tierCounts.m, form_count_l: tierCounts.l, form_count: tierCounts.total };
     const derived = {
       ...updated,
       project_size: deriveProjectSize(updated),
@@ -183,6 +197,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         content_pages: crawlDefaults.content_pages ?? 10,
         design_layouts: crawlDefaults.design_layouts ?? 5,
         form_count: crawlDefaults.form_count ?? 2,
+        form_count_s: 0,
+        form_count_m: 0,
+        form_count_l: 0,
         integration_count: 1,
         paid_discovery: 'scope_only',
         pages_for_integration: crawlDefaults.pages_for_integration ?? 20,
@@ -191,6 +208,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         site_builder_acf: true,
         third_party_integrations: crawlDefaults.third_party_integrations ?? 2,
         post_launch_services: 0,
+        complexity_score: 0,
       };
 
       const { data: newEstimate, error: estError } = await supabase
@@ -303,6 +321,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           pages_for_integration: estimate.pages_for_integration, custom_posts: estimate.custom_posts,
           bulk_import_amount: estimate.bulk_import_amount, site_builder_acf: estimate.site_builder_acf,
           third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
+          form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
+          complexity_score: estimate.complexity_score,
         })
         .eq('id', estimate.id);
       if (estimateError) throw estimateError;
@@ -618,8 +638,63 @@ function getProjectDuration(totalHours: number): string {
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
-                    <FormsCard data={formsData} domain={domain} mode="estimate" />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} />
                   </SectionCard>
+                )}
+
+                {/* Derived Values Summary */}
+                {estimate && (
+                  <Card className="border-dashed">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Derived from Analysis</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-1.5 text-xs text-muted-foreground">
+                        <li className="flex justify-between">
+                          <span>Design Layouts</span>
+                          <span className="font-medium text-foreground">{estimate.design_layouts ?? 5} <span className="text-muted-foreground font-normal">— from Template Analysis</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Pages for Integration</span>
+                          <span className="font-medium text-foreground">{estimate.pages_for_integration ?? 20} <span className="text-muted-foreground font-normal">— from Page Analysis</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Custom Post Types</span>
+                          <span className="font-medium text-foreground">{estimate.custom_posts ?? 2} <span className="text-muted-foreground font-normal">— from Bulk Content</span></span>
+                        </li>
+                        {((estimate.form_count_s ?? 0) > 0 || (estimate.form_count_m ?? 0) > 0 || (estimate.form_count_l ?? 0) > 0) ? (
+                          <li className="flex justify-between">
+                            <span>Form Integration Hours</span>
+                            <span className="font-medium text-foreground">
+                              {(((estimate.form_count_s ?? 0) * 0.25) + ((estimate.form_count_m ?? 0) * 0.5) + ((estimate.form_count_l ?? 0) * 1.5)).toFixed(1)}h
+                              <span className="text-muted-foreground font-normal"> — {estimate.form_count_s ?? 0}S × 0.25 + {estimate.form_count_m ?? 0}M × 0.5 + {estimate.form_count_l ?? 0}L × 1.5</span>
+                            </span>
+                          </li>
+                        ) : (
+                          <li className="flex justify-between">
+                            <span>Forms</span>
+                            <span className="font-medium text-foreground">{estimate.form_count ?? 2} <span className="text-muted-foreground font-normal">— flat count</span></span>
+                          </li>
+                        )}
+                        <li className="flex justify-between">
+                          <span>Bulk Import Tier</span>
+                          <span className="font-medium text-foreground">{estimate.bulk_import_amount ?? '<500'} <span className="text-muted-foreground font-normal">— from Bulk Content URLs</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Project Size</span>
+                          <span className="font-medium text-foreground">{estimate.project_size ?? 'Medium'} <span className="text-muted-foreground font-normal">— {estimate.pages_for_integration ?? 20} pages + {estimate.design_layouts ?? 5} layouts + {estimate.custom_posts ?? 2} CPTs</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Project Complexity</span>
+                          <span className="font-medium text-foreground">{estimate.project_complexity ?? 'Simple'} <span className="text-muted-foreground font-normal">— score: {estimate.complexity_score ?? 0} from TPA weighted tiers</span></span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>301 Redirects</span>
+                          <span className="font-medium text-foreground">{Math.max((estimate.pages_for_integration ?? 20) * 0.1, 2).toFixed(1)}h <span className="text-muted-foreground font-normal">— {estimate.pages_for_integration ?? 20} pages × 0.1</span></span>
+                        </li>
+                      </ul>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             </TabsContent>
