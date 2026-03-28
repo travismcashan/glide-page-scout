@@ -1,64 +1,42 @@
 
 
-## Redesign: HTTP Status Card
+## Remove Broken Link Checker
 
-### What it does today
-The edge function checks a single URL via httpstatus.io, returning redirect chain hops with timing data, headers, parsed hostnames, etc. The card dumps all of this in a verbose, hard-to-scan layout with expandable header tables, hostname badges (TLD, ICANN, subdomain), and a "Final URL Breakdown" section that's mostly noise.
+The broken link checker is redundant since the URL Discovery tab already shows link status. Here are the ramifications and the removal plan.
 
-### What's valuable (keep)
-- **Redirect chain visualization** — knowing if there are redirects and what kind (301 vs 302)
-- **Load timing waterfall** — DNS, TCP, TLS, TTFB, download breakdown
-- **Clean status summary** — green checkmark for no redirects + 200
+### What gets removed
+- **`src/components/BrokenLinksCard.tsx`** — delete file
+- **`supabase/functions/link-checker/index.ts`** — delete edge function
+- **`src/lib/api/firecrawl.ts`** — remove `linkCheckerApi` export
 
-### What's missing (add)
-- **Domain canonical check** — test all 4 versions (http://domain, https://domain, http://www.domain, https://www.domain) and show whether they all resolve to the same canonical URL. This is the key insight for SEO.
+### What gets cleaned up (references in ~8 files)
 
-### What to remove
-- Parsed hostname badges (domain, subdomain, TLD, ICANN) — noise
-- Request headers table — nobody needs this
-- Response headers table — move to a single collapsible if desired
-- "Final URL Breakdown" section (protocol, hostname, port badges) — redundant
-- Per-hop IP address display
+1. **`src/pages/ResultsPage.tsx`** — the biggest change:
+   - Remove import of `BrokenLinksCard`
+   - Remove all `linkcheck` state variables (`linkcheckLoading`, `linkcheckFailed`, `linkcheckProgress`, `linkcheckStreamingResults`, `linkcheckRunningRef`, `linkcheckAbortRef`)
+   - Remove the `useEffect` that auto-triggers the link checker
+   - Remove the `SectionCard` block for "Broken Link Checker"
+   - Remove `link-checker` from integration maps, rerun config, pause handlers, loading maps
 
-### Plan
+2. **`src/pages/IntegrationsPage.tsx`** — remove the "Broken Link Checker" entry from the integrations list
 
-**1. Update edge function (`httpstatus-check/index.ts`)**
-- Accept `{ url }` but also derive the 4 canonical variants from the domain (http://, https://, http://www., https://www.)
-- Call httpstatus.io for all 4 variants in parallel
-- Return a new shape: `{ canonical: { variants: [...], allResolveToSame: boolean, canonicalUrl: string }, primary: { ...existing hop/timing data for the main URL } }`
-- Keep backward compatibility: still include `hops`, `finalUrl`, etc. for the primary URL
+3. **`src/lib/siteScore.ts`** — remove `extractBrokenLinks` and `extractUrlHealth` functions; remove the `link-checker` and `url-health` entries from the scoring integrations array
 
-**2. Redesign the card component (`HttpStatusCard.tsx`)**
+4. **`src/lib/ragIngest.ts`** — remove `linkcheck_data` from the knowledge base ingest map
 
-New layout with 3 clean sections:
+5. **`src/lib/buildCrawlContext.ts`** — remove `linkcheck_data` field and `extractLinkCheck` function
 
-```text
-┌──────────────────────────────────────────────┐
-│  ✓ 200 OK · No redirects · 342ms total      │  ← Status summary row
-├──────────────────────────────────────────────┤
-│  Domain Canonicalization                      │
-│  ┌────────────────────────┬────────┬────────┐│
-│  │ http://domain.com      │ 301 →  │ ✓      ││
-│  │ https://domain.com     │ 200    │ ✓ canonical ││
-│  │ http://www.domain.com  │ 301 →  │ ✓      ││
-│  │ https://www.domain.com │ 301 →  │ ✓      ││
-│  └────────────────────────┴────────┴────────┘│
-│  ✓ All variants resolve to https://domain.com│
-├──────────────────────────────────────────────┤
-│  Response Time Breakdown                      │
-│  [DNS][TCP][TLS][TTFB][Download] = 342ms     │  ← Clean timing bar
-│  DNS 12ms · TCP 8ms · TLS 24ms · TTFB 280ms │
-├──────────────────────────────────────────────┤
-│  ▸ Response Headers (22)                     │  ← Single collapsible
-└──────────────────────────────────────────────┘
-```
+6. **`src/lib/exportResults.ts`** — remove `linkcheck_data` from the export type and export list
 
-**3. Files changed**
-- `supabase/functions/httpstatus-check/index.ts` — check all 4 domain variants
-- `src/components/HttpStatusCard.tsx` — complete redesign
-- `src/lib/api/firecrawl.ts` — minor type update if needed
-- `src/pages/ResultsPage.tsx` — no changes expected (card receives `session.httpstatus_data`)
+7. **`src/components/KnowledgeChatCard.tsx`** — remove `linkcheck` from source name map, tab routing, and keyword detection
 
-**4. Cost consideration**
-This will use 4 httpstatus.io API calls per site instead of 1. The calls run in parallel so latency stays similar.
+### What stays untouched
+- **`linkcheck_data` column in `crawl_sessions`** — leave it in the database; old sessions keep their data, it just won't be displayed. No migration needed.
+- **`count_integrations` DB function** — still references `linkcheck_data` for legacy counts, which is fine (it'll count existing data for old sessions)
+- **URL Discovery card** — already has its own link checking built into `UrlDiscoveryCard.tsx` with status codes, so no gap in functionality
+
+### Risk
+Low. The link checker was a standalone integration with no downstream dependencies beyond display. The URL Discovery card already provides the same broken-link detection inline.
+
+### Files changed: ~8 files edited, 2 files deleted
 
