@@ -17,6 +17,7 @@ import type { ContentTypesData } from '@/components/content-types/types';
 import { TemplatesCard } from '@/components/TemplatesCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { TechAnalysisCard } from '@/components/TechAnalysisCard';
+import { FormsCard } from '@/components/FormsCard';
 import { SectionCard } from '@/components/SectionCard';
 
 function TaskRowHeader() {
@@ -496,6 +497,16 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                   >
                     <TechAnalysisCard data={techAnalysisData} isLoading={false} />
+                  </SectionCard>
+                )}
+
+                {formsData && (
+                  <SectionCard
+                    sectionId="est-forms"
+                    title="Forms Analysis"
+                    icon={<FileText className="h-5 w-5 text-foreground" />}
+                  >
+                    <FormsCard data={formsData} domain={domain} />
                   </SectionCard>
                 )}
               </div>
