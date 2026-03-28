@@ -35,7 +35,6 @@ const ROW_LIMIT = 5;
 export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, showCheckbox = false, isIncluded = true }: ExpandableUrlRowsProps) {
   const [showAll, setShowAll] = useState(false);
   const hasMore = urls.length > ROW_LIMIT;
-  const hasMore = urls.length > ROW_LIMIT;
 
   return (
     <TooltipProvider>
