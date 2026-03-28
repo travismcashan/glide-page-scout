@@ -244,10 +244,12 @@ export default function SettingsPage() {
   const handleProviderChange = (p: ModelProvider) => {
     setProvider(p);
     localStorage.setItem('chat-provider', p);
+    localStorage.setItem('chat-individual-provider', p);
     const best = DEFAULT_BEST[p] || VERSIONS[p]?.[VERSIONS[p].length - 1]?.id;
     if (best) {
       setModel(best);
       localStorage.setItem('chat-model', best);
+      localStorage.setItem('chat-individual-model', best);
     }
     setReasoning(DEFAULT_REASONING[p] || 'none');
   };
@@ -255,6 +257,7 @@ export default function SettingsPage() {
   const handleModelChange = (id: string) => {
     setModel(id);
     localStorage.setItem('chat-model', id);
+    localStorage.setItem('chat-individual-model', id);
   };
 
   useEffect(() => {
