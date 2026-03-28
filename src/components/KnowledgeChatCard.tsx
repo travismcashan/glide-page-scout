@@ -2697,13 +2697,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               size="icon"
               onClick={isStreaming ? handleStop : () => deepResearchMode ? handleDeepResearchSend(chatInputRef.current?.getValue()?.trim() || '') : handleSend()}
               disabled={!isStreaming && (attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText))}
-              className={`shrink-0 rounded-full border-0 bg-transparent overflow-visible ${isStreaming ? 'text-destructive hover:text-destructive hover:bg-destructive/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+              className={`shrink-0 rounded-full border-0 bg-transparent overflow-visible ${isStreaming ? 'hover:bg-destructive/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
               style={{ width: 44, height: 44 }}
             >
               {isStreaming ? (
                 <div className="relative flex items-center justify-center" style={{ width: 28, height: 28 }}>
-                  <Loader2 style={{ width: 28, height: 28 }} className="animate-spin absolute text-destructive" />
-                  <Square className="h-2.5 w-2.5 fill-current" />
+                  <Loader2 style={{ width: 28, height: 28 }} className="animate-spin absolute text-muted-foreground" />
+                  <Square className="h-2 w-2 fill-current text-destructive" />
                 </div>
               ) : (
                 <ArrowUp style={{ width: 28, height: 28 }} strokeWidth={1.5} />
