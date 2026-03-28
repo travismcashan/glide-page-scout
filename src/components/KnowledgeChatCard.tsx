@@ -992,6 +992,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean }>({ documents: true, web: false, analytics: false });
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
+  const [contextWindowSize, setContextWindowSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1411,6 +1412,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           reasoning: reasoning !== 'none' ? reasoning : undefined,
           sources: { ...searchSources, analytics: !globalMode && searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
           rag_depth: ragDepth,
+          context_window: contextWindowSize,
           tonePreset: localStorage.getItem('ai-tone-preset') || 'default',
           characteristics: (() => { try { const s = localStorage.getItem('ai-characteristics'); return s ? JSON.parse(s) : []; } catch { return []; } })(),
           customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
@@ -2771,6 +2773,36 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Context Window / Response Size */}
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" />
+                    Response Size
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5 px-1">
+                    {([
+                      { key: 'small' as const, emoji: '⚡', label: 'Short', desc: 'Quick answers' },
+                      { key: 'medium' as const, emoji: '⚖️', label: 'Medium', desc: 'Default' },
+                      { key: 'large' as const, emoji: '📖', label: 'Long', desc: 'Deep analysis' },
+                    ]).map(p => {
+                      const active = contextWindowSize === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          onClick={() => setContextWindowSize(p.key)}
+                          className={`rounded-md border px-1.5 py-1 text-center transition-all ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 text-muted-foreground hover:text-foreground'}`}
+                        >
+                          <span className="text-xs">{p.emoji}</span>
+                          <p className="text-[10px] font-medium leading-tight">{p.label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground px-1">
+                    {contextWindowSize === 'small' ? 'Concise responses — faster, less tokens' : contextWindowSize === 'large' ? 'Detailed responses — slower, more thorough' : 'Balanced depth and speed'}
+                  </p>
                 </div>
               </div>
             </PopoverContent>
