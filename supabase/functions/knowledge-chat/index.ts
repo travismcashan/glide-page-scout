@@ -1094,7 +1094,9 @@ async function handleGatewayRequest(
           choice.message.tool_calls.map(async (tc: any) => {
             const args = JSON.parse(tc.function.arguments);
             console.log(`[knowledge-chat] Executing tool: ${tc.function.name}`, JSON.stringify(args));
-            const result = await executeAnalyticsTool(tc.function.name, args);
+            const result = tc.function.name === 'generate_presentation'
+              ? await executeBeautifulAi(args)
+              : await executeAnalyticsTool(tc.function.name, args);
             return {
               role: 'tool' as const,
               tool_call_id: tc.id,
