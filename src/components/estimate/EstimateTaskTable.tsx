@@ -256,12 +256,12 @@ function TaskTableRow({
       !task.is_selected ? 'opacity-50' : formulaDriven ? 'bg-muted/20' : ''
     }>
       {/* Checkbox */}
-      <TableCell className="py-1.5">
+      <TableCell className="py-1.5 w-10">
         <Checkbox
           checked={task.is_selected}
           onCheckedChange={formulaDriven ? undefined : (checked) => onToggle(task.id, checked as boolean)}
           disabled={formulaDriven}
-          className={formulaDriven ? 'opacity-40 cursor-not-allowed' : ''}
+          className={formulaDriven ? 'cursor-not-allowed border-muted-foreground/40 data-[state=checked]:bg-muted-foreground/40 data-[state=checked]:border-muted-foreground/40' : ''}
         />
       </TableCell>
 
