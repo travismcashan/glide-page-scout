@@ -328,30 +328,29 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
         {scope ? <ScopeTab scope={scope} mode="estimate" tierSelector={tierSelector} selectedTpaCount={selectedCount} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>}
         
         {/* Tier reasoning */}
-        <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
-          {tier === 'S' && (
-            <>
-              <div className="text-xs font-semibold text-foreground">Small Scope</div>
-              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
-                <ReactMarkdown>{`Covers **Plugins only** — ${pluginCount} detected items. These are typically CMS plugins, widgets, and extensions that require configuration during the build phase. Third-party integrations and special setup items are excluded and would need to be handled separately or deferred to a post-launch phase.`}</ReactMarkdown>
+        <div className="space-y-3 border-l-2 border-primary/30 pl-3">
+          <p className="text-xs text-muted-foreground font-medium">TPA scope defines which third-party applications and integrations are included in the estimate.</p>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-foreground">Small</p>
+            <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+              <ReactMarkdown>{`Covers **Plugins only** — ${pluginCount} detected items. CMS plugins, widgets, and extensions that require configuration during the build phase. Third-party integrations and special setup items are excluded.`}</ReactMarkdown>
+            </div>
+          </div>
+          {(tier === 'M' || tier === 'L') && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-foreground">Medium</p>
+              <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+                <ReactMarkdown>{`Adds **Third-Party Integrations** — ${thirdPartyCount} external service connections (analytics, CRMs, marketing tools, etc.) bringing the total to ${pluginCount + thirdPartyCount} items. Special setup items are excluded.`}</ReactMarkdown>
               </div>
-            </>
-          )}
-          {tier === 'M' && (
-            <>
-              <div className="text-xs font-semibold text-foreground">Medium Scope</div>
-              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
-                <ReactMarkdown>{`Includes **Plugins and Third-Party Integrations** — ${pluginCount + thirdPartyCount} items total. Beyond CMS plugins, this adds the ${thirdPartyCount} external service connections (analytics, CRMs, marketing tools, etc.) that require API configuration or embed setup. Special setup items with complex implementation needs are excluded.`}</ReactMarkdown>
-              </div>
-            </>
+            </div>
           )}
           {tier === 'L' && (
-            <>
-              <div className="text-xs font-semibold text-foreground">Large Scope</div>
-              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
-                <ReactMarkdown>{`**Comprehensive integration coverage** — all ${pluginCount + thirdPartyCount + specialSetupCount} items including Plugins, Third-Party Integrations, and ${specialSetupCount} Special Setup items. Special setup items typically require custom development, complex API integrations, or significant configuration effort beyond standard plugin installation.`}</ReactMarkdown>
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-foreground">Large</p>
+              <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+                <ReactMarkdown>{`**Comprehensive integration coverage** — all ${pluginCount + thirdPartyCount + specialSetupCount} items including ${specialSetupCount} Special Setup items requiring custom development or complex API integrations.`}</ReactMarkdown>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>

@@ -419,36 +419,29 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
       </div>
 
       {/* Tier reasoning */}
-      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
-        {activeTier === 'S' && (
-          <>
-            <div className="text-xs font-semibold text-foreground">Small Scope</div>
-            <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
-              <ReactMarkdown>
-                {`Focuses on **Primary navigation pages only** — the ${primaryUrls.length} top-level pages that appear directly in the main navigation. These are the highest-traffic, highest-intent pages and represent the minimum viable content migration. Secondary and tertiary pages would be handled with placeholder or redirected content.`}
-              </ReactMarkdown>
+      <div className="space-y-3 border-l-2 border-primary/30 pl-3">
+        <p className="text-xs text-muted-foreground font-medium">Page scope defines which navigation-level pages are included in the redesign estimate.</p>
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-foreground">Small</p>
+          <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+            <ReactMarkdown>{`Focuses on **Primary navigation pages only** — the ${primaryUrls.length} top-level pages that appear directly in the main navigation. These are the highest-traffic, highest-intent pages and represent the minimum viable content migration.`}</ReactMarkdown>
+          </div>
+        </div>
+        {(activeTier === 'M' || activeTier === 'L') && (
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-foreground">Medium</p>
+            <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+              <ReactMarkdown>{`Adds **Secondary pages** — ${secondaryUrls.length} sub-navigation pages that sit one level deeper, bringing the total to ${primaryUrls.length + secondaryUrls.length} pages. Covers the core user journey without deep utility pages.`}</ReactMarkdown>
             </div>
-          </>
-        )}
-        {activeTier === 'M' && (
-          <>
-            <div className="text-xs font-semibold text-foreground">Medium Scope</div>
-            <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
-              <ReactMarkdown>
-                {`Includes **Primary and Secondary pages** — ${primaryUrls.length + secondaryUrls.length} pages total. Beyond the top-level nav pages, this adds the ${secondaryUrls.length} sub-navigation pages that sit one level deeper. This covers the core user journey through the site's main sections without the overhead of deep utility and supporting pages.`}
-              </ReactMarkdown>
-            </div>
-          </>
+          </div>
         )}
         {activeTier === 'L' && (
-          <>
-            <div className="text-xs font-semibold text-foreground">Large Scope</div>
-            <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
-              <ReactMarkdown>
-                {`Comprehensive migration of **all ${primaryUrls.length + secondaryUrls.length + tertiaryUrls.length} detected pages** — Primary, Secondary, and Tertiary. This includes the ${tertiaryUrls.length} supporting pages such as footer-only links, legal pages, utility pages, and deeper content that doesn't appear in the main navigation. Best for a complete site overhaul with no content left behind.`}
-              </ReactMarkdown>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-foreground">Large</p>
+            <div className="text-xs text-muted-foreground prose prose-xs max-w-none [&_strong]:text-foreground [&_p]:my-1">
+              <ReactMarkdown>{`Includes **all ${primaryUrls.length + secondaryUrls.length + tertiaryUrls.length} detected pages** — Primary, Secondary, and ${tertiaryUrls.length} Tertiary pages including footer-only links, legal, and utility pages. Complete site overhaul with no content left behind.`}</ReactMarkdown>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
