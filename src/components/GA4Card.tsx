@@ -116,7 +116,7 @@ export function GA4Card({ data, onSelectProperty, isSelecting }: Props) {
       )}
 
       {/* Overview metrics */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1.5">
           <MetaStat value={formatNumber(current.sessions || 0)} label="Sessions" />
           <ChangeIndicator current={current.sessions || 0} previous={previous.sessions || 0} />

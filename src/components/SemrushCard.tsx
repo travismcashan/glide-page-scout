@@ -56,7 +56,7 @@ export function SemrushCard({ data, isLoading }: SemrushCardProps) {
   return (
     <div className="space-y-4">
       {usOverview && (
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <MetaStat value={Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()} label="Organic Keywords" />
           <MetaStatDivider />
           <MetaStat value={Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()} label="Organic Traffic" />
@@ -68,7 +68,7 @@ export function SemrushCard({ data, isLoading }: SemrushCardProps) {
       )}
 
       {data.backlinks && (
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <MetaStat value={Number(data.backlinks.total || 0).toLocaleString()} label="Backlinks" />
           <MetaStatDivider />
           <MetaStat value={Number(data.backlinks.domains_num || 0).toLocaleString()} label="Domains" />

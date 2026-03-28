@@ -252,7 +252,7 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
     <div className="space-y-4">
       {/* Meta stats + AI tier controls on one row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <MetaStat value={summary.uniqueForms} label="Unique Forms" />
           <MetaStatDivider />
           <MetaStat value={summary.globalForms} label="Global Forms" />

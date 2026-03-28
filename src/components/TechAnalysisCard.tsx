@@ -71,7 +71,7 @@ function ScoreBar({ score }: { score: number }) {
 function FindingsTab({ findings, techCount, sources }: { findings: Findings; techCount: number; sources: string[] }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <MetaStat value={findings.platform.modernScore} label="Modern Score" />
         <MetaStatDivider />
         <MetaStat value={techCount} label="Technologies" />
@@ -175,7 +175,7 @@ function ScopeTab({ scope }: { scope: Scope }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <MetaStat value={totalItems} label="Scope Items" />
         {sections.map((s, i) => (
           <span key={s.key} className="contents">

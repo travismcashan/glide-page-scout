@@ -94,7 +94,7 @@ function AnalysisView({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <MetaStat value={totalPages} label="Detected Pages" />
         <MetaStatDivider />
         <MetaStat value={primaryPages} label="Primary" />
@@ -360,7 +360,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
   return (
     <div className="space-y-4">
       {/* Summary + Tier selector */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <MetaStat value={integrablePages} label="Detected Pages" />
         <MetaStatDivider />
         <MetaStat value={selectedUrls.size} label="Selected Pages" />

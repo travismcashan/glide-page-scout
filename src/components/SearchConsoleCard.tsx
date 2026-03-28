@@ -126,7 +126,7 @@ export function SearchConsoleCard({ data, onSelectSite, isSelecting }: Props) {
 
       {/* Summary metrics */}
       {summary && (
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <MetaStat value={formatNumber(summary.totalClicks)} label="Total Clicks" />
           <MetaStatDivider />
           <MetaStat value={formatNumber(summary.totalImpressions)} label="Impressions" />
