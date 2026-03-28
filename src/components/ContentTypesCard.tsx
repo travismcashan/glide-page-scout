@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -516,12 +517,31 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
       {/* Tier reasoning */}
       {isEstimate && activeTier && (
-        <div className="space-y-1 border-l-2 border-primary/30 pl-3">
-          <p className="text-xs text-muted-foreground">
-            {activeTier === 'S' && 'No bulk content migration — all posts and custom post types will be excluded from the estimate.'}
-            {activeTier === 'M' && `Blog posts included for migration (${tierCounts.M.urls} URLs across ${tierCounts.M.types} type${tierCounts.M.types !== 1 ? 's' : ''}). Custom post types are excluded.`}
-            {activeTier === 'L' && `All bulk content included — blog posts and custom post types (${tierCounts.L.urls} URLs across ${tierCounts.L.types} type${tierCounts.L.types !== 1 ? 's' : ''}).`}
-          </p>
+        <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+          {activeTier === 'S' && (
+            <>
+              <div className="text-xs font-semibold text-foreground">Small Scope</div>
+              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+                <ReactMarkdown>{`**No bulk content migration** — all blog posts and custom post types are excluded from the estimate. This is ideal when the client plans to start fresh with content or will handle migration independently. Only page-level content (handled by the Page Analysis card) is included.`}</ReactMarkdown>
+              </div>
+            </>
+          )}
+          {activeTier === 'M' && (
+            <>
+              <div className="text-xs font-semibold text-foreground">Medium Scope</div>
+              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+                <ReactMarkdown>{`Includes **blog posts** for migration — ${tierCounts.M.urls} URLs across ${tierCounts.M.types} content type${tierCounts.M.types !== 1 ? 's' : ''}. Custom post types (portfolios, testimonials, team members, etc.) are excluded and would need to be recreated manually or handled in a future phase. Best when the blog is the primary content engine.`}</ReactMarkdown>
+              </div>
+            </>
+          )}
+          {activeTier === 'L' && (
+            <>
+              <div className="text-xs font-semibold text-foreground">Large Scope</div>
+              <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+                <ReactMarkdown>{`**Comprehensive content migration** — all ${tierCounts.L.urls} URLs across ${tierCounts.L.types} content type${tierCounts.L.types !== 1 ? 's' : ''}, including blog posts and all custom post types. This ensures no content is left behind and is recommended when the existing content library has significant SEO value or when the client requires a 1:1 migration.`}</ReactMarkdown>
+              </div>
+            </>
+          )}
         </div>
       )}
 
