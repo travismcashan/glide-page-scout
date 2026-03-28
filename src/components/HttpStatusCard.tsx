@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, CheckCircle, AlertTriangle, Clock, Globe, ChevronDown, ChevronUp, Server } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, ChevronDown, ChevronUp, Shield, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 
 type TimingPhases = {
@@ -13,21 +13,24 @@ type TimingPhases = {
   total?: number;
 };
 
+type CanonicalVariant = {
+  url: string;
+  finalUrl: string;
+  finalStatusCode: number;
+  redirectCount: number;
+  error: string | null;
+};
+
 type Hop = {
   step: number;
   url: string;
   statusCode: number;
   statusMessage: string;
-  redirectFrom: string | null;
   redirectTo: string | null;
   redirectType: string | null;
-  ip: string | null;
   latency: number | null;
   timings: TimingPhases | null;
   responseHeaders: Record<string, string> | null;
-  requestHeaders: Record<string, string> | null;
-  parsedUrl: Record<string, any> | null;
-  parsedHostname: Record<string, any> | null;
 };
 
 type HttpStatusData = {
@@ -36,14 +39,26 @@ type HttpStatusData = {
   finalStatusCode: number;
   redirectCount: number;
   hops: Hop[];
-  meta: any | null;
-  apiMeta: any | null;
-  // legacy fields
-  metadata?: any | null;
-  parsedUrl?: any | null;
+  timings?: TimingPhases | null;
+  responseHeaders?: Record<string, string> | null;
+  canonical?: {
+    variants: CanonicalVariant[];
+    allResolveToSame: boolean;
+    canonicalUrl: string | null;
+  };
+  // legacy
+  meta?: any;
+  apiMeta?: any;
 };
 
 function statusColor(code: number): string {
+  if (code >= 200 && code < 300) return 'text-green-600';
+  if (code >= 300 && code < 400) return 'text-yellow-600';
+  if (code >= 400) return 'text-destructive';
+  return 'text-muted-foreground';
+}
+
+function statusBadgeClass(code: number): string {
   if (code >= 200 && code < 300) return 'bg-green-500/10 text-green-600 border-green-500/30';
   if (code >= 300 && code < 400) return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30';
   if (code >= 400) return 'bg-destructive/10 text-destructive border-destructive/30';
@@ -55,28 +70,152 @@ function formatMs(ms: number | undefined | null): string {
   return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(2)}s`;
 }
 
-function HeadersTable({ headers, label }: { headers: Record<string, string>; label: string }) {
+/* ─── Canonical Table ─── */
+function CanonicalSection({ canonical }: { canonical: HttpStatusData['canonical'] }) {
+  if (!canonical?.variants?.length) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Shield className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">Domain Canonicalization</h3>
+      </div>
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/30">
+              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Variant</th>
+              <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">Status</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Resolves To</th>
+              <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            {canonical.variants.map((v, i) => {
+              const isCanonical = v.finalUrl.replace(/\/$/, '') === canonical.canonicalUrl?.replace(/\/$/, '');
+              const resolvesCorrectly = canonical.allResolveToSame && !v.error;
+              return (
+                <tr key={i} className="border-b border-border/50 last:border-0">
+                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{v.url}</td>
+                  <td className="px-3 py-2 text-center">
+                    {v.error ? (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-destructive/10 text-destructive border-destructive/30">Error</Badge>
+                    ) : v.redirectCount > 0 ? (
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusBadgeClass(v.finalStatusCode)}`}>
+                        {v.finalStatusCode} · {v.redirectCount} redirect{v.redirectCount > 1 ? 's' : ''}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusBadgeClass(v.finalStatusCode)}`}>
+                        {v.finalStatusCode}
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-xs text-foreground truncate max-w-[260px]">
+                    {v.error ? <span className="text-destructive">{v.error}</span> : v.finalUrl}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {v.error ? (
+                      <AlertTriangle className="h-4 w-4 text-destructive mx-auto" />
+                    ) : resolvesCorrectly ? (
+                      <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-yellow-600 mx-auto" />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center gap-2 text-xs">
+        {canonical.allResolveToSame ? (
+          <>
+            <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+            <span className="text-green-600 font-medium">All variants resolve to</span>
+            <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{canonical.canonicalUrl}</code>
+          </>
+        ) : (
+          <>
+            <AlertTriangle className="h-3.5 w-3.5 text-yellow-600" />
+            <span className="text-yellow-600 font-medium">Variants resolve to different URLs — canonicalization issue</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Timing Waterfall ─── */
+function TimingWaterfall({ timings }: { timings: TimingPhases }) {
+  const phases = [
+    { key: 'dns', label: 'DNS', color: 'bg-blue-500' },
+    { key: 'tcp', label: 'TCP', color: 'bg-green-500' },
+    { key: 'tls', label: 'TLS', color: 'bg-purple-500' },
+    { key: 'firstByte', label: 'TTFB', color: 'bg-yellow-500' },
+    { key: 'download', label: 'Download', color: 'bg-cyan-500' },
+  ] as const;
+
+  const total = timings.total || 1;
+  const validPhases = phases.filter(p => (timings[p.key] ?? 0) > 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Clock className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">Response Time</h3>
+        <span className="text-xs text-muted-foreground ml-auto">{formatMs(timings.total)} total</span>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+        {validPhases.map(p => {
+          const val = timings[p.key] ?? 0;
+          const pct = Math.max((val / total) * 100, 3);
+          return (
+            <div
+              key={p.key}
+              className={`${p.color} h-full transition-all`}
+              style={{ width: `${pct}%` }}
+              title={`${p.label}: ${formatMs(val)}`}
+            />
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        {validPhases.map(p => (
+          <span key={p.key} className="flex items-center gap-1.5">
+            <span className={`inline-block w-2.5 h-2.5 rounded-sm ${p.color}`} />
+            <span className="font-medium">{p.label}</span>
+            <span>{formatMs(timings[p.key])}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Response Headers (collapsible) ─── */
+function HeadersCollapsible({ headers }: { headers: Record<string, string> }) {
   const [open, setOpen] = useState(false);
   const entries = Object.entries(headers);
   if (entries.length === 0) return null;
 
   return (
-    <div className="mt-2">
+    <div>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
-        {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        {label} ({entries.length})
+        {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        Response Headers ({entries.length})
       </button>
       {open && (
-        <div className="mt-1 rounded-md border border-border bg-muted/30 overflow-hidden">
+        <div className="mt-2 rounded-lg border border-border bg-muted/20 overflow-hidden">
           <table className="w-full text-[11px]">
             <tbody>
               {entries.map(([k, v]) => (
-                <tr key={k} className="border-b border-border/50 last:border-0">
-                  <td className="px-2 py-1 font-mono font-semibold text-muted-foreground whitespace-nowrap align-top">{k}</td>
-                  <td className="px-2 py-1 font-mono text-foreground break-all">{v}</td>
+                <tr key={k} className="border-b border-border/30 last:border-0">
+                  <td className="px-2.5 py-1.5 font-mono font-semibold text-muted-foreground whitespace-nowrap align-top">{k}</td>
+                  <td className="px-2.5 py-1.5 font-mono text-foreground break-all">{v}</td>
                 </tr>
               ))}
             </tbody>
@@ -87,43 +226,21 @@ function HeadersTable({ headers, label }: { headers: Record<string, string>; lab
   );
 }
 
-function TimingBar({ timings }: { timings: TimingPhases }) {
-  const phases = [
-    { key: 'dns', label: 'DNS', color: 'bg-blue-500' },
-    { key: 'tcp', label: 'TCP', color: 'bg-green-500' },
-    { key: 'tls', label: 'TLS', color: 'bg-purple-500' },
-    { key: 'request', label: 'Req', color: 'bg-orange-500' },
-    { key: 'firstByte', label: 'TTFB', color: 'bg-yellow-500' },
-    { key: 'download', label: 'DL', color: 'bg-cyan-500' },
-  ] as const;
-
-  const total = timings.total || 1;
-  const validPhases = phases.filter(p => (timings[p.key] ?? 0) > 0);
+/* ─── Redirect Chain (compact) ─── */
+function RedirectChain({ hops }: { hops: Hop[] }) {
+  if (hops.length <= 1) return null;
 
   return (
-    <div className="mt-2 space-y-1">
-      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-        <Clock className="h-3 w-3" /> Total: {formatMs(timings.total)}
-      </div>
-      <div className="flex h-2 rounded-full overflow-hidden bg-muted">
-        {validPhases.map(p => {
-          const val = timings[p.key] ?? 0;
-          const pct = Math.max((val / total) * 100, 2);
-          return (
-            <div
-              key={p.key}
-              className={`${p.color} h-full`}
-              style={{ width: `${pct}%` }}
-              title={`${p.label}: ${formatMs(val)}`}
-            />
-          );
-        })}
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-        {validPhases.map(p => (
-          <span key={p.key} className="flex items-center gap-1">
-            <span className={`inline-block w-2 h-2 rounded-full ${p.color}`} />
-            {p.label} {formatMs(timings[p.key])}
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold text-foreground">Redirect Chain</h3>
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        {hops.map((hop, i) => (
+          <span key={i} className="flex items-center gap-1.5">
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusBadgeClass(hop.statusCode)}`}>
+              {hop.statusCode}
+            </Badge>
+            <span className="font-mono text-muted-foreground truncate max-w-[200px]">{hop.url}</span>
+            {i < hops.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />}
           </span>
         ))}
       </div>
@@ -131,141 +248,52 @@ function TimingBar({ timings }: { timings: TimingPhases }) {
   );
 }
 
+/* ─── Main Card ─── */
 export function HttpStatusCard({ data }: { data: HttpStatusData }) {
-  const { hops, redirectCount, apiMeta } = data;
+  const { hops, redirectCount, canonical } = data;
+
+  // Get timings from new shape or legacy hops
+  const timings: TimingPhases | null = data.timings || (hops.length > 0 ? hops[hops.length - 1]?.timings : null) || null;
+
+  // Get response headers from new shape or legacy hops
+  const responseHeaders = data.responseHeaders || (hops.length > 0 ? hops[hops.length - 1]?.responseHeaders : null) || null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Summary */}
       <div className="flex flex-wrap items-center gap-3">
-        <Badge variant="outline" className={`text-xs px-2 py-0.5 ${statusColor(data.finalStatusCode)}`}>
-          {data.finalStatusCode}
+        <Badge variant="outline" className={`text-sm px-2.5 py-0.5 font-bold ${statusBadgeClass(data.finalStatusCode)}`}>
+          {data.finalStatusCode} {data.finalStatusCode === 200 ? 'OK' : ''}
         </Badge>
         <span className="text-sm text-muted-foreground">
           {redirectCount === 0 ? 'No redirects' : `${redirectCount} redirect${redirectCount > 1 ? 's' : ''}`}
         </span>
+        {timings?.total != null && (
+          <span className="text-sm text-muted-foreground">· {formatMs(timings.total)}</span>
+        )}
+        {redirectCount === 0 && data.finalStatusCode === 200 && (
+          <Badge variant="outline" className="text-[11px] px-1.5 py-0 text-green-600 border-green-500/30">
+            <CheckCircle className="h-3 w-3 mr-0.5" /> Clean
+          </Badge>
+        )}
         {redirectCount > 3 && (
           <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
             <AlertTriangle className="h-3 w-3 mr-0.5" /> Long chain
           </Badge>
         )}
-        {redirectCount === 0 && data.finalStatusCode === 200 && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-500/30">
-            <CheckCircle className="h-3 w-3 mr-0.5" /> Clean
-          </Badge>
-        )}
-        {apiMeta?.responseTime != null && (
-          <span className="text-[10px] text-muted-foreground">API: {apiMeta.responseTime}ms</span>
-        )}
       </div>
 
-      {/* Redirect Chain */}
-      <div className="space-y-0">
-        {hops.map((hop, i) => {
-          const isLast = i === hops.length - 1;
-          return (
-            <div key={i}>
-              <div className="flex items-start gap-3 py-2.5">
-                {/* Step indicator */}
-                <div className="flex flex-col items-center pt-0.5">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border ${statusColor(hop.statusCode)}`}>
-                    {hop.statusCode}
-                  </div>
-                  {!isLast && <div className="w-px h-full min-h-[16px] bg-border mt-1" />}
-                </div>
+      {/* Canonical Section */}
+      <CanonicalSection canonical={canonical} />
 
-                {/* Details */}
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-sm font-mono truncate text-foreground">{hop.url}</p>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {hop.statusMessage && <span>{hop.statusMessage}</span>}
-                    {hop.ip && (
-                      <span className="flex items-center gap-0.5">
-                        <Globe className="h-3 w-3" /> {hop.ip}
-                      </span>
-                    )}
-                    {hop.latency != null && (
-                      <span className="flex items-center gap-0.5">
-                        <Clock className="h-3 w-3" /> {formatMs(hop.latency)}
-                      </span>
-                    )}
-                    {hop.redirectType && (
-                      <Badge variant="secondary" className="text-[10px] px-1 py-0">{hop.redirectType}</Badge>
-                    )}
-                    {hop.parsedHostname?.isIp && (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0">IP address</Badge>
-                    )}
-                  </div>
+      {/* Redirect Chain (only if >1 hop) */}
+      <RedirectChain hops={hops} />
 
-                  {/* Parsed hostname badges */}
-                  {hop.parsedHostname && (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {hop.parsedHostname.domain && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">{hop.parsedHostname.domain}</Badge>
-                      )}
-                      {hop.parsedHostname.subdomain && (
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0">sub: {hop.parsedHostname.subdomain}</Badge>
-                      )}
-                      {hop.parsedHostname.publicSuffix && (
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0">TLD: {hop.parsedHostname.publicSuffix}</Badge>
-                      )}
-                      {hop.parsedHostname.isIcann && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 text-green-600 border-green-500/30">ICANN</Badge>
-                      )}
-                    </div>
-                  )}
+      {/* Timing Waterfall */}
+      {timings && <TimingWaterfall timings={timings} />}
 
-                  {/* Timing waterfall */}
-                  {hop.timings && <TimingBar timings={hop.timings} />}
-
-                  {/* Response headers */}
-                  {hop.responseHeaders && (
-                    <HeadersTable headers={hop.responseHeaders} label="Response Headers" />
-                  )}
-
-                  {/* Request headers */}
-                  {hop.requestHeaders && (
-                    <HeadersTable headers={hop.requestHeaders} label="Request Headers" />
-                  )}
-                </div>
-              </div>
-
-              {/* Arrow between hops */}
-              {!isLast && (
-                <div className="flex items-center gap-2 pl-[22px] py-0.5">
-                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground">
-                    {hop.statusCode === 301 ? 'Permanent redirect' : hop.statusCode === 302 ? 'Temporary redirect' : hop.statusCode === 307 ? 'Temporary (307)' : hop.statusCode === 308 ? 'Permanent (308)' : 'Redirect'}
-                    {hop.redirectType ? ` · ${hop.redirectType}` : ''}
-                  </span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Final hop parsed URL */}
-      {(() => {
-        const lastHop = hops.length > 0 ? hops[hops.length - 1] : null;
-        const pu = lastHop?.parsedUrl || data.parsedUrl;
-        if (!pu) return null;
-        return (
-          <div className="border-t border-border pt-4 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Server className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Final URL Breakdown</p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {pu.protocol && <Badge variant="outline" className="text-[10px]">{pu.protocol}</Badge>}
-              {pu.hostname && <Badge variant="outline" className="text-xs">{pu.hostname}</Badge>}
-              {pu.port && <Badge variant="secondary" className="text-[10px]">Port: {pu.port}</Badge>}
-              {pu.pathname && pu.pathname !== '/' && <Badge variant="secondary" className="text-[10px]">Path: {pu.pathname}</Badge>}
-              {pu.origin && <Badge variant="secondary" className="text-[10px]">Origin: {pu.origin}</Badge>}
-            </div>
-          </div>
-        );
-      })()}
+      {/* Response Headers */}
+      {responseHeaders && <HeadersCollapsible headers={responseHeaders} />}
     </div>
   );
 }
