@@ -23,9 +23,9 @@ export function EstimateVariablesTab({ variables, onChange }: Props) {
           <CardDescription>These values affect task hour calculations</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Field label="User Personas" value={variables.user_personas ?? 3} onChange={(v) => handleChange('user_personas', v)} />
-          <Field label="Design Layouts" value={variables.design_layouts ?? 5} onChange={(v) => handleChange('design_layouts', v)} />
           <Field label="Pages for Integration" value={variables.pages_for_integration ?? 20} onChange={(v) => handleChange('pages_for_integration', v)} />
+          <Field label="Design Layouts" value={variables.design_layouts ?? 5} onChange={(v) => handleChange('design_layouts', v)} />
+          <Field label="User Personas" value={variables.user_personas ?? 3} onChange={(v) => handleChange('user_personas', v)} />
           <Field label="Custom Posts" value={variables.custom_posts ?? 2} onChange={(v) => handleChange('custom_posts', v)} min={0} />
           <Field label="Number of Forms" value={variables.form_count ?? 2} onChange={(v) => handleChange('form_count', v)} min={0} />
           <div className="space-y-1.5">
