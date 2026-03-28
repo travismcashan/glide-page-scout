@@ -16,29 +16,72 @@ const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-sonnet': { model: 'claude-sonnet-4-6', maxOutput: 16000 },
 };
 
-async function callGateway(apiKey: string, model: string, systemPrompt: string, userContent: string): Promise<string> {
+// Stream a gateway model, emitting chunks via callback
+async function streamGateway(
+  apiKey: string, model: string, systemPrompt: string, userContent: string,
+  onChunk: (text: string) => void
+): Promise<string> {
+  const isOpenAI = model.startsWith('openai/');
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent },
+    ],
+    stream: true,
+  };
+  if (isOpenAI) {
+    body.max_completion_tokens = 2048;
+  } else {
+    body.max_tokens = 2048;
+  }
+
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-      ],
-      stream: false,
-      max_tokens: 2048,
-    }),
+    body: JSON.stringify(body),
   });
   if (!resp.ok) {
     const t = await resp.text();
     throw new Error(`Gateway ${model} error ${resp.status}: ${t.slice(0, 200)}`);
   }
-  const data = await resp.json();
-  return data.choices?.[0]?.message?.content || '';
+
+  const reader = resp.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6).trim();
+      if (payload === '[DONE]') continue;
+      try {
+        const chunk = JSON.parse(payload);
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (delta) {
+          fullText += delta;
+          onChunk(delta);
+        }
+      } catch {}
+    }
+  }
+
+  return fullText;
 }
 
-async function callAnthropic(apiKey: string, modelId: string, systemPrompt: string, userContent: string): Promise<string> {
+// Stream an Anthropic model, emitting chunks via callback
+async function streamAnthropic(
+  apiKey: string, modelId: string, systemPrompt: string, userContent: string,
+  onChunk: (text: string) => void
+): Promise<string> {
   const cm = CLAUDE_MODELS[modelId] || { model: modelId, maxOutput: 8192 };
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -50,6 +93,7 @@ async function callAnthropic(apiKey: string, modelId: string, systemPrompt: stri
     body: JSON.stringify({
       model: cm.model,
       max_tokens: cm.maxOutput,
+      stream: true,
       system: systemPrompt,
       messages: [{ role: 'user', content: userContent }],
     }),
@@ -58,8 +102,35 @@ async function callAnthropic(apiKey: string, modelId: string, systemPrompt: stri
     const t = await resp.text();
     throw new Error(`Anthropic ${cm.model} error ${resp.status}: ${t.slice(0, 200)}`);
   }
-  const data = await resp.json();
-  return data.content?.[0]?.text || '';
+
+  const reader = resp.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6).trim();
+      if (payload === '[DONE]') continue;
+      try {
+        const event = JSON.parse(payload);
+        if (event.type === 'content_block_delta' && event.delta?.text) {
+          fullText += event.delta.text;
+          onChunk(event.delta.text);
+        }
+      } catch {}
+    }
+  }
+
+  return fullText;
 }
 
 const COUNCIL_SYSTEM = `You are one of 3 AI models in a Model Council. Give your best, most thoughtful and specific response to the user's question. Be concise but substantive — aim for 300-500 words. Take clear positions and provide actionable recommendations.`;
@@ -84,7 +155,7 @@ Rules:
 - Do NOT use generic filler — every point should be meaningful
 - Write in a clear, professional tone`;
 
-function sseEvent(event: string, data: any): string {
+function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
@@ -119,20 +190,24 @@ serve(async (req) => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (event: string, data: any) => {
+        const send = (event: string, data: unknown) => {
           controller.enqueue(encoder.encode(sseEvent(event, data)));
         };
 
         try {
-          // Phase 1: Run all 3 models in parallel
+          // Phase 1: Run all 3 models in parallel, streaming chunks to each
           const modelPromises = COUNCIL_MODELS.map(async (m) => {
             send('model_start', { key: m.key, name: m.name });
             try {
+              const onChunk = (text: string) => {
+                send('model_chunk', { key: m.key, text });
+              };
+
               let result: string;
               if (m.provider === 'anthropic') {
-                result = await callAnthropic(ANTHROPIC_KEY, m.id, system, userContent);
+                result = await streamAnthropic(ANTHROPIC_KEY, m.id, system, userContent, onChunk);
               } else {
-                result = await callGateway(LOVABLE_API_KEY!, m.id, system, userContent);
+                result = await streamGateway(LOVABLE_API_KEY!, m.id, system, userContent, onChunk);
               }
               send('model_done', { key: m.key, name: m.name, response: result });
               return { key: m.key, name: m.name, response: result };
