@@ -175,7 +175,7 @@ export default function CrawlPage() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="Enter a URL to analyze…"
-                  className="pl-10 h-12 text-base border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="pl-10 h-11 text-base border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   disabled={isStarting}
                 />
               </div>
@@ -205,7 +205,7 @@ export default function CrawlPage() {
                   <button
                     key={s.sessionId}
                     onClick={() => navigate(buildSitePath(s.domain, s.createdAt, (multiDomains.get(s.domain) ?? 0) > 1))}
-                    className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                    className="w-full flex items-center justify-between gap-4 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Globe className="h-4 w-4 shrink-0 text-primary/60" />
