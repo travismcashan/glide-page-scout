@@ -353,11 +353,16 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
             size="sm"
             variant="outline"
           >
-            {(['S', 'M', 'L'] as TierKey[]).map(tier => (
-              <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
-                {tierLabel(tier)}
-              </ToggleGroupItem>
-            ))}
+            {(['S', 'M', 'L'] as TierKey[]).map(tier => {
+              const count = tier === 'S' ? primaryUrls.length
+                : tier === 'M' ? primaryUrls.length + secondaryUrls.length
+                : primaryUrls.length + secondaryUrls.length + tertiaryUrls.length;
+              return (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
+                  {tierLabel(tier)} · {count}
+                </ToggleGroupItem>
+              );
+            })}
           </ToggleGroup>
         </div>
       </div>
