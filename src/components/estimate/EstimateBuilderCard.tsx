@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, RefreshCw, PlusCircle, Loader2, CalendarDays, FileText, Trash2 } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2 } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
@@ -224,15 +224,13 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   };
 
   const handleVariablesChange = (variables: EstimateVariables) => {
-    if (estimate) setEstimate({ ...estimate, ...variables });
-  };
-
-  const handleRecalculate = useCallback(() => {
     if (!estimate) return;
-    const updatedTasks = recalculateAllTasks(tasks, estimate, formulas);
+    const updated = { ...estimate, ...variables };
+    setEstimate(updated);
+    // Auto-recalculate tasks when variables change
+    const updatedTasks = recalculateAllTasks(tasks, updated, formulas);
     setTasks(updatedTasks as EstimateTask[]);
-    toast.success('Task hours recalculated based on variables');
-  }, [estimate, tasks, formulas]);
+  };
 
   const handleSave = async () => {
     if (!estimate) return;
@@ -393,9 +391,6 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
             <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleRecalculate} disabled={tasks.length === 0}>
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Recalculate
           </Button>
           <Button size="sm" onClick={handleSave} disabled={saving}>
             <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? 'Saving…' : 'Save'}
