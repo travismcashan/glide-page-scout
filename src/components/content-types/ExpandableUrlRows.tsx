@@ -35,13 +35,12 @@ const ROW_LIMIT = 5;
 export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, showCheckbox = false, isIncluded = true }: ExpandableUrlRowsProps) {
   const [showAll, setShowAll] = useState(false);
   const hasMore = urls.length > ROW_LIMIT;
-  const visibleUrls = showAll ? urls : urls.slice(0, ROW_LIMIT);
 
   return (
     <TooltipProvider>
       <div>
-        <div style={{ maxHeight: showAll ? '336px' : `${ROW_LIMIT * 28}px`, overflowY: 'auto' }}>
-        {visibleUrls.map((item) => {
+        <div className={hasMore && !showAll ? 'max-h-[140px] overflow-y-auto' : showAll ? 'max-h-[336px] overflow-y-auto' : ''}>
+        {urls.map((item) => {
           let pathname: string;
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
           const pageTag = getPageTag(pageTags, item.url);
