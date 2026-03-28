@@ -48,6 +48,13 @@ const INTEGRATIONS = [
   { label: 'Audit site search experience', icon: ScanSearch },
 ];
 
+const ROTATING_PHRASES = [
+  'Ready, set,',
+  'What should we',
+  'Pick a site,',
+  'Go ahead and',
+];
+
 const ROTATING_WORDS = [
   'Research', 'Analyze', 'Prospect', 'Discover', 'Explore',
   'Investigate', 'Uncover', 'Decode', 'Benchmark', 'Evaluate',
