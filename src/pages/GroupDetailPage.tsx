@@ -130,6 +130,60 @@ export default function GroupDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [members.length, groupId]);
 
+  // Fetch existing sessions when dialog opens on "existing" tab
+  const fetchExistingSessions = async () => {
+    setLoadingExisting(true);
+    const memberSessionIds = members.map(m => m.session_id);
+    const { data } = await supabase
+      .from('crawl_sessions')
+      .select('id, domain, created_at')
+      .neq('domain', '__global_chat__')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    // Filter out sessions already in the group
+    const filtered = (data ?? []).filter(s => !memberSessionIds.includes(s.id));
+    setExistingSessions(filtered);
+    setLoadingExisting(false);
+  };
+
+  useEffect(() => {
+    if (addOpen && addTab === 'existing') {
+      fetchExistingSessions();
+      setSelectedSessionIds(new Set());
+    }
+  }, [addOpen, addTab]);
+
+  const toggleSession = (id: string) => {
+    setSelectedSessionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAddExisting = async () => {
+    if (!groupId || selectedSessionIds.size === 0) return;
+    setAdding(true);
+    try {
+      const rows = Array.from(selectedSessionIds).map(session_id => ({
+        group_id: groupId,
+        session_id,
+      }));
+      const { error } = await supabase.from('site_group_members').insert(rows);
+      if (error) throw error;
+      toast.success(`Added ${selectedSessionIds.size} site${selectedSessionIds.size > 1 ? 's' : ''} to group`);
+      setAddOpen(false);
+      setSelectedSessionIds(new Set());
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to add sites');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const handleAddSite = async () => {
     if (!newUrl.trim() || !groupId) return;
     setAdding(true);
@@ -137,7 +191,6 @@ export default function GroupDetailPage() {
       const formattedUrl = newUrl.trim().startsWith('http') ? newUrl.trim() : `https://${newUrl.trim()}`;
       const domain = new URL(formattedUrl).hostname;
 
-      // Create crawl session
       const { data: session, error: sessErr } = await supabase
         .from('crawl_sessions')
         .insert({ domain, base_url: formattedUrl, status: 'analyzing' } as any)
@@ -146,14 +199,12 @@ export default function GroupDetailPage() {
 
       if (sessErr) throw sessErr;
 
-      // Add to group
       const { error: memErr } = await supabase
         .from('site_group_members')
         .insert({ group_id: groupId, session_id: session.id });
 
       if (memErr) throw memErr;
 
-      // Fire crawl-start
       supabase.functions.invoke('crawl-start', {
         body: { session_id: session.id },
       }).catch(err => console.error('crawl-start error:', err));
