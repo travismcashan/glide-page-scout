@@ -1903,9 +1903,9 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      {/* Domain + crawl info — compact single row */}
-      <div className="max-w-6xl mx-auto px-6 pt-5 pb-3">
-        <div className="flex items-baseline justify-between gap-4">
+      {/* Domain + crawl info — matches header height */}
+      <div className="border-b border-border">
+        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold tracking-tight text-foreground leading-none">
             {session?.domain?.replace(/^www\./i, '')}
           </h1>
@@ -1929,15 +1929,15 @@ export default function ResultsPage() {
       {/* Global integration progress bar */}
       {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
 
-      <main className={`max-w-6xl mx-auto px-6 pt-2 pb-8 space-y-6 w-full`}>
+      <main className={`max-w-6xl mx-auto px-6 pb-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Sticky tab bar - shown when scrolling up and past the original */}
           <div
             className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
             style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
           >
-              <div className="max-w-6xl mx-auto px-6 pt-5">
-                <div className="relative flex items-end">
+              <div className="max-w-6xl mx-auto px-6 h-14 flex items-end">
+                <div className="relative flex items-end w-full">
                   <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
                   <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
                     {tabTriggers}
@@ -1945,7 +1945,7 @@ export default function ResultsPage() {
                 </div>
               </div>
             </div>
-          <div ref={tabBarRef} className="relative flex items-end justify-between">
+          <div ref={tabBarRef} className="relative h-14 flex items-end justify-between">
             {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
             <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
             <TabsList className="relative h-auto bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
