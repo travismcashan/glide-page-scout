@@ -259,9 +259,8 @@ function TaskTableRow({
       <TableCell className="py-1.5 w-10">
         <Checkbox
           checked={task.is_selected}
-          onCheckedChange={formulaDriven ? undefined : (checked) => onToggle(task.id, checked as boolean)}
-          disabled={formulaDriven}
-          className={formulaDriven ? 'cursor-not-allowed border-muted-foreground/40 data-[state=checked]:bg-muted-foreground/40 data-[state=checked]:border-muted-foreground/40' : ''}
+          onCheckedChange={(checked) => onToggle(task.id, checked as boolean)}
+          className={formulaDriven ? 'border-muted-foreground/40 data-[state=checked]:bg-muted-foreground/50 data-[state=checked]:border-muted-foreground/50' : ''}
         />
       </TableCell>
 
