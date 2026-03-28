@@ -160,7 +160,7 @@ type ScopeSection = {
   showEffort: boolean;
 };
 
-function ScopeTab({ scope, mode = 'analysis' }: { scope: Scope; mode?: 'analysis' | 'estimate' }) {
+function ScopeTab({ scope, mode = 'analysis', tierSelector }: { scope: Scope; mode?: 'analysis' | 'estimate'; tierSelector?: React.ReactNode }) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const toggleSection = (key: string) => {
