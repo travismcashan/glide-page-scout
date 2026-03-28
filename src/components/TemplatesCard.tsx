@@ -330,7 +330,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       {/* Summary + Controls on same row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-4 flex-wrap">
-          <MetaStat value={totalTemplates} label="Total Templates" />
+          <MetaStat value={totalTemplates} label="Detected Templates" />
           <MetaStatDivider />
           <MetaStat value={designCount} label="Selected Templates" />
         </div>
