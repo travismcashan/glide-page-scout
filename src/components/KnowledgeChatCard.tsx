@@ -1301,7 +1301,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           updated[updated.length - 1] = { role: 'assistant', content: finalContent, councilModels: finalModels };
           return updated;
         });
-        saveMessage('assistant', finalContent);
+        saveMessage('assistant', dbContent);
         setIsStreaming(false);
         return;
       }
