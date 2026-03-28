@@ -1,43 +1,92 @@
 
-# Multi-Site Groups Feature
 
-## Status: Phase 1 Complete ✅
+# Phase 2: Group Comparison Dashboard
 
-### What's Done (Phase 1)
-1. **`site_groups` table** — Stores group name, description, timestamps.
-2. **`site_group_members` table** — Join table linking groups to crawl_sessions with priority and notes fields. Unique on (group_id, session_id).
-3. **`/groups` page** — Lists all groups with member counts, creation dates. "New Group" dialog to create groups.
-4. **`/groups/:groupId` page** — Group detail with member sites list, realtime progress tracking via integration_runs, add/remove sites, links to individual results pages.
-5. **Navigation** — "Groups" link added to AppHeader.
-6. **Routes** — `/groups` and `/groups/:groupId` wired in App.tsx.
+Phase 1 (basic CRUD, member list, progress tracking) is complete. This plan adds the comparison and analysis features from the original plan.
 
-### What's Next (Phase 2) — Comparison Dashboard
-- Score comparison grid pulling from each member's crawl_sessions data
-- Technology matrix (builtwith/wappalyzer data cross-referenced)
-- Performance charts (PSI/GTmetrix/CrUX data)
-- Side-by-side score cards per site
+## What We're Building
 
-### Phase 3 — AI Strategy Generation
-- New edge function `group-strategy` loading all member sessions' key data
-- Generates unified platform recommendation, priority ranking rationale, consolidation roadmap
-- Renders as downloadable report or on-screen brief
+Transform the GroupDetailPage from a simple member list into a tabbed dashboard with four comparison views, plus the groundwork for the AI strategy brief.
 
-### Phase 4 — Batch Operations (Deferred)
-- Batch URL input on CrawlPage (paste multiple URLs, auto-create group)
-- "Run All" to trigger crawl-start for multiple sites
-- "Refresh Stale" to re-crawl sites older than N days
-- Group-level progress tracking
-- Drag-to-reorder priority
+## Changes to GroupDetailPage
 
-### Architecture
+Replace the current flat member list with a **tabbed layout**:
+
+```text
+┌─ Group Header (name, description, member count) ──────────────┐
+│                                                                 │
+│  [Sites]  [Scores]  [Technology]  [Performance]  [Strategy]    │
+│                                                                 │
+│  ┌─ Tab Content ─────────────────────────────────────────────┐ │
+│  │  (varies by tab)                                           │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
 ```
-GroupsPage → list all groups → click to open detail
-GroupDetailPage → shows member sites with live progress
-  ↓ "Add Site" dialog
-  Creates crawl_session → creates site_group_members row
-  Fires crawl-start (fire-and-forget)
-  ↓
-  Realtime subscription on integration_runs
-  Shows per-site completion percentage
-  Links to individual /sites/:domain results
+
+### Tab 1: Sites (existing view)
+- Current member list with progress indicators, add/remove — unchanged
+
+### Tab 2: Score Overview Grid
+- Fetch full `crawl_sessions` data for all member session IDs
+- Run `computeOverallScore()` from `siteScore.ts` for each
+- Render a comparison table:
+  - Rows = categories (Performance, SEO, Accessibility, Security, Content, Technology, URL Health)
+  - Columns = each member site (domain name header)
+  - Cells = score + letter grade with color coding
+  - Footer row = overall score per site
+- Highlight best/worst per category with visual indicators
+
+### Tab 3: Technology Comparison
+- Pull `builtwith_data` and `wappalyzer_data` from each session
+- Build a unified technology matrix:
+  - Rows = technology names (deduplicated across all sites)
+  - Columns = each site
+  - Cells = checkmark if present, empty if not
+- Group by category (CMS, Analytics, CDN, Frameworks, etc.)
+- Summary section: "Shared across all sites" vs "Unique to [domain]"
+
+### Tab 4: Performance Comparison
+- Pull `psi_data`, `gtmetrix_scores`, `crux_data` from each session
+- Bar chart comparing key metrics side by side:
+  - PSI Performance (mobile/desktop)
+  - Core Web Vitals (LCP, FID/INP, CLS) from CrUX
+  - GTmetrix grade
+- Identify best-performing site as benchmark
+- Use simple colored bar visualization (no charting library needed — CSS bars)
+
+### Tab 5: AI Strategy Brief (placeholder for Phase 3)
+- Show a "Generate Strategy Brief" button (disabled/coming soon)
+- Brief description of what it will do
+
+## New Components
+
+| File | Purpose |
+|------|---------|
+| `src/components/groups/GroupScoreGrid.tsx` | Score comparison table across all sites |
+| `src/components/groups/GroupTechMatrix.tsx` | Technology presence matrix |
+| `src/components/groups/GroupPerformanceChart.tsx` | Side-by-side performance bars |
+
+## Data Fetching
+
+When the group detail page loads, fetch full session data for all members:
+
+```typescript
+const { data: sessions } = await supabase
+  .from('crawl_sessions')
+  .select('*')
+  .in('id', memberSessionIds);
 ```
+
+This gives us all the jsonb columns (psi_data, builtwith_data, wappalyzer_data, crux_data, etc.) needed for comparison — no new tables or edge functions required.
+
+## Modified Files
+
+| File | Change |
+|------|---------|
+| `src/pages/GroupDetailPage.tsx` | Add tabs wrapping existing list + new comparison tabs, fetch full session data |
+| 3 new component files above | Comparison UI components |
+
+## No Database Changes
+
+All data already exists in `crawl_sessions`. This is purely a frontend feature using `computeOverallScore()` and direct jsonb field reads.
+
