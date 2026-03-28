@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.rename-document]
 verify_jwt = false
+
+[functions.crawl-start]
+verify_jwt = false
