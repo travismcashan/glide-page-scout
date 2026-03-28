@@ -1,34 +1,45 @@
 
+# Move Crawl Orchestration to Edge Functions
 
-## Auto-Rename Chat Threads with AI-Generated Titles
+## Status: Phase 1 Complete ✅
 
-### Problem
-Currently, threads are titled by truncating the first 30 characters of the user's message (`titleText.slice(0, 30)`), which produces ugly, cut-off titles like "Can you analyze the navigatio..." or just stays as "New Chat" in some flows.
+### What's Done (Phase 1)
+1. **`integration_runs` table** — Created with realtime enabled. Tracks per-integration status (pending/running/done/failed/skipped) per session.
+2. **`crawl-start` edge function** — Dispatcher that reads session + paused settings, creates integration_runs rows, and fires all integration edge functions via fire-and-forget fetch.
+3. **Shared orchestration helper** (`_shared/orchestration.ts`) — `extractOrchestration()` provides `markRunning/markDone/markFailed` methods that write results to both `crawl_sessions` and `integration_runs`.
+4. **3 proof-of-concept edge functions updated** — `builtwith-lookup`, `semrush-domain`, `pagespeed-insights` now accept orchestration params and self-manage their status.
+5. **CrawlPage updated** — Calls `crawl-start` after creating a session (fire-and-forget).
+6. **ResultsPage realtime subscription** — Subscribes to `integration_runs` changes; when an integration completes server-side, it re-fetches that column and updates local state, preventing duplicate client-side triggers.
 
-### Solution
-After the first assistant response completes, call the AI (via the existing Lovable AI gateway) with the user's message + assistant reply to generate a concise 3-6 word title. This replaces the dumb truncation with an intelligent summary.
+### What's Next (Phase 2)
+- Update remaining ~17 edge functions with orchestration wrapper (same pattern as builtwith/semrush/psi)
+- Remove corresponding client-side `useEffect` triggers from ResultsPage for orchestrated integrations
+- Add dependency-chain logic: batch 2 functions check prerequisites before executing
+- Add retry logic for failed integrations
 
-### How It Works
+### Architecture
+```
+CrawlPage → creates session → invokes crawl-start (fire-and-forget)
+                                    ↓
+                        crawl-start reads session + settings
+                        creates integration_runs rows (all pending)
+                        fires each edge function with _orchestrated params
+                                    ↓
+                        Each edge function:
+                          1. markRunning() → updates integration_runs
+                          2. Does its work (external API call)
+                          3. markDone(result) → writes to crawl_sessions + integration_runs
+                             OR markFailed(msg) → writes error sentinel + integration_runs
+                                    ↓
+                        ResultsPage subscribes to integration_runs via Realtime
+                        On 'done' → re-fetches that column, updates local state
+                        On 'failed' → sets error state
+```
 
-1. **New helper function** in `KnowledgeChatCard.tsx` — `generateThreadTitle(userMessage, assistantReply)`:
-   - Calls the Lovable AI gateway with a small/fast model (`google/gemini-2.5-flash-lite`) 
-   - System prompt: "Generate a concise 3-6 word title for this conversation. No quotes, no punctuation at end. Max 35 characters."
-   - Returns the generated title string
+### Dual-path (transitional)
+Currently both paths are active:
+- **Server-side**: crawl-start fires integrations that have orchestration support
+- **Client-side**: useEffect triggers still run as fallback for all integrations
+- The triggered refs prevent double-execution: if server completes first, the ref is set and client skips; if client fires first, data exists and server skips
 
-2. **Replace the truncation logic** at line ~1653-1658:
-   - Instead of `titleText.slice(0, 30)`, call `generateThreadTitle()` with the user message and assistant response
-   - Fire-and-forget pattern (don't block the UI) — update the sidebar title once the AI responds
-   - Fallback to the current truncation if the AI call fails
-
-3. **Also fix the global chat flow** — the same pattern applies to `global_chat_threads` table updates
-
-### Technical Details
-
-- Uses the existing edge function infrastructure (Lovable AI gateway at `SUPABASE_URL/functions/v1/knowledge-chat` or a lightweight dedicated function)
-- Actually simpler: just call the gateway directly from the client using `supabase.functions.invoke` or use the existing `knowledge-chat` endpoint with a tiny prompt
-- Model choice: `google/gemini-2.5-flash-lite` — fastest, cheapest, perfect for a 1-sentence task
-- Title capped at 35 chars to fit the sidebar without truncation at the current `EXPANDED_WIDTH` of 280px
-
-### Files Changed
-- `src/components/KnowledgeChatCard.tsx` — add `generateThreadTitle` helper, replace truncation logic in both the regular send handler and the deep research send handler
-
+This will be collapsed to server-only in Phase 3-4.
