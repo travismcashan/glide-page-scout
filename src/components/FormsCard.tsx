@@ -250,27 +250,18 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
 
   return (
     <div className="space-y-4">
-      {/* Meta stats + AI tier controls on one row */}
+      {/* Meta stats + tier controls on one row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 flex-wrap">
-          <MetaStat value={summary.uniqueForms} label="Unique Forms" />
+          <MetaStat value={summary.uniqueForms} label="Detected Forms" />
           <MetaStatDivider />
-          <MetaStat value={summary.globalForms} label="Global Forms" />
-          <MetaStatDivider />
-          <MetaStat value={summary.uniqueForms - summary.globalForms} label="Page-Specific Forms" />
-          <MetaStatDivider />
-          <MetaStat value={summary.pagesWithForms} label="Pages with Forms" />
+          <MetaStat value={forms.filter(f => !excluded.has(f.formType)).length} label="Selected Forms" />
         </div>
         {isEstimate && (
           <div className="flex items-center gap-2">
-            {aiTiers && (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-2.5 w-2.5" /> AI
-              </span>
-            )}
             <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
-              {TIER_KEYS.map(tier => (
-                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+              {TIER_KEYS.filter(tier => tier !== 'All').map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading}>
                   {tierLabel(tier)}
                 </ToggleGroupItem>
               ))}
