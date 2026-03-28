@@ -1316,6 +1316,16 @@ export default function ResultsPage() {
   // Forms Detection (manual trigger — scrapes pages via Firecrawl)
   const [formsLoading, setFormsLoading] = useState(false);
   const [formsFailed, setFormsFailed] = useState(false);
+  const [lastFormsData, setLastFormsData] = useState<any | null>(null);
+
+  useEffect(() => {
+    if ((session as any)?.forms_data) {
+      setLastFormsData((session as any).forms_data);
+    }
+  }, [session?.forms_data]);
+
+  const visibleFormsData = (session as any)?.forms_data ?? (formsLoading ? lastFormsData : null);
+
   const runFormsDetection = useCallback(async () => {
     if (!session || !isRealSite || formsLoading) return;
     setFormsLoading(true);
@@ -1664,8 +1674,9 @@ export default function ResultsPage() {
       'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
       'page-tags': () => { setAutoTagging(false); autoTagTriedRef.current = false; },
       'forms': () => {
-        setFormsFailed(false); setFormsLoading(false); formsAutoRunRef.current = false;
+        setFormsFailed(false); formsAutoRunRef.current = false;
         formsRerunFnRef.current?.();
+        void runFormsDetection();
         // Also clear forms_tiers
         supabase.from('crawl_sessions').update({ forms_tiers: null } as any).eq('id', session!.id).then();
       },
@@ -1675,7 +1686,7 @@ export default function ResultsPage() {
     resetMap[key]?.();
     // Refresh session so useEffect picks up null data
     updateSession({ [dbColumn]: null } as any);
-  }, [session]);
+  }, [session, runFormsDetection]);
 
   const integrationList: { key: string; dbColumn: string }[] = [
     { key: 'sitemap', dbColumn: 'sitemap_data' },
@@ -2352,10 +2363,10 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('forms', !!(session as any)?.forms_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-               <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !(session as any)?.forms_data} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)} paused={isIntegrationPaused('forms') && !(session as any)?.forms_data} onTogglePause={() => handleTogglePause('forms')}>
-                {(session as any)?.forms_data ? (
-                  <FormsCard data={(session as any).forms_data} domain={(session as any).domain} />
+              {shouldShowIntegration('forms', !!visibleFormsData || formsLoading, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
+               <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !visibleFormsData} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)} paused={isIntegrationPaused('forms') && !visibleFormsData} onTogglePause={() => handleTogglePause('forms')}>
+                {visibleFormsData ? (
+                  <FormsCard data={visibleFormsData} domain={(session as any).domain} />
                 ) : !formsLoading && !isSharedView ? (
                   <div className="text-center py-4">
                     <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
@@ -2800,7 +2811,7 @@ export default function ResultsPage() {
                 domain={session.domain}
                 pageTags={session.page_tags as any}
                 contentTypesData={session.content_types_data as any}
-                formsData={session.forms_data}
+                formsData={visibleFormsData}
                 wappalyzerData={session.wappalyzer_data}
                 templateTiers={(session as any).template_tiers}
                 navStructure={(session as any).nav_structure || null}
