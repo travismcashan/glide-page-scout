@@ -112,17 +112,25 @@ export function ChatModelPicker({ model, provider, onModelChange, disabled }: Mo
         {versions.map(v => (
           <button
             key={v.id}
-            onClick={() => handleSelect(v.id)}
+            onClick={() => !v.comingSoon && handleSelect(v.id)}
+            disabled={v.comingSoon}
             className={cn(
               'w-full text-left rounded-md px-2 py-2 transition-colors flex items-start gap-2',
-              selectedModel?.id === v.id
-                ? 'bg-accent text-accent-foreground'
-                : 'hover:bg-muted/50'
+              v.comingSoon
+                ? 'opacity-50 cursor-not-allowed'
+                : selectedModel?.id === v.id
+                  ? 'bg-accent text-accent-foreground'
+                  : 'hover:bg-muted/50'
             )}
           >
             <span className={cn('h-2 w-2 rounded-full mt-1 shrink-0', TIER_DOT[v.tier])} />
-            <div className="min-w-0">
-              <div className="text-sm font-medium leading-tight">{v.label}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium leading-tight flex items-center gap-1.5">
+                {v.label}
+                {v.comingSoon && (
+                  <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
+                )}
+              </div>
               <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{v.description}</div>
             </div>
           </button>
