@@ -258,13 +258,20 @@ body[data-scroll-locked] {
   100% { background-position: 200% 50%; }
 }
 
+/* Light mode: deeper, saturated colors — no yellow/lime that vanish on white */
 .rainbow-text {
-  background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0000);
+  background: linear-gradient(90deg, #e02050, #d64000, #c06800, #0a8a50, #0070dd, #7b2ff7, #e02050);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: rainbow-shift 20s linear infinite;
+}
+
+/* Dark mode: brighter, more vivid neon palette */
+.dark .rainbow-text {
+  background: linear-gradient(90deg, #ff3366, #ff8800, #ffcc00, #00ff88, #00aaff, #aa55ff, #ff3366);
+  background-size: 200% auto;
 }
 
 /* Print styles for PDF export */
