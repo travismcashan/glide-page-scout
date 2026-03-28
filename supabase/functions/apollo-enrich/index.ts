@@ -59,8 +59,15 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       console.error('Apollo API error:', response.status, data);
+      const isCredits = response.status === 422 || response.status === 429 ||
+        (data?.message || '').toLowerCase().includes('credit') ||
+        (data?.message || '').toLowerCase().includes('rate limit');
       return new Response(
-        JSON.stringify({ success: false, error: data?.message || `Apollo returned ${response.status}` }),
+        JSON.stringify({
+          success: false,
+          errorCode: isCredits ? 'CREDITS_EXHAUSTED' : 'API_ERROR',
+          error: isCredits ? 'Apollo API credits exhausted' : (data?.message || `Apollo returned ${response.status}`),
+        }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
