@@ -553,6 +553,27 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground mt-1">Control how much of the knowledge base the AI reads when answering questions.</p>
           </div>
 
+          {/* Presets */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { name: '🎯 Everyday Driver', desc: '15 chunks, balanced matching — quick and reliable for most questions.', chunks: 15, threshold: 0.25 },
+              { name: '⚖️ Default', desc: '50 chunks, moderate matching — the standard balance of depth and speed.', chunks: 50, threshold: 0.20 },
+              { name: '🔬 Gotta Be Right', desc: '100 chunks, strict matching — maximum depth, high precision, slower.', chunks: 100, threshold: 0.50 },
+            ].map(p => {
+              const active = matchCount === p.chunks && Math.abs(matchThreshold - p.threshold) < 0.01;
+              return (
+                <button
+                  key={p.name}
+                  onClick={() => { setMatchCount(p.chunks); setMatchThreshold(p.threshold); }}
+                  className={`text-left rounded-lg border px-3 py-2.5 transition-all ${active ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-border hover:border-primary/40 hover:bg-muted/50'}`}
+                >
+                  <p className={`text-sm font-semibold ${active ? 'text-primary' : ''}`}>{p.name}</p>
+                  <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{p.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="space-y-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
