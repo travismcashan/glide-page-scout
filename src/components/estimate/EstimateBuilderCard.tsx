@@ -600,9 +600,6 @@ function getProjectDuration(totalHours: number): string {
                       mode="estimate"
                       savedTier={estimate.content_tier}
                       onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, content_tier: tier } : prev)}
-                      navStructure={navStructure}
-                      pageTags={pageTags}
-                      mode="estimate"
                       onTierChange={(tier, includedTypes, totalUrls) => {
                         if (estimate) {
                           const bulkAmount = tier === 'S' ? 'none' : totalUrls < 500 ? '<500' : totalUrls < 1000 ? '500-1000' : totalUrls < 5000 ? '1000-5000' : '>5000';
