@@ -50,6 +50,8 @@ type PageData = {
   screenshot_url?: string | null;
 };
 
+type AttachedSite = { session_id: string; domain: string };
+
 type Props = {
   session: SessionData;
   pages?: PageData[];
@@ -64,6 +66,15 @@ type Props = {
   /** When set, auto-fills the prompt and optionally enables deep research mode */
   pendingPrompt?: { text: string; deepResearch: boolean } | null;
   onPendingPromptConsumed?: () => void;
+  /** Global chat mode: no crawl context by default, multi-session RAG */
+  globalMode?: boolean;
+  /** Additional session IDs to include in RAG search (for attached sites) */
+  attachedSessionIds?: string[];
+  /** Attached site metadata for display */
+  attachedSites?: AttachedSite[];
+  /** Callback when user wants to manage attached sites */
+  onAttachSite?: () => void;
+  onDetachSite?: (sessionId: string) => void;
 };
 
 const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
