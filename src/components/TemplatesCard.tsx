@@ -396,9 +396,13 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                       <tr>
                         <td colSpan={5} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
-                            {recommendedTemplates.map((t, i) => (
-                              <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
-                            ))}
+                            <table className="w-full text-sm table-fixed">
+                              <tbody>
+                                {recommendedTemplates.map((t, i) => (
+                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </td>
                       </tr>
@@ -451,9 +455,13 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                       <tr>
                         <td colSpan={5} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
-                            {notIncludedTemplates.map((t, i) => (
-                              <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
-                            ))}
+                            <table className="w-full text-sm table-fixed">
+                              <tbody>
+                                {notIncludedTemplates.map((t, i) => (
+                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </td>
                       </tr>
