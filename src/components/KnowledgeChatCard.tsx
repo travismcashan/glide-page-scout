@@ -1236,6 +1236,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             messages: apiMessages,
             crawlContext,
             customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
+            councilModels: (() => { try { return JSON.parse(localStorage.getItem('council-models') || '[]'); } catch { return []; } })(),
           }),
         });
 

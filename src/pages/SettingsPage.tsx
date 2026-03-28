@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import AppHeader from '@/components/AppHeader';
-import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { PROVIDERS, VERSIONS, MODEL_OPTIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -26,7 +26,7 @@ const DEFAULT_BEST: Record<ModelProvider, string> = {
   claude: 'claude-opus',
   gpt: 'openai/gpt-5.2',
   perplexity: 'perplexity-sonar-reasoning-pro',
-  council: 'council-convergence',
+  council: 'council-synthesis',
 };
 
 const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
@@ -42,6 +42,29 @@ export default function SettingsPage() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
 
+  // Chat mode: 'individual' or 'council'
+  const [chatMode, setChatModeRaw] = useState<'individual' | 'council'>(
+    () => (localStorage.getItem('chat-mode') as 'individual' | 'council') || 'individual'
+  );
+  const setChatMode = (mode: 'individual' | 'council') => {
+    setChatModeRaw(mode);
+    localStorage.setItem('chat-mode', mode);
+    // Also update the active provider/model to match
+    if (mode === 'council') {
+      setProvider('council');
+      localStorage.setItem('chat-provider', 'council');
+      setModel('council-synthesis');
+      localStorage.setItem('chat-model', 'council-synthesis');
+    } else {
+      const savedProvider = localStorage.getItem('chat-individual-provider') as ModelProvider || 'gemini';
+      const savedModel = localStorage.getItem('chat-individual-model') || DEFAULT_BEST[savedProvider];
+      setProvider(savedProvider);
+      localStorage.setItem('chat-provider', savedProvider);
+      setModel(savedModel);
+      localStorage.setItem('chat-model', savedModel);
+    }
+  };
+
   const [provider, setProvider] = useState<ModelProvider>(
     () => (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini'
   );
@@ -54,6 +77,28 @@ export default function SettingsPage() {
       return DEFAULT_REASONING[p] || 'medium';
     }
   );
+
+  // Council model slots
+  type CouncilSlot = { provider: ModelProvider; modelId: string };
+  const defaultCouncilSlots: CouncilSlot[] = [
+    { provider: 'gemini', modelId: 'google/gemini-2.5-flash' },
+    { provider: 'gpt', modelId: 'openai/gpt-5-mini' },
+    { provider: 'claude', modelId: 'claude-haiku' },
+  ];
+  const [councilSlots, setCouncilSlots] = useState<CouncilSlot[]>(() => {
+    try {
+      const saved = localStorage.getItem('council-models');
+      return saved ? JSON.parse(saved) : defaultCouncilSlots;
+    } catch { return defaultCouncilSlots; }
+  });
+  const updateCouncilSlot = (index: number, modelId: string) => {
+    const modelOpt = MODEL_OPTIONS.find(m => m.id === modelId);
+    if (!modelOpt) return;
+    const next = [...councilSlots];
+    next[index] = { provider: modelOpt.provider, modelId };
+    setCouncilSlots(next);
+    localStorage.setItem('council-models', JSON.stringify(next));
+  };
 
   // RAG context settings
   const [matchCount, setMatchCount] = useState(
@@ -199,10 +244,12 @@ export default function SettingsPage() {
   const handleProviderChange = (p: ModelProvider) => {
     setProvider(p);
     localStorage.setItem('chat-provider', p);
+    localStorage.setItem('chat-individual-provider', p);
     const best = DEFAULT_BEST[p] || VERSIONS[p]?.[VERSIONS[p].length - 1]?.id;
     if (best) {
       setModel(best);
       localStorage.setItem('chat-model', best);
+      localStorage.setItem('chat-individual-model', best);
     }
     setReasoning(DEFAULT_REASONING[p] || 'none');
   };
@@ -210,6 +257,7 @@ export default function SettingsPage() {
   const handleModelChange = (id: string) => {
     setModel(id);
     localStorage.setItem('chat-model', id);
+    localStorage.setItem('chat-individual-model', id);
   };
 
   useEffect(() => {
@@ -232,65 +280,143 @@ export default function SettingsPage() {
         <section className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">AI Model Defaults</h2>
-            <p className="text-sm text-muted-foreground mt-1">Choose which model powers your chat and research workflows.</p>
+            <p className="text-sm text-muted-foreground mt-1">Choose your default chat mode and configure models for each.</p>
           </div>
 
-          {/* Provider tabs */}
-          <div className="flex gap-2">
-            {PROVIDERS.map(p => (
+          {/* Mode toggle */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Default Chat Mode</label>
+            <div className="flex gap-2">
               <Button
-                key={p.id}
-                variant={provider === p.id ? 'default' : 'outline'}
+                variant={chatMode === 'individual' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => handleProviderChange(p.id)}
+                onClick={() => setChatMode('individual')}
+                className="gap-1.5"
               >
-                {p.label}
+                <MessageSquare className="h-3.5 w-3.5" />
+                Individual
               </Button>
-            ))}
-          </div>
-
-          {/* Model grid */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {versions.map(v => (
-              <button
-                key={v.id}
-                onClick={() => handleModelChange(v.id)}
-                className={`text-left rounded-lg border p-4 transition-all ${
-                  model === v.id
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                    : 'border-border hover:border-muted-foreground/30'
-                }`}
+              <Button
+                variant={chatMode === 'council' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setChatMode('council')}
+                className="gap-1.5"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${TIER_DOT[v.tier]}`} />
-                  <span className="font-medium">{v.label}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{v.description}</p>
-              </button>
-            ))}
+                <Sparkles className="h-3.5 w-3.5" />
+                Model Council
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {chatMode === 'individual'
+                ? 'Chat uses a single model. Fast and focused.'
+                : 'Chat runs 3 models in parallel, then synthesizes the best answer from all three.'}
+            </p>
           </div>
 
-          {/* Reasoning effort */}
-          {activeModel && activeModel.reasoning.length > 1 && (
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Reasoning Effort</label>
+          {/* ── Individual model settings ── */}
+          {chatMode === 'individual' && (
+            <div className="space-y-6">
+              {/* Provider tabs — exclude council */}
               <div className="flex gap-2">
-                {activeModel.reasoning.map(r => {
-                  const label = activeModel.reasoningLabels?.[r] || (r === 'none' ? 'Fast' : r === 'medium' ? 'Thinking' : r === 'high' ? 'Pro' : r);
-                  const Icon = r === 'high' ? Sparkles : r === 'medium' ? Brain : Zap;
-                  return (
-                    <Button
-                      key={r}
-                      variant={reasoning === r ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setReasoning(r)}
-                      className="gap-1.5"
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {label}
-                    </Button>
-                  );
-                })}
+                {PROVIDERS.filter(p => p.id !== 'council').map(p => (
+                  <Button
+                    key={p.id}
+                    variant={provider === p.id ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleProviderChange(p.id)}
+                  >
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Model grid */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {versions.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => handleModelChange(v.id)}
+                    className={`text-left rounded-lg border p-4 transition-all ${
+                      model === v.id
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${TIER_DOT[v.tier]}`} />
+                      <span className="font-medium">{v.label}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{v.description}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Reasoning effort */}
+              {activeModel && activeModel.reasoning.length > 1 && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">Reasoning Effort</label>
+                  <div className="flex gap-2">
+                    {activeModel.reasoning.map(r => {
+                      const label = activeModel.reasoningLabels?.[r] || (r === 'none' ? 'Fast' : r === 'medium' ? 'Thinking' : r === 'high' ? 'Pro' : r);
+                      const Icon = r === 'high' ? Sparkles : r === 'medium' ? Brain : Zap;
+                      return (
+                        <Button
+                          key={r}
+                          variant={reasoning === r ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setReasoning(r)}
+                          className="gap-1.5"
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Model Council settings ── */}
+          {chatMode === 'council' && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Choose which 3 models participate in the council. Each runs independently, then a synthesis model merges the results.</p>
+              {councilSlots.map((slot, i) => {
+                const slotModel = MODEL_OPTIONS.find(m => m.id === slot.modelId);
+                // All non-council models available for selection
+                const availableModels = MODEL_OPTIONS.filter(m => m.provider !== 'council' && m.provider !== 'perplexity');
+                return (
+                  <div key={i} className="space-y-1.5">
+                    <label className="text-sm font-medium">Model {i + 1}</label>
+                    <Select value={slot.modelId} onValueChange={(v) => updateCouncilSlot(i, v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {slotModel ? `${PROVIDERS.find(p => p.id === slotModel.provider)?.label} — ${slotModel.label}` : 'Select model'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROVIDERS.filter(p => p.id !== 'council' && p.id !== 'perplexity').map(p => {
+                          const models = VERSIONS[p.id] || [];
+                          return models.map(m => (
+                            <SelectItem key={m.id} value={m.id}>
+                              <div className="flex items-center gap-2">
+                                <span className={`h-2 w-2 rounded-full shrink-0 ${TIER_DOT[m.tier]}`} />
+                                <span>{p.label} — {m.label}</span>
+                                <span className="text-muted-foreground text-xs ml-auto">{m.description}</span>
+                              </div>
+                            </SelectItem>
+                          ));
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="text-xs text-foreground/80 leading-relaxed">
+                  💡 For best results, choose models from different providers (e.g., one Gemini, one GPT, one Claude) to get diverse perspectives.
+                </p>
               </div>
             </div>
           )}

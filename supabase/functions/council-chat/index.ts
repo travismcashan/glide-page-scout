@@ -5,11 +5,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const COUNCIL_MODELS = [
+const DEFAULT_COUNCIL_MODELS = [
   { key: 'gemini', id: 'google/gemini-2.5-flash', name: 'Gemini Flash', provider: 'gateway' as const },
   { key: 'gpt', id: 'openai/gpt-5-mini', name: 'GPT-5 Mini', provider: 'gateway' as const },
   { key: 'claude', id: 'claude-haiku', name: 'Claude Haiku', provider: 'anthropic' as const },
 ];
+
+// Model ID to display name map
+const MODEL_NAMES: Record<string, string> = {
+  'google/gemini-2.5-flash-lite': 'Gemini Flash Lite',
+  'google/gemini-2.5-flash': 'Gemini Flash 2.5',
+  'google/gemini-3-flash-preview': 'Gemini Flash 3.0',
+  'google/gemini-2.5-pro': 'Gemini Pro 2.5',
+  'google/gemini-3.1-pro-preview': 'Gemini Pro 3.1',
+  'openai/gpt-5': 'GPT-5',
+  'openai/gpt-5-mini': 'GPT-5 Mini',
+  'openai/gpt-5.2': 'GPT-5.2',
+  'claude-haiku': 'Claude Haiku',
+  'claude-sonnet': 'Claude Sonnet',
+  'claude-opus': 'Claude Opus',
+};
 
 const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-haiku': { model: 'claude-haiku-4-5-20251001', maxOutput: 8192 },
@@ -169,7 +184,20 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
     const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
-    const { messages, crawlContext, customInstructions } = await req.json();
+    const { messages, crawlContext, customInstructions, councilModels: customModels } = await req.json();
+
+    // Build council models list from custom config or defaults
+    const councilModelList = (Array.isArray(customModels) && customModels.length === 3)
+      ? customModels.map((slot: { provider: string; modelId: string }, i: number) => {
+          const isAnthropic = slot.modelId.startsWith('claude-');
+          return {
+            key: `model-${i}`,
+            id: slot.modelId,
+            name: MODEL_NAMES[slot.modelId] || slot.modelId,
+            provider: isAnthropic ? 'anthropic' as const : 'gateway' as const,
+          };
+        })
+      : DEFAULT_COUNCIL_MODELS;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'messages required' }), {
@@ -196,7 +224,7 @@ serve(async (req) => {
 
         try {
           // Phase 1: Run all 3 models in parallel, streaming chunks to each
-          const modelPromises = COUNCIL_MODELS.map(async (m) => {
+          const modelPromises = councilModelList.map(async (m) => {
             send('model_start', { key: m.key, name: m.name });
             try {
               const onChunk = (text: string) => {
