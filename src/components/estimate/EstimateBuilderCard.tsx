@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain, RefreshCw } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
@@ -47,6 +47,10 @@ interface Props {
   templateTiers: any;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
   techAnalysisData: any;
+  integrationTimestamps?: Record<string, string>;
+  integrationDurations?: Record<string, number>;
+  onRerunIntegration?: (key: string, dbColumn: string) => void;
+  isIntegrationLoading?: (key: string) => boolean;
 }
 
 interface Estimate extends EstimateVariables {
@@ -54,7 +58,7 @@ interface Estimate extends EstimateVariables {
   status: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
