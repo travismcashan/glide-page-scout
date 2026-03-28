@@ -417,13 +417,10 @@ function getProjectDuration(totalHours: number): string {
   if (totalHours <= 0) return '0 mo';
   const throughput = 15 + 5 * Math.log2(Math.max(totalHours, 100) / 100);
   const calWeeks = totalHours / throughput;
-  const lowWeeks = calWeeks * 0.85;
-  const highWeeks = calWeeks * 1.15;
-  const lowMo = lowWeeks / 4.33;
-  const highMo = highWeeks / 4.33;
-  const avg = (lowMo + highMo) / 2;
-  const rounded = Math.round(avg * 2) / 2; // round to nearest 0.5
-  return `~${Math.max(1, rounded)} mo`;
+  const months = calWeeks / 4.33;
+  // Round to nearest 0.5
+  const rounded = Math.round(months * 2) / 2;
+  return `~${Math.max(0.5, rounded)} mo`;
 }
 
   const rerunButton = (key: string, dbColumn: string) => {
