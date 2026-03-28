@@ -16,6 +16,7 @@ import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import GlobalChatPage from "./pages/GlobalChatPage";
+import BrandGuidePage from "./pages/BrandGuidePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/chat" element={<GlobalChatPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/brand" element={<BrandGuidePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
