@@ -1904,7 +1904,7 @@ export default function ResultsPage() {
       <AppHeader />
 
       {/* Domain + crawl info — matches header height */}
-      <div className="border-b border-border">
+      <div>
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold tracking-tight text-foreground leading-none">
             {session?.domain?.replace(/^www\./i, '')}
