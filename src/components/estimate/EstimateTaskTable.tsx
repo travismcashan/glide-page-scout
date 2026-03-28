@@ -145,26 +145,26 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
       <div className="border rounded-lg overflow-hidden">
         <Table className="table-fixed">
           <TableHeader>
-            <TableRow className="bg-muted/50">
+            <TableRow className="bg-muted/50 h-8">
               <TableHead className="w-10" />
               {groupBy !== 'phase' && (
                 <TableHead className="cursor-pointer select-none w-[120px] whitespace-nowrap" onClick={() => toggleSort('phase_name')}>
-                  <span className="flex items-center text-xs">Phase<SortIcon field="phase_name" /></span>
+                  <span className="flex items-center text-sm">Phase<SortIcon field="phase_name" /></span>
                 </TableHead>
               )}
               <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('task_name')}>
-                <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
+                <span className="flex items-center text-sm">Task<SortIcon field="task_name" /></span>
               </TableHead>
-              <TableHead className="w-[160px] text-xs">Role(s)</TableHead>
-              <TableHead className="w-[50px] text-xs text-center">Req</TableHead>
-              <TableHead className="w-[70px] text-xs text-center">Type</TableHead>
-              <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
-              <TableHead className="w-[60px] text-xs text-center">#</TableHead>
+              <TableHead className="w-[160px] text-sm">Role(s)</TableHead>
+              <TableHead className="w-[50px] text-sm text-center">Req</TableHead>
+              <TableHead className="w-[70px] text-sm text-center">Type</TableHead>
+              <TableHead className="w-[80px] text-sm text-center">Variable</TableHead>
+              <TableHead className="w-[60px] text-sm text-center">#</TableHead>
               <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours_per_person')}>
-                <span className="flex items-center justify-center text-xs">Hrs/Person<SortIcon field="hours_per_person" /></span>
+                <span className="flex items-center justify-center text-sm">Hrs/Person<SortIcon field="hours_per_person" /></span>
               </TableHead>
               <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours')}>
-                <span className="flex items-center justify-center text-xs">Total<SortIcon field="hours" /></span>
+                <span className="flex items-center justify-center text-sm">Total<SortIcon field="hours" /></span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -223,7 +223,7 @@ const CALC_TYPE_CONFIG: Record<TaskCalcType, { label: string; className: string 
 function CalcTypeBadge({ type }: { type: TaskCalcType }) {
   const config = CALC_TYPE_CONFIG[type];
   return (
-    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-normal ${config.className}`}>
+    <Badge variant="outline" className={`text-xs px-1.5 py-0 h-5 font-normal ${config.className}`}>
       {config.label}
     </Badge>
   );
@@ -270,15 +270,15 @@ function ScopeSection({
   return (
     <>
       <TableRow
-        className={`cursor-pointer select-none ${variant === 'included' ? 'bg-primary/5 hover:bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
+        className={`cursor-pointer select-none h-8 ${variant === 'included' ? 'bg-primary/5 hover:bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
         onClick={onToggleOpen}
       >
-        <TableCell colSpan={colSpan} className="py-2">
-          <span className="flex items-center gap-2 text-xs font-semibold">
+        <TableCell colSpan={colSpan} className="py-0">
+          <span className="flex items-center gap-2 text-sm font-semibold">
             {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             {label}
-            <Badge variant="secondary" className="text-[10px]">{tasks.length} tasks</Badge>
-            <Badge variant="outline" className="text-[10px]">{totalHours.toFixed(1)}h</Badge>
+            <Badge variant="secondary" className="text-xs">{tasks.length} tasks</Badge>
+            <Badge variant="outline" className="text-xs">{totalHours.toFixed(1)}h</Badge>
           </span>
         </TableCell>
       </TableRow>
@@ -322,12 +322,12 @@ function GroupRows({
   return (
     <>
       {showGroup && (
-        <TableRow className="bg-muted/30 hover:bg-muted/40">
-          <TableCell colSpan={colSpan} className="py-1.5">
-            <span className="text-xs font-semibold flex items-center gap-2">
+        <TableRow className="bg-muted/30 hover:bg-muted/40 h-8">
+          <TableCell colSpan={colSpan} className="py-0">
+            <span className="text-sm font-semibold flex items-center gap-2">
               {group}
-              <Badge variant="secondary" className="text-[10px]">{groupHours.toFixed(1)}h</Badge>
-              <Badge variant="outline" className="text-[10px]">{tasks.filter(t => t.is_selected).length}/{tasks.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{groupHours.toFixed(1)}h</Badge>
+              <Badge variant="outline" className="text-xs">{tasks.filter(t => t.is_selected).length}/{tasks.length}</Badge>
             </span>
           </TableCell>
         </TableRow>
@@ -363,11 +363,9 @@ function TaskTableRow({
   const hasVariable = !!task.variable_label && task.variable_label !== '-';
 
   return (
-    <TableRow className={
-      formulaDriven ? 'bg-muted/20 opacity-60' : ''
-    }>
+    <TableRow className={`h-8 ${formulaDriven ? 'bg-muted/20 opacity-60' : ''}`}>
       {/* Checkbox */}
-      <TableCell className="py-0.5 w-10">
+      <TableCell className="py-0 w-10">
         <Checkbox
           checked={task.is_selected}
           onCheckedChange={task.is_required ? undefined : (checked) => onToggle(task.id, checked as boolean)}
@@ -378,87 +376,87 @@ function TaskTableRow({
 
       {/* Phase — first data column */}
       {showPhaseCol && (
-        <TableCell className="py-0.5 text-xs whitespace-nowrap">
+        <TableCell className="py-0 text-sm whitespace-nowrap">
           {(task.phase_name === 'Project Management' ? 'PM' : task.phase_name) || '-'}
         </TableCell>
       )}
 
       {/* Task name */}
-      <TableCell className="py-0.5 text-xs truncate whitespace-nowrap">
+      <TableCell className="py-0 text-sm truncate whitespace-nowrap">
         {task.task_name}
       </TableCell>
 
       {/* Roles */}
-      <TableCell className="py-0.5">
+      <TableCell className="py-0">
         <div className="flex flex-nowrap gap-0.5">
           {roleList.map(role => (
-            <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal whitespace-nowrap">{role}</Badge>
+            <Badge key={role} variant="outline" className="text-xs px-1.5 py-0 h-5 font-normal whitespace-nowrap">{role}</Badge>
           ))}
         </div>
       </TableCell>
 
       {/* Required */}
-      <TableCell className="py-0.5 text-center">
+      <TableCell className="py-0 text-center">
         {task.is_required && <Check className="h-3.5 w-3.5 text-muted-foreground mx-auto" />}
       </TableCell>
 
       {/* Type */}
-      <TableCell className="py-0.5 text-center">
+      <TableCell className="py-0 text-center">
         <CalcTypeBadge type={getTaskCalcType(task.task_name)} />
       </TableCell>
 
       {/* Variable label */}
-      <TableCell className="py-0.5 text-center whitespace-nowrap">
+      <TableCell className="py-0 text-center whitespace-nowrap">
         {hasVariable ? (
-          <span className="text-xs">{task.variable_label}</span>
+          <span className="text-sm">{task.variable_label}</span>
         ) : (
-          <span className="text-xs">-</span>
+          <span className="text-sm">-</span>
         )}
       </TableCell>
 
       {/* Variable qty */}
-      <TableCell className="py-0.5 text-center">
+      <TableCell className="py-0 text-center">
         {hasVariable && !formulaDriven ? (
           <Input
             type="number"
             value={task.variable_qty ?? 1}
             onChange={e => onVariableQtyChange(task.id, parseInt(e.target.value) || 1)}
-            className="w-12 text-center h-6 text-xs mx-auto"
+            className="w-12 text-center h-6 text-sm mx-auto"
             min={1}
           />
         ) : hasVariable ? (
-          <span className="text-xs">{task.variable_qty ?? '-'}</span>
+          <span className="text-sm">{task.variable_qty ?? '-'}</span>
         ) : (
-          <span className="text-xs">-</span>
+          <span className="text-sm">-</span>
         )}
       </TableCell>
 
       {/* Hrs/Person */}
-      <TableCell className="py-0.5 text-center">
+      <TableCell className="py-0 text-center">
         {!formulaDriven ? (
           <Input
             type="number"
             value={task.hours_per_person ?? task.hours}
             onChange={e => onHoursPerPersonChange(task.id, parseFloat(e.target.value) || 0)}
-            className="w-16 text-center h-6 text-xs mx-auto"
+            className="w-16 text-center h-6 text-sm mx-auto"
             min={0}
             step={0.5}
           />
         ) : (
-          <span className="text-xs">{Number(task.hours_per_person ?? task.hours).toFixed(1)}</span>
+          <span className="text-sm">{Number(task.hours_per_person ?? task.hours).toFixed(1)}</span>
         )}
       </TableCell>
 
       {/* Total */}
-      <TableCell className="py-0.5 text-center">
+      <TableCell className="py-0 text-center">
         {(roleCount > 1 || hasVariable || formulaDriven) ? (
-          <span className="text-xs">{Number(task.hours).toFixed(1)}</span>
+          <span className="text-sm">{Number(task.hours).toFixed(1)}</span>
         ) : (
           <Input
             type="number"
             value={task.hours}
             onChange={e => onHoursChange(task.id, parseFloat(e.target.value) || 0)}
-            className="w-16 text-center h-6 text-xs mx-auto"
+            className="w-16 text-center h-6 text-sm mx-auto"
             min={0}
             step={0.5}
           />
