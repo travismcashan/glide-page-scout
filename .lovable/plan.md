@@ -1,62 +1,26 @@
 
 
-## Redesign Page Analysis Card for Estimate Tab
+## Exclude Posts from Tertiary Pages
 
-**Goal**: Replace the current summary-only Content Audit card on the Estimate tab with a new "Page Analysis" card that shows actual page URLs grouped under collapsible Primary / Secondary / Tertiary headers with per-page checkboxes. S/M/L tier toggles bulk-select/deselect pages across groups.
+**What**: Filter out pages with `baseType === 'Post'` from the tertiary URL list, since blog posts are bulk-imported (like CPTs) and should not be counted as individual pages for integration.
 
-### How it works
+**File**: `src/components/RedesignEstimateCard.tsx`
 
-- **Primary section**: Lists actual URLs from `navStructure.primary` (top-level nav items with URLs)
-- **Secondary section**: Lists URLs from children of primary nav items
-- **Tertiary section**: All remaining URLs from `pageTags` not in primary or secondary sets
-- Each section is a collapsible header showing a checkbox (select all in group) + count badge
-- Inside each section: scrollable list capped at **5 visible rows** with overflow scroll
-- Each row has a checkbox + truncated URL path
-- **S/M/L toggle**: Small checks only Primary, Medium checks Primary + Secondary, Large checks all three — toggling updates the checkboxes visually and vice-versa (manual checkbox changes can put you in a "Custom" state)
-- Header MetaStats: "Detected Pages" and "Selected Pages" (selected = checked count)
-- `onSelectionChange` fires with the count of checked pages → drives `pages_for_integration` variable
+**Change**: In the `useMemo` block (around line 243-249), add a condition to skip URLs where `pageTags[url].baseType === 'Post'`:
 
-### Files changed
-
-1. **`src/components/RedesignEstimateCard.tsx`** — Major rewrite for estimate mode only:
-   - Build three URL lists from `navStructure` + `pageTags` (primary URLs, secondary URLs, tertiary = remainder)
-   - Track a `Set<string>` of selected URLs as state
-   - Render collapsible sections with checkboxes per URL row, each section capped at 5 rows with `max-h` + `overflow-y-auto`
-   - S/M/L toggle updates the selected set; manual checkbox changes update the set independently
-   - Analysis mode (`mode='analysis'`) stays unchanged — same summary view as today
-
-2. **`src/components/estimate/EstimateBuilderCard.tsx`** — Rename the SectionCard title from "Content Audit" to "Page Analysis" for the estimate tab instance
-
-3. No changes to `ResultsPage.tsx` — analysis tab keeps "Content Audit" name and current behavior
-
-### UI structure (estimate mode)
-
-```text
-┌─ Page Analysis ──────────────────────────┐
-│ Detected Pages: 47    Selected Pages: 12 │
-│ [Small] [Medium] [Large]                 │
-│                                          │
-│ ▼ ☑ Primary (6)                          │
-│ ┌──────────────────────────────────┐     │
-│ │ ☑ /about                         │     │
-│ │ ☑ /services                      │     │
-│ │ ☑ /work                          │     │
-│ │ ☑ /blog                          │     │
-│ │ ☑ /contact                       │     │
-│ │  (scrollable if >5)              │     │
-│ └──────────────────────────────────┘     │
-│ ▼ ☑ Secondary (6)                        │
-│ ┌──────────────────────────────────┐     │
-│ │ ☑ /services/web-design           │     │
-│ │ ...                              │     │
-│ └──────────────────────────────────┘     │
-│ ▶ ☐ Tertiary (35)  [collapsed]           │
-└──────────────────────────────────────────┘
+```typescript
+if (pageTags) {
+  for (const url of Object.keys(pageTags)) {
+    const norm = url.replace(/\/$/, '');
+    const tag = pageTags[url];
+    if (!primarySet.has(norm) && !secondarySet.has(norm) && tag.baseType !== 'Post') {
+      tUrls.push(norm);
+    }
+  }
+}
 ```
 
-### Technical details
-- URL lists derived at render time via `useMemo` from existing `navStructure` and `pageTags` props — no new data fetching
-- Checkbox state stored as `useState<Set<string>>` initialized based on default tier (M = primary + secondary)
-- Tier toggle is a convenience shortcut; manual checkbox edits are preserved until a tier button is clicked again
-- Each scrollable sub-list uses `max-h-[140px] overflow-y-auto` (~5 rows at current row height)
+Also update `totalPages` to reflect only integrable pages (exclude posts from the "Detected Pages" count in estimate mode), or keep it as-is for analysis mode. The selected count will naturally exclude posts since they won't appear in any list.
+
+One line change, no new files.
 
