@@ -539,6 +539,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                   <CardTitle className="text-base">Tasks by Phase</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <TaskRowHeader />
                   <div className="space-y-6">
                     {Object.entries(groupedByPhase).map(([phase, phaseTasks]) => {
                       const phaseHours = phaseTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours), 0);
@@ -575,6 +576,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                   <CardTitle className="text-base">Tasks by Role</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <TaskRowHeader />
                   <div className="space-y-6">
                     {Object.entries(groupedByRole).map(([role, roleTasks]) => {
                       const roleHours = roleTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours_per_person ?? t.hours), 0);
