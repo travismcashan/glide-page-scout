@@ -23,7 +23,7 @@ interface Props {
 
 export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPersonChange, onVariableQtyChange }: Props) {
   const [search, setSearch] = useState('');
-  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [groupBy, setGroupBy] = useState<GroupBy>('phase');
   const [filterPhase, setFilterPhase] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('display_order');
