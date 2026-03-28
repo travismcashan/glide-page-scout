@@ -571,6 +571,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-content-types"
                     title="Bulk Content (Posts & CPTs)"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('content-types', 'content_types_data')}
                   >
                     <ContentTypesCard
                       data={contentTypesData}
