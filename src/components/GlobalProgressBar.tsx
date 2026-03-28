@@ -64,7 +64,7 @@ export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
 
   return (
     <div
-      className="border-b border-border bg-muted/30 relative overflow-hidden transition-all ease-out"
+      className="bg-muted/30 relative overflow-hidden transition-all ease-out"
       style={{
         maxHeight: phase === 'collapsing' ? 0 : contentHeight ?? 'none',
         opacity: phase === 'fading' || phase === 'collapsing' ? 0 : 1,
