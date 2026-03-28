@@ -104,7 +104,7 @@ export default function CrawlPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setWordIndex(i => (i + 1) % ROTATING_WORDS.length);
-    }, 2200);
+    }, 3500);
     return () => clearInterval(interval);
   }, []);
 
