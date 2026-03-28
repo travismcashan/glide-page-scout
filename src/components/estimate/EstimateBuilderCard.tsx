@@ -487,7 +487,7 @@ function getProjectDuration(totalHours: number): string {
           <MetaStatDivider />
           <MetaStat value={getProjectDuration(totals.totalHours)} label="Est. Duration" />
           <MetaStatDivider />
-          <MetaStat value={totals.totalHours.toFixed(0)} label="Total Hours" />
+          <MetaStat value={Math.round(totals.totalHours / 10) * 10} label="Total Hours" />
           <div className="ml-auto">
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0">
               {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
