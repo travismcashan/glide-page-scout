@@ -428,13 +428,13 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
               <MetaStatDivider />
               <MetaStat value={tierCounts[activeTier].types} label="Selected Types" />
               <MetaStatDivider />
-              <MetaStat value={tierCounts[activeTier].urls} label="Selected # of Pages" />
+              <MetaStat value={tierCounts[activeTier].urls} label="Pages to Import" />
             </>
           )}
           {!isEstimate && (
             <>
               <MetaStatDivider />
-              <MetaStat value={repeatingCount} label="Selected # of Pages" />
+              <MetaStat value={repeatingCount} label="Pages to Import" />
             </>
           )}
         </div>
