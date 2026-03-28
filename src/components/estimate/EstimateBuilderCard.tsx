@@ -507,7 +507,7 @@ function getProjectDuration(totalHours: number): string {
                 {pageTags && (
                   <SectionCard
                     sectionId="est-content-audit"
-                    title="Content Audit"
+                    title="Page Analysis"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
                   >
                     <RedesignEstimateCard
