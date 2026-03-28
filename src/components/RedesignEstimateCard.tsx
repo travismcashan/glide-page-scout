@@ -191,8 +191,8 @@ function PageGroupSection({
       </button>
       {!collapsed && urls.length > 0 && (
         <div className="relative">
-          <div>
-            {visibleUrls.map((url) => (
+          <div className={hasMore && !expanded ? 'max-h-[140px] overflow-y-auto' : ''}>
+            {urls.map((url) => (
               <label
                 key={url}
                 className="flex items-center gap-2 px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors cursor-pointer"
@@ -209,7 +209,7 @@ function PageGroupSection({
             ))}
           </div>
           {hasMore && !expanded && (
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+            <div className="absolute bottom-6 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
           )}
           {hasMore && (
             <button
@@ -217,7 +217,7 @@ function PageGroupSection({
               className="w-full flex items-center justify-center gap-1 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors border-t border-border/50"
             >
               <ChevronsUpDown className="h-3 w-3" />
-              {expanded ? 'Show less' : `Show ${urls.length - COLLAPSED_LIMIT} more`}
+              {expanded ? 'Show less' : `Show all ${urls.length}`}
             </button>
           )}
         </div>
