@@ -527,7 +527,7 @@ function getProjectDuration(totalHours: number): string {
                 {pageTags && (
                   <SectionCard
                     sectionId="est-templates"
-                    title="Template Analysis (Recommended Layouts)"
+                    title="Template Analysis"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('templates', 'template_tiers')}
                   >
