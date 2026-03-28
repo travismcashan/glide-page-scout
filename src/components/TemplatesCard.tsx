@@ -372,11 +372,12 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm table-fixed">
           <thead>
-            <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
+             <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">{isEstimate ? 'Design' : '#'}</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
+              {hasEffort && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Effort</th>}
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
             </tr>
           </thead>
