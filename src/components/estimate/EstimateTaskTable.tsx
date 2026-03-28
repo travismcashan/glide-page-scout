@@ -266,7 +266,7 @@ function TaskTableRow({
       </TableCell>
 
       {/* Task name */}
-      <TableCell className={`py-1.5 text-sm ${formulaDriven ? 'text-muted-foreground' : ''}`}>
+      <TableCell className={`py-1.5 text-sm truncate ${formulaDriven ? 'text-muted-foreground' : ''}`}>
         {task.task_name}
       </TableCell>
 
