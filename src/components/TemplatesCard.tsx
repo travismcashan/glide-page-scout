@@ -59,6 +59,7 @@ interface AiTiers {
   S: string[];
   M: string[];
   L: string[];
+  effort?: Record<string, string>;
   reasoning: string;
   reasoning_S?: string;
   reasoning_M?: string;
