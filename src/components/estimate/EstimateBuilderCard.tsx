@@ -569,7 +569,7 @@ function getProjectDuration(totalHours: number): string {
                       mode="estimate"
                       onTierChange={(tier, includedTypes, totalUrls) => {
                         if (estimate) {
-                          const bulkAmount = tier === 'S' ? 'none' : totalUrls < 500 ? '<500' : totalUrls < 2000 ? '500-2000' : '2000+';
+                          const bulkAmount = tier === 'S' ? 'none' : totalUrls < 500 ? '<500' : totalUrls < 1000 ? '500-1000' : totalUrls < 5000 ? '1000-5000' : '>5000';
                           handleVariablesChange({ ...estimate, custom_posts: includedTypes, bulk_import_amount: bulkAmount });
                         }
                       }}
