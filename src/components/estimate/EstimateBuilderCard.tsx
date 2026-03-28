@@ -441,7 +441,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           <div className={sidebarOpen ? 'lg:col-span-3' : ''}>
 
             <TabsContent value="variables">
-              <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} />
+              <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} templateTiers={templateTiers} />
             </TabsContent>
 
             <TabsContent value="all">
