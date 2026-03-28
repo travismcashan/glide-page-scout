@@ -533,6 +533,8 @@ function getProjectDuration(totalHours: number): string {
                       mode="estimate"
                       onRerunRequest={onTemplatesRerunRequest}
                       onTiersChange={(tiers) => {
+                        // Save tiers to DB
+                        supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId).then();
                         const nonToolkitCount = (tiers.L || []).length;
                         const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';
                         const tierLayouts = tiers[bestTier];
