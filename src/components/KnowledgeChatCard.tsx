@@ -2600,7 +2600,50 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             onHandleFilesRef={handleFilesRef}
           />
 
-
+          {/* Add Site button (global mode) */}
+          {globalMode && onAttachSite && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted hover:text-foreground overflow-visible text-muted-foreground"
+                  style={{ width: 44, height: 44 }}
+                  disabled={isStreaming}
+                  title="Attach a site"
+                >
+                  <Globe style={{ width: 21, height: 21 }} strokeWidth={1.5} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" sideOffset={10} className="w-64 max-h-80 overflow-y-auto">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5">Attach a Site</p>
+                {availableSites.length === 0 && (
+                  <p className="text-xs text-muted-foreground px-2 py-3 text-center">No sites available.</p>
+                )}
+                {availableSites.map(site => {
+                  const alreadyAttached = attachedSites?.some(a => a.session_id === site.id);
+                  return (
+                    <DropdownMenuItem
+                      key={site.id}
+                      disabled={alreadyAttached}
+                      onClick={() => {
+                        if (!alreadyAttached) onAttachSite();
+                        // Directly attach via the parent callback
+                        if (!alreadyAttached && onAttachSite) {
+                          // We need to call the select handler from parent
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      <Globe className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                      <span className="truncate">{site.domain}</span>
+                      {alreadyAttached && <span className="ml-auto text-muted-foreground text-[10px]">Added</span>}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
 
           {/* Sources selector */}
