@@ -2781,6 +2781,28 @@ export default function ResultsPage() {
                 templateTiers={(session as any).template_tiers}
                 navStructure={(session as any).nav_structure || null}
                 techAnalysisData={(session as any).tech_analysis_data}
+                integrationTimestamps={integrationTimestamps}
+                integrationDurations={integrationDurations}
+                onRerunIntegration={(key, dbColumn) => {
+                  if (key === 'templates') {
+                    templatesRerunFnRef.current?.();
+                    rerunIntegration(key, dbColumn);
+                  } else if (key === 'forms') {
+                    formsRerunFnRef.current?.();
+                    rerunIntegration(key, dbColumn);
+                  } else {
+                    rerunIntegration(key, dbColumn);
+                  }
+                }}
+                isIntegrationLoading={(key) => {
+                  const map: Record<string, boolean> = {
+                    templates: templatesRerunning,
+                    forms: formsLoading,
+                    'tech-analysis': techAnalysisLoading,
+                    'content-types': contentTypesLoading,
+                  };
+                  return map[key] ?? false;
+                }}
               />
             )}
             </div>}
