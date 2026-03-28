@@ -1004,6 +1004,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   const [composerHeight, setComposerHeight] = useState(176);
+  const [availableSites, setAvailableSites] = useState<{ id: string; domain: string }[]>([]);
 
   // Deep Research mode
   const [deepResearchMode, setDeepResearchMode] = useState(false);
