@@ -1,56 +1,62 @@
 
-Fix the Bulk Content estimate card so it matches what you described, not what was previously added.
 
-1. Remove the mistaken section-level behavior
-- In `src/components/ContentTypesCard.tsx`, remove the estimate-mode “Included Content Types” / “Content Types Not Included” section wrappers that were added.
-- Keep the tier logic itself, but stop treating those as the thing that gets its own show-more UI.
+# Third-Party Integrations & Cost Factor Analysis
 
-2. Add show more/show less where it actually belongs
-- The real missing behavior is inside each expanded content-type row, where URLs are listed.
-- Update `src/components/content-types/ExpandableUrlRows.tsx` so each content-type’s URL list:
-  - shows only the first 5 rows by default
-  - keeps the inner area scrollable
-  - shows a fade at the bottom when collapsed
-  - has a `Show all X` / `Show less` control
-- This matches your note: “you can still scroll inside each even with the show more and show less.”
+## How It Works in Jessica's XLSX
 
-3. Keep the existing bulk content structure simple
-- In estimate mode, keep the bulk content card as a flat list of content types with tier-based included/excluded checkmarks.
-- Do not add extra Included/Not Included section headers unless they are already truly required elsewhere.
-- Preserve the tier selection behavior (`S/M/L`) and estimate variable updates.
+The XLSX has **three separate Build-phase tasks** related to integrations:
 
-4. Align visuals with the template/page cards
-- Use the same truncation pattern already used elsewhere:
-  - 5 visible rows by default
-  - bottom fade overlay
-  - centered toggle button
-  - no auto-expansion on load
-- Make sure the section header itself can stay expanded/open independently from the inner “show more” state.
+1. **Standard Third Party Plugins + Integrations** — hours based on project complexity (Simple=8, Moderate=10, Complex=12)
+2. **Custom Third Party Integrations** — flat 6 hours (no formula, manually adjusted)
+3. **Additional Dev Functionality** — flat 100 hours (manually adjusted)
 
-5. Verify the edge cases in implementation
-- No toggle should appear when a content type has 5 or fewer URLs.
-- Included and excluded rows should both use the same inner URL-list truncation behavior.
-- The collapsed/expanded state of the card section should remain separate from the show-more/show-less state.
-- Avoid changing hook order or conditional hook placement to prevent the React runtime error you hit earlier.
+The `Third Party Integrations` variable (page 1, value=4) only drives **project complexity** (Simple/Moderate/Complex), which in turn affects "Standard Third Party Plugins + Integrations" hours. It does NOT directly multiply hours per integration.
 
-Technical details
-- Primary files:
-  - `src/components/ContentTypesCard.tsx`
-  - `src/components/content-types/ExpandableUrlRows.tsx`
-- Likely code changes:
-  - `ExpandableUrlRows` gets local `expanded` state plus `LIMIT = 5`
-  - wrap the URL rows in a scrollable container with max height when collapsed
-  - add fade overlay near the bottom and a toggle button below
-  - simplify estimate rendering in `ContentTypesCard` so it no longer uses the wrong section-level expander pattern
+## How It Works Now in the App
 
-Expected result
-- On Estimates → Bulk Content, each content type can be expanded as before.
-- Inside that expanded content type, if there are more than 5 URLs, you’ll see the fade and `Show all / Show less`.
-- The list still scrolls while collapsed.
-- No extra “Included / Not Included” section behavior pretending to be the fix.
+- `third_party_integrations` variable is auto-populated from Wappalyzer categories (marketing-automation, analytics, CRM, email, payment-processors)
+- It feeds `deriveProjectComplexity()`: ≤5 = Simple, ≤10 = Moderate, >10 = Complex
+- That complexity only affects "Standard Third Party Plugins + Integrations" (8/10/12 hours) and a few other tasks
+- **"Custom Third Party Integrations"** and **"Additional Dev Functionality"** have no formula — they keep their default hours
+- The AI Tech Analysis card already breaks scope into: Plugins, Third-Party Integrations, Special Setup — but these counts don't feed back into the estimate variables
 
-<lov-actions>
-<lov-suggestion message="Test the bulk content card end-to-end on the estimate tab and confirm each expanded content type now has its own fade and Show all/Show less behavior">Verify that it works</lov-suggestion>
-<lov-suggestion message="Also make each content type’s Show all/Show less state remember itself while I stay on the estimate page">Remember per-type expansion</lov-suggestion>
-<lov-suggestion message="Apply the same inner Show all/Show less behavior to any other estimate cards that still expand long URL lists without the fade treatment">Standardize estimate expanders</lov-suggestion>
-</lov-actions>
+## Proposed Approach: Merge & Auto-Populate
+
+### Concept
+Merge the Tech Analysis card's **Plugins + Third-Party Integrations + Special Setup** into a single combined count that populates `third_party_integrations`. Then use that count to drive hours for both "Standard" and "Custom" integration tasks.
+
+### Changes
+
+**1. EstimateBuilderCard.tsx — Better auto-population from Tech Analysis**
+- When `tech_analysis_data` is available, count items from `scope.plugins` + `scope.thirdPartyIntegrations` + `scope.specialSetup`
+- Use that combined count as `third_party_integrations` instead of the Wappalyzer category filter
+- Fall back to Wappalyzer count if no tech analysis data exists
+
+**2. estimateFormulas.ts — Add formula for "Custom Third Party Integrations"**
+- Currently no formula exists for this task
+- Add: hours = `max(0, third_party_integrations - 5) * 2` — meaning standard covers the first ~5, custom covers each additional one at 2 hours each
+- Or simpler: scale by complexity like Standard does, e.g. Simple=4, Moderate=6, Complex=10
+
+**3. estimateFormulas.ts — Optionally scale "Additional Dev Functionality"**
+- Could tie to complexity: Simple=40, Moderate=80, Complex=120
+- Or leave as manual since it's highly project-specific
+
+### Alternative: Keep them separate but visible
+If merging feels too aggressive, we could instead:
+- Show the Tech Analysis breakdown (Plugins / 3rd Party / Special Setup) as read-only stats in the Variables tab
+- Let each count auto-fill separate fields
+- Map Plugins → "Standard Third Party Plugins" hours, 3rd Party + Special Setup → "Custom Third Party Integrations" hours
+
+### Recommendation
+Go with the merge approach:
+- Combined count from Tech Analysis feeds `third_party_integrations`
+- "Standard Third Party Plugins + Integrations" stays complexity-based (8/10/12)
+- "Custom Third Party Integrations" gets a new formula: `complexity(4, 6, 10)` or `integrations_count * 1.5`
+- "Additional Dev Functionality" stays manual (too variable to automate)
+
+This keeps it simple — one number drives complexity which drives both integration task rows, and the Tech Analysis card provides the intelligence to set that number accurately.
+
+### Files to modify
+- `src/components/estimate/EstimateBuilderCard.tsx` — use tech_analysis_data for third_party_integrations count
+- `src/lib/estimateFormulas.ts` — add formula for "Custom Third Party Integrations"
+
