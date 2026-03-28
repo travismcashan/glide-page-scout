@@ -88,6 +88,9 @@ export default function AppHeader() {
 
         {/* Nav links */}
         <nav className="flex items-center gap-1">
+          <NavLink to="/chat" className={linkBase} activeClassName={linkActive}>
+            Chat
+          </NavLink>
           <button
             onClick={() => navigate('/history')}
             className={cn(linkBase, (location.pathname === '/history' || location.pathname.startsWith('/sites/')) && linkActive)}
@@ -96,9 +99,6 @@ export default function AppHeader() {
           </button>
           <NavLink to="/integrations" className={linkBase} activeClassName={linkActive}>
             Integrations
-          </NavLink>
-          <NavLink to="/chat" className={linkBase} activeClassName={linkActive}>
-            <span className="flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> Chat</span>
           </NavLink>
           <NavLink to="/wishlist" className={linkBase} activeClassName={linkActive}>
             Wishlist
