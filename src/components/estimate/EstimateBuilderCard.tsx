@@ -21,6 +21,7 @@ import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { FormsCard } from '@/components/FormsCard';
 import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { SectionCard } from '@/components/SectionCard';
+import { useSectionCollapse } from '@/hooks/use-section-collapse';
 
 function TaskRowHeader() {
   return (
@@ -70,6 +71,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [roleCollapsed, setRoleCollapsed] = useState(false);
   const [phaseCollapsed, setPhaseCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
 
   const crawlDefaults = useMemo((): Partial<EstimateVariables> => {
     const defaults: Partial<EstimateVariables> = {};
@@ -500,6 +502,8 @@ function getProjectDuration(totalHours: number): string {
                 {pageTags && (
                   <SectionCard
                     sectionId="est-templates"
+                    persistedCollapsed={isSectionCollapsed('est-templates')}
+                    onCollapseChange={toggleSection}
                     title="Template Analysis"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('templates', 'template_tiers')}
@@ -530,6 +534,8 @@ function getProjectDuration(totalHours: number): string {
                 {pageTags && (
                   <SectionCard
                     sectionId="est-content-audit"
+                    persistedCollapsed={isSectionCollapsed('est-content-audit')}
+                    onCollapseChange={toggleSection}
                     title="Page Analysis"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
                   >
@@ -550,6 +556,8 @@ function getProjectDuration(totalHours: number): string {
                 {contentTypesData && (
                   <SectionCard
                     sectionId="est-content-types"
+                    persistedCollapsed={isSectionCollapsed('est-content-types')}
+                    onCollapseChange={toggleSection}
                     title="Bulk Content (Posts & CPTs)"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('content-types', 'content_types_data')}
@@ -572,6 +580,8 @@ function getProjectDuration(totalHours: number): string {
                 {techAnalysisData && (
                   <SectionCard
                     sectionId="est-tech-analysis"
+                    persistedCollapsed={isSectionCollapsed('est-tech-analysis')}
+                    onCollapseChange={toggleSection}
                     title="AI Tech Analysis — Merged Stack Intelligence"
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
@@ -583,6 +593,8 @@ function getProjectDuration(totalHours: number): string {
                 {formsData && (
                   <SectionCard
                     sectionId="est-forms"
+                    persistedCollapsed={isSectionCollapsed('est-forms')}
+                    onCollapseChange={toggleSection}
                     title="Forms Analysis"
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
