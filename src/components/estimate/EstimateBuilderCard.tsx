@@ -515,7 +515,11 @@ function getProjectDuration(totalHours: number): string {
                       contentTypesData={contentTypesData}
                       navStructure={navStructure}
                       mode="estimate"
-                      onSelectionChange={(count) => handleVariablesChange({ pages_for_integration: count })}
+                      onSelectionChange={(count) => {
+                        if (estimate && count !== estimate.pages_for_integration) {
+                          handleVariablesChange({ ...estimate, pages_for_integration: count });
+                        }
+                      }}
                     />
                   </SectionCard>
                 )}
