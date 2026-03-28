@@ -333,8 +333,6 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
           <MetaStat value={totalTemplates} label="Total Templates" />
           <MetaStatDivider />
           <MetaStat value={designCount} label="Selected Templates" />
-          <MetaStatDivider />
-          <MetaStat value={blockBuiltCount} label="Block-Built" />
         </div>
         {isEstimate && (
           <div className="flex items-center gap-2">
