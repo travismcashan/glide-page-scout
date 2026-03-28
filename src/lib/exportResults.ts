@@ -18,7 +18,7 @@ type ExportSession = {
   ocean_data: any | null;
   ssllabs_data: any | null;
   httpstatus_data: any | null;
-  linkcheck_data: any | null;
+  
   w3c_data: any | null;
   schema_data: any | null;
   readable_data: any | null;
@@ -67,7 +67,7 @@ function getIntegrationSections(session: ExportSession) {
     { key: 'semrush', label: 'SEMrush', data: session.semrush_data },
     { key: 'schema', label: 'Schema.org', data: session.schema_data },
     { key: 'httpstatus', label: 'HTTP Status', data: session.httpstatus_data },
-    { key: 'linkcheck', label: 'Broken Links', data: session.linkcheck_data },
+    
     { key: 'w3c', label: 'W3C Validation', data: session.w3c_data },
     { key: 'readable', label: 'Readability', data: session.readable_data },
     { key: 'carbon', label: 'Website Carbon', data: session.carbon_data },

@@ -15,7 +15,7 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   observatory_data: 'Mozilla Observatory',
   ssllabs_data: 'SSL Labs Security Scan',
   httpstatus_data: 'HTTP Status & Redirects',
-  linkcheck_data: 'Broken Links Report',
+  
   w3c_data: 'W3C HTML Validation',
   schema_data: 'Schema.org Validation',
   readable_data: 'Readability Analysis',

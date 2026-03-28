@@ -25,7 +25,7 @@ type SessionData = {
   observatory_data?: any;
   ssllabs_data?: any;
   httpstatus_data?: any;
-  linkcheck_data?: any;
+  
   w3c_data?: any;
   schema_data?: any;
   readable_data?: any;
@@ -267,18 +267,6 @@ function extractHttpStatus(data: any): string | null {
   return parts.length ? parts.join('\n') : null;
 }
 
-function extractLinkCheck(data: any): string | null {
-  if (!data?.summary) return null;
-  const s = data.summary;
-  let out = `Total: ${s.total}, OK: ${s.ok}, Redirects: ${s.redirects}, Client errors: ${s.clientErrors}, Server errors: ${s.serverErrors}`;
-  if (data.results?.length) {
-    const broken = data.results.filter((r: any) => r.statusCode >= 400 || r.error);
-    if (broken.length) {
-      out += `\nBroken: ${broken.slice(0, 15).map((r: any) => `${r.url} (${r.statusCode || r.error})`).join(', ')}`;
-    }
-  }
-  return out;
-}
 
 function extractW3c(data: any): string | null {
   if (!data) return null;
@@ -411,7 +399,7 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
   addSection('Mozilla Observatory Security Headers', extractObservatory(session.observatory_data));
   addSection('SSL Labs TLS/SSL Assessment', extractSslLabs(session.ssllabs_data));
   addSection('httpstatus.io Redirect Chain', extractHttpStatus(session.httpstatus_data));
-  addSection('Broken Link Checker', extractLinkCheck(session.linkcheck_data));
+  
 
   // ── 🗺️ Site Structure ──
   if (session.nav_structure) {

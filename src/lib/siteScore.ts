@@ -210,14 +210,6 @@ function extractHttpStatus(session: any): number | null {
   return clamp((ok / hs.length) * 100);
 }
 
-function extractBrokenLinks(session: any): number | null {
-  const lc = session.linkcheck_data;
-  if (!lc) return null;
-  const results = lc.results || lc;
-  if (!Array.isArray(results) || results.length === 0) return null;
-  const broken = results.filter((r: any) => r.status === 'broken' || (r.statusCode && r.statusCode >= 400)).length;
-  return clamp(((results.length - broken) / results.length) * 100);
-}
 
 // ── XML Sitemap scoring ────────────────────────────────────────
 
@@ -273,59 +265,12 @@ function extractSitemap(session: any): number | null {
     score += 5;
   }
 
-  // 6. No orphan/dead URLs — cross-ref with linkcheck (15 pts)
-  const lc = session.linkcheck_data;
-  if (lc) {
-    const results = lc.results || lc;
-    if (Array.isArray(results) && results.length > 0) {
-      const broken = results.filter((r: any) => r.status === 'broken' || (r.statusCode && r.statusCode >= 400)).length;
-      score += Math.round(Math.max(0, 1 - broken / results.length) * 15);
-    } else {
-      score += 12;
-    }
-  } else {
-    score += 12; // No link check data — don't penalize
-  }
+  // 6. URL health bonus (15 pts — no link check data, give benefit of doubt)
+  score += 12;
 
   return clamp(score);
 }
 
-// ── URL Health scoring (broken links + redirects) ──────────────
-
-function extractUrlHealth(session: any): number | null {
-  const lc = session.linkcheck_data;
-  if (!lc) return null;
-  const results = lc.results || lc;
-  if (!Array.isArray(results) || results.length === 0) return null;
-
-  const total = results.length;
-  const broken = results.filter((r: any) => r.status === 'broken' || (r.statusCode && r.statusCode >= 400)).length;
-  const redirects = results.filter((r: any) => r.statusCode && r.statusCode >= 300 && r.statusCode < 400).length;
-  const ok = results.filter((r: any) => r.statusCode && r.statusCode >= 200 && r.statusCode < 300).length;
-
-  let score = 0;
-
-  // 1. Broken links (40 pts) — each broken link costs 4 pts
-  score += Math.max(0, 40 - broken * 4);
-
-  // 2. Redirect ratio (25 pts)
-  const redirectPct = redirects / total;
-  score += Math.max(0, Math.round(25 - redirectPct * 25));
-
-  // 3. Clean hit rate (20 pts)
-  score += Math.round((ok / total) * 20);
-
-  // 4. Coverage checked vs discovered (15 pts)
-  const discoveredUrls = session.discovered_urls;
-  const discoveredCount = Array.isArray(discoveredUrls) ? discoveredUrls.length : 0;
-  if (discoveredCount > 0) {
-    score += Math.round(Math.min(1, total / discoveredCount) * 15);
-  } else {
-    score += 10;
-  }
-
-  return clamp(score);
-}
 
 // ── HTTP Status scoring ────────────────────────────────────────
 
@@ -685,8 +630,6 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
     weight: 8,
     integrations: [
       { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatusDetailed },
-      { key: 'link-checker', label: 'Broken Links', extract: extractBrokenLinks },
-      { key: 'url-health', label: 'URL Health', extract: extractUrlHealth },
     ],
   },
   {
