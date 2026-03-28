@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -27,6 +28,8 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('display_order');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [includedOpen, setIncludedOpen] = useState(true);
+  const [excludedOpen, setExcludedOpen] = useState(true);
 
   const phases = useMemo(() => [...new Set(tasks.map(t => t.phase_name || 'Other'))], [tasks]);
   const roles = useMemo(() => {
@@ -166,23 +169,36 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Object.entries(grouped).map(([group, groupTasks]) => {
-              const groupHours = groupTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours), 0);
-              return (
-                <GroupRows
-                  key={group}
-                  group={group}
-                  tasks={groupTasks}
-                  groupHours={groupHours}
-                  showGroup={groupBy !== 'none'}
-                  showPhaseCol={groupBy !== 'phase'}
-                  onToggle={onToggle}
-                  onHoursChange={onHoursChange}
-                  onHoursPerPersonChange={onHoursPerPersonChange}
-                  onVariableQtyChange={onVariableQtyChange}
-                />
-              );
-            })}
+            {/* Included in Scope section */}
+            <ScopeSection
+              label="Included in Scope"
+              tasks={sorted.filter(t => t.is_selected)}
+              isOpen={includedOpen}
+              onToggleOpen={() => setIncludedOpen(o => !o)}
+              colSpan={groupBy !== 'phase' ? 10 : 9}
+              groupBy={groupBy}
+              showPhaseCol={groupBy !== 'phase'}
+              onToggle={onToggle}
+              onHoursChange={onHoursChange}
+              onHoursPerPersonChange={onHoursPerPersonChange}
+              onVariableQtyChange={onVariableQtyChange}
+              variant="included"
+            />
+            {/* Not Included in Scope section */}
+            <ScopeSection
+              label="Not Included in Scope"
+              tasks={sorted.filter(t => !t.is_selected)}
+              isOpen={excludedOpen}
+              onToggleOpen={() => setExcludedOpen(o => !o)}
+              colSpan={groupBy !== 'phase' ? 10 : 9}
+              groupBy={groupBy}
+              showPhaseCol={groupBy !== 'phase'}
+              onToggle={onToggle}
+              onHoursChange={onHoursChange}
+              onHoursPerPersonChange={onHoursPerPersonChange}
+              onVariableQtyChange={onVariableQtyChange}
+              variant="excluded"
+            />
           </TableBody>
         </Table>
       </div>
@@ -210,6 +226,80 @@ function CalcTypeBadge({ type }: { type: TaskCalcType }) {
     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-normal ${config.className}`}>
       {config.label}
     </Badge>
+  );
+}
+
+function ScopeSection({
+  label, tasks, isOpen, onToggleOpen, colSpan, groupBy, showPhaseCol,
+  onToggle, onHoursChange, onHoursPerPersonChange, onVariableQtyChange, variant,
+}: {
+  label: string;
+  tasks: EstimateTask[];
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  colSpan: number;
+  groupBy: GroupBy;
+  showPhaseCol: boolean;
+  onToggle: (id: string, checked: boolean) => void;
+  onHoursChange: (id: string, hours: number) => void;
+  onHoursPerPersonChange: (id: string, hpp: number) => void;
+  onVariableQtyChange: (id: string, qty: number) => void;
+  variant: 'included' | 'excluded';
+}) {
+  const totalHours = tasks.reduce((s, t) => s + Number(t.hours), 0);
+
+  const grouped = useMemo(() => {
+    if (groupBy === 'none') return { '': tasks };
+    const groups: Record<string, EstimateTask[]> = {};
+    tasks.forEach(t => {
+      if (groupBy === 'phase') {
+        const key = t.phase_name || 'Other';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(t);
+      } else {
+        const roleList = (t.roles || t.team_role_abbreviation || 'Other').split(',').map(r => r.trim()).filter(Boolean);
+        roleList.forEach(role => {
+          if (!groups[role]) groups[role] = [];
+          if (!groups[role].find(x => x.id === t.id)) groups[role].push(t);
+        });
+      }
+    });
+    return groups;
+  }, [tasks, groupBy]);
+
+  return (
+    <>
+      <TableRow
+        className={`cursor-pointer select-none ${variant === 'included' ? 'bg-primary/5 hover:bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
+        onClick={onToggleOpen}
+      >
+        <TableCell colSpan={colSpan} className="py-2">
+          <span className="flex items-center gap-2 text-xs font-semibold">
+            {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            {label}
+            <Badge variant="secondary" className="text-[10px]">{tasks.length} tasks</Badge>
+            <Badge variant="outline" className="text-[10px]">{totalHours.toFixed(1)}h</Badge>
+          </span>
+        </TableCell>
+      </TableRow>
+      {isOpen && Object.entries(grouped).map(([group, groupTasks]) => {
+        const groupHours = groupTasks.reduce((s, t) => s + Number(t.hours), 0);
+        return (
+          <GroupRows
+            key={group}
+            group={group}
+            tasks={groupTasks}
+            groupHours={groupHours}
+            showGroup={groupBy !== 'none'}
+            showPhaseCol={showPhaseCol}
+            onToggle={onToggle}
+            onHoursChange={onHoursChange}
+            onHoursPerPersonChange={onHoursPerPersonChange}
+            onVariableQtyChange={onVariableQtyChange}
+          />
+        );
+      })}
+    </>
   );
 }
 
