@@ -7,13 +7,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor } from 'lucide-react';
+import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor, FileQuestion } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, MODEL_OPTIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { PromptLibrary } from '@/components/PromptLibrary';
 
 const TIER_DOT: Record<string, string> = {
   fast: 'bg-emerald-500',
@@ -1312,6 +1313,25 @@ export default function SettingsPage() {
               </Button>
             ))}
           </div>
+        </section>
+
+        <div className="border-t border-border" />
+
+        {/* ── Prompt Library ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+              <FileQuestion className="h-5 w-5" /> Prompt Library
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">Pre-built prompts for site analysis, strategy, and deliverables.</p>
+          </div>
+          <PromptLibrary
+            domain=""
+            companyName=""
+            onRunPrompt={() => {
+              toast.info('Open a site first, then use prompts from the Chat tab.');
+            }}
+          />
         </section>
 
         <div className="border-t border-border" />
