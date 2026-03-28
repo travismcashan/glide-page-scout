@@ -231,7 +231,15 @@
   @apply !mb-0;
 }
 
-/* Animated rainbow gradient text */
+/*
+ * Rainbow Gradient — "Signature Moment" treatment
+ * ─────────────────────────────────────────────────
+ * ALLOWED: Hero text flourishes, loading/progress accents,
+ *          onboarding splash moments, empty-state illustrations.
+ * NOT ALLOWED: Buttons, clickable elements, navigation items,
+ *              logos/brand marks, body text, labels.
+ * CONSTRAINT: Max 1–2 rainbow elements per viewport.
+ */
 @keyframes rainbow-shift {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
