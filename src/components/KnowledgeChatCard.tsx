@@ -361,7 +361,9 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
         <span className="text-base text-foreground font-medium">
           {isStreaming && !allDone
             ? `Model Council — ${models.filter(m => m.status === 'done').length}/${models.length} complete`
-            : 'Model Council Thinking'}
+            : isStreaming
+              ? 'Model Council — Synthesizing…'
+              : 'Model Council'}
         </span>
       </div>
       {models.map(m => {
