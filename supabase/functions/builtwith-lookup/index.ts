@@ -1,3 +1,5 @@
+import { extractOrchestration } from "../_shared/orchestration.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -9,12 +11,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { domain, action } = await req.json();
+    const body = await req.json();
+    const { domain, action } = body;
+    const orch = extractOrchestration(body);
+
+    if (orch) await orch.markRunning();
 
     const apiKey = Deno.env.get('BUILTWITH_API_KEY');
     if (!apiKey) {
+      const msg = 'BuiltWith API key not configured';
+      if (orch) await orch.markFailed(msg);
       return new Response(
-        JSON.stringify({ success: false, error: 'BuiltWith API key not configured' }),
+        JSON.stringify({ success: false, error: msg }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -44,8 +52,10 @@ Deno.serve(async (req) => {
     }
 
     if (!domain) {
+      const msg = 'Domain is required';
+      if (orch) await orch.markFailed(msg);
       return new Response(
-        JSON.stringify({ success: false, error: 'Domain is required' }),
+        JSON.stringify({ success: false, error: msg }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -67,8 +77,10 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const errText = await res.text();
       console.error('BuiltWith API error:', errText);
+      const msg = `BuiltWith API error: ${res.status}`;
+      if (orch) await orch.markFailed(msg);
       return new Response(
-        JSON.stringify({ success: false, error: `BuiltWith API error: ${res.status}`, credits }),
+        JSON.stringify({ success: false, error: msg, credits }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -79,6 +91,7 @@ Deno.serve(async (req) => {
     if (data?.Errors?.length) {
       const errorMsg = data.Errors.map((e: any) => e.Message || e).join(', ');
       console.error('BuiltWith API returned errors:', errorMsg);
+      if (orch) await orch.markFailed(errorMsg);
       return new Response(
         JSON.stringify({ success: false, error: errorMsg, credits }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -123,20 +136,28 @@ Deno.serve(async (req) => {
 
     console.log(`BuiltWith found ${technologies.length} technologies for ${domain}`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        technologies,
-        grouped,
-        totalCount: technologies.length,
-        credits,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const result = {
+      success: true,
+      technologies,
+      grouped,
+      totalCount: technologies.length,
+      credits,
+    };
+
+    // If orchestrated, save result to DB
+    if (orch) {
+      await orch.markDone({ grouped, totalCount: technologies.length });
+    }
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('BuiltWith error:', error);
+    const msg = error instanceof Error ? error.message : 'BuiltWith lookup failed';
+    // Can't reliably get orch here since body parsing may have failed
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'BuiltWith lookup failed' }),
+      JSON.stringify({ success: false, error: msg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
