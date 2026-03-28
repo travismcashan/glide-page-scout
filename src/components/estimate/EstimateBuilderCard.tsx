@@ -598,7 +598,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-tech-analysis"
                     persistedCollapsed={isSectionCollapsed('est-tech-analysis')}
                     onCollapseChange={toggleSection}
-                    title="AI Tech Analysis — Merged Stack Intelligence"
+                    title="Third-Party Integration Analysis"
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >

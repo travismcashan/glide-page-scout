@@ -310,6 +310,16 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
     </div>
   ) : null;
 
+  // In estimate mode: no tabs, just the filtered scope view directly
+  if (isEstimate) {
+    return (
+      <div className="space-y-3">
+        {tierSelector && <div className="flex justify-end">{tierSelector}</div>}
+        {scope ? <ScopeTab scope={scope} mode="estimate" /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>}
+      </div>
+    );
+  }
+
   return (
     <CardTabs
       tabs={[
@@ -326,7 +336,6 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
           content: <FindingsTab findings={findings} techCount={techCount} sources={sources} />,
         },
       ]}
-      headerExtra={tierSelector}
     />
   );
 }
