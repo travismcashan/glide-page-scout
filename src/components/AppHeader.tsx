@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, Shield, ChevronDown, Check, Sparkles, MessageSquare } from 'lucide-react';
+import { LogOut, Settings, Shield, ChevronDown, Check, Sparkles, MessageSquare, Link2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
@@ -100,14 +100,8 @@ export default function AppHeader() {
           <NavLink to="/chat" className={linkBase} activeClassName={linkActive}>
             <span className="flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> Chat</span>
           </NavLink>
-          <NavLink to="/connections" className={linkBase} activeClassName={linkActive}>
-            Connections
-          </NavLink>
           <NavLink to="/wishlist" className={linkBase} activeClassName={linkActive}>
             Wishlist
-          </NavLink>
-          <NavLink to="/settings" className={linkBase} activeClassName={linkActive}>
-            Settings
           </NavLink>
 
           {/* Avatar / Sign In */}
@@ -136,6 +130,9 @@ export default function AppHeader() {
                     <Shield className="h-4 w-4 mr-2" /> Admin Panel
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onClick={() => navigate('/connections')}>
+                  <Link2 className="h-4 w-4 mr-2" /> Connections
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="h-4 w-4 mr-2" /> Settings
                 </DropdownMenuItem>
