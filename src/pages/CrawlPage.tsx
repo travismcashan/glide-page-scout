@@ -78,8 +78,8 @@ const GREETINGS_BY_TIME: Record<string, string[]> = {
     'Hope your day is going well', 'Back at it', 'Welcome back',
   ],
   evening: [
-    'Good evening', 'Evening', 'Winding down?',
-    'Burning the midnight oil', 'Hey, night owl', 'Still going strong',
+    'Good evening', 'Evening', 'Hey there, night owl',
+    'Burning the midnight oil', 'Still going strong', 'Welcome back',
   ],
 };
 
