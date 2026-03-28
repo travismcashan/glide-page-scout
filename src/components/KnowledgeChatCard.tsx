@@ -389,7 +389,7 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
               <div className="px-4 py-3 text-sm border-t border-border">
                 <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
                   <div
-                    className={`chat-prose max-w-none text-sm overflow-hidden transition-all ${isFullyExpanded ? '' : 'max-h-[15rem]'}`}
+                    className={`chat-prose max-w-none text-sm transition-all ${isFullyExpanded ? '' : 'max-h-[15rem] overflow-y-auto'}`}
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.response}</ReactMarkdown>
                   </div>
