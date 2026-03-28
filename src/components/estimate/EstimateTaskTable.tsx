@@ -367,7 +367,7 @@ function TaskTableRow({
       formulaDriven ? 'bg-muted/20 opacity-60' : ''
     }>
       {/* Checkbox */}
-      <TableCell className="py-1.5 w-10">
+      <TableCell className="py-0.5 w-10">
         <Checkbox
           checked={task.is_selected}
           onCheckedChange={task.is_required ? undefined : (checked) => onToggle(task.id, checked as boolean)}
@@ -378,37 +378,37 @@ function TaskTableRow({
 
       {/* Phase — first data column */}
       {showPhaseCol && (
-        <TableCell className="py-1.5 text-xs whitespace-nowrap">
+        <TableCell className="py-0.5 text-xs whitespace-nowrap">
           {(task.phase_name === 'Project Management' ? 'PM' : task.phase_name) || '-'}
         </TableCell>
       )}
 
       {/* Task name */}
-      <TableCell className="py-1.5 text-xs truncate">
+      <TableCell className="py-0.5 text-xs truncate whitespace-nowrap">
         {task.task_name}
       </TableCell>
 
       {/* Roles */}
-      <TableCell className="py-1.5">
-        <div className="flex flex-wrap gap-0.5">
+      <TableCell className="py-0.5">
+        <div className="flex flex-nowrap gap-0.5">
           {roleList.map(role => (
-            <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">{role}</Badge>
+            <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal whitespace-nowrap">{role}</Badge>
           ))}
         </div>
       </TableCell>
 
       {/* Required */}
-      <TableCell className="py-1.5 text-center">
+      <TableCell className="py-0.5 text-center">
         {task.is_required && <Check className="h-3.5 w-3.5 text-muted-foreground mx-auto" />}
       </TableCell>
 
       {/* Type */}
-      <TableCell className="py-1.5 text-center">
+      <TableCell className="py-0.5 text-center">
         <CalcTypeBadge type={getTaskCalcType(task.task_name)} />
       </TableCell>
 
       {/* Variable label */}
-      <TableCell className="py-1.5 text-center">
+      <TableCell className="py-0.5 text-center whitespace-nowrap">
         {hasVariable ? (
           <span className="text-xs">{task.variable_label}</span>
         ) : (
@@ -417,13 +417,13 @@ function TaskTableRow({
       </TableCell>
 
       {/* Variable qty */}
-      <TableCell className="py-1.5 text-center">
+      <TableCell className="py-0.5 text-center">
         {hasVariable && !formulaDriven ? (
           <Input
             type="number"
             value={task.variable_qty ?? 1}
             onChange={e => onVariableQtyChange(task.id, parseInt(e.target.value) || 1)}
-            className="w-12 text-center h-7 text-xs mx-auto"
+            className="w-12 text-center h-6 text-xs mx-auto"
             min={1}
           />
         ) : hasVariable ? (
@@ -434,13 +434,13 @@ function TaskTableRow({
       </TableCell>
 
       {/* Hrs/Person */}
-      <TableCell className="py-1.5 text-center">
+      <TableCell className="py-0.5 text-center">
         {!formulaDriven ? (
           <Input
             type="number"
             value={task.hours_per_person ?? task.hours}
             onChange={e => onHoursPerPersonChange(task.id, parseFloat(e.target.value) || 0)}
-            className="w-16 text-center h-7 text-xs mx-auto"
+            className="w-16 text-center h-6 text-xs mx-auto"
             min={0}
             step={0.5}
           />
@@ -450,7 +450,7 @@ function TaskTableRow({
       </TableCell>
 
       {/* Total */}
-      <TableCell className="py-1.5 text-center">
+      <TableCell className="py-0.5 text-center">
         {(roleCount > 1 || hasVariable || formulaDriven) ? (
           <span className="text-xs">{Number(task.hours).toFixed(1)}</span>
         ) : (
@@ -458,7 +458,7 @@ function TaskTableRow({
             type="number"
             value={task.hours}
             onChange={e => onHoursChange(task.id, parseFloat(e.target.value) || 0)}
-            className="w-16 text-center h-7 text-xs mx-auto"
+            className="w-16 text-center h-6 text-xs mx-auto"
             min={0}
             step={0.5}
           />
