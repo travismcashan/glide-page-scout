@@ -724,9 +724,10 @@ async function handleClaudeRequest(
   });
 
   // Build Anthropic request — use each model's full output capacity
+  const claudeMaxTokens = contextPreset.claude[model] || claudeConfig.maxOutput;
   const requestBody: any = {
     model: claudeConfig.model,
-    max_tokens: claudeConfig.maxOutput,
+    max_tokens: claudeMaxTokens,
     system: systemPrompt,
     messages: anthropicMessages,
     stream: true,
@@ -734,13 +735,13 @@ async function handleClaudeRequest(
 
   // Add extended thinking if reasoning is requested
   if (reasoning === 'high') {
-    const budget = Math.min(CLAUDE_THINKING_BUDGET, claudeConfig.maxOutput - 16384);
+    const budget = Math.min(CLAUDE_THINKING_BUDGET, claudeMaxTokens - 16384);
     if (budget > 0) {
       requestBody.thinking = {
         type: 'enabled',
         budget_tokens: budget,
       };
-      requestBody.max_tokens = claudeConfig.maxOutput;
+      requestBody.max_tokens = claudeMaxTokens;
     }
   }
 
@@ -971,7 +972,7 @@ async function handleGatewayRequest(
   const buildRequestBody = (msgs: any[], includeTools: boolean): any => {
     const body: any = {
       model: selectedModel,
-      max_tokens: 65536,
+      max_tokens: contextPreset.gateway,
       messages: [
         { role: 'system', content: systemPrompt },
         ...msgs,
@@ -1158,7 +1159,7 @@ async function handlePerplexityRequest(
     },
     body: JSON.stringify({
       model: pplxModel,
-      max_tokens: 16384,
+      max_tokens: contextPreset.perplexity,
       messages: [
         { role: 'system', content: systemPrompt },
         ...strictMerged,
@@ -1193,7 +1194,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, session_ids, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, session_ids, sources, rag_depth, context_window, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
     // Support multi-session: prefer session_ids array, fall back to single session_id
     const effectiveSessionId: string | string[] | undefined = session_ids?.length ? session_ids : session_id;
     const useDocuments = sources?.documents !== false; // default true
@@ -1201,6 +1202,14 @@ serve(async (req) => {
     const useAnalytics = sources?.analytics !== false; // default true
     const ragMatchCount = Math.min(Math.max(rag_depth?.match_count ?? 25, 5), 100);
     const ragMatchThreshold = Math.min(Math.max(rag_depth?.match_threshold ?? 0.25, 0.05), 0.8);
+
+    // Context window presets: control max response tokens per provider
+    const CONTEXT_PRESETS: Record<string, { gateway: number; claude: Record<string, number>; perplexity: number }> = {
+      small:  { gateway: 16384,  claude: { 'claude-haiku': 16384, 'claude-sonnet': 16384, 'claude-opus': 32000 }, perplexity: 4096 },
+      medium: { gateway: 65536,  claude: { 'claude-haiku': 64000, 'claude-sonnet': 64000, 'claude-opus': 128000 }, perplexity: 16384 },
+      large:  { gateway: 131072, claude: { 'claude-haiku': 64000, 'claude-sonnet': 64000, 'claude-opus': 128000 }, perplexity: 16384 },
+    };
+    const contextPreset = CONTEXT_PRESETS[context_window] || CONTEXT_PRESETS.medium;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
