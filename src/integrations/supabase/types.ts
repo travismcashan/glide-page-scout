@@ -290,6 +290,66 @@ export type Database = {
         }
         Relationships: []
       }
+      estimate_tasks: {
+        Row: {
+          created_at: string
+          display_order: number
+          estimate_id: string
+          hourly_rate: number
+          hours: number
+          id: string
+          is_selected: boolean
+          master_task_id: string | null
+          phase_name: string | null
+          task_name: string
+          team_role_abbreviation: string | null
+          team_role_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          estimate_id: string
+          hourly_rate?: number
+          hours?: number
+          id?: string
+          is_selected?: boolean
+          master_task_id?: string | null
+          phase_name?: string | null
+          task_name: string
+          team_role_abbreviation?: string | null
+          team_role_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          estimate_id?: string
+          hourly_rate?: number
+          hours?: number
+          id?: string
+          is_selected?: boolean
+          master_task_id?: string | null
+          phase_name?: string | null
+          task_name?: string
+          team_role_abbreviation?: string | null
+          team_role_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_tasks_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "project_estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_tasks_master_task_id_fkey"
+            columns: ["master_task_id"]
+            isOneToOne: false
+            referencedRelation: "master_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       global_chat_messages: {
         Row: {
           content: string
@@ -594,6 +654,54 @@ export type Database = {
           },
         ]
       }
+      master_tasks: {
+        Row: {
+          created_at: string
+          default_hours: number
+          default_included: boolean
+          display_order: number
+          id: string
+          name: string
+          phase_id: string | null
+          team_role_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          default_hours?: number
+          default_included?: boolean
+          display_order?: number
+          id?: string
+          name: string
+          phase_id?: string | null
+          team_role_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          default_hours?: number
+          default_included?: boolean
+          display_order?: number
+          id?: string
+          name?: string
+          phase_id?: string | null
+          team_role_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_tasks_phase_id_fkey"
+            columns: ["phase_id"]
+            isOneToOne: false
+            referencedRelation: "project_phases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "master_tasks_team_role_id_fkey"
+            columns: ["team_role_id"]
+            isOneToOne: false
+            referencedRelation: "team_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oauth_connections: {
         Row: {
           access_token: string
@@ -654,6 +762,173 @@ export type Database = {
           display_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      project_estimates: {
+        Row: {
+          bulk_import_amount: string | null
+          client_name: string | null
+          content_pages: number | null
+          created_at: string
+          custom_posts: number | null
+          description: string | null
+          design_layouts: number | null
+          form_count: number | null
+          id: string
+          integration_count: number | null
+          name: string
+          pages_for_integration: number | null
+          paid_discovery: string | null
+          post_launch_services: number | null
+          project_complexity: string | null
+          project_size: string | null
+          session_id: string | null
+          site_builder_acf: boolean | null
+          status: string | null
+          third_party_integrations: number | null
+          updated_at: string
+          user_personas: number | null
+        }
+        Insert: {
+          bulk_import_amount?: string | null
+          client_name?: string | null
+          content_pages?: number | null
+          created_at?: string
+          custom_posts?: number | null
+          description?: string | null
+          design_layouts?: number | null
+          form_count?: number | null
+          id?: string
+          integration_count?: number | null
+          name: string
+          pages_for_integration?: number | null
+          paid_discovery?: string | null
+          post_launch_services?: number | null
+          project_complexity?: string | null
+          project_size?: string | null
+          session_id?: string | null
+          site_builder_acf?: boolean | null
+          status?: string | null
+          third_party_integrations?: number | null
+          updated_at?: string
+          user_personas?: number | null
+        }
+        Update: {
+          bulk_import_amount?: string | null
+          client_name?: string | null
+          content_pages?: number | null
+          created_at?: string
+          custom_posts?: number | null
+          description?: string | null
+          design_layouts?: number | null
+          form_count?: number | null
+          id?: string
+          integration_count?: number | null
+          name?: string
+          pages_for_integration?: number | null
+          paid_discovery?: string | null
+          post_launch_services?: number | null
+          project_complexity?: string | null
+          project_size?: string | null
+          session_id?: string | null
+          site_builder_acf?: boolean | null
+          status?: string | null
+          third_party_integrations?: number | null
+          updated_at?: string
+          user_personas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_estimates_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_phases: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      task_formulas: {
+        Row: {
+          base_hours: number
+          created_at: string
+          description: string | null
+          display_order: number
+          hours_per_unit: number
+          id: string
+          is_active: boolean
+          task_name_pattern: string
+          variable_name: string
+        }
+        Insert: {
+          base_hours?: number
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          hours_per_unit?: number
+          id?: string
+          is_active?: boolean
+          task_name_pattern: string
+          variable_name: string
+        }
+        Update: {
+          base_hours?: number
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          hours_per_unit?: number
+          id?: string
+          is_active?: boolean
+          task_name_pattern?: string
+          variable_name?: string
+        }
+        Relationships: []
+      }
+      team_roles: {
+        Row: {
+          abbreviation: string
+          created_at: string
+          display_order: number
+          hourly_rate: number
+          id: string
+          name: string
+        }
+        Insert: {
+          abbreviation: string
+          created_at?: string
+          display_order?: number
+          hourly_rate?: number
+          id?: string
+          name: string
+        }
+        Update: {
+          abbreviation?: string
+          created_at?: string
+          display_order?: number
+          hourly_rate?: number
+          id?: string
+          name?: string
         }
         Relationships: []
       }
