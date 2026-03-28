@@ -483,7 +483,7 @@ function getProjectDuration(totalHours: number): string {
         </div>
 
         {/* Summary bar */}
-        <div className="flex items-center gap-4 px-4 bg-muted/80 rounded-lg mt-3 mb-4 sticky top-[60px] z-30 backdrop-blur-sm border border-border/50 h-14 [&_.meta-value]:text-2xl">
+        <div className="flex items-center gap-4 px-4 bg-muted/80 rounded-lg mt-3 mb-4 sticky top-[60px] z-30 backdrop-blur-sm border border-border/50 h-[84px] [&_.meta-value]:text-3xl">
           <MetaStat value={formatCurrency(Math.round(totals.totalCost / 100) * 100)} label="Project Budget" />
           <MetaStatDivider />
           <MetaStat value={getProjectDuration(totals.totalHours)} label="Est. Duration" />
