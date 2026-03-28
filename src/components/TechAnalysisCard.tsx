@@ -259,7 +259,7 @@ function ScopeTab({ scope, mode = 'analysis', tierSelector, selectedTpaCount }: 
   );
 }
 
-export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierChange }: Props) {
+export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierChange, savedTier, onActiveTierChange }: Props & { savedTier?: string | null; onActiveTierChange?: (tier: string) => void }) {
   const scope: Scope | undefined = data?.analysis ? (data.analysis as any).scope : undefined;
   const pluginCount = Array.isArray(scope?.plugins) ? scope!.plugins.length : 0;
   const thirdPartyCount = Array.isArray(scope?.thirdPartyIntegrations) ? scope!.thirdPartyIntegrations.length : 0;
@@ -267,7 +267,7 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
 
   // Auto-suggest tier based on data
   const suggestedTier: TechTier = specialSetupCount > 0 ? 'L' : thirdPartyCount > 0 ? 'M' : 'S';
-  const [tier, setTier] = useState<TechTier>(suggestedTier);
+  const [tier, setTier] = useState<TechTier>((savedTier as TechTier) || suggestedTier);
 
   const isEstimate = mode === 'estimate';
 
@@ -306,7 +306,7 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
 
   const tierSelector = isEstimate && scope ? (
     <div className="flex items-center gap-2 ml-auto">
-      <ToggleGroup type="single" value={tier} onValueChange={(v) => v && setTier(v as TechTier)} size="sm" variant="outline">
+      <ToggleGroup type="single" value={tier} onValueChange={(v) => { if (v) { setTier(v as TechTier); onActiveTierChange?.(v); } }} size="sm" variant="outline">
         <ToggleGroupItem value="S" className="text-xs px-2.5 h-7">
           Small • {pluginCount} TPAs
         </ToggleGroupItem>

@@ -842,6 +842,7 @@ export type Database = {
           client_name: string | null
           complexity_score: number | null
           content_pages: number | null
+          content_tier: string | null
           created_at: string
           custom_posts: number | null
           description: string | null
@@ -850,9 +851,11 @@ export type Database = {
           form_count_l: number | null
           form_count_m: number | null
           form_count_s: number | null
+          forms_tier: string | null
           id: string
           integration_count: number | null
           name: string
+          page_tier: string | null
           pages_for_integration: number | null
           paid_discovery: string | null
           post_launch_services: number | null
@@ -861,6 +864,8 @@ export type Database = {
           session_id: string | null
           site_builder_acf: boolean | null
           status: string | null
+          tech_tier: string | null
+          template_tier: string | null
           third_party_integrations: number | null
           updated_at: string
           user_personas: number | null
@@ -870,6 +875,7 @@ export type Database = {
           client_name?: string | null
           complexity_score?: number | null
           content_pages?: number | null
+          content_tier?: string | null
           created_at?: string
           custom_posts?: number | null
           description?: string | null
@@ -878,9 +884,11 @@ export type Database = {
           form_count_l?: number | null
           form_count_m?: number | null
           form_count_s?: number | null
+          forms_tier?: string | null
           id?: string
           integration_count?: number | null
           name: string
+          page_tier?: string | null
           pages_for_integration?: number | null
           paid_discovery?: string | null
           post_launch_services?: number | null
@@ -889,6 +897,8 @@ export type Database = {
           session_id?: string | null
           site_builder_acf?: boolean | null
           status?: string | null
+          tech_tier?: string | null
+          template_tier?: string | null
           third_party_integrations?: number | null
           updated_at?: string
           user_personas?: number | null
@@ -898,6 +908,7 @@ export type Database = {
           client_name?: string | null
           complexity_score?: number | null
           content_pages?: number | null
+          content_tier?: string | null
           created_at?: string
           custom_posts?: number | null
           description?: string | null
@@ -906,9 +917,11 @@ export type Database = {
           form_count_l?: number | null
           form_count_m?: number | null
           form_count_s?: number | null
+          forms_tier?: string | null
           id?: string
           integration_count?: number | null
           name?: string
+          page_tier?: string | null
           pages_for_integration?: number | null
           paid_discovery?: string | null
           post_launch_services?: number | null
@@ -917,6 +930,8 @@ export type Database = {
           session_id?: string | null
           site_builder_acf?: boolean | null
           status?: string | null
+          tech_tier?: string | null
+          template_tier?: string | null
           third_party_integrations?: number | null
           updated_at?: string
           user_personas?: number | null

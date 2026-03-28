@@ -36,7 +36,9 @@ interface Props {
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
   domain?: string;
   savedTiers?: AiTiers | null;
+  savedActiveTier?: string | null;
   onTiersChange?: (tiers: AiTiers) => void;
+  onActiveTierChange?: (tier: string) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
   isRerunning?: boolean;
   mode?: 'analysis' | 'estimate';
@@ -116,10 +118,10 @@ const LOADING_MESSAGES = [
   'Counting unique layouts with abacuses…',
 ];
 
-export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis', onSelectionChange }: Props) {
+export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, savedActiveTier, onTiersChange, onActiveTierChange, onRerunRequest, mode = 'analysis', onSelectionChange }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
-  const [activeTier, setActiveTier] = useState<TierKey | null>(null);
+  const [activeTier, setActiveTier] = useState<TierKey | null>(savedActiveTier as TierKey | null);
   const [aiTiers, setAiTiers] = useState<AiTiers | null>(savedTiers || null);
   const [autoSelected, setAutoSelected] = useState(false);
 
@@ -272,8 +274,9 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   };
 
   const applyTier = (tier: TierKey) => {
-    if (activeTier === tier) { setActiveTier(null); return; }
+    if (activeTier === tier) { setActiveTier(null); onActiveTierChange?.(null as any); return; }
     setActiveTier(tier);
+    onActiveTierChange?.(tier);
     if (tier === 'All') { setExcluded(new Set()); return; }
     if (aiTiers) {
       const included = new Set(aiTiers[tier as 'S' | 'M' | 'L']);

@@ -57,7 +57,9 @@ interface Props {
   data: FormsData;
   domain?: string;
   savedTiers?: AiTiers | null;
+  savedActiveTier?: string | null;
   onTiersChange?: (tiers: AiTiers) => void;
+  onActiveTierChange?: (tier: string) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
   onFormTierChange?: (counts: { s: number; m: number; l: number; total: number }) => void;
   mode?: 'analysis' | 'estimate';
@@ -88,11 +90,11 @@ const LOADING_MESSAGES = [
   'Rating form aesthetics…',
 ];
 
-export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequest, onFormTierChange, mode = 'analysis' }: Props) {
+export function FormsCard({ data, domain, savedTiers, savedActiveTier, onTiersChange, onActiveTierChange, onRerunRequest, onFormTierChange, mode = 'analysis' }: Props) {
   const [expandedForms, setExpandedForms] = useState<Set<number>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
-  const [activeTier, setActiveTier] = useState<TierKey | null>(null);
+  const [activeTier, setActiveTier] = useState<TierKey | null>(savedActiveTier as TierKey | null);
   const [aiTiers, setAiTiers] = useState<AiTiers | null>(savedTiers || null);
   const [autoSelected, setAutoSelected] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -178,8 +180,9 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
   };
 
   const applyTier = (tier: TierKey) => {
-    if (activeTier === tier) { setActiveTier(null); setExcluded(new Set()); return; }
+    if (activeTier === tier) { setActiveTier(null); setExcluded(new Set()); onActiveTierChange?.(null as any); return; }
     setActiveTier(tier);
+    onActiveTierChange?.(tier);
     if (tier === 'All') { setExcluded(new Set()); return; }
     if (aiTiers) {
       const included = new Set(aiTiers[tier as 'S' | 'M' | 'L']);

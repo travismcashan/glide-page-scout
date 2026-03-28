@@ -53,14 +53,14 @@ function buildNavMap(nav: NavStructureData): Map<string, NavTag[]> {
 
 type BulkTier = 'S' | 'M' | 'L';
 
-export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange, globalInnerExpand = null, mode = 'analysis', onTierChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void; globalInnerExpand?: boolean | null; mode?: 'analysis' | 'estimate'; onTierChange?: (tier: BulkTier, includedTypes: number, totalUrls: number) => void }) {
+export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, onPageTagChange, globalInnerExpand = null, mode = 'analysis', onTierChange, savedTier, onActiveTierChange }: { data: ContentTypesData; onDataChange?: (data: ContentTypesData) => void; navStructure?: NavStructureData; pageTags?: PageTagsMap | null; onPageTagChange?: (url: string, template: string) => void; globalInnerExpand?: boolean | null; mode?: 'analysis' | 'estimate'; onTierChange?: (tier: BulkTier, includedTypes: number, totalUrls: number) => void; savedTier?: string | null; onActiveTierChange?: (tier: string) => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState('');
   const [mergeMode, setMergeMode] = useState(false);
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
-  const [activeTier, setActiveTier] = useState<BulkTier | null>(null);
+  const [activeTier, setActiveTier] = useState<BulkTier | null>(savedTier as BulkTier | null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const isEstimate = mode === 'estimate';
@@ -441,7 +441,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
         </div>
         <div className="flex items-center gap-2">
           {isEstimate && (
-            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && setActiveTier(v as BulkTier)} size="sm" variant="outline">
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => { if (v) { setActiveTier(v as BulkTier); onActiveTierChange?.(v); } }} size="sm" variant="outline">
               {(['S', 'M', 'L'] as BulkTier[]).map(tier => (
                 <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
                   {tierLabel(tier)}

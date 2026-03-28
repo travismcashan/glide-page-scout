@@ -48,6 +48,11 @@ interface Props {
 interface Estimate extends EstimateVariables {
   id: string;
   status: string | null;
+  template_tier?: string | null;
+  page_tier?: string | null;
+  content_tier?: string | null;
+  tech_tier?: string | null;
+  forms_tier?: string | null;
 }
 
 export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
@@ -320,6 +325,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
           form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
           complexity_score: estimate.complexity_score,
+          template_tier: estimate.template_tier, page_tier: estimate.page_tier,
+          content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
         })
         .eq('id', estimate.id);
       if (estimateError) throw estimateError;
@@ -530,8 +537,10 @@ function getProjectDuration(totalHours: number): string {
                       navStructure={navStructure}
                       domain={domain}
                       savedTiers={templateTiers}
+                      savedActiveTier={estimate.template_tier}
                       mode="estimate"
                       onRerunRequest={onTemplatesRerunRequest}
+                      onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, template_tier: tier } : prev)}
                       onTiersChange={(tiers) => {
                         // Save tiers to DB
                         supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId).then();
@@ -564,6 +573,8 @@ function getProjectDuration(totalHours: number): string {
                       contentTypesData={contentTypesData}
                       navStructure={navStructure}
                       mode="estimate"
+                      savedTier={estimate.page_tier}
+                      onTierChange={(tier) => setEstimate(prev => prev ? { ...prev, page_tier: tier } : prev)}
                       onSelectionChange={(count) => {
                         if (estimate && count !== estimate.pages_for_integration) {
                           handleVariablesChange({ ...estimate, pages_for_integration: count });
@@ -587,6 +598,8 @@ function getProjectDuration(totalHours: number): string {
                       navStructure={navStructure}
                       pageTags={pageTags}
                       mode="estimate"
+                      savedTier={estimate.content_tier}
+                      onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, content_tier: tier } : prev)}
                       onTierChange={(tier, includedTypes, totalUrls) => {
                         if (estimate) {
                           const bulkAmount = tier === 'S' ? 'none' : totalUrls < 500 ? '<500' : totalUrls < 1000 ? '500-1000' : totalUrls < 5000 ? '1000-5000' : '>5000';
@@ -606,7 +619,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >
-                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} />
+                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} savedTier={estimate.tech_tier} onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, tech_tier: tier } : prev)} />
                   </SectionCard>
                 )}
 
@@ -619,7 +632,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
-                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev)} />
                   </SectionCard>
                 )}
 
