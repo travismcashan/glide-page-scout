@@ -1760,7 +1760,7 @@ export default function ResultsPage() {
     setNavFailed(false); setNavLoading(false); navTriggeredRef.current = false;
     setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false;
     setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false;
-    setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null);
+    setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null); techAnalysisTriggeredRef.current = false;
     setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false;
     setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false;
     formsAutoRunRef.current = false; autoTagTriedRef.current = false;
