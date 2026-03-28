@@ -259,15 +259,18 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   }
 
   return (
-    <div className="group relative max-w-[85%]">
-      <div className="absolute -left-16 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+    <div className="max-w-[85%]">
+      <div className="bg-muted text-secondary-foreground rounded-[24px] rounded-tr-none px-5 py-4 text-base">
+        <UserBubbleContent content={content} attachmentNames={attachmentNames} />
+      </div>
+      <div className="flex items-center gap-1 mt-1.5 justify-end">
         {!disabled && (
           <button
             onClick={startEdit}
             className="p-1 rounded-md hover:bg-muted text-muted-foreground"
             title="Edit prompt"
           >
-            <Pencil className="h-3.5 w-3.5" />
+            <Pencil className="h-5 w-5" />
           </button>
         )}
         <button
@@ -275,11 +278,8 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
           className="p-1 rounded-md hover:bg-muted text-muted-foreground"
           title="Copy prompt"
         >
-          {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? <Check className="h-5 w-5 text-accent" /> : <Copy className="h-5 w-5" />}
         </button>
-      </div>
-      <div className="bg-muted text-secondary-foreground rounded-[24px] rounded-tr-none px-5 py-4 text-base">
-        <UserBubbleContent content={content} attachmentNames={attachmentNames} />
       </div>
     </div>
   );
