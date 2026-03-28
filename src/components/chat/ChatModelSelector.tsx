@@ -56,8 +56,9 @@ export const VERSIONS: Record<ModelProvider, ModelOption[]> = {
     { id: 'perplexity-sonar-reasoning-pro', label: 'Reasoning Pro', provider: 'perplexity', description: 'Advanced reasoning', tier: 'powerful', reasoning: NO_REASONING },
   ],
   council: [
-    { id: 'council-convergence', label: 'Convergence', provider: 'council', description: '3 models collaborate to find the best answer', tier: 'powerful', reasoning: NO_REASONING },
-    { id: 'council-debate', label: 'Debate', provider: 'council', description: '2 models argue, 1 judges the winner', tier: 'powerful', reasoning: NO_REASONING },
+    { id: 'council-synthesis', label: 'Synthesis', provider: 'council', description: '3 models run in parallel, best ideas merged', tier: 'balanced', reasoning: NO_REASONING },
+    { id: 'council-convergence', label: 'Convergence', provider: 'council', description: '3 models collaborate to find the best answer', tier: 'powerful', reasoning: NO_REASONING, comingSoon: true },
+    { id: 'council-debate', label: 'Debate', provider: 'council', description: '2 models argue, 1 judges the winner', tier: 'powerful', reasoning: NO_REASONING, comingSoon: true },
   ],
 };
 
