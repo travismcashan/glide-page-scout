@@ -90,8 +90,8 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
       </div>
 
       {/* Hours per person */}
-      {onHoursPerPersonChange && (
-        <div className="flex items-center gap-1">
+      <div className="w-[5.5rem] shrink-0 flex items-center justify-center">
+        {onHoursPerPersonChange ? (
           <Input
             type="number"
             value={task.hours_per_person ?? task.hours}
@@ -100,14 +100,15 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
             min={0}
             step={0.5}
           />
-          <span className="text-[10px] text-muted-foreground w-8">h/p</span>
-        </div>
-      )}
+        ) : (
+          <span className="text-sm text-muted-foreground">{Number(task.hours_per_person ?? task.hours).toFixed(1)}</span>
+        )}
+      </div>
 
       {/* Total hours */}
-      <div className="flex items-center gap-1">
+      <div className="w-[5.5rem] shrink-0 flex items-center justify-center">
         {roleCount > 1 || hasVariable ? (
-          <span className="text-sm font-medium w-16 text-center">{Number(task.hours).toFixed(1)}</span>
+          <span className="text-sm font-medium">{Number(task.hours).toFixed(1)}</span>
         ) : (
           <Input
             type="number"
@@ -118,7 +119,6 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
             step={0.5}
           />
         )}
-        <span className="text-[10px] text-muted-foreground w-6">hrs</span>
       </div>
     </div>
   );
