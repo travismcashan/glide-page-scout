@@ -6,9 +6,9 @@ const corsHeaders = {
 };
 
 const DEFAULT_COUNCIL_MODELS = [
-  { key: 'gemini', id: 'google/gemini-2.5-flash', name: 'Gemini Flash', provider: 'gateway' as const },
+  { key: 'gemini', id: 'google/gemini-3-flash-preview', name: 'Gemini Flash 3.0', provider: 'gateway' as const },
+  { key: 'claude', id: 'claude-sonnet', name: 'Claude Sonnet', provider: 'anthropic' as const },
   { key: 'gpt', id: 'openai/gpt-5-mini', name: 'GPT-5 Mini', provider: 'gateway' as const },
-  { key: 'claude', id: 'claude-haiku', name: 'Claude Haiku', provider: 'anthropic' as const },
 ];
 
 // Model ID to display name map
