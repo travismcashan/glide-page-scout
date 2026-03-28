@@ -158,7 +158,10 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         .select('*')
         .eq('estimate_id', est.id)
         .order('display_order');
-      setTasks((taskData || []) as EstimateTask[]);
+      const loadedTasks = (taskData || []) as EstimateTask[];
+      // Recalculate formula-driven tasks on load to ensure consistency
+      const recalced = recalculateAllTasks(loadedTasks, est, formulasData);
+      setTasks(recalced as EstimateTask[]);
     }
 
     const formulasData = await fetchFormulas();
