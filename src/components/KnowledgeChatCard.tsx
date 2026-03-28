@@ -390,23 +390,28 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
             </button>
             {isOpen && m.response && (
               <div className="px-4 py-3 text-sm border-t border-border">
+              <div className="relative">
                 <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
                   <div
-                    className={`chat-prose max-w-none text-sm transition-all ${isFull ? '' : 'max-h-[15rem] overflow-y-auto'}`}
+                    className={`chat-prose max-w-none text-sm transition-all ${isFull ? '' : 'max-h-[15rem] overflow-hidden'}`}
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.response}</ReactMarkdown>
                   </div>
                 </Suspense>
+                {!isFull && (
+                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleFull(m.key); }}
-                  className="text-xs text-muted-foreground hover:text-foreground mt-3 pt-2 border-t border-border/50 flex items-center gap-1 w-full"
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mx-auto mt-2 justify-center w-full"
                 >
                   {isFull ? (
                     <><ChevronDown className="h-3 w-3" /> Show less</>
                   ) : (
-                    <><ChevronRight className="h-3 w-3" /> Show full</>
+                    <><ChevronRight className="h-3 w-3" /> Show more</>
                   )}
                 </button>
+              </div>
               </div>
             )}
             {isOpen && m.status === 'thinking' && !m.response && (
