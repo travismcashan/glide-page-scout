@@ -2523,9 +2523,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             <span className="text-sm font-medium">Drop files here</span>
           </div>
         )}
-        {/* Attachment previews */}
-        {attachments.length > 0 && (
+        {/* Attachment & site previews */}
+        {(attachments.length > 0 || (globalMode && attachedSites && attachedSites.length > 0)) && (
           <div className="flex flex-wrap gap-1.5 px-1 pb-2">
+            {/* Attached sites as pills */}
+            {globalMode && attachedSites?.map(s => (
+              <Badge
+                key={`site-${s.session_id}`}
+                variant="secondary"
+                className="gap-1 pl-1.5 pr-1 py-0.5 text-xs font-normal max-w-[200px] bg-primary/10 text-primary border-primary/20"
+              >
+                <Globe className="h-3 w-3 shrink-0" />
+                <span className="truncate">{s.domain}</span>
+                <button onClick={() => onDetachSite?.(s.session_id)} className="ml-0.5 hover:text-destructive shrink-0">
+                  <span className="text-xs">×</span>
+                </button>
+              </Badge>
+            ))}
+            {/* File attachments */}
             {attachments.map((att, i) => (
               <Badge
                 key={`${att.name}-${i}`}
