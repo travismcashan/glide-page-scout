@@ -248,7 +248,31 @@ function ScopeTab({ scope }: { scope: Scope }) {
   );
 }
 
-export function TechAnalysisCard({ data, isLoading }: Props) {
+export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierChange }: Props) {
+  const scope: Scope | undefined = data?.analysis ? (data.analysis as any).scope : undefined;
+  const pluginCount = Array.isArray(scope?.plugins) ? scope!.plugins.length : 0;
+  const thirdPartyCount = Array.isArray(scope?.thirdPartyIntegrations) ? scope!.thirdPartyIntegrations.length : 0;
+  const specialSetupCount = Array.isArray(scope?.specialSetup) ? scope!.specialSetup.length : 0;
+
+  // Auto-suggest tier based on data
+  const suggestedTier: TechTier = specialSetupCount > 0 ? 'L' : thirdPartyCount > 0 ? 'M' : 'S';
+  const [tier, setTier] = useState<TechTier>(suggestedTier);
+
+  const isEstimate = mode === 'estimate';
+
+  // Compute counts for current tier
+  const getTierCounts = (t: TechTier): TechTierCounts => {
+    const total = t === 'S' ? pluginCount : t === 'M' ? pluginCount + thirdPartyCount : pluginCount + thirdPartyCount + specialSetupCount;
+    return { tier: t, plugins: pluginCount, thirdParty: thirdPartyCount, specialSetup: specialSetupCount, totalIncluded: total };
+  };
+
+  // Fire callback on tier change or initial mount
+  useEffect(() => {
+    if (isEstimate && onTierChange && scope) {
+      onTierChange(getTierCounts(tier));
+    }
+  }, [tier, isEstimate, pluginCount, thirdPartyCount, specialSetupCount]);
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-2">
@@ -268,7 +292,23 @@ export function TechAnalysisCard({ data, isLoading }: Props) {
     stackAge: (analysis as any).stackAge,
     complexity: (analysis as any).complexity,
   };
-  const scope: Scope | undefined = (analysis as any).scope;
+
+  const tierSelector = isEstimate && scope ? (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-muted-foreground font-medium">Tier:</span>
+      <ToggleGroup type="single" value={tier} onValueChange={(v) => v && setTier(v as TechTier)} size="sm" className="gap-0.5">
+        <ToggleGroupItem value="S" className="text-[10px] h-6 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+          S <span className="ml-0.5 opacity-60">({pluginCount})</span>
+        </ToggleGroupItem>
+        <ToggleGroupItem value="M" className="text-[10px] h-6 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+          M <span className="ml-0.5 opacity-60">({pluginCount + thirdPartyCount})</span>
+        </ToggleGroupItem>
+        <ToggleGroupItem value="L" className="text-[10px] h-6 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+          L <span className="ml-0.5 opacity-60">({pluginCount + thirdPartyCount + specialSetupCount})</span>
+        </ToggleGroupItem>
+      </ToggleGroup>
+    </div>
+  ) : null;
 
   return (
     <CardTabs
@@ -286,6 +326,7 @@ export function TechAnalysisCard({ data, isLoading }: Props) {
           content: <FindingsTab findings={findings} techCount={techCount} sources={sources} />,
         },
       ]}
+      headerExtra={tierSelector}
     />
   );
 }
