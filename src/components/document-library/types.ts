@@ -45,6 +45,7 @@ export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: s
   pending: { icon: Clock, color: 'text-muted-foreground', label: 'Queued' },
   uploading: { icon: Upload, color: 'text-blue-500', label: 'Uploading' },
   error: { icon: AlertCircle, color: 'text-destructive', label: 'Error' },
+  renaming: { icon: Loader2, color: 'text-violet-500', label: 'Renaming' },
 };
 
 /** Get the source label, with special handling for HubSpot integration docs */

@@ -213,7 +213,7 @@ function DocTable({ documents, onDelete, sortField, sortDir, onSort, onPreview }
               <TableCell className="py-2.5 px-4 text-sm text-muted-foreground text-center">{formatDate(doc.created_at)}</TableCell>
               <TableCell className="py-2.5 px-4 text-center">
                 <div className="flex items-center justify-center gap-1" title={statusConf.label}>
-                  <StatusIcon className={`h-3.5 w-3.5 ${statusConf.color} ${(doc.status === 'processing' || doc.status === 'uploading') ? 'animate-spin' : ''}`} />
+                  <StatusIcon className={`h-3.5 w-3.5 ${statusConf.color} ${(doc.status === 'processing' || doc.status === 'uploading' || doc.status === 'renaming') ? 'animate-spin' : ''}`} />
                   <span className={`text-sm ${statusConf.color}`}>{statusConf.label}</span>
                 </div>
               </TableCell>

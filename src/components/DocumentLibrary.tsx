@@ -455,6 +455,9 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         break;
       }
 
+      // Mark this doc as "renaming" in the UI
+      setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'renaming' } : d));
+
       try {
         // Fetch first few chunks for content preview
         const { data: chunks } = await supabase
@@ -466,6 +469,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
 
         const contentPreview = chunks?.map(c => c.chunk_text).join('\n\n') || '';
         if (!contentPreview) {
+          setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'ready' } : d));
           renamed++;
           setRenameProgress({ done: renamed, total: readyDocs.length });
           continue;
@@ -482,7 +486,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           }),
         });
 
-        if (renameAbortRef.current) break;
+        if (renameAbortRef.current) {
+          setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'ready' } : d));
+          break;
+        }
 
         const result = await resp.json();
         if (result.success && result.new_name && result.new_name !== doc.name) {
@@ -491,10 +498,13 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
             .update({ name: result.new_name })
             .eq('id', doc.id);
 
-          setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, name: result.new_name } : d));
+          setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, name: result.new_name, status: 'ready' } : d));
+        } else {
+          setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'ready' } : d));
         }
       } catch (e) {
         console.error('Rename error for', doc.name, e);
+        setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'ready' } : d));
       }
 
       renamed++;
