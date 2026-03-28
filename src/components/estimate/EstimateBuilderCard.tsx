@@ -16,6 +16,7 @@ import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 import { TemplatesCard } from '@/components/TemplatesCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
+import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { SectionCard } from '@/components/SectionCard';
 
 function TaskRowHeader() {
@@ -43,6 +44,7 @@ interface Props {
   wappalyzerData: any;
   templateTiers: any;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
+  techAnalysisData: any;
 }
 
 interface Estimate extends EstimateVariables {
@@ -50,7 +52,7 @@ interface Estimate extends EstimateVariables {
   status: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -486,7 +488,16 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                     />
                   </SectionCard>
                 )}
-              </div>
+
+                {techAnalysisData && (
+                  <SectionCard
+                    sectionId="est-tech-analysis"
+                    title="AI Tech Analysis — Merged Stack Intelligence"
+                    icon={<Code className="h-5 w-5 text-foreground" />}
+                  >
+                    <TechAnalysisCard data={techAnalysisData} isLoading={false} />
+                  </SectionCard>
+                )}
             </TabsContent>
 
             <TabsContent value="all">
