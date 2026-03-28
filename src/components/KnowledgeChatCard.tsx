@@ -1390,10 +1390,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         body: JSON.stringify({
           messages: apiMessages,
           crawlContext,
-          session_id: session.id,
+          session_id: globalMode ? undefined : session.id,
+          session_ids: globalMode ? [session.id, ...(attachedSessionIds || [])] : undefined,
           model: selectedModel,
           reasoning: reasoning !== 'none' ? reasoning : undefined,
-          sources: { ...searchSources, analytics: searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
+          sources: { ...searchSources, analytics: !globalMode && searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
           rag_depth: ragDepth,
           tonePreset: localStorage.getItem('ai-tone-preset') || 'default',
           characteristics: (() => { try { const s = localStorage.getItem('ai-characteristics'); return s ? JSON.parse(s) : []; } catch { return []; } })(),
