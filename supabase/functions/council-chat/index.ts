@@ -202,7 +202,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
     const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
-    const { messages, crawlContext, customInstructions, councilModels: customModels } = await req.json();
+    const { messages, crawlContext, customInstructions, councilModels: customModels, synthesisModel: customSynthesis } = await req.json();
 
     // Build council models list from custom config or defaults
     const councilModelList = (Array.isArray(customModels) && customModels.length === 3)
