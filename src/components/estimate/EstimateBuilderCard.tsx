@@ -321,6 +321,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           pages_for_integration: estimate.pages_for_integration, custom_posts: estimate.custom_posts,
           bulk_import_amount: estimate.bulk_import_amount, site_builder_acf: estimate.site_builder_acf,
           third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
+          form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
+          complexity_score: estimate.complexity_score,
         })
         .eq('id', estimate.id);
       if (estimateError) throw estimateError;
@@ -636,7 +638,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
-                    <FormsCard data={formsData} domain={domain} mode="estimate" />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} />
                   </SectionCard>
                 )}
               </div>
