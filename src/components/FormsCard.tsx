@@ -59,6 +59,7 @@ interface Props {
   savedTiers?: AiTiers | null;
   onTiersChange?: (tiers: AiTiers) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
+  onFormTierChange?: (counts: { s: number; m: number; l: number; total: number }) => void;
   mode?: 'analysis' | 'estimate';
 }
 
