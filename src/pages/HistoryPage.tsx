@@ -2,11 +2,22 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Globe, Clock } from 'lucide-react';
+import { Globe, Clock, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type CrawlSession = {
   id: string;
@@ -22,6 +33,8 @@ export default function HistoryPage() {
   const [multiDomains, setMultiDomains] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CrawlSession | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -50,6 +63,50 @@ export default function HistoryPage() {
 
     fetchSessions();
   }, []);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const sid = deleteTarget.id;
+
+    // Delete related rows first, then the session
+    const deletes = await Promise.all([
+      supabase.from('crawl_pages').delete().eq('session_id', sid),
+      supabase.from('crawl_screenshots').delete().eq('session_id', sid),
+      supabase.from('knowledge_chunks').delete().eq('session_id', sid),
+      supabase.from('knowledge_documents').delete().eq('session_id', sid),
+      supabase.from('knowledge_messages').delete().eq('session_id', sid),
+      supabase.from('knowledge_favorites').delete().eq('session_id', sid),
+      supabase.from('chat_threads').delete().eq('session_id', sid),
+    ]);
+
+    const childError = deletes.find(r => r.error);
+    if (childError?.error) {
+      console.error('Failed to delete related data:', childError.error);
+      toast.error('Failed to delete crawl. Please try again.');
+      setDeleting(false);
+      setDeleteTarget(null);
+      return;
+    }
+
+    const { error: sessionError } = await supabase.from('crawl_sessions').delete().eq('id', sid);
+    if (sessionError) {
+      console.error('Failed to delete session:', sessionError);
+      toast.error('Failed to delete crawl session.');
+    } else {
+      setSessions(prev => {
+        const next = prev.filter(s => s.id !== sid);
+        const domainCounts = new Map<string, number>();
+        next.forEach(s => domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1));
+        setMultiDomains(domainCounts);
+        return next;
+      });
+      toast.success(`Deleted crawl for ${deleteTarget.domain}`);
+    }
+
+    setDeleting(false);
+    setDeleteTarget(null);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -94,6 +151,16 @@ export default function HistoryPage() {
                     <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
                       {session.status}
                     </Badge>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(session);
+                      }}
+                      className="p-1.5 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Delete crawl"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               </Card>
@@ -101,6 +168,27 @@ export default function HistoryPage() {
           </div>
         )}
       </main>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete crawl?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the crawl for <strong>{deleteTarget?.domain}</strong> and all associated data (pages, screenshots, chat history, knowledge documents). This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
