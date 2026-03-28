@@ -547,6 +547,21 @@ function getProjectDuration(totalHours: number): string {
                   </SectionCard>
                 )}
 
+                {contentTypesData && (
+                  <SectionCard
+                    sectionId="est-content-types"
+                    title="Bulk Content (Posts & CPTs)"
+                    icon={<Layers className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('content-types', 'content_types_data')}
+                  >
+                    <ContentTypesCard
+                      data={contentTypesData}
+                      navStructure={navStructure}
+                      pageTags={pageTags}
+                    />
+                  </SectionCard>
+                )}
+
                 {techAnalysisData && (
                   <SectionCard
                     sectionId="est-tech-analysis"
@@ -566,21 +581,6 @@ function getProjectDuration(totalHours: number): string {
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
                     <FormsCard data={formsData} domain={domain} mode="estimate" />
-                  </SectionCard>
-                )}
-
-                {contentTypesData && (
-                  <SectionCard
-                    sectionId="est-content-types"
-                    title="Bulk Content (Posts & CPTs)"
-                    icon={<Layers className="h-5 w-5 text-foreground" />}
-                    headerExtra={rerunButton('content-types', 'content_types_data')}
-                  >
-                    <ContentTypesCard
-                      data={contentTypesData}
-                      navStructure={navStructure}
-                      pageTags={pageTags}
-                    />
                   </SectionCard>
                 )}
               </div>
