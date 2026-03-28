@@ -1,45 +1,65 @@
 
-# Move Crawl Orchestration to Edge Functions
 
-## Status: Phase 1 Complete ✅
+# Multi-Site Groups — Phase 1 Implementation
 
-### What's Done (Phase 1)
-1. **`integration_runs` table** — Created with realtime enabled. Tracks per-integration status (pending/running/done/failed/skipped) per session.
-2. **`crawl-start` edge function** — Dispatcher that reads session + paused settings, creates integration_runs rows, and fires all integration edge functions via fire-and-forget fetch.
-3. **Shared orchestration helper** (`_shared/orchestration.ts`) — `extractOrchestration()` provides `markRunning/markDone/markFailed` methods that write results to both `crawl_sessions` and `integration_runs`.
-4. **3 proof-of-concept edge functions updated** — `builtwith-lookup`, `semrush-domain`, `pagespeed-insights` now accept orchestration params and self-manage their status.
-5. **CrawlPage updated** — Calls `crawl-start` after creating a session (fire-and-forget).
-6. **ResultsPage realtime subscription** — Subscribes to `integration_runs` changes; when an integration completes server-side, it re-fetches that column and updates local state, preventing duplicate client-side triggers.
+Builds on the approved plan, incorporating the batch URL input flow.
 
-### What's Next (Phase 2)
-- Update remaining ~17 edge functions with orchestration wrapper (same pattern as builtwith/semrush/psi)
-- Remove corresponding client-side `useEffect` triggers from ResultsPage for orchestrated integrations
-- Add dependency-chain logic: batch 2 functions check prerequisites before executing
-- Add retry logic for failed integrations
+## Database
 
-### Architecture
+Two new tables:
+
+**`site_groups`** — id, name, description, created_at, updated_at
+
+**`site_group_members`** — id, group_id (FK → site_groups), session_id (uuid), priority (int, default 0), notes (text), created_at. Unique on (group_id, session_id).
+
+Both with permissive RLS (matching existing tables).
+
+## CrawlPage — Batch Mode
+
+- Add a "Multi-Site" toggle/button near the URL input
+- When active, swap the single URL input for:
+  - A group name field (auto-defaults to shared domain or "Untitled Group")
+  - A textarea for pasting multiple URLs (one per line)
+- On submit:
+  1. Create `site_groups` row
+  2. For each URL: create `crawl_sessions` row, create `site_group_members` row
+  3. Fire `crawl-start` for each session (fire-and-forget, all parallel)
+  4. Navigate to `/groups/:groupId`
+
+## New Pages
+
+**`/groups`** — list page showing all groups with member count, newest first
+**`/groups/:groupId`** — detail page:
+- Group name/description header
+- Member sites list with status indicators (subscribes to `integration_runs` for live progress)
+- Each row links to its individual `/sites/:domain` results page
+- Progress summary ("3/5 sites complete")
+- "Add Site" button (enter URL or pick from history)
+
+## New Route in App.tsx
+
 ```
-CrawlPage → creates session → invokes crawl-start (fire-and-forget)
-                                    ↓
-                        crawl-start reads session + settings
-                        creates integration_runs rows (all pending)
-                        fires each edge function with _orchestrated params
-                                    ↓
-                        Each edge function:
-                          1. markRunning() → updates integration_runs
-                          2. Does its work (external API call)
-                          3. markDone(result) → writes to crawl_sessions + integration_runs
-                             OR markFailed(msg) → writes error sentinel + integration_runs
-                                    ↓
-                        ResultsPage subscribes to integration_runs via Realtime
-                        On 'done' → re-fetches that column, updates local state
-                        On 'failed' → sets error state
+/groups → GroupsPage
+/groups/:groupId → GroupDetailPage
 ```
 
-### Dual-path (transitional)
-Currently both paths are active:
-- **Server-side**: crawl-start fires integrations that have orchestration support
-- **Client-side**: useEffect triggers still run as fallback for all integrations
-- The triggered refs prevent double-execution: if server completes first, the ref is set and client skips; if client fires first, data exists and server skips
+Add navigation link in AppHeader.
 
-This will be collapsed to server-only in Phase 3-4.
+## Files Created/Modified
+
+| File | Change |
+|------|--------|
+| Migration SQL | Create `site_groups` + `site_group_members` tables |
+| `src/pages/GroupsPage.tsx` | New — list all groups |
+| `src/pages/GroupDetailPage.tsx` | New — group detail with realtime member status |
+| `src/pages/CrawlPage.tsx` | Add multi-site toggle + textarea batch input |
+| `src/App.tsx` | Add two new routes |
+| `src/components/AppHeader.tsx` | Add "Groups" nav link |
+
+## What's Deferred (Phases 2-4)
+
+- Comparison dashboard (tech matrix, performance charts, score grids)
+- AI strategy brief generation
+- Drag-to-reorder priority
+- "Run All" / "Refresh Stale" batch operations
+
