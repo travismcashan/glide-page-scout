@@ -1765,7 +1765,16 @@ export default function ResultsPage() {
       : 'pending' as const,
   })) : [];
 
-  const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
+  // Mark session as completed when all integrations finish
+  const integrationsAllDone = integrationSteps.length > 0 && integrationSteps.every(s => s.status === 'done' || s.status === 'failed' || s.status === 'paused');
+  useEffect(() => {
+    if (!session || !isRealSite || !integrationsAllDone || session.status === 'completed') return;
+    supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => {
+      updateSession({ status: 'completed' } as any);
+    });
+  }, [integrationsAllDone, session?.id, session?.status]);
+
+
     if (isSharedView) return null;
     return (
       <div className="flex items-center gap-1">
