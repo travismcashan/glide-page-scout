@@ -304,14 +304,14 @@ export default function SettingsPage() {
   useEffect(() => {
     // Auto-detect location if not cached
     if (!locationData) {
-      fetch('https://ip-api.com/json/?fields=city,regionName,country,timezone,lat,lon')
+      fetch('https://ipapi.co/json/')
         .then(r => r.json())
         .then(data => {
           if (data?.city) {
             const loc = {
               city: data.city,
-              region: data.regionName,
-              country: data.country,
+              region: data.region,
+              country: data.country_name,
               timezone: data.timezone,
             };
             setLocationData(loc);
