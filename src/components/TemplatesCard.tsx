@@ -375,14 +375,22 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       {/* Templates table — sectioned when a tier is active */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col className="w-10" />
+            <col />
+            <col className="w-24" />
+            <col className="w-20" />
+            {hasComplexity && <col className="w-28" />}
+            <col className="w-16" />
+          </colgroup>
           <thead>
              <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">{isEstimate ? 'Design' : '#'}</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
-              {hasComplexity && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Complexity</th>}
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">{isEstimate ? 'Design' : '#'}</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
+               {hasComplexity && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Complexity</th>}
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
             </tr>
           </thead>
           <tbody>
