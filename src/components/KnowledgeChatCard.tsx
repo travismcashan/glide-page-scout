@@ -1587,7 +1587,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning]);
 
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {

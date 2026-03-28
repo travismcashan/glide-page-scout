@@ -263,7 +263,7 @@ export default function ResultsPage() {
     claude: 'claude-opus',
     gpt: 'openai/gpt-5.2',
     perplexity: 'perplexity-sonar-reasoning-pro',
-    council: 'council-convergence',
+    council: 'council-synthesis',
   };
   // Default reasoning per provider
   const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
