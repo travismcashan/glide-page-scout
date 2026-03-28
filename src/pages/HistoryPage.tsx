@@ -44,6 +44,7 @@ export default function HistoryPage() {
       const { data, error } = await supabase
         .from('crawl_sessions')
         .select('id, domain, base_url, status, created_at')
+        .neq('domain', '__global_chat__')
         .order('created_at', { ascending: false });
 
       if (error) {
