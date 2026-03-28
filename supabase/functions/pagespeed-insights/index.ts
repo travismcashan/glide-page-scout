@@ -1,3 +1,5 @@
+import { extractOrchestration } from "../_shared/orchestration.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -9,15 +11,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { url } = await req.json();
+    const body = await req.json();
+    const { url } = body;
+    const orch = extractOrchestration(body);
+
+    if (orch) await orch.markRunning();
+
     if (!url) {
-      return new Response(JSON.stringify({ success: false, error: 'URL is required' }),
+      const msg = 'URL is required';
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const apiKey = Deno.env.get('GOOGLE_PSI_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'Google PSI API key not configured' }),
+      const msg = 'Google PSI API key not configured';
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -31,7 +42,9 @@ Deno.serve(async (req) => {
     if (!mobileRes.ok) {
       const errText = await mobileRes.text();
       console.error('PSI mobile error:', errText);
-      return new Response(JSON.stringify({ success: false, error: `PSI API error: ${mobileRes.status}` }),
+      const msg = `PSI API error: ${mobileRes.status}`;
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -42,7 +55,6 @@ Deno.serve(async (req) => {
       const cats = lhr.categories || {};
       const audits = lhr.audits || {};
 
-      // Category scores
       const categories = {
         performance: Math.round((cats.performance?.score || 0) * 100),
         accessibility: Math.round((cats.accessibility?.score || 0) * 100),
@@ -50,7 +62,6 @@ Deno.serve(async (req) => {
         seo: Math.round((cats.seo?.score || 0) * 100),
       };
 
-      // Core Web Vitals
       const vitals = {
         fcp: audits['first-contentful-paint']?.numericValue ?? null,
         lcp: audits['largest-contentful-paint']?.numericValue ?? null,
@@ -60,7 +71,6 @@ Deno.serve(async (req) => {
         tti: audits['interactive']?.numericValue ?? null,
       };
 
-      // Extract all audits with relevant info
       const allAudits: any[] = [];
       for (const [id, audit] of Object.entries(audits) as [string, any][]) {
         const entry: any = {
@@ -74,11 +84,9 @@ Deno.serve(async (req) => {
           numericUnit: audit.numericUnit || null,
         };
 
-        // Include details for audits that have actionable info
         if (audit.details) {
           entry.detailsType = audit.details.type;
 
-          // Opportunities: include overallSavingsMs and items
           if (audit.details.type === 'opportunity' && audit.details.items?.length > 0) {
             entry.overallSavingsMs = audit.details.overallSavingsMs ?? null;
             entry.overallSavingsBytes = audit.details.overallSavingsBytes ?? null;
@@ -90,7 +98,6 @@ Deno.serve(async (req) => {
             }));
           }
 
-          // Tables: include headings and items (diagnostics, resource summary, etc.)
           if (audit.details.type === 'table' && audit.details.items?.length > 0) {
             entry.headings = audit.details.headings?.map((h: any) => ({
               key: h.key,
@@ -110,7 +117,6 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Treemap / critical-request-chains: just note existence
           if (audit.details.type === 'criticalrequestchain') {
             entry.chainCount = Object.keys(audit.details.chains || {}).length;
           }
@@ -119,7 +125,6 @@ Deno.serve(async (req) => {
         allAudits.push(entry);
       }
 
-      // Categorize audits
       const opportunities = allAudits.filter(a => a.detailsType === 'opportunity' && a.score !== null && a.score < 1);
       const diagnostics = allAudits.filter(a =>
         a.detailsType === 'table' &&
@@ -129,16 +134,12 @@ Deno.serve(async (req) => {
       const passed = allAudits.filter(a => a.score === 1 && a.scoreDisplayMode !== 'informative' && a.scoreDisplayMode !== 'notApplicable');
       const failed = allAudits.filter(a => a.score !== null && a.score < 0.5 && a.scoreDisplayMode !== 'informative');
 
-      // Category audit refs (which audits belong to which category)
       const categoryRefs: Record<string, string[]> = {};
       for (const [catId, cat] of Object.entries(cats) as [string, any][]) {
         categoryRefs[catId] = (cat.auditRefs || []).map((r: any) => r.id);
       }
 
-      // Resource summary
       const resourceSummary = audits['resource-summary']?.details?.items || [];
-
-      // Main thread work breakdown
       const mainThreadWork = audits['mainthread-work-breakdown']?.details?.items?.slice(0, 10) || [];
 
       return {
@@ -161,6 +162,12 @@ Deno.serve(async (req) => {
 
     console.log(`PSI complete — mobile perf: ${mobile.categories.performance} (${mobile.totalAudits} audits, ${mobile.opportunities.length} opportunities) desktop perf: ${desktop.categories.performance}`);
 
+    const saved = { mobile, desktop };
+
+    if (orch) {
+      await orch.markDone(saved);
+    }
+
     return new Response(JSON.stringify({
       success: true,
       mobile,
@@ -169,8 +176,9 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('PSI error:', error);
+    const msg = error instanceof Error ? error.message : 'PSI analysis failed';
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'PSI analysis failed' }),
+      JSON.stringify({ success: false, error: msg }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

@@ -1,170 +1,45 @@
 
-
 # Move Crawl Orchestration to Edge Functions
 
-## Problem
-All ~25 integration triggers run client-side via `useEffect` hooks in `ResultsPage.tsx` (2741 lines). If the user closes their browser mid-analysis, everything stops. Results only complete if the tab stays open.
+## Status: Phase 1 Complete ✅
 
-## Architecture Overview
+### What's Done (Phase 1)
+1. **`integration_runs` table** — Created with realtime enabled. Tracks per-integration status (pending/running/done/failed/skipped) per session.
+2. **`crawl-start` edge function** — Dispatcher that reads session + paused settings, creates integration_runs rows, and fires all integration edge functions via fire-and-forget fetch.
+3. **Shared orchestration helper** (`_shared/orchestration.ts`) — `extractOrchestration()` provides `markRunning/markDone/markFailed` methods that write results to both `crawl_sessions` and `integration_runs`.
+4. **3 proof-of-concept edge functions updated** — `builtwith-lookup`, `semrush-domain`, `pagespeed-insights` now accept orchestration params and self-manage their status.
+5. **CrawlPage updated** — Calls `crawl-start` after creating a session (fire-and-forget).
+6. **ResultsPage realtime subscription** — Subscribes to `integration_runs` changes; when an integration completes server-side, it re-fetches that column and updates local state, preventing duplicate client-side triggers.
 
-```text
-CURRENT (client-side)
-┌─────────────────────────────────────────┐
-│  Browser (ResultsPage.tsx)              │
-│  useEffect → builtwithApi.lookup()      │
-│  useEffect → semrushApi.domainOverview()│
-│  useEffect → pagespeedApi.analyze()     │
-│  ... 25+ more useEffects                │
-│  Each writes results to crawl_sessions  │
-└─────────────────────────────────────────┘
+### What's Next (Phase 2)
+- Update remaining ~17 edge functions with orchestration wrapper (same pattern as builtwith/semrush/psi)
+- Remove corresponding client-side `useEffect` triggers from ResultsPage for orchestrated integrations
+- Add dependency-chain logic: batch 2 functions check prerequisites before executing
+- Add retry logic for failed integrations
 
-PROPOSED (server-side)
-┌──────────────┐     ┌──────────────────────────────┐
-│  Browser     │     │  Edge Function: crawl-orchestrator │
-│  POST start  │────▶│  Reads integration_settings  │
-│  Poll status │◀────│  Runs integrations in parallel│
-│              │     │  Writes results to DB directly│
-│  Real-time   │◀────│  Updates status per integration│
-│  subscription│     └──────────────────────────────┘
-└──────────────┘
+### Architecture
+```
+CrawlPage → creates session → invokes crawl-start (fire-and-forget)
+                                    ↓
+                        crawl-start reads session + settings
+                        creates integration_runs rows (all pending)
+                        fires each edge function with _orchestrated params
+                                    ↓
+                        Each edge function:
+                          1. markRunning() → updates integration_runs
+                          2. Does its work (external API call)
+                          3. markDone(result) → writes to crawl_sessions + integration_runs
+                             OR markFailed(msg) → writes error sentinel + integration_runs
+                                    ↓
+                        ResultsPage subscribes to integration_runs via Realtime
+                        On 'done' → re-fetches that column, updates local state
+                        On 'failed' → sets error state
 ```
 
-## Detailed Plan
+### Dual-path (transitional)
+Currently both paths are active:
+- **Server-side**: crawl-start fires integrations that have orchestration support
+- **Client-side**: useEffect triggers still run as fallback for all integrations
+- The triggered refs prevent double-execution: if server completes first, the ref is set and client skips; if client fires first, data exists and server skips
 
-### 1. New DB table: `integration_runs`
-Track per-integration status server-side so the UI can poll/subscribe.
-
-```sql
-CREATE TABLE public.integration_runs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id uuid NOT NULL,
-  integration_key text NOT NULL,
-  status text NOT NULL DEFAULT 'pending',  -- pending | running | done | failed | skipped
-  error_message text,
-  started_at timestamptz,
-  completed_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (session_id, integration_key)
-);
-ALTER TABLE public.integration_runs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all access" ON public.integration_runs FOR ALL USING (true) WITH CHECK (true);
-ALTER PUBLICATION supabase_realtime ADD TABLE public.integration_runs;
-```
-
-### 2. New edge function: `crawl-orchestrator`
-Single long-running function that:
-- Accepts `{ session_id }` 
-- Reads the session's `domain`, `base_url`, `prospect_domain`
-- Reads `integration_settings` to check paused integrations
-- Creates `integration_runs` rows for all active integrations (status: `pending`)
-- Runs integrations in parallel batches (respecting dependencies):
-
-**Batch 1 (independent, all parallel):**
-builtwith, semrush, psi, wappalyzer, detectzestack, gtmetrix, carbon, crux, wave, observatory, httpstatus, w3c, schema, readable, yellowlab, ocean, hubspot, sitemap, nav-extract, firecrawl-map
-
-**Batch 2 (depends on Batch 1 results):**
-- `tech-analysis` → needs builtwith + wappalyzer + detectzestack
-- `avoma` → can use hubspot contact email
-- `apollo` → needs hubspot primary contact
-- `content-types` → needs discovered URLs + scraped pages
-- `forms-detect` → needs discovered URLs
-- `auto-tag-pages` → needs scraped pages
-- `link-checker` → needs discovered URLs
-
-**Batch 3 (depends on Batch 2):**
-- `apollo-team-search` → needs apollo enrichment
-- `observations-insights` → needs most data populated
-
-Each integration:
-1. Updates its `integration_runs` row to `running`
-2. Calls the existing edge function (internal fetch)
-3. Writes result to `crawl_sessions` JSONB column
-4. Updates `integration_runs` to `done` or `failed`
-
-Edge function timeout consideration: Supabase edge functions have a ~60s default timeout. This orchestrator needs to be designed as a **dispatcher** pattern:
-- The orchestrator queues work and returns immediately
-- Each integration runs as its own edge function call (already exists)
-- A **polling loop** or **pg_cron job** checks for pending work
-
-### 3. Alternative: Dispatcher + Worker pattern
-Since a single edge function can't run for 5+ minutes:
-
-**Option A — Client kicks off, server executes each:**
-- New `crawl-start` edge function creates all `integration_runs` rows
-- New `crawl-worker` edge function processes ONE integration at a time
-- A pg_cron job (every 30s) picks up pending `integration_runs` and invokes `crawl-worker` for each
-- Or: `crawl-start` fires off all workers via `fetch()` without awaiting (fire-and-forget)
-
-**Option B — Chained invocation:**
-- `crawl-start` creates rows, then calls each integration edge function via `fetch()` in parallel (fire-and-forget)
-- Each integration function writes its own result and updates `integration_runs`
-- Dependency-chain integrations check their prerequisites before running; if not met, reschedule via a small delay
-
-**Recommended: Option B** — simpler, no pg_cron needed, leverages existing edge functions.
-
-### 4. New edge function: `crawl-start`
-```
-POST { session_id }
-→ Read session + integration_settings
-→ Insert integration_runs rows (all pending)
-→ Fire-and-forget parallel fetches to each integration's existing edge function
-   (with added logic to write results to crawl_sessions and update integration_runs)
-→ Return { success: true, integrations: [...keys] }
-```
-
-### 5. Modify existing edge functions
-Each existing edge function (builtwith-lookup, semrush-domain, etc.) needs a small wrapper:
-- Accept optional `session_id` parameter
-- If present: update `integration_runs` to `running`, execute, write result to `crawl_sessions`, update to `done/failed`
-- If absent: behave as before (backwards compatible)
-
-### 6. Dependency resolver edge function: `crawl-check-deps`
-For Batch 2/3 integrations, add a small function or inline logic:
-- Before running, check if prerequisite columns in `crawl_sessions` are populated
-- If not ready, skip (mark as `pending` still) — the completing prerequisite will re-trigger
-
-**Simpler approach:** Each Batch 1 function, after completing, checks if any dependent integrations are now unblocked and fires them.
-
-### 7. Update ResultsPage.tsx (client-side)
-- Remove all `useEffect` integration triggers (~500 lines deleted)
-- On page load: subscribe to `integration_runs` via Supabase Realtime
-- When a row changes to `done`, re-fetch that column from `crawl_sessions` and update local state
-- Keep manual re-run buttons: they call the individual edge function with `session_id`
-- Keep the "Stop Analysis" button: it updates all `pending` rows to `skipped`
-- Loading states derived from `integration_runs` status instead of local refs
-
-### 8. Update CrawlPage.tsx
-- After creating `crawl_sessions` row, call `crawl-start` instead of navigating and relying on ResultsPage effects
-
-## Scope & Risk Assessment
-
-**This is a very large change** touching:
-- ~20 existing edge functions (add session_id handling)
-- 1 new DB table
-- 2-3 new edge functions
-- Major rewrite of ResultsPage.tsx (remove ~800 lines of useEffect triggers, add realtime subscription)
-- CrawlPage.tsx (minor)
-
-**Risks:**
-- Edge function cold-start times may cause some integrations to timeout
-- Fire-and-forget pattern means no retry unless we add it
-- Some integrations (SSL Labs, Yellow Lab, GTmetrix) do internal polling — these already run as edge functions with their own timeout handling
-- Race conditions on dependency chains
-
-**Recommendation:** Implement incrementally:
-1. Phase 1: Add `integration_runs` table + realtime subscription on client. Keep client-side triggers but have them write status to `integration_runs` too. This gives visibility without breaking anything.
-2. Phase 2: Create `crawl-start` function that fires independent (Batch 1) integrations server-side. Remove those useEffects from client.
-3. Phase 3: Add dependency-chain logic for Batch 2/3 integrations.
-4. Phase 4: Remove remaining client-side triggers.
-
-## Implementation Order (if approved)
-
-1. Create `integration_runs` table with realtime enabled
-2. Build `crawl-start` edge function (dispatcher)
-3. Update 2-3 edge functions as proof-of-concept (e.g., builtwith, semrush, psi)
-4. Add realtime subscription to ResultsPage
-5. Remove corresponding client-side useEffects
-6. Repeat for remaining integrations
-7. Add dependency-chain logic for Batch 2/3
-8. Update CrawlPage to call `crawl-start`
-
+This will be collapsed to server-only in Phase 3-4.

@@ -1,3 +1,5 @@
+import { extractOrchestration } from "../_shared/orchestration.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -21,15 +23,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { domain } = await req.json();
+    const body = await req.json();
+    const { domain } = body;
+    const orch = extractOrchestration(body);
+
+    if (orch) await orch.markRunning();
+
     if (!domain) {
-      return new Response(JSON.stringify({ success: false, error: 'Domain is required' }),
+      const msg = 'Domain is required';
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const apiKey = Deno.env.get('SEMRUSH_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'SEMrush API key not configured' }),
+      const msg = 'SEMrush API key not configured';
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -42,7 +53,9 @@ Deno.serve(async (req) => {
 
     if (overviewText.startsWith('ERROR')) {
       console.error('SEMrush overview error:', overviewText);
-      return new Response(JSON.stringify({ success: false, error: overviewText }),
+      const msg = overviewText;
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -60,21 +73,21 @@ Deno.serve(async (req) => {
     const backlinksText = await backlinksRes.text();
     const backlinksData = backlinksText.startsWith('ERROR') ? null : parseCSV(backlinksText)[0] || null;
 
-    const result = {
-      success: true,
-      overview: overviewData,
-      organicKeywords,
-      backlinks: backlinksData,
-    };
+    const saved = { overview: overviewData, organicKeywords, backlinks: backlinksData };
 
     console.log(`SEMrush: ${overviewData.length} db rows, ${organicKeywords.length} keywords, backlinks: ${!!backlinksData}`);
 
-    return new Response(JSON.stringify(result),
+    if (orch) {
+      await orch.markDone(saved);
+    }
+
+    return new Response(JSON.stringify({ success: true, ...saved }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('SEMrush error:', error);
+    const msg = error instanceof Error ? error.message : 'SEMrush lookup failed';
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'SEMrush lookup failed' }),
+      JSON.stringify({ success: false, error: msg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

@@ -479,6 +479,78 @@ export default function ResultsPage() {
     });
   }, [fetchData]);
 
+  // ── Realtime subscription to integration_runs ──
+  // When server-side orchestration completes an integration, re-fetch its data
+  const INTEGRATION_COLUMN_MAP: Record<string, string> = {
+    builtwith: 'builtwith_data', semrush: 'semrush_data', psi: 'psi_data',
+    wappalyzer: 'wappalyzer_data', detectzestack: 'detectzestack_data',
+    gtmetrix: 'gtmetrix_scores', carbon: 'carbon_data', crux: 'crux_data',
+    wave: 'wave_data', observatory: 'observatory_data', ocean: 'ocean_data',
+    ssllabs: 'ssllabs_data', httpstatus: 'httpstatus_data',
+    'link-checker': 'linkcheck_data', w3c: 'w3c_data', schema: 'schema_data',
+    readable: 'readable_data', yellowlab: 'yellowlab_data',
+    'nav-structure': 'nav_structure', sitemap: 'sitemap_data',
+    'firecrawl-map': 'discovered_urls', 'tech-analysis': 'tech_analysis_data',
+    avoma: 'avoma_data', apollo: 'apollo_data', hubspot: 'hubspot_data',
+    'content-types': 'content_types_data', forms: 'forms_data',
+    'apollo-team': 'apollo_team_data', observations: 'observations_data',
+    ga4: 'ga4_data', 'search-console': 'search_console_data',
+  };
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const channel = supabase
+      .channel(`integration-runs-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'integration_runs',
+          filter: `session_id=eq.${sessionId}`,
+        },
+        async (payload) => {
+          const row = payload.new as { integration_key: string; status: string; error_message?: string };
+          if (row.status === 'done') {
+            // Re-fetch the specific column from crawl_sessions
+            const col = INTEGRATION_COLUMN_MAP[row.integration_key];
+            if (col) {
+              const { data } = await supabase
+                .from('crawl_sessions')
+                .select(col)
+                .eq('id', sessionId)
+                .single();
+              if (data && (data as any)[col]) {
+                updateSession({ [col]: (data as any)[col] } as any);
+                // Mark the triggered ref so client-side effect doesn't re-fire
+                const refMap: Record<string, any> = {
+                  builtwith: builtwithTriggeredRef, semrush: semrushTriggeredRef,
+                  psi: psiTriggeredRef, wappalyzer: wappalyzerTriggeredRef,
+                  detectzestack: detectzestackTriggeredRef,
+                };
+                if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
+              }
+            }
+          } else if (row.status === 'failed') {
+            const col = INTEGRATION_COLUMN_MAP[row.integration_key];
+            if (col) {
+              setError(row.integration_key, row.error_message || 'Integration failed on server');
+              // Mark triggered ref
+              const refMap: Record<string, any> = {
+                builtwith: builtwithTriggeredRef, semrush: semrushTriggeredRef,
+                psi: psiTriggeredRef, wappalyzer: wappalyzerTriggeredRef,
+                detectzestack: detectzestackTriggeredRef,
+              };
+              if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [sessionId, updateSession]);
+
   // ── Analysis stop control ──
   const [analysisStopped, setAnalysisStopped] = useState(false);
   const analysisStoppedRef = useRef(false);
