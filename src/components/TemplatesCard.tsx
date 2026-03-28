@@ -122,6 +122,14 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
   const [aiTiers, setAiTiers] = useState<AiTiers | null>(savedTiers || null);
   const [autoSelected, setAutoSelected] = useState(false);
+
+  // Sync savedTiers from DB when they arrive after initial render
+  useEffect(() => {
+    if (savedTiers && !aiTiers) {
+      setAiTiers(savedTiers);
+      autoRunRef.current = true; // prevent auto-run since we have saved data
+    }
+  }, [savedTiers]);
   const [aiLoading, setAiLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
   const loadingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
