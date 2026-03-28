@@ -51,7 +51,7 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
       <Checkbox
         checked={task.is_selected}
         onCheckedChange={(checked) => onToggle(task.id, checked as boolean)}
-        className={formulaDriven ? 'border-muted-foreground/40 data-[state=checked]:bg-muted-foreground/50 data-[state=checked]:border-muted-foreground/50' : ''}
+        className={formulaDriven ? 'border-muted-foreground/60 data-[state=checked]:bg-muted-foreground/70 data-[state=checked]:border-muted-foreground/70' : ''}
       />
 
       {/* Task name */}
