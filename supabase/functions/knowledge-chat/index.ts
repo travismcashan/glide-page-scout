@@ -681,6 +681,7 @@ async function handleClaudeRequest(
   messages: any[],
   systemPrompt: string,
   reasoning: string | undefined,
+  contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number },
 ): Promise<Response> {
   const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
   if (!ANTHROPIC_API_KEY) {
@@ -956,6 +957,7 @@ async function handleGatewayRequest(
   systemPrompt: string,
   reasoning: string | undefined,
   enableTools = false,
+  contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
 ): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
@@ -1104,6 +1106,7 @@ async function handlePerplexityRequest(
   perplexityModelId: string,
   messages: any[],
   systemPrompt: string,
+  contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
 ): Promise<Response> {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
   if (!PERPLEXITY_API_KEY) {
