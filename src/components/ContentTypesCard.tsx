@@ -481,7 +481,35 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
         </div>
 
-        {summary.map(row => renderContentRow(row, tierIncluded.has(row.type)))}
+        {(() => {
+          const LIMIT = 5;
+          const isShowingAll = expandedSections.has('bulk-types');
+          const hasMore = summary.length > LIMIT;
+          const visible = isShowingAll ? summary : summary.slice(0, LIMIT);
+          return (
+            <>
+              {visible.map(row => renderContentRow(row, tierIncluded.has(row.type)))}
+              {hasMore && (
+                <div className="relative">
+                  {!isShowingAll && (
+                    <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                  )}
+                  <button
+                    onClick={() => setExpandedSections(prev => {
+                      const next = new Set(prev);
+                      if (next.has('bulk-types')) next.delete('bulk-types'); else next.add('bulk-types');
+                      return next;
+                    })}
+                    className="w-full flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ChevronsUpDown className="h-3 w-3" />
+                    {isShowingAll ? 'Show less' : `Show all ${summary.length}`}
+                  </button>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Tier reasoning */}
