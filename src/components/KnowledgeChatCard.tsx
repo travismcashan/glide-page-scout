@@ -821,6 +821,10 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
       )}
+      {/* Council model thinking */}
+      {councilModels && councilModels.length > 0 && (
+        <CouncilThinkingBlock models={councilModels} isStreaming={isStreamingThis} />
+      )}
       {/* Deep Research steps */}
       {isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0 && (
         <DeepResearchStepsBlock steps={deepResearchSteps} sources={webCitations} isStreaming={isStreamingThis && !content} />
