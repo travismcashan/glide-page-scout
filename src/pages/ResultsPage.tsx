@@ -1929,7 +1929,7 @@ export default function ResultsPage() {
       {/* Domain + crawl info — matches header height */}
       <div>
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground leading-none">
+          <h1 className="text-[2rem] font-semibold tracking-tight text-foreground leading-none">
             {session?.domain?.replace(/^www\./i, '')}
           </h1>
           {session?.created_at && (
