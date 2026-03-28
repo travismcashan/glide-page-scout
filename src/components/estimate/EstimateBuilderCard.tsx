@@ -54,6 +54,7 @@ interface Props {
   integrationDurations?: Record<string, number>;
   onRerunIntegration?: (key: string, dbColumn: string) => void;
   isIntegrationLoading?: (key: string) => boolean;
+  onTemplatesRerunRequest?: (rerunFn: () => void) => void;
 }
 
 interface Estimate extends EstimateVariables {
