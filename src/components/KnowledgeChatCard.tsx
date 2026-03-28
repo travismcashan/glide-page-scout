@@ -1023,6 +1023,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
   const crawlContext = globalMode ? '' : buildCrawlContext(session, pages);
 
+  // Load available sites for the site picker (global mode only)
+  useEffect(() => {
+    if (!globalMode) return;
+    supabase
+      .from('crawl_sessions')
+      .select('id, domain')
+      .neq('domain', '__global_chat__')
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (data) setAvailableSites(data);
+      });
+  }, [globalMode]);
+
   // Initialize: load or create default thread
   useEffect(() => {
     if (threadInitRef.current === session.id) return;
