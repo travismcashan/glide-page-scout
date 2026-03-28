@@ -3,7 +3,7 @@ import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 
