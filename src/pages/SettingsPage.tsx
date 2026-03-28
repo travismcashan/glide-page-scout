@@ -774,6 +774,36 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+           {aboutMe && (
+            <div className="rounded-lg border border-border p-4 space-y-5">
+              {/* Person header */}
+              <div className="flex items-start gap-4">
+                <Avatar className="h-14 w-14">
+                  <AvatarImage src={aboutMe.photoUrl || profile?.avatar_url || undefined} />
+                  <AvatarFallback className="text-lg">{(aboutMe.name || '?')[0]?.toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="font-semibold text-lg leading-tight">{aboutMe.name}</p>
+                  {aboutMe.title && <p className="text-sm text-muted-foreground">{aboutMe.title}</p>}
+                  {aboutMe.headline && aboutMe.headline !== aboutMe.title && (
+                    <p className="text-xs text-muted-foreground">{aboutMe.headline}</p>
+                  )}
+                  {/* Social links */}
+                  <div className="flex gap-2 pt-1">
+                    {aboutMe.linkedin && (
+                      <a href={aboutMe.linkedin} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground underline">LinkedIn</a>
+                    )}
+                    {aboutMe.twitter && (
+                      <a href={aboutMe.twitter} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground underline">Twitter</a>
+                    )}
+                    {aboutMe.github && (
+                      <a href={aboutMe.github} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground underline">GitHub</a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Person details grid */}
               <div className="grid gap-2 sm:grid-cols-2 text-sm">
                 {aboutMe.organization && (
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -781,10 +811,10 @@ export default function SettingsPage() {
                     <span>{aboutMe.organization}{aboutMe.orgIndustry ? ` · ${aboutMe.orgIndustry}` : ''}</span>
                   </div>
                 )}
-                {aboutMe.orgSize && (
+                {aboutMe.seniority && (
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <Briefcase className="h-4 w-4 shrink-0" />
-                    <span>{aboutMe.orgSize}</span>
+                    <Shield className="h-4 w-4 shrink-0" />
+                    <span className="capitalize">{aboutMe.seniority}{aboutMe.departments?.length ? ` · ${aboutMe.departments.join(', ')}` : ''}</span>
                   </div>
                 )}
                 {(aboutMe.city || aboutMe.state || aboutMe.country || locationData?.city) && (
@@ -801,8 +831,93 @@ export default function SettingsPage() {
                 )}
               </div>
 
+              {/* Employment History */}
+              {aboutMe.employmentHistory?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-1.5"><Briefcase className="h-4 w-4" /> Work History</p>
+                  <div className="space-y-1.5 pl-1">
+                    {aboutMe.employmentHistory.filter((e: any) => e.title || e.organizationName).slice(0, 8).map((e: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 mt-2 shrink-0" />
+                        <div className="min-w-0">
+                          <span className="font-medium">{e.title || 'Role'}</span>
+                          {e.organizationName && <span className="text-muted-foreground"> at {e.organizationName}</span>}
+                          {(e.startDate || e.endDate) && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({e.startDate || '?'} – {e.current ? 'Present' : e.endDate || '?'})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Company Details */}
+              {(aboutMe.orgDescription || aboutMe.orgSize || aboutMe.orgFounded || aboutMe.orgRevenue) && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    {aboutMe.orgLogo && <img src={aboutMe.orgLogo} alt="" className="h-4 w-4 rounded" />}
+                    <Building2 className="h-4 w-4" /> {aboutMe.organization || 'Company'}
+                  </p>
+                  {aboutMe.orgDescription && (
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{aboutMe.orgDescription}</p>
+                  )}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {aboutMe.orgSize && <span>👥 ~{typeof aboutMe.orgSize === 'number' ? aboutMe.orgSize.toLocaleString() : aboutMe.orgSize} employees</span>}
+                    {aboutMe.orgFounded && <span>📅 Founded {aboutMe.orgFounded}</span>}
+                    {aboutMe.orgRevenue && <span>💰 {aboutMe.orgRevenue}</span>}
+                    {aboutMe.orgHeadcountGrowth12mo != null && (
+                      <span>{aboutMe.orgHeadcountGrowth12mo >= 0 ? '📈' : '📉'} {(aboutMe.orgHeadcountGrowth12mo * 100).toFixed(1)}% headcount (12mo)</span>
+                    )}
+                  </div>
+                  {aboutMe.orgKeywords?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {aboutMe.orgKeywords.slice(0, 10).map((kw: string, i: number) => (
+                        <span key={i} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{kw}</span>
+                      ))}
+                    </div>
+                  )}
+                  {aboutMe.orgTechnologies?.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <p className="text-xs text-muted-foreground font-medium">Tech Stack</p>
+                      <div className="flex flex-wrap gap-1">
+                        {aboutMe.orgTechnologies.slice(0, 15).map((t: string, i: number) => (
+                          <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Ocean.io Company Data */}
+              {aboutMe.oceanCompany && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ocean.io Company Intel</p>
+                  {aboutMe.oceanCompany.description && aboutMe.oceanCompany.description !== aboutMe.orgDescription && (
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{aboutMe.oceanCompany.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {aboutMe.oceanCompany.employeeCount && <span>👥 {aboutMe.oceanCompany.employeeCount.toLocaleString()} employees</span>}
+                    {aboutMe.oceanCompany.revenue && <span>💰 {aboutMe.oceanCompany.revenue}</span>}
+                    {aboutMe.oceanCompany.traffic?.monthlyVisits && <span>🌐 {Math.round(aboutMe.oceanCompany.traffic.monthlyVisits).toLocaleString()} visits/mo</span>}
+                  </div>
+                  {aboutMe.oceanCompany.departments?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {aboutMe.oceanCompany.departments.slice(0, 8).map((d: any, i: number) => (
+                        <span key={i} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                          {typeof d === 'string' ? d : `${d.name}: ${d.count}`}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Location & Timezone — editable */}
-              <div className="space-y-2">
+              <div className="space-y-2 border-t border-border pt-3">
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <label className="text-sm font-medium">Location & Timezone</label>
@@ -833,59 +948,19 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">City</label>
-                    <input
-                      type="text"
-                      value={locationData?.city || ''}
-                      onChange={(e) => {
-                        const updated = { ...locationData, city: e.target.value };
-                        setLocationData(updated);
-                        localStorage.setItem('ai-location', JSON.stringify(updated));
-                      }}
-                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                      placeholder="e.g. San Francisco"
-                    />
+                    <input type="text" value={locationData?.city || ''} onChange={(e) => { const u = { ...locationData, city: e.target.value }; setLocationData(u); localStorage.setItem('ai-location', JSON.stringify(u)); }} className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" placeholder="e.g. San Francisco" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Region</label>
-                    <input
-                      type="text"
-                      value={locationData?.region || ''}
-                      onChange={(e) => {
-                        const updated = { ...locationData, region: e.target.value };
-                        setLocationData(updated);
-                        localStorage.setItem('ai-location', JSON.stringify(updated));
-                      }}
-                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                      placeholder="e.g. California"
-                    />
+                    <input type="text" value={locationData?.region || ''} onChange={(e) => { const u = { ...locationData, region: e.target.value }; setLocationData(u); localStorage.setItem('ai-location', JSON.stringify(u)); }} className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" placeholder="e.g. California" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Country</label>
-                    <input
-                      type="text"
-                      value={locationData?.country || ''}
-                      onChange={(e) => {
-                        const updated = { ...locationData, country: e.target.value };
-                        setLocationData(updated);
-                        localStorage.setItem('ai-location', JSON.stringify(updated));
-                      }}
-                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                      placeholder="e.g. United States"
-                    />
+                    <input type="text" value={locationData?.country || ''} onChange={(e) => { const u = { ...locationData, country: e.target.value }; setLocationData(u); localStorage.setItem('ai-location', JSON.stringify(u)); }} className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" placeholder="e.g. United States" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Timezone</label>
-                    <input
-                      type="text"
-                      value={locationData?.timezone || ''}
-                      onChange={(e) => {
-                        const updated = { ...locationData, timezone: e.target.value };
-                        setLocationData(updated);
-                        localStorage.setItem('ai-location', JSON.stringify(updated));
-                      }}
-                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                      placeholder="e.g. America/Los_Angeles"
-                    />
+                    <input type="text" value={locationData?.timezone || ''} onChange={(e) => { const u = { ...locationData, timezone: e.target.value }; setLocationData(u); localStorage.setItem('ai-location', JSON.stringify(u)); }} className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" placeholder="e.g. America/Los_Angeles" />
                   </div>
                 </div>
               </div>
@@ -896,16 +971,7 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => {
-                  setAboutMe(null);
-                  localStorage.removeItem('ai-about-me');
-                  toast.info('Profile data cleared');
-                }}
-              >
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setAboutMe(null); localStorage.removeItem('ai-about-me'); toast.info('Profile data cleared'); }}>
                 Clear profile data
               </Button>
             </div>
