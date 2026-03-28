@@ -254,7 +254,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         await supabase.from('estimate_tasks').insert(estimateTasks);
       }
 
-      setEstimate({ ...variables, id: newEstimate.id, status: 'draft' } as Estimate);
+      setEstimate({ ...variables, id: newEstimate.id, status: 'draft', template_tier: 'M', page_tier: 'M', content_tier: 'M', tech_tier: 'M', forms_tier: 'M' } as Estimate);
       const { data: taskData } = await supabase
         .from('estimate_tasks')
         .select('*')
