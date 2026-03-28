@@ -22,7 +22,7 @@ export function EstimateVariablesTab({ variables, onChange }: Props) {
       </CardHeader>
       <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Field label="Pages for Integration" value={variables.pages_for_integration ?? 20} onChange={(v) => handleChange('pages_for_integration', v)} />
-        <Field label="Content Pages" value={variables.content_pages ?? 10} onChange={(v) => handleChange('content_pages', v)} />
+        
         <Field label="Design Layouts" value={variables.design_layouts ?? 5} onChange={(v) => handleChange('design_layouts', v)} />
         <Field label="User Personas" value={variables.user_personas ?? 3} onChange={(v) => handleChange('user_personas', v)} />
         <Field label="Custom Posts" value={variables.custom_posts ?? 2} onChange={(v) => handleChange('custom_posts', v)} min={0} />
