@@ -2022,7 +2022,6 @@ export default function ResultsPage() {
             </div>
           )}
         </div>
-        <div className="max-w-6xl mx-auto px-6"><div className="h-px bg-foreground/50" /></div>
       </div>
 
       {/* Global integration progress bar */}
