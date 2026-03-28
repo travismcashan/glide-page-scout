@@ -321,8 +321,9 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
 
   // In estimate mode: no tabs, just the filtered scope view directly
   if (isEstimate) {
+    const selectedCount = tier === 'S' ? pluginCount : tier === 'M' ? pluginCount + thirdPartyCount : pluginCount + thirdPartyCount + specialSetupCount;
     return (
-      scope ? <ScopeTab scope={scope} mode="estimate" tierSelector={tierSelector} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>
+      scope ? <ScopeTab scope={scope} mode="estimate" tierSelector={tierSelector} selectedTpaCount={selectedCount} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>
     );
   }
 
