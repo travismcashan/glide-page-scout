@@ -846,7 +846,9 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 
   const markdownComponents = {
     text: ({ children }: any) => <CitationText citations={webCitations}>{children}</CitationText>,
-    img: () => null,
+    img: ({ src, alt, ...props }: any) => (
+      <img src={src} alt={alt || ''} className="max-w-full rounded-lg my-2" style={{ maxHeight: 300 }} loading="lazy" {...props} />
+    ),
   };
 
   return (
