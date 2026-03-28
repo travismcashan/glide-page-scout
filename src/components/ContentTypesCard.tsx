@@ -369,6 +369,8 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
               navMap={navMap}
               pageTags={pageTags}
               onPageTagChange={onPageTagChange}
+              showCheckbox={isEstimate}
+              isIncluded={isIncluded}
             />
           </div>
         )}
