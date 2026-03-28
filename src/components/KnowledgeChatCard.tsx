@@ -323,14 +323,24 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
 
 function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[]; isStreaming?: boolean }) {
   const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
+  const [fullyExpandedModels, setFullyExpandedModels] = useState<Set<string>>(new Set());
   const allDone = models.every(m => m.status !== 'thinking');
 
   // Auto-expand all while streaming
   const effectiveExpanded = isStreaming ? new Set(models.map(m => m.key)) : expandedModels;
 
   const toggleModel = (key: string) => {
-    if (isStreaming) return; // Don't allow collapse while streaming
+    if (isStreaming) return;
     setExpandedModels(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleFullExpand = (key: string) => {
+    setFullyExpandedModels(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -354,6 +364,7 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
       </div>
       {models.map(m => {
         const isExpanded = effectiveExpanded.has(m.key);
+        const isFullyExpanded = fullyExpandedModels.has(m.key);
         const statusIcon = m.status === 'done' ? '✅' : m.status === 'error' ? '❌' : undefined;
         return (
           <div key={m.key} className="border border-border rounded-lg overflow-hidden">
@@ -377,13 +388,27 @@ function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[];
             {isExpanded && m.response && (
               <div className="px-4 py-3 text-sm border-t border-border">
                 <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
-                  <div className="chat-prose max-w-none text-sm">
+                  <div
+                    className={`chat-prose max-w-none text-sm overflow-hidden transition-all ${isFullyExpanded ? '' : 'max-h-[15rem]'}`}
+                  >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.response}</ReactMarkdown>
                   </div>
                 </Suspense>
+                {m.status === 'done' && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFullExpand(m.key); }}
+                    className="text-xs text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1"
+                  >
+                    {isFullyExpanded ? (
+                      <><ChevronDown className="h-3 w-3" /> Show less</>
+                    ) : (
+                      <><ChevronRight className="h-3 w-3" /> Show more</>
+                    )}
+                  </button>
+                )}
               </div>
             )}
-            {isExpanded && m.status === 'thinking' && (
+            {isExpanded && m.status === 'thinking' && !m.response && (
               <div className="px-4 py-3 border-t border-border">
                 <AnimatedThinkingText label="Thinking" />
               </div>
