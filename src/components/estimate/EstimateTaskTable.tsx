@@ -367,7 +367,7 @@ function TaskTableRow({
       formulaDriven ? 'bg-muted/20 opacity-60' : ''
     }>
       {/* Checkbox */}
-      <TableCell className="py-1.5 w-10">
+      <TableCell className="py-0.5 w-10">
         <Checkbox
           checked={task.is_selected}
           onCheckedChange={task.is_required ? undefined : (checked) => onToggle(task.id, checked as boolean)}
@@ -378,21 +378,21 @@ function TaskTableRow({
 
       {/* Phase — first data column */}
       {showPhaseCol && (
-        <TableCell className="py-1.5 text-xs whitespace-nowrap">
+        <TableCell className="py-0.5 text-xs whitespace-nowrap">
           {(task.phase_name === 'Project Management' ? 'PM' : task.phase_name) || '-'}
         </TableCell>
       )}
 
       {/* Task name */}
-      <TableCell className="py-1.5 text-xs truncate">
+      <TableCell className="py-0.5 text-xs truncate whitespace-nowrap">
         {task.task_name}
       </TableCell>
 
       {/* Roles */}
-      <TableCell className="py-1.5">
-        <div className="flex flex-wrap gap-0.5">
+      <TableCell className="py-0.5">
+        <div className="flex flex-nowrap gap-0.5">
           {roleList.map(role => (
-            <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">{role}</Badge>
+            <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal whitespace-nowrap">{role}</Badge>
           ))}
         </div>
       </TableCell>
