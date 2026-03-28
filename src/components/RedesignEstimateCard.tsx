@@ -378,7 +378,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
                 : primaryUrls.length + secondaryUrls.length + tertiaryUrls.length;
               return (
                 <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
-                  {tierLabel(tier)} · {count}
+                  {tierLabel(tier)} · {count} pages
                 </ToggleGroupItem>
               );
             })}
