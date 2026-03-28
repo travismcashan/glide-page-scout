@@ -11,6 +11,7 @@ import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X, Wand2, C
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AppHeader from '@/components/AppHeader';
+import { withQueryTimeout } from '@/lib/queryTimeout';
 
 type WishlistItem = {
   id: string;
@@ -72,12 +73,33 @@ export default function WishlistPage() {
   const [priority, setPriority] = useState('medium');
 
   const fetchItems = useCallback(async () => {
-    const { data } = await supabase
-      .from('wishlist_items')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setItems((data as any[]) || []);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const { data, error } = await withQueryTimeout(
+        supabase
+          .from('wishlist_items')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        12000,
+        'Loading wishlist timed out'
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      setItems((data as any[]) || []);
+    } catch (error: any) {
+      console.error('Failed to load wishlist items:', error);
+      setItems([]);
+      toast({
+        title: 'Wishlist failed to load',
+        description: error?.message || 'Please try again in a moment.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
