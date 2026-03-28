@@ -414,7 +414,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {recommendedTemplates.map((t, i) => (
-                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
+                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -473,7 +473,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {notIncludedTemplates.map((t, i) => (
-                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
+                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -506,7 +506,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               </>
             ) : (
               templates.map((t, i) => (
-                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} />
+                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
               ))
             )}
           </tbody>
