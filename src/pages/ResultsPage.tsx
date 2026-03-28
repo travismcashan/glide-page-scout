@@ -241,6 +241,9 @@ export default function ResultsPage() {
     try { localStorage.setItem('all-cards-collapsed', String(v)); } catch {}
   };
 
+  // Guard: don't fire site-analysis integrations for synthetic sessions (e.g. global chat)
+  const isRealSite = !!session?.domain && !session.domain.startsWith('__');
+
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
   const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
