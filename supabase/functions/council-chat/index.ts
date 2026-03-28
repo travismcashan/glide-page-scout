@@ -20,10 +20,14 @@ const MODEL_NAMES: Record<string, string> = {
   'google/gemini-3.1-pro-preview': 'Gemini Pro 3.1',
   'openai/gpt-5': 'GPT-5',
   'openai/gpt-5-mini': 'GPT-5 Mini',
+  'openai/gpt-5-nano': 'GPT-5 Nano',
   'openai/gpt-5.2': 'GPT-5.2',
   'claude-haiku': 'Claude Haiku',
   'claude-sonnet': 'Claude Sonnet',
   'claude-opus': 'Claude Opus',
+  'perplexity-sonar': 'Perplexity Sonar',
+  'perplexity-sonar-pro': 'Perplexity Sonar Pro',
+  'perplexity-sonar-reasoning-pro': 'Perplexity Reasoning Pro',
 };
 
 const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
