@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -415,6 +416,40 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
           onToggleUrl={toggleUrl}
           onToggleAll={toggleAllInGroup}
         />
+      </div>
+
+      {/* Tier reasoning */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+        {activeTier === 'S' && (
+          <>
+            <div className="text-xs font-semibold text-foreground">Small Scope</div>
+            <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+              <ReactMarkdown>
+                {`Focuses on **Primary navigation pages only** — the ${primaryUrls.length} top-level pages that appear directly in the main navigation. These are the highest-traffic, highest-intent pages and represent the minimum viable content migration. Secondary and tertiary pages would be handled with placeholder or redirected content.`}
+              </ReactMarkdown>
+            </div>
+          </>
+        )}
+        {activeTier === 'M' && (
+          <>
+            <div className="text-xs font-semibold text-foreground">Medium Scope</div>
+            <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+              <ReactMarkdown>
+                {`Includes **Primary and Secondary pages** — ${primaryUrls.length + secondaryUrls.length} pages total. Beyond the top-level nav pages, this adds the ${secondaryUrls.length} sub-navigation pages that sit one level deeper. This covers the core user journey through the site's main sections without the overhead of deep utility and supporting pages.`}
+              </ReactMarkdown>
+            </div>
+          </>
+        )}
+        {activeTier === 'L' && (
+          <>
+            <div className="text-xs font-semibold text-foreground">Large Scope</div>
+            <div className="prose prose-xs dark:prose-invert max-w-none text-xs text-muted-foreground leading-relaxed">
+              <ReactMarkdown>
+                {`Comprehensive migration of **all ${primaryUrls.length + secondaryUrls.length + tertiaryUrls.length} detected pages** — Primary, Secondary, and Tertiary. This includes the ${tertiaryUrls.length} supporting pages such as footer-only links, legal pages, utility pages, and deeper content that doesn't appear in the main navigation. Best for a complete site overhaul with no content left behind.`}
+              </ReactMarkdown>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
