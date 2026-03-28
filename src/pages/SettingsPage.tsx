@@ -81,9 +81,9 @@ export default function SettingsPage() {
   // Council model slots
   type CouncilSlot = { provider: ModelProvider; modelId: string; reasoning?: ReasoningEffort };
   const defaultCouncilSlots: CouncilSlot[] = [
-    { provider: 'gemini', modelId: 'google/gemini-2.5-flash', reasoning: 'none' },
+    { provider: 'gemini', modelId: 'google/gemini-3-flash-preview', reasoning: 'none' },
+    { provider: 'claude', modelId: 'claude-sonnet', reasoning: 'none' },
     { provider: 'gpt', modelId: 'openai/gpt-5-mini', reasoning: 'none' },
-    { provider: 'claude', modelId: 'claude-haiku', reasoning: 'none' },
   ];
   const [councilSlots, setCouncilSlots] = useState<CouncilSlot[]>(() => {
     try {
