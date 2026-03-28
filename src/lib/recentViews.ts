@@ -9,6 +9,7 @@ export interface RecentView {
 }
 
 export function recordView(sessionId: string, domain: string, createdAt: string) {
+  if (domain === '__global_chat__') return;
   const views = getRecentViews().filter(v => v.sessionId !== sessionId);
   views.unshift({ sessionId, domain, createdAt, viewedAt: Date.now() });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(views.slice(0, MAX_ENTRIES)));
@@ -16,7 +17,8 @@ export function recordView(sessionId: string, domain: string, createdAt: string)
 
 export function getRecentViews(): RecentView[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const views: RecentView[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return views.filter(v => v.domain !== '__global_chat__');
   } catch {
     return [];
   }
