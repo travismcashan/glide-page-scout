@@ -88,7 +88,7 @@ export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
         />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-3">
+      <div className="max-w-6xl mx-auto px-6 py-3 pb-5">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           {sortedSteps.map((step) => (
             <span
