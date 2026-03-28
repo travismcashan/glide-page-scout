@@ -405,13 +405,16 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
 /** Convert work weeks to estimated project duration in months */
 function getProjectDuration(workWeeks: number): string {
-  // Based on PM heuristics: parallel resources + 30% client pad
-  if (workWeeks <= 10) return '~2 mo';
-  if (workWeeks <= 15) return '~2–3 mo';
-  if (workWeeks <= 20) return '~2–3 mo';
-  if (workWeeks <= 30) return '~3–4 mo';
-  if (workWeeks <= 40) return '~3–4 mo';
-  return '~4–5 mo';
+  if (workWeeks <= 0) return '0 mo';
+  // Scale parallel team size with project size
+  const parallel = workWeeks <= 10 ? 2.5 : workWeeks <= 20 ? 3 : workWeeks <= 30 ? 3.5 : 4;
+  const calendarWeeks = workWeeks / parallel;
+  const padded = calendarWeeks * 1.3; // 30% client pad
+  const months = padded / 4.33;
+  const low = Math.max(1, Math.floor(months));
+  const high = Math.ceil(months);
+  if (low === high) return `~${low} mo`;
+  return `~${low}–${high} mo`;
 }
 
   return (
