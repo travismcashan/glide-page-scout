@@ -160,7 +160,7 @@ type ScopeSection = {
   showEffort: boolean;
 };
 
-function ScopeTab({ scope, mode = 'analysis', tierSelector }: { scope: Scope; mode?: 'analysis' | 'estimate'; tierSelector?: React.ReactNode }) {
+function ScopeTab({ scope, mode = 'analysis', tierSelector, selectedTpaCount }: { scope: Scope; mode?: 'analysis' | 'estimate'; tierSelector?: React.ReactNode; selectedTpaCount?: number }) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const toggleSection = (key: string) => {
@@ -192,12 +192,19 @@ function ScopeTab({ scope, mode = 'analysis', tierSelector }: { scope: Scope; mo
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <MetaStat value={totalItems} label={isEstimate ? 'Detected TPAs' : 'Scope Items'} />
-        {sections.map((s, i) => (
-          <span key={s.key} className="contents">
+        {isEstimate && selectedTpaCount != null ? (
+          <>
             <MetaStatDivider />
-            <MetaStat value={s.items.length} label={s.title} />
-          </span>
-        ))}
+            <MetaStat value={selectedTpaCount} label="Selected TPAs" />
+          </>
+        ) : (
+          sections.map((s) => (
+            <span key={s.key} className="contents">
+              <MetaStatDivider />
+              <MetaStat value={s.items.length} label={s.title} />
+            </span>
+          ))
+        )}
         {tierSelector}
       </div>
 
@@ -300,13 +307,13 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
     <div className="flex items-center gap-2 ml-auto">
       <ToggleGroup type="single" value={tier} onValueChange={(v) => v && setTier(v as TechTier)} size="sm" variant="outline">
         <ToggleGroupItem value="S" className="text-xs px-2.5 h-7">
-          S <span className="ml-0.5 opacity-60">({pluginCount})</span>
+          Small • {pluginCount} TPAs
         </ToggleGroupItem>
         <ToggleGroupItem value="M" className="text-xs px-2.5 h-7">
-          M <span className="ml-0.5 opacity-60">({pluginCount + thirdPartyCount})</span>
+          Medium • {pluginCount + thirdPartyCount} TPAs
         </ToggleGroupItem>
         <ToggleGroupItem value="L" className="text-xs px-2.5 h-7">
-          L <span className="ml-0.5 opacity-60">({pluginCount + thirdPartyCount + specialSetupCount})</span>
+          Large • {pluginCount + thirdPartyCount + specialSetupCount} TPAs
         </ToggleGroupItem>
       </ToggleGroup>
     </div>
