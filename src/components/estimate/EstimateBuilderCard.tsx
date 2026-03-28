@@ -52,6 +52,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [activeTab, setActiveTab] = useState<string>('variables');
   const [roleCollapsed, setRoleCollapsed] = useState(false);
   const [phaseCollapsed, setPhaseCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const crawlDefaults = useMemo((): Partial<EstimateVariables> => {
     const defaults: Partial<EstimateVariables> = {};
