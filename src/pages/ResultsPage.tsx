@@ -1986,7 +1986,7 @@ export default function ResultsPage() {
         <BookOpen className="h-4 w-4 mr-2" />Knowledge
       </TabsTrigger>
       <TabsTrigger value="chat" style={tabTriggerStyle('chat')} className={tabTriggerClass}>
-        <MessageSquare className="h-4 w-4 mr-2" />Chat
+        <MessageCircle className="h-4 w-4 mr-2" />Chat
       </TabsTrigger>
       <TabsTrigger value="estimates" style={tabTriggerStyle('estimates')} className={tabTriggerClass}>
         <DollarSign className="h-4 w-4 mr-2" />Estimates
