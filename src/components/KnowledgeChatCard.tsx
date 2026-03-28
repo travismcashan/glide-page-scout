@@ -72,8 +72,8 @@ type Props = {
   attachedSessionIds?: string[];
   /** Attached site metadata for display */
   attachedSites?: AttachedSite[];
-  /** Callback when user wants to manage attached sites */
-  onAttachSite?: () => void;
+  /** Callback to attach a site by session ID + domain */
+  onSelectSite?: (sessionId: string, domain: string) => void;
   onDetachSite?: (sessionId: string) => void;
 };
 
@@ -981,7 +981,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onAttachSite, onDetachSite }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -1004,6 +1004,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   const [composerHeight, setComposerHeight] = useState(176);
+  const [availableSites, setAvailableSites] = useState<{ id: string; domain: string }[]>([]);
 
   // Deep Research mode
   const [deepResearchMode, setDeepResearchMode] = useState(false);
@@ -1021,6 +1022,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const queuedPromptRef = useRef<{ text: string; deepResearch: boolean; threadId: string } | null>(null);
 
   const crawlContext = globalMode ? '' : buildCrawlContext(session, pages);
+
+  // Load available sites for the site picker (global mode only)
+  useEffect(() => {
+    if (!globalMode) return;
+    supabase
+      .from('crawl_sessions')
+      .select('id, domain')
+      .neq('domain', '__global_chat__')
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (data) setAvailableSites(data);
+      });
+  }, [globalMode]);
 
   // Initialize: load or create default thread
   useEffect(() => {
@@ -2383,14 +2398,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     </button>
                   </div>
                 ))}
-                {onAttachSite && (
-                  <button
-                    onClick={onAttachSite}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 transition-colors"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add site
-                  </button>
+                {globalMode && onSelectSite && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
+                    <Globe className="h-3 w-3" />
+                    Use the <Globe className="h-3 w-3 inline text-muted-foreground" /> button below to attach sites
+                  </span>
                 )}
               </div>
             )}
@@ -2523,9 +2535,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             <span className="text-sm font-medium">Drop files here</span>
           </div>
         )}
-        {/* Attachment previews */}
-        {attachments.length > 0 && (
+        {/* Attachment & site previews */}
+        {(attachments.length > 0 || (globalMode && attachedSites && attachedSites.length > 0)) && (
           <div className="flex flex-wrap gap-1.5 px-1 pb-2">
+            {/* Attached sites as pills */}
+            {globalMode && attachedSites?.map(s => (
+              <Badge
+                key={`site-${s.session_id}`}
+                variant="secondary"
+                className="gap-1 pl-1.5 pr-1 py-0.5 text-xs font-normal max-w-[200px] bg-primary/10 text-primary border-primary/20"
+              >
+                <Globe className="h-3 w-3 shrink-0" />
+                <span className="truncate">{s.domain}</span>
+                <button onClick={() => onDetachSite?.(s.session_id)} className="ml-0.5 hover:text-destructive shrink-0">
+                  <span className="text-xs">×</span>
+                </button>
+              </Badge>
+            ))}
+            {/* File attachments */}
             {attachments.map((att, i) => (
               <Badge
                 key={`${att.name}-${i}`}
@@ -2570,7 +2597,46 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             onHandleFilesRef={handleFilesRef}
           />
 
-
+          {/* Add Site button (global mode) */}
+          {globalMode && onSelectSite && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted hover:text-foreground overflow-visible text-muted-foreground"
+                  style={{ width: 44, height: 44 }}
+                  disabled={isStreaming}
+                  title="Attach a site"
+                >
+                  <Globe style={{ width: 21, height: 21 }} strokeWidth={1.5} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" sideOffset={10} className="w-64 max-h-80 overflow-y-auto">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5">Attach a Site</p>
+                {availableSites.length === 0 && (
+                  <p className="text-xs text-muted-foreground px-2 py-3 text-center">No sites available.</p>
+                )}
+                {availableSites.map(site => {
+                  const alreadyAttached = attachedSites?.some(a => a.session_id === site.id);
+                  return (
+                    <DropdownMenuItem
+                      key={site.id}
+                      disabled={alreadyAttached}
+                      onClick={() => {
+                        if (!alreadyAttached) onSelectSite(site.id, site.domain);
+                      }}
+                      className="text-xs"
+                    >
+                      <Globe className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                      <span className="truncate">{site.domain}</span>
+                      {alreadyAttached && <span className="ml-auto text-muted-foreground text-[10px]">Added</span>}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
 
           {/* Sources selector */}
