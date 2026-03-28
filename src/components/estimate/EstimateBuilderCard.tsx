@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2 } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
@@ -485,19 +485,6 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
           {/* Main Content */}
           <div className="lg:col-span-3">
-              <TabsTrigger value="variables" className="gap-1.5 text-xs">
-                <Settings2 className="h-3.5 w-3.5" />Variables
-              </TabsTrigger>
-              <TabsTrigger value="all" className="text-xs">All Tasks</TabsTrigger>
-              <TabsTrigger value="phase" className="text-xs">By Phase</TabsTrigger>
-              <TabsTrigger value="role" className="text-xs">By Role</TabsTrigger>
-              <TabsTrigger value="timeline" className="gap-1.5 text-xs">
-                <CalendarDays className="h-3.5 w-3.5" />Timeline
-              </TabsTrigger>
-              <TabsTrigger value="sow" className="gap-1.5 text-xs">
-                <FileText className="h-3.5 w-3.5" />SOW View
-              </TabsTrigger>
-            </TabsList>
 
             <TabsContent value="variables">
               <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} />
