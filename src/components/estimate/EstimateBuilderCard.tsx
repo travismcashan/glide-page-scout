@@ -14,6 +14,8 @@ import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles,
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
+import { TemplatesCard } from '@/components/TemplatesCard';
+import { ContentTypesCard } from '@/components/ContentTypesCard';
 
 function TaskRowHeader() {
   return (
@@ -29,6 +31,8 @@ function TaskRowHeader() {
   );
 }
 
+type NavItem = { label: string; url?: string | null; children?: NavItem[] };
+
 interface Props {
   sessionId: string;
   domain: string;
@@ -37,6 +41,7 @@ interface Props {
   formsData: any;
   wappalyzerData: any;
   templateTiers: any;
+  navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
 }
 
 interface Estimate extends EstimateVariables {
@@ -44,7 +49,7 @@ interface Estimate extends EstimateVariables {
   status: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -441,7 +446,35 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           <div className={sidebarOpen ? 'lg:col-span-3' : ''}>
 
             <TabsContent value="variables">
-              <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} templateTiers={templateTiers} />
+              <div className="space-y-6">
+                <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} />
+
+                {pageTags && (
+                  <TemplatesCard
+                    pageTags={pageTags}
+                    navStructure={navStructure}
+                    domain={domain}
+                    savedTiers={templateTiers}
+                    onTiersChange={(tiers) => {
+                      // Auto-update design_layouts from whichever tier is active
+                      const nonToolkitCount = (tiers.L || []).length;
+                      const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';
+                      const tierLayouts = tiers[bestTier];
+                      if (Array.isArray(tierLayouts) && tierLayouts.length > 0) {
+                        handleVariablesChange({ ...estimate, design_layouts: tierLayouts.length });
+                      }
+                    }}
+                  />
+                )}
+
+                {contentTypesData && (
+                  <ContentTypesCard
+                    data={contentTypesData}
+                    navStructure={navStructure}
+                    pageTags={pageTags}
+                  />
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="all">
