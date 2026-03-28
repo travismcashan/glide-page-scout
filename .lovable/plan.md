@@ -1,36 +1,62 @@
 
 
-## Connect Page Tiers to Pages for Integration Variable
+## Redesign Page Analysis Card for Estimate Tab
 
-**Goal**: Add S/M/L tier selection to the RedesignEstimateCard (estimate mode only) that dynamically sets `pages_for_integration` in the project variables.
+**Goal**: Replace the current summary-only Content Audit card on the Estimate tab with a new "Page Analysis" card that shows actual page URLs grouped under collapsible Primary / Secondary / Tertiary headers with per-page checkboxes. S/M/L tier toggles bulk-select/deselect pages across groups.
 
-### Tier Logic (no AI needed)
-- **Small**: Primary pages count
-- **Medium**: Primary + Secondary
-- **Large**: Primary + Secondary + Tertiary
+### How it works
 
-### Approach
-Add the same `mode` prop pattern used by TemplatesCard.
+- **Primary section**: Lists actual URLs from `navStructure.primary` (top-level nav items with URLs)
+- **Secondary section**: Lists URLs from children of primary nav items
+- **Tertiary section**: All remaining URLs from `pageTags` not in primary or secondary sets
+- Each section is a collapsible header showing a checkbox (select all in group) + count badge
+- Inside each section: scrollable list capped at **5 visible rows** with overflow scroll
+- Each row has a checkbox + truncated URL path
+- **S/M/L toggle**: Small checks only Primary, Medium checks Primary + Secondary, Large checks all three — toggling updates the checkboxes visually and vice-versa (manual checkbox changes can put you in a "Custom" state)
+- Header MetaStats: "Detected Pages" and "Selected Pages" (selected = checked count)
+- `onSelectionChange` fires with the count of checked pages → drives `pages_for_integration` variable
 
 ### Files changed
 
-1. **`src/components/RedesignEstimateCard.tsx`**
-   - Add `mode?: 'analysis' | 'estimate'` prop (default `'analysis'`)
-   - Add `onSelectionChange?: (count: number) => void` prop
-   - In estimate mode: render S/M/L `ToggleGroup` (same styling as TemplatesCard)
-   - Track `activeTier` state; on tier change, compute the sum and call `onSelectionChange`
-   - Add "Detected Pages" and "Selected Pages" MetaStats (matching template card pattern)
-   - Analysis mode: show all three counts read-only as today, no toggles
+1. **`src/components/RedesignEstimateCard.tsx`** — Major rewrite for estimate mode only:
+   - Build three URL lists from `navStructure` + `pageTags` (primary URLs, secondary URLs, tertiary = remainder)
+   - Track a `Set<string>` of selected URLs as state
+   - Render collapsible sections with checkboxes per URL row, each section capped at 5 rows with `max-h` + `overflow-y-auto`
+   - S/M/L toggle updates the selected set; manual checkbox changes update the set independently
+   - Analysis mode (`mode='analysis'`) stays unchanged — same summary view as today
 
-2. **`src/components/estimate/EstimateBuilderCard.tsx`**
-   - Pass `mode="estimate"` to `RedesignEstimateCard`
-   - Wire `onSelectionChange` to update `estimate.pages_for_integration` via `handleVariablesChange`
+2. **`src/components/estimate/EstimateBuilderCard.tsx`** — Rename the SectionCard title from "Content Audit" to "Page Analysis" for the estimate tab instance
 
-3. **`src/pages/ResultsPage.tsx`**
-   - Ensure analysis tab passes `mode="analysis"` (default) — no functional change needed
+3. No changes to `ResultsPage.tsx` — analysis tab keeps "Content Audit" name and current behavior
 
-### Technical detail
-- Tier state stored locally in component (like TemplatesCard), no DB persistence needed beyond the estimate variable
-- Default tier on mount: auto-select M (Primary + Secondary) as a sensible default
-- The `onSelectionChange` callback fires on tier change with the computed page count
+### UI structure (estimate mode)
+
+```text
+┌─ Page Analysis ──────────────────────────┐
+│ Detected Pages: 47    Selected Pages: 12 │
+│ [Small] [Medium] [Large]                 │
+│                                          │
+│ ▼ ☑ Primary (6)                          │
+│ ┌──────────────────────────────────┐     │
+│ │ ☑ /about                         │     │
+│ │ ☑ /services                      │     │
+│ │ ☑ /work                          │     │
+│ │ ☑ /blog                          │     │
+│ │ ☑ /contact                       │     │
+│ │  (scrollable if >5)              │     │
+│ └──────────────────────────────────┘     │
+│ ▼ ☑ Secondary (6)                        │
+│ ┌──────────────────────────────────┐     │
+│ │ ☑ /services/web-design           │     │
+│ │ ...                              │     │
+│ └──────────────────────────────────┘     │
+│ ▶ ☐ Tertiary (35)  [collapsed]           │
+└──────────────────────────────────────────┘
+```
+
+### Technical details
+- URL lists derived at render time via `useMemo` from existing `navStructure` and `pageTags` props — no new data fetching
+- Checkbox state stored as `useState<Set<string>>` initialized based on default tier (M = primary + secondary)
+- Tier toggle is a convenience shortcut; manual checkbox edits are preserved until a tier button is clicked again
+- Each scrollable sub-list uses `max-h-[140px] overflow-y-auto` (~5 rows at current row height)
 
