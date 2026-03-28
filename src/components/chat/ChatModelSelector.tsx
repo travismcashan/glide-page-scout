@@ -18,6 +18,7 @@ export type ModelOption = {
   tier: 'fast' | 'balanced' | 'powerful';
   reasoning: ReasoningEffort[];
   reasoningLabels?: Partial<Record<ReasoningEffort, string>>;
+  comingSoon?: boolean;
 };
 
 export const PROVIDERS: { id: ModelProvider; label: string }[] = [
