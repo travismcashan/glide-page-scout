@@ -22,71 +22,72 @@ type Integration = {
   category: 'architecture' | 'analysis' | 'technology' | 'performance' | 'seo' | 'content' | 'ux' | 'security' | 'intelligence' | 'enrichment';
   status: Status;
   hasCredits?: boolean;
+  tier: 'free' | 'premium';
 };
 
 const integrations: Integration[] = [
   // ── 🔗 URL Analysis ──
-  { name: 'XML Sitemaps', id: 'sitemap', description: 'Parse and analyze XML sitemaps — discover all indexed URLs, nested sitemap structures, and lastmod dates', secretKey: '', configured: true, category: 'architecture', status: 'active' },
-  { name: 'URL Discovery', id: 'url-discovery', description: 'Firecrawl-powered sitemap mapping — discovers all pages on a domain', secretKey: '', configured: true, category: 'architecture', status: 'active' },
-  { name: 'httpstatus.io', id: 'httpstatus', description: 'HTTP redirect chain analysis — follow every hop, see status codes, latency, TLS validity, and page metadata', secretKey: 'HTTPSTATUS_API_KEY', configured: true, category: 'architecture', status: 'active' },
-  { name: 'Broken Link Checker', id: 'link-checker', description: 'HEAD-request scan of all discovered URLs — flags broken links, redirects, and server errors. Free, no API key.', secretKey: '', configured: true, category: 'architecture', status: 'active' },
+  { name: 'XML Sitemaps', id: 'sitemap', description: 'Parse and analyze XML sitemaps — discover all indexed URLs, nested sitemap structures, and lastmod dates', secretKey: '', configured: true, category: 'architecture', status: 'active', tier: 'free' },
+  { name: 'URL Discovery', id: 'url-discovery', description: 'Firecrawl-powered sitemap mapping — discovers all pages on a domain', secretKey: '', configured: true, category: 'architecture', status: 'active', tier: 'premium' },
+  { name: 'httpstatus.io', id: 'httpstatus', description: 'HTTP redirect chain analysis — follow every hop, see status codes, latency, TLS validity, and page metadata', secretKey: 'HTTPSTATUS_API_KEY', configured: true, category: 'architecture', status: 'active', tier: 'premium' },
+  { name: 'Broken Link Checker', id: 'link-checker', description: 'HEAD-request scan of all discovered URLs — flags broken links, redirects, and server errors. Free, no API key.', secretKey: '', configured: true, category: 'architecture', status: 'active', tier: 'free' },
 
   // ── 📊 Content Analysis ──
-  { name: 'Content Types', id: 'content-types', description: 'Classifies all discovered URLs into content types (Blog, Product, Case Study, etc.) using URL patterns, Schema.org, meta tags, CSS classes, and AI', secretKey: '', configured: true, category: 'analysis', status: 'active' },
-  { name: 'Site Navigation', id: 'nav-structure', description: 'AI-powered extraction of the primary header navigation — builds a hierarchical sitemap from the actual menu structure, not a full crawl', secretKey: '', configured: true, category: 'analysis', status: 'active' },
+  { name: 'Content Types', id: 'content-types', description: 'Classifies all discovered URLs into content types (Blog, Product, Case Study, etc.) using URL patterns, Schema.org, meta tags, CSS classes, and AI', secretKey: '', configured: true, category: 'analysis', status: 'active', tier: 'free' },
+  { name: 'Site Navigation', id: 'nav-structure', description: 'AI-powered extraction of the primary header navigation — builds a hierarchical sitemap from the actual menu structure, not a full crawl', secretKey: '', configured: true, category: 'analysis', status: 'active', tier: 'free' },
   
-  { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'analysis', status: 'active' },
-  { name: 'Readable.com', id: 'readable', description: 'Content readability scoring — Flesch-Kincaid, Gunning Fog, SMOG, Coleman-Liau, keyword density, and grade-level analysis', secretKey: 'READABLE_API_KEY', configured: true, category: 'analysis', status: 'active' },
+  { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', secretKey: '', configured: true, category: 'analysis', status: 'active', tier: 'premium' },
+  { name: 'Readable.com', id: 'readable', description: 'Content readability scoring — Flesch-Kincaid, Gunning Fog, SMOG, Coleman-Liau, keyword density, and grade-level analysis', secretKey: 'READABLE_API_KEY', configured: true, category: 'analysis', status: 'active', tier: 'premium' },
 
   // ── 🎨 Design Analysis ──
-  { name: 'Page Templates', id: 'auto-tag-pages', description: 'AI-powered template classification — assigns Custom, Template, or Toolkit badges to every URL based on industry-aware layout detection', secretKey: '', configured: true, category: 'content', status: 'active' },
-  { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active' },
+  { name: 'Page Templates', id: 'auto-tag-pages', description: 'AI-powered template classification — assigns Custom, Template, or Toolkit badges to every URL based on industry-aware layout detection', secretKey: '', configured: true, category: 'content', status: 'active', tier: 'free' },
+  { name: 'Screenshots', id: 'screenshots', description: 'Capture full-page screenshots of key template pages (5–15 unique layouts)', secretKey: '', configured: true, category: 'content', status: 'active', tier: 'free' },
   
 
   // ── 🔧 Technology Detection ──
-  { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true },
-  { name: 'Wappalyzer', id: 'wappalyzer', description: 'Real-time technology profiling with version detection', secretKey: 'WAPPALYZER_API_KEY', configured: true, category: 'technology', status: 'active' },
-  { name: 'DetectZeStack', id: 'detectzestack', description: 'Technology detection via RapidAPI — 100 free lookups/month', secretKey: 'RAPIDAPI_KEY', configured: true, category: 'technology', status: 'active' },
-  { name: 'AI Tech Analysis', id: 'tech-analysis', description: 'AI-powered merged analysis of all tech sources — identifies platform, risks, and redesign recommendations', secretKey: '', configured: true, category: 'technology', status: 'active' },
+  { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true, tier: 'premium' },
+  { name: 'Wappalyzer', id: 'wappalyzer', description: 'Real-time technology profiling with version detection', secretKey: 'WAPPALYZER_API_KEY', configured: true, category: 'technology', status: 'active', tier: 'premium' },
+  { name: 'DetectZeStack', id: 'detectzestack', description: 'Technology detection via RapidAPI — 100 free lookups/month', secretKey: 'RAPIDAPI_KEY', configured: true, category: 'technology', status: 'active', tier: 'premium' },
+  { name: 'AI Tech Analysis', id: 'tech-analysis', description: 'AI-powered merged analysis of all tech sources — identifies platform, risks, and redesign recommendations', secretKey: '', configured: true, category: 'technology', status: 'active', tier: 'free' },
 
   // ── ⚡ Performance & Sustainability ──
-  { name: 'GTmetrix', id: 'gtmetrix', description: 'Lighthouse performance audits and Web Vitals', secretKey: 'GTMETRIX_API_KEY', configured: true, category: 'performance', status: 'active' },
-  { name: 'Google PageSpeed Insights', id: 'psi', description: 'Mobile & desktop Lighthouse scores and Core Web Vitals', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'performance', status: 'active' },
-  { name: 'Chrome UX Report (CrUX)', id: 'crux', description: 'Real-user field data — 28-day rolling Core Web Vitals from Chrome browsers', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'performance', status: 'active' },
-  { name: 'Yellow Lab Tools', id: 'yellowlab', description: 'Front-end quality audit — page weight, DOM complexity, JavaScript, CSS, fonts, and server config scoring. Free, no API key.', secretKey: '', configured: true, category: 'performance', status: 'active' },
-  { name: 'Website Carbon API', id: 'carbon', description: 'CO₂ footprint per page load — free, no API key required', secretKey: '', configured: true, category: 'performance', status: 'active' },
+  { name: 'GTmetrix', id: 'gtmetrix', description: 'Lighthouse performance audits and Web Vitals', secretKey: 'GTMETRIX_API_KEY', configured: true, category: 'performance', status: 'active', tier: 'premium' },
+  { name: 'Google PageSpeed Insights', id: 'psi', description: 'Mobile & desktop Lighthouse scores and Core Web Vitals', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'performance', status: 'active', tier: 'free' },
+  { name: 'Chrome UX Report (CrUX)', id: 'crux', description: 'Real-user field data — 28-day rolling Core Web Vitals from Chrome browsers', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'performance', status: 'active', tier: 'free' },
+  { name: 'Yellow Lab Tools', id: 'yellowlab', description: 'Front-end quality audit — page weight, DOM complexity, JavaScript, CSS, fonts, and server config scoring. Free, no API key.', secretKey: '', configured: true, category: 'performance', status: 'active', tier: 'free' },
+  { name: 'Website Carbon API', id: 'carbon', description: 'CO₂ footprint per page load — free, no API key required', secretKey: '', configured: true, category: 'performance', status: 'active', tier: 'free' },
 
   // ── 🔍 SEO & Search ──
-  { name: 'SEMrush', id: 'semrush', description: 'Domain overview, organic keywords, and backlinks', secretKey: 'SEMRUSH_API_KEY', configured: true, category: 'seo', status: 'active' },
-  { name: 'Schema.org Validator', id: 'schema', description: 'Structured data analysis (JSON-LD, Microdata, RDFa) — detects schema types, validates required fields, and checks Google rich results eligibility. Free, no API key.', secretKey: '', configured: true, category: 'seo', status: 'active' },
-  { name: 'Ahrefs', id: 'ahrefs', description: 'Deep backlink profiles and internal link architecture analysis — see if a site\'s information architecture matches its business goals', secretKey: '', configured: false, category: 'seo', status: 'coming-soon' },
+  { name: 'SEMrush', id: 'semrush', description: 'Domain overview, organic keywords, and backlinks', secretKey: 'SEMRUSH_API_KEY', configured: true, category: 'seo', status: 'active', tier: 'premium' },
+  { name: 'Schema.org Validator', id: 'schema', description: 'Structured data analysis (JSON-LD, Microdata, RDFa) — detects schema types, validates required fields, and checks Google rich results eligibility. Free, no API key.', secretKey: '', configured: true, category: 'seo', status: 'active', tier: 'free' },
+  { name: 'Ahrefs', id: 'ahrefs', description: 'Deep backlink profiles and internal link architecture analysis — see if a site\'s information architecture matches its business goals', secretKey: '', configured: false, category: 'seo', status: 'coming-soon', tier: 'premium' },
 
   // ── 🎨 UX & Accessibility ──
-  { name: 'Lighthouse Accessibility', id: 'psi-accessibility', description: 'Accessibility score and pass/fail audits extracted from Lighthouse (uses existing PSI data)', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'ux', status: 'active' },
-  { name: 'WAVE (WebAIM)', id: 'wave', description: 'WCAG accessibility audit — errors, contrast issues, ARIA, and structural analysis', secretKey: 'WAVE_API_KEY', configured: true, category: 'ux', status: 'active' },
-  { name: 'W3C Validator', id: 'w3c', description: 'HTML markup and CSS stylesheet validation against W3C web standards — errors, warnings, line numbers. Free, no API key needed.', secretKey: '', configured: true, category: 'ux', status: 'active' },
-  { name: 'Applitools Eyes', id: 'applitools', description: 'Visual AI that critiques layout structure, detects visual gravity issues, and catches layout shifts that pass code checks but look wrong to humans', secretKey: '', configured: false, category: 'ux', status: 'coming-soon' },
-  { name: 'Axe-core (Deque)', id: 'axe', description: 'Industry-standard WCAG accessibility audits with structured JSON reports and exact code-fix suggestions for every violation', secretKey: '', configured: false, category: 'ux', status: 'coming-soon' },
+  { name: 'Lighthouse Accessibility', id: 'psi-accessibility', description: 'Accessibility score and pass/fail audits extracted from Lighthouse (uses existing PSI data)', secretKey: 'GOOGLE_PSI_API_KEY', configured: true, category: 'ux', status: 'active', tier: 'free' },
+  { name: 'WAVE (WebAIM)', id: 'wave', description: 'WCAG accessibility audit — errors, contrast issues, ARIA, and structural analysis', secretKey: 'WAVE_API_KEY', configured: true, category: 'ux', status: 'active', tier: 'premium' },
+  { name: 'W3C Validator', id: 'w3c', description: 'HTML markup and CSS stylesheet validation against W3C web standards — errors, warnings, line numbers. Free, no API key needed.', secretKey: '', configured: true, category: 'ux', status: 'active', tier: 'free' },
+  { name: 'Applitools Eyes', id: 'applitools', description: 'Visual AI that critiques layout structure, detects visual gravity issues, and catches layout shifts that pass code checks but look wrong to humans', secretKey: '', configured: false, category: 'ux', status: 'coming-soon', tier: 'premium' },
+  { name: 'Axe-core (Deque)', id: 'axe', description: 'Industry-standard WCAG accessibility audits with structured JSON reports and exact code-fix suggestions for every violation', secretKey: '', configured: false, category: 'ux', status: 'coming-soon', tier: 'free' },
 
   // ── 🛡️ Security & Compliance ──
-  { name: 'Mozilla Observatory', id: 'observatory', description: 'Security header analysis — CSP, HSTS, X-Frame-Options, and more. Free, no API key needed.', secretKey: '', configured: true, category: 'security', status: 'active' },
-  { name: 'SSL Labs', id: 'ssllabs', description: 'Deep SSL/TLS assessment — certificate chain, protocol support, vulnerability scanning (Heartbleed, POODLE, etc.), and overall grade', secretKey: 'SSLLABS_EMAIL', configured: true, category: 'security', status: 'active' },
-  { name: 'URLScan.io', id: 'urlscan', description: 'Sandbox every outbound request a site makes to expose 3rd-party tracker bloat and data leakage to questionable domains', secretKey: '', configured: false, category: 'security', status: 'coming-soon' },
-  { name: 'URLScan.io', id: 'urlscan', description: 'Sandbox every outbound request a site makes to expose 3rd-party tracker bloat and data leakage to questionable domains', secretKey: '', configured: false, category: 'security', status: 'coming-soon' },
+  { name: 'Mozilla Observatory', id: 'observatory', description: 'Security header analysis — CSP, HSTS, X-Frame-Options, and more. Free, no API key needed.', secretKey: '', configured: true, category: 'security', status: 'active', tier: 'free' },
+  { name: 'SSL Labs', id: 'ssllabs', description: 'Deep SSL/TLS assessment — certificate chain, protocol support, vulnerability scanning (Heartbleed, POODLE, etc.), and overall grade', secretKey: 'SSLLABS_EMAIL', configured: true, category: 'security', status: 'active', tier: 'free' },
+  { name: 'URLScan.io', id: 'urlscan', description: 'Sandbox every outbound request a site makes to expose 3rd-party tracker bloat and data leakage to questionable domains', secretKey: '', configured: false, category: 'security', status: 'coming-soon', tier: 'premium' },
+  { name: 'URLScan.io', id: 'urlscan', description: 'Sandbox every outbound request a site makes to expose 3rd-party tracker bloat and data leakage to questionable domains', secretKey: '', configured: false, category: 'security', status: 'coming-soon', tier: 'premium' },
 
   // ── 📊 Competitive Intelligence ──
-  { name: 'Observations & Insights', id: 'observations', description: 'AI-generated analysis of key findings — patterns, opportunities, and recommendations synthesized from all collected data', secretKey: '', configured: true, category: 'intelligence', status: 'active' },
-  { name: 'Gemini Deep Research', id: 'deep-research', description: 'Autonomous multi-step research agent — competitive analysis, market research, and detailed reports powered by Gemini 3.1 Pro (~$2-5/task)', secretKey: 'GEMINI_API_KEY', configured: true, category: 'intelligence', status: 'active' },
-  { name: 'Avoma', id: 'avoma', description: 'Call intelligence — match meetings and transcripts where attendee email matches the crawled domain', secretKey: 'AVOMA_API_KEY', configured: true, category: 'intelligence', status: 'active' },
-  { name: 'HubSpot', id: 'hubspot', description: 'CRM data — pull contacts, companies, and deals associated with the crawled domain', secretKey: 'HUBSPOT_ACCESS_TOKEN', configured: true, category: 'enrichment', status: 'active' },
-  { name: 'Similarweb', id: 'similarweb', description: 'Estimated traffic volume, bounce rates, and referral sources — the reality check for keyword data', secretKey: '', configured: false, category: 'intelligence', status: 'coming-soon' },
-  { name: 'Hunter.io', id: 'hunter', description: 'Find the people behind a site — technical leads, marketing managers — and build a persona of the team you\'re competing against', secretKey: '', configured: false, category: 'intelligence', status: 'coming-soon' },
+  { name: 'Observations & Insights', id: 'observations', description: 'AI-generated analysis of key findings — patterns, opportunities, and recommendations synthesized from all collected data', secretKey: '', configured: true, category: 'intelligence', status: 'active', tier: 'free' },
+  { name: 'Gemini Deep Research', id: 'deep-research', description: 'Autonomous multi-step research agent — competitive analysis, market research, and detailed reports powered by Gemini 3.1 Pro (~$2-5/task)', secretKey: 'GEMINI_API_KEY', configured: true, category: 'intelligence', status: 'active', tier: 'premium' },
+  { name: 'Avoma', id: 'avoma', description: 'Call intelligence — match meetings and transcripts where attendee email matches the crawled domain', secretKey: 'AVOMA_API_KEY', configured: true, category: 'intelligence', status: 'active', tier: 'premium' },
+  { name: 'HubSpot', id: 'hubspot', description: 'CRM data — pull contacts, companies, and deals associated with the crawled domain', secretKey: 'HUBSPOT_ACCESS_TOKEN', configured: true, category: 'enrichment', status: 'active', tier: 'premium' },
+  { name: 'Similarweb', id: 'similarweb', description: 'Estimated traffic volume, bounce rates, and referral sources — the reality check for keyword data', secretKey: '', configured: false, category: 'intelligence', status: 'coming-soon', tier: 'premium' },
+  { name: 'Hunter.io', id: 'hunter', description: 'Find the people behind a site — technical leads, marketing managers — and build a persona of the team you\'re competing against', secretKey: '', configured: false, category: 'intelligence', status: 'coming-soon', tier: 'premium' },
 
   // ── 🧲 Enrichment & Prospecting ──
-  { name: 'Ocean.io', id: 'ocean', description: 'Company firmographics — industry, size, revenue, technologies, and lookalike search', secretKey: 'OCEAN_IO_API_KEY', configured: true, category: 'enrichment', status: 'active' },
-  { name: 'Apollo.io', id: 'apollo', description: 'Contact enrichment — LinkedIn profiles, job titles, phone numbers, employment history from 275M+ contacts', secretKey: 'APOLLO_API_KEY', configured: true, category: 'enrichment', status: 'active' },
-  { name: 'Clay', id: 'clay', description: 'Waterfall enrichment across 150+ data providers with native AI that categorizes companies into specific niches, not just generic industries', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon' },
-  { name: 'Crunchbase', id: 'crunchbase', description: 'Funding rounds, acquisitions, and leadership changes — companies that just raised a Series B are 10x more likely to need a site overhaul', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon' },
+  { name: 'Ocean.io', id: 'ocean', description: 'Company firmographics — industry, size, revenue, technologies, and lookalike search', secretKey: 'OCEAN_IO_API_KEY', configured: true, category: 'enrichment', status: 'active', tier: 'premium' },
+  { name: 'Apollo.io', id: 'apollo', description: 'Contact enrichment — LinkedIn profiles, job titles, phone numbers, employment history from 275M+ contacts', secretKey: 'APOLLO_API_KEY', configured: true, category: 'enrichment', status: 'active', tier: 'premium' },
+  { name: 'Clay', id: 'clay', description: 'Waterfall enrichment across 150+ data providers with native AI that categorizes companies into specific niches, not just generic industries', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon', tier: 'premium' },
+  { name: 'Crunchbase', id: 'crunchbase', description: 'Funding rounds, acquisitions, and leadership changes — companies that just raised a Series B are 10x more likely to need a site overhaul', secretKey: '', configured: false, category: 'enrichment', status: 'coming-soon', tier: 'premium' },
 ];
 
 
