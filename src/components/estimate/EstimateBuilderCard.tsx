@@ -16,6 +16,7 @@ import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 import { TemplatesCard } from '@/components/TemplatesCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
+import { SectionCard } from '@/components/SectionCard';
 
 function TaskRowHeader() {
   return (
@@ -450,29 +451,40 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                 <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} />
 
                 {pageTags && (
-                  <TemplatesCard
-                    pageTags={pageTags}
-                    navStructure={navStructure}
-                    domain={domain}
-                    savedTiers={templateTiers}
-                    onTiersChange={(tiers) => {
-                      // Auto-update design_layouts from whichever tier is active
-                      const nonToolkitCount = (tiers.L || []).length;
-                      const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';
-                      const tierLayouts = tiers[bestTier];
-                      if (Array.isArray(tierLayouts) && tierLayouts.length > 0) {
-                        handleVariablesChange({ ...estimate, design_layouts: tierLayouts.length });
-                      }
-                    }}
-                  />
+                  <SectionCard
+                    sectionId="est-templates"
+                    title="Template Analysis (Recommended Layouts)"
+                    icon={<Layers className="h-5 w-5 text-foreground" />}
+                  >
+                    <TemplatesCard
+                      pageTags={pageTags}
+                      navStructure={navStructure}
+                      domain={domain}
+                      savedTiers={templateTiers}
+                      onTiersChange={(tiers) => {
+                        const nonToolkitCount = (tiers.L || []).length;
+                        const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';
+                        const tierLayouts = tiers[bestTier];
+                        if (Array.isArray(tierLayouts) && tierLayouts.length > 0) {
+                          handleVariablesChange({ ...estimate, design_layouts: tierLayouts.length });
+                        }
+                      }}
+                    />
+                  </SectionCard>
                 )}
 
                 {contentTypesData && (
-                  <ContentTypesCard
-                    data={contentTypesData}
-                    navStructure={navStructure}
-                    pageTags={pageTags}
-                  />
+                  <SectionCard
+                    sectionId="est-content-types"
+                    title="Bulk Content (Posts & CPTs)"
+                    icon={<Layers className="h-5 w-5 text-foreground" />}
+                  >
+                    <ContentTypesCard
+                      data={contentTypesData}
+                      navStructure={navStructure}
+                      pageTags={pageTags}
+                    />
+                  </SectionCard>
                 )}
               </div>
             </TabsContent>
