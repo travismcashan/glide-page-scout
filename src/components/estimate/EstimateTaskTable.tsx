@@ -364,7 +364,7 @@ function TaskTableRow({
 
   return (
     <TableRow className={
-      !task.is_selected ? 'opacity-50' : formulaDriven ? 'bg-muted/20' : ''
+      formulaDriven ? 'bg-muted/20 opacity-60' : ''
     }>
       {/* Checkbox */}
       <TableCell className="py-1.5 w-10">
