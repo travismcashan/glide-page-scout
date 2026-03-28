@@ -1,6 +1,7 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { isFormulaTask } from '@/lib/estimateFormulas';
 
 export interface EstimateTask {
   id: string;
@@ -37,10 +38,15 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
   const roleList = getRoleList(task.roles);
   const roleCount = roleList.length || 1;
   const hasVariable = !!task.variable_label && task.variable_label !== '-';
+  const formulaDriven = isFormulaTask(task.task_name);
 
   return (
     <div className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
-      task.is_selected ? 'bg-primary/5 border-primary/20' : 'bg-muted/30 opacity-60'
+      task.is_selected
+        ? formulaDriven
+          ? 'bg-muted/40 border-border/60'
+          : 'bg-primary/5 border-primary/20'
+        : 'bg-muted/30 opacity-60'
     }`}>
       <Checkbox
         checked={task.is_selected}
@@ -49,7 +55,9 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
 
       {/* Task name */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium leading-tight truncate ${!task.is_selected && 'text-muted-foreground'}`}>
+        <p className={`text-sm font-medium leading-tight truncate ${
+          !task.is_selected ? 'text-muted-foreground' : formulaDriven ? 'text-muted-foreground' : ''
+        }`}>
           {task.task_name}
         </p>
       </div>
@@ -66,7 +74,7 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
       {/* Variable column */}
       <div className="w-16 text-center shrink-0">
         {hasVariable ? (
-          <span className="text-xs font-medium text-foreground">{task.variable_label}</span>
+          <span className={`text-xs font-medium ${formulaDriven ? 'text-muted-foreground' : 'text-foreground'}`}>{task.variable_label}</span>
         ) : (
           <span className="text-xs text-muted-foreground">-</span>
         )}
@@ -74,7 +82,7 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
 
       {/* # column */}
       <div className="w-12 shrink-0">
-        {hasVariable && onVariableQtyChange ? (
+        {hasVariable && onVariableQtyChange && !formulaDriven ? (
           <Input
             type="number"
             value={task.variable_qty ?? 1}
@@ -83,7 +91,7 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
             min={1}
           />
         ) : hasVariable ? (
-          <span className="text-xs font-medium block text-center">{task.variable_qty ?? '-'}</span>
+          <span className="text-xs font-medium block text-center text-muted-foreground">{task.variable_qty ?? '-'}</span>
         ) : (
           <span className="text-xs text-muted-foreground block text-center">-</span>
         )}
@@ -91,7 +99,7 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
 
       {/* Hours per person */}
       <div className="w-[5.5rem] shrink-0 flex items-center justify-center">
-        {onHoursPerPersonChange ? (
+        {onHoursPerPersonChange && !formulaDriven ? (
           <Input
             type="number"
             value={task.hours_per_person ?? task.hours}
@@ -101,14 +109,14 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
             step={0.5}
           />
         ) : (
-          <span className="text-sm text-muted-foreground">{Number(task.hours_per_person ?? task.hours).toFixed(1)}</span>
+          <span className={`text-sm ${formulaDriven ? 'text-muted-foreground' : 'text-muted-foreground'}`}>{Number(task.hours_per_person ?? task.hours).toFixed(1)}</span>
         )}
       </div>
 
       {/* Total hours */}
       <div className="w-[5.5rem] shrink-0 flex items-center justify-center">
-        {roleCount > 1 || hasVariable ? (
-          <span className="text-sm font-medium">{Number(task.hours).toFixed(1)}</span>
+        {(roleCount > 1 || hasVariable || formulaDriven) ? (
+          <span className={`text-sm font-medium ${formulaDriven ? 'text-muted-foreground' : ''}`}>{Number(task.hours).toFixed(1)}</span>
         ) : (
           <Input
             type="number"
