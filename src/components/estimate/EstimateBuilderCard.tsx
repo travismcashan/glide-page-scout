@@ -519,6 +519,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-templates"
                     title="Template Analysis (Recommended Layouts)"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('templates', 'template_tiers')}
                   >
                     <TemplatesCard
                       pageTags={pageTags}
@@ -548,6 +549,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-tech-analysis"
                     title="AI Tech Analysis — Merged Stack Intelligence"
                     icon={<Brain className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >
                     <TechAnalysisCard data={techAnalysisData} isLoading={false} />
                   </SectionCard>
@@ -558,6 +560,7 @@ function getProjectDuration(totalHours: number): string {
                     sectionId="est-forms"
                     title="Forms Analysis"
                     icon={<FileText className="h-5 w-5 text-foreground" />}
+                    headerExtra={rerunButton('forms', 'forms_data')}
                   >
                     <FormsCard data={formsData} domain={domain} mode="estimate" />
                   </SectionCard>
