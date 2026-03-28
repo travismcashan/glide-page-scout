@@ -75,6 +75,7 @@ export default function CrawlPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [recentViews, setRecentViews] = useState<RecentView[]>([]);
   const [wordIndex, setWordIndex] = useState(0);
+  const phrase = useMemo(() => ROTATING_PHRASES[Math.floor(Math.random() * ROTATING_PHRASES.length)], []);
 
   // Rotating word animation
   useEffect(() => {
