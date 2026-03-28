@@ -67,27 +67,23 @@ export default function HistoryPage() {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await withQueryTimeout(
-        supabase
-          .from('crawl_sessions')
-          .select('id, domain, base_url, status, created_at')
-          .neq('domain', '__global_chat__')
-          .order('created_at', { ascending: false }),
-        12000,
-        'Loading sites timed out'
-      );
+      try {
+        const { data, error } = await withQueryTimeout(
+          supabase
+            .from('crawl_sessions')
+            .select('id, domain, base_url, status, created_at')
+            .neq('domain', '__global_chat__')
+            .order('created_at', { ascending: false }),
+          12000,
+          'Loading sites timed out'
+        );
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (error) {
-        console.error('Failed to load crawl history:', error);
-        setError('Failed to load crawl history. Please refresh and try again.');
-        setSessions([]);
-        setIntegrationCounts(new Map());
-        setDocCounts(new Map());
-        setMultiDomains(new Map());
-        setLoading(false);
-      } else {
+        if (error) {
+          throw error;
+        }
+
         const data_ = (data ?? []) as CrawlSession[];
         setSessions(data_);
 
@@ -103,27 +99,29 @@ export default function HistoryPage() {
         const sessionIds = data_.map(d => d.id);
         if (sessionIds.length > 0) {
           void (async () => {
-            const { data: docs, error: docsError } = await withQueryTimeout(
-              supabase
-                .from('knowledge_documents')
-                .select('session_id')
-                .in('session_id', sessionIds),
-              12000,
-              'Loading file counts timed out'
-            );
+            try {
+              const { data: docs, error: docsError } = await withQueryTimeout(
+                supabase
+                  .from('knowledge_documents')
+                  .select('session_id')
+                  .in('session_id', sessionIds),
+                12000,
+                'Loading file counts timed out'
+              );
 
-            if (cancelled) return;
-            if (docsError) {
+              if (cancelled) return;
+              if (docsError) {
+                throw docsError;
+              }
+
+              const dCounts = new Map<string, number>(data_.map((session) => [session.id, 0] as const));
+              (docs ?? []).forEach(d => dCounts.set(d.session_id, (dCounts.get(d.session_id) ?? 0) + 1));
+              setDocCounts(dCounts);
+            } catch (docsError) {
               console.error('Failed to load knowledge file counts:', docsError);
-              return;
             }
-
-            const dCounts = new Map<string, number>(data_.map((session) => [session.id, 0] as const));
-            (docs ?? []).forEach(d => dCounts.set(d.session_id, (dCounts.get(d.session_id) ?? 0) + 1));
-            setDocCounts(dCounts);
           })();
 
-          // Fetch integration counts via lightweight RPC
           void (async () => {
             try {
               const { data: counts, error: countError } = await withQueryTimeout(
@@ -134,8 +132,7 @@ export default function HistoryPage() {
 
               if (cancelled) return;
               if (countError) {
-                console.error('Failed to load integration counts:', countError);
-                return;
+                throw countError;
               }
 
               const intCounts = new Map<string, number>();
@@ -147,9 +144,17 @@ export default function HistoryPage() {
               console.error('Integration count RPC failed:', err);
             }
           })();
-        } else {
-          setLoading(false);
         }
+      } catch (error) {
+        if (cancelled) return;
+
+        console.error('Failed to load crawl history:', error);
+        setError('Failed to load crawl history. Please refresh and try again.');
+        setSessions([]);
+        setIntegrationCounts(new Map());
+        setDocCounts(new Map());
+        setMultiDomains(new Map());
+        setLoading(false);
       }
     };
 
