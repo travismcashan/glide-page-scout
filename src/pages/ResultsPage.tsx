@@ -1972,16 +1972,13 @@ export default function ResultsPage() {
   const tabTriggers = (
     <>
       <TabsTrigger value="raw-data" style={tabTriggerStyle('raw-data')} className={tabTriggerClass}>
-        <Globe className="h-4 w-4 mr-2" />Site Analysis
+        <Globe className="h-4 w-4 mr-2" />Analysis
       </TabsTrigger>
       {showProspecting && (
         <TabsTrigger value="prospecting" style={tabTriggerStyle('prospecting')} className={tabTriggerClass}>
           <UserPlus className="h-4 w-4 mr-2" />Prospecting
         </TabsTrigger>
       )}
-      <TabsTrigger value="prompts" style={tabTriggerStyle('prompts')} className={tabTriggerClass}>
-        <FileQuestion className="h-4 w-4 mr-2" />Prompts
-      </TabsTrigger>
       <TabsTrigger value="knowledge" style={tabTriggerStyle('knowledge')} className={tabTriggerClass}>
         <BookOpen className="h-4 w-4 mr-2" />Knowledge
       </TabsTrigger>
@@ -1990,6 +1987,12 @@ export default function ResultsPage() {
       </TabsTrigger>
       <TabsTrigger value="estimates" style={tabTriggerStyle('estimates')} className={tabTriggerClass}>
         <DollarSign className="h-4 w-4 mr-2" />Estimates
+      </TabsTrigger>
+      <TabsTrigger value="roadmap" style={tabTriggerStyle('roadmap')} className={tabTriggerClass}>
+        <MapIcon className="h-4 w-4 mr-2" />Roadmap
+      </TabsTrigger>
+      <TabsTrigger value="proposal" style={tabTriggerStyle('proposal')} className={tabTriggerClass}>
+        <FileText className="h-4 w-4 mr-2" />Proposal
       </TabsTrigger>
     </>
   );
@@ -2602,21 +2605,6 @@ export default function ResultsPage() {
             </div>}
           </TabsContent>
 
-          <TabsContent value="prompts" className="mt-8 space-y-6" forceMount={activeTab === 'prompts' ? true : undefined}>
-            {activeTab === 'prompts' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prompts' ? null : <div className="animate-fade-in space-y-6">
-            {session && (
-              <PromptLibrary
-                domain={session.domain}
-                companyName={session.ocean_data?.companyName || session.domain}
-                onRunPrompt={(template: PromptTemplate) => {
-                  const isDeepResearch = template.mode === 'deep-research' || template.mode === 'observations';
-                  setPendingPrompt({ text: template.prompt, deepResearch: isDeepResearch });
-                  setActiveTab('chat');
-                }}
-              />
-            )}
-            </div>}
-          </TabsContent>
 
           {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
             <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
@@ -2803,6 +2791,34 @@ export default function ResultsPage() {
                 techAnalysisData={(session as any).tech_analysis_data}
               />
             )}
+            </div>}
+          </TabsContent>
+
+          <TabsContent value="roadmap" className="mt-8 space-y-6" forceMount={activeTab === 'roadmap' ? true : undefined}>
+            {activeTab === 'roadmap' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'roadmap' ? null : <div className="animate-fade-in">
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                  <MapIcon className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold">Roadmap</h3>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Plan project phases, milestones, and deliverable timelines. Coming soon.
+                </p>
+              </div>
+            </div>}
+          </TabsContent>
+
+          <TabsContent value="proposal" className="mt-8 space-y-6" forceMount={activeTab === 'proposal' ? true : undefined}>
+            {activeTab === 'proposal' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'proposal' ? null : <div className="animate-fade-in">
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold">Proposal</h3>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Generate client-ready proposals from your estimates, roadmap, and research. Coming soon.
+                </p>
+              </div>
             </div>}
           </TabsContent>
         </Tabs>

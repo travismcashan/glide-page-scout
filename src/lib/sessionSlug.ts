@@ -1,17 +1,20 @@
 import { format } from 'date-fns';
 
 /** Valid tab slugs for deep-linking */
-export const TAB_SLUGS = ['analysis', 'prospecting', 'prompts', 'knowledge', 'chat', 'estimates'] as const;
+export const TAB_SLUGS = ['analysis', 'prospecting', 'knowledge', 'chat', 'estimates', 'roadmap', 'proposal'] as const;
 export type TabSlug = typeof TAB_SLUGS[number];
 
 /** Map URL tab slugs ↔ internal tab values */
 const SLUG_TO_TAB: Record<string, string> = {
   analysis: 'raw-data',
   prospecting: 'prospecting',
-  prompts: 'prompts',
   knowledge: 'knowledge',
   chat: 'chat',
   estimates: 'estimates',
+  roadmap: 'roadmap',
+  proposal: 'proposal',
+  // backward compat: old /prompts URLs → analysis
+  prompts: 'raw-data',
 };
 
 const TAB_TO_SLUG: Record<string, string> = Object.fromEntries(
