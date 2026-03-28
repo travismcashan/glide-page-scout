@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.beautiful-ai]
 verify_jwt = false
+
+[functions.rename-document]
+verify_jwt = false
