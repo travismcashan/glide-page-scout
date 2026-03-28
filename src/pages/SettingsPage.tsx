@@ -160,6 +160,32 @@ export default function SettingsPage() {
     () => localStorage.getItem('ai-my-role') || ''
   );
 
+  // Location & timezone (auto-detected via IP)
+  const [locationData, setLocationData] = useState<Record<string, any> | null>(() => {
+    try { const s = localStorage.getItem('ai-location'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+
+  useEffect(() => {
+    // Auto-detect location if not cached
+    if (!locationData) {
+      fetch('https://ip-api.com/json/?fields=city,regionName,country,timezone,lat,lon')
+        .then(r => r.json())
+        .then(data => {
+          if (data?.city) {
+            const loc = {
+              city: data.city,
+              region: data.regionName,
+              country: data.country,
+              timezone: data.timezone,
+            };
+            setLocationData(loc);
+            localStorage.setItem('ai-location', JSON.stringify(loc));
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   // Auto-enrich on first visit if logged in and no data yet
   useEffect(() => {
     if (user?.email && !aboutMe && !enriching) {
@@ -526,6 +552,13 @@ export default function SettingsPage() {
                   </div>
                 )}
               </div>
+
+              {locationData && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Globe className="h-4 w-4 shrink-0" />
+                  <span>{[locationData.city, locationData.region].filter(Boolean).join(', ')} · {locationData.timezone}</span>
+                </div>
+              )}
 
               <div className="rounded-md bg-muted/50 px-3 py-2">
                 <p className="text-xs text-muted-foreground leading-relaxed">

@@ -53,7 +53,7 @@ const CHARACTERISTIC_INSTRUCTIONS: Record<string, string> = {
   gifs: 'Occasionally include a fun, relevant GIF using markdown image syntax linking to Giphy (e.g. ![description](https://media.giphy.com/...)). Use sparingly for humor or emphasis — maybe once per longer response when it fits naturally.',
 };
 
-function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteristics?: string[], customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string): string {
+function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteristics?: string[], customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string, locationData?: Record<string, any>): string {
   const toneBlock = tonePreset && tonePreset !== 'default' && TONE_INSTRUCTIONS[tonePreset]
     ? `\n\n---\n\n**Communication Style**: ${TONE_INSTRUCTIONS[tonePreset]}\n`
     : '';
@@ -79,8 +79,10 @@ function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteri
     if (aboutMe.departments?.length) parts.push(`Departments: ${aboutMe.departments.join(', ')}`);
     if (myRole?.trim()) parts.push(`\nWhat they do (in their own words):\n${myRole.trim()}`);
     if (personalBio?.trim()) parts.push(`\nUser's own bio:\n${personalBio.trim()}`);
+    if (locationData?.city) parts.push(`\nCurrent location: ${[locationData.city, locationData.region, locationData.country].filter(Boolean).join(', ')}`);
+    if (locationData?.timezone) parts.push(`Timezone: ${locationData.timezone} (current local time: ${new Date().toLocaleString('en-US', { timeZone: locationData.timezone, hour: 'numeric', minute: '2-digit', hour12: true, weekday: 'long' })})`);
     if (parts.length > 0) {
-      aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses — address them by name, understand their role and company context):\n${parts.join('\n')}\n`;
+      aboutBlock = `\n\n---\n\n**About the User** (use this to personalize your responses — address them by name, understand their role, company context, and current time/location):\n${parts.join('\n')}\n`;
     }
   } else if (myRole?.trim() || personalBio?.trim()) {
     const userParts: string[] = [];
@@ -1177,7 +1179,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1255,7 +1257,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole);
+    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available
