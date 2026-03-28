@@ -834,7 +834,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
       </Suspense>
-      {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && (
+      {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && !(councilModels && councilModels.length > 0) && (
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-foreground">
             <Loader2 className="flex-shrink-0 animate-spin text-foreground" style={{ width: 28, height: 28 }} />
