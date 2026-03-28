@@ -234,6 +234,8 @@ export function calculateTaskFromXlsx(
     hpp = byComplexity(complexity, 8, 10, 12);
   } else if (/^Custom Third Party Integrations$/i.test(name)) {
     hpp = byComplexity(complexity, 4, 6, 10);
+  } else if (/^Special Setup Integrations$/i.test(name)) {
+    hpp = byComplexity(complexity, 6, 10, 16);
   } else if (/^Performance Optimization$/i.test(name)) {
     hpp = bySizeNum(size, 6, 8, 12);
   } else if (/^Quality Assurance$/i.test(name)) {

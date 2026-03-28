@@ -12,6 +12,7 @@ import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2,
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
+import type { TechTierCounts } from '@/components/TechAnalysisCard';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
@@ -73,6 +74,19 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
 
+  const handleTechTierChange = useCallback((counts: TechTierCounts) => {
+    if (!estimate) return;
+    const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2 };
+    const derived = {
+      ...updated,
+      project_size: deriveProjectSize(updated),
+      project_complexity: deriveProjectComplexity(updated),
+    };
+    setEstimate(derived as Estimate);
+    const updatedTasks = recalculateAllTasks(tasks, derived, formulas);
+    setTasks(updatedTasks as EstimateTask[]);
+  }, [estimate, tasks, formulas]);
+
   const crawlDefaults = useMemo((): Partial<EstimateVariables> => {
     const defaults: Partial<EstimateVariables> = {};
     if (pageTags) {
@@ -102,15 +116,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     if (formsData?.forms) {
       defaults.form_count = Array.isArray(formsData.forms) ? formsData.forms.length : 0;
     }
-    // Prefer Tech Analysis scope counts; fall back to Wappalyzer categories
-    if (techAnalysisData?.scope) {
-      const scope = techAnalysisData.scope;
-      const combined =
-        (Array.isArray(scope.plugins) ? scope.plugins.length : 0) +
-        (Array.isArray(scope.thirdPartyIntegrations) ? scope.thirdPartyIntegrations.length : 0) +
-        (Array.isArray(scope.specialSetup) ? scope.specialSetup.length : 0);
-      defaults.third_party_integrations = combined || 2;
-    } else if (wappalyzerData?.technologies) {
+    // Tech analysis tier-based count is now handled via onTechTierChange callback
+    // Fall back to Wappalyzer categories if no tech analysis
+    if (!techAnalysisData?.analysis?.scope && wappalyzerData?.technologies) {
       const integrationCats = ['marketing-automation', 'analytics', 'crm', 'email', 'payment-processors'];
       const integrations = wappalyzerData.technologies.filter((t: any) =>
         t.categories?.some((c: any) => integrationCats.includes(c.slug))
@@ -594,7 +602,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<Brain className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('tech-analysis', 'tech_analysis_data')}
                   >
-                    <TechAnalysisCard data={techAnalysisData} isLoading={false} />
+                    <TechAnalysisCard data={techAnalysisData} isLoading={false} mode="estimate" onTierChange={handleTechTierChange} />
                   </SectionCard>
                 )}
 
