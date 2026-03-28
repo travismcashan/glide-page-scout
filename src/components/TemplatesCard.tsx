@@ -320,6 +320,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
   const hasEffort = !!(aiTiers?.effort && Object.keys(aiTiers.effort).length > 0);
   const colCount = hasEffort ? 6 : 5;
+  const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const toggleTableSection = (key: string) => {
     setCollapsedTableSections(prev => {
       const next = new Set(prev);
