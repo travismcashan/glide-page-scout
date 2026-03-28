@@ -341,7 +341,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     const lowWeeks = Math.round((totalHours / 40) * 10) / 10;
     const highWeeks = Math.round((totalHours / 30) * 10) / 10;
 
-    return { totalHours, totalCost, byRole, byPhase, selectedCount: selectedTasks.length, lowWeeks, highWeeks };
+    const uniqueRoles = Object.keys(byRole).length || 1;
+
+    return { totalHours, totalCost, byRole, byPhase, selectedCount: selectedTasks.length, lowWeeks, highWeeks, uniqueRoles };
   }, [tasks]);
 
   const groupedByPhase = useMemo(() => {
@@ -403,17 +405,15 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     );
   }
 
-/** Convert work weeks to estimated project duration in months */
-function getProjectDuration(workWeeks: number): string {
+/** Convert work weeks to estimated project duration using actual team size */
+function getProjectDuration(workWeeks: number, teamSize: number): string {
   if (workWeeks <= 0) return '0 mo';
-  // Scale parallel team size with project size
-  const parallel = workWeeks <= 10 ? 2.5 : workWeeks <= 20 ? 3 : workWeeks <= 30 ? 3.5 : 4;
-  const calendarWeeks = workWeeks / parallel;
+  const calendarWeeks = workWeeks / Math.max(teamSize, 1);
   const padded = calendarWeeks * 1.3; // 30% client pad
   const months = padded / 4.33;
   const low = Math.max(1, Math.floor(months));
   const high = Math.ceil(months);
-  if (low === high) return `~${low} mo`;
+  if (low === high || high - low < 0.5) return `~${low} mo`;
   return `~${low}–${high} mo`;
 }
 
@@ -453,7 +453,7 @@ function getProjectDuration(workWeeks: number): string {
           <MetaStatDivider />
           <MetaStat value={totals.totalHours.toFixed(0)} label="Total Hours" />
           <MetaStatDivider />
-          <MetaStat value={getProjectDuration(Math.round(totals.lowWeeks))} label="Est. Duration" />
+          <MetaStat value={getProjectDuration(Math.round(totals.lowWeeks), totals.uniqueRoles)} label={`Est. Duration (${totals.uniqueRoles} roles)`} />
           <div className="ml-auto">
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0">
               {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
