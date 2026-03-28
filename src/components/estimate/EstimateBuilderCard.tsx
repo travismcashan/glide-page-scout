@@ -386,8 +386,6 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     );
   }
 
-  const [roleCollapsed, setRoleCollapsed] = useState(false);
-  const [phaseCollapsed, setPhaseCollapsed] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -683,9 +681,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
+          </div>
         </div>
-      </div>
+      </Tabs>
     </div>
   );
 }
