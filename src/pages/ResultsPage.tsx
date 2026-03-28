@@ -2007,51 +2007,23 @@ export default function ResultsPage() {
           <h1 className="text-[1.5rem] font-semibold tracking-tight text-foreground leading-none">
             {session?.domain?.replace(/^www\./i, '')}
           </h1>
-          {session?.created_at && (
-            <div className="flex items-center gap-4 text-xs text-muted-foreground tabular-nums shrink-0">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'M/d/yyyy')}
-              </span>
-              {session?.updated_at && session.updated_at !== session.created_at && (
+          <div className="flex items-center gap-4 shrink-0">
+            {session?.created_at && (
+              <div className="flex items-center gap-4 text-xs text-muted-foreground tabular-nums">
                 <span className="flex items-center gap-1">
-                  <RefreshCw className="h-3 w-3" />
-                  <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'M/d/yyyy')}
+                  <Clock className="h-3 w-3" />
+                  <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'M/d/yyyy')}
                 </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Global integration progress bar */}
-      {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
-
-      <main className={`max-w-6xl mx-auto px-6 pb-8 space-y-6 w-full`}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Sticky tab bar - shown when scrolling up and past the original */}
-          <div
-            className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
-            style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
-          >
-              <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
-                <div className="relative flex items-center justify-between w-full h-14">
-                  <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
-                  <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
-                    {tabTriggers}
-                  </TabsList>
-                </div>
+                {session?.updated_at && session.updated_at !== session.created_at && (
+                  <span className="flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3" />
+                    <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'M/d/yyyy')}
+                  </span>
+                )}
               </div>
-            </div>
-          <div ref={tabBarRef} className="relative h-14 flex items-center justify-between">
-            {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
-            <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
-              {tabTriggers}
-            </TabsList>
-
-            {/* Unified actions dropdown */}
-            <div className="flex h-14 items-center gap-2 no-print">
+            )}
+            {/* Tab-specific actions dropdown */}
+            <div className="flex items-center gap-2 no-print">
               {activeTab === 'raw-data' && !isSharedView && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -2184,6 +2156,35 @@ export default function ResultsPage() {
                 </Button>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Global integration progress bar */}
+      {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
+
+      <main className={`max-w-6xl mx-auto px-6 pb-8 space-y-6 w-full`}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {/* Sticky tab bar - shown when scrolling up and past the original */}
+          <div
+            className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
+            style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
+          >
+              <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
+                <div className="relative flex items-center justify-between w-full h-14">
+                  <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
+                  <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
+                    {tabTriggers}
+                  </TabsList>
+                </div>
+              </div>
+            </div>
+          <div ref={tabBarRef} className="relative h-14 flex items-center justify-between">
+            {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
+            <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
+              {tabTriggers}
+            </TabsList>
             <AlertDialog open={rerunConfirmOpen} onOpenChange={setRerunConfirmOpen}>
               <AlertDialogContent>
                 <AlertDialogHeader>
