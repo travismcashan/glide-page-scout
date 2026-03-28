@@ -5,12 +5,12 @@ export class QueryTimeoutError extends Error {
   }
 }
 
-export async function withQueryTimeout<T>(promise: Promise<T>, timeoutMs = 12000, message?: string): Promise<T> {
+export async function withQueryTimeout<T>(promiseLike: PromiseLike<T> | T, timeoutMs = 12000, message?: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   try {
     return await Promise.race([
-      promise,
+      Promise.resolve(promiseLike),
       new Promise<T>((_, reject) => {
         timer = setTimeout(() => reject(new QueryTimeoutError(message)), timeoutMs);
       }),
