@@ -58,11 +58,13 @@ function realData<T>(data: T | null | undefined): T | null {
   return data;
 }
 
-/** Show integration if it has real (non-error) data, is active, or user toggled "Show All" */
+/** Show integration if it has real (non-error) data, is active, or user toggled "Show All".
+ *  Cards with existing data always show — pausing only affects future crawls. */
 function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, sharedView?: boolean): boolean {
   if (sharedView) return hasData;
+  if (hasData) return true;
   if (showAll) return true;
-  return hasData || !isIntegrationPaused(key);
+  return !isIntegrationPaused(key);
 }
 import { AvomaCard } from '@/components/AvomaCard';
 import { HubSpotCard } from '@/components/HubSpotCard';
