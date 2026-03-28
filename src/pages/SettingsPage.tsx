@@ -140,27 +140,52 @@ export default function SettingsPage() {
     () => localStorage.getItem('ai-tone-preset') || 'default'
   );
 
-  // Characteristics level
-  const CHARACTERISTICS_LEVELS = [
-    { id: 'more', label: 'More', description: 'Friendlier and more personable' },
-    { id: 'default', label: 'Default', description: '' },
-    { id: 'less', label: 'Less', description: 'More professional and factual' },
+  // Per-characteristic levels
+  const CHARACTERISTICS = [
+    { id: 'warmth', label: 'Warmth & Friendliness', description: 'How personable and approachable' },
+    { id: 'emoji', label: 'Emoji Usage', description: 'Frequency of emoji in responses' },
+    { id: 'headers-lists', label: 'Tables & Structure', description: 'Headers, lists, and tables' },
+    { id: 'enthusiasm', label: 'Enthusiasm', description: 'Energy and excitement level' },
+    { id: 'gifs', label: 'GIFs & Media', description: 'Include GIFs or visual media' },
+    { id: 'verbosity', label: 'Detail Level', description: 'How thorough vs. concise' },
   ] as const;
 
-  const [characteristicsLevel, setCharacteristicsLevel] = useState<string>(
-    () => localStorage.getItem('ai-characteristics-level') || 'default'
-  );
+  const CHAR_LEVELS = [
+    { id: 'more', label: 'More' },
+    { id: 'default', label: 'Default' },
+    { id: 'less', label: 'Less' },
+  ] as const;
 
-  const handleCharacteristicsLevel = (val: string) => {
-    setCharacteristicsLevel(val);
-    localStorage.setItem('ai-characteristics-level', val);
-    // Map level to characteristics array for backward compat
-    const mapping: Record<string, string[]> = {
-      more: ['warm', 'enthusiastic', 'headers-lists', 'emoji'],
-      default: ['headers-lists'],
-      less: [],
-    };
-    localStorage.setItem('ai-characteristics', JSON.stringify(mapping[val] || []));
+  const [charSettings, setCharSettings] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('ai-char-settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    // Migrate from old single level
+    const oldLevel = localStorage.getItem('ai-characteristics-level') || 'default';
+    const defaults: Record<string, string> = {};
+    CHARACTERISTICS.forEach(c => { defaults[c.id] = oldLevel; });
+    return defaults;
+  });
+
+  const updateCharSetting = (id: string, level: string) => {
+    const updated = { ...charSettings, [id]: level };
+    setCharSettings(updated);
+    localStorage.setItem('ai-char-settings', JSON.stringify(updated));
+    // Build backward-compat characteristics array
+    const traits: string[] = [];
+    if (updated.warmth === 'more') traits.push('warm');
+    if (updated.enthusiasm === 'more') traits.push('enthusiastic');
+    if (updated['headers-lists'] !== 'less') traits.push('headers-lists');
+    if (updated.emoji === 'more') traits.push('emoji');
+    if (updated.gifs === 'more') traits.push('gifs');
+    if (updated.verbosity === 'more') traits.push('verbose');
+    localStorage.setItem('ai-characteristics', JSON.stringify(traits));
+    localStorage.setItem('ai-characteristics-level', 
+      Object.values(updated).every(v => v === 'more') ? 'more' 
+      : Object.values(updated).every(v => v === 'less') ? 'less' 
+      : 'default'
+    );
   };
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem('ai-custom-instructions') || ''
@@ -689,22 +714,29 @@ export default function SettingsPage() {
           {/* Characteristics */}
           <div className="space-y-3 pt-2">
             <label className="text-sm font-medium">Characteristics</label>
-            <p className="text-xs text-muted-foreground">Controls how personable vs. factual the AI's responses are.</p>
-            <Select value={characteristicsLevel} onValueChange={handleCharacteristicsLevel}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CHARACTERISTICS_LEVELS.map(l => (
-                  <SelectItem key={l.id} value={l.id}>
-                    <div>
-                      <span className="font-medium">{l.label}</span>
-                      {l.description && <span className="text-muted-foreground ml-2 text-xs">{l.description}</span>}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <p className="text-xs text-muted-foreground">Fine-tune each aspect of the AI's personality. All are on — just set the level.</p>
+            <div className="space-y-2">
+              {CHARACTERISTICS.map(c => (
+                <div key={c.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{c.label}</p>
+                    <p className="text-[11px] text-muted-foreground">{c.description}</p>
+                  </div>
+                  <Select value={charSettings[c.id] || 'default'} onValueChange={(v) => updateCharSetting(c.id, v)}>
+                    <SelectTrigger className="w-[100px] h-8 text-xs shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CHAR_LEVELS.map(l => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
