@@ -1229,8 +1229,8 @@ serve(async (req) => {
     // Run document RAG (with routing) and web search in parallel
     const contextPromises: Promise<void>[] = [];
 
-    if (useDocuments && session_id && queryText) {
-      contextPromises.push(ragSearchWithRouting(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => {
+    if (useDocuments && effectiveSessionId && queryText) {
+      contextPromises.push(ragSearchWithRouting(effectiveSessionId, queryText, ragMatchCount, ragMatchThreshold).then(r => {
         ragContext = r.ragContext;
         needsScreenshots = r.needs_screenshots;
         ragDocuments = r.ragDocuments;
@@ -1247,8 +1247,9 @@ serve(async (req) => {
     const isClaudeModel = model && model.startsWith('claude-');
     const isPerplexityModel = model && model.startsWith('perplexity-');
     let screenshotImages: { url: string; screenshot_url: string }[] = [];
-    if (needsScreenshots && session_id && !isPerplexityModel) {
-      screenshotImages = await fetchScreenshots(session_id, queryText);
+    const screenshotSessionId = Array.isArray(effectiveSessionId) ? effectiveSessionId[0] : effectiveSessionId;
+    if (needsScreenshots && screenshotSessionId && !isPerplexityModel) {
+      screenshotImages = await fetchScreenshots(screenshotSessionId, queryText);
       console.log(`[knowledge-chat] Injecting ${screenshotImages.length} screenshots as multimodal content`);
     }
 
