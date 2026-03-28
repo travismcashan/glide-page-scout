@@ -293,9 +293,9 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   };
 
   const tierLabel = (tier: BulkTier) => {
-    const labels = { S: 'Small', M: 'Medium', L: 'Large' };
-    const tc = tierCounts[tier];
-    return `${labels[tier]} · ${tc.types} type${tc.types !== 1 ? 's' : ''}`;
+    if (tier === 'S') return 'Small · 0 types';
+    if (tier === 'M') return 'Medium · Posts';
+    return 'Large · Posts + CPT';
   };
 
   const toggleSection = (key: string) => {
@@ -321,13 +321,6 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 cursor-pointer transition-colors text-left border-t border-border first:border-t-0"
           onClick={() => setExpandedTypes(prev => { const next = new Set(prev); if (isExpanded) next.delete(row.type); else next.add(row.type); return next; })}
         >
-          {isEstimate && (
-            <Checkbox
-              checked={isIncluded}
-              className="mx-0"
-              disabled
-            />
-          )}
           {mergeMode && !isEstimate && (
             <Checkbox
               checked={selected.has(row.type)}
@@ -376,6 +369,8 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
               navMap={navMap}
               pageTags={pageTags}
               onPageTagChange={onPageTagChange}
+              showCheckbox={isEstimate}
+              isIncluded={isIncluded}
             />
           </div>
         )}

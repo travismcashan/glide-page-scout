@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PageTemplateBadge } from '@/components/PageTemplateBadge';
@@ -25,9 +26,11 @@ interface ExpandableUrlRowsProps {
   navMap?: Map<string, NavTag[]>;
   pageTags?: PageTagsMap | null;
   onPageTagChange?: (url: string, template: string) => void;
+  showCheckbox?: boolean;
+  isIncluded?: boolean;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, showCheckbox = false, isIncluded = true }: ExpandableUrlRowsProps) {
   // Show all URLs in a scrollable container (max ~7 visible rows, 28px each = 196px)
   const maxHeight = urls.length > 7 ? 196 : undefined;
 
@@ -40,6 +43,9 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           const pageTag = getPageTag(pageTags, item.url);
           return (
             <div key={item.url} className="flex items-center px-3 hover:bg-muted/20 transition-colors group border-t border-border/50" style={{ height: '28px' }}>
+              {showCheckbox && (
+                <Checkbox checked={isIncluded} disabled className="mr-2 shrink-0" />
+              )}
               {/* Left: URL */}
               <div className="flex items-center flex-1 min-w-0 gap-2">
                 <Tooltip>
