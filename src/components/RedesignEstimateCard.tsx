@@ -150,6 +150,8 @@ function AnalysisView({
 
 /* ── Estimate-mode sub-components ── */
 
+const COLLAPSED_LIMIT = 5;
+
 function PageGroupSection({
   label,
   urls,
@@ -167,7 +169,10 @@ function PageGroupSection({
   onToggleUrl: (url: string) => void;
   onToggleAll: (urls: string[], checked: boolean) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const checkedCount = urls.filter(u => selectedUrls.has(u)).length;
+  const hasMore = urls.length > COLLAPSED_LIMIT;
+  const visibleUrls = expanded ? urls : urls.slice(0, COLLAPSED_LIMIT);
 
   return (
     <>
@@ -185,22 +190,36 @@ function PageGroupSection({
         </Badge>
       </button>
       {!collapsed && urls.length > 0 && (
-        <div className="max-h-[140px] overflow-y-auto">
-          {urls.map((url) => (
-            <label
-              key={url}
-              className="flex items-center gap-2 px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors cursor-pointer"
+        <div className="relative">
+          <div>
+            {visibleUrls.map((url) => (
+              <label
+                key={url}
+                className="flex items-center gap-2 px-3 py-1 border-t border-border/50 hover:bg-muted/20 transition-colors cursor-pointer"
+              >
+                <Checkbox
+                  checked={selectedUrls.has(url)}
+                  onCheckedChange={() => onToggleUrl(url)}
+                  className="h-3.5 w-3.5 shrink-0"
+                />
+                <span className="text-xs font-mono leading-5 text-muted-foreground truncate" title={url}>
+                  {urlPath(url)}
+                </span>
+              </label>
+            ))}
+          </div>
+          {hasMore && !expanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+          )}
+          {hasMore && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="w-full flex items-center justify-center gap-1 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors border-t border-border/50"
             >
-              <Checkbox
-                checked={selectedUrls.has(url)}
-                onCheckedChange={() => onToggleUrl(url)}
-                className="h-3.5 w-3.5 shrink-0"
-              />
-              <span className="text-xs font-mono leading-5 text-muted-foreground truncate" title={url}>
-                {urlPath(url)}
-              </span>
-            </label>
-          ))}
+              <ChevronsUpDown className="h-3 w-3" />
+              {expanded ? 'Show less' : `Show ${urls.length - COLLAPSED_LIMIT} more`}
+            </button>
+          )}
         </div>
       )}
     </>
