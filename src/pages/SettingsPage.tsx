@@ -186,17 +186,20 @@ export default function SettingsPage() {
       if (!person) { toast.error('No profile data found'); return; }
 
       const enriched = {
-        name: person.name || profile?.display_name,
+        name: person.name || person.firstName && person.lastName ? `${person.firstName} ${person.lastName}`.trim() : profile?.display_name,
         title: person.title,
         headline: person.headline,
-        organization: person.organization?.name,
-        orgIndustry: person.organization?.industry,
-        orgSize: person.organization?.estimated_num_employees ? `~${person.organization.estimated_num_employees} employees` : null,
-        orgWebsite: person.organization?.website_url || person.organization?.primary_domain,
-        city: person.city,
-        state: person.state,
-        country: person.country,
-        linkedin: person.linkedin_url,
+        // Handle both nested organization object and flat org fields
+        organization: person.organization?.name || person.organizationName,
+        orgIndustry: person.organization?.industry || person.organizationIndustry,
+        orgSize: (person.organization?.estimated_num_employees || person.organizationNumEmployees)
+          ? `~${person.organization?.estimated_num_employees || person.organizationNumEmployees} employees`
+          : null,
+        orgWebsite: person.organization?.website_url || person.organization?.primary_domain || person.organizationDomain,
+        city: person.city || person.organizationCity,
+        state: person.state || person.organizationState,
+        country: person.country || person.organizationCountry,
+        linkedin: person.linkedin_url || person.linkedinUrl,
         seniority: person.seniority,
         departments: person.departments,
       };
