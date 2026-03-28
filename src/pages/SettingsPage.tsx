@@ -769,12 +769,94 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              {locationData && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Globe className="h-4 w-4 shrink-0" />
-                  <span>{[locationData.city, locationData.region].filter(Boolean).join(', ')} · {locationData.timezone}</span>
+              {/* Location & Timezone — editable */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <label className="text-sm font-medium">Location & Timezone</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto h-7 text-xs gap-1"
+                    onClick={() => {
+                      localStorage.removeItem('ai-location');
+                      setLocationData(null);
+                      fetch('https://ip-api.com/json/?fields=city,regionName,country,timezone,lat,lon')
+                        .then(r => r.json())
+                        .then(data => {
+                          if (data?.city) {
+                            const loc = { city: data.city, region: data.regionName, country: data.country, timezone: data.timezone };
+                            setLocationData(loc);
+                            localStorage.setItem('ai-location', JSON.stringify(loc));
+                            toast.success('Location re-detected');
+                          }
+                        })
+                        .catch(() => toast.error('Could not detect location'));
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Re-detect
+                  </Button>
                 </div>
-              )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">City</label>
+                    <input
+                      type="text"
+                      value={locationData?.city || ''}
+                      onChange={(e) => {
+                        const updated = { ...locationData, city: e.target.value };
+                        setLocationData(updated);
+                        localStorage.setItem('ai-location', JSON.stringify(updated));
+                      }}
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                      placeholder="e.g. San Francisco"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Region</label>
+                    <input
+                      type="text"
+                      value={locationData?.region || ''}
+                      onChange={(e) => {
+                        const updated = { ...locationData, region: e.target.value };
+                        setLocationData(updated);
+                        localStorage.setItem('ai-location', JSON.stringify(updated));
+                      }}
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                      placeholder="e.g. California"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Country</label>
+                    <input
+                      type="text"
+                      value={locationData?.country || ''}
+                      onChange={(e) => {
+                        const updated = { ...locationData, country: e.target.value };
+                        setLocationData(updated);
+                        localStorage.setItem('ai-location', JSON.stringify(updated));
+                      }}
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                      placeholder="e.g. United States"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Timezone</label>
+                    <input
+                      type="text"
+                      value={locationData?.timezone || ''}
+                      onChange={(e) => {
+                        const updated = { ...locationData, timezone: e.target.value };
+                        setLocationData(updated);
+                        localStorage.setItem('ai-location', JSON.stringify(updated));
+                      }}
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                      placeholder="e.g. America/Los_Angeles"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div className="rounded-md bg-muted/50 px-3 py-2">
                 <p className="text-xs text-muted-foreground leading-relaxed">
