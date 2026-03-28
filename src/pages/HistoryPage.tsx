@@ -148,8 +148,10 @@ export default function HistoryPage() {
                       <Clock className="h-3 w-3" />
                       {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
                     </div>
-                    <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
-                      {session.status}
+                    <Badge variant={session.status === 'completed' ? 'default' : session.status === 'analyzing' ? 'secondary' : 'secondary'}>
+                      {session.status === 'analyzing'
+                        ? (Date.now() - new Date(session.created_at).getTime() > 10 * 60 * 1000 ? 'completed' : 'analyzing')
+                        : session.status}
                     </Badge>
                     <button
                       onClick={(e) => {

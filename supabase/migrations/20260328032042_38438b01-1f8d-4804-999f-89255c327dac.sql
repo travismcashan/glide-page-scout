@@ -1,0 +1,1 @@
+UPDATE crawl_sessions SET status = 'completed' WHERE status = 'analyzing' AND created_at < now() - interval '10 minutes';
