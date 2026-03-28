@@ -18,6 +18,7 @@ export interface EstimateTask {
   hours_per_person?: number | null;
   variable_label?: string | null;
   variable_qty?: number | null;
+  is_required?: boolean;
 }
 
 interface Props {
