@@ -230,11 +230,11 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
   // Auto-run AI recommendations when templates are available and no saved tiers exist
   useEffect(() => {
-    if (!autoRunRef.current && !aiTiers && !aiLoading && templates.length > 0) {
+    if (mode === 'estimate' && !autoRunRef.current && !aiTiers && !aiLoading && templates.length > 0) {
       autoRunRef.current = true;
       fetchAiRecommendations();
     }
-  }, [templates, aiTiers, aiLoading, fetchAiRecommendations]);
+  }, [templates, aiTiers, aiLoading, fetchAiRecommendations, mode]);
 
   const toggleExcluded = (name: string) => {
     setExcluded(prev => {

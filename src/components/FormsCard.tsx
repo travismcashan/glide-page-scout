@@ -162,11 +162,11 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
 
   // Auto-run AI recommendations
   useEffect(() => {
-    if (!autoRunRef.current && !aiTiers && !aiLoading && forms.length > 0) {
+    if (mode === 'estimate' && !autoRunRef.current && !aiTiers && !aiLoading && forms.length > 0) {
       autoRunRef.current = true;
       fetchAiRecommendations();
     }
-  }, [forms, aiTiers, aiLoading, fetchAiRecommendations]);
+  }, [forms, aiTiers, aiLoading, fetchAiRecommendations, mode]);
 
   const toggleExcluded = (formType: string) => {
     setExcluded(prev => {
