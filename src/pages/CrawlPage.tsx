@@ -68,6 +68,28 @@ const ROTATING_WORDS = [
   'Decipher', 'Interpret', 'Synthesize', 'Strategize', 'Prioritize',
 ];
 
+const GREETINGS_BY_TIME: Record<string, string[]> = {
+  morning: [
+    'Good morning', 'Rise and shine', 'Morning',
+    'Top of the morning', 'Bright and early', 'Hey there, early bird',
+  ],
+  afternoon: [
+    'Good afternoon', 'Hey there', 'Afternoon',
+    'Hope your day is going well', 'Back at it', 'Welcome back',
+  ],
+  evening: [
+    'Good evening', 'Evening', 'Winding down?',
+    'Burning the midnight oil', 'Hey, night owl', 'Still going strong',
+  ],
+};
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  const bucket = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const pool = GREETINGS_BY_TIME[bucket];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export default function CrawlPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
