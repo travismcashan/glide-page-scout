@@ -270,7 +270,7 @@ function ScopeSection({
   return (
     <>
       <TableRow
-        className={`cursor-pointer select-none h-8 ${variant === 'included' ? 'bg-primary/5 hover:bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
+        className={`cursor-pointer select-none h-8 ${variant === 'included' ? 'bg-accent/8 hover:bg-accent/15 text-accent-foreground' : 'bg-destructive/5 hover:bg-destructive/10 text-destructive'}`}
         onClick={onToggleOpen}
       >
         <TableCell colSpan={colSpan} className="py-0">
