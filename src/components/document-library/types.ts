@@ -66,6 +66,7 @@ export function getDocumentIcon(_name: string, sourceType: string, sourceKey?: s
   if (sourceType === 'chat') return MessageSquare;
   if (sourceType === 'scrape') return Globe;
   if (sourceType === 'screenshot') return FileImage;
+  if (sourceType === 'gmail') return Mail;
 
   // HubSpot activity-specific icons
   if (sourceType === 'integration' && sourceKey?.startsWith('hubspot_data:engagement:')) {
