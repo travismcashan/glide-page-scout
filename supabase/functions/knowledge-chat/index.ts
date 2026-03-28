@@ -724,9 +724,10 @@ async function handleClaudeRequest(
   });
 
   // Build Anthropic request — use each model's full output capacity
+  const claudeMaxTokens = contextPreset.claude[model] || claudeConfig.maxOutput;
   const requestBody: any = {
     model: claudeConfig.model,
-    max_tokens: claudeConfig.maxOutput,
+    max_tokens: claudeMaxTokens,
     system: systemPrompt,
     messages: anthropicMessages,
     stream: true,
@@ -734,13 +735,13 @@ async function handleClaudeRequest(
 
   // Add extended thinking if reasoning is requested
   if (reasoning === 'high') {
-    const budget = Math.min(CLAUDE_THINKING_BUDGET, claudeConfig.maxOutput - 16384);
+    const budget = Math.min(CLAUDE_THINKING_BUDGET, claudeMaxTokens - 16384);
     if (budget > 0) {
       requestBody.thinking = {
         type: 'enabled',
         budget_tokens: budget,
       };
-      requestBody.max_tokens = claudeConfig.maxOutput;
+      requestBody.max_tokens = claudeMaxTokens;
     }
   }
 
@@ -971,7 +972,7 @@ async function handleGatewayRequest(
   const buildRequestBody = (msgs: any[], includeTools: boolean): any => {
     const body: any = {
       model: selectedModel,
-      max_tokens: 65536,
+      max_tokens: contextPreset.gateway,
       messages: [
         { role: 'system', content: systemPrompt },
         ...msgs,
@@ -1158,7 +1159,7 @@ async function handlePerplexityRequest(
     },
     body: JSON.stringify({
       model: pplxModel,
-      max_tokens: 16384,
+      max_tokens: contextPreset.perplexity,
       messages: [
         { role: 'system', content: systemPrompt },
         ...strictMerged,
