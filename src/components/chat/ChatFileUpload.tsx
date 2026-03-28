@@ -173,6 +173,41 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
     toast.success(`Loaded ${driveFiles.length} file${driveFiles.length !== 1 ? 's' : ''} from Google Drive`);
   };
 
+  const handleKnowledgeDocsSelected = useCallback(async (docs: { id: string; name: string }[]) => {
+    if (docs.length === 0) return;
+    setParsing(true);
+    let loaded = 0;
+    for (const doc of docs) {
+      try {
+        const { data } = await supabase
+          .from('knowledge_chunks')
+          .select('chunk_text, chunk_index')
+          .eq('document_id', doc.id)
+          .order('chunk_index', { ascending: true })
+          .limit(200);
+        const content = (data || []).map(c => c.chunk_text).join('\n\n');
+        if (content) {
+          setAttachments(prev => [...prev, {
+            name: `📚 ${doc.name}`,
+            type: 'text',
+            content,
+            mimeType: 'text/plain',
+          }]);
+          loaded++;
+        }
+      } catch (e) {
+        console.error(`Failed to load KB doc ${doc.name}:`, e);
+      }
+    }
+    setParsing(false);
+    if (loaded > 0) toast.success(`Loaded ${loaded} document${loaded !== 1 ? 's' : ''} from Knowledge Base`);
+  }, [setAttachments]);
+
+  // Track already-attached KB doc names to prevent duplicates
+  const attachedKbNames = new Set(
+    attachments.filter(a => a.name.startsWith('📚 ')).map(a => a.name.slice(2).trim())
+  );
+
   return (
     <>
       <input
@@ -212,9 +247,23 @@ export function ChatFileUpload({ attachments, setAttachments, disabled, onHandle
             <HardDrive className="h-4 w-4" />
             Google Drive
           </DropdownMenuItem>
+          {sessionId && (
+            <DropdownMenuItem onClick={() => setKbPickerOpen(true)} className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Knowledge Base
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
+      {sessionId && (
+        <KnowledgeBasePickerDialog
+          open={kbPickerOpen}
+          onOpenChange={setKbPickerOpen}
+          sessionId={sessionId}
+          onDocumentsSelected={handleKnowledgeDocsSelected}
+        />
+      )}
     </>
   );
 }
