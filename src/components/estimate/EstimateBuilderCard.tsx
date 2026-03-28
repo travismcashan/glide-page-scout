@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, RefreshCw, PlusCircle, Loader2, CalendarDays, FileText } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, RefreshCw, PlusCircle, Loader2, CalendarDays, FileText, Trash2 } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
