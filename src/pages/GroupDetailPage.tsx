@@ -66,7 +66,7 @@ function SitesTab({
       {members.map(m => {
         const p = progress.get(m.session_id);
         const pct = p && p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
-        const isComplete = p && p.total > 0 && p.done === p.total;
+        const isComplete = (p && p.total > 0 && p.done === p.total) || m.status === 'completed';
         const needsTimestamp = (domainCounts.get(m.domain) ?? 0) > 1;
 
         return (
@@ -319,7 +319,12 @@ export default function GroupDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [members.length, groupId]);
 
-  const completedCount = members.filter(m => { const p = progress.get(m.session_id); return p && p.total > 0 && p.done === p.total; }).length;
+  const completedCount = members.filter(m => {
+    const p = progress.get(m.session_id);
+    // If integration_runs exist, use them; otherwise fall back to session status
+    if (p && p.total > 0) return p.done === p.total;
+    return m.status === 'completed';
+  }).length;
 
   const domainCounts = useMemo(() => {
     const counts = new Map<string, number>();

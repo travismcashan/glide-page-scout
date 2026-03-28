@@ -17,7 +17,16 @@ function extractTechs(session: any): { name: string; category: string }[] {
   const techs: { name: string; category: string }[] = [];
 
   const bw = session.builtwith_data;
-  if (bw?.technologies) {
+  // BuiltWith grouped format: { grouped: { "CMS": [...], "Analytics": [...] } }
+  if (bw?.grouped) {
+    for (const [category, items] of Object.entries(bw.grouped)) {
+      if (Array.isArray(items)) {
+        for (const t of items as any[]) {
+          if (t.name) techs.push({ name: t.name, category });
+        }
+      }
+    }
+  } else if (bw?.technologies) {
     for (const t of bw.technologies) {
       if (t.name) techs.push({ name: t.name, category: t.categories?.[0] || t.tag || 'Other' });
     }
