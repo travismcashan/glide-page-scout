@@ -167,7 +167,7 @@ export default function CrawlPage() {
 
           {/* ── Search bar ── */}
           <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-2 p-2 rounded-2xl bg-card shadow-lg shadow-primary/5">
+            <div className="flex items-center gap-2 px-2 h-12 rounded-2xl bg-card shadow-lg shadow-primary/5">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -175,15 +175,15 @@ export default function CrawlPage() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="Enter a URL to analyze…"
-                  className="pl-10 h-11 text-base border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="pl-10 h-full text-base border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   disabled={isStarting}
                 />
               </div>
               <Button
                 type="submit"
-                size="lg"
+                size="sm"
                 disabled={isStarting || !url.trim()}
-                className="rounded-xl px-6 gap-2"
+                className="rounded-xl px-5 gap-2 h-8"
               >
                 {isStarting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" />Analyzing…</>
@@ -205,7 +205,7 @@ export default function CrawlPage() {
                   <button
                     key={s.sessionId}
                     onClick={() => navigate(buildSitePath(s.domain, s.createdAt, (multiDomains.get(s.domain) ?? 0) > 1))}
-                    className="w-full flex items-center justify-between gap-4 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                    className="w-full flex items-center justify-between gap-4 px-4 h-12 text-left hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Globe className="h-4 w-4 shrink-0 text-primary/60" />
