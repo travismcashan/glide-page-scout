@@ -310,13 +310,13 @@ function TaskTableRow({
       </TableCell>
 
       {/* Hrs/Person */}
-      <TableCell className="py-1.5 text-right">
+      <TableCell className="py-1.5 text-center">
         {!formulaDriven ? (
           <Input
             type="number"
             value={task.hours_per_person ?? task.hours}
             onChange={e => onHoursPerPersonChange(task.id, parseFloat(e.target.value) || 0)}
-            className="w-16 text-center h-7 text-xs ml-auto"
+            className="w-16 text-center h-7 text-xs mx-auto"
             min={0}
             step={0.5}
           />
@@ -326,7 +326,7 @@ function TaskTableRow({
       </TableCell>
 
       {/* Total */}
-      <TableCell className="py-1.5 text-right">
+      <TableCell className="py-1.5 text-center">
         {(roleCount > 1 || hasVariable || formulaDriven) ? (
           <span className={`text-sm font-medium ${formulaDriven ? 'text-muted-foreground' : ''}`}>{Number(task.hours).toFixed(1)}</span>
         ) : (
@@ -334,7 +334,7 @@ function TaskTableRow({
             type="number"
             value={task.hours}
             onChange={e => onHoursChange(task.id, parseFloat(e.target.value) || 0)}
-            className="w-16 text-center h-7 text-xs ml-auto"
+            className="w-16 text-center h-7 text-xs mx-auto"
             min={0}
             step={0.5}
           />
