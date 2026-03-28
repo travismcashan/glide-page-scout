@@ -60,7 +60,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [activeTier, setActiveTier] = useState<BulkTier | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['not-included']));
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const isEstimate = mode === 'estimate';
 
