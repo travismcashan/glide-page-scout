@@ -2721,6 +2721,7 @@ export default function ResultsPage() {
                 contentTypesData={session.content_types_data as any}
                 formsData={session.forms_data}
                 wappalyzerData={session.wappalyzer_data}
+                templateTiers={(session as any).template_tiers}
               />
             )}
             </div>}
