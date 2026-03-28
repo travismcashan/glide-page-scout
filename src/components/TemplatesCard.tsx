@@ -360,7 +360,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
         <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">Design</th>
+              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">{isEstimate ? 'Design' : '#'}</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
@@ -412,15 +412,15 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               </>
             ) : (
               templates.map((t, i) => (
-                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} />
+                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} />
               ))
             )}
           </tbody>
         </table>
       </div>
 
-      {/* AI reasoning footer — per-tier */}
-      {aiTiers && activeTier && activeTier !== 'All' && (() => {
+      {/* AI reasoning footer — per-tier (estimate mode only) */}
+      {isEstimate && aiTiers && activeTier && activeTier !== 'All' && (() => {
         // Build cumulative reasoning: S shows S, M shows S+M, L shows S+M+L
         const sections: { label: string; content: string }[] = [];
         if (aiTiers.reasoning_S) sections.push({ label: 'Small', content: aiTiers.reasoning_S });
