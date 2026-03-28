@@ -5,11 +5,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const COUNCIL_MODELS = [
+const DEFAULT_COUNCIL_MODELS = [
   { key: 'gemini', id: 'google/gemini-2.5-flash', name: 'Gemini Flash', provider: 'gateway' as const },
   { key: 'gpt', id: 'openai/gpt-5-mini', name: 'GPT-5 Mini', provider: 'gateway' as const },
   { key: 'claude', id: 'claude-haiku', name: 'Claude Haiku', provider: 'anthropic' as const },
 ];
+
+// Model ID to display name map
+const MODEL_NAMES: Record<string, string> = {
+  'google/gemini-2.5-flash-lite': 'Gemini Flash Lite',
+  'google/gemini-2.5-flash': 'Gemini Flash 2.5',
+  'google/gemini-3-flash-preview': 'Gemini Flash 3.0',
+  'google/gemini-2.5-pro': 'Gemini Pro 2.5',
+  'google/gemini-3.1-pro-preview': 'Gemini Pro 3.1',
+  'openai/gpt-5': 'GPT-5',
+  'openai/gpt-5-mini': 'GPT-5 Mini',
+  'openai/gpt-5.2': 'GPT-5.2',
+  'claude-haiku': 'Claude Haiku',
+  'claude-sonnet': 'Claude Sonnet',
+  'claude-opus': 'Claude Opus',
+};
 
 const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-haiku': { model: 'claude-haiku-4-5-20251001', maxOutput: 8192 },
