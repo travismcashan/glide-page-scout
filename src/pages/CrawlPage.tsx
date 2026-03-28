@@ -76,6 +76,7 @@ export default function CrawlPage() {
   const [recentViews, setRecentViews] = useState<RecentView[]>([]);
   const [wordIndex, setWordIndex] = useState(0);
   const phrase = useMemo(() => ROTATING_PHRASES[Math.floor(Math.random() * ROTATING_PHRASES.length)], []);
+  const greeting = useMemo(() => getGreeting(), []);
 
   // Rotating word animation
   useEffect(() => {
@@ -149,9 +150,9 @@ export default function CrawlPage() {
           <div className="space-y-[-0.15em]">
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
               {firstName ? (
-                <>Hello, {firstName}.</>
+                <>{greeting}, {firstName}.</>
               ) : (
-                <>Hello.</>
+                <>{greeting}.</>
               )}
             </h1>
             <div className="flex items-end gap-3 text-4xl sm:text-5xl font-bold tracking-tight leading-none">
