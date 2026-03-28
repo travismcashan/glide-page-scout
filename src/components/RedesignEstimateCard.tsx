@@ -222,7 +222,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     }
   }, [globalInnerExpand]);
 
-  const { baseTypeCounts, totalPages, primaryUrls, secondaryUrls, tertiaryUrls } = useMemo(() => {
+  const { baseTypeCounts, totalPages, integrablePages, primaryUrls, secondaryUrls, tertiaryUrls } = useMemo(() => {
     const counts: Record<string, number> = { Page: 0, Post: 0, CPT: 0, Archive: 0, Search: 0 };
 
     if (pageTags) {
