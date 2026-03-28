@@ -243,7 +243,8 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     if (pageTags) {
       for (const url of Object.keys(pageTags)) {
         const norm = url.replace(/\/$/, '');
-        if (!primarySet.has(norm) && !secondarySet.has(norm)) {
+        const tag = pageTags[url];
+        if (!primarySet.has(norm) && !secondarySet.has(norm) && tag.baseType !== 'Post') {
           tUrls.push(norm);
         }
       }
