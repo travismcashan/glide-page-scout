@@ -145,7 +145,7 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
             <TableRow className="bg-muted/50">
               <TableHead className="w-10" />
               {groupBy !== 'phase' && (
-                <TableHead className="cursor-pointer select-none w-[180px] whitespace-nowrap" onClick={() => toggleSort('phase_name')}>
+                <TableHead className="cursor-pointer select-none w-[120px] whitespace-nowrap" onClick={() => toggleSort('phase_name')}>
                   <span className="flex items-center text-xs">Phase<SortIcon field="phase_name" /></span>
                 </TableHead>
               )}
@@ -288,7 +288,9 @@ function TaskTableRow({
 
       {/* Phase — first data column */}
       {showPhaseCol && (
-        <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">{task.phase_name || '-'}</TableCell>
+        <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">
+          {(task.phase_name === 'Project Management' ? 'PM' : task.phase_name) || '-'}
+        </TableCell>
       )}
 
       {/* Task name */}
