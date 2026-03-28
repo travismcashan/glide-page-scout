@@ -259,7 +259,7 @@ function ScopeTab({ scope, mode = 'analysis', tierSelector, selectedTpaCount }: 
   );
 }
 
-export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierChange }: Props) {
+export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierChange, savedTier, onActiveTierChange }: Props & { savedTier?: string | null; onActiveTierChange?: (tier: string) => void }) {
   const scope: Scope | undefined = data?.analysis ? (data.analysis as any).scope : undefined;
   const pluginCount = Array.isArray(scope?.plugins) ? scope!.plugins.length : 0;
   const thirdPartyCount = Array.isArray(scope?.thirdPartyIntegrations) ? scope!.thirdPartyIntegrations.length : 0;
@@ -267,7 +267,7 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
 
   // Auto-suggest tier based on data
   const suggestedTier: TechTier = specialSetupCount > 0 ? 'L' : thirdPartyCount > 0 ? 'M' : 'S';
-  const [tier, setTier] = useState<TechTier>(suggestedTier);
+  const [tier, setTier] = useState<TechTier>((savedTier as TechTier) || suggestedTier);
 
   const isEstimate = mode === 'estimate';
 

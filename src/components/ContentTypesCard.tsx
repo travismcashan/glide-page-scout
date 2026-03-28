@@ -441,7 +441,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
         </div>
         <div className="flex items-center gap-2">
           {isEstimate && (
-            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && setActiveTier(v as BulkTier)} size="sm" variant="outline">
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => { if (v) { setActiveTier(v as BulkTier); onActiveTierChange?.(v); } }} size="sm" variant="outline">
               {(['S', 'M', 'L'] as BulkTier[]).map(tier => (
                 <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
                   {tierLabel(tier)}
