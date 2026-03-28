@@ -103,7 +103,7 @@ const LOADING_MESSAGES = [
   'Counting unique layouts with abacuses…',
 ];
 
-export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis' }: Props) {
+export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis', onSelectionChange }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
