@@ -992,7 +992,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean }>({ documents: true, web: false, analytics: false });
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
-  const [contextWindowSize, setContextWindowSize] = useState<'small' | 'medium' | 'large'>('medium');
+  const [contextWindowSize, setContextWindowSize] = useState<'small' | 'medium' | 'large'>(
+    () => (localStorage.getItem('ai-context-window') as 'small' | 'medium' | 'large') || 'medium'
+  );
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [savedNoteContents, setSavedNoteContents] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2791,7 +2793,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       return (
                         <button
                           key={p.key}
-                          onClick={() => setContextWindowSize(p.key)}
+                          onClick={() => { setContextWindowSize(p.key); localStorage.setItem('ai-context-window', p.key); }}
                           className={`rounded-md border px-1.5 py-1 text-center transition-all ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 text-muted-foreground hover:text-foreground'}`}
                         >
                           <span className="text-xs">{p.emoji}</span>
