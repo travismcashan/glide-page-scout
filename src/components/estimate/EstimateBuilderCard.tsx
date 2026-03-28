@@ -510,7 +510,17 @@ function getProjectDuration(totalHours: number): string {
                     title="Content Audit"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
                   >
-                    <RedesignEstimateCard pageTags={pageTags} contentTypesData={contentTypesData} navStructure={navStructure} />
+                    <RedesignEstimateCard
+                      pageTags={pageTags}
+                      contentTypesData={contentTypesData}
+                      navStructure={navStructure}
+                      mode="estimate"
+                      onSelectionChange={(count) => {
+                        if (estimate && count !== estimate.pages_for_integration) {
+                          handleVariablesChange({ ...estimate, pages_for_integration: count });
+                        }
+                      }}
+                    />
                   </SectionCard>
                 )}
 
