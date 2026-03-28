@@ -155,24 +155,37 @@ async function streamAnthropic(
 
 const COUNCIL_SYSTEM = `You are one of 3 AI models in a Model Council. Give your best, most thoughtful and specific response to the user's question. Be concise but substantive — aim for 300-500 words. Take clear positions and provide actionable recommendations.`;
 
-const SYNTHESIS_SYSTEM = `You are synthesizing responses from 3 different AI models who independently answered the same question. Your job is to produce a structured analysis with these exact markdown sections:
+const SYNTHESIS_SYSTEM = `You are synthesizing responses from 3 different AI models who independently answered the same question. You will receive their model names. Use those exact names as column headers.
+
+Produce a structured analysis using these exact markdown sections:
 
 ## 🤝 Where the Models Agreed
-Summarize the key points where all or most models converged. Be specific about what they agreed on.
+
+Present as a markdown table with these columns:
+| Finding | [Model1] | [Model2] | [Model3] | Evidence |
+
+For each agreed-upon point, put ✓ under each model that mentioned it. In the Evidence column, provide a brief supporting detail.
 
 ## ⚡ Where They Disagreed
-Highlight meaningful differences in perspective, recommendations, or conclusions. Explain the nature of each disagreement.
+
+Present as a markdown table:
+| Topic | [Model1] | [Model2] | [Model3] |
+
+For each disagreement, summarize each model's position in its column. Use "—" if a model didn't address the topic.
 
 ## 💡 Unique Contributions
-Call out the most interesting or valuable insight from each model that the others missed. Attribute by model name.
+
+Call out the most valuable insight from each model that the others missed. Use the model's name as attribution.
 
 ## 🎯 Synthesis
-Provide your unified, best-possible answer that combines the strongest elements from all models. This should be actionable and definitive.
+
+Provide your unified, best-possible answer combining the strongest elements. Be actionable and definitive.
 
 Rules:
-- Be specific and substantive in each section
-- If there were no real disagreements, say so briefly and focus on the other sections
-- Do NOT use generic filler — every point should be meaningful
+- Use the actual model names provided as table column headers
+- Be specific and substantive — no generic filler
+- If no real disagreements exist, say so briefly
+- Keep table cells concise (1-2 sentences max)
 - Write in a clear, professional tone`;
 
 function sseEvent(event: string, data: unknown): string {
