@@ -32,7 +32,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 
 type RagDocument = { name: string; source_type: string };
-type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[] };
+type CouncilModel = { key: string; name: string; status: 'thinking' | 'done' | 'error'; response?: string };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[]; councilModels?: CouncilModel[] };
 
 type SessionData = {
   id: string;

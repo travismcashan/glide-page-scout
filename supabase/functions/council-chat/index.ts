@@ -16,13 +16,10 @@ const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-sonnet': { model: 'claude-sonnet-4-6', maxOutput: 16000 },
 };
 
-// ─── Model calls (non-streaming) ───
-
-async function callGateway(apiKey: string, model: string, systemPrompt: string, userContent: string, signal?: AbortSignal): Promise<string> {
+async function callGateway(apiKey: string, model: string, systemPrompt: string, userContent: string): Promise<string> {
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    signal,
     body: JSON.stringify({
       model,
       messages: [
@@ -41,7 +38,7 @@ async function callGateway(apiKey: string, model: string, systemPrompt: string, 
   return data.choices?.[0]?.message?.content || '';
 }
 
-async function callAnthropic(apiKey: string, modelId: string, systemPrompt: string, userContent: string, signal?: AbortSignal): Promise<string> {
+async function callAnthropic(apiKey: string, modelId: string, systemPrompt: string, userContent: string): Promise<string> {
   const cm = CLAUDE_MODELS[modelId] || { model: modelId, maxOutput: 8192 };
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -50,7 +47,6 @@ async function callAnthropic(apiKey: string, modelId: string, systemPrompt: stri
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
-    signal,
     body: JSON.stringify({
       model: cm.model,
       max_tokens: cm.maxOutput,
@@ -66,26 +62,31 @@ async function callAnthropic(apiKey: string, modelId: string, systemPrompt: stri
   return data.content?.[0]?.text || '';
 }
 
-// ─── Prompts ───
-
 const COUNCIL_SYSTEM = `You are one of 3 AI models in a Model Council. Give your best, most thoughtful and specific response to the user's question. Be concise but substantive — aim for 300-500 words. Take clear positions and provide actionable recommendations.`;
 
-const SYNTHESIS_SYSTEM = `You are synthesizing responses from 3 different AI models who independently answered the same question. Create a unified, comprehensive answer that:
+const SYNTHESIS_SYSTEM = `You are synthesizing responses from 3 different AI models who independently answered the same question. Your job is to produce a structured analysis with these exact markdown sections:
 
-1. Leads with the strongest consensus answer
-2. Incorporates unique insights from each model
-3. Notes any meaningful disagreements
-4. Is well-structured with markdown formatting
+## 🤝 Where the Models Agreed
+Summarize the key points where all or most models converged. Be specific about what they agreed on.
 
-Do NOT mention "Model 1/2/3" or reference the council process. Just deliver the best possible answer as if you're a single expert. Be thorough but concise.`;
+## ⚡ Where They Disagreed
+Highlight meaningful differences in perspective, recommendations, or conclusions. Explain the nature of each disagreement.
 
-// ─── SSE helpers ───
+## 💡 Unique Contributions
+Call out the most interesting or valuable insight from each model that the others missed. Attribute by model name.
+
+## 🎯 Synthesis
+Provide your unified, best-possible answer that combines the strongest elements from all models. This should be actionable and definitive.
+
+Rules:
+- Be specific and substantive in each section
+- If there were no real disagreements, say so briefly and focus on the other sections
+- Do NOT use generic filler — every point should be meaningful
+- Write in a clear, professional tone`;
 
 function sseEvent(event: string, data: any): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
-
-// ─── Main handler with SSE streaming ───
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -115,7 +116,6 @@ serve(async (req) => {
     if (customInstructions?.trim()) system += `\n\n--- User Instructions ---\n${customInstructions}`;
     const userContent = contextBlock ? `${prompt}\n\n--- Context ---\n${contextBlock}` : prompt;
 
-    // Stream SSE response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -145,13 +145,12 @@ serve(async (req) => {
 
           const results = await Promise.all(modelPromises);
 
-          // Phase 2: Synthesize
+          // Phase 2: Synthesize with structured prompt
           send('synthesis_start', {});
           const synthesisInput = results.map(r =>
             `## ${r.name}\n\n${r.response}`
           ).join('\n\n---\n\n');
 
-          // Stream synthesis via gateway
           const synthResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
