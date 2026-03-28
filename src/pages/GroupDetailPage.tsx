@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Globe, Clock, ExternalLink, Loader2, Trash2, ArrowRight, Search } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Globe, Clock, ExternalLink, Loader2, Trash2, ArrowRight, Search, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { buildSitePath } from '@/lib/sessionSlug';
