@@ -916,7 +916,9 @@ export default function ResultsPage() {
       if (result.success && session) {
         await supabase.from('crawl_sessions').update({ apollo_data: result } as any).eq('id', session.id);
       }
-      if (!result.success) toast.error(result.error || 'Apollo enrichment failed');
+      if (!result.success && result.errorCode !== 'CREDITS_EXHAUSTED') {
+        toast.error(result.error || 'Apollo enrichment failed');
+      }
     } catch (e: any) {
       toast.error(e?.message || 'Apollo request failed');
     }
@@ -933,7 +935,7 @@ export default function ResultsPage() {
       if (result.success && session) {
         await supabase.from('crawl_sessions').update({ apollo_team_data: result } as any).eq('id', session.id);
       }
-      if (!result.success) toast.error(result.error || 'Apollo team search failed');
+      if (!result.success && result.errorCode !== 'CREDITS_EXHAUSTED') toast.error(result.error || 'Apollo team search failed');
       else if (result.totalFound > 0) toast.success(`Found ${result.totalFound} team contacts`);
     } catch (e: any) {
       toast.error(e?.message || 'Apollo team search failed');

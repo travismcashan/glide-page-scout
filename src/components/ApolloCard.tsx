@@ -20,6 +20,15 @@ type Props = {
   prospectDomain?: string | null;
 };
 
+function CreditsBanner({ error }: { error?: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
+      <span className="text-sm">⚠</span>
+      <p className="text-xs text-muted-foreground">{error || 'Apollo API credits have been exhausted. Enrichment will resume once credits are replenished.'}</p>
+    </div>
+  );
+}
+
 export function ApolloCard({ data, isLoading, onSearch, teamData, teamLoading, onTeamSearch, prospectDomain }: Props) {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -56,7 +65,11 @@ export function ApolloCard({ data, isLoading, onSearch, teamData, teamLoading, o
         </Button>
       </form>
 
-      {data && data.found === false && (
+      {data && (data as any).errorCode === 'CREDITS_EXHAUSTED' && (
+        <CreditsBanner error={data.error} />
+      )}
+
+      {data && data.found === false && !(data as any).errorCode && (
         <p className="text-sm text-muted-foreground">No matching contact found in Apollo's database.</p>
       )}
 

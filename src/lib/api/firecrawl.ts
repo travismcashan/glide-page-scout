@@ -604,6 +604,7 @@ export const apolloApi = {
     departments?: string[];
     employmentHistory?: { title: string; organizationName: string; startDate?: string; endDate?: string; current?: boolean }[];
     error?: string;
+    errorCode?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('apollo-enrich', {
       body: { email, firstName, lastName, domain },
