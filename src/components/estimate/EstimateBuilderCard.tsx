@@ -499,26 +499,6 @@ function getProjectDuration(totalHours: number): string {
 
                 {pageTags && (
                   <SectionCard
-                    sectionId="est-content-audit"
-                    title="Page Analysis"
-                    icon={<Layers className="h-5 w-5 text-foreground" />}
-                  >
-                    <RedesignEstimateCard
-                      pageTags={pageTags}
-                      contentTypesData={contentTypesData}
-                      navStructure={navStructure}
-                      mode="estimate"
-                      onSelectionChange={(count) => {
-                        if (estimate && count !== estimate.pages_for_integration) {
-                          handleVariablesChange({ ...estimate, pages_for_integration: count });
-                        }
-                      }}
-                    />
-                  </SectionCard>
-                )}
-
-                {pageTags && (
-                  <SectionCard
                     sectionId="est-templates"
                     title="Template Analysis"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
@@ -541,6 +521,26 @@ function getProjectDuration(totalHours: number): string {
                       onSelectionChange={(count) => {
                         if (estimate && count !== estimate.design_layouts) {
                           handleVariablesChange({ ...estimate, design_layouts: count });
+                        }
+                      }}
+                    />
+                  </SectionCard>
+                )}
+
+                {pageTags && (
+                  <SectionCard
+                    sectionId="est-content-audit"
+                    title="Page Analysis"
+                    icon={<Layers className="h-5 w-5 text-foreground" />}
+                  >
+                    <RedesignEstimateCard
+                      pageTags={pageTags}
+                      contentTypesData={contentTypesData}
+                      navStructure={navStructure}
+                      mode="estimate"
+                      onSelectionChange={(count) => {
+                        if (estimate && count !== estimate.pages_for_integration) {
+                          handleVariablesChange({ ...estimate, pages_for_integration: count });
                         }
                       }}
                     />
