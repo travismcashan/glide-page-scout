@@ -1879,9 +1879,6 @@ export default function ResultsPage() {
 
   const tabTriggers = (
     <>
-      <TabsTrigger value="chat" style={tabTriggerStyle('chat')} className={tabTriggerClass}>
-        Chat
-      </TabsTrigger>
       <TabsTrigger value="raw-data" style={tabTriggerStyle('raw-data')} className={tabTriggerClass}>
         <Globe className="h-4 w-4 mr-2" />Site Analysis
       </TabsTrigger>
@@ -1895,6 +1892,9 @@ export default function ResultsPage() {
       </TabsTrigger>
       <TabsTrigger value="knowledge" style={tabTriggerStyle('knowledge')} className={tabTriggerClass}>
         <BookOpen className="h-4 w-4 mr-2" />Knowledge
+      </TabsTrigger>
+      <TabsTrigger value="chat" style={tabTriggerStyle('chat')} className={tabTriggerClass}>
+        Chat
       </TabsTrigger>
     </>
   );
