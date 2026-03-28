@@ -290,6 +290,104 @@ export type Database = {
         }
         Relationships: []
       }
+      global_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          rag_documents: Json | null
+          role: string
+          sources: string[] | null
+          thread_id: string
+          web_citations: Json | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          rag_documents?: Json | null
+          role: string
+          sources?: string[] | null
+          thread_id: string
+          web_citations?: Json | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          rag_documents?: Json | null
+          role?: string
+          sources?: string[] | null
+          thread_id?: string
+          web_citations?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "global_chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      global_chat_sources: {
+        Row: {
+          created_at: string
+          id: string
+          session_id: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          session_id: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_chat_sources_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "global_chat_sources_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "global_chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      global_chat_threads: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       integration_settings: {
         Row: {
           id: string
@@ -649,6 +747,23 @@ export type Database = {
           p_match_threshold?: number
           p_session_id: string
           p_source_types: string[]
+        }
+        Returns: {
+          chunk_index: number
+          chunk_text: string
+          document_id: string
+          document_name: string
+          id: string
+          similarity: number
+          source_type: string
+        }[]
+      }
+      match_knowledge_chunks_multi: {
+        Args: {
+          p_embedding: string
+          p_match_count?: number
+          p_match_threshold?: number
+          p_session_ids: string[]
         }
         Returns: {
           chunk_index: number
