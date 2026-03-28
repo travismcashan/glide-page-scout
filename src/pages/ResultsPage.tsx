@@ -298,13 +298,6 @@ export default function ResultsPage() {
   };
   const [showAllIntegrations, setShowAllIntegrations] = useState(false);
   const freezeVisibilityForCompletedSession = session?.status === 'completed';
-  const shouldShowIntegration = useCallback((key: string, hasData: boolean, showAll: boolean, sharedView?: boolean): boolean => {
-    if (sharedView) return hasData;
-    if (hasData) return true;
-    if (showAll) return true;
-    if (freezeVisibilityForCompletedSession) return true;
-    return !isIntegrationPaused(key);
-  }, [freezeVisibilityForCompletedSession]);
   // Pending prompt from Prompts tab → passed to chat
   const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
