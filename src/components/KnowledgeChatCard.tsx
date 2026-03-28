@@ -2615,6 +2615,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             setAttachments={setAttachments}
             disabled={isStreaming}
             onHandleFilesRef={handleFilesRef}
+            sessionId={session.id}
           />
 
           {/* Add Site button (global mode) */}
