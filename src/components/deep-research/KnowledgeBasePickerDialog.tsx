@@ -203,6 +203,14 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
               </div>
             ) : (
               <div className="divide-y">
+                {/* Column headers */}
+                <div className="flex items-center gap-4 px-4 py-2 bg-muted/40 text-xs font-medium text-muted-foreground sticky top-0 z-10">
+                  <div className="w-6" />
+                  <div className="w-6" />
+                  <div className="flex-1 min-w-0">Name</div>
+                  <div className="flex-shrink-0 hidden sm:block">Source</div>
+                  <div className="flex-shrink-0 hidden sm:block pr-1">Date Added</div>
+                </div>
                 {processedDocs.map(doc => {
                   const Icon = getDocumentIcon(doc.name, doc.source_type, doc.source_key);
                   const isAlreadyPicked = alreadySelectedIds?.has(doc.id);
