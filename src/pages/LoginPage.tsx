@@ -1,11 +1,18 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Zap } from 'lucide-react';
 import { lovable } from '@/integrations/lovable/index';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  // If already signed in, redirect to home
+  if (!loading && user) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleGoogleSignIn = async () => {
     const result = await lovable.auth.signInWithOAuth('google', {
