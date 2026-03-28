@@ -439,6 +439,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           <MetaStat value={`${Math.round(totals.lowWeeks)}–${Math.round(totals.highWeeks)}`} label="Work Weeks" />
           <MetaStatDivider />
           <MetaStat value={totals.totalHours.toFixed(0)} label="Total Hours" />
+          <MetaStatDivider />
+          <MetaStat value={getProjectDuration(Math.round(totals.lowWeeks))} label="Est. Duration" />
           <div className="ml-auto">
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0">
               {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
