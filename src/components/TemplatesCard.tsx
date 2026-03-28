@@ -316,8 +316,10 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, save
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
 
-  // Notify parent whenever the included count changes
+  // Notify parent whenever the included count changes (skip initial mount)
+  const selectionMountRef = useRef(true);
   useEffect(() => {
+    if (selectionMountRef.current) { selectionMountRef.current = false; return; }
     if (mode === 'estimate' && onSelectionChange) {
       onSelectionChange(designCount);
     }

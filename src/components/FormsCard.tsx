@@ -202,8 +202,10 @@ export function FormsCard({ data, domain, savedTiers, savedActiveTier, onTiersCh
     }
   }, [aiTiers, activeTier, forms]);
 
-  // Fire form tier counts to parent when selection changes
+  // Fire form tier counts to parent when selection changes (skip initial mount)
+  const formTierMountRef = useRef(true);
   useEffect(() => {
+    if (formTierMountRef.current) { formTierMountRef.current = false; return; }
     if (!onFormTierChange || !aiTiers) return;
     const includedForms = forms.filter(f => !excluded.has(f.formType));
     const sSet = new Set(aiTiers.S);

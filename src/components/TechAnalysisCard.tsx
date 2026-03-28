@@ -277,8 +277,10 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
     return { tier: t, plugins: pluginCount, thirdParty: thirdPartyCount, specialSetup: specialSetupCount, totalIncluded: total };
   };
 
-  // Fire callback on tier change or initial mount
+  // Fire callback on tier change (skip initial mount)
+  const tierMountRef = useRef(true);
   useEffect(() => {
+    if (tierMountRef.current) { tierMountRef.current = false; return; }
     if (isEstimate && onTierChange && scope) {
       onTierChange(getTierCounts(tier));
     }

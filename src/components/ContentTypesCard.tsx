@@ -234,8 +234,10 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
     }
   }, [isEstimate, summary]);
 
-  // Notify parent when tier changes
+  // Notify parent when tier changes (skip initial mount)
+  const tierMountRef = useRef(true);
   useEffect(() => {
+    if (tierMountRef.current) { tierMountRef.current = false; return; }
     if (isEstimate && activeTier && onTierChange) {
       const tc = tierCounts[activeTier];
       onTierChange(activeTier, tc.types, tc.urls);
