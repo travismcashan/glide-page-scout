@@ -469,33 +469,8 @@ function getProjectDuration(totalHours: number): string {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between">
-          <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="variables" className="gap-1.5 text-xs">
-              <Settings2 className="h-3.5 w-3.5" />Scope
-            </TabsTrigger>
-            <TabsTrigger value="all" className="text-xs">All Tasks</TabsTrigger>
-            <TabsTrigger value="phase" className="text-xs">By Phase</TabsTrigger>
-            <TabsTrigger value="role" className="text-xs">By Role</TabsTrigger>
-            <TabsTrigger value="timeline" className="gap-1.5 text-xs">
-              <CalendarDays className="h-3.5 w-3.5" />Timeline
-            </TabsTrigger>
-            <TabsTrigger value="sow" className="gap-1.5 text-xs">
-              <FileText className="h-3.5 w-3.5" />SOW View
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Summary bar */}
-        <div className="flex items-center gap-4 px-4 bg-muted/80 rounded-lg mt-3 mb-4 sticky top-[60px] z-30 backdrop-blur-sm border border-border/50 h-[84px] [&_.meta-value]:text-4xl">
+        {/* Summary bar — full width at top */}
+        <div className="flex items-center gap-4 px-4 bg-muted/80 rounded-lg mb-4 sticky top-[60px] z-30 backdrop-blur-sm border border-border/50 h-[84px] [&_.meta-value]:text-4xl">
           <MetaStat value={formatCurrency(Math.round(totals.totalCost / 100) * 100)} label="Project Budget" />
           <MetaStatDivider />
           <MetaStat value={getProjectDuration(totals.totalHours)} label="Est. Duration" />
@@ -511,6 +486,31 @@ function getProjectDuration(totalHours: number): string {
         <div className={`grid grid-cols-1 ${sidebarOpen ? 'lg:grid-cols-4' : ''} gap-6`}>
           {/* Main Content */}
           <div className={sidebarOpen ? 'lg:col-span-3' : ''}>
+            {/* Sub-tabs + Save/Delete — left column only */}
+            <div className="flex items-center justify-between mb-4">
+              <TabsList className="flex-wrap h-auto gap-1">
+                <TabsTrigger value="variables" className="gap-1.5 text-xs">
+                  <Settings2 className="h-3.5 w-3.5" />Scope
+                </TabsTrigger>
+                <TabsTrigger value="all" className="text-xs">All Tasks</TabsTrigger>
+                <TabsTrigger value="phase" className="text-xs">By Phase</TabsTrigger>
+                <TabsTrigger value="role" className="text-xs">By Role</TabsTrigger>
+                <TabsTrigger value="timeline" className="gap-1.5 text-xs">
+                  <CalendarDays className="h-3.5 w-3.5" />Timeline
+                </TabsTrigger>
+                <TabsTrigger value="sow" className="gap-1.5 text-xs">
+                  <FileText className="h-3.5 w-3.5" />SOW View
+                </TabsTrigger>
+              </TabsList>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={saving}>
+                  <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+            </div>
 
             <TabsContent value="variables">
               <div className="space-y-6">
