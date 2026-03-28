@@ -1115,6 +1115,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      count_integrations: {
+        Args: { session_ids: string[] }
+        Returns: {
+          integration_count: number
+          session_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
