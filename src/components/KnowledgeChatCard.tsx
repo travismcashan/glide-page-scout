@@ -1309,6 +1309,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     updateCouncilMessage();
                     break;
                   case 'synthesis_start':
+                    // Force all models to done when synthesis begins
+                    for (const key of Object.keys(modelStatuses)) {
+                      if (modelStatuses[key].status === 'thinking') {
+                        modelStatuses[key].status = 'done';
+                      }
+                    }
                     updateCouncilMessage();
                     break;
                   case 'synthesis_chunk':
