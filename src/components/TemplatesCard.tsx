@@ -391,12 +391,17 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                   const LIMIT = 5;
                   const isExpanded = expandedTableSections.has('recommended');
                   const hasMore = recommendedTemplates.length > LIMIT;
-                  const visible = isExpanded ? recommendedTemplates : recommendedTemplates.slice(0, LIMIT);
                   return (
                     <>
-                      {visible.map((t, i) => (
-                        <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
-                      ))}
+                      <tr>
+                        <td colSpan={5} className="p-0">
+                          <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
+                            {recommendedTemplates.map((t, i) => (
+                              <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
                       {hasMore && (
                         <tr>
                           <td colSpan={5} className="p-0 relative">
