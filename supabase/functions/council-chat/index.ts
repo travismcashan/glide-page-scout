@@ -33,6 +33,7 @@ const MODEL_NAMES: Record<string, string> = {
 const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-haiku': { model: 'claude-haiku-4-5-20251001', maxOutput: 8192 },
   'claude-sonnet': { model: 'claude-sonnet-4-6', maxOutput: 16000 },
+  'claude-opus': { model: 'claude-opus-4-6', maxOutput: 16000 },
 };
 
 // Stream a gateway model, emitting chunks via callback
