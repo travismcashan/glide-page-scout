@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,6 +50,8 @@ type PageData = {
   screenshot_url?: string | null;
 };
 
+type AttachedSite = { session_id: string; domain: string };
+
 type Props = {
   session: SessionData;
   pages?: PageData[];
@@ -64,6 +66,15 @@ type Props = {
   /** When set, auto-fills the prompt and optionally enables deep research mode */
   pendingPrompt?: { text: string; deepResearch: boolean } | null;
   onPendingPromptConsumed?: () => void;
+  /** Global chat mode: no crawl context by default, multi-session RAG */
+  globalMode?: boolean;
+  /** Additional session IDs to include in RAG search (for attached sites) */
+  attachedSessionIds?: string[];
+  /** Attached site metadata for display */
+  attachedSites?: AttachedSite[];
+  /** Callback when user wants to manage attached sites */
+  onAttachSite?: () => void;
+  onDetachSite?: (sessionId: string) => void;
 };
 
 const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
@@ -77,6 +88,15 @@ const SUGGESTED_QUESTIONS = [
   "What technology stack is this site built on?",
   "What are the top accessibility issues?",
   "Give me a high-level executive summary of all findings.",
+];
+
+const GLOBAL_SUGGESTED_QUESTIONS = [
+  "What do you know about my uploaded documents?",
+  "Help me draft a strategy document.",
+  "Summarize the key themes across my sources.",
+  "What insights can you find in my attached knowledge?",
+  "Help me brainstorm ideas.",
+  "What questions should I be asking?",
 ];
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -961,7 +981,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onAttachSite, onDetachSite }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -1000,7 +1020,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const threadInitRef = useRef<string | null>(null);
   const queuedPromptRef = useRef<{ text: string; deepResearch: boolean; threadId: string } | null>(null);
 
-  const crawlContext = buildCrawlContext(session, pages);
+  const crawlContext = globalMode ? '' : buildCrawlContext(session, pages);
 
   // Initialize: load or create default thread
   useEffect(() => {
@@ -1370,10 +1390,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         body: JSON.stringify({
           messages: apiMessages,
           crawlContext,
-          session_id: session.id,
+          session_id: globalMode ? undefined : session.id,
+          session_ids: globalMode ? [session.id, ...(attachedSessionIds || [])] : undefined,
           model: selectedModel,
           reasoning: reasoning !== 'none' ? reasoning : undefined,
-          sources: { ...searchSources, analytics: searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
+          sources: { ...searchSources, analytics: !globalMode && searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
           rag_depth: ragDepth,
           tonePreset: localStorage.getItem('ai-tone-preset') || 'default',
           characteristics: (() => { try { const s = localStorage.getItem('ai-characteristics'); return s ? JSON.parse(s) : []; } catch { return []; } })(),
@@ -1641,7 +1662,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds]);
 
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -1669,7 +1690,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     saveMessage('user', text);
 
     try {
-      const crawlCtx = buildCrawlContext(session, pages);
+      const crawlCtx = globalMode ? '' : buildCrawlContext(session, pages);
       const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
       const defaultDocs = await loadDefaultDocs();
 
@@ -1685,7 +1706,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            session_id: session.id,
+            ...(globalMode && attachedSessionIds?.length
+              ? { session_ids: [session.id, ...attachedSessionIds] }
+              : { session_id: session.id }),
             query: text.slice(0, 2000),
             match_count: ragDepth.match_count,
             match_threshold: ragDepth.match_threshold,
@@ -2059,11 +2082,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         toast.success('Deep Research report ready!');
         saveMessage('assistant', finalReport, [], ragDocRefs, finalSources);
 
-        // Also save to deep_research_data for backward compat
-        await supabase
-          .from('crawl_sessions')
-          .update({ deep_research_data: { report: finalReport, prompt: text, sources: finalSources, updated_at: new Date().toISOString() } as any })
-          .eq('id', session.id);
+        // Also save to deep_research_data for backward compat (skip in global mode)
+        if (!globalMode) {
+          await supabase
+            .from('crawl_sessions')
+            .update({ deep_research_data: { report: finalReport, prompt: text, sources: finalSources, updated_at: new Date().toISOString() } as any })
+            .eq('id', session.id);
+        }
 
         // Auto-title thread
         if (activeThreadId && newMessages.length === 1) {
@@ -2089,7 +2114,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     lastEventIdRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth]);
+  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth, globalMode, attachedSessionIds]);
 
   // ── Handle pending prompt from Prompts tab — always start a new chat ──
   // Step 1: Create thread, reset messages, queue the prompt
@@ -2337,13 +2362,40 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="h-6 w-6 text-muted-foreground" />
-              <h3 className="text-lg font-semibold text-foreground">Ask anything about this website</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                {globalMode ? 'What can I help you with?' : 'Ask anything about this website'}
+              </h3>
             </div>
             <p className="text-sm text-muted-foreground mb-6 max-w-md">
-              All your integration data is loaded as context. Ask questions about performance, SEO, security, accessibility, technology, or anything else the audit covers.
+              {globalMode
+                ? 'Upload documents, attach site knowledge, or just start a conversation. All your personal settings and preferences are loaded.'
+                : 'All your integration data is loaded as context. Ask questions about performance, SEO, security, accessibility, technology, or anything else the audit covers.'}
             </p>
+            {/* Attached sites bar in global mode */}
+            {globalMode && (
+              <div className="flex items-center gap-2 flex-wrap mb-6">
+                {attachedSites?.map(s => (
+                  <div key={s.session_id} className="flex items-center gap-1.5 bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-medium">
+                    <Globe className="h-3 w-3" />
+                    {s.domain}
+                    <button onClick={() => onDetachSite?.(s.session_id)} className="hover:text-destructive ml-0.5">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {onAttachSite && (
+                  <button
+                    onClick={onAttachSite}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add site
+                  </button>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-              {SUGGESTED_QUESTIONS.map((q, i) => (
+              {(globalMode ? GLOBAL_SUGGESTED_QUESTIONS : SUGGESTED_QUESTIONS).map((q, i) => (
                 <button
                   key={i}
                   onClick={() => handleSend(q)}
@@ -2383,7 +2435,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       webCitations={msg.webCitations}
                       isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length}
                       sources={msg.sources}
-                      onSourceClick={(s) => {
+                      onSourceClick={globalMode ? undefined : (s) => {
                         const target = SOURCE_TAB_MAP[s];
                         if (target) {
                           setSearchParams(prev => { prev.set('tab', target.tab); return prev; }, { replace: true });
@@ -2393,7 +2445,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                           }, 150);
                         }
                       }}
-                      domain={session.domain}
+                      domain={globalMode ? 'Chat' : session.domain}
                       ragDocuments={msg.ragDocuments}
                       searchLabel={
                         isStreaming && i === messages.length - 1
