@@ -1105,6 +1105,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           setMessages([]);
         }
         setLoadingHistory(false);
+        // Scroll to last user prompt after loading a thread (Gemini-style)
+        if (data && data.length > 2) {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              lastUserMsgRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
+            });
+          });
+        }
       });
   }, [session.id, activeThreadId]);
 
