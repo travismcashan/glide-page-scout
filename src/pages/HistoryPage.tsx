@@ -160,9 +160,10 @@ export default function HistoryPage() {
 
               setIntegrationCounts((prev) => {
                 const next = new Map(prev);
+                const countRows = ((countBatch ?? []) as unknown[]) as Array<Record<string, unknown> & { id: string }>;
 
-                (countBatch ?? []).forEach((session) => {
-                  next.set(session.id, countLoadedIntegrations(session as Record<string, unknown>));
+                countRows.forEach((session) => {
+                  next.set(session.id, countLoadedIntegrations(session));
                 });
 
                 return next;
