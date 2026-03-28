@@ -703,97 +703,13 @@ function getProjectDuration(totalHours: number): string {
             </TabsContent>
 
             <TabsContent value="all">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">All Tasks</CardTitle>
-                  <CardDescription>Toggle tasks on/off and adjust hours per person</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {tasks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No master tasks configured yet.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <TaskRowHeader />
-                      {tasks.map((task) => (
-                        <EstimateTaskRow
-                          key={task.id}
-                          task={task}
-                          onToggle={handleTaskToggle}
-                          onHoursChange={handleHoursChange}
-                          onHoursPerPersonChange={handleHoursPerPersonChange}
-                          onVariableQtyChange={handleVariableQtyChange}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="phase">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Tasks by Phase</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TaskRowHeader />
-                  <div className="space-y-6">
-                    {Object.entries(groupedByPhase).map(([phase, phaseTasks]) => {
-                      const phaseHours = phaseTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours), 0);
-                      return (
-                        <div key={phase}>
-                          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            {phase}
-                            <Badge variant="secondary" className="text-[10px]">{phaseHours.toFixed(1)}h</Badge>
-                            <Badge variant="outline" className="text-[10px]">{phaseTasks.filter(t => t.is_selected).length}/{phaseTasks.length}</Badge>
-                          </h3>
-                          <div className="space-y-1.5">
-                            {phaseTasks.map((task) => (
-                              <EstimateTaskRow
-                                key={task.id}
-                                task={task}
-                                onToggle={handleTaskToggle}
-                                onHoursChange={handleHoursChange}
-                                onHoursPerPersonChange={handleHoursPerPersonChange}
-                                onVariableQtyChange={handleVariableQtyChange}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="role">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Tasks by Role</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TaskRowHeader />
-                  <div className="space-y-6">
-                    {Object.entries(groupedByRole).map(([role, roleTasks]) => {
-                      const roleHours = roleTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours_per_person ?? t.hours), 0);
-                      return (
-                        <div key={role}>
-                          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            {role}
-                            <Badge variant="secondary" className="text-[10px]">{roleHours.toFixed(1)}h</Badge>
-                          </h3>
-                          <div className="space-y-1.5">
-                            {roleTasks.map((task) => (
-                              <EstimateTaskRow key={task.id} task={task} onToggle={handleTaskToggle} onHoursChange={handleHoursChange} onHoursPerPersonChange={handleHoursPerPersonChange} onVariableQtyChange={handleVariableQtyChange} />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+              <EstimateTaskTable
+                tasks={tasks}
+                onToggle={handleTaskToggle}
+                onHoursChange={handleHoursChange}
+                onHoursPerPersonChange={handleHoursPerPersonChange}
+                onVariableQtyChange={handleVariableQtyChange}
+              />
             </TabsContent>
 
             <TabsContent value="timeline">
