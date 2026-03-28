@@ -103,7 +103,7 @@ const SOURCE_LABELS: Record<string, string> = {
   semrush: 'SEMrush', psi: 'PageSpeed', crux: 'CrUX', builtwith: 'BuiltWith',
   wappalyzer: 'Wappalyzer', detectzestack: 'DetectZeStack', wave: 'WAVE',
   observatory: 'Observatory', ssllabs: 'SSL Labs', httpstatus: 'HTTP Status',
-  linkcheck: 'Link Checker', w3c: 'W3C', schema: 'Schema', readable: 'Readable',
+  w3c: 'W3C', schema: 'Schema', readable: 'Readable',
   carbon: 'Carbon', yellowlab: 'Yellow Lab', gtmetrix: 'GTmetrix',
   avoma: 'Avoma', apollo: 'Apollo', ocean: 'Ocean.io', hubspot: 'HubSpot',
   nav: 'Navigation', sitemap: 'Sitemap', forms: 'Forms', content_types: 'Content Types',
@@ -122,7 +122,7 @@ const SOURCE_TAB_MAP: Record<string, { tab: string; sectionId: string }> = {
   observatory: { tab: 'raw-data', sectionId: 'observatory' },
   ssllabs: { tab: 'raw-data', sectionId: 'ssllabs' },
   httpstatus: { tab: 'raw-data', sectionId: 'httpstatus' },
-  linkcheck: { tab: 'raw-data', sectionId: 'link-checker' },
+  
   w3c: { tab: 'raw-data', sectionId: 'w3c' },
   schema: { tab: 'raw-data', sectionId: 'schema' },
   readable: { tab: 'raw-data', sectionId: 'readable' },
@@ -155,7 +155,7 @@ function detectSources(text: string): string[] {
     ['observatory', ['observatory', 'mozilla observatory']],
     ['ssllabs', ['ssl labs', 'ssllabs', 'ssl grade']],
     ['httpstatus', ['http status', 'httpstatus', 'redirect chain']],
-    ['linkcheck', ['link checker', 'broken link']],
+    
     ['w3c', ['w3c valid']],
     ['schema', ['schema valid', 'structured data', 'json-ld']],
     ['readable', ['readabil', 'flesch']],

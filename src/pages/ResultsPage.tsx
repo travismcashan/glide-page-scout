@@ -31,7 +31,7 @@ import { ObservatoryCard } from '@/components/ObservatoryCard';
 import OceanCard from '@/components/OceanCard';
 import SslLabsCard from '@/components/SslLabsCard';
 import { HttpStatusCard } from '@/components/HttpStatusCard';
-import { BrokenLinksCard } from '@/components/BrokenLinksCard';
+
 import { W3CCard } from '@/components/W3CCard';
 import { SchemaCard } from '@/components/SchemaCard';
 import { ReadableCard } from '@/components/ReadableCard';
@@ -1826,7 +1826,7 @@ export default function ResultsPage() {
     { key: 'ocean', label: 'Ocean.io', loading: oceanLoading, failed: oceanFailed, data: session.ocean_data, paused: isIntegrationPaused('ocean') },
     { key: 'nav-structure', label: 'Nav Structure', loading: navLoading, failed: navFailed, data: (session as any).nav_structure, paused: isIntegrationPaused('nav-structure') },
     { key: 'content-types', label: 'Content Types', loading: contentTypesLoading, failed: contentTypesFailed, data: (session as any).content_types_data, paused: isIntegrationPaused('content-types') },
-    { key: 'link-checker', label: 'Link Checker', loading: linkcheckLoading, failed: linkcheckFailed, data: session.linkcheck_data, paused: isIntegrationPaused('link-checker') },
+    
     { key: 'forms', label: 'Forms', loading: formsLoading, failed: formsFailed, data: (session as any).forms_data, paused: isIntegrationPaused('forms') },
     { key: 'page-tags', label: autoTagProgress ? `Page Tagging (${autoTagProgress})` : 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
     { key: 'templates', label: 'Templates', loading: templatesRerunning || (autoTagging && !(session as any).template_tiers), failed: false, data: (session as any).template_tiers, paused: false },
@@ -2267,15 +2267,6 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('link-checker', !!session?.linkcheck_data || effectiveDiscoveredUrls.length > 0, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="link-checker" {...intGrade("link-checker")} persistedCollapsed={isSectionCollapsed("link-checker")} onCollapseChange={toggleSection} title="Broken Link Checker" icon={<LinkIcon className="h-5 w-5 text-foreground" />} loading={linkcheckLoading && !session?.linkcheck_data} loadingText={linkcheckProgress ? `Checking URLs for broken links... ${linkcheckProgress.checked} of ${linkcheckProgress.total} checked` : `Checking ${effectiveDiscoveredUrls.length} URLs for broken links...`} error={linkcheckFailed} errorText={integrationErrors['link-checker']} headerExtra={rerunButton('link-checker', 'linkcheck_data', linkcheckLoading)} paused={isIntegrationPaused('link-checker') && !session?.linkcheck_data} onTogglePause={() => handleTogglePause('link-checker')}>
-                {session?.linkcheck_data ? <BrokenLinksCard data={session.linkcheck_data} /> : !linkcheckLoading && effectiveDiscoveredUrls.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Waiting for URL discovery to complete…</p>
-                ) : !linkcheckLoading ? (
-                  <p className="text-sm text-muted-foreground">Preparing link checks…</p>
-                ) : null}
-              </SectionCard>
-              )}
             </SortedIntegrationList>
           </CollapsibleSection>
         )}
