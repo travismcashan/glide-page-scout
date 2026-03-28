@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import AppHeader from '@/components/AppHeader';
-import { PROVIDERS, VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
+import { PROVIDERS, VERSIONS, MODEL_OPTIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
