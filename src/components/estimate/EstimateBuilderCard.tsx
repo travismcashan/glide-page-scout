@@ -403,6 +403,16 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     );
   }
 
+/** Convert work weeks to estimated project duration in months */
+function getProjectDuration(workWeeks: number): string {
+  // Based on PM heuristics: parallel resources + 30% client pad
+  if (workWeeks <= 10) return '~2 mo';
+  if (workWeeks <= 15) return '~2–3 mo';
+  if (workWeeks <= 20) return '~2–3 mo';
+  if (workWeeks <= 30) return '~3–4 mo';
+  if (workWeeks <= 40) return '~3–4 mo';
+  return '~4–5 mo';
+}
 
   return (
     <div className="space-y-4">
