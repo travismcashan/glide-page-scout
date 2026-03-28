@@ -19,6 +19,8 @@ interface Props {
   navStructure?: NavStructure;
   globalInnerExpand?: boolean | null;
   mode?: 'analysis' | 'estimate';
+  savedTier?: string | null;
+  onTierChange?: (tier: string) => void;
   onSelectionChange?: (count: number) => void;
 }
 
@@ -229,9 +231,9 @@ function PageGroupSection({
 
 /* ── Main component ── */
 
-export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure, globalInnerExpand = null, mode = 'analysis', onSelectionChange }: Props) {
+export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure, globalInnerExpand = null, mode = 'analysis', savedTier, onTierChange, onSelectionChange }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  const [activeTier, setActiveTier] = useState<TierKey>('M');
+  const [activeTier, setActiveTier] = useState<TierKey>((savedTier as TierKey) || 'M');
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -292,6 +294,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
   // Apply tier preset when tier toggle changes
   const applyTier = useCallback((tier: TierKey) => {
     setActiveTier(tier);
+    onTierChange?.(tier);
     const next = new Set<string>();
     if (tier === 'S' || tier === 'M' || tier === 'L') {
       primaryUrls.forEach(u => next.add(u));
