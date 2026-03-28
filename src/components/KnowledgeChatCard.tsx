@@ -2592,6 +2592,26 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     <Gauge className="h-3 w-3" />
                     Context
                   </p>
+                  {/* Presets */}
+                  <div className="grid grid-cols-3 gap-1.5 px-1">
+                    {[
+                      { emoji: '🎯', label: 'Everyday', chunks: 15, threshold: 0.25 },
+                      { emoji: '⚖️', label: 'Default', chunks: 50, threshold: 0.20 },
+                      { emoji: '🔬', label: 'Be Right', chunks: 100, threshold: 0.50 },
+                    ].map(p => {
+                      const active = ragDepth.match_count === p.chunks && Math.abs(ragDepth.match_threshold - p.threshold) < 0.01;
+                      return (
+                        <button
+                          key={p.label}
+                          onClick={() => setRagDepth({ match_count: p.chunks, match_threshold: p.threshold })}
+                          className={`rounded-md border px-1.5 py-1 text-center transition-all ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 text-muted-foreground hover:text-foreground'}`}
+                        >
+                          <span className="text-xs">{p.emoji}</span>
+                          <p className="text-[10px] font-medium leading-tight">{p.label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
                   <div className="px-1 space-y-2.5">
                     <div>
                       <div className="flex items-center justify-between mb-1">
