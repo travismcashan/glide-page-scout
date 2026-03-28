@@ -161,14 +161,22 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
     return newSummary.sort((a, b) => b.count - a.count);
   }, [rawSummary, pageTags]);
 
-  // Level 3 filter: only show Post + CPT (repeating content)
+  // Level 3 filter: only show Post + CPT (repeating content), Posts first
   const summary = useMemo(() => {
-    return allSummary.filter(s => {
-      if (s.baseType === 'Post' || s.baseType === 'CPT') return true;
-      // Fallback for legacy data without baseType — keep non-Uncategorized items that have 3+ URLs
-      if (!s.baseType && s.type !== 'Uncategorized' && s.count >= 3) return true;
-      return false;
-    });
+    return allSummary
+      .filter(s => {
+        if (s.baseType === 'Post' || s.baseType === 'CPT') return true;
+        if (!s.baseType && s.type !== 'Uncategorized' && s.count >= 3) return true;
+        return false;
+      })
+      .sort((a, b) => {
+        // Posts before CPTs, then by count
+        const order = { Post: 0, CPT: 1 };
+        const oa = order[a.baseType as keyof typeof order] ?? 2;
+        const ob = order[b.baseType as keyof typeof order] ?? 2;
+        if (oa !== ob) return oa - ob;
+        return b.count - a.count;
+      });
   }, [allSummary]);
 
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(() => new Set(summary.map(s => s.type)));
