@@ -18,7 +18,8 @@ function TaskRowHeader() {
   return (
     <div className="flex items-center gap-3 px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
       <div className="w-4 shrink-0" />
-      <div className="flex-1">Task / Role</div>
+      <div className="flex-1">Task</div>
+      <div className="w-24 text-right shrink-0">Role</div>
       <div className="w-16 text-center shrink-0">Variable</div>
       <div className="w-12 text-center shrink-0">#</div>
       <div className="w-24 text-center">Hrs/Person</div>

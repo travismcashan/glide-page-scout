@@ -47,20 +47,20 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
         onCheckedChange={(checked) => onToggle(task.id, checked as boolean)}
       />
 
-      {/* Task name + roles */}
+      {/* Task name */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium leading-tight ${!task.is_selected && 'text-muted-foreground'}`}>
+        <p className={`text-sm font-medium leading-tight truncate ${!task.is_selected && 'text-muted-foreground'}`}>
           {task.task_name}
         </p>
-        {!compact && roleList.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {roleList.map(role => (
-              <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
-                {role}
-              </Badge>
-            ))}
-          </div>
-        )}
+      </div>
+
+      {/* Roles */}
+      <div className="w-24 shrink-0 flex flex-wrap gap-0.5 justify-end">
+        {!compact && roleList.map(role => (
+          <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+            {role}
+          </Badge>
+        ))}
       </div>
 
       {/* Variable column */}
