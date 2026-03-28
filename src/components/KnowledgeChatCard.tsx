@@ -1020,7 +1020,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const threadInitRef = useRef<string | null>(null);
   const queuedPromptRef = useRef<{ text: string; deepResearch: boolean; threadId: string } | null>(null);
 
-  const crawlContext = buildCrawlContext(session, pages);
+  const crawlContext = globalMode ? '' : buildCrawlContext(session, pages);
 
   // Initialize: load or create default thread
   useEffect(() => {
