@@ -65,7 +65,11 @@ export function ApolloCard({ data, isLoading, onSearch, teamData, teamLoading, o
         </Button>
       </form>
 
-      {data && data.found === false && (
+      {data && (data as any).errorCode === 'CREDITS_EXHAUSTED' && (
+        <CreditsBanner error={data.error} />
+      )}
+
+      {data && data.found === false && !(data as any).errorCode && (
         <p className="text-sm text-muted-foreground">No matching contact found in Apollo's database.</p>
       )}
 
