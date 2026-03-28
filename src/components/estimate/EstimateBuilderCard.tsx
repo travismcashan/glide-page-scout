@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, RefreshCw, PlusCircle, Loader2, CalendarDays, FileText } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, RefreshCw, PlusCircle, Loader2, CalendarDays, FileText, Trash2 } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
@@ -270,6 +270,19 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     }
   };
 
+  const handleDelete = async () => {
+    if (!estimate || !confirm('Delete this estimate? This cannot be undone.')) return;
+    try {
+      await supabase.from('estimate_tasks').delete().eq('estimate_id', estimate.id);
+      await supabase.from('project_estimates').delete().eq('id', estimate.id);
+      setEstimate(null);
+      setTasks([]);
+      toast.success('Estimate deleted');
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
+
   const totals = useMemo(() => {
     const selectedTasks = tasks.filter((t) => t.is_selected);
     const totalHours = selectedTasks.reduce((sum, t) => sum + Number(t.hours), 0);
@@ -378,6 +391,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
           <Button variant="outline" size="sm" onClick={handleRecalculate} disabled={tasks.length === 0}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Recalculate
           </Button>
