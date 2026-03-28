@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, ChevronsUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,14 +30,18 @@ interface ExpandableUrlRowsProps {
   isIncluded?: boolean;
 }
 
+const ROW_LIMIT = 5;
+
 export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, showCheckbox = false, isIncluded = true }: ExpandableUrlRowsProps) {
-  // Show all URLs in a scrollable container (max ~7 visible rows, 28px each = 196px)
-  const maxHeight = urls.length > 7 ? 196 : undefined;
+  const [showAll, setShowAll] = useState(false);
+  const hasMore = urls.length > ROW_LIMIT;
+  const visibleUrls = showAll ? urls : urls.slice(0, ROW_LIMIT);
 
   return (
     <TooltipProvider>
-      <div style={maxHeight ? { maxHeight: `${maxHeight}px`, overflowY: 'auto' } : undefined}>
-        {urls.map((item) => {
+      <div className="relative">
+        <div style={showAll && urls.length > 12 ? { maxHeight: '336px', overflowY: 'auto' } : undefined}>
+        {visibleUrls.map((item) => {
           let pathname: string;
           try { pathname = new URL(item.url).pathname; } catch { pathname = item.url; }
           const pageTag = getPageTag(pageTags, item.url);
@@ -109,6 +113,19 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
             </div>
           );
         })}
+        </div>
+        {hasMore && !showAll && (
+          <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+        )}
+        {hasMore && (
+          <button
+            onClick={() => setShowAll(prev => !prev)}
+            className="w-full flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronsUpDown className="h-3 w-3" />
+            {showAll ? 'Show less' : `Show all ${urls.length}`}
+          </button>
+        )}
       </div>
     </TooltipProvider>
   );
