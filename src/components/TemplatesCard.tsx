@@ -381,7 +381,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
-              {hasEffort && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Effort</th>}
+              {hasComplexity && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Complexity</th>}
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
             </tr>
           </thead>
@@ -416,7 +416,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {recommendedTemplates.map((t, i) => (
-                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
+                                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -475,7 +475,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                             <table className="w-full text-sm table-fixed">
                               <tbody>
                                 {notIncludedTemplates.map((t, i) => (
-                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
+                                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
                                 ))}
                               </tbody>
                             </table>
@@ -508,7 +508,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               </>
             ) : (
               templates.map((t, i) => (
-                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} effort={hasEffort ? aiTiers?.effort?.[t.name] || '' : undefined} />
+                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
               ))
             )}
           </tbody>
