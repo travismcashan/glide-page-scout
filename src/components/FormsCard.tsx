@@ -261,7 +261,7 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
           <div className="flex items-center gap-2">
             <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
               {TIER_KEYS.filter(tier => tier !== 'All').map(tier => (
-                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading}>
                   {tierLabel(tier)}
                 </ToggleGroupItem>
               ))}
