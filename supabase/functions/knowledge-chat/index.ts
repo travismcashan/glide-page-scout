@@ -284,7 +284,7 @@ async function getEmbedding(query: string): Promise<number[] | null> {
  * Perform RAG search using a pre-computed embedding
  */
 async function ragSearchWithEmbedding(
-  sessionId: string,
+  sessionId: string | string[],
   embedding: number[],
   matchCount: number,
   matchThreshold: number,
@@ -295,8 +295,22 @@ async function ragSearchWithEmbedding(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const embeddingStr = `[${embedding.join(',')}]`;
+  const isMulti = Array.isArray(sessionId);
 
-  if (sourceTypes && sourceTypes.length > 0) {
+  if (isMulti) {
+    // Multi-session search using the new function
+    const { data, error } = await supabase.rpc('match_knowledge_chunks_multi', {
+      p_session_ids: sessionId,
+      p_embedding: embeddingStr,
+      p_match_count: matchCount,
+      p_match_threshold: matchThreshold,
+    });
+    if (error) {
+      console.error('[knowledge-chat] Multi-session RAG error:', error);
+      return [];
+    }
+    return data || [];
+  } else if (sourceTypes && sourceTypes.length > 0) {
     const { data, error } = await supabase.rpc('match_knowledge_chunks_by_source', {
       p_session_id: sessionId,
       p_embedding: embeddingStr,
@@ -498,7 +512,7 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
  * Perform RAG search and also return the routing result for screenshot decisions
  * and the list of documents referenced
  */
-async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: { name: string; source_type: string }[] }> {
+async function ragSearchWithRouting(sessionId: string | string[], query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: { name: string; source_type: string }[] }> {
   try {
     const [routing, embedding] = await Promise.all([
       routeQuery(query),
@@ -1179,7 +1193,9 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, session_ids, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
+    // Support multi-session: prefer session_ids array, fall back to single session_id
+    const effectiveSessionId: string | string[] | undefined = session_ids?.length ? session_ids : session_id;
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
@@ -1213,8 +1229,8 @@ serve(async (req) => {
     // Run document RAG (with routing) and web search in parallel
     const contextPromises: Promise<void>[] = [];
 
-    if (useDocuments && session_id && queryText) {
-      contextPromises.push(ragSearchWithRouting(session_id, queryText, ragMatchCount, ragMatchThreshold).then(r => {
+    if (useDocuments && effectiveSessionId && queryText) {
+      contextPromises.push(ragSearchWithRouting(effectiveSessionId, queryText, ragMatchCount, ragMatchThreshold).then(r => {
         ragContext = r.ragContext;
         needsScreenshots = r.needs_screenshots;
         ragDocuments = r.ragDocuments;
@@ -1231,8 +1247,9 @@ serve(async (req) => {
     const isClaudeModel = model && model.startsWith('claude-');
     const isPerplexityModel = model && model.startsWith('perplexity-');
     let screenshotImages: { url: string; screenshot_url: string }[] = [];
-    if (needsScreenshots && session_id && !isPerplexityModel) {
-      screenshotImages = await fetchScreenshots(session_id, queryText);
+    const screenshotSessionId = Array.isArray(effectiveSessionId) ? effectiveSessionId[0] : effectiveSessionId;
+    if (needsScreenshots && screenshotSessionId && !isPerplexityModel) {
+      screenshotImages = await fetchScreenshots(screenshotSessionId, queryText);
       console.log(`[knowledge-chat] Injecting ${screenshotImages.length} screenshots as multimodal content`);
     }
 
