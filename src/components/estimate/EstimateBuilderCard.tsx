@@ -77,7 +77,21 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
   const handleTechTierChange = useCallback((counts: TechTierCounts) => {
     if (!estimate) return;
-    const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2 };
+    const weightedScore = (counts.pluginCount ?? 0) * 1 + (counts.thirdPartyCount ?? 0) * 2 + (counts.specialSetupCount ?? 0) * 4;
+    const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2, complexity_score: weightedScore };
+    const derived = {
+      ...updated,
+      project_size: deriveProjectSize(updated),
+      project_complexity: deriveProjectComplexity(updated),
+    };
+    setEstimate(derived as Estimate);
+    const updatedTasks = recalculateAllTasks(tasks, derived, formulas);
+    setTasks(updatedTasks as EstimateTask[]);
+  }, [estimate, tasks, formulas]);
+
+  const handleFormTierChange = useCallback((tierCounts: { s: number; m: number; l: number; total: number }) => {
+    if (!estimate) return;
+    const updated = { ...estimate, form_count_s: tierCounts.s, form_count_m: tierCounts.m, form_count_l: tierCounts.l, form_count: tierCounts.total };
     const derived = {
       ...updated,
       project_size: deriveProjectSize(updated),
