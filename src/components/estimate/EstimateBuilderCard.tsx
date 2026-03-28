@@ -21,6 +21,7 @@ interface Props {
   contentTypesData: ContentTypesData | null;
   formsData: any;
   wappalyzerData: any;
+  templateTiers: any;
 }
 
 interface Estimate extends EstimateVariables {
