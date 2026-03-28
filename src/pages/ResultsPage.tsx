@@ -75,6 +75,7 @@ import { ContentTypesCard } from '@/components/ContentTypesCard';
 import { SitemapCard } from '@/components/SitemapCard';
 import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { TemplatesCard } from '@/components/TemplatesCard';
+import { EstimateBuilderCard } from '@/components/estimate/EstimateBuilderCard';
 import { FormsCard } from '@/components/FormsCard';
 import { GlobalProgressBar } from '@/components/GlobalProgressBar';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
@@ -1910,6 +1911,9 @@ export default function ResultsPage() {
       <TabsTrigger value="chat" style={tabTriggerStyle('chat')} className={tabTriggerClass}>
         Chat
       </TabsTrigger>
+      <TabsTrigger value="estimates" style={tabTriggerStyle('estimates')} className={tabTriggerClass}>
+        <DollarSign className="h-4 w-4 mr-2" />Estimates
+      </TabsTrigger>
     </>
   );
 
@@ -2702,6 +2706,21 @@ export default function ResultsPage() {
                 stickyTabVisible={stickyTabVisible}
                 pendingPrompt={pendingPrompt}
                 onPendingPromptConsumed={() => setPendingPrompt(null)}
+              />
+            )}
+            </div>}
+          </TabsContent>
+
+          <TabsContent value="estimates" className="mt-8 space-y-6" forceMount={activeTab === 'estimates' ? true : undefined}>
+            {activeTab === 'estimates' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'estimates' ? null : <div className="animate-fade-in">
+            {session && (
+              <EstimateBuilderCard
+                sessionId={session.id}
+                domain={session.domain}
+                pageTags={session.page_tags as any}
+                contentTypesData={session.content_types_data as any}
+                formsData={session.forms_data}
+                wappalyzerData={session.wappalyzer_data}
               />
             )}
             </div>}
