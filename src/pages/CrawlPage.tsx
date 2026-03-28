@@ -146,8 +146,8 @@ export default function CrawlPage() {
                 <>Hello.</>
               )}
             </h1>
-            <div className="flex items-end gap-3 text-4xl sm:text-5xl font-bold tracking-tight leading-none text-muted-foreground">
-              <span className="leading-none">Let's</span>
+            <div className="flex items-end gap-3 text-4xl sm:text-5xl font-bold tracking-tight leading-none">
+              <span className="leading-none text-foreground">Let's</span>
               <span className="relative inline-flex h-[1.35em] w-[5.5em] items-end overflow-hidden align-baseline leading-none">
                 <AnimatePresence mode="wait">
                   <motion.span
