@@ -123,8 +123,9 @@ export default function SettingsPage() {
       const { data, error } = await supabase.functions.invoke('apollo-enrich', {
         body: { email: user.email, firstName: nameParts[0] || undefined, lastName: nameParts.slice(1).join(' ') || undefined },
       });
-      if (error || !data?.success) { toast.error('Could not enrich profile — you may not be in Apollo\'s database'); return; }
-      const person = data.data?.person || data.data;
+      if (error) { toast.error('Could not enrich profile'); return; }
+      // Response can be { success, data: { person } } or flat { found, name, ... }
+      const person = data?.data?.person || data?.data || (data?.found ? data : null);
       if (!person) { toast.error('No profile data found'); return; }
 
       const enriched = {
