@@ -181,28 +181,57 @@ export default function SettingsPage() {
         body: { email: user.email, firstName: nameParts[0] || undefined, lastName: nameParts.slice(1).join(' ') || undefined },
       });
       if (error) { toast.error('Could not enrich profile'); return; }
-      // Response can be { success, data: { person } } or flat { found, name, ... }
       const person = data?.data?.person || data?.data || (data?.found ? data : null);
       if (!person) { toast.error('No profile data found'); return; }
 
-      const enriched = {
-        name: person.name || person.firstName && person.lastName ? `${person.firstName} ${person.lastName}`.trim() : profile?.display_name,
+      const orgDomain = person.organizationDomain || person.organization?.primary_domain || user.email.split('@')[1];
+
+      const enriched: Record<string, any> = {
+        name: (person.name && person.name.trim()) || (person.firstName && person.lastName ? `${person.firstName} ${person.lastName}`.trim() : '') || profile?.display_name,
         title: person.title,
         headline: person.headline,
-        // Handle both nested organization object and flat org fields
-        organization: person.organization?.name || person.organizationName,
-        orgIndustry: person.organization?.industry || person.organizationIndustry,
-        orgSize: (person.organization?.estimated_num_employees || person.organizationNumEmployees)
-          ? `~${person.organization?.estimated_num_employees || person.organizationNumEmployees} employees`
-          : null,
-        orgWebsite: person.organization?.website_url || person.organization?.primary_domain || person.organizationDomain,
+        photoUrl: person.photoUrl || person.photo_url,
+        email: person.email || user.email,
+        phone: person.phone,
         city: person.city || person.organizationCity,
         state: person.state || person.organizationState,
         country: person.country || person.organizationCountry,
-        linkedin: person.linkedin_url || person.linkedinUrl,
+        linkedin: person.linkedinUrl || person.linkedin_url,
+        twitter: person.twitterUrl || person.twitter_url,
+        github: person.githubUrl || person.github_url,
         seniority: person.seniority,
         departments: person.departments,
+        employmentHistory: person.employmentHistory || [],
+        organization: person.organizationName || person.organization?.name,
+        orgIndustry: person.organizationIndustry || person.organization?.industry,
+        orgSize: person.organizationSize || person.organization?.estimated_num_employees,
+        orgWebsite: person.organizationWebsite || person.organizationDomain || person.organization?.primary_domain,
+        orgLogo: person.organizationLogo || person.organization?.logo_url,
+        orgDescription: person.organizationDescription || person.organization?.short_description,
+        orgFounded: person.organizationFounded || person.organization?.founded_year,
+        orgRevenue: person.organizationRevenue,
+        orgKeywords: person.organizationKeywords || [],
+        orgTechnologies: person.organizationTechnologies || [],
+        orgCity: person.organizationCity,
+        orgState: person.organizationState,
+        orgCountry: person.organizationCountry,
+        orgLinkedin: person.organizationLinkedin,
+        orgHeadcountGrowth6mo: person.organizationHeadcountGrowth6mo,
+        orgHeadcountGrowth12mo: person.organizationHeadcountGrowth12mo,
       };
+
+      // Also fetch Ocean.io for deeper company data
+      if (orgDomain) {
+        try {
+          const { data: oceanData } = await supabase.functions.invoke('ocean-enrich', {
+            body: { domain: orgDomain },
+          });
+          if (oceanData?.success && oceanData?.company) {
+            enriched.oceanCompany = oceanData.company;
+          }
+        } catch { /* Ocean is optional */ }
+      }
+
       setAboutMe(enriched);
       localStorage.setItem('ai-about-me', JSON.stringify(enriched));
       toast.success('Profile enriched!');
