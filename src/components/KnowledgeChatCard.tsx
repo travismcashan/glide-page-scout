@@ -90,6 +90,15 @@ const SUGGESTED_QUESTIONS = [
   "Give me a high-level executive summary of all findings.",
 ];
 
+const GLOBAL_SUGGESTED_QUESTIONS = [
+  "What do you know about my uploaded documents?",
+  "Help me draft a strategy document.",
+  "Summarize the key themes across my sources.",
+  "What insights can you find in my attached knowledge?",
+  "Help me brainstorm ideas.",
+  "What questions should I be asking?",
+];
+
 const SOURCE_LABELS: Record<string, string> = {
   semrush: 'SEMrush', psi: 'PageSpeed', crux: 'CrUX', builtwith: 'BuiltWith',
   wappalyzer: 'Wappalyzer', detectzestack: 'DetectZeStack', wave: 'WAVE',
