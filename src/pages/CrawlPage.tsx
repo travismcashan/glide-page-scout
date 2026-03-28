@@ -164,7 +164,7 @@ export default function CrawlPage() {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -30, opacity: 0 }}
                     transition={{ duration: 0.35, ease: 'easeInOut' }}
-                    className="absolute left-0 bottom-0 leading-none text-primary font-medium"
+                    className="absolute left-0 bottom-0 leading-none rainbow-text font-medium"
                   >
                     {ROTATING_WORDS[wordIndex]}.
                   </motion.span>
