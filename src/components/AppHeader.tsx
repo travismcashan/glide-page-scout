@@ -29,7 +29,7 @@ export default function AppHeader() {
   const ProductIcon = currentProduct.icon;
 
   return (
-    <header className="border-b border-border bg-background sticky top-0 z-40">
+    <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl sticky top-0 z-40 shadow-sm shadow-primary/[0.03]">
       <div className="max-w-6xl mx-auto px-6 h-[55px] flex items-center justify-between">
         {/* Brand + Product Switcher */}
         <div className="flex items-center gap-1">

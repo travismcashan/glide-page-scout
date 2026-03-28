@@ -198,7 +198,7 @@ export default function CrawlPage() {
 
           {/* ── Search bar ── */}
           <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-3 px-3 h-[4.5rem] rounded-2xl bg-card shadow-lg shadow-primary/5">
+            <div className="flex items-center gap-3 px-3 h-[4.5rem] rounded-2xl bg-card border border-border/40 shadow-xl shadow-primary/[0.08] hover:shadow-2xl hover:shadow-primary/[0.12] hover:border-primary/25 transition-all duration-500">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
@@ -213,7 +213,7 @@ export default function CrawlPage() {
               <Button
                 type="submit"
                 disabled={isStarting || !url.trim()}
-                className="rounded-xl px-6 gap-2 h-11 text-base"
+                className="rounded-xl px-6 gap-2 h-11 text-base shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all"
               >
                 {isStarting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" />Analyzing…</>
@@ -262,10 +262,10 @@ export default function CrawlPage() {
                 {visibleTiles.map((integration) => (
                   <div
                     key={integration.label}
-                    className="group aspect-square rounded-xl border border-border bg-card p-4 flex flex-col justify-between transition-colors hover:border-primary/20 hover:bg-primary/[0.03]"
+                    className="group aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between transition-all duration-300 hover:border-primary/30 hover:bg-primary/[0.04] hover:shadow-lg hover:shadow-primary/[0.06] hover:-translate-y-0.5"
                   >
-                    <integration.icon className="h-6 w-6 text-primary/70 group-hover:text-primary transition-colors" />
-                    <span className="text-base font-medium leading-snug text-foreground/80">
+                    <integration.icon className="h-6 w-6 text-primary/60 group-hover:text-primary transition-colors" />
+                    <span className="text-base font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
                       {integration.label}
                     </span>
                   </div>
