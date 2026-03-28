@@ -138,7 +138,7 @@ export default function CrawlPage() {
       <main className="flex-1 flex flex-col items-center px-6 pt-16 pb-24">
         <div className="max-w-3xl w-full space-y-12">
           {/* ── Greeting + rotating tagline ── */}
-          <div className="space-y-0">
+          <div className="space-y-[-0.15em]">
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
               {firstName ? (
                 <>Hello, {firstName}.</>
