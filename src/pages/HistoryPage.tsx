@@ -42,12 +42,33 @@ const INTEGRATION_KEYS = [
 type SortKey = 'domain' | 'integrations' | 'files' | 'date' | 'status';
 type SortDir = 'asc' | 'desc';
 type GroupBy = 'none' | 'domain' | 'status';
+const HISTORY_COUNT_BATCH_SIZE = 12;
 
 function resolveStatus(session: CrawlSession): string {
   if (session.status === 'analyzing' && Date.now() - new Date(session.created_at).getTime() > 10 * 60 * 1000) {
     return 'completed';
   }
   return session.status;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+
+  return chunks;
+}
+
+function countLoadedIntegrations(session: Record<string, unknown>): number {
+  let count = 0;
+
+  for (const key of INTEGRATION_KEYS) {
+    if (session[key] != null) count += 1;
+  }
+
+  return count;
 }
 
 export default function HistoryPage() {
@@ -70,51 +91,95 @@ export default function HistoryPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchSessions = async () => {
       setLoading(true);
       setError(null);
 
       const { data, error } = await supabase
         .from('crawl_sessions')
-        .select(`id, domain, base_url, status, created_at, ${INTEGRATION_KEYS.join(',')}`)
+        .select('id, domain, base_url, status, created_at')
         .neq('domain', '__global_chat__')
         .order('created_at', { ascending: false });
+
+      if (cancelled) return;
 
       if (error) {
         console.error('Failed to load crawl history:', error);
         setError('Failed to load crawl history. Please refresh and try again.');
         setSessions([]);
+        setIntegrationCounts(new Map());
+        setDocCounts(new Map());
+        setMultiDomains(new Map());
+        setLoading(false);
       } else {
-        const data_ = (data ?? []) as any[];
-        setSessions(data_.map(d => ({ id: d.id, domain: d.domain, base_url: d.base_url, status: d.status, created_at: d.created_at })));
+        const data_ = (data ?? []) as CrawlSession[];
+        setSessions(data_);
 
         const domainCounts = new Map<string, number>();
-        const intCounts = new Map<string, number>();
         data_.forEach(s => {
           domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1);
-          let count = 0;
-          for (const key of INTEGRATION_KEYS) {
-            if (s[key] != null) count++;
-          }
-          intCounts.set(s.id, count);
         });
         setMultiDomains(domainCounts);
-        setIntegrationCounts(intCounts);
+        setIntegrationCounts(new Map(data_.map((session) => [session.id, 0] as const)));
+        setDocCounts(new Map(data_.map((session) => [session.id, 0] as const)));
+        setLoading(false);
 
         const sessionIds = data_.map(d => d.id);
         if (sessionIds.length > 0) {
-          const { data: docs } = await supabase
-            .from('knowledge_documents')
-            .select('session_id')
-            .in('session_id', sessionIds);
-          const dCounts = new Map<string, number>();
-          (docs ?? []).forEach(d => dCounts.set(d.session_id, (dCounts.get(d.session_id) ?? 0) + 1));
-          setDocCounts(dCounts);
+          void (async () => {
+            const { data: docs, error: docsError } = await supabase
+              .from('knowledge_documents')
+              .select('session_id')
+              .in('session_id', sessionIds);
+
+            if (cancelled) return;
+            if (docsError) {
+              console.error('Failed to load knowledge file counts:', docsError);
+              return;
+            }
+
+            const dCounts = new Map<string, number>(data_.map((session) => [session.id, 0] as const));
+            (docs ?? []).forEach(d => dCounts.set(d.session_id, (dCounts.get(d.session_id) ?? 0) + 1));
+            setDocCounts(dCounts);
+          })();
+
+          void (async () => {
+            for (const batchIds of chunkArray(sessionIds, HISTORY_COUNT_BATCH_SIZE)) {
+              const { data: countBatch, error: countError } = await supabase
+                .from('crawl_sessions')
+                .select(`id, ${INTEGRATION_KEYS.join(',')}`)
+                .in('id', batchIds);
+
+              if (cancelled) return;
+              if (countError) {
+                console.error('Failed to load integration counts:', countError);
+                return;
+              }
+
+              setIntegrationCounts((prev) => {
+                const next = new Map(prev);
+
+                (countBatch ?? []).forEach((session) => {
+                  next.set(session.id, countLoadedIntegrations(session as Record<string, unknown>));
+                });
+
+                return next;
+              });
+            }
+          })();
+        } else {
+          setLoading(false);
         }
       }
-      setLoading(false);
     };
+
     fetchSessions();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Unique statuses for filter
