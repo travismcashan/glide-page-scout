@@ -1706,7 +1706,9 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            session_id: session.id,
+            ...(globalMode && attachedSessionIds?.length
+              ? { session_ids: [session.id, ...attachedSessionIds] }
+              : { session_id: session.id }),
             query: text.slice(0, 2000),
             match_count: ragDepth.match_count,
             match_threshold: ragDepth.match_threshold,
