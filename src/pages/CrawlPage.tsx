@@ -140,6 +140,11 @@ export default function CrawlPage() {
 
       if (error) throw error;
 
+      // Fire server-side orchestrator (fire-and-forget)
+      supabase.functions.invoke('crawl-start', {
+        body: { session_id: session.id },
+      }).catch(err => console.error('crawl-start invoke error:', err));
+
       const { count } = await supabase
         .from('crawl_sessions')
         .select('id', { count: 'exact', head: true })
