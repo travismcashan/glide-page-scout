@@ -292,7 +292,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   };
 
   const handleVariablesChange = (variables: EstimateVariables) => {
-    if (!estimate) return;
+    if (!estimate || tasks.length === 0) return;
     // Auto-derive project size and complexity from variables
     const derived = {
       ...variables,
