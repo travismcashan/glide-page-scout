@@ -69,7 +69,8 @@ function LinkList({ results, emptyMessage, showRedirect }: { results: LinkResult
 }
 
 export function BrokenLinksCard({ data }: { data: LinkCheckData }) {
-  const { summary, results } = data;
+  const summary = data?.summary || { total: 0, ok: 0, redirects: 0, clientErrors: 0, serverErrors: 0, failures: 0 };
+  const results = data?.results || [];
 
   const okUrls = results.filter(r => r.statusCode >= 200 && r.statusCode < 300);
   const redirectUrls = results.filter(r => r.statusCode >= 300 && r.statusCode < 400);
