@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { isFormulaTask } from '@/lib/estimateFormulas';
+import { isFormulaTask, getTaskCalcType, type TaskCalcType } from '@/lib/estimateFormulas';
 import type { EstimateTask } from './EstimateTaskRow';
 
 type SortField = 'task_name' | 'phase_name' | 'hours_per_person' | 'hours' | 'display_order';
