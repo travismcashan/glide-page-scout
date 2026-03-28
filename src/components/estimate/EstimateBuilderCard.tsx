@@ -270,6 +270,19 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     }
   };
 
+  const handleDelete = async () => {
+    if (!estimate || !confirm('Delete this estimate? This cannot be undone.')) return;
+    try {
+      await supabase.from('estimate_tasks').delete().eq('estimate_id', estimate.id);
+      await supabase.from('project_estimates').delete().eq('id', estimate.id);
+      setEstimate(null);
+      setTasks([]);
+      toast.success('Estimate deleted');
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
+
   const totals = useMemo(() => {
     const selectedTasks = tasks.filter((t) => t.is_selected);
     const totalHours = selectedTasks.reduce((sum, t) => sum + Number(t.hours), 0);
