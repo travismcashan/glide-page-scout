@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, Shield, ChevronDown, Check, Sparkles } from 'lucide-react';
+import { LogOut, Settings, Shield, ChevronDown, Check, Sparkles, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
@@ -96,6 +96,9 @@ export default function AppHeader() {
           </button>
           <NavLink to="/integrations" className={linkBase} activeClassName={linkActive}>
             Integrations
+          </NavLink>
+          <NavLink to="/chat" className={linkBase} activeClassName={linkActive}>
+            <span className="flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> Chat</span>
           </NavLink>
           <NavLink to="/connections" className={linkBase} activeClassName={linkActive}>
             Connections
