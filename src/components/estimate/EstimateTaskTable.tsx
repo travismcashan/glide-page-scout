@@ -285,6 +285,11 @@ function TaskTableRow({
         </div>
       </TableCell>
 
+      {/* Type */}
+      <TableCell className="py-1.5 text-center">
+        <CalcTypeBadge type={getTaskCalcType(task.task_name)} />
+      </TableCell>
+
       {/* Variable label */}
       <TableCell className="py-1.5 text-center">
         {hasVariable ? (
