@@ -405,16 +405,21 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     );
   }
 
-/** Convert work weeks to estimated project duration using actual team size */
-function getProjectDuration(workWeeks: number, teamSize: number): string {
-  if (workWeeks <= 0) return '0 mo';
-  const calendarWeeks = workWeeks / Math.max(teamSize, 1);
-  const padded = calendarWeeks * 1.3; // 30% client pad
-  const months = padded / 4.33;
-  const low = Math.max(1, Math.floor(months));
-  const high = Math.ceil(months);
-  if (low === high || high - low < 0.5) return `~${low} mo`;
-  return `~${low}–${high} mo`;
+/** Convert total hours to estimated calendar duration based on real-world team throughput.
+ *  Calibrated: 300hrs ≈ 12–16 wks, 600hrs ≈ 16–24 wks.
+ *  Throughput scales: smaller projects ~20 hrs/wk, larger ~30 hrs/wk. */
+function getProjectDuration(totalHours: number): string {
+  if (totalHours <= 0) return '0 mo';
+  // Throughput (hrs/week) scales with project size via log interpolation
+  // 200hrs → ~18 hrs/wk, 300hrs → ~21, 600hrs → ~30, 1000hrs → ~35
+  const throughput = 15 + 5 * Math.log2(Math.max(totalHours, 100) / 100);
+  const calWeeks = totalHours / throughput;
+  const lowWeeks = Math.round(calWeeks * 0.85); // optimistic
+  const highWeeks = Math.round(calWeeks * 1.15); // conservative
+  const lowMo = Math.max(1, Math.round(lowWeeks / 4.33));
+  const highMo = Math.max(1, Math.round(highWeeks / 4.33));
+  if (lowMo === highMo) return `~${lowMo} mo`;
+  return `~${lowMo}–${highMo} mo`;
 }
 
   return (
@@ -453,7 +458,7 @@ function getProjectDuration(workWeeks: number, teamSize: number): string {
           <MetaStatDivider />
           <MetaStat value={totals.totalHours.toFixed(0)} label="Total Hours" />
           <MetaStatDivider />
-          <MetaStat value={getProjectDuration(Math.round(totals.lowWeeks), totals.uniqueRoles)} label={`Est. Duration (${totals.uniqueRoles} roles)`} />
+          <MetaStat value={getProjectDuration(totals.totalHours)} label="Est. Duration" />
           <div className="ml-auto">
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0">
               {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
