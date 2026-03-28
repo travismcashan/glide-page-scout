@@ -231,7 +231,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
             hours: task.default_hours,
             hours_per_person: task.hours_per_person,
             hourly_rate: avgRate,
-            is_selected: task.default_included,
+            is_selected: task.is_required ? true : task.default_included,
+            is_required: task.is_required ?? false,
             display_order: index + 1,
             roles: task.roles,
             variable_label: task.variable_label || null,
@@ -258,7 +259,11 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   }
 
   const handleTaskToggle = (taskId: string, checked: boolean) => {
-    setTasks(tasks.map((t) => (t.id === taskId ? { ...t, is_selected: checked } : t)));
+    setTasks(tasks.map((t) => {
+      if (t.id !== taskId) return t;
+      if (t.is_required) return t; // Never toggle required tasks
+      return { ...t, is_selected: checked };
+    }));
   };
 
   const handleHoursChange = (taskId: string, hours: number) => {
