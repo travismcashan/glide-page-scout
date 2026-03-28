@@ -1332,22 +1332,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           }
         }
 
-        // Final save — store synthesis only (model responses live in councilModels)
+        // Final save — store synthesis + council model data
         const finalModels = Object.entries(modelStatuses).map(([key, m]) => ({ ...m, key }));
         const finalContent = synthesisText || 'No synthesis available.';
-
-        // For DB persistence, append model responses as markdown
-        let dbContent = finalContent + '\n\n---\n\n';
-        for (const ms of finalModels) {
-          dbContent += `### 🧠 ${ms.name}\n\n${ms.response || '[No response]'}\n\n`;
-        }
 
         setMessages(prev => {
           const updated = [...prev];
           updated[updated.length - 1] = { role: 'assistant', content: finalContent, councilModels: finalModels };
           return updated;
         });
-        saveMessage('assistant', dbContent);
+
+        // Persist: store council models as rag_documents (JSONB) with a sentinel
+        const councilPayload = [{ name: '__council__', source_type: 'council', models: finalModels }];
+        saveMessage('assistant', finalContent, [], councilPayload as any);
         setIsStreaming(false);
         return;
       }
