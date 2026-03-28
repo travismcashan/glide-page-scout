@@ -493,6 +493,7 @@ function getProjectDuration(totalHours: number): string {
                       navStructure={navStructure}
                       domain={domain}
                       savedTiers={templateTiers}
+                      mode="estimate"
                       onTiersChange={(tiers) => {
                         const nonToolkitCount = (tiers.L || []).length;
                         const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';
@@ -521,7 +522,7 @@ function getProjectDuration(totalHours: number): string {
                     title="Forms Analysis"
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                   >
-                    <FormsCard data={formsData} domain={domain} />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" />
                   </SectionCard>
                 )}
 

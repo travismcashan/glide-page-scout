@@ -39,6 +39,7 @@ interface Props {
   onTiersChange?: (tiers: AiTiers) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
   isRerunning?: boolean;
+  mode?: 'analysis' | 'estimate';
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
@@ -63,11 +64,15 @@ interface AiTiers {
   reasoning_L?: string;
 }
 
-function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean }) {
+function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean }) {
   return (
     <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
       <td className="px-3 py-1 text-center align-middle">
-        <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+        {showCheckbox ? (
+          <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+        ) : (
+          <span className="text-xs text-muted-foreground">{t.count}</span>
+        )}
       </td>
       <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>
         {t.name}
@@ -97,7 +102,7 @@ const LOADING_MESSAGES = [
   'Counting unique layouts with abacuses…',
 ];
 
-export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest }: Props) {
+export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis' }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
@@ -229,11 +234,11 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
   // Auto-run AI recommendations when templates are available and no saved tiers exist
   useEffect(() => {
-    if (!autoRunRef.current && !aiTiers && !aiLoading && templates.length > 0) {
+    if (mode === 'estimate' && !autoRunRef.current && !aiTiers && !aiLoading && templates.length > 0) {
       autoRunRef.current = true;
       fetchAiRecommendations();
     }
-  }, [templates, aiTiers, aiLoading, fetchAiRecommendations]);
+  }, [templates, aiTiers, aiLoading, fetchAiRecommendations, mode]);
 
   const toggleExcluded = (name: string) => {
     setExcluded(prev => {
@@ -289,6 +294,10 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
 
+  const isEstimate = mode === 'estimate';
+
+  const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
+  const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const toggleTableSection = (key: string) => {
     setCollapsedTableSections(prev => {
       const next = new Set(prev);
@@ -297,8 +306,6 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
     });
   };
 
-  const hasTierSelection = activeTier && activeTier !== 'All' && aiTiers;
-  const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const recommendedTemplates = hasTierSelection ? templates.filter(t => !excluded.has(t.name)) : [];
   const notIncludedTemplates = hasTierSelection ? templates.filter(t => excluded.has(t.name)) : [];
 
@@ -321,29 +328,31 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
           <MetaStatDivider />
           <MetaStat value={blockBuiltCount} label="Block-Built Pages" />
         </div>
-        <div className="flex items-center gap-2">
-          {!aiTiers && !aiLoading && (
-            <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
-              <Sparkles className="h-3 w-3" /> AI Recommend
-            </button>
-          )}
-          {aiTiers && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Sparkles className="h-2.5 w-2.5" /> AI
-            </span>
-          )}
-          <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
-            {TIER_KEYS.map(tier => (
-              <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
-                {tierLabel(tier)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
+        {isEstimate && (
+          <div className="flex items-center gap-2">
+            {!aiTiers && !aiLoading && (
+              <button onClick={fetchAiRecommendations} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
+                <Sparkles className="h-3 w-3" /> AI Recommend
+              </button>
+            )}
+            {aiTiers && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" /> AI
+              </span>
+            )}
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
+              {TIER_KEYS.map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+                  {tierLabel(tier)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        )}
       </div>
 
       {/* AI Loading indicator */}
-      {aiLoading && (
+      {isEstimate && aiLoading && (
         <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border border-border animate-in fade-in">
           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
           <span className="text-xs text-muted-foreground">{loadingMsg}</span>
@@ -355,7 +364,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
         <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">Design</th>
+              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">{isEstimate ? 'Design' : '#'}</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
@@ -407,15 +416,15 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               </>
             ) : (
               templates.map((t, i) => (
-                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} />
+                <TemplateRow key={i} t={t} isExcluded={excluded.has(t.name)} toggleExcluded={toggleExcluded} showCheckbox={isEstimate} />
               ))
             )}
           </tbody>
         </table>
       </div>
 
-      {/* AI reasoning footer — per-tier */}
-      {aiTiers && activeTier && activeTier !== 'All' && (() => {
+      {/* AI reasoning footer — per-tier (estimate mode only) */}
+      {isEstimate && aiTiers && activeTier && activeTier !== 'All' && (() => {
         // Build cumulative reasoning: S shows S, M shows S+M, L shows S+M+L
         const sections: { label: string; content: string }[] = [];
         if (aiTiers.reasoning_S) sections.push({ label: 'Small', content: aiTiers.reasoning_S });

@@ -59,6 +59,7 @@ interface Props {
   savedTiers?: AiTiers | null;
   onTiersChange?: (tiers: AiTiers) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
+  mode?: 'analysis' | 'estimate';
 }
 
 const platformColors: Record<string, string> = {
@@ -86,7 +87,7 @@ const LOADING_MESSAGES = [
   'Rating form aesthetics…',
 ];
 
-export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequest }: Props) {
+export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis' }: Props) {
   const [expandedForms, setExpandedForms] = useState<Set<number>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
@@ -161,11 +162,11 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
 
   // Auto-run AI recommendations
   useEffect(() => {
-    if (!autoRunRef.current && !aiTiers && !aiLoading && forms.length > 0) {
+    if (mode === 'estimate' && !autoRunRef.current && !aiTiers && !aiLoading && forms.length > 0) {
       autoRunRef.current = true;
       fetchAiRecommendations();
     }
-  }, [forms, aiTiers, aiLoading, fetchAiRecommendations]);
+  }, [forms, aiTiers, aiLoading, fetchAiRecommendations, mode]);
 
   const toggleExcluded = (formType: string) => {
     setExcluded(prev => {
@@ -235,8 +236,9 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
       return next;
     });
   };
+  const isEstimate = mode === 'estimate';
 
-  const hasTierSelection = activeTier && activeTier !== 'All' && aiTiers;
+  const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
   const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
 
   const recommendedForms = hasTierSelection ? forms.filter(f => !excluded.has(f.formType)) : [];
@@ -259,24 +261,26 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
           <MetaStatDivider />
           <MetaStat value={summary.pagesWithForms} label="Pages with Forms" />
         </div>
-        <div className="flex items-center gap-2">
-          {aiTiers && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Sparkles className="h-2.5 w-2.5" /> AI
-            </span>
-          )}
-          <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
-            {TIER_KEYS.map(tier => (
-              <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
-                {tierLabel(tier)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
+        {isEstimate && (
+          <div className="flex items-center gap-2">
+            {aiTiers && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" /> AI
+              </span>
+            )}
+            <ToggleGroup type="single" value={activeTier ?? ''} onValueChange={(v) => v && applyTier(v as TierKey)} size="sm" variant="outline">
+              {TIER_KEYS.map(tier => (
+                <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7" disabled={aiLoading && tier !== 'All'}>
+                  {tierLabel(tier)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        )}
       </div>
 
       {/* AI Loading indicator */}
-      {aiLoading && (
+      {isEstimate && aiLoading && (
         <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border border-border animate-in fade-in">
           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
           <span className="text-xs text-muted-foreground">{loadingMsg}</span>
@@ -377,7 +381,7 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
       </div>
 
       {/* AI reasoning footer */}
-      {aiTiers && activeTier && activeTier !== 'All' && (() => {
+      {isEstimate && aiTiers && activeTier && activeTier !== 'All' && (() => {
         const sections: { label: string; content: string }[] = [];
         if (aiTiers.reasoning_S) sections.push({ label: 'Small', content: aiTiers.reasoning_S });
         if (activeTier !== 'S' && aiTiers.reasoning_M) sections.push({ label: 'Medium', content: aiTiers.reasoning_M });
