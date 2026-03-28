@@ -24,6 +24,7 @@ export const SOURCE_ICONS: Record<string, typeof FileText> = {
   'chat_note': Bookmark,
   'google-drive': HardDrive,
   note: StickyNote,
+  gmail: Mail,
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
@@ -35,6 +36,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   'chat_note': 'Chat Bookmark',
   'google-drive': 'Google Drive',
   note: 'Note',
+  gmail: 'Gmail',
 };
 
 export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
