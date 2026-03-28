@@ -391,6 +391,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
           <Button variant="outline" size="sm" onClick={handleRecalculate} disabled={tasks.length === 0}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Recalculate
           </Button>
