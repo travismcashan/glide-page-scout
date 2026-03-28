@@ -417,6 +417,91 @@ export function calculatePhaseTimeline(
   }));
 }
 
+export type TaskCalcType = 'size' | 'complexity' | 'variable' | 'scope' | 'percentage' | 'conditional' | 'manual';
+
+/** Returns the calculation type for a task */
+export function getTaskCalcType(taskName: string): TaskCalcType {
+  const name = taskName.trim();
+
+  // Percentage-based
+  if (/^Admin Hours$/i.test(name)) return 'percentage';
+
+  // Conditional/lookup
+  if (/^Strategy Workshop \(KOC\)$/i.test(name)) return 'conditional';
+  if (/^Strategy Review$/i.test(name)) return 'conditional';
+  if (/^Bulk Import$/i.test(name) && !/Check/i.test(name)) return 'conditional';
+  if (/^Bulk Import > Check \+ Clean$/i.test(name)) return 'conditional';
+  if (/^Services Handoff Meeting$/i.test(name)) return 'conditional';
+
+  // Variable × rate (qty-driven, uses variableQty)
+  if (/^Design Thinking Workshop$/i.test(name)) return 'variable';
+  if (/^Brainstorming Sessions$/i.test(name)) return 'variable';
+  if (/^Interviews$/i.test(name)) return 'variable';
+  if (/^Moderated User Testing$/i.test(name) && !/Design Validation/i.test(name)) return 'variable';
+  if (/^Focus Groups$/i.test(name) && !/Design Validation/i.test(name)) return 'variable';
+  if (/^Design Validation > Moderated User Testing$/i.test(name)) return 'variable';
+  if (/^Design Validation > Focus Groups$/i.test(name)) return 'variable';
+
+  // Scope-variable-driven (layouts, pages, personas, forms, custom_posts)
+  if (/^User Personas$/i.test(name)) return 'scope';
+  if (/^User Journey Map$/i.test(name)) return 'scope';
+  if (/^Empathy Map$/i.test(name)) return 'scope';
+  if (/^Scenario Map$/i.test(name)) return 'scope';
+  if (/^Storybrand > WFs \+ Copy Writing$/i.test(name)) return 'scope';
+  if (/^Internal Page SFs$/i.test(name)) return 'scope';
+  if (/^Internal Page Layouts$/i.test(name)) return 'scope';
+  if (/^Responsive$/i.test(name)) return 'scope';
+  if (/^Revisions$/i.test(name)) return 'scope';
+  if (/^CSS, HTML, Javascript$/i.test(name)) return 'scope';
+  if (/^Wordpress Development$/i.test(name)) return 'scope';
+  if (/^Quality Assurance$/i.test(name)) return 'scope';
+  if (/^Content Integration/i.test(name)) return 'scope';
+  if (/^Additional CPT Integration$/i.test(name)) return 'scope';
+  if (/^Form Integration$/i.test(name)) return 'scope';
+  if (/^Content \+ CMS Review$/i.test(name)) return 'scope';
+  if (/^URL Swap \+ Check$/i.test(name)) return 'scope';
+  if (/^Design Review$/i.test(name)) return 'scope';
+  if (/^UX Review$/i.test(name)) return 'scope';
+  if (/^AMP Review$/i.test(name)) return 'scope';
+  if (/^Functional Review$/i.test(name)) return 'scope';
+  if (/^301 Redirect Setup$/i.test(name)) return 'scope';
+  if (/^QA Forms$/i.test(name)) return 'scope';
+  if (/^Proof Reading$/i.test(name)) return 'scope';
+  if (/^DoneDone Management$/i.test(name)) return 'scope';
+
+  // Complexity-based
+  if (/^Functional Requirements$/i.test(name)) return 'complexity';
+  if (/^Standard Third Party Plugins \+ Integrations$/i.test(name)) return 'complexity';
+  if (/^Custom Third Party Integrations$/i.test(name)) return 'complexity';
+  if (/^Special Setup Integrations$/i.test(name)) return 'complexity';
+  if (/^Technical Roadmap > Create$/i.test(name)) return 'complexity';
+
+  // Size-based
+  if (/^Timeline \(setup \+ adjustments\)$/i.test(name)) return 'size';
+  if (/^KOC Prep \+ Recap$/i.test(name)) return 'size';
+  if (/^Current Site Review$/i.test(name)) return 'size';
+  if (/^Content Inventory$/i.test(name)) return 'size';
+  if (/^Content Audit$/i.test(name)) return 'size';
+  if (/^Competitor Review$/i.test(name)) return 'size';
+  if (/^SEO Insights$/i.test(name)) return 'size';
+  if (/^Hotjar Review$/i.test(name) && !/Check/i.test(name)) return 'size';
+  if (/^Keyword Research$/i.test(name)) return 'size';
+  if (/^Information Architecture$/i.test(name)) return 'size';
+  if (/^Client Design Review \(weekly\)$/i.test(name)) return 'size';
+  if (/^Toolkit Outline$/i.test(name)) return 'size';
+  if (/^Block Map \+ Functional Notes$/i.test(name)) return 'size';
+  if (/^Content Collection$/i.test(name) && !/Client Call/i.test(name)) return 'size';
+  if (/^Functional Notes$/i.test(name) && !/Block Map/i.test(name)) return 'size';
+  if (/^UX Notes$/i.test(name)) return 'size';
+  if (/^Performance Optimization$/i.test(name)) return 'size';
+  if (/^Technical On-Page SEO$/i.test(name)) return 'size';
+  if (/^Alt Image\/Title Integraton$/i.test(name) || /^Alt Image.Title Integration$/i.test(name)) return 'size';
+  if (/^Resolve Self Inflicted 301s$/i.test(name)) return 'size';
+  if (/^Heuristic Evaluation$/i.test(name) && !/Design Validation/i.test(name)) return 'size';
+
+  return 'manual';
+}
+
 /** Returns true if a task's hours are dynamically calculated by the formula engine */
 export function isFormulaTask(taskName: string): boolean {
   const name = taskName.trim();

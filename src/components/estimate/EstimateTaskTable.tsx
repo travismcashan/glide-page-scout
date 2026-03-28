@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { isFormulaTask } from '@/lib/estimateFormulas';
+import { isFormulaTask, getTaskCalcType, type TaskCalcType } from '@/lib/estimateFormulas';
 import type { EstimateTask } from './EstimateTaskRow';
 
 type SortField = 'task_name' | 'phase_name' | 'hours_per_person' | 'hours' | 'display_order';
@@ -153,6 +153,7 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
                 <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
               </TableHead>
               <TableHead className="w-[100px] text-xs">Role(s)</TableHead>
+              <TableHead className="w-[70px] text-xs text-center">Type</TableHead>
               <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
               <TableHead className="w-[60px] text-xs text-center">#</TableHead>
               <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours_per_person')}>
@@ -192,6 +193,25 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
   );
 }
 
+const CALC_TYPE_CONFIG: Record<TaskCalcType, { label: string; className: string }> = {
+  size: { label: 'Size', className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' },
+  complexity: { label: 'Cmplx', className: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' },
+  variable: { label: 'Var', className: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' },
+  scope: { label: 'Scope', className: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800' },
+  percentage: { label: '%', className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800' },
+  conditional: { label: 'Cond', className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800' },
+  manual: { label: 'Manual', className: 'bg-muted text-muted-foreground border-border' },
+};
+
+function CalcTypeBadge({ type }: { type: TaskCalcType }) {
+  const config = CALC_TYPE_CONFIG[type];
+  return (
+    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-normal ${config.className}`}>
+      {config.label}
+    </Badge>
+  );
+}
+
 function GroupRows({
   group, tasks, groupHours, showGroup, showPhaseCol,
   onToggle, onHoursChange, onHoursPerPersonChange, onVariableQtyChange,
@@ -206,7 +226,7 @@ function GroupRows({
   onHoursPerPersonChange: (id: string, hpp: number) => void;
   onVariableQtyChange: (id: string, qty: number) => void;
 }) {
-  const colSpan = showPhaseCol ? 8 : 7;
+  const colSpan = showPhaseCol ? 9 : 8;
 
   return (
     <>
@@ -259,8 +279,9 @@ function TaskTableRow({
       <TableCell className="py-1.5 w-10">
         <Checkbox
           checked={task.is_selected}
-          onCheckedChange={(checked) => onToggle(task.id, checked as boolean)}
-          className={formulaDriven ? 'border-muted-foreground/60 data-[state=checked]:bg-muted-foreground/70 data-[state=checked]:border-muted-foreground/70' : ''}
+          onCheckedChange={task.is_required ? undefined : (checked) => onToggle(task.id, checked as boolean)}
+          disabled={task.is_required}
+          className={formulaDriven || task.is_required ? 'border-muted-foreground/60 data-[state=checked]:bg-muted-foreground/70 data-[state=checked]:border-muted-foreground/70' : ''}
         />
       </TableCell>
 
@@ -281,6 +302,11 @@ function TaskTableRow({
             <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">{role}</Badge>
           ))}
         </div>
+      </TableCell>
+
+      {/* Type */}
+      <TableCell className="py-1.5 text-center">
+        <CalcTypeBadge type={getTaskCalcType(task.task_name)} />
       </TableCell>
 
       {/* Variable label */}
