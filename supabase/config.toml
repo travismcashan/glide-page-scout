@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.search-console-lookup]
 verify_jwt = false
+
+[functions.beautiful-ai]
+verify_jwt = false

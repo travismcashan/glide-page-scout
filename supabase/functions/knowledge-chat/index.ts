@@ -110,6 +110,12 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 - The user asks about MQLs, SQLs, lifecycle stages, deal pipeline, pipeline value, or CRM metrics (use query_hubspot)
 - When combining web analytics (GA4/GSC) with CRM data (HubSpot), call multiple tools and synthesize the results
 
+**Presentation Generation**: You can generate Beautiful.ai presentations using the generate_presentation tool. When the user asks to create a presentation, deck, or slides:
+- Craft a detailed, descriptive prompt based on the user's request and any available audit/context data
+- Call the generate_presentation tool with the prompt
+- Present the resulting editor and viewer links to the user
+- The generated deck can be edited, shared, or exported to PPTX/PDF in Beautiful.ai
+
 Today's date is ${new Date().toISOString().split('T')[0]}. Use this when computing date ranges (e.g., "last year" = one year ago to today, "Q1 2025" = 2025-01-01 to 2025-03-31).
 
 If asked about something not covered by the available data, say so clearly rather than guessing.
@@ -925,7 +931,53 @@ const ANALYTICS_TOOLS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'generate_presentation',
+      description: 'Generate a Beautiful.ai presentation from a text prompt. Use when the user asks to create a presentation, pitch deck, slide deck, or slides. Returns links to edit and view the generated deck.',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: {
+            type: 'string',
+            description: 'A detailed description of the presentation to create, including topic, audience, key points, and desired tone.',
+          },
+          themeId: {
+            type: 'string',
+            description: 'Optional theme ID (e.g., "minimal"). Leave empty for default.',
+          },
+        },
+        required: ['prompt'],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
+
+/**
+ * Execute a Beautiful.ai presentation generation
+ */
+async function executeBeautifulAi(params: { prompt: string; themeId?: string }): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/beautiful-ai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ prompt: params.prompt, themeId: params.themeId }),
+    });
+
+    const result = await response.json();
+    return JSON.stringify(result, null, 2);
+  } catch (e) {
+    return JSON.stringify({ error: `Beautiful.ai generation failed: ${e instanceof Error ? e.message : String(e)}` });
+  }
+}
 
 /**
  * Execute an analytics tool call by invoking the analytics-query edge function
@@ -1048,7 +1100,9 @@ async function handleGatewayRequest(
           choice.message.tool_calls.map(async (tc: any) => {
             const args = JSON.parse(tc.function.arguments);
             console.log(`[knowledge-chat] Executing tool: ${tc.function.name}`, JSON.stringify(args));
-            const result = await executeAnalyticsTool(tc.function.name, args);
+            const result = tc.function.name === 'generate_presentation'
+              ? await executeBeautifulAi(args)
+              : await executeAnalyticsTool(tc.function.name, args);
             return {
               role: 'tool' as const,
               tool_call_id: tc.id,
