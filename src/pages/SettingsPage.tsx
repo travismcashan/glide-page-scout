@@ -42,6 +42,29 @@ export default function SettingsPage() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
 
+  // Chat mode: 'individual' or 'council'
+  const [chatMode, setChatModeRaw] = useState<'individual' | 'council'>(
+    () => (localStorage.getItem('chat-mode') as 'individual' | 'council') || 'individual'
+  );
+  const setChatMode = (mode: 'individual' | 'council') => {
+    setChatModeRaw(mode);
+    localStorage.setItem('chat-mode', mode);
+    // Also update the active provider/model to match
+    if (mode === 'council') {
+      setProvider('council');
+      localStorage.setItem('chat-provider', 'council');
+      setModel('council-synthesis');
+      localStorage.setItem('chat-model', 'council-synthesis');
+    } else {
+      const savedProvider = localStorage.getItem('chat-individual-provider') as ModelProvider || 'gemini';
+      const savedModel = localStorage.getItem('chat-individual-model') || DEFAULT_BEST[savedProvider];
+      setProvider(savedProvider);
+      localStorage.setItem('chat-provider', savedProvider);
+      setModel(savedModel);
+      localStorage.setItem('chat-model', savedModel);
+    }
+  };
+
   const [provider, setProvider] = useState<ModelProvider>(
     () => (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini'
   );
@@ -54,6 +77,28 @@ export default function SettingsPage() {
       return DEFAULT_REASONING[p] || 'medium';
     }
   );
+
+  // Council model slots
+  type CouncilSlot = { provider: ModelProvider; modelId: string };
+  const defaultCouncilSlots: CouncilSlot[] = [
+    { provider: 'gemini', modelId: 'google/gemini-2.5-flash' },
+    { provider: 'gpt', modelId: 'openai/gpt-5-mini' },
+    { provider: 'claude', modelId: 'claude-haiku' },
+  ];
+  const [councilSlots, setCouncilSlots] = useState<CouncilSlot[]>(() => {
+    try {
+      const saved = localStorage.getItem('council-models');
+      return saved ? JSON.parse(saved) : defaultCouncilSlots;
+    } catch { return defaultCouncilSlots; }
+  });
+  const updateCouncilSlot = (index: number, modelId: string) => {
+    const modelOpt = MODEL_OPTIONS.find(m => m.id === modelId);
+    if (!modelOpt) return;
+    const next = [...councilSlots];
+    next[index] = { provider: modelOpt.provider, modelId };
+    setCouncilSlots(next);
+    localStorage.setItem('council-models', JSON.stringify(next));
+  };
 
   // RAG context settings
   const [matchCount, setMatchCount] = useState(
