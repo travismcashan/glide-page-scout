@@ -297,13 +297,17 @@ export type Database = {
           estimate_id: string
           hourly_rate: number
           hours: number
+          hours_per_person: number
           id: string
           is_selected: boolean
           master_task_id: string | null
           phase_name: string | null
+          roles: string | null
           task_name: string
           team_role_abbreviation: string | null
           team_role_name: string | null
+          variable_label: string | null
+          variable_qty: number | null
         }
         Insert: {
           created_at?: string
@@ -311,13 +315,17 @@ export type Database = {
           estimate_id: string
           hourly_rate?: number
           hours?: number
+          hours_per_person?: number
           id?: string
           is_selected?: boolean
           master_task_id?: string | null
           phase_name?: string | null
+          roles?: string | null
           task_name: string
           team_role_abbreviation?: string | null
           team_role_name?: string | null
+          variable_label?: string | null
+          variable_qty?: number | null
         }
         Update: {
           created_at?: string
@@ -325,13 +333,17 @@ export type Database = {
           estimate_id?: string
           hourly_rate?: number
           hours?: number
+          hours_per_person?: number
           id?: string
           is_selected?: boolean
           master_task_id?: string | null
           phase_name?: string | null
+          roles?: string | null
           task_name?: string
           team_role_abbreviation?: string | null
           team_role_name?: string | null
+          variable_label?: string | null
+          variable_qty?: number | null
         }
         Relationships: [
           {
@@ -700,31 +712,43 @@ export type Database = {
           created_at: string
           default_hours: number
           default_included: boolean
+          default_variable_qty: number | null
           display_order: number
+          hours_per_person: number
           id: string
           name: string
           phase_id: string | null
+          roles: string | null
           team_role_id: string | null
+          variable_label: string | null
         }
         Insert: {
           created_at?: string
           default_hours?: number
           default_included?: boolean
+          default_variable_qty?: number | null
           display_order?: number
+          hours_per_person?: number
           id?: string
           name: string
           phase_id?: string | null
+          roles?: string | null
           team_role_id?: string | null
+          variable_label?: string | null
         }
         Update: {
           created_at?: string
           default_hours?: number
           default_included?: boolean
+          default_variable_qty?: number | null
           display_order?: number
+          hours_per_person?: number
           id?: string
           name?: string
           phase_id?: string | null
+          roles?: string | null
           team_role_id?: string | null
+          variable_label?: string | null
         }
         Relationships: [
           {
