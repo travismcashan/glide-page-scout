@@ -132,7 +132,7 @@ export default function SettingsPage() {
   };
 
   const [matchCount, setMatchCount] = useState(
-    () => parseInt(localStorage.getItem('rag-match-count') || '15', 10)
+    () => parseInt(localStorage.getItem('rag-match-count') || '30', 10)
   );
   const [matchThreshold, setMatchThreshold] = useState(
     () => parseFloat(localStorage.getItem('rag-match-threshold') || '0.25')
@@ -656,9 +656,9 @@ export default function SettingsPage() {
           {/* Presets */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { name: '🎯 Everyday Driver', desc: 'Fast, focused answers. Best for quick lookups and straightforward questions.', chunks: 15, threshold: 0.25 },
-              { name: '📚 Deep Read', desc: 'Thorough research across your full knowledge base. Great for nuanced or multi-topic questions.', chunks: 50, threshold: 0.20 },
-              { name: '🔬 Gotta Be Right', desc: 'Exhaustive search with strict relevance filtering. Use when accuracy is critical and speed isn\'t.', chunks: 100, threshold: 0.50 },
+              { name: '⚡ Quick & Loose', desc: 'Minimal reading, fast responses. Good for simple questions where speed matters most.', chunks: 10, threshold: 0.15 },
+              { name: '🎯 Everyday Driver', desc: 'Recommended default. Balanced depth and speed for most questions.', chunks: 30, threshold: 0.25 },
+              { name: '🔬 Gotta Be Right', desc: 'Exhaustive search, strict filtering. Use when accuracy is critical and speed isn\'t.', chunks: 100, threshold: 0.50 },
             ].map(p => {
               const active = matchCount === p.chunks && Math.abs(matchThreshold - p.threshold) < 0.01;
               return (
