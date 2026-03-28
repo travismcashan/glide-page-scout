@@ -2379,6 +2379,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       }
                       deepResearchSteps={msg.deepResearchSteps}
                       isDeepResearch={msg.isDeepResearch}
+                      councilModels={msg.councilModels}
                     />
                   )}
                 </div>
