@@ -284,7 +284,7 @@ async function getEmbedding(query: string): Promise<number[] | null> {
  * Perform RAG search using a pre-computed embedding
  */
 async function ragSearchWithEmbedding(
-  sessionId: string,
+  sessionId: string | string[],
   embedding: number[],
   matchCount: number,
   matchThreshold: number,
@@ -295,8 +295,22 @@ async function ragSearchWithEmbedding(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const embeddingStr = `[${embedding.join(',')}]`;
+  const isMulti = Array.isArray(sessionId);
 
-  if (sourceTypes && sourceTypes.length > 0) {
+  if (isMulti) {
+    // Multi-session search using the new function
+    const { data, error } = await supabase.rpc('match_knowledge_chunks_multi', {
+      p_session_ids: sessionId,
+      p_embedding: embeddingStr,
+      p_match_count: matchCount,
+      p_match_threshold: matchThreshold,
+    });
+    if (error) {
+      console.error('[knowledge-chat] Multi-session RAG error:', error);
+      return [];
+    }
+    return data || [];
+  } else if (sourceTypes && sourceTypes.length > 0) {
     const { data, error } = await supabase.rpc('match_knowledge_chunks_by_source', {
       p_session_id: sessionId,
       p_embedding: embeddingStr,
