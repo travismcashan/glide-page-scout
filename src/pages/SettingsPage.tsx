@@ -111,10 +111,10 @@ export default function SettingsPage() {
 
   // RAG context settings
   const [matchCount, setMatchCount] = useState(
-    () => parseInt(localStorage.getItem('rag-match-count') || '50', 10)
+    () => parseInt(localStorage.getItem('rag-match-count') || '15', 10)
   );
   const [matchThreshold, setMatchThreshold] = useState(
-    () => parseFloat(localStorage.getItem('rag-match-threshold') || '0.15')
+    () => parseFloat(localStorage.getItem('rag-match-threshold') || '0.25')
   );
 
   // Google Docs import settings
@@ -581,9 +581,9 @@ export default function SettingsPage() {
           {/* Presets */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { name: '🎯 Everyday Driver', desc: '15 chunks, balanced matching — quick and reliable for most questions.', chunks: 15, threshold: 0.25 },
-              { name: '⚖️ Default', desc: '50 chunks, moderate matching — the standard balance of depth and speed.', chunks: 50, threshold: 0.20 },
-              { name: '🔬 Gotta Be Right', desc: '100 chunks, strict matching — maximum depth, high precision, slower.', chunks: 100, threshold: 0.50 },
+              { name: '🎯 Everyday Driver', desc: 'Fast, focused answers. Best for quick lookups and straightforward questions.', chunks: 15, threshold: 0.25 },
+              { name: '📚 Deep Read', desc: 'Thorough research across your full knowledge base. Great for nuanced or multi-topic questions.', chunks: 50, threshold: 0.20 },
+              { name: '🔬 Gotta Be Right', desc: 'Exhaustive search with strict relevance filtering. Use when accuracy is critical and speed isn\'t.', chunks: 100, threshold: 0.50 },
             ].map(p => {
               const active = matchCount === p.chunks && Math.abs(matchThreshold - p.threshold) < 0.01;
               return (
