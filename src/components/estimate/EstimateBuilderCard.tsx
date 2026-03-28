@@ -231,19 +231,23 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   };
 
   const handleVariableQtyChange = (taskId: string, qty: number) => {
+    if (!estimate) return;
     setTasks(tasks.map((t) => {
       if (t.id !== taskId) return t;
-      // For variable tasks, hours_per_person is the base, qty modifies it
-      const hpp = t.hours_per_person ?? t.hours;
-      const roleCount = countRoles(t.roles);
-      // Variable qty replaces hours_per_person (like the XLSX: variable IS the hours input)
-      return { ...t, variable_qty: qty, hours_per_person: hpp, hours: Math.round(hpp * roleCount * 100) / 100 };
+      const result = calculateTaskFromXlsx(t.task_name, t.hours_per_person ?? t.hours, t.roles, qty, estimate);
+      return { ...t, variable_qty: qty, hours_per_person: result.hpp, hours: result.total };
     }));
   };
 
   const handleVariablesChange = (variables: EstimateVariables) => {
     if (!estimate) return;
-    const updated = { ...estimate, ...variables };
+    // Auto-derive project size and complexity from variables
+    const derived = {
+      ...variables,
+      project_size: deriveProjectSize(variables),
+      project_complexity: deriveProjectComplexity(variables),
+    };
+    const updated = { ...estimate, ...derived };
     setEstimate(updated);
     // Auto-recalculate tasks when variables change
     const updatedTasks = recalculateAllTasks(tasks, updated, formulas);
