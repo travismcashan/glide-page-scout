@@ -21,7 +21,7 @@ const PERPLEXITY_MODELS: Record<string, string> = {
 };
 
 // Claude extended thinking budget (used when reasoning=high)
-const CLAUDE_THINKING_BUDGET = 16384;
+const CLAUDE_THINKING_BUDGET = 65536;
 
 const ALLOWED_GATEWAY_MODELS = [
   'google/gemini-2.5-flash-lite',
