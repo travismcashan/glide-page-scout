@@ -99,6 +99,7 @@ export default function CrawlPage() {
   const [wordIndex, setWordIndex] = useState(0);
   const phrase = useMemo(() => ROTATING_PHRASES[Math.floor(Math.random() * ROTATING_PHRASES.length)], []);
   const greeting = useMemo(() => getGreeting(), []);
+  const shuffledIntegrations = useMemo(() => [...INTEGRATIONS].sort(() => Math.random() - 0.5), []);
 
   // Rotating word animation
   useEffect(() => {
@@ -110,10 +111,10 @@ export default function CrawlPage() {
 
   // Paginated carousel: 4 tiles per page
   const TILES_PER_PAGE = 4;
-  const totalPages = Math.ceil(INTEGRATIONS.length / TILES_PER_PAGE);
+  const totalPages = Math.ceil(shuffledIntegrations.length / TILES_PER_PAGE);
   const [carouselPage, setCarouselPage] = useState(0);
 
-  const visibleTiles = INTEGRATIONS.slice(
+  const visibleTiles = shuffledIntegrations.slice(
     carouselPage * TILES_PER_PAGE,
     carouselPage * TILES_PER_PAGE + TILES_PER_PAGE
   );
