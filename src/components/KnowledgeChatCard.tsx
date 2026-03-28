@@ -72,8 +72,8 @@ type Props = {
   attachedSessionIds?: string[];
   /** Attached site metadata for display */
   attachedSites?: AttachedSite[];
-  /** Callback when user wants to manage attached sites */
-  onAttachSite?: () => void;
+  /** Callback to attach a site by session ID + domain */
+  onSelectSite?: (sessionId: string, domain: string) => void;
   onDetachSite?: (sessionId: string) => void;
 };
 
