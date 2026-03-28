@@ -325,6 +325,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
           form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
           complexity_score: estimate.complexity_score,
+          template_tier: estimate.template_tier, page_tier: estimate.page_tier,
+          content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
         })
         .eq('id', estimate.id);
       if (estimateError) throw estimateError;
@@ -535,8 +537,10 @@ function getProjectDuration(totalHours: number): string {
                       navStructure={navStructure}
                       domain={domain}
                       savedTiers={templateTiers}
+                      savedActiveTier={estimate.template_tier}
                       mode="estimate"
                       onRerunRequest={onTemplatesRerunRequest}
+                      onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, template_tier: tier } : prev)}
                       onTiersChange={(tiers) => {
                         // Save tiers to DB
                         supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId).then();
@@ -569,6 +573,8 @@ function getProjectDuration(totalHours: number): string {
                       contentTypesData={contentTypesData}
                       navStructure={navStructure}
                       mode="estimate"
+                      savedTier={estimate.page_tier}
+                      onTierChange={(tier) => setEstimate(prev => prev ? { ...prev, page_tier: tier } : prev)}
                       onSelectionChange={(count) => {
                         if (estimate && count !== estimate.pages_for_integration) {
                           handleVariablesChange({ ...estimate, pages_for_integration: count });
@@ -589,6 +595,11 @@ function getProjectDuration(totalHours: number): string {
                   >
                     <ContentTypesCard
                       data={contentTypesData}
+                      navStructure={navStructure}
+                      pageTags={pageTags}
+                      mode="estimate"
+                      savedTier={estimate.content_tier}
+                      onActiveTierChange={(tier) => setEstimate(prev => prev ? { ...prev, content_tier: tier } : prev)}
                       navStructure={navStructure}
                       pageTags={pageTags}
                       mode="estimate"
