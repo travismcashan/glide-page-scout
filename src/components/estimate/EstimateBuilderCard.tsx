@@ -48,6 +48,11 @@ interface Props {
 interface Estimate extends EstimateVariables {
   id: string;
   status: string | null;
+  template_tier?: string | null;
+  page_tier?: string | null;
+  content_tier?: string | null;
+  tech_tier?: string | null;
+  forms_tier?: string | null;
 }
 
 export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
