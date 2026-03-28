@@ -981,7 +981,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onAttachSite, onDetachSite }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite }: Props) {
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -2398,13 +2398,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     </button>
                   </div>
                 ))}
-                {onAttachSite && (
+                {globalMode && onSelectSite && (
                   <button
-                    onClick={onAttachSite}
+                    onClick={() => {/* picker is now in toolbar */}}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 transition-colors"
                   >
-                    <Plus className="h-3 w-3" />
-                    Add site
+                    <Globe className="h-3 w-3" />
+                    Add site from toolbar below
                   </button>
                 )}
               </div>
@@ -2601,7 +2601,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           />
 
           {/* Add Site button (global mode) */}
-          {globalMode && onAttachSite && (
+          {globalMode && onSelectSite && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -2627,11 +2627,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       key={site.id}
                       disabled={alreadyAttached}
                       onClick={() => {
-                        if (!alreadyAttached) onAttachSite();
-                        // Directly attach via the parent callback
-                        if (!alreadyAttached && onAttachSite) {
-                          // We need to call the select handler from parent
-                        }
+                        if (!alreadyAttached) onSelectSite(site.id, site.domain);
                       }}
                       className="text-xs"
                     >
