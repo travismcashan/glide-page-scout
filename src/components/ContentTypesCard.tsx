@@ -422,13 +422,19 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
       {/* Stats row */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 flex-wrap">
-          <MetaStat value={repeatingCount} label="Total URLs" />
-          <MetaStatDivider />
-          <MetaStat value={summary.length} label="Content Types" />
+          <MetaStat value={summary.length} label="Detected Types" />
           {isEstimate && activeTier && (
             <>
               <MetaStatDivider />
-              <MetaStat value={tierCounts[activeTier].types} label="Included Types" />
+              <MetaStat value={tierCounts[activeTier].types} label="Selected Types" />
+              <MetaStatDivider />
+              <MetaStat value={tierCounts[activeTier].urls} label="Selected # of Pages" />
+            </>
+          )}
+          {!isEstimate && (
+            <>
+              <MetaStatDivider />
+              <MetaStat value={repeatingCount} label="Selected # of Pages" />
             </>
           )}
         </div>
