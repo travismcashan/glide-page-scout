@@ -107,10 +107,6 @@ export default function GlobalChatPage() {
       });
   }, []);
 
-  const handleAttachSite = useCallback(() => {
-    setShowSitePicker(true);
-  }, []);
-
   const handleSelectSite = useCallback((sessionId: string, domain: string) => {
     if (attachedSites.some(s => s.session_id === sessionId)) {
       toast.info(`${domain} is already attached`);
@@ -118,7 +114,6 @@ export default function GlobalChatPage() {
     }
     setAttachedSites(prev => [...prev, { session_id: sessionId, domain }]);
     toast.success(`Added ${domain} knowledge`);
-    setShowSitePicker(false);
   }, [attachedSites]);
 
   const handleDetachSite = useCallback((sessionId: string) => {
