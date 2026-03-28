@@ -66,7 +66,7 @@ function SitesTab({
       {members.map(m => {
         const p = progress.get(m.session_id);
         const pct = p && p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
-        const isComplete = p && p.total > 0 && p.done === p.total;
+        const isComplete = (p && p.total > 0 && p.done === p.total) || m.status === 'completed';
         const needsTimestamp = (domainCounts.get(m.domain) ?? 0) > 1;
 
         return (
