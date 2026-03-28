@@ -140,7 +140,7 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
 
       {/* Table */}
       <div className="border rounded-lg overflow-hidden">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-10" />
@@ -256,17 +256,17 @@ function TaskTableRow({
       !task.is_selected ? 'opacity-50' : formulaDriven ? 'bg-muted/20' : ''
     }>
       {/* Checkbox */}
-      <TableCell className="py-1.5">
+      <TableCell className="py-1.5 w-10">
         <Checkbox
           checked={task.is_selected}
           onCheckedChange={formulaDriven ? undefined : (checked) => onToggle(task.id, checked as boolean)}
           disabled={formulaDriven}
-          className={formulaDriven ? 'opacity-40 cursor-not-allowed' : ''}
+          className={formulaDriven ? 'cursor-not-allowed border-muted-foreground/40 data-[state=checked]:bg-muted-foreground/40 data-[state=checked]:border-muted-foreground/40' : ''}
         />
       </TableCell>
 
       {/* Task name */}
-      <TableCell className={`py-1.5 text-sm ${formulaDriven ? 'text-muted-foreground' : ''}`}>
+      <TableCell className={`py-1.5 text-sm truncate ${formulaDriven ? 'text-muted-foreground' : ''}`}>
         {task.task_name}
       </TableCell>
 
