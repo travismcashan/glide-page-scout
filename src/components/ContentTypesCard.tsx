@@ -60,7 +60,7 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [activeTier, setActiveTier] = useState<BulkTier | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['not-included']));
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const isEstimate = mode === 'estimate';
 
@@ -481,7 +481,45 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
           <span className="w-[120px] text-center text-xs font-medium text-muted-foreground">Template</span>
         </div>
 
-        {(() => {
+        {isEstimate && activeTier ? (
+          <>
+            {/* Included section */}
+            {includedRows.length > 0 && (
+              <>
+                <button
+                  onClick={() => toggleSection('included')}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+                >
+                  {collapsedSections.has('included')
+                    ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  }
+                  <span className="text-xs font-semibold text-foreground">Included Types</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{includedRows.length}</Badge>
+                </button>
+                {!collapsedSections.has('included') && renderShowMore('included', includedRows)}
+              </>
+            )}
+
+            {/* Not included section */}
+            {excludedRows.length > 0 && (
+              <>
+                <button
+                  onClick={() => toggleSection('not-included')}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
+                >
+                  {collapsedSections.has('not-included')
+                    ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  }
+                  <span className="text-xs font-semibold text-foreground">Types Not Included</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{excludedRows.length}</Badge>
+                </button>
+                {!collapsedSections.has('not-included') && renderShowMore('not-included', excludedRows)}
+              </>
+            )}
+          </>
+        ) : (() => {
           const LIMIT = 5;
           const isShowingAll = expandedSections.has('bulk-types');
           const hasMore = summary.length > LIMIT;
