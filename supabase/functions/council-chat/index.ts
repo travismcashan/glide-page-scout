@@ -266,59 +266,130 @@ serve(async (req) => {
 
           const results = await Promise.all(modelPromises);
 
-          // Phase 2: Synthesize with structured prompt
+          // Phase 2: Synthesize with configurable model
           send('synthesis_start', {});
           const synthesisInput = results.map(r =>
             `## ${r.name}\n\n${r.response}`
           ).join('\n\n---\n\n');
+          const synthUserContent = `Original question: ${prompt}\n\nThe 3 model names are: ${results.map(r => r.name).join(', ')}\n\n--- Model Responses ---\n\n${synthesisInput}`;
 
-          const synthResp = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'x-api-key': ANTHROPIC_KEY,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'claude-opus-4-6',
-              max_tokens: 16000,
-              thinking: { type: 'enabled', budget_tokens: 10000 },
+          // Determine synthesis model config
+          const synthModelId = customSynthesis?.modelId || 'claude-opus';
+          const synthIsAnthropic = synthModelId.startsWith('claude-');
+          const synthReasoning = customSynthesis?.reasoning || 'high';
+
+          if (synthIsAnthropic) {
+            // Anthropic synthesis with optional thinking
+            const cm = CLAUDE_MODELS[synthModelId] || { model: synthModelId, maxOutput: 16000 };
+            const synthBody: Record<string, unknown> = {
+              model: cm.model,
+              max_tokens: cm.maxOutput,
               stream: true,
               system: SYNTHESIS_SYSTEM,
-              messages: [{ role: 'user', content: `Original question: ${prompt}\n\nThe 3 model names are: ${results.map(r => r.name).join(', ')}\n\n--- Model Responses ---\n\n${synthesisInput}` }],
-            }),
-          });
+              messages: [{ role: 'user', content: synthUserContent }],
+            };
+            if (synthReasoning !== 'none') {
+              const budgetMap: Record<string, number> = { low: 3000, medium: 6000, high: 10000 };
+              synthBody.thinking = { type: 'enabled', budget_tokens: budgetMap[synthReasoning] || 10000 };
+            }
 
-          if (!synthResp.ok) {
-            const errText = await synthResp.text();
-            send('error', { message: `Synthesis error: ${errText.slice(0, 200)}` });
-          } else {
-            const reader = synthResp.body!.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
+            const synthResp = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'x-api-key': ANTHROPIC_KEY,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify(synthBody),
+            });
 
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
+            if (!synthResp.ok) {
+              const errText = await synthResp.text();
+              send('error', { message: `Synthesis error: ${errText.slice(0, 200)}` });
+            } else {
+              const reader = synthResp.body!.getReader();
+              const decoder = new TextDecoder();
+              let buffer = '';
 
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
 
-              for (const line of lines) {
-                if (!line.startsWith('data: ')) continue;
-                const payload = line.slice(6).trim();
-                if (payload === '[DONE]') continue;
-                try {
-                  const event = JSON.parse(payload);
-                  if (event.type === 'content_block_delta') {
-                    if (event.delta?.type === 'thinking_delta' && event.delta?.thinking) {
-                      send('synthesis_thinking', { text: event.delta.thinking });
-                    } else if (event.delta?.text) {
-                      send('synthesis_chunk', { text: event.delta.text });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (!line.startsWith('data: ')) continue;
+                  const payload = line.slice(6).trim();
+                  if (payload === '[DONE]') continue;
+                  try {
+                    const event = JSON.parse(payload);
+                    if (event.type === 'content_block_delta') {
+                      if (event.delta?.type === 'thinking_delta' && event.delta?.thinking) {
+                        send('synthesis_thinking', { text: event.delta.thinking });
+                      } else if (event.delta?.text) {
+                        send('synthesis_chunk', { text: event.delta.text });
+                      }
                     }
-                  }
-                } catch {}
+                  } catch {}
+                }
+              }
+            }
+          } else {
+            // Gateway synthesis (Gemini/GPT)
+            const isOpenAI = synthModelId.startsWith('openai/');
+            const synthGatewayBody: Record<string, unknown> = {
+              model: synthModelId,
+              messages: [
+                { role: 'system', content: SYNTHESIS_SYSTEM },
+                { role: 'user', content: synthUserContent },
+              ],
+              stream: true,
+            };
+            if (isOpenAI) {
+              synthGatewayBody.max_completion_tokens = 8192;
+            } else {
+              synthGatewayBody.max_tokens = 8192;
+            }
+            if (synthReasoning !== 'none') {
+              synthGatewayBody.reasoning = { effort: synthReasoning };
+            }
+
+            const synthResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify(synthGatewayBody),
+            });
+
+            if (!synthResp.ok) {
+              const errText = await synthResp.text();
+              send('error', { message: `Synthesis error: ${errText.slice(0, 200)}` });
+            } else {
+              const reader = synthResp.body!.getReader();
+              const decoder = new TextDecoder();
+              let buffer = '';
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (!line.startsWith('data: ')) continue;
+                  const payload = line.slice(6).trim();
+                  if (payload === '[DONE]') continue;
+                  try {
+                    const chunk = JSON.parse(payload);
+                    const delta = chunk.choices?.[0]?.delta?.content;
+                    if (delta) {
+                      send('synthesis_chunk', { text: delta });
+                    }
+                  } catch {}
+                }
               }
             }
           }
