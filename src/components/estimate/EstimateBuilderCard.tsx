@@ -503,6 +503,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                     <p className="text-sm text-muted-foreground text-center py-8">No master tasks configured yet.</p>
                   ) : (
                     <div className="space-y-1.5">
+                      <TaskRowHeader />
                       {tasks.map((task) => (
                         <EstimateTaskRow
                           key={task.id}
