@@ -153,6 +153,7 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
                 <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
               </TableHead>
               <TableHead className="w-[100px] text-xs">Role(s)</TableHead>
+              <TableHead className="w-[70px] text-xs text-center">Type</TableHead>
               <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
               <TableHead className="w-[60px] text-xs text-center">#</TableHead>
               <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours_per_person')}>
@@ -206,7 +207,7 @@ function GroupRows({
   onHoursPerPersonChange: (id: string, hpp: number) => void;
   onVariableQtyChange: (id: string, qty: number) => void;
 }) {
-  const colSpan = showPhaseCol ? 8 : 7;
+  const colSpan = showPhaseCol ? 9 : 8;
 
   return (
     <>
@@ -259,8 +260,9 @@ function TaskTableRow({
       <TableCell className="py-1.5 w-10">
         <Checkbox
           checked={task.is_selected}
-          onCheckedChange={(checked) => onToggle(task.id, checked as boolean)}
-          className={formulaDriven ? 'border-muted-foreground/60 data-[state=checked]:bg-muted-foreground/70 data-[state=checked]:border-muted-foreground/70' : ''}
+          onCheckedChange={task.is_required ? undefined : (checked) => onToggle(task.id, checked as boolean)}
+          disabled={task.is_required}
+          className={formulaDriven || task.is_required ? 'border-muted-foreground/60 data-[state=checked]:bg-muted-foreground/70 data-[state=checked]:border-muted-foreground/70' : ''}
         />
       </TableCell>
 
