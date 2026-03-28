@@ -78,14 +78,18 @@ const GREETINGS_BY_TIME: Record<string, string[]> = {
     'Hope your day is going well', 'Back at it', 'Welcome back',
   ],
   evening: [
-    'Good evening', 'Evening', 'Hey there, night owl',
-    'Burning the midnight oil', 'Still going strong', 'Welcome back',
+    'Good evening', 'Evening', 'Hey there',
+    'Welcome back', 'Winding down', 'Back at it',
+  ],
+  latenight: [
+    'Burning the midnight oil', 'Still going strong', 'Hey there, night owl',
+    'Welcome back', 'Up late',
   ],
 };
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  const bucket = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const bucket = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 22 ? 'evening' : 'latenight';
   const pool = GREETINGS_BY_TIME[bucket];
   return pool[Math.floor(Math.random() * pool.length)];
 }
