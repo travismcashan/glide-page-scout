@@ -2706,7 +2706,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     </span>
                     {searchSources.web && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
                   </button>
-                  {(() => {
+                  {!globalMode && (() => {
                     const supportsAnalytics = !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-');
                     return (
                       <button
