@@ -1254,6 +1254,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             crawlContext,
             customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
             councilModels: (() => { try { return JSON.parse(localStorage.getItem('council-models') || '[]'); } catch { return []; } })(),
+            synthesisModel: (() => { try { return JSON.parse(localStorage.getItem('council-synthesis-model') || 'null'); } catch { return null; } })(),
           }),
         });
 
