@@ -758,23 +758,8 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {aboutMe && (
-            <div className="rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-start gap-4">
-                <Avatar className="h-14 w-14">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="text-lg">{(aboutMe.name || '?')[0]?.toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="font-semibold text-lg leading-tight">{aboutMe.name}</p>
-                  {aboutMe.title && <p className="text-sm text-muted-foreground">{aboutMe.title}</p>}
-                  {aboutMe.headline && aboutMe.headline !== aboutMe.title && (
-                    <p className="text-xs text-muted-foreground">{aboutMe.headline}</p>
-                  )}
-                </div>
-              </div>
 
-           {aboutMe && (
+          {aboutMe && (
             <div className="rounded-lg border border-border p-4 space-y-5">
               {/* Person header */}
               <div className="flex items-start gap-4">
