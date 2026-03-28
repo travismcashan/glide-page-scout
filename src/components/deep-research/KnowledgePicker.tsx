@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Database, Loader2, Sparkles, FileText, Mail, Globe, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { Database, Loader2, Sparkles, FileText, Mail, Globe, MessageSquare, ChevronDown, ChevronUp, X, FolderOpen } from 'lucide-react';
+import { KnowledgeBasePickerDialog } from './KnowledgeBasePickerDialog';
 
 const RAG_SEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-search`;
 
@@ -48,6 +49,7 @@ export function KnowledgePicker({ sessionId, prompt, onKnowledgeChange }: Props)
   const [expanded, setExpanded] = useState(false);
   const [docChunksCache, setDocChunksCache] = useState<Record<string, string>>({});
   const [loadingDocChunks, setLoadingDocChunks] = useState<Set<string>>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Fetch all knowledge documents for this session
   useEffect(() => {
@@ -126,8 +128,28 @@ export function KnowledgePicker({ sessionId, prompt, onKnowledgeChange }: Props)
         n.delete(docId);
       } else {
         n.add(docId);
-        // Trigger content fetch
         fetchDocContent(docId);
+      }
+      return n;
+    });
+  }, [fetchDocContent]);
+
+  // Remove a manually selected document
+  const removeDoc = useCallback((docId: string) => {
+    setSelectedDocIds(prev => {
+      const n = new Set(prev);
+      n.delete(docId);
+      return n;
+    });
+  }, []);
+
+  // Handle documents selected from the picker dialog
+  const handlePickerSelection = useCallback((docs: { id: string; name: string }[]) => {
+    setSelectedDocIds(prev => {
+      const n = new Set(prev);
+      for (const doc of docs) {
+        n.add(doc.id);
+        fetchDocContent(doc.id);
       }
       return n;
     });
@@ -164,6 +186,11 @@ export function KnowledgePicker({ sessionId, prompt, onKnowledgeChange }: Props)
 
   const totalKnowledgeDocs = ragChunks.length > 0 || selectedDocIds.size > 0;
   const ragDocCount = new Set(ragChunks.map(c => c.document_name)).size;
+
+  // Get names of selected docs for the pill display
+  const selectedDocNames = Array.from(selectedDocIds)
+    .map(id => allDocs.find(d => d.id === id))
+    .filter(Boolean) as KnowledgeDoc[];
 
   if (allDocs.length === 0) return null;
 
@@ -212,33 +239,66 @@ export function KnowledgePicker({ sessionId, prompt, onKnowledgeChange }: Props)
             )}
           </div>
 
-          {/* Manual document picker */}
+          {/* Manual selection with Browse button */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Manual Selection ({selectedDocIds.size}/{allDocs.length})
-            </p>
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-1">
-                {allDocs.map(doc => (
-                  <label
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">
+                Full Documents ({selectedDocIds.size} selected)
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPickerOpen(true)}
+                className="h-7 text-xs gap-1.5"
+              >
+                <FolderOpen className="h-3 w-3" />
+                Browse
+              </Button>
+            </div>
+
+            {/* Selected documents as removable pills */}
+            {selectedDocNames.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedDocNames.map(doc => (
+                  <Badge
                     key={doc.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                    variant="secondary"
+                    className="text-xs gap-1 pr-1 max-w-[200px]"
                   >
-                    <Checkbox
-                      checked={selectedDocIds.has(doc.id)}
-                      onCheckedChange={() => toggleDoc(doc.id)}
-                    />
                     {sourceIcon(doc.source_type)}
-                    <span className="text-sm truncate flex-1">{doc.name}</span>
-                    {loadingDocChunks.has(doc.id) && <Loader2 className="h-3 w-3 animate-spin" />}
-                    <span className="text-[10px] text-muted-foreground shrink-0">{doc.chunk_count} chunks</span>
-                  </label>
+                    <span className="truncate">{doc.name}</span>
+                    {loadingDocChunks.has(doc.id) ? (
+                      <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeDoc(doc.id); }}
+                        className="ml-0.5 hover:text-destructive transition-colors shrink-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </Badge>
                 ))}
               </div>
-            </ScrollArea>
+            )}
+
+            {/* Inline quick-pick list (collapsed by default if we have selected docs) */}
+            {selectedDocNames.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Click "Browse" to select full documents from the knowledge base.
+              </p>
+            )}
           </div>
         </div>
       )}
+
+      <KnowledgeBasePickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        sessionId={sessionId}
+        onDocumentsSelected={handlePickerSelection}
+        alreadySelectedIds={selectedDocIds}
+      />
     </div>
   );
 }
