@@ -16,18 +16,6 @@ export function EstimateVariablesTab({ variables, onChange }: Props) {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Project Scope</CardTitle>
-          <CardDescription>Toggle options that affect task calculations</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="flex items-center space-x-3 pt-1">
-            <Switch id="site_builder_acf" checked={variables.site_builder_acf ?? true} onCheckedChange={(c) => handleChange('site_builder_acf', c)} />
-            <Label htmlFor="site_builder_acf" className="text-xs">Site Builder / ACF</Label>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader className="pb-3">
