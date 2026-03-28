@@ -183,6 +183,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         content_pages: crawlDefaults.content_pages ?? 10,
         design_layouts: crawlDefaults.design_layouts ?? 5,
         form_count: crawlDefaults.form_count ?? 2,
+        form_count_s: 0,
+        form_count_m: 0,
+        form_count_l: 0,
         integration_count: 1,
         paid_discovery: 'scope_only',
         pages_for_integration: crawlDefaults.pages_for_integration ?? 20,
@@ -191,6 +194,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         site_builder_acf: true,
         third_party_integrations: crawlDefaults.third_party_integrations ?? 2,
         post_launch_services: 0,
+        complexity_score: 0,
       };
 
       const { data: newEstimate, error: estError } = await supabase
