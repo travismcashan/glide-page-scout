@@ -42,8 +42,12 @@ export default function GroupDetailPage() {
 
   // Add site dialog
   const [addOpen, setAddOpen] = useState(false);
+  const [addTab, setAddTab] = useState<string>('existing');
   const [newUrl, setNewUrl] = useState('');
   const [adding, setAdding] = useState(false);
+  const [existingSessions, setExistingSessions] = useState<{ id: string; domain: string; created_at: string }[]>([]);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [loadingExisting, setLoadingExisting] = useState(false);
 
   const fetchData = async () => {
     if (!groupId) return;
