@@ -342,7 +342,7 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     <div className="space-y-4">
       {/* Summary + Tier selector */}
       <div className="flex items-center gap-4 flex-wrap">
-        <MetaStat value={totalPages} label="Detected Pages" />
+        <MetaStat value={integrablePages} label="Detected Pages" />
         <MetaStatDivider />
         <MetaStat value={selectedUrls.size} label="Selected Pages" />
         <div className="ml-auto">
