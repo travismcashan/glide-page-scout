@@ -1,42 +1,37 @@
 
 
-## Remove Broken Link Checker
+## Separate Analysis vs. Estimate Modes for Templates & Forms Cards
 
-The broken link checker is redundant since the URL Discovery tab already shows link status. Here are the ramifications and the removal plan.
+**Goal**: Analysis tab shows raw data (what exists on the site). Estimate tab shows the AI recommendation tiers (S/M/L) for choosing what goes into the estimate calculation.
 
-### What gets removed
-- **`src/components/BrokenLinksCard.tsx`** — delete file
-- **`supabase/functions/link-checker/index.ts`** — delete edge function
-- **`src/lib/api/firecrawl.ts`** — remove `linkCheckerApi` export
+### Approach
 
-### What gets cleaned up (references in ~8 files)
+Add a `mode` prop (`'analysis' | 'estimate'`) to both `TemplatesCard` and `FormsCard`. Default to `'analysis'`.
 
-1. **`src/pages/ResultsPage.tsx`** — the biggest change:
-   - Remove import of `BrokenLinksCard`
-   - Remove all `linkcheck` state variables (`linkcheckLoading`, `linkcheckFailed`, `linkcheckProgress`, `linkcheckStreamingResults`, `linkcheckRunningRef`, `linkcheckAbortRef`)
-   - Remove the `useEffect` that auto-triggers the link checker
-   - Remove the `SectionCard` block for "Broken Link Checker"
-   - Remove `link-checker` from integration maps, rerun config, pause handlers, loading maps
+**When `mode === 'analysis'`:**
+- Do NOT auto-trigger AI recommendations
+- Hide the S/M/L `ToggleGroup` tier selector
+- Hide the AI sparkle badge and reasoning sections
+- Hide checkboxes for including/excluding templates
+- Show all templates/forms as a flat read-only list (no "recommended" vs "not included" split)
 
-2. **`src/pages/IntegrationsPage.tsx`** — remove the "Broken Link Checker" entry from the integrations list
+**When `mode === 'estimate'`:**
+- Keep all current behavior: auto-trigger AI, show tier toggles, checkboxes, reasoning, etc.
 
-3. **`src/lib/siteScore.ts`** — remove `extractBrokenLinks` and `extractUrlHealth` functions; remove the `link-checker` and `url-health` entries from the scoring integrations array
+### Files changed
 
-4. **`src/lib/ragIngest.ts`** — remove `linkcheck_data` from the knowledge base ingest map
+1. **`src/components/TemplatesCard.tsx`**
+   - Add `mode?: 'analysis' | 'estimate'` prop (default `'analysis'`)
+   - Skip `fetchAiRecommendations` auto-run when mode is `'analysis'`
+   - Conditionally hide tier toggle, AI badge, reasoning, checkboxes
 
-5. **`src/lib/buildCrawlContext.ts`** — remove `linkcheck_data` field and `extractLinkCheck` function
+2. **`src/components/FormsCard.tsx`**
+   - Same `mode` prop and conditional rendering as above
 
-6. **`src/lib/exportResults.ts`** — remove `linkcheck_data` from the export type and export list
+3. **`src/pages/ResultsPage.tsx`**
+   - Pass `mode="analysis"` to both cards in the Analysis tab (no change needed since that's the default)
+   - Remove `savedTiers`, `onTiersChange`, `onRerunRequest` props from the Analysis tab instances
 
-7. **`src/components/KnowledgeChatCard.tsx`** — remove `linkcheck` from source name map, tab routing, and keyword detection
-
-### What stays untouched
-- **`linkcheck_data` column in `crawl_sessions`** — leave it in the database; old sessions keep their data, it just won't be displayed. No migration needed.
-- **`count_integrations` DB function** — still references `linkcheck_data` for legacy counts, which is fine (it'll count existing data for old sessions)
-- **URL Discovery card** — already has its own link checking built into `UrlDiscoveryCard.tsx` with status codes, so no gap in functionality
-
-### Risk
-Low. The link checker was a standalone integration with no downstream dependencies beyond display. The URL Discovery card already provides the same broken-link detection inline.
-
-### Files changed: ~8 files edited, 2 files deleted
+4. **`src/components/estimate/EstimateBuilderCard.tsx`**
+   - Pass `mode="estimate"` to both `TemplatesCard` and `FormsCard` in the Variables tab
 
