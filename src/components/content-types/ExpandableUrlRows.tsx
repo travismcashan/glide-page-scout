@@ -26,9 +26,11 @@ interface ExpandableUrlRowsProps {
   navMap?: Map<string, NavTag[]>;
   pageTags?: PageTagsMap | null;
   onPageTagChange?: (url: string, template: string) => void;
+  showCheckbox?: boolean;
+  isIncluded?: boolean;
 }
 
-export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange }: ExpandableUrlRowsProps) {
+export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navMap, pageTags, onPageTagChange, showCheckbox = false, isIncluded = true }: ExpandableUrlRowsProps) {
   // Show all URLs in a scrollable container (max ~7 visible rows, 28px each = 196px)
   const maxHeight = urls.length > 7 ? 196 : undefined;
 
