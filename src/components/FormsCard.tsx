@@ -381,7 +381,7 @@ export function FormsCard({ data, domain, savedTiers, onTiersChange, onRerunRequ
       </div>
 
       {/* AI reasoning footer */}
-      {aiTiers && activeTier && activeTier !== 'All' && (() => {
+      {isEstimate && aiTiers && activeTier && activeTier !== 'All' && (() => {
         const sections: { label: string; content: string }[] = [];
         if (aiTiers.reasoning_S) sections.push({ label: 'Small', content: aiTiers.reasoning_S });
         if (activeTier !== 'S' && aiTiers.reasoning_M) sections.push({ label: 'Medium', content: aiTiers.reasoning_M });
