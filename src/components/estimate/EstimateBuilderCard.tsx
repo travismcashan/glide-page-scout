@@ -456,6 +456,16 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
                 {pageTags && (
                   <SectionCard
+                    sectionId="est-content-audit"
+                    title="Content Audit"
+                    icon={<Layers className="h-5 w-5 text-foreground" />}
+                  >
+                    <RedesignEstimateCard pageTags={pageTags} contentTypesData={contentTypesData} />
+                  </SectionCard>
+                )}
+
+                {pageTags && (
+                  <SectionCard
                     sectionId="est-templates"
                     title="Template Analysis (Recommended Layouts)"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
@@ -473,20 +483,6 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                           handleVariablesChange({ ...estimate, design_layouts: tierLayouts.length });
                         }
                       }}
-                    />
-                  </SectionCard>
-                )}
-
-                {contentTypesData && (
-                  <SectionCard
-                    sectionId="est-content-types"
-                    title="Bulk Content (Posts & CPTs)"
-                    icon={<Layers className="h-5 w-5 text-foreground" />}
-                  >
-                    <ContentTypesCard
-                      data={contentTypesData}
-                      navStructure={navStructure}
-                      pageTags={pageTags}
                     />
                   </SectionCard>
                 )}
@@ -511,13 +507,17 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                   </SectionCard>
                 )}
 
-                {pageTags && (
+                {contentTypesData && (
                   <SectionCard
-                    sectionId="est-content-audit"
-                    title="Content Audit"
+                    sectionId="est-content-types"
+                    title="Bulk Content (Posts & CPTs)"
                     icon={<Layers className="h-5 w-5 text-foreground" />}
                   >
-                    <RedesignEstimateCard pageTags={pageTags} contentTypesData={contentTypesData} />
+                    <ContentTypesCard
+                      data={contentTypesData}
+                      navStructure={navStructure}
+                      pageTags={pageTags}
+                    />
                   </SectionCard>
                 )}
               </div>
