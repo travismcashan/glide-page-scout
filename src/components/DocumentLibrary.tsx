@@ -93,6 +93,9 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [gridPreviewDoc, setGridPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [gridPreviewContent, setGridPreviewContent] = useState<string | null>(null);
   const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
+  const renameAbortRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Persist preferences to localStorage
