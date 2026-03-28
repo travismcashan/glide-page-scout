@@ -2358,13 +2358,40 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="h-6 w-6 text-muted-foreground" />
-              <h3 className="text-lg font-semibold text-foreground">Ask anything about this website</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                {globalMode ? 'What can I help you with?' : 'Ask anything about this website'}
+              </h3>
             </div>
             <p className="text-sm text-muted-foreground mb-6 max-w-md">
-              All your integration data is loaded as context. Ask questions about performance, SEO, security, accessibility, technology, or anything else the audit covers.
+              {globalMode
+                ? 'Upload documents, attach site knowledge, or just start a conversation. All your personal settings and preferences are loaded.'
+                : 'All your integration data is loaded as context. Ask questions about performance, SEO, security, accessibility, technology, or anything else the audit covers.'}
             </p>
+            {/* Attached sites bar in global mode */}
+            {globalMode && (
+              <div className="flex items-center gap-2 flex-wrap mb-6">
+                {attachedSites?.map(s => (
+                  <div key={s.session_id} className="flex items-center gap-1.5 bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-medium">
+                    <Globe className="h-3 w-3" />
+                    {s.domain}
+                    <button onClick={() => onDetachSite?.(s.session_id)} className="hover:text-destructive ml-0.5">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {onAttachSite && (
+                  <button
+                    onClick={onAttachSite}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add site
+                  </button>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-              {SUGGESTED_QUESTIONS.map((q, i) => (
+              {(globalMode ? GLOBAL_SUGGESTED_QUESTIONS : SUGGESTED_QUESTIONS).map((q, i) => (
                 <button
                   key={i}
                   onClick={() => handleSend(q)}
