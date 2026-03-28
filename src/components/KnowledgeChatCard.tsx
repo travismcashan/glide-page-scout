@@ -2082,11 +2082,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         toast.success('Deep Research report ready!');
         saveMessage('assistant', finalReport, [], ragDocRefs, finalSources);
 
-        // Also save to deep_research_data for backward compat
-        await supabase
-          .from('crawl_sessions')
-          .update({ deep_research_data: { report: finalReport, prompt: text, sources: finalSources, updated_at: new Date().toISOString() } as any })
-          .eq('id', session.id);
+        // Also save to deep_research_data for backward compat (skip in global mode)
+        if (!globalMode) {
+          await supabase
+            .from('crawl_sessions')
+            .update({ deep_research_data: { report: finalReport, prompt: text, sources: finalSources, updated_at: new Date().toISOString() } as any })
+            .eq('id', session.id);
+        }
 
         // Auto-title thread
         if (activeThreadId && newMessages.length === 1) {
