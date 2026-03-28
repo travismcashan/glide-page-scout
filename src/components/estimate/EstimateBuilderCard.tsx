@@ -498,6 +498,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                     <TechAnalysisCard data={techAnalysisData} isLoading={false} />
                   </SectionCard>
                 )}
+              </div>
             </TabsContent>
 
             <TabsContent value="all">
