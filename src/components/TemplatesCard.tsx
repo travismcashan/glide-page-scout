@@ -320,7 +320,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
   const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
   const complexityMap = aiTiers?.complexity || aiTiers?.effort || {};
-  const hasComplexity = isEstimate && Object.keys(complexityMap).length > 0;
+  const hasComplexity = isEstimate;
   const colCount = hasComplexity ? 6 : 5;
   const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const toggleTableSection = (key: string) => {
