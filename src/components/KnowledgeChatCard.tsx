@@ -1228,38 +1228,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         const decoder = new TextDecoder();
         let sseBuffer = '';
         let synthesisText = '';
-        const modelStatuses: Record<string, { name: string; status: 'thinking' | 'done' | 'error'; response?: string }> = {};
-        let isSynthesizing = false;
+        const modelStatuses: Record<string, CouncilModel> = {};
 
         const updateCouncilMessage = () => {
-          // Build council status block as markdown
-          let statusBlock = '';
-          const entries = Object.values(modelStatuses);
-          if (entries.length > 0) {
-            for (const ms of entries) {
-              const icon = ms.status === 'done' ? '✅' : ms.status === 'error' ? '❌' : '⏳';
-              statusBlock += `${icon} **${ms.name}** — ${ms.status === 'thinking' ? 'Thinking…' : ms.status === 'done' ? 'Done' : 'Error'}\n\n`;
-              if (ms.status === 'done' && ms.response) {
-                statusBlock += `<details>\n<summary>View response</summary>\n\n${ms.response}\n\n</details>\n\n`;
-              }
-            }
-          }
-
-          let content = '';
-          if (!isSynthesizing && !synthesisText) {
-            // Still waiting for models
-            content = statusBlock;
-          } else {
-            // Show synthesis with model details below
-            content = synthesisText;
-            if (entries.length > 0) {
-              content += '\n\n---\n\n' + statusBlock;
-            }
-          }
-
+          const councilModels = Object.entries(modelStatuses).map(([key, m]) => ({ ...m, key }));
           setMessages(prev => {
             const updated = [...prev];
-            updated[updated.length - 1] = { role: 'assistant', content };
+            updated[updated.length - 1] = { role: 'assistant', content: synthesisText, councilModels };
             return updated;
           });
         };
@@ -1282,19 +1257,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                 const data = JSON.parse(payload);
                 switch (currentEvent) {
                   case 'model_start':
-                    modelStatuses[data.key] = { name: data.name, status: 'thinking' };
+                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'thinking' };
                     updateCouncilMessage();
                     break;
                   case 'model_done':
-                    modelStatuses[data.key] = { name: data.name, status: 'done', response: data.response };
+                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'done', response: data.response };
                     updateCouncilMessage();
                     break;
                   case 'model_error':
-                    modelStatuses[data.key] = { name: data.name, status: 'error' };
+                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'error' };
                     updateCouncilMessage();
                     break;
                   case 'synthesis_start':
-                    isSynthesizing = true;
                     updateCouncilMessage();
                     break;
                   case 'synthesis_chunk':
@@ -1312,23 +1286,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           }
         }
 
-        // Final save
-        const finalEntries = Object.values(modelStatuses);
+        // Final save — store synthesis + council transcript as markdown for DB persistence
+        const finalModels = Object.entries(modelStatuses).map(([key, m]) => ({ ...m, key }));
         let finalContent = synthesisText || 'No synthesis available.';
-        if (finalEntries.length > 0) {
-          finalContent += '\n\n---\n\n';
-          for (const ms of finalEntries) {
-            const icon = ms.status === 'done' ? '✅' : '❌';
-            finalContent += `${icon} **${ms.name}**\n\n`;
-            if (ms.status === 'done' && ms.response) {
-              finalContent += `<details>\n<summary>View response</summary>\n\n${ms.response}\n\n</details>\n\n`;
-            }
-          }
+        // Append model responses as hidden details for persistence
+        finalContent += '\n\n---\n\n';
+        for (const ms of finalModels) {
+          finalContent += `<details>\n<summary>🧠 ${ms.name}</summary>\n\n${ms.response || '[No response]'}\n\n</details>\n\n`;
         }
 
         setMessages(prev => {
           const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: finalContent };
+          updated[updated.length - 1] = { role: 'assistant', content: finalContent, councilModels: finalModels };
           return updated;
         });
         saveMessage('assistant', finalContent);
