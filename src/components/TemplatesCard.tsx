@@ -446,12 +446,17 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                   const LIMIT = 5;
                   const isExpanded = expandedTableSections.has('not-included');
                   const hasMore = notIncludedTemplates.length > LIMIT;
-                  const visible = isExpanded ? notIncludedTemplates : notIncludedTemplates.slice(0, LIMIT);
                   return (
                     <>
-                      {visible.map((t, i) => (
-                        <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
-                      ))}
+                      <tr>
+                        <td colSpan={5} className="p-0">
+                          <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
+                            {notIncludedTemplates.map((t, i) => (
+                              <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
                       {hasMore && (
                         <tr>
                           <td colSpan={5} className="p-0 relative">
