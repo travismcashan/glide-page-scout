@@ -132,7 +132,7 @@ export default function SettingsPage() {
   };
 
   const [matchCount, setMatchCount] = useState(
-    () => parseInt(localStorage.getItem('rag-match-count') || '15', 10)
+    () => parseInt(localStorage.getItem('rag-match-count') || '30', 10)
   );
   const [matchThreshold, setMatchThreshold] = useState(
     () => parseFloat(localStorage.getItem('rag-match-threshold') || '0.25')
