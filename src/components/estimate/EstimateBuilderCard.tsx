@@ -295,8 +295,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     }));
   };
 
-  const handleVariablesChange = (variables: EstimateVariables) => {
-    if (!estimate || tasks.length === 0) return;
+  const handleVariablesChange = useCallback((variables: EstimateVariables) => {
+    if (!estimate || tasks.length === 0 || !initialLoadDone) return;
     // Auto-derive project size and complexity from variables
     const derived = {
       ...variables,
@@ -308,7 +308,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     // Auto-recalculate tasks when variables change
     const updatedTasks = recalculateAllTasks(tasks, updated, formulas);
     setTasks(updatedTasks as EstimateTask[]);
-  };
+  }, [estimate, tasks, formulas, initialLoadDone]);
 
   const handleSave = async () => {
     if (!estimate) return;
