@@ -334,7 +334,8 @@ export default function ResultsPage() {
       const currentY = window.scrollY;
       const delta = lastScrollY.current - currentY;
       const tabBarTop = tabBarRef.current?.getBoundingClientRect().top ?? 0;
-      const pastTabBar = tabBarTop < 0;
+      const tabBarHeight = tabBarRef.current?.offsetHeight ?? 56;
+      const pastStickyHandoff = tabBarTop <= -tabBarHeight;
 
       if (delta > 0) {
         // Scrolling up — accumulate distance
@@ -345,8 +346,9 @@ export default function ResultsPage() {
         setStickyTabVisible(false);
       }
 
-      // Only show after scrolling up at least 30px while past the tab bar
-      if (!pastTabBar) {
+      // Only show after scrolling up at least 30px while the original tab row is still fully out of view.
+      // As soon as the original row starts re-entering the viewport, hide the floating copy for a clean handoff.
+      if (!pastStickyHandoff) {
         setStickyTabVisible(false);
       } else if (scrollUpDistance.current > 30) {
         setStickyTabVisible(true);
