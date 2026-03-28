@@ -602,7 +602,7 @@ function extractSearchConsole(session: any): number | null {
 
 // ── Category definitions ───────────────────────────────────────
 
-export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis' | 'navigation';
+export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis';
 
 export type CategoryScore = {
   key: CategoryKey;
@@ -629,7 +629,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'performance',
     label: 'Performance',
-    weight: 25,
+    weight: 27,
     integrations: [
       { key: 'gtmetrix', label: 'GTmetrix', extract: extractGtmetrix },
       { key: 'psi-performance', label: 'PageSpeed Performance', extract: extractPsiPerformance },
@@ -642,7 +642,7 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
   {
     key: 'seo',
     label: 'SEO & Search',
-    weight: 18,
+    weight: 20,
     integrations: [
       { key: 'semrush', label: 'SEMrush', extract: extractSemrush },
       { key: 'psi-seo', label: 'PageSpeed SEO', extract: extractPsiSeo },
@@ -687,14 +687,6 @@ const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrat
       { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatusDetailed },
       { key: 'link-checker', label: 'Broken Links', extract: extractBrokenLinks },
       { key: 'url-health', label: 'URL Health', extract: extractUrlHealth },
-    ],
-  },
-  {
-    key: 'navigation',
-    label: 'Navigation',
-    weight: 5,
-    integrations: [
-      { key: 'nav-structure', label: 'Site Navigation', extract: extractNavigation },
     ],
   },
   {
@@ -778,5 +770,5 @@ export const SECTION_TO_CATEGORY: Record<string, CategoryKey> = {
   'section-security': 'security',
   'section-content-analysis': 'content',
   'section-tech-detection': 'technology',
-  'section-navigation': 'navigation',
+  
 };
