@@ -184,7 +184,20 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
     const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
-    const { messages, crawlContext, customInstructions } = await req.json();
+    const { messages, crawlContext, customInstructions, councilModels: customModels } = await req.json();
+
+    // Build council models list from custom config or defaults
+    const councilModelList = (Array.isArray(customModels) && customModels.length === 3)
+      ? customModels.map((slot: { provider: string; modelId: string }, i: number) => {
+          const isAnthropic = slot.modelId.startsWith('claude-');
+          return {
+            key: `model-${i}`,
+            id: slot.modelId,
+            name: MODEL_NAMES[slot.modelId] || slot.modelId,
+            provider: isAnthropic ? 'anthropic' as const : 'gateway' as const,
+          };
+        })
+      : DEFAULT_COUNCIL_MODELS;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'messages required' }), {
