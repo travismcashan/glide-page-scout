@@ -320,7 +320,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
   const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
   const complexityMap = aiTiers?.complexity || aiTiers?.effort || {};
-  const hasComplexity = isEstimate && Object.keys(complexityMap).length > 0;
+  const hasComplexity = isEstimate;
   const colCount = hasComplexity ? 6 : 5;
   const aiIncludedSet = hasTierSelection ? new Set(aiTiers[activeTier as 'S' | 'M' | 'L']) : new Set<string>();
   const toggleTableSection = (key: string) => {
@@ -375,14 +375,22 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
       {/* Templates table — sectioned when a tier is active */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col className="w-10" />
+            <col />
+            <col className="w-24" />
+            <col className="w-20" />
+            {hasComplexity && <col className="w-28" />}
+            <col className="w-16" />
+          </colgroup>
           <thead>
              <tr className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 text-left">
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground w-10 text-center">{isEstimate ? 'Design' : '#'}</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
-              {hasComplexity && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Complexity</th>}
-              <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">{isEstimate ? 'Design' : '#'}</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-left">Template</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Type</th>
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Nav</th>
+               {hasComplexity && <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-center">Complexity</th>}
+               <th className="px-3 py-1.5 font-medium text-xs text-muted-foreground text-right">URLs</th>
             </tr>
           </thead>
           <tbody>
@@ -414,6 +422,14 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                         <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
+                              <colgroup>
+                                <col className="w-10" />
+                                <col />
+                                <col className="w-24" />
+                                <col className="w-20" />
+                                {hasComplexity && <col className="w-28" />}
+                                <col className="w-16" />
+                              </colgroup>
                               <tbody>
                                 {recommendedTemplates.map((t, i) => (
                                   <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
@@ -473,6 +489,14 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                         <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
+                              <colgroup>
+                                <col className="w-10" />
+                                <col />
+                                <col className="w-24" />
+                                <col className="w-20" />
+                                {hasComplexity && <col className="w-28" />}
+                                <col className="w-16" />
+                              </colgroup>
                               <tbody>
                                 {notIncludedTemplates.map((t, i) => (
                                   <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} complexity={hasComplexity ? complexityMap[t.name] || '' : undefined} />
