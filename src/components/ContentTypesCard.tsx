@@ -59,6 +59,10 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
   const [mergeMode, setMergeMode] = useState(false);
   const [editingType, setEditingType] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [activeTier, setActiveTier] = useState<BulkTier | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(['not-included']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const isEstimate = mode === 'estimate';
 
   const { summary: rawSummary, stats } = data || { summary: [], stats: { total: 0, bySource: {}, uniqueTypes: 0, ambiguousScanned: 0 } };
   const classified = data?.classified || [];
