@@ -1662,7 +1662,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds]);
 
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -2112,7 +2112,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     lastEventIdRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth]);
+  }, [messages, isStreaming, session, pages, activeThreadId, scrollToLastUserMessage, ragDepth, globalMode, attachedSessionIds]);
 
   // ── Handle pending prompt from Prompts tab — always start a new chat ──
   // Step 1: Create thread, reset messages, queue the prompt
