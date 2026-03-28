@@ -68,6 +68,28 @@ const ROTATING_WORDS = [
   'Decipher', 'Interpret', 'Synthesize', 'Strategize', 'Prioritize',
 ];
 
+const GREETINGS_BY_TIME: Record<string, string[]> = {
+  morning: [
+    'Good morning', 'Rise and shine', 'Morning',
+    'Top of the morning', 'Bright and early', 'Hey there, early bird',
+  ],
+  afternoon: [
+    'Good afternoon', 'Hey there', 'Afternoon',
+    'Hope your day is going well', 'Back at it', 'Welcome back',
+  ],
+  evening: [
+    'Good evening', 'Evening', 'Winding down?',
+    'Burning the midnight oil', 'Hey, night owl', 'Still going strong',
+  ],
+};
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  const bucket = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const pool = GREETINGS_BY_TIME[bucket];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export default function CrawlPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -76,6 +98,7 @@ export default function CrawlPage() {
   const [recentViews, setRecentViews] = useState<RecentView[]>([]);
   const [wordIndex, setWordIndex] = useState(0);
   const phrase = useMemo(() => ROTATING_PHRASES[Math.floor(Math.random() * ROTATING_PHRASES.length)], []);
+  const greeting = useMemo(() => getGreeting(), []);
 
   // Rotating word animation
   useEffect(() => {
@@ -149,9 +172,9 @@ export default function CrawlPage() {
           <div className="space-y-[-0.15em]">
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
               {firstName ? (
-                <>Hello, {firstName}.</>
+                <>{greeting}, {firstName}.</>
               ) : (
-                <>Hello.</>
+                <>{greeting}.</>
               )}
             </h1>
             <div className="flex items-end gap-3 text-4xl sm:text-5xl font-bold tracking-tight leading-none">
