@@ -1874,7 +1874,7 @@ export default function ResultsPage() {
     activeTab === value
       ? { borderBottomColor: 'transparent', marginBottom: '-1px', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
       : undefined;
-  const tabTriggerClass = "relative h-14 inline-flex items-center text-base font-medium px-5 rounded-none border-y-0 border-x border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:bg-background data-[state=active]:text-foreground";
+  const tabTriggerClass = "relative h-14 inline-flex items-center text-base font-medium px-5 rounded-none border border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:border-foreground data-[state=active]:border-b-transparent data-[state=active]:bg-background data-[state=active]:text-foreground";
   const showProspecting = shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations);
 
   const tabTriggers = (
