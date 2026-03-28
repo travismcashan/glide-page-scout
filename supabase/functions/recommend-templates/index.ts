@@ -106,7 +106,7 @@ For each tier, list ONLY template names that need custom design. Everything not 
             type: 'function',
             function: {
               name: 'recommend_template_tiers',
-              description: 'Return the recommended custom-design templates for each tier. Template names must exactly match the input list.',
+              description: 'Return the recommended custom-design templates for each tier, plus a design effort rating for every template. Template names must exactly match the input list.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -125,6 +125,14 @@ For each tier, list ONLY template names that need custom design. Everything not 
                     items: { type: 'string' },
                     description: `Template names for Large tier (${lRange.min}–${lRange.max} custom designs)`,
                   },
+                  effort: {
+                    type: 'object',
+                    additionalProperties: {
+                      type: 'string',
+                      enum: ['low', 'medium', 'high'],
+                    },
+                    description: 'Design effort rating for EVERY template (key = exact template name, value = low/medium/high). Homepage is always high. Simple utility pages (Thank You, 404, Privacy Policy) are low. Core marketing pages (About, Services, Pricing) are medium-high. Resource lists and detail pages are medium.',
+                  },
                   reasoning: {
                     type: 'string',
                     description: 'Brief overall design strategy summary (1-2 sentences)',
@@ -142,7 +150,7 @@ For each tier, list ONLY template names that need custom design. Everything not 
                     description: 'Markdown-formatted explanation for ONLY the templates added in Large beyond Medium. Do NOT repeat Small or Medium tier reasoning. Explain what new templates were added and why. Use **bold** for template names.',
                   },
                 },
-                required: ['S', 'M', 'L', 'reasoning', 'reasoning_S', 'reasoning_M', 'reasoning_L'],
+                required: ['S', 'M', 'L', 'effort', 'reasoning', 'reasoning_S', 'reasoning_M', 'reasoning_L'],
                 additionalProperties: false,
               },
             },
@@ -176,7 +184,7 @@ For each tier, list ONLY template names that need custom design. Everything not 
     const aiData = await response.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    let result = { S: [] as string[], M: [] as string[], L: [] as string[], reasoning: '', reasoning_S: '', reasoning_M: '', reasoning_L: '' };
+    let result = { S: [] as string[], M: [] as string[], L: [] as string[], effort: {} as Record<string, string>, reasoning: '', reasoning_S: '', reasoning_M: '', reasoning_L: '' };
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
@@ -184,6 +192,14 @@ For each tier, list ONLY template names that need custom design. Everything not 
         result.S = (parsed.S || []).filter((n: string) => validNames.has(n));
         result.M = (parsed.M || []).filter((n: string) => validNames.has(n));
         result.L = (parsed.L || []).filter((n: string) => validNames.has(n));
+        // Only keep effort entries for valid template names
+        if (parsed.effort && typeof parsed.effort === 'object') {
+          for (const [name, level] of Object.entries(parsed.effort)) {
+            if (validNames.has(name) && ['low', 'medium', 'high'].includes(level as string)) {
+              result.effort[name] = level as string;
+            }
+          }
+        }
         result.reasoning = parsed.reasoning || '';
         result.reasoning_S = parsed.reasoning_S || '';
         result.reasoning_M = parsed.reasoning_M || '';
