@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import { isFormulaTask, getTaskCalcType, type TaskCalcType } from '@/lib/estimateFormulas';
 import type { EstimateTask } from './EstimateTaskRow';
 
@@ -153,6 +153,7 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
                 <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
               </TableHead>
               <TableHead className="w-[100px] text-xs">Role(s)</TableHead>
+              <TableHead className="w-[50px] text-xs text-center">Req</TableHead>
               <TableHead className="w-[70px] text-xs text-center">Type</TableHead>
               <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
               <TableHead className="w-[60px] text-xs text-center">#</TableHead>
@@ -226,7 +227,7 @@ function GroupRows({
   onHoursPerPersonChange: (id: string, hpp: number) => void;
   onVariableQtyChange: (id: string, qty: number) => void;
 }) {
-  const colSpan = showPhaseCol ? 9 : 8;
+  const colSpan = showPhaseCol ? 10 : 9;
 
   return (
     <>
@@ -302,6 +303,11 @@ function TaskTableRow({
             <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">{role}</Badge>
           ))}
         </div>
+      </TableCell>
+
+      {/* Required */}
+      <TableCell className="py-1.5 text-center">
+        {task.is_required && <Check className="h-3.5 w-3.5 text-muted-foreground mx-auto" />}
       </TableCell>
 
       {/* Type */}
