@@ -40,6 +40,7 @@ interface Props {
   onRerunRequest?: (rerunFn: () => void) => void;
   isRerunning?: boolean;
   mode?: 'analysis' | 'estimate';
+  onSelectionChange?: (includedCount: number) => void;
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
@@ -102,7 +103,7 @@ const LOADING_MESSAGES = [
   'Counting unique layouts with abacuses…',
 ];
 
-export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis' }: Props) {
+export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTiersChange, onRerunRequest, mode = 'analysis', onSelectionChange }: Props) {
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [seeded, setSeeded] = useState(false);
   const [activeTier, setActiveTier] = useState<TierKey | null>(null);
@@ -287,12 +288,19 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
     }
   }, [aiTiers, autoSelected, activeTier, templates]);
 
+  const designCount = templates.filter(t => !excluded.has(t.name)).length;
+  const blockBuiltCount = totalTemplates - designCount;
+
+  // Notify parent whenever the included count changes
+  useEffect(() => {
+    if (mode === 'estimate' && onSelectionChange) {
+      onSelectionChange(designCount);
+    }
+  }, [designCount, mode, onSelectionChange]);
+
   if (!pageTags || Object.keys(pageTags).length === 0) {
     return <p className="text-sm text-muted-foreground">No page classification data available yet.</p>;
   }
-
-  const designCount = templates.filter(t => !excluded.has(t.name)).length;
-  const blockBuiltCount = totalTemplates - designCount;
 
   const isEstimate = mode === 'estimate';
 

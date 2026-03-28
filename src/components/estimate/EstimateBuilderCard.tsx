@@ -502,6 +502,11 @@ function getProjectDuration(totalHours: number): string {
                           handleVariablesChange({ ...estimate, design_layouts: tierLayouts.length });
                         }
                       }}
+                      onSelectionChange={(count) => {
+                        if (estimate && count !== estimate.design_layouts) {
+                          handleVariablesChange({ ...estimate, design_layouts: count });
+                        }
+                      }}
                     />
                   </SectionCard>
                 )}
