@@ -1047,13 +1047,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (data && data.length > 0) {
-          setMessages(data.map((m: any) => ({
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-            sources: m.sources || [],
-            ragDocuments: m.rag_documents || undefined,
-            webCitations: m.web_citations || undefined,
-          })));
+          setMessages(data.map((m: any) => {
+            // Check if rag_documents contains council model data
+            const councilDoc = Array.isArray(m.rag_documents) && m.rag_documents.find((d: any) => d.name === '__council__');
+            const councilModels = councilDoc?.models as CouncilModel[] | undefined;
+            const ragDocs = councilDoc ? undefined : (m.rag_documents || undefined);
+            return {
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+              sources: m.sources || [],
+              ragDocuments: ragDocs,
+              webCitations: m.web_citations || undefined,
+              councilModels: councilModels || undefined,
+            };
+          }));
         } else {
           setMessages([]);
         }
@@ -1332,22 +1339,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           }
         }
 
-        // Final save — store synthesis only (model responses live in councilModels)
+        // Final save — store synthesis + council model data
         const finalModels = Object.entries(modelStatuses).map(([key, m]) => ({ ...m, key }));
         const finalContent = synthesisText || 'No synthesis available.';
-
-        // For DB persistence, append model responses as markdown
-        let dbContent = finalContent + '\n\n---\n\n';
-        for (const ms of finalModels) {
-          dbContent += `### 🧠 ${ms.name}\n\n${ms.response || '[No response]'}\n\n`;
-        }
 
         setMessages(prev => {
           const updated = [...prev];
           updated[updated.length - 1] = { role: 'assistant', content: finalContent, councilModels: finalModels };
           return updated;
         });
-        saveMessage('assistant', dbContent);
+
+        // Persist: store council models as rag_documents (JSONB) with a sentinel
+        const councilPayload = [{ name: '__council__', source_type: 'council', models: finalModels }];
+        saveMessage('assistant', finalContent, [], councilPayload as any);
         setIsStreaming(false);
         return;
       }
