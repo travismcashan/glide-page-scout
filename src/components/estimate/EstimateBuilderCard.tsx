@@ -558,6 +558,13 @@ function getProjectDuration(totalHours: number): string {
                       data={contentTypesData}
                       navStructure={navStructure}
                       pageTags={pageTags}
+                      mode="estimate"
+                      onTierChange={(tier, includedTypes, totalUrls) => {
+                        if (estimate) {
+                          const bulkAmount = tier === 'S' ? 'none' : totalUrls < 500 ? '<500' : totalUrls < 2000 ? '500-2000' : '2000+';
+                          handleVariablesChange({ ...estimate, custom_posts: includedTypes, bulk_import_amount: bulkAmount });
+                        }
+                      }}
                     />
                   </SectionCard>
                 )}
