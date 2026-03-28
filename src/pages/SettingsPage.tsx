@@ -1030,20 +1030,43 @@ export default function SettingsPage() {
               {/* Ocean.io Company Data */}
               {aboutMe.oceanCompany && (
                 <div className="space-y-2 border-t border-border pt-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ocean.io Company Intel</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    {aboutMe.oceanCompany.logo && <img src={aboutMe.oceanCompany.logo} alt="" className="h-4 w-4 rounded" />}
+                    Ocean.io · {aboutMe.oceanCompany.companyName || aboutMe.organization || 'Company Intel'}
+                  </p>
                   {aboutMe.oceanCompany.description && aboutMe.oceanCompany.description !== aboutMe.orgDescription && (
                     <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{aboutMe.oceanCompany.description}</p>
                   )}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {aboutMe.oceanCompany.employeeCount && <span>👥 {aboutMe.oceanCompany.employeeCount.toLocaleString()} employees</span>}
+                    {aboutMe.oceanCompany.employeeCountLinkedin && <span>👥 {aboutMe.oceanCompany.employeeCountLinkedin.toLocaleString()} employees (LinkedIn)</span>}
+                    {aboutMe.oceanCompany.companySize && <span>📊 {aboutMe.oceanCompany.companySize}</span>}
                     {aboutMe.oceanCompany.revenue && <span>💰 {aboutMe.oceanCompany.revenue}</span>}
-                    {aboutMe.oceanCompany.traffic?.monthlyVisits && <span>🌐 {Math.round(aboutMe.oceanCompany.traffic.monthlyVisits).toLocaleString()} visits/mo</span>}
+                    {aboutMe.oceanCompany.yearFounded && <span>📅 Founded {aboutMe.oceanCompany.yearFounded}</span>}
+                    {aboutMe.oceanCompany.primaryCountry && <span>🌍 {aboutMe.oceanCompany.primaryCountry}</span>}
+                    {aboutMe.oceanCompany.webTraffic?.monthlyVisits && <span>🌐 {Math.round(aboutMe.oceanCompany.webTraffic.monthlyVisits).toLocaleString()} visits/mo</span>}
                   </div>
-                  {aboutMe.oceanCompany.departments?.length > 0 && (
+                  {aboutMe.oceanCompany.industries?.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {aboutMe.oceanCompany.departments.slice(0, 8).map((d: any, i: number) => (
+                      {aboutMe.oceanCompany.industries.slice(0, 8).map((ind: string, i: number) => (
+                        <span key={i} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{ind}</span>
+                      ))}
+                    </div>
+                  )}
+                  {aboutMe.oceanCompany.technologies?.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <p className="text-xs text-muted-foreground font-medium">Technologies (Ocean)</p>
+                      <div className="flex flex-wrap gap-1">
+                        {aboutMe.oceanCompany.technologies.slice(0, 15).map((t: string, i: number) => (
+                          <span key={i} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {aboutMe.oceanCompany.departmentSizes?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {aboutMe.oceanCompany.departmentSizes.slice(0, 8).map((d: any, i: number) => (
                         <span key={i} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                          {typeof d === 'string' ? d : `${d.name}: ${d.count}`}
+                          {typeof d === 'string' ? d : `${d.name || d.department}: ${d.count || d.size}`}
                         </span>
                       ))}
                     </div>
