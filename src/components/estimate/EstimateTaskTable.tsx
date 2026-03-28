@@ -378,13 +378,13 @@ function TaskTableRow({
 
       {/* Phase — first data column */}
       {showPhaseCol && (
-        <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">
+        <TableCell className="py-1.5 text-xs whitespace-nowrap">
           {(task.phase_name === 'Project Management' ? 'PM' : task.phase_name) || '-'}
         </TableCell>
       )}
 
       {/* Task name */}
-      <TableCell className={`py-1.5 text-sm truncate ${formulaDriven ? 'text-muted-foreground' : ''}`}>
+      <TableCell className="py-1.5 text-xs truncate">
         {task.task_name}
       </TableCell>
 
@@ -410,9 +410,9 @@ function TaskTableRow({
       {/* Variable label */}
       <TableCell className="py-1.5 text-center">
         {hasVariable ? (
-          <span className={`text-xs font-medium ${formulaDriven ? 'text-muted-foreground' : ''}`}>{task.variable_label}</span>
+          <span className="text-xs">{task.variable_label}</span>
         ) : (
-          <span className="text-xs text-muted-foreground">-</span>
+          <span className="text-xs">-</span>
         )}
       </TableCell>
 
@@ -427,9 +427,9 @@ function TaskTableRow({
             min={1}
           />
         ) : hasVariable ? (
-          <span className="text-xs text-muted-foreground">{task.variable_qty ?? '-'}</span>
+          <span className="text-xs">{task.variable_qty ?? '-'}</span>
         ) : (
-          <span className="text-xs text-muted-foreground">-</span>
+          <span className="text-xs">-</span>
         )}
       </TableCell>
 
@@ -445,14 +445,14 @@ function TaskTableRow({
             step={0.5}
           />
         ) : (
-          <span className="text-sm text-muted-foreground">{Number(task.hours_per_person ?? task.hours).toFixed(1)}</span>
+          <span className="text-xs">{Number(task.hours_per_person ?? task.hours).toFixed(1)}</span>
         )}
       </TableCell>
 
       {/* Total */}
       <TableCell className="py-1.5 text-center">
         {(roleCount > 1 || hasVariable || formulaDriven) ? (
-          <span className={`text-sm font-medium ${formulaDriven ? 'text-muted-foreground' : ''}`}>{Number(task.hours).toFixed(1)}</span>
+          <span className="text-xs">{Number(task.hours).toFixed(1)}</span>
         ) : (
           <Input
             type="number"
