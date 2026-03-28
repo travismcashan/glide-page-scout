@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Brain, AlertTriangle, TrendingUp, Server, Wrench, ChevronRight, ChevronDown } from 'lucide-react';
 import { CardTabs } from '@/components/CardTabs';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 type Findings = {
   platform: { name: string; type: string; modernScore: number };
@@ -27,6 +28,16 @@ type Analysis = {
   scope: Scope;
 };
 
+export type TechTier = 'S' | 'M' | 'L';
+
+export type TechTierCounts = {
+  tier: TechTier;
+  plugins: number;
+  thirdParty: number;
+  specialSetup: number;
+  totalIncluded: number;
+};
+
 type Props = {
   data: {
     analysis: Analysis;
@@ -35,6 +46,8 @@ type Props = {
     sources: string[];
   } | null;
   isLoading: boolean;
+  mode?: 'analysis' | 'estimate';
+  onTierChange?: (counts: TechTierCounts) => void;
 };
 
 const ageColors: Record<string, string> = {
