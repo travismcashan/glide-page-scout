@@ -1,68 +1,30 @@
 
 
-# Rebuild Estimator from Jessica's XLSX
+## Tab Restructuring Plan
 
-## What Changes
+### Current tabs (6)
+Analysis · Prospecting · Prompts · Knowledge · Chat · Estimates
 
-### Database Schema
+### Proposed tabs (7)
+**Analysis** · **Prospecting** · **Knowledge** · **Chat** · **Estimates** · **Roadmap** · **Proposal**
 
-**Modify `master_tasks`** — add columns:
-- `roles` text (comma-separated, e.g. "PM, UXA, CL")
-- `hours_per_person` numeric (hours each person spends)
-- `variable_label` text nullable (e.g. "Hours", "Sessions", "Interviews")
-- `default_variable_qty` integer nullable (default quantity when variable applies)
-- Keep `default_hours` as the calculated total (hours_per_person × role_count)
+### What changes
 
-**Modify `estimate_tasks`** — add columns:
-- `roles` text
-- `hours_per_person` numeric
-- `variable_label` text nullable
-- `variable_qty` integer nullable
+1. **Rename** "Site Analysis" → "Analysis" (simple label change in ResultsPage)
 
-**Re-seed reference data:**
-- Delete and re-insert `project_phases` with the 12 XLSX phases (Project Management, Onboarding, Strategy, Design, Build, Content, Optimization, Review, QA, Launch, Post Launch, Check)
-- Delete and re-insert `team_roles` with the 12 XLSX roles (Sales, PM, UXA, SEO, Web Strategist, CL, Designer, Writer, Content Strategist, Content Coordinator, Tech Lead, Dev) plus their hourly rates
-- Delete and re-insert `master_tasks` with all ~128 tasks from the XLSX, including roles, hours/person, total, variable info, and default selected (TRUE/FALSE)
+2. **Remove Prompts tab** from the top-level tabs. Move it to the Settings page as a "Prompt Library" section. Add a wishlist item for "access prompts from chat input bar" so it's tracked for future build.
 
-### UI Overhaul
+3. **Add Roadmap tab** — placeholder content for now (empty state with icon + description). URL slug: `/roadmap`
 
-**EstimateTaskRow** — show:
-- Checkbox (selected/not)
-- Task name
-- Roles badges
-- Hours/Person input
-- Total hours (auto-calculated: hrs/person × roles OR hrs/person × variable_qty)
-- Variable quantity input when task has a variable
+4. **Add Proposal tab** — placeholder content for now. URL slug: `/proposal`
 
-**EstimateBuilderCard** — add two new tab views:
-- **Phase Timeline** — table showing each phase with total hours, estimated weeks (low = hours/8, high = hours/6), cumulative timeline
-- **SOW View** — filtered list showing only selected (TRUE) tasks, grouped by phase, formatted for client presentation
+5. **Update URL routing** in `sessionSlug.ts` — add `roadmap` and `proposal` slugs, remove `prompts` slug (keep backward-compat redirect to analysis)
 
-**Summary sidebar** — add:
-- Work weeks estimate (low/high range)
-- Project budget total
+### Files to modify
+- **`src/pages/ResultsPage.tsx`** — rename tab label, remove Prompts TabsTrigger/TabsContent, add Roadmap + Proposal tabs with placeholder content
+- **`src/lib/sessionSlug.ts`** — add `roadmap`/`proposal` to slug maps, remove `prompts`
+- **`src/pages/SettingsPage.tsx`** — add Prompt Library section (move existing `<PromptLibrary />` component here)
 
-### Formula Engine
-
-Update `estimateFormulas.ts`:
-- Total hours calculation: if task has variable, total = hours_per_person × variable_qty × role_count; otherwise total = hours_per_person × role_count
-- Phase weeks calculation: low = phase_hours / 8, high = phase_hours / 6
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| Migration SQL | Add columns to master_tasks + estimate_tasks |
-| Seed SQL (insert) | Re-seed phases, roles, and ~128 master tasks |
-| `EstimateTaskRow.tsx` | Multi-role display, hours/person, variable qty |
-| `EstimateBuilderCard.tsx` | Phase Timeline tab, SOW tab, enhanced summary |
-| `EstimateVariablesTab.tsx` | Unchanged (still drives variable-based formulas) |
-| `estimateFormulas.ts` | Updated calculation: hrs/person × roles × variable |
-
-## What's Preserved
-
-- Variables tab and auto-fill from crawl data
-- Save/load estimates to database
-- By Phase and By Role grouping tabs
-- Recalculate button
+### Tab ordering rationale
+Follows the agency workflow: **research** the site (Analysis) → **find contacts** (Prospecting) → **build context** (Knowledge) → **discuss** (Chat) → **scope work** (Estimates) → **plan phases** (Roadmap) → **deliver** (Proposal)
 
