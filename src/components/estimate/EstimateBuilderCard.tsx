@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,7 +61,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  
   const [creating, setCreating] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('variables');
   const [roleCollapsed, setRoleCollapsed] = useState(false);
@@ -314,45 +314,63 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     setTasks(updatedTasks as EstimateTask[]);
   }, [estimate, tasks, formulas, initialLoadDone]);
 
-  const handleSave = async () => {
-    if (!estimate) return;
-    setSaving(true);
-    try {
-      const { error: estimateError } = await supabase
-        .from('project_estimates')
-        .update({
-          name: estimate.name, client_name: estimate.client_name, description: estimate.description,
-          project_size: estimate.project_size, project_complexity: estimate.project_complexity,
-          user_personas: estimate.user_personas, content_pages: estimate.content_pages,
-          design_layouts: estimate.design_layouts, form_count: estimate.form_count,
-          integration_count: estimate.integration_count, paid_discovery: estimate.paid_discovery,
-          pages_for_integration: estimate.pages_for_integration, custom_posts: estimate.custom_posts,
-          bulk_import_amount: estimate.bulk_import_amount, site_builder_acf: estimate.site_builder_acf,
-          third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
-          form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
-          complexity_score: estimate.complexity_score,
-          template_tier: estimate.template_tier, page_tier: estimate.page_tier,
-          content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
-        })
-        .eq('id', estimate.id);
-      if (estimateError) throw estimateError;
+  // Auto-save: debounced persistence for estimate variables and tasks
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const isFirstRender = useRef(true);
 
-      for (const task of tasks) {
-        await supabase
-          .from('estimate_tasks')
-          .update({
-            is_selected: task.is_selected, hours: task.hours,
-            hours_per_person: task.hours_per_person, variable_qty: task.variable_qty,
-          })
-          .eq('id', task.id);
-      }
-      toast.success('Estimate saved!');
-    } catch (error: any) {
-      toast.error('Failed to save');
-    } finally {
-      setSaving(false);
+  useEffect(() => {
+    // Skip the initial render (loading from DB)
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  };
+    if (!estimate || tasks.length === 0 || !initialLoadDone) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus('idle');
+
+    saveTimerRef.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        const { error: estimateError } = await supabase
+          .from('project_estimates')
+          .update({
+            name: estimate.name, client_name: estimate.client_name, description: estimate.description,
+            project_size: estimate.project_size, project_complexity: estimate.project_complexity,
+            user_personas: estimate.user_personas, content_pages: estimate.content_pages,
+            design_layouts: estimate.design_layouts, form_count: estimate.form_count,
+            integration_count: estimate.integration_count, paid_discovery: estimate.paid_discovery,
+            pages_for_integration: estimate.pages_for_integration, custom_posts: estimate.custom_posts,
+            bulk_import_amount: estimate.bulk_import_amount, site_builder_acf: estimate.site_builder_acf,
+            third_party_integrations: estimate.third_party_integrations, post_launch_services: estimate.post_launch_services,
+            form_count_s: estimate.form_count_s, form_count_m: estimate.form_count_m, form_count_l: estimate.form_count_l,
+            complexity_score: estimate.complexity_score,
+            template_tier: estimate.template_tier, page_tier: estimate.page_tier,
+            content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
+          })
+          .eq('id', estimate.id);
+        if (estimateError) throw estimateError;
+
+        for (const task of tasks) {
+          await supabase
+            .from('estimate_tasks')
+            .update({
+              is_selected: task.is_selected, hours: task.hours,
+              hours_per_person: task.hours_per_person, variable_qty: task.variable_qty,
+            })
+            .eq('id', task.id);
+        }
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch {
+        toast.error('Failed to auto-save');
+        setSaveStatus('idle');
+      }
+    }, 1000);
+
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [estimate, tasks, initialLoadDone]);
 
   const handleDelete = async () => {
     if (!estimate || !confirm('Delete this estimate? This cannot be undone.')) return;
@@ -516,12 +534,15 @@ function getProjectDuration(totalHours: number): string {
                   <FileText className="h-3.5 w-3.5" />SOW View
                 </TabsTrigger>
               </TabsList>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {saveStatus === 'saving' && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Saving…</span>
+                )}
+                {saveStatus === 'saved' && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Save className="h-3 w-3" />Saved</span>
+                )}
                 <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive">
                   <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" onClick={handleSave} disabled={saving}>
-                  <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </div>
