@@ -64,11 +64,15 @@ interface AiTiers {
   reasoning_L?: string;
 }
 
-function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean }) {
+function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheckbox = true }: { t: { name: string; count: number; baseType?: string; navSection: string | null }; isExcluded: boolean; toggleExcluded: (name: string) => void; isManuallyAdded?: boolean; showCheckbox?: boolean }) {
   return (
     <tr className={`border-t border-border/50 transition-colors ${isExcluded ? 'opacity-50' : 'hover:bg-muted/20'}`}>
       <td className="px-3 py-1 text-center align-middle">
-        <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+        {showCheckbox ? (
+          <Checkbox checked={!isExcluded} onCheckedChange={() => toggleExcluded(t.name)} className="mx-auto" />
+        ) : (
+          <span className="text-xs text-muted-foreground">{t.count}</span>
+        )}
       </td>
       <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>
         {t.name}
