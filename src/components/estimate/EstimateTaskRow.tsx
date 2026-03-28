@@ -36,6 +36,7 @@ function getRoleList(roles: string | null | undefined): string[] {
 export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPersonChange, onVariableQtyChange, compact }: Props) {
   const roleList = getRoleList(task.roles);
   const roleCount = roleList.length || 1;
+  const hasVariable = !!task.variable_label && task.variable_label !== '-';
 
   return (
     <div className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
@@ -45,6 +46,8 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
         checked={task.is_selected}
         onCheckedChange={(checked) => onToggle(task.id, checked as boolean)}
       />
+
+      {/* Task name + roles */}
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-medium leading-tight ${!task.is_selected && 'text-muted-foreground'}`}>
           {task.task_name}
@@ -60,17 +63,27 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
         )}
       </div>
 
-      {/* Variable qty input */}
-      {task.variable_label && onVariableQtyChange && (
-        <div className="flex items-center gap-1">
-          <Input
-            type="number"
-            value={task.variable_qty ?? 1}
-            onChange={(e) => onVariableQtyChange(task.id, parseInt(e.target.value) || 1)}
-            className="w-14 text-center h-7 text-xs"
-            min={1}
-          />
-          <span className="text-[10px] text-muted-foreground w-12 truncate">{task.variable_label}</span>
+      {/* Variable column — always visible */}
+      {!compact && (
+        <div className="flex items-center gap-1.5 min-w-[100px] justify-end">
+          {hasVariable ? (
+            <>
+              <span className="text-[10px] text-muted-foreground">{task.variable_label}</span>
+              {onVariableQtyChange ? (
+                <Input
+                  type="number"
+                  value={task.variable_qty ?? 1}
+                  onChange={(e) => onVariableQtyChange(task.id, parseInt(e.target.value) || 1)}
+                  className="w-12 text-center h-7 text-xs"
+                  min={1}
+                />
+              ) : (
+                <span className="text-xs font-medium w-8 text-center">{task.variable_qty ?? '-'}</span>
+              )}
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">-</span>
+          )}
         </div>
       )}
 
@@ -89,9 +102,9 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
         </div>
       )}
 
-      {/* Total hours (read-only when multi-role, editable otherwise) */}
+      {/* Total hours */}
       <div className="flex items-center gap-1">
-        {roleCount > 1 || task.variable_label ? (
+        {roleCount > 1 || hasVariable ? (
           <span className="text-sm font-medium w-16 text-center">{Number(task.hours).toFixed(1)}</span>
         ) : (
           <Input
