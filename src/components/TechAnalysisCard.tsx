@@ -297,16 +297,15 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
   };
 
   const tierSelector = isEstimate && scope ? (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] text-muted-foreground font-medium">Tier:</span>
-      <ToggleGroup type="single" value={tier} onValueChange={(v) => v && setTier(v as TechTier)} size="sm" className="gap-0.5">
-        <ToggleGroupItem value="S" className="text-[10px] h-6 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+    <div className="flex items-center gap-2 ml-auto">
+      <ToggleGroup type="single" value={tier} onValueChange={(v) => v && setTier(v as TechTier)} size="sm" variant="outline">
+        <ToggleGroupItem value="S" className="text-xs px-2.5 h-7">
           S <span className="ml-0.5 opacity-60">({pluginCount})</span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="M" className="text-[10px] h-6 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+        <ToggleGroupItem value="M" className="text-xs px-2.5 h-7">
           M <span className="ml-0.5 opacity-60">({pluginCount + thirdPartyCount})</span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="L" className="text-[10px] h-6 px-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+        <ToggleGroupItem value="L" className="text-xs px-2.5 h-7">
           L <span className="ml-0.5 opacity-60">({pluginCount + thirdPartyCount + specialSetupCount})</span>
         </ToggleGroupItem>
       </ToggleGroup>
@@ -316,10 +315,7 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
   // In estimate mode: no tabs, just the filtered scope view directly
   if (isEstimate) {
     return (
-      <div className="space-y-3">
-        {tierSelector && <div className="flex justify-end">{tierSelector}</div>}
-        {scope ? <ScopeTab scope={scope} mode="estimate" /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>}
-      </div>
+      scope ? <ScopeTab scope={scope} mode="estimate" tierSelector={tierSelector} /> : <p className="text-sm text-muted-foreground">Scope data not available. Re-run the analysis to generate scope data.</p>
     );
   }
 
