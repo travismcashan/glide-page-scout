@@ -54,6 +54,7 @@ interface Props {
   integrationDurations?: Record<string, number>;
   onRerunIntegration?: (key: string, dbColumn: string) => void;
   isIntegrationLoading?: (key: string) => boolean;
+  onTemplatesRerunRequest?: (rerunFn: () => void) => void;
 }
 
 interface Estimate extends EstimateVariables {
@@ -61,7 +62,7 @@ interface Estimate extends EstimateVariables {
   status: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -530,6 +531,7 @@ function getProjectDuration(totalHours: number): string {
                       domain={domain}
                       savedTiers={templateTiers}
                       mode="estimate"
+                      onRerunRequest={onTemplatesRerunRequest}
                       onTiersChange={(tiers) => {
                         const nonToolkitCount = (tiers.L || []).length;
                         const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';

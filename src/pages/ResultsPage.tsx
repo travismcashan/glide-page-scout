@@ -2785,6 +2785,7 @@ export default function ResultsPage() {
                 techAnalysisData={(session as any).tech_analysis_data}
                 integrationTimestamps={integrationTimestamps}
                 integrationDurations={integrationDurations}
+                onTemplatesRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }}
                 onRerunIntegration={(key, dbColumn) => {
                   if (key === 'templates') {
                     templatesRerunFnRef.current?.();
