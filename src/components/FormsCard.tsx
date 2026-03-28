@@ -180,8 +180,9 @@ export function FormsCard({ data, domain, savedTiers, savedActiveTier, onTiersCh
   };
 
   const applyTier = (tier: TierKey) => {
-    if (activeTier === tier) { setActiveTier(null); setExcluded(new Set()); return; }
+    if (activeTier === tier) { setActiveTier(null); setExcluded(new Set()); onActiveTierChange?.(null as any); return; }
     setActiveTier(tier);
+    onActiveTierChange?.(tier);
     if (tier === 'All') { setExcluded(new Set()); return; }
     if (aiTiers) {
       const included = new Set(aiTiers[tier as 'S' | 'M' | 'L']);
