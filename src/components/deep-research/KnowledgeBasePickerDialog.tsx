@@ -257,10 +257,6 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
                         {getSourceLabel(doc.source_type, doc.source_key)}
                       </div>
 
-                      {/* Size */}
-                      <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block tabular-nums">
-                        {formatCharCount(doc.char_count)}
-                      </div>
 
                       {/* Date */}
                       <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block pr-1">
