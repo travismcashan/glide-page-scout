@@ -1651,11 +1651,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
       // Auto-title the thread if it's still "New Chat"
       if (activeThreadId && newMessages.length === 1) {
-        // First message in thread — generate a title
+        // First message — generate an AI title (fire-and-forget)
         const titleText = typeof displayContent === 'string' ? displayContent : messageText;
-        const shortTitle = titleText.slice(0, 30).replace(/\n/g, ' ').trim();
-        await supabase.from('chat_threads').update({ title: shortTitle, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
-        setSidebarRefreshKey(k => k + 1);
+        const fallbackTitle = titleText.slice(0, 30).replace(/\n/g, ' ').trim();
+        // Set fallback immediately, then upgrade with AI title
+        supabase.from('chat_threads').update({ title: fallbackTitle, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId).then(() => setSidebarRefreshKey(k => k + 1));
+        // Fire-and-forget AI title generation
+        const threadIdForTitle = activeThreadId;
+        supabase.functions.invoke('generate-thread-title', {
+          body: { userMessage: titleText.slice(0, 500), assistantReply: assistantContent.slice(0, 500) },
+        }).then(({ data: titleData }) => {
+          if (titleData?.title) {
+            supabase.from('chat_threads').update({ title: titleData.title } as any).eq('id', threadIdForTitle).then(() => setSidebarRefreshKey(k => k + 1));
+          }
+        }).catch(() => {}); // fallback title already set
       } else if (activeThreadId) {
         // Update the thread's updated_at timestamp
         await supabase.from('chat_threads').update({ updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
@@ -2111,9 +2120,16 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
         // Auto-title thread
         if (activeThreadId && newMessages.length === 1) {
-          const shortTitle = text.slice(0, 30).replace(/\n/g, ' ').trim();
-          await supabase.from('chat_threads').update({ title: `🔬 ${shortTitle}`, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId);
-          setSidebarRefreshKey(k => k + 1);
+          const fallbackTitle = text.slice(0, 28).replace(/\n/g, ' ').trim();
+          supabase.from('chat_threads').update({ title: `🔬 ${fallbackTitle}`, updated_at: new Date().toISOString() } as any).eq('id', activeThreadId).then(() => setSidebarRefreshKey(k => k + 1));
+          const threadIdForTitle = activeThreadId;
+          supabase.functions.invoke('generate-thread-title', {
+            body: { userMessage: text.slice(0, 500), assistantReply: (finalReport || '').slice(0, 500) },
+          }).then(({ data: titleData }) => {
+            if (titleData?.title) {
+              supabase.from('chat_threads').update({ title: `🔬 ${titleData.title}` } as any).eq('id', threadIdForTitle).then(() => setSidebarRefreshKey(k => k + 1));
+            }
+          }).catch(() => {});
         }
 
         // Auto-ingest
