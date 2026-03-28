@@ -73,10 +73,11 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
   const [roleCollapsed, setRoleCollapsed] = useState(false);
   const [phaseCollapsed, setPhaseCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const { isSectionCollapsed, toggleSection } = useSectionCollapse(sessionId);
 
   const handleTechTierChange = useCallback((counts: TechTierCounts) => {
-    if (!estimate || tasks.length === 0) return;
+    if (!estimate || tasks.length === 0 || !initialLoadDone) return;
     const weightedScore = (counts.plugins ?? 0) * 1 + (counts.thirdParty ?? 0) * 2 + (counts.specialSetup ?? 0) * 4;
     const updated = { ...estimate, third_party_integrations: counts.totalIncluded || 2, complexity_score: weightedScore };
     const derived = {
@@ -87,10 +88,10 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     setEstimate(derived as Estimate);
     const updatedTasks = recalculateAllTasks(tasks, derived, formulas);
     setTasks(updatedTasks as EstimateTask[]);
-  }, [estimate, tasks, formulas]);
+  }, [estimate, tasks, formulas, initialLoadDone]);
 
   const handleFormTierChange = useCallback((tierCounts: { s: number; m: number; l: number; total: number }) => {
-    if (!estimate || tasks.length === 0) return;
+    if (!estimate || tasks.length === 0 || !initialLoadDone) return;
     const updated = { ...estimate, form_count_s: tierCounts.s, form_count_m: tierCounts.m, form_count_l: tierCounts.l, form_count: tierCounts.total };
     const derived = {
       ...updated,
@@ -100,7 +101,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     setEstimate(derived as Estimate);
     const updatedTasks = recalculateAllTasks(tasks, derived, formulas);
     setTasks(updatedTasks as EstimateTask[]);
-  }, [estimate, tasks, formulas]);
+  }, [estimate, tasks, formulas, initialLoadDone]);
 
   const crawlDefaults = useMemo((): Partial<EstimateVariables> => {
     const defaults: Partial<EstimateVariables> = {};
@@ -147,6 +148,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
   async function loadEstimate() {
     setLoading(true);
+    setInitialLoadDone(false);
     const { data: existing } = await supabase
       .from('project_estimates')
       .select('*')
@@ -168,6 +170,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     const formulasData = await fetchFormulas();
     setFormulas(formulasData);
     setLoading(false);
+    // Allow a tick for state to settle before enabling recalculation from card callbacks
+    setTimeout(() => setInitialLoadDone(true), 500);
   }
 
   async function createEstimate() {
@@ -291,8 +295,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     }));
   };
 
-  const handleVariablesChange = (variables: EstimateVariables) => {
-    if (!estimate || tasks.length === 0) return;
+  const handleVariablesChange = useCallback((variables: EstimateVariables) => {
+    if (!estimate || tasks.length === 0 || !initialLoadDone) return;
     // Auto-derive project size and complexity from variables
     const derived = {
       ...variables,
@@ -304,7 +308,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     // Auto-recalculate tasks when variables change
     const updatedTasks = recalculateAllTasks(tasks, updated, formulas);
     setTasks(updatedTasks as EstimateTask[]);
-  };
+  }, [estimate, tasks, formulas, initialLoadDone]);
 
   const handleSave = async () => {
     if (!estimate) return;
