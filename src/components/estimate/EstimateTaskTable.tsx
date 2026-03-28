@@ -265,15 +265,15 @@ function TaskTableRow({
         />
       </TableCell>
 
+      {/* Phase — first data column */}
+      {showPhaseCol && (
+        <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">{task.phase_name || '-'}</TableCell>
+      )}
+
       {/* Task name */}
       <TableCell className={`py-1.5 text-sm truncate ${formulaDriven ? 'text-muted-foreground' : ''}`}>
         {task.task_name}
       </TableCell>
-
-      {/* Phase */}
-      {showPhaseCol && (
-        <TableCell className="py-1.5 text-xs text-muted-foreground">{task.phase_name || '-'}</TableCell>
-      )}
 
       {/* Roles */}
       <TableCell className="py-1.5">
