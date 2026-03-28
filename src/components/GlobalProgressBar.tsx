@@ -74,7 +74,7 @@ export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
       ref={contentRef}
     >
       {/* Progress bar track — Rainbow Signature Moment accent */}
-      <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-border overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-[4px] bg-border overflow-hidden">
         <div
           className="h-full transition-all duration-700 ease-out"
           style={{
@@ -88,7 +88,7 @@ export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
         />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-3 pb-5">
+      <div className="max-w-6xl mx-auto px-6 pt-5 py-3">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           {sortedSteps.map((step) => (
             <span
