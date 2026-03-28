@@ -1690,7 +1690,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     saveMessage('user', text);
 
     try {
-      const crawlCtx = buildCrawlContext(session, pages);
+      const crawlCtx = globalMode ? '' : buildCrawlContext(session, pages);
       const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
       const defaultDocs = await loadDefaultDocs();
 
