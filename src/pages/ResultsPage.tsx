@@ -2799,6 +2799,7 @@ export default function ResultsPage() {
                 formsData={session.forms_data}
                 wappalyzerData={session.wappalyzer_data}
                 templateTiers={(session as any).template_tiers}
+                navStructure={(session as any).nav_structure || null}
               />
             )}
             </div>}
