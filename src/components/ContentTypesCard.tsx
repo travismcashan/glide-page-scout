@@ -200,6 +200,42 @@ export function ContentTypesCard({ data, onDataChange, navStructure, pageTags, o
 
   const repeatingCount = summary.reduce((acc, s) => acc + s.count, 0);
 
+  // Tier logic for estimate mode
+  const postTypes = useMemo(() => summary.filter(s => s.baseType === 'Post'), [summary]);
+  const cptTypes = useMemo(() => summary.filter(s => s.baseType === 'CPT'), [summary]);
+
+  const tierIncluded = useMemo((): Set<string> => {
+    if (!activeTier) return new Set(summary.map(s => s.type));
+    if (activeTier === 'S') return new Set();
+    if (activeTier === 'M') return new Set(postTypes.map(s => s.type));
+    return new Set([...postTypes, ...cptTypes].map(s => s.type));
+  }, [activeTier, postTypes, cptTypes, summary]);
+
+  const tierCounts = useMemo(() => ({
+    S: { types: 0, urls: 0 },
+    M: { types: postTypes.length, urls: postTypes.reduce((a, s) => a + s.count, 0) },
+    L: { types: postTypes.length + cptTypes.length, urls: [...postTypes, ...cptTypes].reduce((a, s) => a + s.count, 0) },
+  }), [postTypes, cptTypes]);
+
+  // Auto-select default tier in estimate mode
+  useEffect(() => {
+    if (isEstimate && !activeTier && summary.length > 0) {
+      const defaultTier = cptTypes.length > 0 ? 'L' : postTypes.length > 0 ? 'M' : 'S';
+      setActiveTier(defaultTier);
+    }
+  }, [isEstimate, summary]);
+
+  // Notify parent when tier changes
+  useEffect(() => {
+    if (isEstimate && activeTier && onTierChange) {
+      const tc = tierCounts[activeTier];
+      onTierChange(activeTier, tc.types, tc.urls);
+    }
+  }, [activeTier, tierCounts, isEstimate]);
+
+  const includedRows = useMemo(() => summary.filter(s => tierIncluded.has(s.type)), [summary, tierIncluded]);
+  const excludedRows = useMemo(() => summary.filter(s => !tierIncluded.has(s.type)), [summary, tierIncluded]);
+
   if (!data?.summary?.length) {
     return <p className="text-sm text-muted-foreground">No content types detected.</p>;
   }
