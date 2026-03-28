@@ -32,7 +32,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 
 type RagDocument = { name: string; source_type: string };
-type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[] };
+type CouncilModel = { key: string; name: string; status: 'thinking' | 'done' | 'error'; response?: string };
+type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[]; councilModels?: CouncilModel[] };
 
 type SessionData = {
   id: string;
@@ -316,6 +317,80 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
           {thinking}
         </div>
       )}
+    </div>
+  );
+}
+
+function CouncilThinkingBlock({ models, isStreaming }: { models: CouncilModel[]; isStreaming?: boolean }) {
+  const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
+  const allDone = models.every(m => m.status !== 'thinking');
+
+  // Auto-expand all while streaming
+  const effectiveExpanded = isStreaming ? new Set(models.map(m => m.key)) : expandedModels;
+
+  const toggleModel = (key: string) => {
+    if (isStreaming) return; // Don't allow collapse while streaming
+    setExpandedModels(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  return (
+    <div className="mb-6 space-y-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+        {isStreaming && !allDone ? (
+          <Loader2 className="h-5 w-5 animate-spin text-foreground shrink-0" />
+        ) : (
+          <Sparkles className="h-5 w-5 text-foreground shrink-0" />
+        )}
+        <span className="text-base text-foreground font-medium">
+          {isStreaming && !allDone
+            ? `Model Council — ${models.filter(m => m.status === 'done').length}/${models.length} complete`
+            : 'Model Council Thinking'}
+        </span>
+      </div>
+      {models.map(m => {
+        const isExpanded = effectiveExpanded.has(m.key);
+        const statusIcon = m.status === 'done' ? '✅' : m.status === 'error' ? '❌' : undefined;
+        return (
+          <div key={m.key} className="border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleModel(m.key)}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-muted/50 hover:bg-muted transition-colors text-left"
+            >
+              {m.status === 'thinking' ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+              ) : (
+                <span className="text-sm shrink-0">{statusIcon}</span>
+              )}
+              <span className="text-sm font-medium text-foreground">{m.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {m.status === 'thinking' ? 'Thinking…' : m.status === 'done' ? 'Complete' : 'Error'}
+              </span>
+              <span className="ml-auto">
+                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              </span>
+            </button>
+            {isExpanded && m.response && (
+              <div className="px-4 py-3 text-sm border-t border-border">
+                <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
+                  <div className="chat-prose max-w-none text-sm">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.response}</ReactMarkdown>
+                  </div>
+                </Suspense>
+              </div>
+            )}
+            {isExpanded && m.status === 'thinking' && (
+              <div className="px-4 py-3 border-t border-border">
+                <AnimatedThinkingText label="Thinking" />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -606,7 +681,7 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick, webCitations }:
   );
 }
 
-function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments, searchLabel, deepResearchSteps, isDeepResearch }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[]; searchLabel?: string; deepResearchSteps?: string[]; isDeepResearch?: boolean }) {
+function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, onToggleFavorite, isFavorited, isSavedNote, webCitations, isWebSearching, sources, onSourceClick, domain, ragDocuments, searchLabel, deepResearchSteps, isDeepResearch, councilModels }: { content: string; thinking?: string; isStreamingThis?: boolean; onSaveNote?: (content: string) => void; onToggleFavorite?: () => void; isFavorited?: boolean; isSavedNote?: boolean; webCitations?: string[]; isWebSearching?: boolean; sources?: string[]; onSourceClick?: (s: string) => void; domain?: string; ragDocuments?: RagDocument[]; searchLabel?: string; deepResearchSteps?: string[]; isDeepResearch?: boolean; councilModels?: CouncilModel[] }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
@@ -746,6 +821,10 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {thinking && (
         <ThinkingBlock thinking={thinking} isStreaming={isStreamingThis && !content} />
       )}
+      {/* Council model thinking */}
+      {councilModels && councilModels.length > 0 && (
+        <CouncilThinkingBlock models={councilModels} isStreaming={isStreamingThis} />
+      )}
       {/* Deep Research steps */}
       {isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0 && (
         <DeepResearchStepsBlock steps={deepResearchSteps} sources={webCitations} isStreaming={isStreamingThis && !content} />
@@ -755,7 +834,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
       </Suspense>
-      {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && (
+      {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && !(councilModels && councilModels.length > 0) && (
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-foreground">
             <Loader2 className="flex-shrink-0 animate-spin text-foreground" style={{ width: 28, height: 28 }} />
@@ -1149,38 +1228,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         const decoder = new TextDecoder();
         let sseBuffer = '';
         let synthesisText = '';
-        const modelStatuses: Record<string, { name: string; status: 'thinking' | 'done' | 'error'; response?: string }> = {};
-        let isSynthesizing = false;
+        const modelStatuses: Record<string, CouncilModel> = {};
 
         const updateCouncilMessage = () => {
-          // Build council status block as markdown
-          let statusBlock = '';
-          const entries = Object.values(modelStatuses);
-          if (entries.length > 0) {
-            for (const ms of entries) {
-              const icon = ms.status === 'done' ? '✅' : ms.status === 'error' ? '❌' : '⏳';
-              statusBlock += `${icon} **${ms.name}** — ${ms.status === 'thinking' ? 'Thinking…' : ms.status === 'done' ? 'Done' : 'Error'}\n\n`;
-              if (ms.status === 'done' && ms.response) {
-                statusBlock += `<details>\n<summary>View response</summary>\n\n${ms.response}\n\n</details>\n\n`;
-              }
-            }
-          }
-
-          let content = '';
-          if (!isSynthesizing && !synthesisText) {
-            // Still waiting for models
-            content = statusBlock;
-          } else {
-            // Show synthesis with model details below
-            content = synthesisText;
-            if (entries.length > 0) {
-              content += '\n\n---\n\n' + statusBlock;
-            }
-          }
-
+          const councilModels = Object.entries(modelStatuses).map(([key, m]) => ({ ...m, key }));
           setMessages(prev => {
             const updated = [...prev];
-            updated[updated.length - 1] = { role: 'assistant', content };
+            updated[updated.length - 1] = { role: 'assistant', content: synthesisText, councilModels };
             return updated;
           });
         };
@@ -1203,19 +1257,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                 const data = JSON.parse(payload);
                 switch (currentEvent) {
                   case 'model_start':
-                    modelStatuses[data.key] = { name: data.name, status: 'thinking' };
+                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'thinking' };
                     updateCouncilMessage();
                     break;
                   case 'model_done':
-                    modelStatuses[data.key] = { name: data.name, status: 'done', response: data.response };
+                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'done', response: data.response };
                     updateCouncilMessage();
                     break;
                   case 'model_error':
-                    modelStatuses[data.key] = { name: data.name, status: 'error' };
+                    modelStatuses[data.key] = { key: data.key, name: data.name, status: 'error' };
                     updateCouncilMessage();
                     break;
                   case 'synthesis_start':
-                    isSynthesizing = true;
                     updateCouncilMessage();
                     break;
                   case 'synthesis_chunk':
@@ -1233,23 +1286,18 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           }
         }
 
-        // Final save
-        const finalEntries = Object.values(modelStatuses);
+        // Final save — store synthesis + council transcript as markdown for DB persistence
+        const finalModels = Object.entries(modelStatuses).map(([key, m]) => ({ ...m, key }));
         let finalContent = synthesisText || 'No synthesis available.';
-        if (finalEntries.length > 0) {
-          finalContent += '\n\n---\n\n';
-          for (const ms of finalEntries) {
-            const icon = ms.status === 'done' ? '✅' : '❌';
-            finalContent += `${icon} **${ms.name}**\n\n`;
-            if (ms.status === 'done' && ms.response) {
-              finalContent += `<details>\n<summary>View response</summary>\n\n${ms.response}\n\n</details>\n\n`;
-            }
-          }
+        // Append model responses as hidden details for persistence
+        finalContent += '\n\n---\n\n';
+        for (const ms of finalModels) {
+          finalContent += `<details>\n<summary>🧠 ${ms.name}</summary>\n\n${ms.response || '[No response]'}\n\n</details>\n\n`;
         }
 
         setMessages(prev => {
           const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: finalContent };
+          updated[updated.length - 1] = { role: 'assistant', content: finalContent, councilModels: finalModels };
           return updated;
         });
         saveMessage('assistant', finalContent);
@@ -2300,6 +2348,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       }
                       deepResearchSteps={msg.deepResearchSteps}
                       isDeepResearch={msg.isDeepResearch}
+                      councilModels={msg.councilModels}
                     />
                   )}
                 </div>
