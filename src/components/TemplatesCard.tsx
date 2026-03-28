@@ -39,6 +39,7 @@ interface Props {
   onTiersChange?: (tiers: AiTiers) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
   isRerunning?: boolean;
+  mode?: 'analysis' | 'estimate';
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {

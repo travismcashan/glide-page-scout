@@ -59,6 +59,7 @@ interface Props {
   savedTiers?: AiTiers | null;
   onTiersChange?: (tiers: AiTiers) => void;
   onRerunRequest?: (rerunFn: () => void) => void;
+  mode?: 'analysis' | 'estimate';
 }
 
 const platformColors: Record<string, string> = {
