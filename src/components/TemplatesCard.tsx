@@ -295,6 +295,13 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
   const designCount = templates.filter(t => !excluded.has(t.name)).length;
   const blockBuiltCount = totalTemplates - designCount;
 
+  // Notify parent whenever the included count changes
+  useEffect(() => {
+    if (mode === 'estimate' && onSelectionChange) {
+      onSelectionChange(designCount);
+    }
+  }, [designCount, mode, onSelectionChange]);
+
   const isEstimate = mode === 'estimate';
 
   const hasTierSelection = isEstimate && activeTier && activeTier !== 'All' && aiTiers;
