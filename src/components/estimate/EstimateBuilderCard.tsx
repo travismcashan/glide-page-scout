@@ -29,7 +29,7 @@ interface Estimate extends EstimateVariables {
   status: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -47,10 +47,24 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
       defaults.content_pages = totalPages;
       defaults.pages_for_integration = totalPages;
       
-      // Count design layouts from unique base types
-      const baseTypes = new Set(Object.values(pageTags).map(t => t.baseType || 'Page'));
-      defaults.design_layouts = Math.max(baseTypes.size, 3);
-      
+      // Use template tiers for design layouts if available
+      if (templateTiers) {
+        // Auto-select best tier based on template count (same logic as TemplatesCard)
+        const designTemplates = Object.values(pageTags).filter(t => t.baseType !== 'toolkit');
+        const count = designTemplates.length;
+        const bestTier = count <= 8 ? 'S' : count <= 15 ? 'M' : 'L';
+        const tierLayouts = templateTiers[bestTier];
+        if (Array.isArray(tierLayouts) && tierLayouts.length > 0) {
+          defaults.design_layouts = tierLayouts.length;
+        } else {
+          const baseTypes = new Set(Object.values(pageTags).map(t => t.baseType || 'Page'));
+          defaults.design_layouts = Math.max(baseTypes.size, 3);
+        }
+      } else {
+        // Fallback: count unique base types
+        const baseTypes = new Set(Object.values(pageTags).map(t => t.baseType || 'Page'));
+        defaults.design_layouts = Math.max(baseTypes.size, 3);
+      }
       // Count custom posts from content types
       if (contentTypesData?.summary) {
         const cptCount = contentTypesData.summary.filter(s => s.baseType === 'CPT').length;
