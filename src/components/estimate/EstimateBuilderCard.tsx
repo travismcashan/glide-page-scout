@@ -211,7 +211,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
       const { data: newEstimate, error: estError } = await supabase
         .from('project_estimates')
-        .insert({ ...variables, session_id: sessionId, status: 'draft' })
+        .insert({ ...variables, session_id: sessionId, status: 'draft', template_tier: 'M', page_tier: 'M', content_tier: 'M', tech_tier: 'M', forms_tier: 'M' })
         .select()
         .single();
 
