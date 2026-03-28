@@ -299,6 +299,7 @@ export type Database = {
           hours: number
           hours_per_person: number
           id: string
+          is_required: boolean
           is_selected: boolean
           master_task_id: string | null
           phase_name: string | null
@@ -317,6 +318,7 @@ export type Database = {
           hours?: number
           hours_per_person?: number
           id?: string
+          is_required?: boolean
           is_selected?: boolean
           master_task_id?: string | null
           phase_name?: string | null
@@ -335,6 +337,7 @@ export type Database = {
           hours?: number
           hours_per_person?: number
           id?: string
+          is_required?: boolean
           is_selected?: boolean
           master_task_id?: string | null
           phase_name?: string | null
@@ -716,6 +719,7 @@ export type Database = {
           display_order: number
           hours_per_person: number
           id: string
+          is_required: boolean
           name: string
           phase_id: string | null
           roles: string | null
@@ -730,6 +734,7 @@ export type Database = {
           display_order?: number
           hours_per_person?: number
           id?: string
+          is_required?: boolean
           name: string
           phase_id?: string | null
           roles?: string | null
@@ -744,6 +749,7 @@ export type Database = {
           display_order?: number
           hours_per_person?: number
           id?: string
+          is_required?: boolean
           name?: string
           phase_id?: string | null
           roles?: string | null
