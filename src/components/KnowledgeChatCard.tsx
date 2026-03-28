@@ -1286,13 +1286,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           }
         }
 
-        // Final save — store synthesis + council transcript as markdown for DB persistence
+        // Final save — store synthesis only (model responses live in councilModels)
         const finalModels = Object.entries(modelStatuses).map(([key, m]) => ({ ...m, key }));
-        let finalContent = synthesisText || 'No synthesis available.';
-        // Append model responses as hidden details for persistence
-        finalContent += '\n\n---\n\n';
+        const finalContent = synthesisText || 'No synthesis available.';
+
+        // For DB persistence, append model responses as markdown
+        let dbContent = finalContent + '\n\n---\n\n';
         for (const ms of finalModels) {
-          finalContent += `<details>\n<summary>🧠 ${ms.name}</summary>\n\n${ms.response || '[No response]'}\n\n</details>\n\n`;
+          dbContent += `### 🧠 ${ms.name}\n\n${ms.response || '[No response]'}\n\n`;
         }
 
         setMessages(prev => {
