@@ -306,7 +306,7 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
 
   const tierSelector = isEstimate && scope ? (
     <div className="flex items-center gap-2 ml-auto">
-      <ToggleGroup type="single" value={tier} onValueChange={(v) => v && setTier(v as TechTier)} size="sm" variant="outline">
+      <ToggleGroup type="single" value={tier} onValueChange={(v) => { if (v) { setTier(v as TechTier); onActiveTierChange?.(v); } }} size="sm" variant="outline">
         <ToggleGroupItem value="S" className="text-xs px-2.5 h-7">
           Small • {pluginCount} TPAs
         </ToggleGroupItem>
