@@ -284,7 +284,19 @@ export default function IntegrationsPage() {
                 return (
                   <div key={integration.id} className="px-4 py-3 flex items-center justify-between gap-3 bg-card">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm">{integration.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{integration.name}</p>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 leading-tight ${
+                            integration.tier === 'premium'
+                              ? 'border-primary/30 text-primary bg-primary/5'
+                              : 'border-accent/30 text-accent bg-accent/5'
+                          }`}
+                        >
+                          {integration.tier === 'premium' ? 'Premium' : 'Free'}
+                        </Badge>
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
                       {integration.hasCredits && !isPaused && (
                         <CreditsDisplay integrationId={integration.id} />
