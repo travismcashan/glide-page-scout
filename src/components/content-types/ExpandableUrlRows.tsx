@@ -114,17 +114,19 @@ export function ExpandableUrlRows({ urls, allTypes, onChangeType, readOnly, navM
           );
         })}
         </div>
-        {hasMore && !showAll && (
-          <div className="h-10 bg-gradient-to-t from-card to-transparent pointer-events-none -mt-10" />
-        )}
         {hasMore && (
-          <button
-            onClick={() => setShowAll(prev => !prev)}
-            className="relative z-10 w-full flex items-center justify-center gap-1 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors bg-card"
-          >
-            <ChevronsUpDown className="h-3 w-3" />
-            {showAll ? 'Show less' : `Show all ${urls.length}`}
-          </button>
+          <div className="relative">
+            {!showAll && (
+              <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+            )}
+            <button
+              onClick={() => setShowAll(prev => !prev)}
+              className="w-full flex items-center justify-center gap-1 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronsUpDown className="h-3 w-3" />
+              {showAll ? 'Show less' : `Show all ${urls.length}`}
+            </button>
+          </div>
         )}
       </div>
     </TooltipProvider>
