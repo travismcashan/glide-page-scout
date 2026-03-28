@@ -20,33 +20,10 @@ export function EstimateVariablesTab({ variables, onChange }: Props) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Project Scope</CardTitle>
-          <CardDescription>Size and complexity settings</CardDescription>
+          <CardDescription>Toggle options that affect task calculations</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Project Size</Label>
-            <Select value={variables.project_size || 'Medium'} onValueChange={(v) => handleChange('project_size', v)}>
-              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Small">Small</SelectItem>
-                <SelectItem value="Medium">Medium</SelectItem>
-                <SelectItem value="Large">Large</SelectItem>
-                <SelectItem value="Enterprise">Enterprise</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Complexity</Label>
-            <Select value={variables.project_complexity || 'Standard'} onValueChange={(v) => handleChange('project_complexity', v)}>
-              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Simple">Simple</SelectItem>
-                <SelectItem value="Standard">Standard</SelectItem>
-                <SelectItem value="Complex">Complex</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center space-x-3 pt-5">
+          <div className="flex items-center space-x-3 pt-1">
             <Switch id="site_builder_acf" checked={variables.site_builder_acf ?? true} onCheckedChange={(c) => handleChange('site_builder_acf', c)} />
             <Label htmlFor="site_builder_acf" className="text-xs">Site Builder / ACF</Label>
           </div>
