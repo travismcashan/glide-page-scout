@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 const STORAGE_KEY = 'section-collapse-state';
 
@@ -21,7 +21,6 @@ function saveState(sessionId: string, map: CollapseMap) {
     const all = raw ? JSON.parse(raw) : {};
     all[sessionId] = map;
 
-    // Keep only the 20 most recent sessions to avoid bloat
     const keys = Object.keys(all);
     if (keys.length > 20) {
       for (const k of keys.slice(0, keys.length - 20)) {
@@ -35,19 +34,17 @@ function saveState(sessionId: string, map: CollapseMap) {
   }
 }
 
-/**
- * Manages per-section collapse state, persisted to localStorage per session.
- * Returns a function to check if a section is collapsed and a toggle function.
- */
 export function useSectionCollapse(sessionId: string | undefined) {
   const [collapseMap, setCollapseMap] = useState<CollapseMap>(() =>
     sessionId ? loadState(sessionId) : {}
   );
 
+  useEffect(() => {
+    setCollapseMap(sessionId ? loadState(sessionId) : {});
+  }, [sessionId]);
+
   const isSectionCollapsed = useCallback(
-    (sectionId: string): boolean | undefined => {
-      return collapseMap[sectionId] ?? undefined;
-    },
+    (sectionId: string): boolean | undefined => collapseMap[sectionId],
     [collapseMap]
   );
 
