@@ -36,6 +36,7 @@ interface Props {
   formsData: any;
   wappalyzerData: any;
   templateTiers: any;
+  formsTiers: any;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
   techAnalysisData: any;
   integrationTimestamps?: Record<string, string>;
@@ -55,7 +56,7 @@ interface Estimate extends EstimateVariables {
   forms_tier?: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -632,7 +633,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
-                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev); supabase.from('project_estimates').update({ forms_tier: tier }).eq('id', estimate.id).then(); }} />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" savedTiers={formsTiers} onTiersChange={(tiers) => { supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId).then(); }} onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev); supabase.from('project_estimates').update({ forms_tier: tier }).eq('id', estimate.id).then(); }} />
                   </SectionCard>
                 )}
 
