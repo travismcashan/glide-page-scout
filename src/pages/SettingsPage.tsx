@@ -79,11 +79,11 @@ export default function SettingsPage() {
   );
 
   // Council model slots
-  type CouncilSlot = { provider: ModelProvider; modelId: string };
+  type CouncilSlot = { provider: ModelProvider; modelId: string; reasoning?: ReasoningEffort };
   const defaultCouncilSlots: CouncilSlot[] = [
-    { provider: 'gemini', modelId: 'google/gemini-2.5-flash' },
-    { provider: 'gpt', modelId: 'openai/gpt-5-mini' },
-    { provider: 'claude', modelId: 'claude-haiku' },
+    { provider: 'gemini', modelId: 'google/gemini-2.5-flash', reasoning: 'none' },
+    { provider: 'gpt', modelId: 'openai/gpt-5-mini', reasoning: 'none' },
+    { provider: 'claude', modelId: 'claude-haiku', reasoning: 'none' },
   ];
   const [councilSlots, setCouncilSlots] = useState<CouncilSlot[]>(() => {
     try {
@@ -95,7 +95,16 @@ export default function SettingsPage() {
     const modelOpt = MODEL_OPTIONS.find(m => m.id === modelId);
     if (!modelOpt) return;
     const next = [...councilSlots];
-    next[index] = { provider: modelOpt.provider, modelId };
+    // Reset reasoning if new model doesn't support current reasoning
+    const currentReasoning = next[index]?.reasoning || 'none';
+    const newReasoning = modelOpt.reasoning.includes(currentReasoning) ? currentReasoning : 'none';
+    next[index] = { provider: modelOpt.provider, modelId, reasoning: newReasoning };
+    setCouncilSlots(next);
+    localStorage.setItem('council-models', JSON.stringify(next));
+  };
+  const updateCouncilSlotReasoning = (index: number, reasoning: ReasoningEffort) => {
+    const next = [...councilSlots];
+    next[index] = { ...next[index], reasoning };
     setCouncilSlots(next);
     localStorage.setItem('council-models', JSON.stringify(next));
   };
