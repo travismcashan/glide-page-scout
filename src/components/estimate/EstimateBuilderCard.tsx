@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
@@ -16,6 +16,7 @@ import type { PageTagsMap } from '@/lib/pageTags';
 import type { ContentTypesData } from '@/components/content-types/types';
 import { TemplatesCard } from '@/components/TemplatesCard';
 import { ContentTypesCard } from '@/components/ContentTypesCard';
+import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { SectionCard } from '@/components/SectionCard';
 
 function TaskRowHeader() {
@@ -43,6 +44,7 @@ interface Props {
   wappalyzerData: any;
   templateTiers: any;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
+  techAnalysisData: any;
 }
 
 interface Estimate extends EstimateVariables {
@@ -50,7 +52,7 @@ interface Estimate extends EstimateVariables {
   status: string | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, navStructure, techAnalysisData }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -484,6 +486,16 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                       navStructure={navStructure}
                       pageTags={pageTags}
                     />
+                  </SectionCard>
+                )}
+
+                {techAnalysisData && (
+                  <SectionCard
+                    sectionId="est-tech-analysis"
+                    title="AI Tech Analysis — Merged Stack Intelligence"
+                    icon={<Brain className="h-5 w-5 text-foreground" />}
+                  >
+                    <TechAnalysisCard data={techAnalysisData} isLoading={false} />
                   </SectionCard>
                 )}
               </div>

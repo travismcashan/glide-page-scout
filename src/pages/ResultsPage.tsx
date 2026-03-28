@@ -2800,6 +2800,7 @@ export default function ResultsPage() {
                 wappalyzerData={session.wappalyzer_data}
                 templateTiers={(session as any).template_tiers}
                 navStructure={(session as any).nav_structure || null}
+                techAnalysisData={(session as any).tech_analysis_data}
               />
             )}
             </div>}
