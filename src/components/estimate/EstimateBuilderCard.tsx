@@ -12,7 +12,19 @@ import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
 import type { PageTagsMap } from '@/lib/pageTags';
-import type { ContentTypesData } from '@/components/content-types/types';
+
+function TaskRowHeader() {
+  return (
+    <div className="flex items-center gap-3 px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="w-4 shrink-0" />
+      <div className="flex-1">Task / Role</div>
+      <div className="w-16 text-center shrink-0">Variable</div>
+      <div className="w-12 text-center shrink-0">#</div>
+      <div className="w-24 text-center">Hrs/Person</div>
+      <div className="w-22 text-center">Total</div>
+    </div>
+  );
+}
 
 interface Props {
   sessionId: string;
