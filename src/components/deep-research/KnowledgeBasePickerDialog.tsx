@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import {
-  BookOpen, Loader2, Check, Search, X, ArrowUpDown, Filter,
+  BookOpen, Loader2, Check, Search, X, ArrowUpDown, Filter, Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -44,12 +44,28 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
   const [filterBy, setFilterBy] = useState('all');
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
+  // Preview state
+  const [previewDoc, setPreviewDoc] = useState<KnowledgeDocument | null>(null);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const previewDocRef = useRef(previewDoc);
+  const focusedIdRef = useRef(focusedId);
+  const documentsRef = useRef(documents);
+  const isHandlingSpaceRef = useRef(false);
+
+  useEffect(() => { previewDocRef.current = previewDoc; }, [previewDoc]);
+  useEffect(() => { focusedIdRef.current = focusedId; }, [focusedId]);
+  useEffect(() => { documentsRef.current = documents; }, [documents]);
+
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     setSelectedIds(new Set());
     setSearchQuery('');
     setFocusedId(null);
+    setPreviewDoc(null);
+    setPreviewContent(null);
     (async () => {
       const { data } = await supabase
         .from('knowledge_documents')
@@ -61,6 +77,60 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
       setLoading(false);
     })();
   }, [open, sessionId]);
+
+  const closePreview = useCallback(() => {
+    setPreviewDoc(null);
+    setPreviewContent(null);
+  }, []);
+
+  const openPreview = useCallback(async (doc: KnowledgeDocument) => {
+    setPreviewDoc(doc);
+    setPreviewLoading(true);
+    setPreviewContent(null);
+    try {
+      const { data } = await supabase
+        .from('knowledge_chunks')
+        .select('chunk_text, chunk_index')
+        .eq('document_id', doc.id)
+        .order('chunk_index', { ascending: true })
+        .limit(50);
+      if (data && data.length > 0) {
+        setPreviewContent(data.map(c => c.chunk_text).join('\n\n'));
+      } else {
+        setPreviewContent('(No content available)');
+      }
+    } catch {
+      setPreviewContent('(Failed to load preview)');
+    }
+    setPreviewLoading(false);
+  }, []);
+
+  // Spacebar preview toggle
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (isHandlingSpaceRef.current) return;
+      isHandlingSpaceRef.current = true;
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (previewDocRef.current) {
+        closePreview();
+      } else {
+        const id = focusedIdRef.current;
+        if (id) {
+          const doc = documentsRef.current.find(d => d.id === id);
+          if (doc) openPreview(doc);
+        }
+      }
+      setTimeout(() => { isHandlingSpaceRef.current = false; }, 300);
+    };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [open, closePreview, openPreview]);
 
   const sourceTypes = useMemo(() => {
     const types = new Set(documents.map(d => d.source_type));
@@ -99,10 +169,62 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
     return SOURCE_LABELS[filterBy] || filterBy;
   };
 
+  // Preview mode
+  if (previewDoc) {
+    const Icon = getDocumentIcon(previewDoc.name, previewDoc.source_type, previewDoc.source_key);
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-3xl h-[75vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0 bg-background">
+            <div className="flex items-center gap-3">
+              <Icon className="w-6 h-6 text-primary" />
+              <div>
+                <p className="font-medium truncate max-w-md">{previewDoc.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {getSourceLabel(previewDoc.source_type, previewDoc.source_key)} · {formatCharCount(previewDoc.char_count)} · {previewDoc.chunk_count} chunks
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closePreview}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <ScrollArea className="h-full">
+              {previewLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <pre className="px-5 py-4 text-sm leading-relaxed whitespace-pre-wrap font-sans text-foreground">
+                  {previewContent}
+                </pre>
+              )}
+            </ScrollArea>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30 flex-shrink-0">
+            <p className="text-sm text-muted-foreground">Press Space or Esc to close preview</p>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={closePreview}>Back to files</Button>
+              {!alreadySelectedIds?.has(previewDoc.id) && (
+                <Button onClick={() => {
+                  if (!selectedIds.has(previewDoc.id)) toggleDoc(previewDoc.id);
+                  closePreview();
+                }}>
+                  {selectedIds.has(previewDoc.id) ? 'Selected' : 'Select document'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl h-[75vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
-        {/* Header — matches Drive picker */}
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
           <div className="flex items-center gap-3">
             <BookOpen className="w-6 h-6 text-primary" />
@@ -113,7 +235,7 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
           </Button>
         </div>
 
-        {/* Search + Sort + Filter — matches Drive picker toolbar */}
+        {/* Search + Sort + Filter */}
         <div className="px-4 py-3 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -175,10 +297,10 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 {sourceTypes.map(st => {
-                  const Icon = getDocumentIcon('', st, null);
+                  const StIcon = getDocumentIcon('', st, null);
                   return (
                     <DropdownMenuCheckboxItem key={st} checked={filterBy === st} onCheckedChange={() => setFilterBy(st)}>
-                      <Icon className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <StIcon className="w-4 h-4 mr-2 text-muted-foreground" />
                       {SOURCE_LABELS[st] || st}
                     </DropdownMenuCheckboxItem>
                   );
@@ -188,7 +310,7 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
           </div>
         </div>
 
-        {/* Document list — matches Drive picker file list layout */}
+        {/* Document list */}
         <div className="flex-1 overflow-hidden min-h-0">
           <ScrollArea className="h-full">
             {loading ? (
@@ -212,7 +334,7 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
                   <div>Date Added</div>
                 </div>
                 {processedDocs.map(doc => {
-                  const Icon = getDocumentIcon(doc.name, doc.source_type, doc.source_key);
+                  const DocIcon = getDocumentIcon(doc.name, doc.source_type, doc.source_key);
                   const isAlreadyPicked = alreadySelectedIds?.has(doc.id);
                   const isSelected = selectedIds.has(doc.id);
                   const isFocused = focusedId === doc.id;
@@ -243,7 +365,7 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
                       </div>
 
                       {/* Icon */}
-                      <Icon className="w-5 h-5 text-muted-foreground" />
+                      <DocIcon className="w-5 h-5 text-muted-foreground" />
 
                       {/* Name */}
                       <p className="text-sm truncate min-w-0">{doc.name}</p>
@@ -265,12 +387,18 @@ export function KnowledgeBasePickerDialog({ open, onOpenChange, sessionId, onDoc
           </ScrollArea>
         </div>
 
-        {/* Footer — matches Drive picker footer */}
+        {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30 flex-shrink-0">
           <div className="flex items-center gap-4">
             <p className="text-sm text-muted-foreground">
               {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${processedDocs.length} document${processedDocs.length !== 1 ? 's' : ''} available`}
             </p>
+            {focusedId && !previewDoc && (
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Eye className="w-3.5 h-3.5" />
+                <span>Space to preview</span>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
