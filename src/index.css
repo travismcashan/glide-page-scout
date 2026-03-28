@@ -263,25 +263,36 @@ body[data-scroll-locked] {
  *              logos/brand marks, body text, labels.
  * CONSTRAINT: Max 1–2 rainbow elements per viewport.
  */
-@keyframes rainbow-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+@keyframes rainbow-drift {
+  0%   { background-position: 0% 50%;   filter: hue-rotate(0deg); }
+  25%  { background-position: 50% 80%;  filter: hue-rotate(15deg); }
+  50%  { background-position: 100% 20%; filter: hue-rotate(-10deg); }
+  75%  { background-position: 30% 70%;  filter: hue-rotate(20deg); }
+  100% { background-position: 0% 50%;   filter: hue-rotate(0deg); }
 }
 
-/* Light mode: deeper, saturated colors — no yellow/lime that vanish on white */
+/* Light mode: deeper, saturated colors */
 .rainbow-text {
-  background: linear-gradient(90deg, #e02050, #d64000, #c06800, #0070dd, #7b2ff7, #e02050);
-  background-size: 200% auto;
+  background: radial-gradient(ellipse at 20% 50%, #e02050 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 30%, #d64000 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 60%, #c06800 0%, transparent 50%),
+              radial-gradient(ellipse at 40% 80%, #0070dd 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 20%, #7b2ff7 0%, transparent 50%);
+  background-size: 250% 250%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: rainbow-shift 20s linear infinite;
+  animation: rainbow-drift 8s ease-in-out infinite;
 }
 
-/* Dark mode: brighter, more vivid neon palette */
+/* Dark mode: brighter, vivid neon palette */
 .dark .rainbow-text {
-  background: linear-gradient(90deg, #ff3366, #ff8800, #ffcc00, #00aaff, #aa55ff, #ff3366);
-  background-size: 200% auto;
+  background: radial-gradient(ellipse at 20% 50%, #ff3366 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 30%, #ff8800 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 60%, #ffcc00 0%, transparent 50%),
+              radial-gradient(ellipse at 40% 80%, #00aaff 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 20%, #aa55ff 0%, transparent 50%);
+  background-size: 250% 250%;
 }
 
 /* Print styles for PDF export */
