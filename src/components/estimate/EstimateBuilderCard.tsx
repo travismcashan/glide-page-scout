@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain, RefreshCw } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
-import { EstimateVariablesTab } from './EstimateVariablesTab';
+
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
