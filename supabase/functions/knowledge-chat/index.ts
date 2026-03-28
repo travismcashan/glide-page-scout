@@ -925,6 +925,28 @@ const ANALYTICS_TOOLS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'generate_presentation',
+      description: 'Generate a Beautiful.ai presentation from a text prompt. Use when the user asks to create a presentation, pitch deck, slide deck, or slides. Returns links to edit and view the generated deck.',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: {
+            type: 'string',
+            description: 'A detailed description of the presentation to create, including topic, audience, key points, and desired tone.',
+          },
+          themeId: {
+            type: 'string',
+            description: 'Optional theme ID (e.g., "minimal"). Leave empty for default.',
+          },
+        },
+        required: ['prompt'],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 /**
