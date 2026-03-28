@@ -512,7 +512,7 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
  * Perform RAG search and also return the routing result for screenshot decisions
  * and the list of documents referenced
  */
-async function ragSearchWithRouting(sessionId: string, query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: { name: string; source_type: string }[] }> {
+async function ragSearchWithRouting(sessionId: string | string[], query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: { name: string; source_type: string }[] }> {
   try {
     const [routing, embedding] = await Promise.all([
       routeQuery(query),
@@ -1193,7 +1193,9 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, crawlContext, documents, model, reasoning, session_id, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
+    const { messages, crawlContext, documents, model, reasoning, session_id, session_ids, sources, rag_depth, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
+    // Support multi-session: prefer session_ids array, fall back to single session_id
+    const effectiveSessionId: string | string[] | undefined = session_ids?.length ? session_ids : session_id;
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
