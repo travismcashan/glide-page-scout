@@ -230,7 +230,29 @@ export default function SettingsPage() {
       const person = data?.data?.person || data?.data || (data?.found ? data : null);
       if (!person) { toast.error('No profile data found'); return; }
 
-      const orgDomain = person.organizationDomain || person.organization?.primary_domain || user.email.split('@')[1];
+      const emailDomain = user.email.split('@')[1];
+      const apolloOrgDomain = person.organizationDomain || person.organization?.primary_domain;
+
+      // Try to find the employment entry matching the user's email domain
+      const empHistory: any[] = person.employmentHistory || [];
+      const matchingJob = empHistory.find((e: any) =>
+        e.current && e.organizationName && apolloOrgDomain && emailDomain &&
+        (apolloOrgDomain.toLowerCase().includes(emailDomain.split('.')[0].toLowerCase()) ||
+         emailDomain.toLowerCase().includes((e.organizationName || '').toLowerCase().replace(/[^a-z0-9]/g, '')))
+      ) || empHistory.find((e: any) =>
+        e.current && e.organizationName
+      );
+
+      // Prefer org data that matches email domain over Apollo's default org
+      const emailMatchesApolloOrg = apolloOrgDomain && emailDomain &&
+        apolloOrgDomain.toLowerCase().replace(/^www\./, '') === emailDomain.toLowerCase();
+      
+      // If Apollo's org doesn't match email domain, try to use the matching job's org name
+      const primaryOrgName = emailMatchesApolloOrg
+        ? (person.organizationName || person.organization?.name)
+        : (matchingJob?.organizationName || person.organizationName || person.organization?.name);
+
+      const orgDomain = emailMatchesApolloOrg ? apolloOrgDomain : (emailDomain || apolloOrgDomain);
 
       const enriched: Record<string, any> = {
         name: (person.name && person.name.trim()) || (person.firstName && person.lastName ? `${person.firstName} ${person.lastName}`.trim() : '') || profile?.display_name,
@@ -247,17 +269,17 @@ export default function SettingsPage() {
         github: person.githubUrl || person.github_url,
         seniority: person.seniority,
         departments: person.departments,
-        employmentHistory: person.employmentHistory || [],
-        organization: person.organizationName || person.organization?.name,
-        orgIndustry: person.organizationIndustry || person.organization?.industry,
-        orgSize: person.organizationSize || person.organization?.estimated_num_employees,
-        orgWebsite: person.organizationWebsite || person.organizationDomain || person.organization?.primary_domain,
-        orgLogo: person.organizationLogo || person.organization?.logo_url,
-        orgDescription: person.organizationDescription || person.organization?.short_description,
-        orgFounded: person.organizationFounded || person.organization?.founded_year,
-        orgRevenue: person.organizationRevenue,
-        orgKeywords: person.organizationKeywords || [],
-        orgTechnologies: person.organizationTechnologies || [],
+        employmentHistory: empHistory,
+        organization: primaryOrgName,
+        orgIndustry: emailMatchesApolloOrg ? (person.organizationIndustry || person.organization?.industry) : null,
+        orgSize: emailMatchesApolloOrg ? (person.organizationSize || person.organization?.estimated_num_employees) : null,
+        orgWebsite: orgDomain,
+        orgLogo: emailMatchesApolloOrg ? (person.organizationLogo || person.organization?.logo_url) : null,
+        orgDescription: emailMatchesApolloOrg ? (person.organizationDescription || person.organization?.short_description) : null,
+        orgFounded: emailMatchesApolloOrg ? (person.organizationFounded || person.organization?.founded_year) : null,
+        orgRevenue: emailMatchesApolloOrg ? person.organizationRevenue : null,
+        orgKeywords: emailMatchesApolloOrg ? (person.organizationKeywords || []) : [],
+        orgTechnologies: emailMatchesApolloOrg ? (person.organizationTechnologies || []) : [],
         orgCity: person.organizationCity,
         orgState: person.organizationState,
         orgCountry: person.organizationCountry,
@@ -266,14 +288,14 @@ export default function SettingsPage() {
         orgHeadcountGrowth12mo: person.organizationHeadcountGrowth12mo,
       };
 
-      // Also fetch Ocean.io for deeper company data
+      // Also fetch Ocean.io for deeper company data using email domain
       if (orgDomain) {
         try {
           const { data: oceanData } = await supabase.functions.invoke('ocean-enrich', {
             body: { domain: orgDomain },
           });
-          if (oceanData?.success && oceanData?.company) {
-            enriched.oceanCompany = oceanData.company;
+          if (oceanData?.success) {
+            enriched.oceanCompany = oceanData;
           }
         } catch { /* Ocean is optional */ }
       }
