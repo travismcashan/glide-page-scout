@@ -15,46 +15,34 @@ export function EstimateVariablesTab({ variables, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-6">
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Content & Design Variables</CardTitle>
-          <CardDescription>These values affect task hour calculations</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Field label="Pages for Integration" value={variables.pages_for_integration ?? 20} onChange={(v) => handleChange('pages_for_integration', v)} />
-          <Field label="Design Layouts" value={variables.design_layouts ?? 5} onChange={(v) => handleChange('design_layouts', v)} />
-          <Field label="User Personas" value={variables.user_personas ?? 3} onChange={(v) => handleChange('user_personas', v)} />
-          <Field label="Custom Posts" value={variables.custom_posts ?? 2} onChange={(v) => handleChange('custom_posts', v)} min={0} />
-          <Field label="Number of Forms" value={variables.form_count ?? 2} onChange={(v) => handleChange('form_count', v)} min={0} />
-          <div className="space-y-1.5">
-            <Label className="text-xs">Bulk Import Amount</Label>
-            <Select value={variables.bulk_import_amount || '<500'} onValueChange={(v) => handleChange('bulk_import_amount', v)}>
-              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="<500">&lt; 500</SelectItem>
-                <SelectItem value="500-1000">500 - 1,000</SelectItem>
-                <SelectItem value="1000-5000">1,000 - 5,000</SelectItem>
-                <SelectItem value=">5000">&gt; 5,000</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Integrations & Services</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Field label="Third Party Integrations" value={variables.third_party_integrations ?? 2} onChange={(v) => handleChange('third_party_integrations', v)} min={0} />
-          <Field label="Content Pages" value={variables.content_pages ?? 10} onChange={(v) => handleChange('content_pages', v)} />
-          <Field label="Post Launch Services" value={variables.post_launch_services ?? 0} onChange={(v) => handleChange('post_launch_services', v)} min={0} />
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Project Variables</CardTitle>
+        <CardDescription>These values affect task hour calculations</CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <Field label="Pages for Integration" value={variables.pages_for_integration ?? 20} onChange={(v) => handleChange('pages_for_integration', v)} />
+        <Field label="Content Pages" value={variables.content_pages ?? 10} onChange={(v) => handleChange('content_pages', v)} />
+        <Field label="Design Layouts" value={variables.design_layouts ?? 5} onChange={(v) => handleChange('design_layouts', v)} />
+        <Field label="User Personas" value={variables.user_personas ?? 3} onChange={(v) => handleChange('user_personas', v)} />
+        <Field label="Custom Posts" value={variables.custom_posts ?? 2} onChange={(v) => handleChange('custom_posts', v)} min={0} />
+        <Field label="Number of Forms" value={variables.form_count ?? 2} onChange={(v) => handleChange('form_count', v)} min={0} />
+        <Field label="Third Party Integrations" value={variables.third_party_integrations ?? 2} onChange={(v) => handleChange('third_party_integrations', v)} min={0} />
+        <div className="space-y-1.5">
+          <Label className="text-xs">Bulk Import Amount</Label>
+          <Select value={variables.bulk_import_amount || '<500'} onValueChange={(v) => handleChange('bulk_import_amount', v)}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="<500">&lt; 500</SelectItem>
+              <SelectItem value="500-1000">500 - 1,000</SelectItem>
+              <SelectItem value="1000-5000">1,000 - 5,000</SelectItem>
+              <SelectItem value=">5000">&gt; 5,000</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
