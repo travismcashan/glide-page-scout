@@ -337,28 +337,26 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
   // Estimate mode — checkboxes + tier toggles
   return (
     <div className="space-y-4">
-      {/* Summary */}
+      {/* Summary + Tier selector */}
       <div className="flex items-center gap-4 flex-wrap">
         <MetaStat value={totalPages} label="Detected Pages" />
         <MetaStatDivider />
         <MetaStat value={selectedUrls.size} label="Selected Pages" />
-      </div>
-
-      {/* Tier selector */}
-      <div className="flex items-center gap-2">
-        <ToggleGroup
-          type="single"
-          value={activeTier}
-          onValueChange={(v) => v && applyTier(v as TierKey)}
-          size="sm"
-          variant="outline"
-        >
-          {(['S', 'M', 'L'] as TierKey[]).map(tier => (
-            <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
-              {tierLabel(tier)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <div className="ml-auto">
+          <ToggleGroup
+            type="single"
+            value={activeTier}
+            onValueChange={(v) => v && applyTier(v as TierKey)}
+            size="sm"
+            variant="outline"
+          >
+            {(['S', 'M', 'L'] as TierKey[]).map(tier => (
+              <ToggleGroupItem key={tier} value={tier} className="text-xs px-2.5 h-7">
+                {tierLabel(tier)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
       </div>
 
       {/* Page groups with checkboxes */}
