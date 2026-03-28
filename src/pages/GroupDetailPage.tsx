@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Globe, Clock, ExternalLink, Loader2, Trash2, ArrowRight, Search } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Globe, Clock, ExternalLink, Loader2, Trash2, ArrowRight, Search, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -39,8 +42,12 @@ export default function GroupDetailPage() {
 
   // Add site dialog
   const [addOpen, setAddOpen] = useState(false);
+  const [addTab, setAddTab] = useState<string>('existing');
   const [newUrl, setNewUrl] = useState('');
   const [adding, setAdding] = useState(false);
+  const [existingSessions, setExistingSessions] = useState<{ id: string; domain: string; created_at: string }[]>([]);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [loadingExisting, setLoadingExisting] = useState(false);
 
   const fetchData = async () => {
     if (!groupId) return;
@@ -123,6 +130,60 @@ export default function GroupDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [members.length, groupId]);
 
+  // Fetch existing sessions when dialog opens on "existing" tab
+  const fetchExistingSessions = async () => {
+    setLoadingExisting(true);
+    const memberSessionIds = members.map(m => m.session_id);
+    const { data } = await supabase
+      .from('crawl_sessions')
+      .select('id, domain, created_at')
+      .neq('domain', '__global_chat__')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    // Filter out sessions already in the group
+    const filtered = (data ?? []).filter(s => !memberSessionIds.includes(s.id));
+    setExistingSessions(filtered);
+    setLoadingExisting(false);
+  };
+
+  useEffect(() => {
+    if (addOpen && addTab === 'existing') {
+      fetchExistingSessions();
+      setSelectedSessionIds(new Set());
+    }
+  }, [addOpen, addTab]);
+
+  const toggleSession = (id: string) => {
+    setSelectedSessionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAddExisting = async () => {
+    if (!groupId || selectedSessionIds.size === 0) return;
+    setAdding(true);
+    try {
+      const rows = Array.from(selectedSessionIds).map(session_id => ({
+        group_id: groupId,
+        session_id,
+      }));
+      const { error } = await supabase.from('site_group_members').insert(rows);
+      if (error) throw error;
+      toast.success(`Added ${selectedSessionIds.size} site${selectedSessionIds.size > 1 ? 's' : ''} to group`);
+      setAddOpen(false);
+      setSelectedSessionIds(new Set());
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to add sites');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const handleAddSite = async () => {
     if (!newUrl.trim() || !groupId) return;
     setAdding(true);
@@ -130,7 +191,6 @@ export default function GroupDetailPage() {
       const formattedUrl = newUrl.trim().startsWith('http') ? newUrl.trim() : `https://${newUrl.trim()}`;
       const domain = new URL(formattedUrl).hostname;
 
-      // Create crawl session
       const { data: session, error: sessErr } = await supabase
         .from('crawl_sessions')
         .insert({ domain, base_url: formattedUrl, status: 'analyzing' } as any)
@@ -139,14 +199,12 @@ export default function GroupDetailPage() {
 
       if (sessErr) throw sessErr;
 
-      // Add to group
       const { error: memErr } = await supabase
         .from('site_group_members')
         .insert({ group_id: groupId, session_id: session.id });
 
       if (memErr) throw memErr;
 
-      // Fire crawl-start
       supabase.functions.invoke('crawl-start', {
         body: { session_id: session.id },
       }).catch(err => console.error('crawl-start error:', err));
@@ -225,30 +283,84 @@ export default function GroupDetailPage() {
                 <Plus className="h-4 w-4" /> Add Site
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Add Site to Group</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">URL</label>
-                  <div className="flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <Input
-                      placeholder="Enter a URL to analyze…"
-                      value={newUrl}
-                      onChange={e => setNewUrl(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleAddSite()}
-                    />
+              <Tabs value={addTab} onValueChange={setAddTab} className="w-full">
+                <TabsList className="w-full">
+                  <TabsTrigger value="existing" className="flex-1 gap-1.5">
+                    <History className="h-3.5 w-3.5" /> Existing Sites
+                  </TabsTrigger>
+                  <TabsTrigger value="new" className="flex-1 gap-1.5">
+                    <Plus className="h-3.5 w-3.5" /> New URL
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="existing" className="mt-4 space-y-4">
+                  {loadingExisting ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : existingSessions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No available sites to add.
+                    </p>
+                  ) : (
+                    <ScrollArea className="h-[280px] -mx-1 px-1">
+                      <div className="space-y-1">
+                        {existingSessions.map(s => (
+                          <label
+                            key={s.id}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                          >
+                            <Checkbox
+                              checked={selectedSessionIds.has(s.id)}
+                              onCheckedChange={() => toggleSession(s.id)}
+                            />
+                            <Globe className="h-4 w-4 shrink-0 text-primary/60" />
+                            <span className="text-sm font-medium flex-1 truncate">{s.domain}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(s.created_at), 'MMM d, yyyy')}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                  <DialogFooter>
+                    <Button
+                      onClick={handleAddExisting}
+                      disabled={selectedSessionIds.size === 0 || adding}
+                      className="gap-2"
+                    >
+                      {adding && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Add {selectedSessionIds.size || ''} Site{selectedSessionIds.size !== 1 ? 's' : ''}
+                    </Button>
+                  </DialogFooter>
+                </TabsContent>
+
+                <TabsContent value="new" className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">URL</label>
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Input
+                        placeholder="Enter a URL to analyze…"
+                        value={newUrl}
+                        onChange={e => setNewUrl(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddSite()}
+                      />
+                    </div>
                   </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleAddSite} disabled={!newUrl.trim() || adding} className="gap-2">
-                  {adding && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Add & Analyze
-                </Button>
-              </DialogFooter>
+                  <DialogFooter>
+                    <Button onClick={handleAddSite} disabled={!newUrl.trim() || adding} className="gap-2">
+                      {adding && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Add & Analyze
+                    </Button>
+                  </DialogFooter>
+                </TabsContent>
+              </Tabs>
             </DialogContent>
           </Dialog>
         </div>
