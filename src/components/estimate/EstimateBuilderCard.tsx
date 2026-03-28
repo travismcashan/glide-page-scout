@@ -493,7 +493,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                   <SectionCard
                     sectionId="est-tech-analysis"
                     title="AI Tech Analysis — Merged Stack Intelligence"
-                    icon={<Code className="h-5 w-5 text-foreground" />}
+                    icon={<Brain className="h-5 w-5 text-foreground" />}
                   >
                     <TechAnalysisCard data={techAnalysisData} isLoading={false} />
                   </SectionCard>
