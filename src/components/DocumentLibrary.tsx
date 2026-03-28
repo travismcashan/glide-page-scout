@@ -435,6 +435,79 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     }
   };
 
+  const RENAME_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rename-document`;
+
+  const handleRenameAll = useCallback(async () => {
+    const readyDocs = documents.filter(d => d.status === 'ready' && d.chunk_count > 0);
+    if (readyDocs.length === 0) {
+      toast.info('No documents to rename');
+      return;
+    }
+
+    setRenaming(true);
+    renameAbortRef.current = false;
+    setRenameProgress({ done: 0, total: readyDocs.length });
+
+    let renamed = 0;
+    for (const doc of readyDocs) {
+      if (renameAbortRef.current) {
+        toast.info(`Rename stopped after ${renamed} of ${readyDocs.length}`);
+        break;
+      }
+
+      try {
+        // Fetch first few chunks for content preview
+        const { data: chunks } = await supabase
+          .from('knowledge_chunks')
+          .select('chunk_text')
+          .eq('document_id', doc.id)
+          .order('chunk_index', { ascending: true })
+          .limit(3);
+
+        const contentPreview = chunks?.map(c => c.chunk_text).join('\n\n') || '';
+        if (!contentPreview) {
+          renamed++;
+          setRenameProgress({ done: renamed, total: readyDocs.length });
+          continue;
+        }
+
+        const resp = await fetch(RENAME_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            document_id: doc.id,
+            current_name: doc.name,
+            content_preview: contentPreview,
+            source_type: doc.source_type,
+          }),
+        });
+
+        if (renameAbortRef.current) break;
+
+        const result = await resp.json();
+        if (result.success && result.new_name && result.new_name !== doc.name) {
+          await supabase
+            .from('knowledge_documents')
+            .update({ name: result.new_name })
+            .eq('id', doc.id);
+
+          setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, name: result.new_name } : d));
+        }
+      } catch (e) {
+        console.error('Rename error for', doc.name, e);
+      }
+
+      renamed++;
+      setRenameProgress({ done: renamed, total: readyDocs.length });
+    }
+
+    setRenaming(false);
+    if (!renameAbortRef.current) {
+      toast.success(`Renamed ${renamed} documents`);
+    }
+    fetchDocuments();
+  }, [documents, sessionId]);
+
   const readyCount = documents.filter(d => d.status === 'ready').length;
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
   const totalChars = documents.reduce((sum, d) => sum + d.char_count, 0);
