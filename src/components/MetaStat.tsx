@@ -18,7 +18,7 @@ export function MetaStat({ value, label }: MetaStatProps) {
       <span className="meta-value text-4xl font-bold text-foreground leading-none tracking-tight">
         {value}
       </span>
-      <span className="text-xs leading-tight text-muted-foreground">
+      <span className="text-[13px] leading-[1.15] text-muted-foreground">
         {line1}
         {line2 && <br />}
         {line2}
