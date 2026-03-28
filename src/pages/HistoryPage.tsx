@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { withQueryTimeout } from '@/lib/queryTimeout';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,11 +98,15 @@ export default function HistoryPage() {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from('crawl_sessions')
-        .select('id, domain, base_url, status, created_at')
-        .neq('domain', '__global_chat__')
-        .order('created_at', { ascending: false });
+      const { data, error } = await withQueryTimeout(
+        supabase
+          .from('crawl_sessions')
+          .select('id, domain, base_url, status, created_at')
+          .neq('domain', '__global_chat__')
+          .order('created_at', { ascending: false }),
+        12000,
+        'Loading sites timed out'
+      );
 
       if (cancelled) return;
 
@@ -129,10 +134,14 @@ export default function HistoryPage() {
         const sessionIds = data_.map(d => d.id);
         if (sessionIds.length > 0) {
           void (async () => {
-            const { data: docs, error: docsError } = await supabase
-              .from('knowledge_documents')
-              .select('session_id')
-              .in('session_id', sessionIds);
+            const { data: docs, error: docsError } = await withQueryTimeout(
+              supabase
+                .from('knowledge_documents')
+                .select('session_id')
+                .in('session_id', sessionIds),
+              12000,
+              'Loading file counts timed out'
+            );
 
             if (cancelled) return;
             if (docsError) {
@@ -147,10 +156,14 @@ export default function HistoryPage() {
 
           void (async () => {
             for (const batchIds of chunkArray(sessionIds, HISTORY_COUNT_BATCH_SIZE)) {
-              const { data: countBatch, error: countError } = await supabase
-                .from('crawl_sessions')
-                .select(`id, ${INTEGRATION_KEYS.join(',')}`)
-                .in('id', batchIds);
+              const { data: countBatch, error: countError } = await withQueryTimeout(
+                supabase
+                  .from('crawl_sessions')
+                  .select(`id, ${INTEGRATION_KEYS.join(',')}`)
+                  .in('id', batchIds),
+                12000,
+                'Loading integration counts timed out'
+              );
 
               if (cancelled) return;
               if (countError) {

@@ -5,6 +5,7 @@ import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { Loader2 } from 'lucide-react';
+import { withQueryTimeout } from '@/lib/queryTimeout';
 
 const GLOBAL_SESSION_DOMAIN = '__global_chat__';
 
@@ -46,43 +47,66 @@ export default function GlobalChatPage() {
 
   // Load or create the global sentinel session
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
-      // Check for existing global session
-      const { data: existing } = await supabase
-        .from('crawl_sessions')
-        .select('*')
-        .eq('domain', GLOBAL_SESSION_DOMAIN)
-        .limit(1)
-        .single();
+      try {
+        const { data: existing, error: existingError } = await withQueryTimeout(
+          supabase
+            .from('crawl_sessions')
+            .select('id, domain, base_url, status, created_at')
+            .eq('domain', GLOBAL_SESSION_DOMAIN)
+            .limit(1)
+            .maybeSingle(),
+          12000,
+          'Loading chat timed out'
+        );
 
-      if (existing) {
-        setGlobalSession(existing);
-        setLoading(false);
-        return;
+        if (cancelled) return;
+
+        if (existingError) {
+          throw existingError;
+        }
+
+        if (existing) {
+          setGlobalSession(existing);
+          return;
+        }
+
+        const { data: created, error } = await withQueryTimeout(
+          supabase
+            .from('crawl_sessions')
+            .insert({
+              domain: GLOBAL_SESSION_DOMAIN,
+              base_url: 'https://global-chat',
+              status: 'complete',
+            } as any)
+            .select('id, domain, base_url, status, created_at')
+            .single(),
+          12000,
+          'Creating chat session timed out'
+        );
+
+        if (cancelled) return;
+
+        if (error) {
+          throw error;
+        }
+
+        setGlobalSession(created);
+      } catch (error) {
+        console.error('Failed to initialize global chat:', error);
+        toast.error('Chat failed to load. Please try again.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      // Create sentinel session
-      const { data: created, error } = await supabase
-        .from('crawl_sessions')
-        .insert({
-          domain: GLOBAL_SESSION_DOMAIN,
-          base_url: 'https://global-chat',
-          status: 'complete',
-        } as any)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to create global session:', error);
-        toast.error('Failed to initialize chat');
-        setLoading(false);
-        return;
-      }
-
-      setGlobalSession(created);
-      setLoading(false);
     };
+
     init();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
 
