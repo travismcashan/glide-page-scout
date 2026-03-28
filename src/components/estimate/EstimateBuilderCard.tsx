@@ -415,16 +415,15 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
  *  Throughput scales: smaller projects ~20 hrs/wk, larger ~30 hrs/wk. */
 function getProjectDuration(totalHours: number): string {
   if (totalHours <= 0) return '0 mo';
-  // Throughput (hrs/week) scales with project size via log interpolation
-  // 200hrs → ~18 hrs/wk, 300hrs → ~21, 600hrs → ~30, 1000hrs → ~35
   const throughput = 15 + 5 * Math.log2(Math.max(totalHours, 100) / 100);
   const calWeeks = totalHours / throughput;
-  const lowWeeks = Math.round(calWeeks * 0.85); // optimistic
-  const highWeeks = Math.round(calWeeks * 1.15); // conservative
-  const lowMo = Math.max(1, Math.round(lowWeeks / 4.33));
-  const highMo = Math.max(1, Math.round(highWeeks / 4.33));
-  if (lowMo === highMo) return `~${lowMo} mo`;
-  return `~${lowMo}–${highMo} mo`;
+  const lowWeeks = calWeeks * 0.85;
+  const highWeeks = calWeeks * 1.15;
+  const lowMo = lowWeeks / 4.33;
+  const highMo = highWeeks / 4.33;
+  const avg = (lowMo + highMo) / 2;
+  const rounded = Math.round(avg * 2) / 2; // round to nearest 0.5
+  return `~${Math.max(1, rounded)} mo`;
 }
 
   const rerunButton = (key: string, dbColumn: string) => {
