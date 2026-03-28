@@ -145,26 +145,26 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
       <div className="border rounded-lg overflow-hidden">
         <Table className="table-fixed">
           <TableHeader>
-            <TableRow className="bg-muted/50">
+            <TableRow className="bg-muted/50 h-8">
               <TableHead className="w-10" />
               {groupBy !== 'phase' && (
                 <TableHead className="cursor-pointer select-none w-[120px] whitespace-nowrap" onClick={() => toggleSort('phase_name')}>
-                  <span className="flex items-center text-xs">Phase<SortIcon field="phase_name" /></span>
+                  <span className="flex items-center text-sm">Phase<SortIcon field="phase_name" /></span>
                 </TableHead>
               )}
               <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('task_name')}>
-                <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
+                <span className="flex items-center text-sm">Task<SortIcon field="task_name" /></span>
               </TableHead>
-              <TableHead className="w-[160px] text-xs">Role(s)</TableHead>
-              <TableHead className="w-[50px] text-xs text-center">Req</TableHead>
-              <TableHead className="w-[70px] text-xs text-center">Type</TableHead>
-              <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
-              <TableHead className="w-[60px] text-xs text-center">#</TableHead>
+              <TableHead className="w-[160px] text-sm">Role(s)</TableHead>
+              <TableHead className="w-[50px] text-sm text-center">Req</TableHead>
+              <TableHead className="w-[70px] text-sm text-center">Type</TableHead>
+              <TableHead className="w-[80px] text-sm text-center">Variable</TableHead>
+              <TableHead className="w-[60px] text-sm text-center">#</TableHead>
               <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours_per_person')}>
-                <span className="flex items-center justify-center text-xs">Hrs/Person<SortIcon field="hours_per_person" /></span>
+                <span className="flex items-center justify-center text-sm">Hrs/Person<SortIcon field="hours_per_person" /></span>
               </TableHead>
               <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours')}>
-                <span className="flex items-center justify-center text-xs">Total<SortIcon field="hours" /></span>
+                <span className="flex items-center justify-center text-sm">Total<SortIcon field="hours" /></span>
               </TableHead>
             </TableRow>
           </TableHeader>
