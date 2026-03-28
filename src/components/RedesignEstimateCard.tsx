@@ -168,8 +168,6 @@ function PageGroupSection({
   onToggleAll: (urls: string[], checked: boolean) => void;
 }) {
   const checkedCount = urls.filter(u => selectedUrls.has(u)).length;
-  const allChecked = urls.length > 0 && checkedCount === urls.length;
-  const someChecked = checkedCount > 0 && checkedCount < urls.length;
 
   return (
     <>
@@ -181,14 +179,6 @@ function PageGroupSection({
           ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         }
-        <Checkbox
-          checked={allChecked ? true : someChecked ? 'indeterminate' : false}
-          onCheckedChange={(checked) => {
-            onToggleAll(urls, !!checked);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          className="h-3.5 w-3.5"
-        />
         <span className="text-xs font-semibold text-foreground">{label}</span>
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
           {checkedCount}/{urls.length}
