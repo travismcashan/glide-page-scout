@@ -758,10 +758,10 @@ export default function SettingsPage() {
                     <span>{aboutMe.orgSize}</span>
                   </div>
                 )}
-                {(aboutMe.city || aboutMe.state || aboutMe.country) && (
+                {(aboutMe.city || aboutMe.state || aboutMe.country || locationData?.city) && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin className="h-4 w-4 shrink-0" />
-                    <span>{[aboutMe.city, aboutMe.state, aboutMe.country].filter(Boolean).join(', ')}</span>
+                    <span>{[aboutMe.city || locationData?.city, aboutMe.state || locationData?.region, aboutMe.country || locationData?.country].filter(Boolean).join(', ')}</span>
                   </div>
                 )}
                 {aboutMe.orgWebsite && (
