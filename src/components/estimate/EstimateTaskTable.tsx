@@ -155,11 +155,11 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
               <TableHead className="w-[100px] text-xs">Role(s)</TableHead>
               <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
               <TableHead className="w-[60px] text-xs text-center">#</TableHead>
-              <TableHead className="w-[90px] cursor-pointer select-none text-right" onClick={() => toggleSort('hours_per_person')}>
-                <span className="flex items-center justify-end text-xs">Hrs/Person<SortIcon field="hours_per_person" /></span>
+              <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours_per_person')}>
+                <span className="flex items-center justify-center text-xs">Hrs/Person<SortIcon field="hours_per_person" /></span>
               </TableHead>
-              <TableHead className="w-[90px] cursor-pointer select-none text-right" onClick={() => toggleSort('hours')}>
-                <span className="flex items-center justify-end text-xs">Total<SortIcon field="hours" /></span>
+              <TableHead className="w-[90px] cursor-pointer select-none text-center" onClick={() => toggleSort('hours')}>
+                <span className="flex items-center justify-center text-xs">Total<SortIcon field="hours" /></span>
               </TableHead>
             </TableRow>
           </TableHeader>
