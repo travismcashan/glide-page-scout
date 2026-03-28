@@ -1117,9 +1117,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      // ─── Council mode: non-streaming orchestration ───
+      // ─── Council mode: SSE streaming ───
       const isCouncil = selectedModel.startsWith('council-');
       if (isCouncil) {
+        setIsThinking(false); // We'll show custom status instead
         const councilResp = await fetch(COUNCIL_URL, {
           method: 'POST',
           signal: controller.signal,
@@ -1128,7 +1129,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            mode: selectedModel,
             messages: apiMessages,
             crawlContext,
             customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
@@ -1136,38 +1136,124 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         });
 
         if (!councilResp.ok) {
-          const errData = await councilResp.json().catch(() => ({}));
-          toast.error(errData.error || `Council error ${councilResp.status}`);
+          const errText = await councilResp.text();
+          let errMsg = `Council error ${councilResp.status}`;
+          try { errMsg = JSON.parse(errText).error || errMsg; } catch {}
+          toast.error(errMsg);
           clearPendingAssistantPlaceholder();
           setIsStreaming(false);
-          setIsThinking(false);
           return;
         }
 
-        const councilData = await councilResp.json();
-        
-        // Build a rich markdown response with synthesis + expandable rounds
-        let content = councilData.synthesis || 'No synthesis available.';
-        content += '\n\n---\n\n<details>\n<summary>📋 Council Transcript</summary>\n\n';
-        content += `**Mode:** ${councilData.mode === 'debate' ? 'Debate' : 'Convergence'}\n`;
-        content += `**Models:** ${councilData.models?.join(', ')}\n\n`;
-        for (const round of councilData.rounds || []) {
-          content += `### Round ${round.round}: ${round.label}\n\n`;
-          for (const [modelKey, response] of Object.entries(round.responses || {})) {
-            const side = round.sides ? (modelKey === round.sides.pro ? ' (PRO)' : modelKey === round.sides.con ? ' (CON)' : '') : '';
-            content += `**${modelKey.charAt(0).toUpperCase() + modelKey.slice(1)}${side}:**\n\n${response}\n\n---\n\n`;
+        const reader = councilResp.body!.getReader();
+        const decoder = new TextDecoder();
+        let sseBuffer = '';
+        let synthesisText = '';
+        const modelStatuses: Record<string, { name: string; status: 'thinking' | 'done' | 'error'; response?: string }> = {};
+        let isSynthesizing = false;
+
+        const updateCouncilMessage = () => {
+          // Build council status block as markdown
+          let statusBlock = '';
+          const entries = Object.values(modelStatuses);
+          if (entries.length > 0) {
+            for (const ms of entries) {
+              const icon = ms.status === 'done' ? '✅' : ms.status === 'error' ? '❌' : '⏳';
+              statusBlock += `${icon} **${ms.name}** — ${ms.status === 'thinking' ? 'Thinking…' : ms.status === 'done' ? 'Done' : 'Error'}\n\n`;
+              if (ms.status === 'done' && ms.response) {
+                statusBlock += `<details>\n<summary>View response</summary>\n\n${ms.response}\n\n</details>\n\n`;
+              }
+            }
+          }
+
+          let content = '';
+          if (!isSynthesizing && !synthesisText) {
+            // Still waiting for models
+            content = statusBlock;
+          } else {
+            // Show synthesis with model details below
+            content = synthesisText;
+            if (entries.length > 0) {
+              content += '\n\n---\n\n' + statusBlock;
+            }
+          }
+
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: 'assistant', content };
+            return updated;
+          });
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          sseBuffer += decoder.decode(value, { stream: true });
+
+          const lines = sseBuffer.split('\n');
+          sseBuffer = lines.pop() || '';
+
+          let currentEvent = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              const payload = line.slice(6).trim();
+              try {
+                const data = JSON.parse(payload);
+                switch (currentEvent) {
+                  case 'model_start':
+                    modelStatuses[data.key] = { name: data.name, status: 'thinking' };
+                    updateCouncilMessage();
+                    break;
+                  case 'model_done':
+                    modelStatuses[data.key] = { name: data.name, status: 'done', response: data.response };
+                    updateCouncilMessage();
+                    break;
+                  case 'model_error':
+                    modelStatuses[data.key] = { name: data.name, status: 'error' };
+                    updateCouncilMessage();
+                    break;
+                  case 'synthesis_start':
+                    isSynthesizing = true;
+                    updateCouncilMessage();
+                    break;
+                  case 'synthesis_chunk':
+                    synthesisText += data.text;
+                    updateCouncilMessage();
+                    break;
+                  case 'error':
+                    toast.error(data.message || 'Council error');
+                    break;
+                  case 'done':
+                    break;
+                }
+              } catch {}
+            }
           }
         }
-        content += '</details>';
+
+        // Final save
+        const finalEntries = Object.values(modelStatuses);
+        let finalContent = synthesisText || 'No synthesis available.';
+        if (finalEntries.length > 0) {
+          finalContent += '\n\n---\n\n';
+          for (const ms of finalEntries) {
+            const icon = ms.status === 'done' ? '✅' : '❌';
+            finalContent += `${icon} **${ms.name}**\n\n`;
+            if (ms.status === 'done' && ms.response) {
+              finalContent += `<details>\n<summary>View response</summary>\n\n${ms.response}\n\n</details>\n\n`;
+            }
+          }
+        }
 
         setMessages(prev => {
           const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content };
+          updated[updated.length - 1] = { role: 'assistant', content: finalContent };
           return updated;
         });
-        saveMessage('assistant', content);
+        saveMessage('assistant', finalContent);
         setIsStreaming(false);
-        setIsThinking(false);
         return;
       }
 
