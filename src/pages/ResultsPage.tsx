@@ -2819,6 +2819,7 @@ export default function ResultsPage() {
                 formsData={visibleFormsData}
                 wappalyzerData={session.wappalyzer_data}
                 templateTiers={(session as any).template_tiers}
+                formsTiers={(session as any).forms_tiers}
                 navStructure={(session as any).nav_structure || null}
                 techAnalysisData={(session as any).tech_analysis_data}
                 integrationTimestamps={integrationTimestamps}

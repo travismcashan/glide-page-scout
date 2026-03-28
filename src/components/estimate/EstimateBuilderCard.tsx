@@ -633,7 +633,7 @@ function getProjectDuration(totalHours: number): string {
                     icon={<FileText className="h-5 w-5 text-foreground" />}
                     headerExtra={rerunButton('forms', 'forms_data')}
                   >
-                    <FormsCard data={formsData} domain={domain} mode="estimate" onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev); supabase.from('project_estimates').update({ forms_tier: tier }).eq('id', estimate.id).then(); }} />
+                    <FormsCard data={formsData} domain={domain} mode="estimate" savedTiers={formsTiers} onTiersChange={(tiers) => { supabase.from('crawl_sessions').update({ forms_tiers: tiers } as any).eq('id', sessionId).then(); }} onFormTierChange={handleFormTierChange} savedActiveTier={estimate.forms_tier} onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, forms_tier: tier } : prev); supabase.from('project_estimates').update({ forms_tier: tier }).eq('id', estimate.id).then(); }} />
                   </SectionCard>
                 )}
 
