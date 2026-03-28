@@ -40,6 +40,7 @@ interface Props {
   onRerunRequest?: (rerunFn: () => void) => void;
   isRerunning?: boolean;
   mode?: 'analysis' | 'estimate';
+  onSelectionChange?: (includedCount: number) => void;
 }
 
 function collectNavUrls(items: NavItem[] | undefined): Set<string> {
