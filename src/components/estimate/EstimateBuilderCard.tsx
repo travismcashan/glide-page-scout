@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain, RefreshCw } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
+import { EstimateTaskTable } from './EstimateTaskTable';
 
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
@@ -24,19 +25,6 @@ import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { SectionCard } from '@/components/SectionCard';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 
-function TaskRowHeader() {
-  return (
-    <div className="flex items-center gap-3 px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-      <div className="w-4 shrink-0" />
-      <div className="flex-1">Task</div>
-      <div className="w-24 text-right shrink-0">Role</div>
-      <div className="w-16 text-center shrink-0">Variable</div>
-      <div className="w-12 text-center shrink-0">#</div>
-      <div className="w-[5.5rem] text-center shrink-0">Hrs/Person</div>
-      <div className="w-[5.5rem] text-center shrink-0">Total</div>
-    </div>
-  );
-}
 
 type NavItem = { label: string; url?: string | null; children?: NavItem[] };
 
@@ -404,20 +392,6 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     return groups;
   }, [tasks]);
 
-  const groupedByRole = useMemo(() => {
-    const groups: Record<string, EstimateTask[]> = {};
-    tasks.forEach((t) => {
-      const roleList = (t.roles || t.team_role_abbreviation || 'Other').split(',').map(r => r.trim()).filter(Boolean);
-      roleList.forEach(role => {
-        if (!groups[role]) groups[role] = [];
-        // Avoid duplicates
-        if (!groups[role].find(existing => existing.id === t.id)) {
-          groups[role].push(t);
-        }
-      });
-    });
-    return groups;
-  }, [tasks]);
 
   const phaseTimeline = useMemo(() => calculatePhaseTimeline(totals.byPhase), [totals.byPhase]);
 
@@ -517,8 +491,6 @@ function getProjectDuration(totalHours: number): string {
                   <Settings2 className="h-3.5 w-3.5" />Scope
                 </TabsTrigger>
                 <TabsTrigger value="all" className="text-xs">All Tasks</TabsTrigger>
-                <TabsTrigger value="phase" className="text-xs">By Phase</TabsTrigger>
-                <TabsTrigger value="role" className="text-xs">By Role</TabsTrigger>
                 <TabsTrigger value="timeline" className="gap-1.5 text-xs">
                   <CalendarDays className="h-3.5 w-3.5" />Timeline
                 </TabsTrigger>
@@ -704,97 +676,13 @@ function getProjectDuration(totalHours: number): string {
             </TabsContent>
 
             <TabsContent value="all">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">All Tasks</CardTitle>
-                  <CardDescription>Toggle tasks on/off and adjust hours per person</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {tasks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No master tasks configured yet.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <TaskRowHeader />
-                      {tasks.map((task) => (
-                        <EstimateTaskRow
-                          key={task.id}
-                          task={task}
-                          onToggle={handleTaskToggle}
-                          onHoursChange={handleHoursChange}
-                          onHoursPerPersonChange={handleHoursPerPersonChange}
-                          onVariableQtyChange={handleVariableQtyChange}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="phase">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Tasks by Phase</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TaskRowHeader />
-                  <div className="space-y-6">
-                    {Object.entries(groupedByPhase).map(([phase, phaseTasks]) => {
-                      const phaseHours = phaseTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours), 0);
-                      return (
-                        <div key={phase}>
-                          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            {phase}
-                            <Badge variant="secondary" className="text-[10px]">{phaseHours.toFixed(1)}h</Badge>
-                            <Badge variant="outline" className="text-[10px]">{phaseTasks.filter(t => t.is_selected).length}/{phaseTasks.length}</Badge>
-                          </h3>
-                          <div className="space-y-1.5">
-                            {phaseTasks.map((task) => (
-                              <EstimateTaskRow
-                                key={task.id}
-                                task={task}
-                                onToggle={handleTaskToggle}
-                                onHoursChange={handleHoursChange}
-                                onHoursPerPersonChange={handleHoursPerPersonChange}
-                                onVariableQtyChange={handleVariableQtyChange}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="role">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Tasks by Role</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TaskRowHeader />
-                  <div className="space-y-6">
-                    {Object.entries(groupedByRole).map(([role, roleTasks]) => {
-                      const roleHours = roleTasks.filter(t => t.is_selected).reduce((s, t) => s + Number(t.hours_per_person ?? t.hours), 0);
-                      return (
-                        <div key={role}>
-                          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            {role}
-                            <Badge variant="secondary" className="text-[10px]">{roleHours.toFixed(1)}h</Badge>
-                          </h3>
-                          <div className="space-y-1.5">
-                            {roleTasks.map((task) => (
-                              <EstimateTaskRow key={task.id} task={task} onToggle={handleTaskToggle} onHoursChange={handleHoursChange} onHoursPerPersonChange={handleHoursPerPersonChange} onVariableQtyChange={handleVariableQtyChange} />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+              <EstimateTaskTable
+                tasks={tasks}
+                onToggle={handleTaskToggle}
+                onHoursChange={handleHoursChange}
+                onHoursPerPersonChange={handleHoursPerPersonChange}
+                onVariableQtyChange={handleVariableQtyChange}
+              />
             </TabsContent>
 
             <TabsContent value="timeline">
