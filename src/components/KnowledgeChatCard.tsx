@@ -2435,7 +2435,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       webCitations={msg.webCitations}
                       isWebSearching={isStreaming && i === messages.length - 1 && searchSources.web && !msg.webCitations?.length}
                       sources={msg.sources}
-                      onSourceClick={(s) => {
+                      onSourceClick={globalMode ? undefined : (s) => {
                         const target = SOURCE_TAB_MAP[s];
                         if (target) {
                           setSearchParams(prev => { prev.set('tab', target.tab); return prev; }, { replace: true });
@@ -2445,7 +2445,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                           }, 150);
                         }
                       }}
-                      domain={session.domain}
+                      domain={globalMode ? 'Chat' : session.domain}
                       ragDocuments={msg.ragDocuments}
                       searchLabel={
                         isStreaming && i === messages.length - 1
