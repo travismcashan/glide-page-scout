@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
@@ -436,56 +436,9 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-4">
-            {Object.keys(totals.byRole).length > 0 && (
-              <Card>
-                <CardHeader className="pb-2 cursor-pointer" onClick={() => setRoleCollapsed(!roleCollapsed)}>
-                  <CardTitle className="text-sm flex items-center gap-1.5">
-                    {roleCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    <Users className="h-3.5 w-3.5" /> By Role
-                  </CardTitle>
-                </CardHeader>
-                {!roleCollapsed && (
-                  <CardContent className="space-y-1.5">
-                    {Object.entries(totals.byRole)
-                      .sort((a, b) => b[1].hours - a[1].hours)
-                      .map(([role, data]) => (
-                        <div key={role} className="flex items-center justify-between text-xs">
-                          <span>{role}</span>
-                          <span className="text-muted-foreground">{data.hours.toFixed(1)}h</span>
-                        </div>
-                      ))}
-                  </CardContent>
-                )}
-              </Card>
-            )}
-
-            {Object.keys(totals.byPhase).length > 0 && (
-              <Card>
-                <CardHeader className="pb-2 cursor-pointer" onClick={() => setPhaseCollapsed(!phaseCollapsed)}>
-                  <CardTitle className="text-sm flex items-center gap-1.5">
-                    {phaseCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    <Layers className="h-3.5 w-3.5" /> By Phase
-                  </CardTitle>
-                </CardHeader>
-                {!phaseCollapsed && (
-                  <CardContent className="space-y-1.5">
-                    {Object.entries(totals.byPhase).map(([phase, data]) => (
-                      <div key={phase} className="flex items-center justify-between text-xs">
-                        <span>{phase}</span>
-                        <span className="text-muted-foreground">{data.hours.toFixed(1)}h</span>
-                      </div>
-                    ))}
-                  </CardContent>
-                )}
-              </Card>
-            )}
-          </div>
-
+        <div className={`grid grid-cols-1 ${sidebarOpen ? 'lg:grid-cols-4' : ''} gap-6`}>
           {/* Main Content */}
-          <div className="lg:col-span-3">
+          <div className={sidebarOpen ? 'lg:col-span-3' : ''}>
 
             <TabsContent value="variables">
               <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} />
