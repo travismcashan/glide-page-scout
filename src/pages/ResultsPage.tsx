@@ -263,13 +263,15 @@ export default function ResultsPage() {
     claude: 'claude-opus',
     gpt: 'openai/gpt-5.2',
     perplexity: 'perplexity-sonar-reasoning-pro',
+    council: 'council-convergence',
   };
   // Default reasoning per provider
   const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
     gemini: 'medium',
-    claude: 'high', // extended thinking
+    claude: 'high',
     gpt: 'medium',
     perplexity: 'none',
+    council: 'none',
   };
 
   const setChatProvider = (p: ModelProvider) => {
