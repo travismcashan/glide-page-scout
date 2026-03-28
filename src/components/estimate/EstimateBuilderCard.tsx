@@ -572,7 +572,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
                           </h3>
                           <div className="space-y-1.5">
                             {roleTasks.map((task) => (
-                              <EstimateTaskRow key={task.id} task={task} onToggle={handleTaskToggle} onHoursChange={handleHoursChange} compact />
+                              <EstimateTaskRow key={task.id} task={task} onToggle={handleTaskToggle} onHoursChange={handleHoursChange} onHoursPerPersonChange={handleHoursPerPersonChange} onVariableQtyChange={handleVariableQtyChange} />
                             ))}
                           </div>
                         </div>
