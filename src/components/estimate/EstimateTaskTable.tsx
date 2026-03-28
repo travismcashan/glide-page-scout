@@ -152,7 +152,7 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
               <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('task_name')}>
                 <span className="flex items-center text-xs">Task<SortIcon field="task_name" /></span>
               </TableHead>
-              <TableHead className="w-[100px] text-xs">Role(s)</TableHead>
+              <TableHead className="w-[160px] text-xs">Role(s)</TableHead>
               <TableHead className="w-[50px] text-xs text-center">Req</TableHead>
               <TableHead className="w-[70px] text-xs text-center">Type</TableHead>
               <TableHead className="w-[80px] text-xs text-center">Variable</TableHead>
