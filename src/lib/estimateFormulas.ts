@@ -62,6 +62,29 @@ export function getBulkImportHours(amount: string | null): number {
   }
 }
 
+/** Count roles from comma-separated string */
+export function countRoles(roles: string | null | undefined): number {
+  if (!roles) return 1;
+  return roles.split(',').map(r => r.trim()).filter(Boolean).length || 1;
+}
+
+/** Calculate total hours for a task: hours_per_person × role_count (× variable_qty if applicable) */
+export function calculateMultiRoleHours(
+  hoursPerPerson: number,
+  roles: string | null | undefined,
+  variableQty: number | null | undefined
+): number {
+  const roleCount = countRoles(roles);
+  const qty = variableQty && variableQty > 0 ? variableQty : 1;
+  // If task has a variable, variable_qty replaces role_count multiplication
+  // Actually from the XLSX: variable tasks still use role_count
+  // e.g. "Design Thinking Workshop" = 4hrs × 4 roles = 16, with variable_qty=4 hours
+  // But looking more carefully, the variable IS the hours_per_person in some cases
+  // Let's keep it simple: total = hours_per_person × role_count
+  // The variable_qty modifies hours_per_person (it IS the hours per person for variable tasks)
+  return Math.round(hoursPerPerson * roleCount * 100) / 100;
+}
+
 export function calculateTaskHours(
   taskName: string,
   defaultHours: number,
@@ -91,13 +114,32 @@ export function calculateTaskHours(
 }
 
 export function recalculateAllTasks(
-  tasks: Array<{ id: string; task_name: string; hours: number; base_hours?: number | null }>,
+  tasks: Array<{ id: string; task_name: string; hours: number; base_hours?: number | null; roles?: string | null; hours_per_person?: number | null; variable_qty?: number | null }>,
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
 ) {
   return tasks.map(task => {
-    const baseHours = (task.base_hours && task.base_hours > 0) ? task.base_hours : task.hours;
-    const { hours } = calculateTaskHours(task.task_name, Number(baseHours), variables, formulas);
-    return { ...task, hours, base_hours: baseHours };
+    const hpp = task.hours_per_person ?? task.hours;
+    const roleCount = countRoles(task.roles);
+    const totalFromRoles = Math.round(hpp * roleCount * 100) / 100;
+    
+    // Check formula-based overrides
+    const { hours: formulaHours } = calculateTaskHours(task.task_name, totalFromRoles, variables, formulas);
+    
+    return { ...task, hours: formulaHours, hours_per_person: hpp, base_hours: hpp };
   });
+}
+
+/** Phase timeline calculation */
+export function calculatePhaseTimeline(
+  byPhase: Record<string, { hours: number; cost: number }>
+): Array<{ phase: string; hours: number; lowWeeks: number; highWeeks: number; lowDays: number; highDays: number }> {
+  return Object.entries(byPhase).map(([phase, data]) => ({
+    phase,
+    hours: data.hours,
+    lowDays: Math.round((data.hours / 8) * 1000) / 1000,
+    highDays: Math.round((data.hours / 6) * 10) / 10,
+    lowWeeks: Math.round((data.hours / 40) * 1000) / 1000,
+    highWeeks: Math.round((data.hours / 30) * 100) / 100,
+  }));
 }
