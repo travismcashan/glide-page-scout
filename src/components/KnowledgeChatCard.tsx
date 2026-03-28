@@ -67,6 +67,7 @@ type Props = {
 
 const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-chat`;
+const COUNCIL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/council-chat`;
 
 const SUGGESTED_QUESTIONS = [
   "What are the biggest performance issues on this site?",
@@ -1115,6 +1116,62 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     try {
       const controller = new AbortController();
       abortControllerRef.current = controller;
+
+      // ─── Council mode: non-streaming orchestration ───
+      const isCouncil = selectedModel.startsWith('council-');
+      if (isCouncil) {
+        const councilResp = await fetch(COUNCIL_URL, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            mode: selectedModel,
+            messages: apiMessages,
+            crawlContext,
+            customInstructions: localStorage.getItem('ai-custom-instructions') || undefined,
+          }),
+        });
+
+        if (!councilResp.ok) {
+          const errData = await councilResp.json().catch(() => ({}));
+          toast.error(errData.error || `Council error ${councilResp.status}`);
+          clearPendingAssistantPlaceholder();
+          setIsStreaming(false);
+          setIsThinking(false);
+          return;
+        }
+
+        const councilData = await councilResp.json();
+        
+        // Build a rich markdown response with synthesis + expandable rounds
+        let content = councilData.synthesis || 'No synthesis available.';
+        content += '\n\n---\n\n<details>\n<summary>📋 Council Transcript</summary>\n\n';
+        content += `**Mode:** ${councilData.mode === 'debate' ? 'Debate' : 'Convergence'}\n`;
+        content += `**Models:** ${councilData.models?.join(', ')}\n\n`;
+        for (const round of councilData.rounds || []) {
+          content += `### Round ${round.round}: ${round.label}\n\n`;
+          for (const [modelKey, response] of Object.entries(round.responses || {})) {
+            const side = round.sides ? (modelKey === round.sides.pro ? ' (PRO)' : modelKey === round.sides.con ? ' (CON)' : '') : '';
+            content += `**${modelKey.charAt(0).toUpperCase() + modelKey.slice(1)}${side}:**\n\n${response}\n\n---\n\n`;
+          }
+        }
+        content += '</details>';
+
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content };
+          return updated;
+        });
+        saveMessage('assistant', content);
+        setIsStreaming(false);
+        setIsThinking(false);
+        return;
+      }
+
+      // ─── Standard streaming chat ───
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         signal: controller.signal,

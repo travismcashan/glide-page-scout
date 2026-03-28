@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
-export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity';
+export type ModelProvider = 'gemini' | 'gpt' | 'claude' | 'perplexity' | 'council';
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
 
 export type ModelOption = {
@@ -25,6 +25,7 @@ export const PROVIDERS: { id: ModelProvider; label: string }[] = [
   { id: 'claude', label: 'Claude' },
   { id: 'gpt', label: 'GPT' },
   { id: 'perplexity', label: 'Perplexity' },
+  { id: 'council', label: 'Model Council' },
 ];
 
 const GEMINI_REASONING: ReasoningEffort[] = ['none', 'medium', 'high'];
@@ -53,6 +54,10 @@ export const VERSIONS: Record<ModelProvider, ModelOption[]> = {
     { id: 'perplexity-sonar', label: 'Sonar', provider: 'perplexity', description: 'Fast web-grounded', tier: 'fast', reasoning: NO_REASONING },
     { id: 'perplexity-sonar-pro', label: 'Sonar Pro', provider: 'perplexity', description: 'Multi-step reasoning', tier: 'balanced', reasoning: NO_REASONING },
     { id: 'perplexity-sonar-reasoning-pro', label: 'Reasoning Pro', provider: 'perplexity', description: 'Advanced reasoning', tier: 'powerful', reasoning: NO_REASONING },
+  ],
+  council: [
+    { id: 'council-convergence', label: 'Convergence', provider: 'council', description: '3 models collaborate to find the best answer', tier: 'powerful', reasoning: NO_REASONING },
+    { id: 'council-debate', label: 'Debate', provider: 'council', description: '2 models argue, 1 judges the winner', tier: 'powerful', reasoning: NO_REASONING },
   ],
 };
 
