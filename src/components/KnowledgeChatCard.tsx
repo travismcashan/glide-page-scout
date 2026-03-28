@@ -2725,76 +2725,46 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     );
                   })()}
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
 
-          {/* Modes popover */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isStreaming}
-                className={`shrink-0 rounded-full h-8 gap-1.5 text-xs px-3 transition-colors ${
-                  deepResearchMode
-                    ? 'bg-primary/15 text-primary hover:bg-primary/20'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {deepResearchMode ? <Telescope className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-                {deepResearchMode ? 'Deep Research' : 'Modes'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-56 p-3 rounded-2xl" align="start" side="top" sideOffset={10}>
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Modes</p>
-                <button
-                  className={`flex items-center gap-2 text-sm rounded-xl px-2 py-2 w-full text-left transition-colors ${
-                    !deepResearchMode
-                      ? 'hover:bg-muted/50 text-foreground'
-                      : 'hover:bg-muted/50 text-muted-foreground'
-                  }`}
-                  onClick={() => setDeepResearchMode(false)}
-                >
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium leading-tight">Chat</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Standard conversation</p>
-                  </div>
-                  {!deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 ml-auto shrink-0" />}
-                </button>
-                <button
-                  className={`flex items-center gap-2 text-sm rounded-xl px-2 py-2 w-full text-left transition-colors ${
-                    deepResearchMode
-                      ? 'bg-primary/10 text-primary'
-                      : 'hover:bg-muted/50 text-foreground'
-                  }`}
-                  onClick={() => {
-                    setDeepResearchMode(true);
-                    if (provider !== 'gemini') onProviderChange('gemini');
-                  }}
-                >
-                  <Telescope className="h-3.5 w-3.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium leading-tight">Deep Research</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Multi-step AI research report</p>
-                  </div>
-                  {deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 ml-auto shrink-0" />}
-                </button>
-                <button
-                  className="flex items-center gap-2 text-sm rounded-xl px-2 py-2 w-full text-left transition-colors hover:bg-muted/50 text-foreground"
-                  onClick={() => {
-                    setDeepResearchMode(false);
-                    toast.info('Presentation mode: Ask the AI to create a presentation and it will generate a Beautiful.ai deck for you.');
-                  }}
-                >
-                  <Presentation className="h-3.5 w-3.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium leading-tight">Presentation</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Generate Beautiful.ai decks</p>
-                  </div>
-                </button>
+                {/* Modes */}
+                <div className="space-y-1 border-t pt-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Modes</p>
+                  <button
+                    className={`flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left ${!deepResearchMode ? 'text-foreground' : 'text-muted-foreground'}`}
+                    onClick={() => setDeepResearchMode(false)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                      Chat
+                    </span>
+                    {!deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button
+                    className={`flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left ${deepResearchMode ? 'text-primary' : 'text-foreground'}`}
+                    onClick={() => {
+                      setDeepResearchMode(true);
+                      if (provider !== 'gemini') onProviderChange('gemini');
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Telescope className="h-3.5 w-3.5 text-muted-foreground" />
+                      Deep Research
+                    </span>
+                    {deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button
+                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left text-foreground"
+                    onClick={() => {
+                      setDeepResearchMode(false);
+                      toast.info('Ask the AI to create a presentation and it will generate a Beautiful.ai deck for you.');
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Presentation className="h-3.5 w-3.5 text-muted-foreground" />
+                      Presentation
+                    </span>
+                  </button>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
