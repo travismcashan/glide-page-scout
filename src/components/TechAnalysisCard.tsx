@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { Brain, AlertTriangle, TrendingUp, Server, Wrench, ChevronRight, ChevronDown } from 'lucide-react';
@@ -277,8 +277,10 @@ export function TechAnalysisCard({ data, isLoading, mode = 'analysis', onTierCha
     return { tier: t, plugins: pluginCount, thirdParty: thirdPartyCount, specialSetup: specialSetupCount, totalIncluded: total };
   };
 
-  // Fire callback on tier change or initial mount
+  // Fire callback on tier change (skip initial mount)
+  const tierMountRef = useRef(true);
   useEffect(() => {
+    if (tierMountRef.current) { tierMountRef.current = false; return; }
     if (isEstimate && onTierChange && scope) {
       onTierChange(getTierCounts(tier));
     }

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
@@ -308,8 +308,10 @@ export function RedesignEstimateCard({ pageTags, contentTypesData, navStructure,
     setSelectedUrls(next);
   }, [primaryUrls, secondaryUrls, tertiaryUrls]);
 
-  // Fire onSelectionChange when selection changes
+  // Fire onSelectionChange when selection changes (skip initial mount)
+  const selectionMountRef = useRef(true);
   useEffect(() => {
+    if (selectionMountRef.current) { selectionMountRef.current = false; return; }
     if (mode === 'estimate' && onSelectionChange) {
       onSelectionChange(selectedUrls.size);
     }
