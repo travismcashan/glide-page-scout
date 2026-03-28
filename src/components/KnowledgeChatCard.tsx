@@ -2399,13 +2399,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                   </div>
                 ))}
                 {globalMode && onSelectSite && (
-                  <button
-                    onClick={() => {/* picker is now in toolbar */}}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 transition-colors"
-                  >
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
                     <Globe className="h-3 w-3" />
-                    Add site from toolbar below
-                  </button>
+                    Use the <Globe className="h-3 w-3 inline text-muted-foreground" /> button below to attach sites
+                  </span>
                 )}
               </div>
             )}
