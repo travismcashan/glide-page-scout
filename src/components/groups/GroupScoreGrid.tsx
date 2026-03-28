@@ -53,6 +53,14 @@ export function GroupScoreGrid({ sessions }: Props) {
     return map;
   }, [scored]);
 
+  if (scored.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-sm text-muted-foreground">No score data available yet. Sites need completed analyses to compare.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
