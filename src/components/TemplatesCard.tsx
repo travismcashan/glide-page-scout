@@ -388,7 +388,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
               <>
                 {/* Recommended section */}
                 <tr>
-                  <td colSpan={5} className="p-0">
+                  <td colSpan={colCount} className="p-0">
                     <button
                       onClick={() => toggleTableSection('recommended')}
                       className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
@@ -409,7 +409,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                   return (
                     <>
                       <tr>
-                        <td colSpan={5} className="p-0">
+                        <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
                               <tbody>
@@ -423,7 +423,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                       </tr>
                       {hasMore && (
                         <tr>
-                          <td colSpan={5} className="p-0 relative">
+                          <td colSpan={colCount} className="p-0 relative">
                             {!isExpanded && (
                               <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
                             )}
@@ -447,7 +447,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
 
                 {/* Not included section */}
                 <tr>
-                  <td colSpan={5} className="p-0">
+                  <td colSpan={colCount} className="p-0">
                     <button
                       onClick={() => toggleTableSection('not-included')}
                       className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
@@ -468,7 +468,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                   return (
                     <>
                       <tr>
-                        <td colSpan={5} className="p-0">
+                        <td colSpan={colCount} className="p-0">
                           <div className={hasMore && !isExpanded ? 'max-h-[140px] overflow-y-auto' : ''}>
                             <table className="w-full text-sm table-fixed">
                               <tbody>
@@ -482,7 +482,7 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                       </tr>
                       {hasMore && (
                         <tr>
-                          <td colSpan={5} className="p-0 relative">
+                          <td colSpan={colCount} className="p-0 relative">
                             {!isExpanded && (
                               <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
                             )}
