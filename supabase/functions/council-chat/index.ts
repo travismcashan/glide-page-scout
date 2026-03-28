@@ -224,7 +224,7 @@ serve(async (req) => {
 
         try {
           // Phase 1: Run all 3 models in parallel, streaming chunks to each
-          const modelPromises = COUNCIL_MODELS.map(async (m) => {
+          const modelPromises = councilModelList.map(async (m) => {
             send('model_start', { key: m.key, name: m.name });
             try {
               const onChunk = (text: string) => {
