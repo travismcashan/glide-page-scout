@@ -387,9 +387,39 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                     </button>
                   </td>
                 </tr>
-                {!collapsedTableSections.has('recommended') && recommendedTemplates.map((t, i) => (
-                  <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
-                ))}
+                {!collapsedTableSections.has('recommended') && (() => {
+                  const LIMIT = 5;
+                  const isExpanded = expandedTableSections.has('recommended');
+                  const hasMore = recommendedTemplates.length > LIMIT;
+                  const visible = isExpanded ? recommendedTemplates : recommendedTemplates.slice(0, LIMIT);
+                  return (
+                    <>
+                      <tr><td colSpan={5} className="p-0 relative">
+                        <div>
+                          {visible.map((t, i) => (
+                            <TemplateRow key={`rec-${i}`} t={t} isExcluded={false} toggleExcluded={toggleExcluded} isManuallyAdded={!aiIncludedSet.has(t.name)} />
+                          ))}
+                        </div>
+                        {hasMore && !isExpanded && (
+                          <div className="absolute bottom-6 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                        )}
+                        {hasMore && (
+                          <button
+                            onClick={() => setExpandedTableSections(prev => {
+                              const next = new Set(prev);
+                              if (next.has('recommended')) next.delete('recommended'); else next.add('recommended');
+                              return next;
+                            })}
+                            className="w-full flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <ChevronsUpDown className="h-3 w-3" />
+                            {isExpanded ? 'Show less' : `Show all ${recommendedTemplates.length}`}
+                          </button>
+                        )}
+                      </td></tr>
+                    </>
+                  );
+                })()}
 
                 {/* Not included section */}
                 <tr>
@@ -407,9 +437,39 @@ export function TemplatesCard({ pageTags, navStructure, domain, savedTiers, onTi
                     </button>
                   </td>
                 </tr>
-                {!collapsedTableSections.has('not-included') && notIncludedTemplates.map((t, i) => (
-                  <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
-                ))}
+                {!collapsedTableSections.has('not-included') && (() => {
+                  const LIMIT = 5;
+                  const isExpanded = expandedTableSections.has('not-included');
+                  const hasMore = notIncludedTemplates.length > LIMIT;
+                  const visible = isExpanded ? notIncludedTemplates : notIncludedTemplates.slice(0, LIMIT);
+                  return (
+                    <>
+                      <tr><td colSpan={5} className="p-0 relative">
+                        <div>
+                          {visible.map((t, i) => (
+                            <TemplateRow key={`exc-${i}`} t={t} isExcluded={true} toggleExcluded={toggleExcluded} />
+                          ))}
+                        </div>
+                        {hasMore && !isExpanded && (
+                          <div className="absolute bottom-6 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                        )}
+                        {hasMore && (
+                          <button
+                            onClick={() => setExpandedTableSections(prev => {
+                              const next = new Set(prev);
+                              if (next.has('not-included')) next.delete('not-included'); else next.add('not-included');
+                              return next;
+                            })}
+                            className="w-full flex items-center justify-center gap-1 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <ChevronsUpDown className="h-3 w-3" />
+                            {isExpanded ? 'Show less' : `Show all ${notIncludedTemplates.length}`}
+                          </button>
+                        )}
+                      </td></tr>
+                    </>
+                  );
+                })()}
               </>
             ) : (
               templates.map((t, i) => (
