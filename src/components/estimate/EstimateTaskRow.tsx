@@ -63,29 +63,31 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
         )}
       </div>
 
-      {/* Variable column — always visible */}
-      {!compact && (
-        <div className="flex items-center gap-1.5 min-w-[100px] justify-end">
-          {hasVariable ? (
-            <>
-              <span className="text-[10px] text-muted-foreground">{task.variable_label}</span>
-              {onVariableQtyChange ? (
-                <Input
-                  type="number"
-                  value={task.variable_qty ?? 1}
-                  onChange={(e) => onVariableQtyChange(task.id, parseInt(e.target.value) || 1)}
-                  className="w-12 text-center h-7 text-xs"
-                  min={1}
-                />
-              ) : (
-                <span className="text-xs font-medium w-8 text-center">{task.variable_qty ?? '-'}</span>
-              )}
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">-</span>
-          )}
-        </div>
-      )}
+      {/* Variable column */}
+      <div className="w-16 text-center shrink-0">
+        {hasVariable ? (
+          <span className="text-xs font-medium text-foreground">{task.variable_label}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">-</span>
+        )}
+      </div>
+
+      {/* # column */}
+      <div className="w-12 shrink-0">
+        {hasVariable && onVariableQtyChange ? (
+          <Input
+            type="number"
+            value={task.variable_qty ?? 1}
+            onChange={(e) => onVariableQtyChange(task.id, parseInt(e.target.value) || 1)}
+            className="w-12 text-center h-7 text-xs"
+            min={1}
+          />
+        ) : hasVariable ? (
+          <span className="text-xs font-medium block text-center">{task.variable_qty ?? '-'}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground block text-center">-</span>
+        )}
+      </div>
 
       {/* Hours per person */}
       {onHoursPerPersonChange && (
