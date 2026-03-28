@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain, RefreshCw } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
-import { EstimateVariablesTab } from './EstimateVariablesTab';
+
 import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
@@ -179,7 +179,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         description: null,
         project_size: 'Medium',
         project_complexity: 'Standard',
-        user_personas: 3,
+        user_personas: 2,
         content_pages: crawlDefaults.content_pages ?? 10,
         design_layouts: crawlDefaults.design_layouts ?? 5,
         form_count: crawlDefaults.form_count ?? 2,
@@ -472,7 +472,7 @@ function getProjectDuration(totalHours: number): string {
         <div className="flex items-center justify-between">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="variables" className="gap-1.5 text-xs">
-              <Settings2 className="h-3.5 w-3.5" />Variables
+              <Settings2 className="h-3.5 w-3.5" />Scope
             </TabsTrigger>
             <TabsTrigger value="all" className="text-xs">All Tasks</TabsTrigger>
             <TabsTrigger value="phase" className="text-xs">By Phase</TabsTrigger>
@@ -514,7 +514,6 @@ function getProjectDuration(totalHours: number): string {
 
             <TabsContent value="variables">
               <div className="space-y-6">
-                <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} />
 
                 {pageTags && (
                   <SectionCard
