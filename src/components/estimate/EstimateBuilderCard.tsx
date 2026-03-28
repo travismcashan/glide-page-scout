@@ -25,19 +25,6 @@ import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { SectionCard } from '@/components/SectionCard';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 
-function TaskRowHeader() {
-  return (
-    <div className="flex items-center gap-3 px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-      <div className="w-4 shrink-0" />
-      <div className="flex-1">Task</div>
-      <div className="w-24 text-right shrink-0">Role</div>
-      <div className="w-16 text-center shrink-0">Variable</div>
-      <div className="w-12 text-center shrink-0">#</div>
-      <div className="w-[5.5rem] text-center shrink-0">Hrs/Person</div>
-      <div className="w-[5.5rem] text-center shrink-0">Total</div>
-    </div>
-  );
-}
 
 type NavItem = { label: string; url?: string | null; children?: NavItem[] };
 
@@ -405,20 +392,6 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     return groups;
   }, [tasks]);
 
-  const groupedByRole = useMemo(() => {
-    const groups: Record<string, EstimateTask[]> = {};
-    tasks.forEach((t) => {
-      const roleList = (t.roles || t.team_role_abbreviation || 'Other').split(',').map(r => r.trim()).filter(Boolean);
-      roleList.forEach(role => {
-        if (!groups[role]) groups[role] = [];
-        // Avoid duplicates
-        if (!groups[role].find(existing => existing.id === t.id)) {
-          groups[role].push(t);
-        }
-      });
-    });
-    return groups;
-  }, [tasks]);
 
   const phaseTimeline = useMemo(() => calculatePhaseTimeline(totals.byPhase), [totals.byPhase]);
 
