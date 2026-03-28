@@ -28,5 +28,5 @@ export function MetaStat({ value, label }: MetaStatProps) {
 }
 
 export function MetaStatDivider() {
-  return <span className="text-border mx-1">·</span>;
+  return <span className="text-border mx-0.5">·</span>;
 }
