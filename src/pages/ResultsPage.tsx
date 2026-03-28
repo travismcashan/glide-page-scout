@@ -1903,9 +1903,9 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      {/* Domain + crawl info — compact single row */}
-      <div className="max-w-6xl mx-auto px-6 pt-5 pb-3">
-        <div className="flex items-baseline justify-between gap-4">
+      {/* Domain + crawl info — matches header height */}
+      <div className="border-b border-border">
+        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <h1 className="text-xl font-semibold tracking-tight text-foreground leading-none">
             {session?.domain?.replace(/^www\./i, '')}
           </h1>
