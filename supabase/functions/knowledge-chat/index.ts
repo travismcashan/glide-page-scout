@@ -1363,11 +1363,11 @@ serve(async (req) => {
     };
 
     if (isClaudeModel) {
-      return prependMetadata(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning));
+      return prependMetadata(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning, contextPreset));
     } else if (isPerplexityModel) {
-      return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt));
+      return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt, contextPreset));
     } else {
-      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, useAnalytics));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, useAnalytics, contextPreset));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
