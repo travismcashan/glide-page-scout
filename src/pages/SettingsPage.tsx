@@ -393,32 +393,55 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Choose which 3 models participate in the council. Each runs independently, then a synthesis model merges the results.</p>
               {councilSlots.map((slot, i) => {
                 const slotModel = MODEL_OPTIONS.find(m => m.id === slot.modelId);
-                // All non-council models available for selection
-                const availableModels = MODEL_OPTIONS.filter(m => m.provider !== 'council' && m.provider !== 'perplexity');
+                const slotReasoning = slotModel?.reasoning || ['none'];
+                const hasReasoning = slotReasoning.length > 1;
                 return (
                   <div key={i} className="space-y-1.5">
                     <label className="text-sm font-medium">Model {i + 1}</label>
-                    <Select value={slot.modelId} onValueChange={(v) => updateCouncilSlot(i, v)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue>
-                          {slotModel ? `${PROVIDERS.find(p => p.id === slotModel.provider)?.label} — ${slotModel.label}` : 'Select model'}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROVIDERS.filter(p => p.id !== 'council' && p.id !== 'perplexity').map(p => {
-                          const models = VERSIONS[p.id] || [];
-                          return models.map(m => (
-                            <SelectItem key={m.id} value={m.id}>
-                              <div className="flex items-center gap-2">
-                                <span className={`h-2 w-2 rounded-full shrink-0 ${TIER_DOT[m.tier]}`} />
-                                <span>{p.label} — {m.label}</span>
-                                <span className="text-muted-foreground text-xs ml-auto">{m.description}</span>
-                              </div>
-                            </SelectItem>
-                          ));
-                        })}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select value={slot.modelId} onValueChange={(v) => updateCouncilSlot(i, v)}>
+                        <SelectTrigger className={hasReasoning ? 'w-[220px]' : 'w-[220px]'}>
+                          <SelectValue>
+                            {slotModel ? `${slotModel.label}` : 'Select model'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="max-w-[260px]">
+                          {PROVIDERS.filter(p => p.id !== 'council').map(p => {
+                            const models = VERSIONS[p.id] || [];
+                            if (models.length === 0) return null;
+                            return [
+                              <div key={`hdr-${p.id}`} className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium mt-1 first:mt-0">
+                                {p.label}
+                              </div>,
+                              ...models.map(m => (
+                                <SelectItem key={m.id} value={m.id}>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`h-2 w-2 rounded-full shrink-0 ${TIER_DOT[m.tier]}`} />
+                                    <span className="truncate">{m.label}</span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ];
+                          })}
+                        </SelectContent>
+                      </Select>
+                      {hasReasoning && (
+                        <Select value={slot.reasoning || 'none'} onValueChange={(v) => updateCouncilSlotReasoning(i, v as ReasoningEffort)}>
+                          <SelectTrigger className="w-[130px]">
+                            <SelectValue>
+                              {slotModel?.reasoningLabels?.[slot.reasoning || 'none'] || (slot.reasoning === 'none' ? 'Fast' : slot.reasoning === 'medium' ? 'Thinking' : 'Pro')}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {slotReasoning.map(r => (
+                              <SelectItem key={r} value={r}>
+                                {slotModel?.reasoningLabels?.[r] || (r === 'none' ? 'Fast' : r === 'medium' ? 'Thinking' : r === 'high' ? 'Pro' : r)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </div>
                 );
               })}
