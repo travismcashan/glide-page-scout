@@ -264,7 +264,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         .select('*')
         .eq('estimate_id', newEstimate.id)
         .order('display_order');
-      setTasks((taskData || []) as EstimateTask[]);
+      setTasks((taskData || []) as unknown as EstimateTask[]);
       toast.success('Estimate created with crawl data pre-filled!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to create estimate');
