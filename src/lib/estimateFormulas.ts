@@ -486,11 +486,17 @@ export function calculateBaseModel(
     bulk_import_amount: 'none',
     post_launch_services: 0,
   };
-  const tasksWithIds = tasks.map((t, i) => ({ ...t, id: t.id || `base-${i}` }));
+  // Force variable_qty to 1 and only include required tasks (ignore user selections)
+  const tasksWithIds = tasks.map((t, i) => ({
+    ...t,
+    id: t.id || `base-${i}`,
+    variable_qty: 1,
+    is_selected: !!(t as any).is_required, // only required tasks count in base model
+  }));
   const recalced = recalculateAllTasks(tasksWithIds, minVars, formulas);
-  const selected = recalced.filter(t => t.is_selected && (t as any).is_required);
+  const selected = recalced.filter(t => t.is_selected);
   const totalHours = selected.reduce((s, t) => s + Math.max(Number(t.hours), 0), 0);
-  const totalCost = selected.reduce((s, t) => s + Number(t.hours) * Number((t as any).hourly_rate || 150), 0);
+  const totalCost = selected.reduce((s, t) => s + Math.max(Number(t.hours), 0) * Number((t as any).hourly_rate || 150), 0);
   return { totalHours, totalCost };
 }
 
