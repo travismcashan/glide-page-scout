@@ -84,11 +84,13 @@ export function EstimateFormulasTab({
       const mode = getCalcMode(fc);
       const driver = getDriver(fc);
       const taskType = (t as any).task_type || 'task';
+      const driverQty = mode === 'variable' ? resolveDriverQty(driver, estimate) : null;
       return {
         name: t.task_name,
         phase: t.phase_name || 'Other',
         mode,
         driver: mode === 'variable' ? driver : '-',
+        driverQty,
         formula: describeFormula(fc),
         hours: Number(t.hours_per_person ?? t.hours ?? 0),
         required: !!t.is_required,
@@ -96,7 +98,7 @@ export function EstimateFormulasTab({
         taskType,
       };
     });
-  }, [tasks]);
+  }, [tasks, estimate]);
 
   const filtered = useMemo(() => {
     return rateCardRows.filter(r => {
