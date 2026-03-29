@@ -32,6 +32,8 @@ export interface EstimateVariables {
   third_party_integrations: number | null;
   post_launch_services: number | null;
   complexity_score: number | null;
+  pm_percentage?: number | null;
+  qa_percentage?: number | null;
 }
 
 let cachedFormulas: TaskFormula[] | null = null;
@@ -362,6 +364,13 @@ export function calculateTaskHours(
   return { hours: defaultHours, formula: null };
 }
 
+/** PM and QA phase names used for percentage-based calculation */
+const PM_PHASE = 'Project Management';
+const QA_PHASE = 'QA';
+
+/** Phases that count as "core work" for percentage-based PM/QA calculation */
+const CORE_PHASES = new Set(['Strategy', 'Design', 'Build', 'Content', 'Optimization', 'Review']);
+
 export function recalculateAllTasks(
   tasks: Array<{
     id: string;
@@ -372,35 +381,114 @@ export function recalculateAllTasks(
     hours_per_person?: number | null;
     variable_qty?: number | null;
     is_selected?: boolean;
+    phase_name?: string | null;
   }>,
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
 ) {
-  // First pass: calculate all tasks except Admin Hours to get the total
-  const firstPass = tasks.map(task => {
-    if (/^Admin Hours$/i.test(task.task_name)) return task;
+  const pmPct = (variables.pm_percentage ?? 8) / 100;
+  const qaPct = (variables.qa_percentage ?? 6) / 100;
+
+  // Pass 1: Calculate all core phase tasks (not PM, QA, or Admin Hours)
+  const pass1 = tasks.map(task => {
+    const phase = task.phase_name || '';
+    if (phase === PM_PHASE || phase === QA_PHASE || /^Admin Hours$/i.test(task.task_name)) return task;
     const currentHpp = task.hours_per_person ?? task.hours;
-    const result = calculateTaskFromXlsx(
-      task.task_name, currentHpp, task.roles, task.variable_qty, variables
-    );
+    const result = calculateTaskFromXlsx(task.task_name, currentHpp, task.roles, task.variable_qty, variables);
     return { ...task, hours_per_person: result.hpp, hours: result.total };
   });
 
-  // Calculate sum of selected task hours (excluding Admin Hours)
-  const selectedTotal = firstPass
+  // Calculate core subtotal (selected tasks in core phases)
+  const coreSubtotal = pass1
+    .filter(t => t.is_selected && CORE_PHASES.has(t.phase_name || ''))
+    .reduce((sum, t) => sum + Number(t.hours), 0);
+
+  // Pass 2: Distribute PM and QA hours proportionally across their tasks
+  const pmTasks = tasks.filter(t => t.phase_name === PM_PHASE && !/^Admin Hours$/i.test(t.task_name));
+  const qaTasks = tasks.filter(t => t.phase_name === QA_PHASE);
+
+  const pmTargetHours = coreSubtotal * pmPct;
+  const qaTargetHours = coreSubtotal * qaPct;
+
+  // Get original weights for distributing phase hours across tasks
+  const distributePhaseHours = (phaseTasks: typeof tasks, targetTotal: number, allTasks: typeof pass1) => {
+    if (phaseTasks.length === 0) return;
+    // Calculate each task's "natural" hours to get weight ratios
+    const naturalHours = phaseTasks.map(t => {
+      const currentHpp = t.hours_per_person ?? t.hours;
+      const result = calculateTaskFromXlsx(t.task_name, currentHpp, t.roles, t.variable_qty, variables);
+      return { id: t.id, hpp: result.hpp, total: result.total, roleCount: countRoles(t.roles) };
+    });
+    const naturalTotal = naturalHours.reduce((s, t) => s + t.total, 0);
+
+    phaseTasks.forEach(t => {
+      const idx = allTasks.findIndex(at => at.id === t.id);
+      if (idx === -1) return;
+      const natural = naturalHours.find(n => n.id === t.id)!;
+      const weight = naturalTotal > 0 ? natural.total / naturalTotal : 1 / phaseTasks.length;
+      const allocatedTotal = Math.round(targetTotal * weight * 100) / 100;
+      const roleCount = natural.roleCount;
+      const hpp = Math.round((allocatedTotal / roleCount) * 100) / 100;
+      allTasks[idx] = { ...allTasks[idx], hours_per_person: hpp, hours: allocatedTotal };
+    });
+  };
+
+  const pass2 = [...pass1];
+  distributePhaseHours(pmTasks, pmTargetHours, pass2);
+  distributePhaseHours(qaTasks, qaTargetHours, pass2);
+
+  // Pass 3: Calculate Admin Hours as 6% of everything else selected
+  const selectedTotal = pass2
     .filter(t => t.is_selected && !/^Admin Hours$/i.test(t.task_name))
     .reduce((sum, t) => sum + Number(t.hours), 0);
 
-  // Second pass: calculate Admin Hours
-  return firstPass.map(task => {
+  return pass2.map(task => {
     if (/^Admin Hours$/i.test(task.task_name)) {
-      const result = calculateTaskFromXlsx(
-        task.task_name, 0, task.roles, task.variable_qty, variables, selectedTotal
-      );
+      const result = calculateTaskFromXlsx(task.task_name, 0, task.roles, task.variable_qty, variables, selectedTotal);
       return { ...task, hours_per_person: result.hpp, hours: result.total };
     }
     return task;
   });
+}
+
+/** Calculate the base model — minimum project cost with all variables at 1 */
+export function calculateBaseModel(
+  tasks: Array<{
+    id?: string;
+    task_name: string;
+    hours: number;
+    roles?: string | null;
+    hours_per_person?: number | null;
+    variable_qty?: number | null;
+    is_selected?: boolean;
+    is_required?: boolean;
+    phase_name?: string | null;
+    hourly_rate?: number;
+  }>,
+  variables: EstimateVariables,
+  formulas: TaskFormula[] = []
+): { totalHours: number; totalCost: number } {
+  const minVars: EstimateVariables = {
+    ...variables,
+    design_layouts: 1,
+    pages_for_integration: 1,
+    user_personas: 1,
+    custom_posts: 0,
+    form_count: 1,
+    form_count_s: 1,
+    form_count_m: 0,
+    form_count_l: 0,
+    third_party_integrations: 1,
+    complexity_score: 1,
+    bulk_import_amount: 'none',
+    post_launch_services: 0,
+  };
+  const tasksWithIds = tasks.map((t, i) => ({ ...t, id: t.id || `base-${i}` }));
+  const recalced = recalculateAllTasks(tasksWithIds, minVars, formulas);
+  const selected = recalced.filter(t => t.is_selected);
+  const totalHours = selected.reduce((s, t) => s + Number(t.hours), 0);
+  const totalCost = selected.reduce((s, t) => s + Number(t.hours) * Number((t as any).hourly_rate || 150), 0);
+  return { totalHours, totalCost };
 }
 
 /** Phase timeline calculation */

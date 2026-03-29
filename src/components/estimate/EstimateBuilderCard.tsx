@@ -12,7 +12,7 @@ import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2,
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateTaskTable } from './EstimateTaskTable';
 
-import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
+import { recalculateAllTasks, calculateBaseModel, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import type { PageTagsMap } from '@/lib/pageTags';
@@ -23,6 +23,7 @@ import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { FormsCard } from '@/components/FormsCard';
 import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { SectionCard } from '@/components/SectionCard';
+import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 
 
@@ -54,6 +55,8 @@ interface Estimate extends EstimateVariables {
   content_tier?: string | null;
   tech_tier?: string | null;
   forms_tier?: string | null;
+  pm_percentage?: number | null;
+  qa_percentage?: number | null;
 }
 
 export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
@@ -354,6 +357,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
               complexity_score: estimate.complexity_score,
               template_tier: estimate.template_tier, page_tier: estimate.page_tier,
               content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
+              pm_percentage: estimate.pm_percentage ?? 8, qa_percentage: estimate.qa_percentage ?? 6,
             })
             .eq('id', estimate.id);
           if (estimateError) throw estimateError;
@@ -453,6 +457,11 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
 
   const phaseTimeline = useMemo(() => calculatePhaseTimeline(totals.byPhase), [totals.byPhase]);
+
+  const baseModel = useMemo(() => {
+    if (!estimate || tasks.length === 0) return null;
+    return calculateBaseModel(tasks, estimate, formulas);
+  }, [estimate, tasks, formulas]);
 
   const sowTasks = useMemo(() => tasks.filter(t => t.is_selected), [tasks]);
 
@@ -572,6 +581,7 @@ function getProjectDuration(totalHours: number): string {
 
             <TabsContent value="variables">
               <div className="space-y-6">
+                <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} baseModel={baseModel} />
 
                 {pageTags && (
                   <SectionCard
