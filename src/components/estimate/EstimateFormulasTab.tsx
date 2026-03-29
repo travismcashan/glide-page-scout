@@ -71,6 +71,7 @@ export function EstimateFormulasTab({
   onQaPercentageChange,
   onBlendedRateChange,
   tasks,
+  estimate,
 }: Props) {
   const [search, setSearch] = useState('');
   const [modeFilter, setModeFilter] = useState<CalcMode | 'all'>('all');
