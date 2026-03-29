@@ -128,8 +128,13 @@ export default function AppHeader() {
               </button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0 border-none bg-background flex flex-col overflow-y-auto">
+              {/* Logo */}
+              <div className="flex items-center gap-2 px-6 pt-12 pb-3">
+                <ProductIcon className="h-6 w-6 text-primary" />
+                <span className="text-sm font-semibold tracking-tight">{currentProduct.fullName}</span>
+              </div>
               {/* Nav section */}
-              <nav className="flex-1 flex flex-col px-6 pt-12 pb-4">
+              <nav className="flex-1 flex flex-col px-6 pb-4">
                 <button
                   onClick={() => { navigate('/'); setMobileOpen(false); }}
                   className={cn(
