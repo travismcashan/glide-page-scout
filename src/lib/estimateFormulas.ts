@@ -151,7 +151,7 @@ export function getDriver(fc: FormulaConfig | null | undefined): string {
 
 // ─── Derivation ────────────────────────────────────────────────────
 
-/** Derive project size from variables: Small/Medium/Large */
+/** @deprecated project_size no longer drives calculations — kept for display only */
 export function deriveProjectSize(v: EstimateVariables): string {
   const sum = (v.design_layouts ?? 5) + (v.pages_for_integration ?? 20) + (v.custom_posts ?? 2);
   if (sum <= 30) return 'Small';
