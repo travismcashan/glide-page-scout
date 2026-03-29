@@ -483,7 +483,8 @@ export function calculateBaseModel(
     bulk_import_amount: 'none',
     post_launch_services: 0,
   };
-  const recalced = recalculateAllTasks(tasks, minVars, formulas);
+  const tasksWithIds = tasks.map((t, i) => ({ ...t, id: t.id || `base-${i}` }));
+  const recalced = recalculateAllTasks(tasksWithIds, minVars, formulas);
   const selected = recalced.filter(t => t.is_selected);
   const totalHours = selected.reduce((s, t) => s + Number(t.hours), 0);
   const totalCost = selected.reduce((s, t) => s + Number(t.hours) * Number((t as any).hourly_rate || 150), 0);
