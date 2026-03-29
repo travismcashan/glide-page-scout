@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive, StickyNote, Wand2 } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive, StickyNote, Wand2, Globe } from 'lucide-react';
 import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,6 +90,9 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [noteTitle, setNoteTitle] = useState('');
   const [noteBody, setNoteBody] = useState('');
   const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [urlModalOpen, setUrlModalOpen] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [urlSubmitting, setUrlSubmitting] = useState(false);
   const [gridPreviewDoc, setGridPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [gridPreviewContent, setGridPreviewContent] = useState<string | null>(null);
   const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
