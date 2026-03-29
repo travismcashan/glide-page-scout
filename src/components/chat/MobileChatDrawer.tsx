@@ -209,6 +209,7 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
         >
           <Plus className="h-6 w-6 text-foreground" />
         </button>
+        </div>
       </div>
 
       {/* Delete dialog */}
