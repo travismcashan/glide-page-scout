@@ -732,6 +732,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <StickyNote className="h-3.5 w-3.5 mr-1.5" />
           Add Note
         </Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => setUrlModalOpen(true)} disabled={uploading || urlSubmitting}>
+          <Globe className="h-3.5 w-3.5 mr-1.5" />
+          Add URL
+        </Button>
         {onIngestIntegrations && !ingesting && (
           <Button variant="outline" size="sm" onClick={onIngestIntegrations} disabled={uploading} title="Re-sync integration data">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
