@@ -52,8 +52,8 @@ export default function AppHeader() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
           >
-            <ProductIcon className="h-7 w-7 text-primary shrink-0" />
-            <span className="text-base sm:text-base font-semibold tracking-tight truncate">
+            <ProductIcon className="h-8 w-8 sm:h-8 sm:w-8 text-primary shrink-0" />
+            <span className="text-lg sm:text-base font-semibold tracking-tight truncate">
               {currentProduct.fullName}
             </span>
           </button>
@@ -131,8 +131,8 @@ export default function AppHeader() {
           )}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <Menu className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-10 w-10">
+                <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] pt-12">
