@@ -51,7 +51,7 @@ CREATE POLICY "Allow all access to global_chat_messages"
 -- Multi-session vector search function
 CREATE OR REPLACE FUNCTION public.match_knowledge_chunks_multi(
   p_session_ids uuid[],
-  p_embedding extensions.vector,
+  p_embedding vector,
   p_match_count integer DEFAULT 25,
   p_match_threshold double precision DEFAULT 0.25
 )

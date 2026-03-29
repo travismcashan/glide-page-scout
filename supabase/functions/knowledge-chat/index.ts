@@ -6,6 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+function resolveProvider(model: string): { url: string; key: string; apiModel: string } {
+  if (model.startsWith('openai/')) {
+    return {
+      url: 'https://api.openai.com/v1/chat/completions',
+      key: Deno.env.get('OPENAI_API_KEY') || '',
+      apiModel: model.replace('openai/', ''),
+    };
+  }
+  return {
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    key: Deno.env.get('GEMINI_API_KEY') || '',
+    apiModel: model.replace('google/', ''),
+  };
+}
+
 // Map frontend Claude IDs to actual Anthropic model identifiers and their max output tokens
 const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-haiku': { model: 'claude-haiku-4-5-20251001', maxOutput: 64000 },
@@ -196,18 +211,18 @@ function buildContextBlock(crawlContext: string | undefined, documents: any[] | 
  * Route query to the most relevant source types using a fast LLM classification
  */
 async function routeQuery(query: string): Promise<{ priority_sources: string[]; chronological: boolean; needs_screenshots: boolean }> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) return { priority_sources: [], chronological: false, needs_screenshots: false };
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) return { priority_sources: [], chronological: false, needs_screenshots: false };
 
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'gemini-2.5-flash-lite',
         messages: [
           {
             role: 'system',
@@ -1114,15 +1129,14 @@ async function handleGatewayRequest(
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
   ragDocuments?: { name: string; source_type: string }[],
 ): Promise<Response> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
+  const selectedModel = ALLOWED_GATEWAY_MODELS.includes(model) ? model : 'google/gemini-3-flash-preview';
+  const provider = resolveProvider(selectedModel);
+  if (!provider.key) {
     return new Response(
-      JSON.stringify({ error: 'LOVABLE_API_KEY is not configured' }),
+      JSON.stringify({ error: `API key is not configured for provider (model: ${selectedModel})` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-
-  const selectedModel = ALLOWED_GATEWAY_MODELS.includes(model) ? model : 'google/gemini-3-flash-preview';
   const ALLOWED_REASONING = ['low', 'medium', 'high', 'xhigh'];
   const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
 
@@ -1141,7 +1155,7 @@ async function handleGatewayRequest(
 
   const buildRequestBody = (msgs: any[], includeTools: boolean): any => {
     const body: any = {
-      model: selectedModel,
+      model: provider.apiModel,
       max_tokens: contextPreset.gateway,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -1159,10 +1173,10 @@ async function handleGatewayRequest(
   };
 
   // First request — with tools if enabled
-  let response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  let response = await fetch(provider.url, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      Authorization: `Bearer ${provider.key}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(buildRequestBody(messages, hasAnyTool)),
@@ -1198,13 +1212,14 @@ async function handleGatewayRequest(
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const toolPlanningBody = buildRequestBody(conversationMessages, true);
       toolPlanningBody.stream = false;
-      toolPlanningBody.model = 'google/gemini-3-flash-preview';
+      const toolProvider = resolveProvider('google/gemini-3-flash-preview');
+      toolPlanningBody.model = toolProvider.apiModel;
       delete toolPlanningBody.reasoning;
 
-      const checkResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const checkResponse = await fetch(toolProvider.url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${toolProvider.key}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(toolPlanningBody),
@@ -1316,7 +1331,7 @@ async function handleGatewayRequest(
       }).join('\n\n---\n\n');
 
       const synthesisBody: any = {
-        model: selectedModel,
+        model: provider.apiModel,
         max_tokens: contextPreset.gateway,
         messages: [
           {
@@ -1332,10 +1347,10 @@ async function handleGatewayRequest(
         synthesisBody.reasoning = { effort: selectedReasoning };
       }
 
-      const finalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const finalResponse = await fetch(provider.url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${provider.key}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(synthesisBody),
@@ -1356,10 +1371,10 @@ async function handleGatewayRequest(
     }
 
     // No tool results gathered — fall back to streaming without tools
-    const fallbackResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const fallbackResponse = await fetch(provider.url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${provider.key}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(buildRequestBody(messages, false)),

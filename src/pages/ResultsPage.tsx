@@ -81,6 +81,7 @@ import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { TemplatesCard } from '@/components/TemplatesCard';
 import { EstimateBuilderCard } from '@/components/estimate/EstimateBuilderCard';
 import { FormsCard } from '@/components/FormsCard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GlobalProgressBar } from '@/components/GlobalProgressBar';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
@@ -254,7 +255,7 @@ export default function ResultsPage() {
   const [prospectDomainInput, setProspectDomainInput] = useState('');
   const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
   const [lookbackDays, setLookbackDays] = useState<number>(90);
-  const prospectingDomain = session?.prospect_domain || session?.domain || '';
+  const prospectingDomain = (session?.prospect_domain || session?.domain || '').replace(/^www\./i, '');
   const initialChatSelectionRef = useRef(resolveStoredChatSelection());
   const initialChatSelection = initialChatSelectionRef.current;
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
@@ -655,23 +656,9 @@ export default function ResultsPage() {
       setPsiLoading(false);
     }).catch((e) => { const msg = e?.message || 'PageSpeed request failed'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); setPsiLoading(false); });
   }, [session, psiLoading, psiFailed, pauseVersion]);
-  // Wappalyzer
-  const [wappalyzerFailed, setWappalyzerFailed] = useState(false);
-  useEffect(() => {
-    if (!session || !isRealSite || session.wappalyzer_data || wappalyzerLoading || wappalyzerFailed || isIntegrationPaused('wappalyzer')) return;
-    if (wappalyzerTriggeredRef.current) return;
-    wappalyzerTriggeredRef.current = true;
-    setWappalyzerLoading(true);
-    wappalyzerApi.lookup(session.base_url).then(async (result) => {
-      if (result.success) {
-        const saved = { grouped: result.grouped, totalCount: result.totalCount, social: result.social };
-        await supabase.from('crawl_sessions').update({ wappalyzer_data: saved } as any).eq('id', session.id);
-        clearError('wappalyzer');
-        updateSession({ wappalyzer_data: saved } as any);
-      } else { const msg = result.error || 'Wappalyzer returned an error'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); }
-      setWappalyzerLoading(false);
-    }).catch((e) => { const msg = e?.message || 'Wappalyzer request failed'; setWappalyzerFailed(true); setError('wappalyzer', msg); persistFailure('wappalyzer_data', msg); setWappalyzerLoading(false); });
-  }, [session, wappalyzerLoading, wappalyzerFailed, pauseVersion]);
+  // Wappalyzer — disabled (no API key)
+  const [wappalyzerFailed, setWappalyzerFailed] = useState(true);
+  const wappalyzerDisabled = true;
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
@@ -1694,7 +1681,7 @@ export default function ResultsPage() {
   const integrationList: { key: string; dbColumn: string }[] = [
     { key: 'sitemap', dbColumn: 'sitemap_data' },
     { key: 'builtwith', dbColumn: 'builtwith_data' },
-    { key: 'wappalyzer', dbColumn: 'wappalyzer_data' },
+    // { key: 'wappalyzer', dbColumn: 'wappalyzer_data' }, // disabled
     { key: 'detectzestack', dbColumn: 'detectzestack_data' },
     { key: 'gtmetrix', dbColumn: 'gtmetrix_grade' },
     { key: 'psi', dbColumn: 'psi_data' },
@@ -1845,7 +1832,7 @@ export default function ResultsPage() {
   const integrationSteps = session ? [
     { key: 'sitemap', label: 'Sitemaps', loading: sitemapLoading, failed: sitemapFailed, data: session.sitemap_data, paused: isIntegrationPaused('sitemap') },
     { key: 'builtwith', label: 'BuiltWith', loading: builtwithLoading, failed: builtwithFailed, data: session.builtwith_data, paused: isIntegrationPaused('builtwith') },
-    { key: 'wappalyzer', label: 'Wappalyzer', loading: wappalyzerLoading, failed: wappalyzerFailed, data: session.wappalyzer_data, paused: isIntegrationPaused('wappalyzer') },
+    // Wappalyzer disabled — no API key
     { key: 'detectzestack', label: 'DetectZeStack', loading: detectzestackLoading, failed: detectzestackFailed, data: (session as any).detectzestack_data, paused: isIntegrationPaused('detectzestack') },
     { key: 'tech-analysis', label: 'Tech Analysis', loading: techAnalysisLoading, failed: techAnalysisFailed, data: techAnalysisData, paused: isIntegrationPaused('tech-analysis') },
     { key: 'semrush', label: 'SEMrush', loading: semrushLoading, failed: semrushFailed, data: session.semrush_data, paused: isIntegrationPaused('semrush') },
@@ -1866,8 +1853,8 @@ export default function ResultsPage() {
     { key: 'content-types', label: 'Content Types', loading: contentTypesLoading, failed: contentTypesFailed, data: (session as any).content_types_data, paused: isIntegrationPaused('content-types') },
     
     { key: 'forms', label: 'Forms', loading: formsLoading, failed: formsFailed, data: (session as any).forms_data, paused: isIntegrationPaused('forms') },
-    { key: 'page-tags', label: autoTagProgress ? `Page Tagging (${autoTagProgress})` : 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
-    { key: 'templates', label: 'Templates', loading: templatesRerunning || (autoTagging && !(session as any).template_tiers), failed: false, data: (session as any).template_tiers, paused: false },
+    { key: 'page-tags', label: autoTagProgress ? `Page Tagging (${autoTagProgress})` : 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false, cardId: 'content-audit' },
+    { key: 'templates', label: 'Templates', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
     { key: 'hubspot', label: 'HubSpot', loading: hubspotLoading, failed: hubspotFailed, data: (session as any).hubspot_data, paused: isIntegrationPaused('hubspot') },
     { key: 'ga4', label: 'Google Analytics', loading: ga4Loading, failed: ga4Failed, data: (session as any).ga4_data, paused: isIntegrationPaused('ga4') },
@@ -1875,6 +1862,7 @@ export default function ResultsPage() {
   ].map(s => ({
     key: s.key,
     label: s.label,
+    cardId: (s as any).cardId as string | undefined,
     status: s.paused ? 'paused' as const
       : s.data ? 'done' as const
       : s.failed ? 'failed' as const
@@ -2301,7 +2289,7 @@ export default function ResultsPage() {
 
               {shouldShowIntegration('httpstatus', !!session?.httpstatus_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
               <SectionCard collapsed={allCollapsed} sectionId="httpstatus" {...intGrade("httpstatus")} persistedCollapsed={isSectionCollapsed("httpstatus")} onCollapseChange={toggleSection} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)} paused={isIntegrationPaused('httpstatus') && !session?.httpstatus_data} onTogglePause={() => handleTogglePause('httpstatus')}>
-                {session?.httpstatus_data ? <HttpStatusCard data={session.httpstatus_data} /> : null}
+                {session?.httpstatus_data ? <ErrorBoundary><HttpStatusCard data={session.httpstatus_data} /></ErrorBoundary> : null}
               </SectionCard>
               )}
 
@@ -2369,7 +2357,7 @@ export default function ResultsPage() {
               {shouldShowIntegration('forms', !!visibleFormsData || formsLoading, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
                <SectionCard collapsed={allCollapsed} sectionId="forms" persistedCollapsed={isSectionCollapsed("forms")} onCollapseChange={toggleSection} title="Forms Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={formsLoading && !visibleFormsData} loadingText="Scraping pages and detecting forms..." error={formsFailed} errorText={integrationErrors.forms} headerExtra={rerunButton('forms', 'forms_data', formsLoading)} paused={isIntegrationPaused('forms') && !visibleFormsData} onTogglePause={() => handleTogglePause('forms')}>
                 {visibleFormsData ? (
-                  <FormsCard data={visibleFormsData} domain={(session as any).domain} />
+                  <ErrorBoundary><FormsCard data={visibleFormsData} domain={(session as any).domain} /></ErrorBoundary>
                 ) : !formsLoading && !isSharedView ? (
                   <div className="text-center py-4">
                     <p className="text-sm text-muted-foreground mb-3">Detect all forms on the website — contact forms, signups, embedded widgets, and global forms that appear across multiple pages.</p>
@@ -2427,13 +2415,42 @@ export default function ResultsPage() {
                       <span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations['tech-analysis']}s)</span>
                     )}
                     <Button variant="ghost" size="icon" className="h-7 w-7" disabled={techAnalysisLoading} onClick={async () => {
-                      setIntegrationDurations(d => { const next = { ...d }; delete next['tech-analysis']; return next; });
+                      if (!session) return;
+                      // Set loading FIRST so card stays visible during the rerun
                       setTechAnalysisData(null);
                       setTechAnalysisFailed(false);
-                      techAnalysisTriggeredRef.current = false;
+                      setTechAnalysisLoading(true);
+                      techAnalysisTriggeredRef.current = true;
                       clearError('tech-analysis');
-                      if (session) await supabase.from('crawl_sessions').update({ tech_analysis_data: null } as any).eq('id', session.id);
-                      updateSession({ tech_analysis_data: null } as any);
+                      setIntegrationDurations(d => { const next = { ...d }; delete next['tech-analysis']; return next; });
+                      const startTime = Date.now();
+                      const bw = session.builtwith_data;
+                      const dz = (session as any).detectzestack_data;
+                      const wp = session.wappalyzer_data;
+                      try {
+                        const result = await techAnalysisApi.analyze(bw, dz, wp, session.domain);
+                        const elapsed = Math.round((Date.now() - startTime) / 1000);
+                        setIntegrationDurations(d => ({ ...d, 'tech-analysis': elapsed }));
+                        if (result.success) {
+                          const data = { analysis: result.analysis, techCount: result.techCount, sourceCount: result.sourceCount, sources: result.sources };
+                          setTechAnalysisData(data);
+                          clearError('tech-analysis');
+                          await supabase.from('crawl_sessions').update({ tech_analysis_data: data } as any).eq('id', session.id);
+                          updateSession({ tech_analysis_data: data } as any);
+                        } else {
+                          setTechAnalysisFailed(true);
+                          const msg = result.error || 'AI tech analysis failed';
+                          setError('tech-analysis', msg);
+                          persistFailure('tech_analysis_data', msg);
+                        }
+                      } catch (e: any) {
+                        setTechAnalysisFailed(true);
+                        const msg = e?.message || 'AI tech analysis failed';
+                        setError('tech-analysis', msg);
+                        persistFailure('tech_analysis_data', msg);
+                      } finally {
+                        setTechAnalysisLoading(false);
+                      }
                     }} title="Run again">
                       <RefreshCw className={`h-3.5 w-3.5 ${techAnalysisLoading ? 'animate-spin' : ''}`} />
                     </Button>
@@ -2462,13 +2479,7 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="wappalyzer" persistedCollapsed={isSectionCollapsed("wappalyzer")} onCollapseChange={toggleSection} title="Wappalyzer — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={wappalyzerLoading && !session?.wappalyzer_data} loadingText="Running Wappalyzer detection..." error={wappalyzerFailed} errorText={integrationErrors.wappalyzer} headerExtra={rerunButton('wappalyzer', 'wappalyzer_data', wappalyzerLoading)} reportUrl={getReportUrl('wappalyzer')} paused={isIntegrationPaused('wappalyzer') && !session?.wappalyzer_data} onTogglePause={() => handleTogglePause('wappalyzer')}>
-                {session?.wappalyzer_data ? (
-                  <WappalyzerCard data={session.wappalyzer_data} isLoading={false} />
-                ) : null}
-              </SectionCard>
-              )}
+              {/* Wappalyzer — disabled, no API key */}
             </SortedIntegrationList>
           </CollapsibleSection>
         )}
@@ -2639,19 +2650,19 @@ export default function ResultsPage() {
 
           {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
             <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
-              {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <div className="animate-fade-in space-y-6">
+              {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <ErrorBoundary><div className="animate-fade-in space-y-6">
               {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
+                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
                   {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
-                </SectionCard>
+                </SectionCard></ErrorBoundary>
               )}
               {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('apollo', 'apollo_data', apolloLoading)} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
+                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('apollo', 'apollo_data', apolloLoading)} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
                   <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
-                </SectionCard>
+                </SectionCard></ErrorBoundary>
               )}
               {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <SectionCard
+                <ErrorBoundary><SectionCard
                   sectionId="hubspot" persistedCollapsed={isSectionCollapsed("hubspot")} onCollapseChange={toggleSection} title="HubSpot CRM"
                   icon={<Building2 className="h-5 w-5 text-foreground" />}
                   loading={hubspotLoading && !(session as any)?.hubspot_data}
@@ -2664,9 +2675,9 @@ export default function ResultsPage() {
                   onTogglePause={() => handleTogglePause('hubspot')}
                 >
                   {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={handleApolloSearch} /> : null}
-                </SectionCard>
+                </SectionCard></ErrorBoundary>
               )}
-              <SectionCard
+              <ErrorBoundary><SectionCard
                 sectionId="gmail" persistedCollapsed={isSectionCollapsed("gmail")} onCollapseChange={toggleSection} title="Gmail — Email Threads"
                 icon={<Mail className="h-5 w-5 text-foreground" />}
                 collapsed={allCollapsed}
@@ -2706,7 +2717,7 @@ export default function ResultsPage() {
                 }
               >
                 <GmailCard
-                  sessionId={sessionId}
+                  sessionId={sessionId ?? undefined}
                   ref={gmailRef}
                   domain={prospectingDomain}
                   lookbackDays={lookbackDays}
@@ -2717,9 +2728,9 @@ export default function ResultsPage() {
                       .filter(Boolean) || []
                   }
                 />
-              </SectionCard>
+              </SectionCard></ErrorBoundary>
               {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <SectionCard
+                <ErrorBoundary><SectionCard
                   sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
                   icon={<Phone className="h-5 w-5 text-foreground" />}
                   loading={avomaLoading && !(session as any)?.avoma_data}
@@ -2737,7 +2748,7 @@ export default function ResultsPage() {
                 >
                   {(session as any)?.avoma_data ? <AvomaCard
                     data={(session as any).avoma_data}
-                    apolloEmail={session.apollo_data?.email || null}
+                    apolloEmail={(session as any)?.apollo_data?.email || null}
                     onSearchDomain={async (domain) => {
                       setAvomaLoading(true);
                       setAvomaFailed(false);
@@ -2770,9 +2781,9 @@ export default function ResultsPage() {
                       updateSession({ avoma_data: updated } as any);
                     }}
                   /> : null}
-                </SectionCard>
+                </SectionCard></ErrorBoundary>
               )}
-              </div>}
+              </div></ErrorBoundary>}
             </TabsContent>
           )}
 

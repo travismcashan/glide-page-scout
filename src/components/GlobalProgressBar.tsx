@@ -7,6 +7,8 @@ type IntegrationStep = {
   key: string;
   label: string;
   status: 'done' | 'loading' | 'failed' | 'paused' | 'pending';
+  /** Override the data-section-id to scroll to. Defaults to key. */
+  cardId?: string;
 };
 
 type Props = {
@@ -91,7 +93,15 @@ export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
           {sortedSteps.map((step) => (
             <span
               key={step.key}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-300 ${
+              onClick={() => {
+                const targetId = step.cardId ?? step.key;
+                const el = document.querySelector(`[data-section-id="${targetId}"]`);
+                if (el) {
+                  const top = el.getBoundingClientRect().top + window.scrollY - 80;
+                  window.scrollTo({ top, behavior: 'smooth' });
+                }
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-300 cursor-pointer hover:brightness-110 active:scale-95 ${
                 step.status === 'done'
                   ? 'bg-green-600/20 text-green-700 dark:bg-green-500/20 dark:text-green-300'
                   : step.status === 'loading'

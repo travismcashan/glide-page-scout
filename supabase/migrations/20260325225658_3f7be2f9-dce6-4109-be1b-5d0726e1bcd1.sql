@@ -1,6 +1,6 @@
 
 -- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 
 -- Knowledge documents table - metadata for each document
 CREATE TABLE public.knowledge_documents (

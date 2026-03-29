@@ -1,7 +1,7 @@
 
 CREATE OR REPLACE FUNCTION public.match_knowledge_chunks_by_source(
   p_session_id uuid,
-  p_embedding extensions.vector,
+  p_embedding vector,
   p_source_types text[],
   p_match_count integer DEFAULT 25,
   p_match_threshold double precision DEFAULT 0.15
