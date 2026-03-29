@@ -1149,9 +1149,14 @@ async function handleGatewayRequest(
           choice.message.tool_calls.map(async (tc: any) => {
             const args = JSON.parse(tc.function.arguments);
             console.log(`[knowledge-chat] Executing tool: ${tc.function.name}`, JSON.stringify(args));
-            const result = tc.function.name === 'generate_presentation'
-              ? await executeBeautifulAi(args)
-              : await executeAnalyticsTool(tc.function.name, args);
+            let result: string;
+            if (tc.function.name === 'generate_presentation') {
+              result = await executeBeautifulAi(args);
+            } else if (tc.function.name === 'query_harvest' || tc.function.name === 'query_asana') {
+              result = await executeExternalTool(tc.function.name, args);
+            } else {
+              result = await executeAnalyticsTool(tc.function.name, args);
+            }
             return {
               role: 'tool' as const,
               tool_call_id: tc.id,
