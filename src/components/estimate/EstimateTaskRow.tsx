@@ -42,7 +42,7 @@ export function EstimateTaskRow({ task, onToggle, onHoursChange, onHoursPerPerso
   const roleList = getRoleList(task.roles);
   const roleCount = roleList.length || 1;
   const hasVariable = !!task.variable_label && task.variable_label !== '-';
-  const formulaDriven = isFormulaTask(task.task_name);
+  const formulaDriven = isFormulaTask(task.task_name, task.formula_config);
 
   return (
     <div className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${

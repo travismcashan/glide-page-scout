@@ -361,7 +361,7 @@ function TaskTableRow({
   onHoursPerPersonChange: (id: string, hpp: number) => void;
   onVariableQtyChange: (id: string, qty: number) => void;
 }) {
-  const formulaDriven = isFormulaTask(task.task_name);
+  const formulaDriven = isFormulaTask(task.task_name, task.formula_config);
   const roleList = (task.roles || '').split(',').map(r => r.trim()).filter(Boolean);
   const roleCount = roleList.length || 1;
   const hasVariable = !!task.variable_label && task.variable_label !== '-';
@@ -406,7 +406,7 @@ function TaskTableRow({
 
       {/* Type */}
       <TableCell className="py-0 text-center">
-        <CalcTypeBadge type={getTaskCalcType(task.task_name)} />
+        <CalcTypeBadge type={getTaskCalcType(task.task_name, task.formula_config)} />
       </TableCell>
 
       {/* Variable label */}
