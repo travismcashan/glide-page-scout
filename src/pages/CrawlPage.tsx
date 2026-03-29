@@ -224,7 +224,23 @@ export default function CrawlPage() {
             </h1>
             <div className="flex items-end gap-x-2 gap-y-0 font-bold tracking-tight leading-none text-[clamp(1.75rem,7.5vw,3rem)] whitespace-nowrap">
               <span className="leading-none text-foreground">{phrase}</span>
-              <span className="relative inline-flex h-[1.35em] w-[5.5em] sm:w-[7em] items-end overflow-hidden align-baseline leading-none" style={{ background: 'transparent' }}>
+              {/* Mobile: solid color, no gradient clipping */}
+              <span className="sm:hidden inline-block min-w-[5.5em] leading-none align-baseline">
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={wordIndex}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    className="inline-block leading-none font-medium text-primary"
+                  >
+                    {ROTATING_WORDS[wordIndex]}.
+                  </motion.span>
+                </AnimatePresence>
+              </span>
+              {/* Desktop: keep multicolor gradient */}
+              <span className="hidden sm:inline-flex relative h-[1.35em] w-[7em] items-end overflow-hidden align-baseline leading-none">
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={wordIndex}
