@@ -88,6 +88,7 @@ import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
 import { ChatModelSelector, type ReasoningEffort, type ModelProvider, PROVIDERS, VERSIONS } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
+import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
 import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
 import { computeOverallScore, getIntegrationScore, getCategoryScore, SECTION_TO_CATEGORY, type OverallScore, scoreToGrade } from '@/lib/siteScore';
@@ -254,47 +255,45 @@ export default function ResultsPage() {
   const [prospectSettingsOpen, setProspectSettingsOpen] = useState(false);
   const [lookbackDays, setLookbackDays] = useState<number>(90);
   const prospectingDomain = session?.prospect_domain || session?.domain || '';
+  const initialChatSelectionRef = useRef(resolveStoredChatSelection());
+  const initialChatSelection = initialChatSelectionRef.current;
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
-    return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
+    return initialChatSelection.provider;
   });
   const [chatModel, setChatModelRaw] = useState(() => {
-    return localStorage.getItem('chat-model') || 'google/gemini-3.1-pro-preview';
+    return initialChatSelection.model;
   });
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>(() => {
-    const savedProvider = (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
-    return savedProvider === 'claude' ? 'high' : savedProvider === 'perplexity' ? 'none' : 'medium';
+    return initialChatSelection.reasoning;
   });
 
-  // Best (most powerful) model per provider
-  const BEST_MODEL: Record<ModelProvider, string> = {
-    gemini: 'google/gemini-3.1-pro-preview',
-    claude: 'claude-opus',
-    gpt: 'openai/gpt-5.2',
-    perplexity: 'perplexity-sonar-reasoning-pro',
-    council: 'council-synthesis',
-  };
-  // Default reasoning per provider
-  const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
-    gemini: 'medium',
-    claude: 'high',
-    gpt: 'medium',
-    perplexity: 'none',
-    council: 'none',
-  };
+  useEffect(() => {
+    persistResolvedChatSelection(initialChatSelection);
+  }, [initialChatSelection]);
 
   const setChatProvider = (p: ModelProvider) => {
     setChatProviderRaw(p);
-    localStorage.setItem('chat-provider', p);
-    const bestId = BEST_MODEL[p] || VERSIONS[p]?.[VERSIONS[p].length - 1]?.id;
+    const bestId = DEFAULT_BEST[p] || VERSIONS[p]?.[VERSIONS[p].length - 1]?.id;
+    const nextReasoning = DEFAULT_REASONING[p] || 'none';
     if (bestId) {
       setChatModelRaw(bestId);
-      localStorage.setItem('chat-model', bestId);
+      persistResolvedChatSelection({
+        mode: p === 'council' ? 'council' : 'individual',
+        provider: p,
+        model: bestId,
+        reasoning: nextReasoning,
+      });
     }
-    setChatReasoning(DEFAULT_REASONING[p] || 'none');
+    setChatReasoning(nextReasoning);
   };
   const setChatModel = (id: string) => {
     setChatModelRaw(id);
-    localStorage.setItem('chat-model', id);
+    persistResolvedChatSelection({
+      mode: chatProvider === 'council' ? 'council' : 'individual',
+      provider: chatProvider,
+      model: id,
+      reasoning: chatReasoning,
+    });
   };
   const [showAllIntegrations, setShowAllIntegrations] = useState(false);
   const freezeVisibilityForCompletedSession = session?.status === 'completed';
