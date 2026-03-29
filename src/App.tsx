@@ -16,6 +16,7 @@ import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import GlobalChatPage from "./pages/GlobalChatPage";
+import KnowledgePage from "./pages/KnowledgePage";
 import BrandGuidePage from "./pages/BrandGuidePage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/connections" element={<ConnectionsPage />} />
               <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/chat" element={<GlobalChatPage />} />
+              <Route path="/knowledge" element={<KnowledgePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/brand" element={<BrandGuidePage />} />
               <Route path="*" element={<NotFound />} />

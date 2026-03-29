@@ -1,0 +1,131 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import AppHeader from '@/components/AppHeader';
+import { DocumentLibrary } from '@/components/DocumentLibrary';
+import { Loader2 } from 'lucide-react';
+import { withQueryTimeout } from '@/lib/queryTimeout';
+import { autoIngestIntegrations } from '@/lib/ragIngest';
+
+const GLOBAL_SESSION_DOMAIN = '__global_chat__';
+
+export default function KnowledgePage() {
+  const [globalSession, setGlobalSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [ingesting, setIngesting] = useState(false);
+  const ingestTriggeredRef = useRef(false);
+  const abortRef = useRef(false);
+
+  const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  // Load or create the global sentinel session (same as GlobalChatPage)
+  useEffect(() => {
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        const { data: existing, error: existingError } = await withQueryTimeout(
+          supabase
+            .from('crawl_sessions')
+            .select('id, domain, base_url, status, created_at')
+            .eq('domain', GLOBAL_SESSION_DOMAIN)
+            .limit(1)
+            .maybeSingle(),
+          12000,
+          'Loading knowledge timed out'
+        );
+
+        if (cancelled) return;
+        if (existingError) throw existingError;
+
+        if (existing) {
+          setGlobalSession(existing);
+          return;
+        }
+
+        const { data: created, error } = await withQueryTimeout(
+          supabase
+            .from('crawl_sessions')
+            .insert({
+              domain: GLOBAL_SESSION_DOMAIN,
+              base_url: 'https://global-chat',
+              status: 'complete',
+            } as any)
+            .select('id, domain, base_url, status, created_at')
+            .single(),
+          12000,
+          'Creating knowledge session timed out'
+        );
+
+        if (cancelled) return;
+        if (error) throw error;
+
+        setGlobalSession(created);
+      } catch (error) {
+        console.error('Failed to initialize knowledge:', error);
+        toast.error('Knowledge failed to load. Please try again.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    init();
+    return () => { cancelled = true; };
+  }, []);
+
+  const runIngest = useCallback(async () => {
+    if (!globalSession) return;
+    abortRef.current = false;
+    setIngesting(true);
+    try {
+      const result = await autoIngestIntegrations(globalSession.id, globalSession);
+      if (abortRef.current) {
+        toast.info('Sync stopped');
+        return;
+      }
+      if (result.ingested > 0) {
+        toast.success(`Indexed ${result.ingested} document${result.ingested !== 1 ? 's' : ''} into knowledge base`);
+      }
+      triggerRefresh();
+    } catch (err) {
+      console.error('Ingest error:', err);
+      if (!abortRef.current) toast.error('Failed to ingest documents');
+    } finally {
+      setIngesting(false);
+    }
+  }, [globalSession, triggerRefresh]);
+
+  const stopIngest = useCallback(() => {
+    abortRef.current = true;
+    setIngesting(false);
+    toast.info('Sync stopped — indexed documents are preserved.');
+  }, []);
+
+  if (loading || !globalSession) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <AppHeader />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading knowledge…</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <AppHeader />
+      <div className="flex-1 max-w-6xl mx-auto w-full px-6 py-6">
+        <DocumentLibrary
+          sessionId={globalSession.id}
+          refreshKey={refreshKey}
+          onIngestIntegrations={runIngest}
+          onStopIngestion={stopIngest}
+          ingesting={ingesting}
+        />
+      </div>
+    </div>
+  );
+}
