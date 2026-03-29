@@ -103,7 +103,9 @@ export function EstimateFormulasTab({
       const mode = getCalcMode(fc);
       const driver = getDriver(fc);
       const taskType = (t as any).task_type || 'task';
-      const driverQty = mode === 'variable' ? resolveDriverQty(driver, estimate) : null;
+      const driverQty = mode === 'variable'
+        ? (driver === 'qty' ? (t.variable_qty != null ? String(t.variable_qty) : null) : resolveDriverQty(driver, estimate))
+        : null;
       return {
         name: t.task_name,
         phase: t.phase_name || 'Other',
