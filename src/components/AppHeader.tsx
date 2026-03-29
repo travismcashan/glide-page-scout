@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, Shield, ChevronDown, Check, Sparkles, MessageSquare, Link2 } from 'lucide-react';
+import { LogOut, Settings, Shield, ChevronDown, Check, Sparkles, MessageSquare, Link2, Database } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +90,9 @@ export default function AppHeader() {
         <nav className="flex items-center gap-1">
           <NavLink to="/chat" className={linkBase} activeClassName={linkActive}>
             Chat
+          </NavLink>
+          <NavLink to="/knowledge" className={linkBase} activeClassName={linkActive}>
+            Knowledge
           </NavLink>
           <button
             onClick={() => navigate('/history')}
