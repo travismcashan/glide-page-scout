@@ -1,5 +1,6 @@
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, Plus, MoreHorizontal, Pencil, Pin, Trash2, MessageSquare } from 'lucide-react';
+import { useProduct } from '@/contexts/ProductContext';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,6 +39,8 @@ type Props = {
 };
 
 export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey }: Props) {
+  const { currentProduct } = useProduct();
+  const ProductIcon = currentProduct.icon;
   const [open, setOpen] = useState(false);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,8 +88,14 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="md:hidden flex items-center justify-between px-4 h-12 border-b border-border bg-background sticky top-[55px] z-30">
+      <div className="md:hidden flex flex-col sticky top-[55px] z-30">
+        {/* Logo bar */}
+        <div className="flex items-center justify-center px-4 py-2 bg-background border-b border-border/50">
+          <ProductIcon className="h-6 w-6 text-primary mr-2" />
+          <span className="text-sm font-semibold tracking-tight">{currentProduct.fullName}</span>
+        </div>
+        {/* Nav bar */}
+        <div className="flex items-center justify-between px-4 h-12 border-b border-border bg-background">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button className="p-0 bg-transparent border-none">
@@ -200,6 +209,7 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
         >
           <Plus className="h-6 w-6 text-foreground" />
         </button>
+        </div>
       </div>
 
       {/* Delete dialog */}
