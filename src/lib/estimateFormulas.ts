@@ -454,6 +454,7 @@ export function recalculateAllTasks(
 /** Calculate the base model — minimum project cost with all variables at 1 */
 export function calculateBaseModel(
   tasks: Array<{
+    id?: string;
     task_name: string;
     hours: number;
     roles?: string | null;
