@@ -18,6 +18,7 @@ import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type Mod
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
 import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
+import { MobileChatDrawer } from '@/components/chat/MobileChatDrawer';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2437,7 +2438,48 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
   if (!activeThreadId || loadingHistory) {
     return (
-      <div className="flex min-h-[500px]">
+      <div className="flex flex-col md:flex-row min-h-[500px]">
+        <MobileChatDrawer
+          sessionId={session.id}
+          activeThreadId={activeThreadId}
+          onSelectThread={handleSelectThread}
+          onNewThread={handleNewThread}
+          onDeleteThread={handleDeleteThread}
+          refreshKey={sidebarRefreshKey}
+        />
+        <div className="hidden md:block">
+          <ChatThreadSidebar
+            sessionId={session.id}
+            activeThreadId={activeThreadId}
+            onSelectThread={handleSelectThread}
+            onNewThread={handleNewThread}
+            onDeleteThread={handleDeleteThread}
+            refreshKey={sidebarRefreshKey}
+            onWidthChange={setSidebarWidth}
+            stickyTabVisible={stickyTabVisible}
+          />
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading chat…</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-[500px]">
+      {/* Mobile drawer */}
+      <MobileChatDrawer
+        sessionId={session.id}
+        activeThreadId={activeThreadId}
+        onSelectThread={handleSelectThread}
+        onNewThread={handleNewThread}
+        onDeleteThread={handleDeleteThread}
+        refreshKey={sidebarRefreshKey}
+      />
+      {/* Desktop sidebar */}
+      <div className="hidden md:block">
         <ChatThreadSidebar
           sessionId={session.id}
           activeThreadId={activeThreadId}
@@ -2448,27 +2490,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           onWidthChange={setSidebarWidth}
           stickyTabVisible={stickyTabVisible}
         />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Loading chat…</span>
-        </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-[500px]">
-      {/* Thread sidebar */}
-      <ChatThreadSidebar
-        sessionId={session.id}
-        activeThreadId={activeThreadId}
-        onSelectThread={handleSelectThread}
-        onNewThread={handleNewThread}
-        onDeleteThread={handleDeleteThread}
-        refreshKey={sidebarRefreshKey}
-        onWidthChange={setSidebarWidth}
-        stickyTabVisible={stickyTabVisible}
-      />
 
       {/* Main chat area */}
       <div
