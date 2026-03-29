@@ -1,5 +1,6 @@
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, Plus, MoreHorizontal, Pencil, Pin, Trash2, MessageSquare } from 'lucide-react';
+import { useProduct } from '@/contexts/ProductContext';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
