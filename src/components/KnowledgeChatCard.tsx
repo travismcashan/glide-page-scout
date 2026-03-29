@@ -990,7 +990,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [hasInputText, setHasInputText] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean }>({ documents: true, web: false, analytics: false });
+  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean; harvest: boolean; asana: boolean }>({ documents: true, web: false, analytics: false, harvest: false, asana: false });
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
   const [contextWindowSize, setContextWindowSize] = useState<'small' | 'medium' | 'large'>(
     () => (localStorage.getItem('ai-context-window') as 'small' | 'medium' | 'large') || 'medium'
@@ -2713,7 +2713,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                         className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsAnalytics ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`}
                         onClick={() => {
                           if (!supportsAnalytics) {
-                            // Auto-switch to Gemini and enable analytics
                             onModelChange('google/gemini-3-flash-preview');
                             onProviderChange('gateway' as ModelProvider);
                             setSearchSources(prev => ({ ...prev, analytics: true }));
@@ -2732,6 +2731,31 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                       </button>
                     );
                   })()}
+                </div>
+
+                {/* Tools */}
+                <div className="space-y-1 border-t pt-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Tools</p>
+                  <button
+                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
+                    onClick={() => setSearchSources(prev => ({ ...prev, harvest: !prev.harvest }))}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                      Harvest
+                    </span>
+                    {searchSources.harvest && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button
+                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
+                    onClick={() => setSearchSources(prev => ({ ...prev, asana: !prev.asana }))}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                      Asana
+                    </span>
+                    {searchSources.asana && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
                 </div>
 
                 {/* Modes */}

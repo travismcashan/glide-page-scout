@@ -1087,7 +1087,7 @@ async function handleGatewayRequest(
   messages: any[],
   systemPrompt: string,
   reasoning: string | undefined,
-  enableTools = false,
+  enableTools: boolean | { analytics: boolean; harvest: boolean; asana: boolean } = false,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
 ): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -1102,6 +1102,20 @@ async function handleGatewayRequest(
   const ALLOWED_REASONING = ['low', 'medium', 'high', 'xhigh'];
   const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
 
+  // Determine which tools to include
+  const toolFlags = typeof enableTools === 'object' ? enableTools : { analytics: !!enableTools, harvest: false, asana: false };
+  const hasAnyTool = toolFlags.analytics || toolFlags.harvest || toolFlags.asana;
+
+  const filteredTools = hasAnyTool
+    ? ANALYTICS_TOOLS.filter(t => {
+        const name = t.function.name;
+        if (name === 'query_harvest') return toolFlags.harvest;
+        if (name === 'query_asana') return toolFlags.asana;
+        // All other tools (GA4, Search Console, HubSpot, presentation) are gated by analytics
+        return toolFlags.analytics;
+      })
+    : [];
+
   const buildRequestBody = (msgs: any[], includeTools: boolean): any => {
     const body: any = {
       model: selectedModel,
@@ -1115,8 +1129,8 @@ async function handleGatewayRequest(
     if (selectedReasoning) {
       body.reasoning = { effort: selectedReasoning };
     }
-    if (includeTools) {
-      body.tools = ANALYTICS_TOOLS;
+    if (includeTools && filteredTools.length > 0) {
+      body.tools = filteredTools;
     }
     return body;
   };
@@ -1128,7 +1142,7 @@ async function handleGatewayRequest(
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(buildRequestBody(messages, enableTools)),
+    body: JSON.stringify(buildRequestBody(messages, hasAnyTool)),
   });
 
   if (!response.ok) {
@@ -1153,7 +1167,7 @@ async function handleGatewayRequest(
   }
 
   // If tools are enabled, we need to check for tool calls (non-streaming first pass)
-  if (enableTools) {
+  if (hasAnyTool && filteredTools.length > 0) {
     // Do a non-streaming request to check for tool calls
     const nonStreamBody = buildRequestBody(messages, true);
     nonStreamBody.stream = false;
@@ -1341,6 +1355,8 @@ serve(async (req) => {
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
+    const useHarvest = sources?.harvest === true; // default false
+    const useAsana = sources?.asana === true; // default false
     const ragMatchCount = Math.min(Math.max(rag_depth?.match_count ?? 25, 5), 100);
     const ragMatchThreshold = Math.min(Math.max(rag_depth?.match_threshold ?? 0.25, 0.05), 0.8);
 
@@ -1456,7 +1472,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb} analytics=${useAnalytics}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb} analytics=${useAnalytics} harvest=${useHarvest} asana=${useAsana}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
 
     // Build metadata events to send before the AI stream
     const metadataEvents: string[] = [];
@@ -1505,7 +1521,7 @@ serve(async (req) => {
     } else if (isPerplexityModel) {
       return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt, contextPreset));
     } else {
-      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, useAnalytics, contextPreset));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, { analytics: useAnalytics, harvest: useHarvest, asana: useAsana }, contextPreset));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
