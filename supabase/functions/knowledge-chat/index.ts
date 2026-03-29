@@ -1166,11 +1166,12 @@ async function handleGatewayRequest(
     );
   }
 
-  // If tools are enabled, we need to check for tool calls (non-streaming first pass)
+  // If tools are enabled, do a non-streaming planning pass first
   if (hasAnyTool && filteredTools.length > 0) {
-    // Do a non-streaming request to check for tool calls
-    const nonStreamBody = buildRequestBody(messages, true);
-    nonStreamBody.stream = false;
+    const toolPlanningBody = buildRequestBody(messages, true);
+    toolPlanningBody.stream = false;
+    toolPlanningBody.model = 'google/gemini-3-flash-preview';
+    delete toolPlanningBody.reasoning;
 
     const checkResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -1178,7 +1179,7 @@ async function handleGatewayRequest(
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(nonStreamBody),
+      body: JSON.stringify(toolPlanningBody),
     });
 
     if (checkResponse.ok) {
@@ -1188,10 +1189,16 @@ async function handleGatewayRequest(
       if (choice?.finish_reason === 'tool_calls' && choice?.message?.tool_calls?.length > 0) {
         console.log(`[knowledge-chat] Tool calls detected: ${choice.message.tool_calls.map((tc: any) => tc.function.name).join(', ')}`);
 
-        // Execute all tool calls in parallel
         const toolResults = await Promise.all(
           choice.message.tool_calls.map(async (tc: any) => {
-            const args = JSON.parse(tc.function.arguments);
+            let args: any = {};
+            try {
+              args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+            } catch (error) {
+              console.error(`[knowledge-chat] Failed to parse tool arguments for ${tc.function.name}:`, tc.function.arguments, error);
+              args = {};
+            }
+
             console.log(`[knowledge-chat] Executing tool: ${tc.function.name}`, JSON.stringify(args));
             let result: string;
             if (tc.function.name === 'generate_presentation') {
@@ -1209,12 +1216,32 @@ async function handleGatewayRequest(
           })
         );
 
-        // Build final messages with tool results, stream the final response
-        const finalMessages = [
-          ...messages,
-          choice.message, // assistant message with tool_calls
-          ...toolResults,
-        ];
+        const toolSummaryBlock = choice.message.tool_calls.map((tc: any, index: number) => {
+          const toolResult = toolResults[index]?.content ?? '';
+          return [
+            `Tool: ${tc.function.name}`,
+            `Arguments: ${tc.function.arguments || '{}'}`,
+            'Result:',
+            toolResult,
+          ].join('\n');
+        }).join('\n\n---\n\n');
+
+        const synthesisBody: any = {
+          model: selectedModel,
+          max_tokens: contextPreset.gateway,
+          messages: [
+            {
+              role: 'system',
+              content: `${systemPrompt}\n\nYou have already executed the required live tools. Do not call any tools now. Use the tool results below as the source of truth, answer the user's latest request directly, and cite the tool names you used.\n\nLive tool results:\n${toolSummaryBlock}`,
+            },
+            ...messages,
+          ],
+          stream: true,
+        };
+
+        if (selectedReasoning) {
+          synthesisBody.reasoning = { effort: selectedReasoning };
+        }
 
         const finalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -1222,7 +1249,7 @@ async function handleGatewayRequest(
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(buildRequestBody(finalMessages, false)),
+          body: JSON.stringify(synthesisBody),
         });
 
         if (!finalResponse.ok) {
@@ -1239,14 +1266,41 @@ async function handleGatewayRequest(
         });
       }
 
-      // No tool calls — re-do as streaming
-      // (We already have the non-streaming response, convert it to SSE format)
-      const content = choice?.message?.content || '';
-      const sseChunk = `data: ${JSON.stringify({ choices: [{ delta: { content }, index: 0 }] })}\n\ndata: [DONE]\n\n`;
-      return new Response(sseChunk, {
-        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
-      });
+      const directContent = choice?.message?.content;
+      if (typeof directContent === 'string' && directContent.trim()) {
+        const sseChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: directContent }, index: 0 }] })}\n\ndata: [DONE]\n\n`;
+        return new Response(sseChunk, {
+          headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+        });
+      }
+
+      console.warn('[knowledge-chat] Tool planning returned no usable content', JSON.stringify({ finish_reason: choice?.finish_reason, native_finish_reason: choice?.native_finish_reason }));
+    } else {
+      const errText = await checkResponse.text();
+      console.error('AI gateway tool planning error:', checkResponse.status, errText);
     }
+
+    const fallbackResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(buildRequestBody(messages, false)),
+    });
+
+    if (!fallbackResponse.ok) {
+      const errText = await fallbackResponse.text();
+      console.error('AI gateway fallback response error:', fallbackResponse.status, errText);
+      return new Response(
+        JSON.stringify({ error: `AI gateway error (${fallbackResponse.status})` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(fallbackResponse.body, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+    });
   }
 
   return new Response(response.body, {
