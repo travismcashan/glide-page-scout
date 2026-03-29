@@ -178,7 +178,7 @@ function detectSources(text: string): string[] {
 
 function UserBubbleContent({ content, attachmentNames }: { content: string; attachmentNames?: string[] }) {
   const [expanded, setExpanded] = useState(false);
-  const MAX_HEIGHT = 72; // ~3 lines
+  const MAX_HEIGHT = 120; // ~5 lines
   const contentRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -192,7 +192,7 @@ function UserBubbleContent({ content, attachmentNames }: { content: string; atta
     <>
       <div
         ref={contentRef}
-        className={`whitespace-pre-wrap overflow-hidden transition-all ${!expanded && isOverflowing ? 'max-h-[72px]' : ''}`}
+        className={`whitespace-pre-wrap overflow-hidden transition-all ${!expanded && isOverflowing ? 'max-h-[120px]' : ''}`}
         style={!expanded && isOverflowing ? { WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' } : undefined}
       >
         {content}
