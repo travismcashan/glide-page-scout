@@ -210,7 +210,6 @@ export function calculateTaskFromFormula(
     return { hpp, total: Math.round(hpp * roleCount * 100) / 100 };
   }
 
-  const size = deriveProjectSize(variables);
   const complexity = deriveProjectComplexity(variables);
   const pages = variables.pages_for_integration ?? 20;
   const layouts = variables.design_layouts ?? 5;
