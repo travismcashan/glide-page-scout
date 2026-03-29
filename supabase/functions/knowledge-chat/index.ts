@@ -112,17 +112,7 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 
 **Universal API Proxy**: You have a call_api tool that can make authenticated requests to any configured service. Currently supported: harvest, asana. You can call ANY endpoint on their APIs.
 
-Harvest API (https://help.getharvest.com/api-v2/):
-- GET /projects — list projects (params: is_active=true/false, per_page)
-- GET /projects/{id} — single project details
-- GET /time_entries — time entries (params: from, to, project_id, user_id, per_page)
-- GET /reports/time/projects — project time summary (params: from, to)
-- GET /reports/time/clients — client time summary
-- GET /clients — list clients
-- GET /invoices — invoices (params: from, to, state, client_id)
-- GET /expenses — expenses
-- GET /users — users; GET /users/me — current user
-- GET /tasks — task types; GET /roles — roles
+**CRITICAL RULE FOR LIVE DATA**: When the user asks about projects, time entries, budgets, hours, invoices, expenses, or ANY data that lives in Harvest or Asana, you MUST use the call_api tool to fetch the real data. NEVER guess, estimate, or infer numbers from documentation or past context. If the tool call fails, tell the user it failed — do not fabricate a response with made-up numbers. If you need data you don't have, make additional tool calls to get it.
 
 Asana API (https://developers.asana.com/reference/):
 - GET /workspaces — list workspaces
@@ -133,6 +123,18 @@ Asana API (https://developers.asana.com/reference/):
 - GET /tags — tags (params: workspace)
 
 Use call_api with: service, method (GET/POST/etc), path, params (query string), body (for POST/PUT). Chain calls as needed.
+
+${harvestApiDocs ? `\n--- HARVEST API REFERENCE DOCUMENTATION ---\nUse this documentation to construct correct call_api requests for the "harvest" service. All paths are relative (e.g. /projects, /time_entries) — the base URL is handled automatically.\n\n${harvestApiDocs}\n--- END HARVEST API DOCS ---\n` : `Harvest API (https://help.getharvest.com/api-v2/):
+- GET /projects — list projects (params: is_active=true/false, per_page)
+- GET /projects/{id} — single project details
+- GET /time_entries — time entries (params: from, to, project_id, user_id, per_page)
+- GET /reports/time/projects — project time summary (params: from, to)
+- GET /reports/time/clients — client time summary
+- GET /clients — list clients
+- GET /invoices — invoices (params: from, to, state, client_id)
+- GET /expenses — expenses
+- GET /users — users; GET /users/me — current user
+- GET /tasks — task types; GET /roles — roles`}
 
 **Presentation Generation**: You can generate Beautiful.ai presentations using the generate_presentation tool. When the user asks to create a presentation, deck, or slides:
 - Craft a detailed, descriptive prompt based on the user's request and any available audit/context data
