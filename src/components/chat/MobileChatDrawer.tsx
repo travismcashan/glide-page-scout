@@ -124,13 +124,13 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
             </SheetTrigger>
             <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0 border-none bg-background flex flex-col">
               {/* Global Nav */}
-              <nav className="px-6 pt-14 pb-4 flex flex-col border-b border-border/30">
+              <nav className="px-6 pt-12 pb-2 flex flex-col border-b border-border/30">
                 {NAV_ITEMS.map((item) => (
                   <button
                     key={item.to}
                     onClick={() => { navigate(item.to); setOpen(false); }}
                     className={cn(
-                      'text-left text-lg font-semibold py-2 transition-colors tracking-tight',
+                      'text-left text-base font-semibold py-1.5 transition-colors tracking-tight',
                       'text-foreground/40 active:text-foreground',
                       isNavActive(item) && 'text-foreground'
                     )}
