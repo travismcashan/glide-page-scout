@@ -1142,7 +1142,7 @@ async function handleGatewayRequest(
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(buildRequestBody(messages, enableTools)),
+    body: JSON.stringify(buildRequestBody(messages, hasAnyTool)),
   });
 
   if (!response.ok) {
@@ -1167,7 +1167,7 @@ async function handleGatewayRequest(
   }
 
   // If tools are enabled, we need to check for tool calls (non-streaming first pass)
-  if (enableTools) {
+  if (hasAnyTool && filteredTools.length > 0) {
     // Do a non-streaming request to check for tool calls
     const nonStreamBody = buildRequestBody(messages, true);
     nonStreamBody.stream = false;
