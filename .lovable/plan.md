@@ -1,79 +1,81 @@
 
 
-# Add `is_required` Column and Task Type Column to All Tasks Table
+# Rethinking the Estimate Model: Base Cost + Percentage Phases
 
-## Context
+## The Insight
 
-The Excel master list has a "SOW" checkbox column where formula-driven tasks are locked (required — can't be unchecked). We need to replicate this behavior and add a visible "Type" column showing the calculation method for each task.
+Right now every task has its own formula, but conceptually there are really three categories:
 
-## What Changes
+### 1. Base Tasks (Fixed Cost Floor)
+Tasks that happen on every project regardless of size. If you set every variable to 1, these are your floor. Examples:
+- Strategy Workshop (KOC): 0.5-1.5h
+- Strategy Review: 0.5-1h
+- Toolkit Outline: 0.5-1.5h
+- Heuristic Evaluation: 0.5h
+- Many size-based tasks at their "Small" value
 
-### 1. Database Migration
+The base model = sum of all required tasks calculated with minimum variables. This gives you the "it costs at least $X to do any project" number.
 
-Add `is_required` boolean column to both `master_tasks` and `estimate_tasks`:
+### 2. Scaling Tasks (Variable-Driven)
+Tasks whose hours grow with layouts, pages, personas, forms, etc. These are the meat of the estimate — CSS/HTML/JS, WordPress Dev, Content Integration, etc. The difference between a $50K and $150K project lives here.
 
-```sql
-ALTER TABLE public.master_tasks ADD COLUMN is_required boolean NOT NULL DEFAULT false;
-ALTER TABLE public.estimate_tasks ADD COLUMN is_required boolean NOT NULL DEFAULT false;
+### 3. Percentage Phases (PM & QA)
+PM and QA work scales with project size, but it's really proportional to the total effort, not to any single variable. Currently:
+- **Admin Hours** is already 6% of total (percentage model)
+- **DoneDone Management** uses `bySizeNum * 8` which is a rough proxy
+- **QA tasks** (QA Forms, Proof Reading) scale with pages/forms individually
+- **PM tasks** (Timeline, KOC Prep) use size buckets
+
+Converting PM and QA to percentage-of-subtotal would be simpler and more accurate.
+
+## Proposed Changes
+
+### 1. Add percentage-based phase calculation
+
+Instead of individual task formulas for PM and QA phases, calculate each phase as a percentage of the "core work" subtotal (Strategy + Design + Build + Content + Optimization hours):
+
+| Phase | Percentage | Rationale |
+|-------|-----------|-----------|
+| Project Management | ~8-10% | Includes Timeline, KOC, Admin Hours |
+| QA | ~6-8% | Includes DoneDone, Proof Reading, QA Forms |
+
+The individual tasks within PM/QA would still exist in the task list, but their hours would be distributed proportionally (or the phase total is set and tasks within are weighted shares of it).
+
+### 2. Expose the "Base Model" concept
+
+Add a derived value or info card showing the **minimum project cost** — calculated by running every required/formula task with all variables at their smallest meaningful value (layouts=1, pages=1, personas=1, etc.). This gives the user a clear floor price.
+
+### 3. Update `estimateFormulas.ts`
+
+- New function: `calculatePhaseAsPercentage(phaseName, coreSubtotal)` that returns total hours for PM or QA
+- Modify `recalculateAllTasks` to do a multi-pass: (1) calculate core phases, (2) calculate PM/QA as percentages, (3) distribute PM/QA hours across their constituent tasks
+- New function: `calculateBaseModel(variables)` that computes the floor cost with minimum inputs
+
+### 4. Update Variables/Scope UI
+
+- Add a "Base Model" display showing the minimum project cost
+- Add PM % and QA % as editable variables (defaulting to 8% and 6%) so the user can tune them
+- Keep individual PM/QA tasks visible but mark them as "phase-distributed"
+
+## Technical Detail
+
+```text
+Pass 1: Calculate Strategy + Design + Build + Content + Optimization
+         ↓ core_subtotal
+Pass 2: PM_hours = core_subtotal × pm_percentage
+         QA_hours = core_subtotal × qa_percentage
+Pass 3: Distribute PM_hours across PM tasks (weighted by current ratios)
+         Distribute QA_hours across QA tasks (weighted by current ratios)
+Pass 4: Admin Hours = total × 6% (stays as-is, or folds into PM%)
 ```
 
-### 2. Seed Required Tasks
+### Files Changed
 
-Based on the formula engine in `estimateFormulas.ts`, every task that matches `isFormulaTask()` is formula-driven and should be marked `is_required = true`. This covers ~60 tasks across all phases including:
-- Project Management: Timeline, KOC Prep, Admin Hours
-- Strategy: Current Site Review, Content Inventory, Content Audit, Competitor Review, SEO Insights, etc.
-- Design: Client Design Review, Internal Page SFs/Layouts, Responsive, Revisions, etc.
-- Build: CSS/HTML/JS, WordPress Development, Performance Optimization, Quality Assurance, etc.
-- Content: Content Integration, Bulk Import, Form Integration, etc.
-- QA: DoneDone Management, Proof Reading, QA Forms
-- Optimization: 301 Redirect Setup, Technical On-Page SEO, etc.
-
-All non-formula tasks remain `is_required = false` (optional/toggleable).
-
-### 3. Add Task Calc Type Function (`estimateFormulas.ts`)
-
-New exported function `getTaskCalcType(taskName)` that returns one of:
-- `"size"` — Size-based (S/M/L)
-- `"complexity"` — Complexity-based
-- `"variable"` — Variable × rate (qty-driven)
-- `"scope"` — Scope-variable-driven (layouts, pages, personas, etc.)
-- `"percentage"` — Percentage-based (Admin Hours)
-- `"conditional"` — Conditional/lookup (paid discovery, bulk import settings)
-- `"manual"` — Manually editable (no formula match)
-
-This maps every task in `calculateTaskFromXlsx` to its category.
-
-### 4. Update `EstimateTask` Interface (`EstimateTaskRow.tsx`)
-
-Add `is_required?: boolean` to the interface.
-
-### 5. Update `EstimateTaskTable.tsx`
-
-- Add a "Type" column showing the calc type badge (color-coded, abbreviated)
-- For `is_required` tasks: checkbox is checked + `disabled` + gray styling
-- Ensure `is_required` tasks can never be unchecked regardless of user interaction
-
-### 6. Update `EstimateTaskRow.tsx`
-
-Same `is_required` checkbox behavior for the card view.
-
-### 7. Update `EstimateBuilderCard.tsx`
-
-- When creating estimates from master tasks, copy `is_required` into estimate tasks
-- When toggling, skip if `is_required` is true
-- Pass `is_required` through to table/row components
-
-## Technical Details
-
-The Type column badges will use short labels and subtle colors:
-
-| Type | Label | Color |
-|------|-------|-------|
-| size | Size | blue |
-| complexity | Cmplx | purple |
-| variable | Var | amber |
-| scope | Scope | green |
-| percentage | % | orange |
-| conditional | Cond | teal |
-| manual | Manual | gray |
+| File | Change |
+|------|--------|
+| `estimateFormulas.ts` | Add `calculatePhaseAsPercentage()`, `calculateBaseModel()`, update `recalculateAllTasks` for multi-pass |
+| `EstimateVariablesTab.tsx` | Add PM % and QA % sliders/inputs |
+| `EstimateBuilderCard.tsx` | Pass new percentage variables through, add base model calculation |
+| DB migration | Add `pm_percentage` (default 8) and `qa_percentage` (default 6) columns to `project_estimates` |
+| Scope tab UI | Add "Base Model" display card showing floor cost |
 
