@@ -169,6 +169,7 @@ export function deriveProjectComplexity(v: EstimateVariables): string {
 
 // ─── Internal Calculation Helpers ──────────────────────────────────
 
+/** @deprecated kept for backward compat if any old data uses size tiers */
 function bySizeNum(size: string, small: number, medium: number, large: number): number {
   if (size === 'Small') return small;
   if (size === 'Large') return large;
@@ -336,10 +337,6 @@ export function describeFormula(fc: FormulaConfig | null | undefined): string {
     case 'variable': {
       const driver = getDriver(fc);
       switch (fc.calc_type) {
-        case 'size':
-          return `S:${fc.small} M:${fc.medium} L:${fc.large}`;
-        case 'size_multiplied':
-          return `S:${fc.small} M:${fc.medium} L:${fc.large} ×${fc.multiplier}`;
         case 'complexity':
           return `Simple:${fc.simple} Mod:${fc.moderate} Complex:${fc.complex}`;
         case 'scope':
