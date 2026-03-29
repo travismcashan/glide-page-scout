@@ -817,7 +817,46 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         </DialogContent>
       </Dialog>
 
-      <div>
+      {/* Add URL modal */}
+      <Dialog open={urlModalOpen} onOpenChange={(open) => { if (!urlSubmitting) setUrlModalOpen(open); }}>
+        <DialogContent className="sm:max-w-xl [&>button:last-child]:hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Add URL
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="url-input" className="text-sm">Web page URL</Label>
+              <Input
+                id="url-input"
+                placeholder="https://docs.example.com/api-reference"
+                value={urlInput}
+                onChange={e => setUrlInput(e.target.value)}
+                disabled={urlSubmitting}
+                onKeyDown={e => { if (e.key === 'Enter' && !urlSubmitting) handleUrlSubmit(); }}
+              />
+              <p className="text-xs text-muted-foreground">
+                The page will be scraped and its content indexed into your knowledge base.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setUrlModalOpen(false)} disabled={urlSubmitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleUrlSubmit} disabled={urlSubmitting || !urlInput.trim()}>
+                {urlSubmitting ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Scraping…</>
+                ) : (
+                  'Scrape & Index'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
