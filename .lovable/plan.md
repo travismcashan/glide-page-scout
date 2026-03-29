@@ -1,66 +1,41 @@
 
+Goal
 
-# Add API/Platform Sources to Chat References
+Remove the visible mobile “box”/tone shift behind the rotating homepage verb with the safest fix path: a clean solid-color mobile treatment instead of the multicolor clipped gradient.
 
-## What's Happening Now
-When the AI uses `call_api` to fetch data from Harvest or Asana, the tool calls are tracked internally (`allToolResults`) but never surfaced to the user as sources. The references block only shows RAG documents, integration sources, and web citations.
+What I found
 
-Additionally, when the tool-call path is taken (multi-step agentic loop), the backend returns the synthesis stream **without prepending metadata events** — so even existing RAG docs and web citations are lost on tool-call responses.
+- In `src/pages/CrawlPage.tsx`, the rotating word sits inside a fixed-size `overflow-hidden` wrapper and is animated with `AnimatePresence` / `motion.span`.
+- The word itself uses `.rainbow-text` from `src/index.css`, which relies on `background-clip: text`, transparent text fill, and an animated gradient.
+- On mobile browsers, especially Safari/WebKit, that combo is a common source of rectangular compositing artifacts. The screenshot lines up with that exact word container.
+- You selected the safest direction: clean solid color.
 
-## Changes
+Implementation plan
 
-### 1. Backend: Emit API sources as ragDocuments (`knowledge-chat/index.ts`)
-After the tool-call loop completes (around line 1287), before the synthesis pass:
-- Iterate `allToolResults` and create deduplicated API source entries
-- For each `call_api` call, extract the `service` (harvest/asana) and `path` from args
-- Push entries like `{ name: "Harvest: /projects", source_type: "api" }` into `ragDocuments`
-- Prepend metadata events (rag_documents, web_citations) to the synthesis stream response — currently only the non-tool path does this
+1. Split the headline verb into desktop and mobile render paths in `src/pages/CrawlPage.tsx`.
+   - Desktop keeps the current multicolor treatment.
+   - Mobile gets a plain solid brand color.
 
-### 2. Frontend: New "api" source type + display order (`KnowledgeChatCard.tsx`)
-- Add `api: '🔌'` to `SOURCE_TYPE_ICONS`
-- In `ReferencesBlock`, split ragDocuments into two groups: API sources (`source_type === 'api'`) and regular documents
-- Render API sources first under a "Live Data" heading, then documents under "Documents"
-- Show the service name prominently (e.g., "Harvest: /projects/12345") with the path as secondary text
+2. Simplify the mobile rotating word rendering.
+   - Remove the `rainbow-text` class from the mobile version.
+   - Use a normal text color such as `text-primary`.
+   - Keep the rotation effect, but use a simpler mobile-safe animation so it still feels polished.
 
-## Technical Details
+3. Make the mobile word container more stable.
+   - Replace the current absolute/overflow-heavy mobile setup with a simpler inline-block/min-width container.
+   - Preserve the current two-line headline layout so the word still fits cleanly without wrapping weirdly.
 
-**Backend** — after the `for` loop that gathers `allToolResults` (~line 1284):
-```typescript
-// Derive API sources from tool calls
-const apiSourcesSeen = new Set<string>();
-for (const tr of allToolResults) {
-  if (tr.toolName === 'call_api') {
-    try {
-      const a = JSON.parse(tr.args);
-      const key = `${a.service}:${a.path}`;
-      if (!apiSourcesSeen.has(key)) {
-        apiSourcesSeen.add(key);
-        const label = (a.service || 'API').charAt(0).toUpperCase() + (a.service || 'api').slice(1);
-        ragDocuments.push({ name: `${label}: ${a.path}`, source_type: 'api' });
-      }
-    } catch {}
-  }
-}
-```
+4. Keep the gradient style isolated.
+   - Leave `.rainbow-text` available for desktop and any other existing uses.
+   - Avoid global CSS changes that could affect unrelated pages.
 
-Then wrap the synthesis response with `prependMetadata()` (line 1332):
-```typescript
-return prependMetadata(new Response(finalResponse.body, {
-  headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
-}));
-```
+5. Verify against the exact failure case.
+   - Check the homepage at the current mobile width (`375px`) and a nearby width (`390px`).
+   - Confirm the box/tone shift is gone both when the word is still and while it transitions.
+   - Confirm the headline still feels large, readable, and aligned with the rest of the site.
 
-**Frontend** — `ReferencesBlock` updated render order:
-```
-Live Data (API sources)  ← new section, shown first
-  🔌 Harvest: /projects
-  🔌 Harvest: /time_entries?project_id=123
-Documents               ← existing section
-  📄 Harvest API Docs
-Web                     ← existing section
-```
+Technical detail
 
-### Files Modified
-- `supabase/functions/knowledge-chat/index.ts` — emit API tool calls as sources + prepend metadata on tool-call path
-- `src/components/KnowledgeChatCard.tsx` — add "api" icon, reorder ReferencesBlock sections
-
+- Likely root cause: `background-clip: text` + transparent fill + animated gradient + motion/overflow clipping on mobile WebKit.
+- Lowest-risk fix: stop using clipped gradient text for this one mobile element instead of trying to keep patching Safari rendering quirks.
+- Files likely affected: `src/pages/CrawlPage.tsx` and possibly `src/index.css`.
