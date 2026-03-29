@@ -129,11 +129,11 @@ export default function AppHeader() {
             </SheetTrigger>
             <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0 border-none bg-background flex flex-col overflow-y-auto">
               {/* Nav section */}
-              <nav className="flex-1 flex flex-col px-6 pt-14 pb-6">
+              <nav className="flex-1 flex flex-col px-6 pt-12 pb-4">
                 <button
                   onClick={() => { navigate('/'); setMobileOpen(false); }}
                   className={cn(
-                    'text-left text-lg font-semibold py-2.5 transition-colors tracking-tight',
+                    'text-left text-base font-semibold py-1.5 transition-colors tracking-tight',
                     'text-foreground/40 active:text-foreground',
                     location.pathname === '/' && 'text-foreground'
                   )}
@@ -145,7 +145,7 @@ export default function AppHeader() {
                     key={item.to}
                     onClick={() => { navigate(item.to); setMobileOpen(false); }}
                     className={cn(
-                      'text-left text-lg font-semibold py-2.5 transition-colors tracking-tight',
+                      'text-left text-base font-semibold py-1.5 transition-colors tracking-tight',
                       'text-foreground/40 active:text-foreground',
                       isNavActive(item) && 'text-foreground'
                     )}
