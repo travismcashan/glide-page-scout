@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain, RefreshCw } from 'lucide-react';
+import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2, CalendarDays, FileText, Trash2, ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen, Code, Brain, RefreshCw, Calculator } from 'lucide-react';
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateTaskTable } from './EstimateTaskTable';
+import { EstimateFormulasTab } from './EstimateFormulasTab';
 
 import { recalculateAllTasks, calculateBaseModel, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
@@ -565,6 +566,9 @@ function getProjectDuration(totalHours: number): string {
                 <TabsTrigger value="sow" className="gap-1.5 text-xs">
                   <FileText className="h-3.5 w-3.5" />SOW View
                 </TabsTrigger>
+                <TabsTrigger value="formulas" className="gap-1.5 text-xs">
+                  <Calculator className="h-3.5 w-3.5" />Formulas
+                </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2">
                 {saveStatus === 'saving' && (
@@ -859,6 +863,31 @@ function getProjectDuration(totalHours: number): string {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="formulas">
+              <EstimateFormulasTab
+                pmPercentage={estimate?.pm_percentage ?? 8}
+                qaPercentage={estimate?.qa_percentage ?? 6}
+                blendedRate={tasks.length > 0 ? Number(tasks[0].hourly_rate || 150) : 150}
+                onPmPercentageChange={(val) => {
+                  if (!estimate) return;
+                  const updated = { ...estimate, pm_percentage: val };
+                  setEstimate(updated);
+                  const updatedTasks = recalculateAllTasks(tasks, updated, formulas);
+                  setTasks(updatedTasks as EstimateTask[]);
+                }}
+                onQaPercentageChange={(val) => {
+                  if (!estimate) return;
+                  const updated = { ...estimate, qa_percentage: val };
+                  setEstimate(updated);
+                  const updatedTasks = recalculateAllTasks(tasks, updated, formulas);
+                  setTasks(updatedTasks as EstimateTask[]);
+                }}
+                onBlendedRateChange={(val) => {
+                  setTasks(tasks.map(t => ({ ...t, hourly_rate: val })) as EstimateTask[]);
+                }}
+              />
             </TabsContent>
           </div>
 
