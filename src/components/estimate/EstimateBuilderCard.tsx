@@ -855,6 +855,7 @@ function getProjectDuration(totalHours: number): string {
             <TabsContent value="formulas">
               <EstimateFormulasTab
                 tasks={tasks}
+                estimate={estimate}
                 pmPercentage={estimate?.pm_percentage ?? 8}
                 qaPercentage={estimate?.qa_percentage ?? 6}
                 blendedRate={tasks.length > 0 ? Number(tasks[0].hourly_rate || 150) : 150}

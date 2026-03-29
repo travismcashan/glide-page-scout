@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calculator, Percent, DollarSign, Search, Layers } from 'lucide-react';
-import { type FormulaConfig, type CalcMode, getCalcMode, getDriver, describeFormula } from '@/lib/estimateFormulas';
+import { type FormulaConfig, type CalcMode, type EstimateVariables, getCalcMode, getDriver, describeFormula } from '@/lib/estimateFormulas';
 
 interface TaskWithFormula {
   task_name: string;
