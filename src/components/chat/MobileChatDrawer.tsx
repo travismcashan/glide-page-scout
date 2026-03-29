@@ -88,8 +88,14 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="md:hidden flex items-center justify-between px-4 h-12 border-b border-border bg-background sticky top-[55px] z-30">
+      <div className="md:hidden flex flex-col sticky top-[55px] z-30">
+        {/* Logo bar */}
+        <div className="flex items-center justify-center px-4 py-2 bg-background border-b border-border/50">
+          <ProductIcon className="h-6 w-6 text-primary mr-2" />
+          <span className="text-sm font-semibold tracking-tight">{currentProduct.fullName}</span>
+        </div>
+        {/* Nav bar */}
+        <div className="flex items-center justify-between px-4 h-12 border-b border-border bg-background">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button className="p-0 bg-transparent border-none">
