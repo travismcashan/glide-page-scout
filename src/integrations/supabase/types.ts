@@ -717,6 +717,7 @@ export type Database = {
           default_included: boolean
           default_variable_qty: number | null
           display_order: number
+          formula_config: Json | null
           hours_per_person: number
           id: string
           is_required: boolean
@@ -732,6 +733,7 @@ export type Database = {
           default_included?: boolean
           default_variable_qty?: number | null
           display_order?: number
+          formula_config?: Json | null
           hours_per_person?: number
           id?: string
           is_required?: boolean
@@ -747,6 +749,7 @@ export type Database = {
           default_included?: boolean
           default_variable_qty?: number | null
           display_order?: number
+          formula_config?: Json | null
           hours_per_person?: number
           id?: string
           is_required?: boolean
