@@ -253,6 +253,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
             variable_label: task.variable_label || null,
             variable_qty: task.default_variable_qty || null,
             formula_config: task.formula_config || null,
+            task_type: task.task_type || 'task',
           };
         });
 
