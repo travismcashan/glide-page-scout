@@ -1,81 +1,49 @@
 
 
-# Rethinking the Estimate Model: Base Cost + Percentage Phases
+# Fix Base Model Calculation — Why It Shows $50K
 
-## The Insight
+## Root Cause
 
-Right now every task has its own formula, but conceptually there are really three categories:
+Three bugs in `calculateBaseModel()`:
 
-### 1. Base Tasks (Fixed Cost Floor)
-Tasks that happen on every project regardless of size. If you set every variable to 1, these are your floor. Examples:
-- Strategy Workshop (KOC): 0.5-1.5h
-- Strategy Review: 0.5-1h
-- Toolkit Outline: 0.5-1.5h
-- Heuristic Evaluation: 0.5h
-- Many size-based tasks at their "Small" value
+1. **`variable_qty` not reset to minimum** — Tasks like Design Thinking Workshop (qty×1×4 roles), Interviews (qty×2.5), Focus Groups (qty×6×2 roles) keep their current quantities instead of being set to 1. This alone could add 50+ hours.
 
-The base model = sum of all required tasks calculated with minimum variables. This gives you the "it costs at least $X to do any project" number.
+2. **Filter includes optional selected tasks** — The filter `is_selected && is_required` catches tasks the user has toggled ON that have `is_required: true` but `default_included: false` (e.g., Interviews, Focus Groups, Empathy Map, Scenario Map). The base model should only include tasks that are `default_included: true` — the minimum scope.
 
-### 2. Scaling Tasks (Variable-Driven)
-Tasks whose hours grow with layouts, pages, personas, forms, etc. These are the meat of the estimate — CSS/HTML/JS, WordPress Dev, Content Integration, etc. The difference between a $50K and $150K project lives here.
+3. **DoneDone Management formula is extreme** — `bySizeNum(size, 1, 3, 4.5) * 8` = 8 hours even at Small. This is a QA task that should now be handled by the percentage-based QA phase, but it's getting double-counted (once via formula, once via QA percentage distribution).
 
-### 3. Percentage Phases (PM & QA)
-PM and QA work scales with project size, but it's really proportional to the total effort, not to any single variable. Currently:
-- **Admin Hours** is already 6% of total (percentage model)
-- **DoneDone Management** uses `bySizeNum * 8` which is a rough proxy
-- **QA tasks** (QA Forms, Proof Reading) scale with pages/forms individually
-- **PM tasks** (Timeline, KOC Prep) use size buckets
+## Expected Base Model (corrected)
 
-Converting PM and QA to percentage-of-subtotal would be simpler and more accurate.
+With vars at 1, size=Small, complexity=Simple, only default_included tasks:
+- Strategy: ~20h (fixed size-based tasks + multi-role)
+- Design: ~15h (layouts at 1 minimizes most tasks)  
+- Build: ~37h (fixed complexity floors like Standard Plugins 8h, Custom 4h, Special 6h, Perf 6h + layout-driven at 1)
+- Content: ~1h (pages=1, bulk=none)
+- Review: ~0.2h
+- Optimization: ~11h (301s=2h, SEO=4h, Alt=4h, Resolve=1h)
+- PM/QA at 14%: ~12h
+- Admin: ~6h
 
-## Proposed Changes
+**Total: ~102h × $150 = ~$15,300** — a reasonable floor price.
 
-### 1. Add percentage-based phase calculation
+## Changes
 
-Instead of individual task formulas for PM and QA phases, calculate each phase as a percentage of the "core work" subtotal (Strategy + Design + Build + Content + Optimization hours):
+### `src/lib/estimateFormulas.ts` — `calculateBaseModel()`
 
-| Phase | Percentage | Rationale |
-|-------|-----------|-----------|
-| Project Management | ~8-10% | Includes Timeline, KOC, Admin Hours |
-| QA | ~6-8% | Includes DoneDone, Proof Reading, QA Forms |
+1. Reset all `variable_qty` to 1 on each task before passing to recalculate
+2. Change filter from `is_selected && is_required` to `(t as any).default_included !== false && is_required` — or better, add a `default_included` field to the task type and filter on it
+3. Since tasks in the estimate don't carry `default_included`, use a simpler approach: filter by `is_required` only, and force `variable_qty = 1`
 
-The individual tasks within PM/QA would still exist in the task list, but their hours would be distributed proportionally (or the phase total is set and tasks within are weighted shares of it).
+### `src/components/estimate/EstimateBuilderCard.tsx`
 
-### 2. Expose the "Base Model" concept
+Pass `default_included` from master task data through to the tasks array so the base model can filter properly. Or: query master tasks for their `default_included` flag.
 
-Add a derived value or info card showing the **minimum project cost** — calculated by running every required/formula task with all variables at their smallest meaningful value (layouts=1, pages=1, personas=1, etc.). This gives the user a clear floor price.
+### Alternative (simpler)
 
-### 3. Update `estimateFormulas.ts`
+Since base model = "absolute minimum project cost", just:
+- Reset variable_qty to 1 on all tasks
+- Filter to `is_required` only (ignore `is_selected`)
+- This gives the true floor regardless of what the user has toggled
 
-- New function: `calculatePhaseAsPercentage(phaseName, coreSubtotal)` that returns total hours for PM or QA
-- Modify `recalculateAllTasks` to do a multi-pass: (1) calculate core phases, (2) calculate PM/QA as percentages, (3) distribute PM/QA hours across their constituent tasks
-- New function: `calculateBaseModel(variables)` that computes the floor cost with minimum inputs
-
-### 4. Update Variables/Scope UI
-
-- Add a "Base Model" display showing the minimum project cost
-- Add PM % and QA % as editable variables (defaulting to 8% and 6%) so the user can tune them
-- Keep individual PM/QA tasks visible but mark them as "phase-distributed"
-
-## Technical Detail
-
-```text
-Pass 1: Calculate Strategy + Design + Build + Content + Optimization
-         ↓ core_subtotal
-Pass 2: PM_hours = core_subtotal × pm_percentage
-         QA_hours = core_subtotal × qa_percentage
-Pass 3: Distribute PM_hours across PM tasks (weighted by current ratios)
-         Distribute QA_hours across QA tasks (weighted by current ratios)
-Pass 4: Admin Hours = total × 6% (stays as-is, or folds into PM%)
-```
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| `estimateFormulas.ts` | Add `calculatePhaseAsPercentage()`, `calculateBaseModel()`, update `recalculateAllTasks` for multi-pass |
-| `EstimateVariablesTab.tsx` | Add PM % and QA % sliders/inputs |
-| `EstimateBuilderCard.tsx` | Pass new percentage variables through, add base model calculation |
-| DB migration | Add `pm_percentage` (default 8) and `qa_percentage` (default 6) columns to `project_estimates` |
-| Scope tab UI | Add "Base Model" display card showing floor cost |
+This is the cleaner approach — the base model shouldn't change based on user selections.
 
