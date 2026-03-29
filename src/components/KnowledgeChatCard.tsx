@@ -2626,8 +2626,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         style={{ left: `${sidebarWidth}px`, paddingBottom: '18px' }}
       >
       <div
-        className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
-        style={{ paddingLeft: window.innerWidth < 640 ? 16 : 30, paddingRight: window.innerWidth < 640 ? 16 : 30 }}
+        className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto px-4 sm:px-[30px] ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
