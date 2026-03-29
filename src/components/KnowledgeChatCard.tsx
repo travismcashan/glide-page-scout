@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X, Presentation } from 'lucide-react';
+import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X, Presentation, MoreHorizontal, Cpu } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -2626,8 +2626,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         style={{ left: `${sidebarWidth}px`, paddingBottom: '18px' }}
       >
       <div
-        className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
-        style={{ paddingLeft: 30, paddingRight: 30 }}
+        className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto px-4 sm:px-[30px] ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -2713,8 +2712,129 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           onChange={(val) => setHasInputText(!!val?.trim())}
         />
 
-        {/* Toolbar row */}
-        <div className="flex items-center gap-1 pt-1 pb-1" style={{ marginLeft: -11 }}>
+        {/* ── Mobile toolbar ── */}
+        <div className="flex sm:hidden items-center gap-0.5 pt-1.5 pb-0.5 -mx-1">
+          <ChatFileUpload
+            attachments={attachments}
+            setAttachments={setAttachments}
+            disabled={isStreaming}
+            onHandleFilesRef={handleFilesRef}
+            sessionId={session.id}
+          />
+
+          {/* Sources / settings */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted text-muted-foreground"
+                style={{ width: 40, height: 40 }}
+                disabled={isStreaming}
+              >
+                <SlidersHorizontal className="h-5 w-5" strokeWidth={1.5} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3 rounded-2xl" align="start" side="top" sideOffset={10}>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Sources</p>
+                  <button className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left" onClick={() => setSearchSources(prev => ({ ...prev, documents: !prev.documents }))}>
+                    <span className="flex items-center gap-2"><FileText className="h-3.5 w-3.5 text-muted-foreground" />Documents</span>
+                    {searchSources.documents && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left" onClick={() => setSearchSources(prev => ({ ...prev, web: !prev.web }))}>
+                    <span className="flex items-center gap-2"><Globe className="h-3.5 w-3.5 text-muted-foreground" />Web</span>
+                    {searchSources.web && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  {!globalMode && (
+                    <button
+                      className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsLiveTools ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`}
+                      onClick={() => { if (!supportsLiveTools) { ensureToolCapableModel(); setSearchSources(prev => ({ ...prev, analytics: true })); } else { setSearchSources(prev => ({ ...prev, analytics: !prev.analytics })); } }}
+                    >
+                      <span className="flex items-center gap-2"><BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />Analytics</span>
+                      {supportsLiveTools && searchSources.analytics && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1 border-t pt-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Tools</p>
+                  <button className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsLiveTools ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`} onClick={() => { if (!supportsLiveTools) { ensureToolCapableModel(); setSearchSources(prev => ({ ...prev, harvest: true })); return; } setSearchSources(prev => ({ ...prev, harvest: !prev.harvest })); }}>
+                    <span className="flex items-center gap-2"><Gauge className="h-3.5 w-3.5 text-muted-foreground" />Harvest</span>
+                    {supportsLiveTools && searchSources.harvest && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsLiveTools ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`} onClick={() => { if (!supportsLiveTools) { ensureToolCapableModel(); setSearchSources(prev => ({ ...prev, asana: true })); return; } setSearchSources(prev => ({ ...prev, asana: !prev.asana })); }}>
+                    <span className="flex items-center gap-2"><Search className="h-3.5 w-3.5 text-muted-foreground" />Asana</span>
+                    {supportsLiveTools && searchSources.asana && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                </div>
+                <div className="space-y-1 border-t pt-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Modes</p>
+                  <button className={`flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left ${!deepResearchMode ? 'text-foreground' : 'text-muted-foreground'}`} onClick={() => setDeepResearchMode(false)}>
+                    <span className="flex items-center gap-2"><MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />Chat</span>
+                    {!deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button className={`flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left ${deepResearchMode ? 'text-primary' : 'text-foreground'}`} onClick={() => { setDeepResearchMode(true); if (provider !== 'gemini') onProviderChange('gemini'); }}>
+                    <span className="flex items-center gap-2"><Telescope className="h-3.5 w-3.5 text-muted-foreground" />Deep Research</span>
+                    {deepResearchMode && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                  </button>
+                  <button className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left text-foreground" onClick={() => { setDeepResearchMode(false); toast.info('Ask the AI to create a presentation and it will generate a Beautiful.ai deck for you.'); }}>
+                    <span className="flex items-center gap-2"><Presentation className="h-3.5 w-3.5 text-muted-foreground" />Presentation</span>
+                  </button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Add Site (global mode) */}
+          {globalMode && onSelectSite && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="shrink-0 rounded-full border-0 bg-transparent hover:bg-muted text-muted-foreground" style={{ width: 40, height: 40 }} disabled={isStreaming}>
+                  <Globe className="h-5 w-5" strokeWidth={1.5} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" sideOffset={10} className="w-64 max-h-80 overflow-y-auto">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1.5">Attach a Site</p>
+                {availableSites.length === 0 && <p className="text-xs text-muted-foreground px-2 py-3 text-center">No sites available.</p>}
+                {availableSites.map(site => {
+                  const alreadyAttached = attachedSites?.some(a => a.session_id === site.id);
+                  return (
+                    <DropdownMenuItem key={site.id} disabled={alreadyAttached} onClick={() => { if (!alreadyAttached) onSelectSite(site.id, site.domain); }} className="text-xs">
+                      <Globe className="h-3.5 w-3.5 mr-2 text-muted-foreground" /><span className="truncate">{site.domain}</span>
+                      {alreadyAttached && <span className="ml-auto text-muted-foreground text-[10px]">Added</span>}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Provider picker (icon-only on mobile) */}
+          <ChatProviderPicker provider={provider} model={selectedModel} onProviderChange={onProviderChange} disabled={isStreaming} />
+
+          {/* Reasoning picker (icon-only on mobile) */}
+          <ChatReasoningPicker model={selectedModel} reasoning={reasoning} onReasoningChange={onReasoningChange} disabled={isStreaming} />
+
+          {/* Send / Stop */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={isStreaming ? handleStop : () => deepResearchMode ? handleDeepResearchSend(chatInputRef.current?.getValue()?.trim() || '') : handleSend()}
+            disabled={!isStreaming && (attachments.some(a => a.parsing) || (attachments.length === 0 && !hasInputText))}
+            className={`shrink-0 rounded-full border-0 ml-auto ${isStreaming ? 'bg-foreground text-background hover:bg-foreground/90' : 'bg-foreground text-background hover:bg-foreground/90 disabled:opacity-30'}`}
+            style={{ width: 36, height: 36 }}
+          >
+            {isStreaming ? (
+              <Square className="h-3.5 w-3.5 fill-current" />
+            ) : (
+              <ArrowUp className="h-5 w-5" strokeWidth={2} />
+            )}
+          </Button>
+        </div>
+
+        {/* ── Desktop toolbar ── */}
+        <div className="hidden sm:flex items-center gap-1 pt-1 pb-1" style={{ marginLeft: -11 }}>
           {/* + Upload button */}
           <ChatFileUpload
             attachments={attachments}
@@ -2951,7 +3071,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           </div>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground/60 text-center pt-4 pb-0">AI can make mistakes. No chat data is used to train AI models.</p>
+      <p className="hidden sm:block text-xs text-muted-foreground/60 text-center pt-4 pb-0">AI can make mistakes. No chat data is used to train AI models.</p>
       </div>
       </div>
     </div>
