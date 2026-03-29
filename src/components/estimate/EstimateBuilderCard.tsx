@@ -357,6 +357,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
               complexity_score: estimate.complexity_score,
               template_tier: estimate.template_tier, page_tier: estimate.page_tier,
               content_tier: estimate.content_tier, tech_tier: estimate.tech_tier, forms_tier: estimate.forms_tier,
+              pm_percentage: estimate.pm_percentage ?? 8, qa_percentage: estimate.qa_percentage ?? 6,
             })
             .eq('id', estimate.id);
           if (estimateError) throw estimateError;
