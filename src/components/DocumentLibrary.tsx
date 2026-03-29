@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive, StickyNote, Wand2 } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive, StickyNote, Wand2, Globe } from 'lucide-react';
 import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,6 +90,9 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [noteTitle, setNoteTitle] = useState('');
   const [noteBody, setNoteBody] = useState('');
   const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [urlModalOpen, setUrlModalOpen] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [urlSubmitting, setUrlSubmitting] = useState(false);
   const [gridPreviewDoc, setGridPreviewDoc] = useState<KnowledgeDocument | null>(null);
   const [gridPreviewContent, setGridPreviewContent] = useState<string | null>(null);
   const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
@@ -435,6 +438,102 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     }
   };
 
+  const SCRAPE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/firecrawl-scrape`;
+
+  const handleUrlSubmit = async () => {
+    let url = urlInput.trim();
+    if (!url) { toast.error('Please enter a URL'); return; }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+
+    setUrlSubmitting(true);
+    try {
+      // Extract a display name from the URL
+      let displayName: string;
+      try { displayName = new URL(url).hostname + new URL(url).pathname; } catch { displayName = url; }
+      if (displayName.length > 120) displayName = displayName.slice(0, 117) + '…';
+
+      // Insert placeholder
+      const { data: inserted, error: insertErr } = await supabase
+        .from('knowledge_documents')
+        .insert({
+          session_id: sessionId,
+          name: displayName,
+          source_type: 'url',
+          source_key: url,
+          status: 'uploading',
+          char_count: 0,
+          chunk_count: 0,
+        })
+        .select('id')
+        .single();
+      if (insertErr || !inserted) { toast.error('Failed to create document'); setUrlSubmitting(false); return; }
+      fetchDocuments();
+
+      // Scrape via Firecrawl
+      const scrapeResp = await fetch(SCRAPE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ url, options: { formats: ['markdown'], onlyMainContent: true } }),
+      });
+
+      const scrapeResult = await scrapeResp.json().catch(() => null);
+      const markdown = scrapeResult?.data?.markdown || scrapeResult?.markdown || '';
+      const title = scrapeResult?.data?.metadata?.title || scrapeResult?.metadata?.title || '';
+
+      if (!markdown || markdown.length < 30) {
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'No content extracted from page' }).eq('id', inserted.id);
+        toast.error('Could not extract content from that URL');
+        fetchDocuments();
+        setUrlSubmitting(false);
+        return;
+      }
+
+      // Use page title as doc name if available
+      if (title) {
+        await supabase.from('knowledge_documents').update({ name: title }).eq('id', inserted.id);
+      }
+
+      // Ingest the markdown
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          documents: [{ document_id: inserted.id, name: title || displayName, content: markdown, source_type: 'url' }],
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      const ingestResult = result?.results?.[0];
+
+      if (!response.ok || ingestResult?.status === 'error') {
+        await supabase.from('knowledge_documents').update({
+          status: 'error',
+          error_message: ingestResult?.reason || 'Indexing failed',
+        }).eq('id', inserted.id);
+        toast.error('Failed to index page content');
+      } else {
+        toast.success(`Indexed "${title || displayName}" into knowledge base`);
+      }
+
+      setUrlInput('');
+      setUrlModalOpen(false);
+      fetchDocuments();
+    } catch (err) {
+      console.error('URL scrape error:', err);
+      toast.error('Failed to scrape URL');
+    } finally {
+      setUrlSubmitting(false);
+    }
+  };
+
   const RENAME_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rename-document`;
 
   const handleRenameAll = useCallback(async () => {
@@ -633,6 +732,10 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <StickyNote className="h-3.5 w-3.5 mr-1.5" />
           Add Note
         </Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => setUrlModalOpen(true)} disabled={uploading || urlSubmitting}>
+          <Globe className="h-3.5 w-3.5 mr-1.5" />
+          Add URL
+        </Button>
         {onIngestIntegrations && !ingesting && (
           <Button variant="outline" size="sm" onClick={onIngestIntegrations} disabled={uploading} title="Re-sync integration data">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
@@ -707,6 +810,46 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Adding…</>
                 ) : (
                   'Add to Knowledge Base'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add URL modal */}
+      <Dialog open={urlModalOpen} onOpenChange={(open) => { if (!urlSubmitting) setUrlModalOpen(open); }}>
+        <DialogContent className="sm:max-w-xl [&>button:last-child]:hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Add URL
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="url-input" className="text-sm">Web page URL</Label>
+              <Input
+                id="url-input"
+                placeholder="https://docs.example.com/api-reference"
+                value={urlInput}
+                onChange={e => setUrlInput(e.target.value)}
+                disabled={urlSubmitting}
+                onKeyDown={e => { if (e.key === 'Enter' && !urlSubmitting) handleUrlSubmit(); }}
+              />
+              <p className="text-xs text-muted-foreground">
+                The page will be scraped and its content indexed into your knowledge base.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setUrlModalOpen(false)} disabled={urlSubmitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleUrlSubmit} disabled={urlSubmitting || !urlInput.trim()}>
+                {urlSubmitting ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Scraping…</>
+                ) : (
+                  'Scrape & Index'
                 )}
               </Button>
             </div>

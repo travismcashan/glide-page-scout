@@ -37,6 +37,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   'google-drive': 'Google Drive',
   note: 'Note',
   gmail: 'Gmail',
+  url: 'Web Page',
 };
 
 export const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
