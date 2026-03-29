@@ -299,7 +299,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     if (!estimate) return;
     setTasks(tasks.map((t) => {
       if (t.id !== taskId) return t;
-      const result = calculateTaskFromXlsx(t.task_name, t.hours_per_person ?? t.hours, t.roles, qty, estimate);
+      const result = calculateTaskFromFormula(t.formula_config as FormulaConfig | null, t.hours_per_person ?? t.hours, t.roles, qty, estimate);
       return { ...t, variable_qty: qty, hours_per_person: result.hpp, hours: result.total };
     }));
   };
