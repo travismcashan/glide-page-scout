@@ -208,7 +208,7 @@ export default function CrawlPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       {/* Subtle ambient gradient glow */}
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-primary/[0.04] blur-[120px]" />
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-full rounded-full bg-primary/[0.04] blur-[120px]" />
       <AppHeader />
 
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-10 sm:pt-16 pb-16 sm:pb-24">
