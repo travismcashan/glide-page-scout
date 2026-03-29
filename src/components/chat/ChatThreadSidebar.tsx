@@ -95,7 +95,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
             title="Show chat history"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5" />
           </Button>
           <Button
             variant="ghost"
@@ -104,7 +104,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
             title="New chat"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </Button>
         </div>
       ) : (
@@ -117,19 +117,19 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                 variant="ghost"
                 size="icon"
                 onClick={onNewThread}
-                className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
                 title="New chat"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-5 w-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setCollapsed(true)}
-                className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
                 title="Collapse sidebar"
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
+                <ChevronLeft className="h-5 w-5" />
               </Button>
             </div>
           </div>

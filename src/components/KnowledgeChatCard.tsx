@@ -1160,7 +1160,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         if (data && data.length > 2) {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              lastUserMsgRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
+              if (lastUserMsgRef.current) {
+                const el = lastUserMsgRef.current;
+                const top = el.getBoundingClientRect().top + window.scrollY - 75;
+                window.scrollTo({ top, behavior: 'instant' });
+              }
             });
           });
         }
@@ -1222,7 +1226,10 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const scrollToLastUserMessage = useCallback(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        lastUserMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const el = lastUserMsgRef.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 75;
+        window.scrollTo({ top, behavior: 'smooth' });
       });
     });
   }, []);
@@ -1655,6 +1662,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               continue;
             }
 
+            // Handle inline stream errors from the AI provider
+            if (parsed.error) {
+              console.error('[knowledge-chat] Stream error:', parsed.error);
+              assistantContent += `\n\nError from AI provider: ${typeof parsed.error === 'string' ? parsed.error : parsed.error.message || JSON.stringify(parsed.error)}`;
+              updateMessages();
+              continue;
+            }
+
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             const reasoningContent = (
               parsed.choices?.[0]?.delta?.reasoning_content ??
@@ -1716,8 +1731,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       displayedThinkingContent = thinkingContent;
       commitMessages(assistantContent, thinkingContent);
 
-      // If assistant content is empty (e.g. MALFORMED_FUNCTION_CALL), show a helpful message
+      // If assistant content is empty but we have thinking content, promote thinking as the response
+      if (!assistantContent.trim() && thinkingContent.trim()) {
+        console.warn('[knowledge-chat] Assistant content empty but thinking content present — promoting thinking as response');
+        assistantContent = thinkingContent;
+        displayedAssistantContent = thinkingContent;
+        commitMessages(thinkingContent, '');
+      }
+
+      // If assistant content is still empty, show a helpful message
       if (!assistantContent.trim()) {
+        console.warn('[knowledge-chat] Empty response. Thinking:', thinkingContent.length, 'chars');
         const retryMsg = 'I encountered an issue processing that request. Please try again — sometimes rephrasing the question helps.';
         assistantContent = retryMsg;
         displayedAssistantContent = retryMsg;
@@ -2553,7 +2577,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               <div
                 key={i}
                 ref={msg.role === 'user' && (i === messages.length - 1 || i === messages.length - 2) ? lastUserMsgRef : undefined}
-                style={msg.role === 'user' ? { scrollMarginTop: '24px' } : undefined}
               >
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'user' ? (

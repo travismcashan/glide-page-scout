@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
         url: formattedUrl,
         formats: ['html'],
         onlyMainContent: false, // We need the FULL page including header/nav/footer
-        waitFor: 3000, // Wait for JS-rendered mega-menus
+        timeout: 15000, // 15s scrape timeout to stay within edge function limits
       }),
     });
 
@@ -65,25 +65,25 @@ Deno.serve(async (req) => {
     }
 
     // Step 2: Send HTML to AI to extract navigation structure
-    const lovableKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableKey) {
+    const geminiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'LOVABLE_API_KEY not configured' }),
+        JSON.stringify({ success: false, error: 'GEMINI_API_KEY not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Truncate HTML if very large (keep first 150k chars which should include header)
-    const truncatedHtml = html.length > 150000 ? html.substring(0, 150000) : html;
+    // Truncate HTML — keep first 60k chars which should include header and footer nav
+    const truncatedHtml = html.length > 60000 ? html.substring(0, 30000) + '\n<!-- TRUNCATED -->\n' + html.substring(html.length - 30000) : html;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableKey}`,
+        'Authorization': `Bearer ${geminiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         messages: [
           {
             role: 'system',

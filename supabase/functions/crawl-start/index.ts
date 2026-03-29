@@ -21,7 +21,7 @@ const INTEGRATIONS: {
   { key: "builtwith", fn: "builtwith-lookup", column: "builtwith_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
   { key: "semrush", fn: "semrush-domain", column: "semrush_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
   { key: "psi", fn: "pagespeed-insights", column: "psi_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "wappalyzer", fn: "wappalyzer-lookup", column: "wappalyzer_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
+  // { key: "wappalyzer", fn: "wappalyzer-lookup", column: "wappalyzer_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) }, // Coming soon — requires paid Wappalyzer plan
   { key: "detectzestack", fn: "detectzestack-lookup", column: "detectzestack_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
   { key: "gtmetrix", fn: "gtmetrix-test", column: "gtmetrix_scores", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   { key: "carbon", fn: "website-carbon", column: "carbon_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },

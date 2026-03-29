@@ -74,7 +74,7 @@ async function fetchXml(url: string, timeoutMs = 10000): Promise<string | null> 
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'GlidePageScout/1.0 (+https://glide-page-scout.lovable.app)' },
+      headers: { 'User-Agent': 'GlidePageScout/1.0' },
     });
     clearTimeout(timeout);
     if (!response.ok) return null;

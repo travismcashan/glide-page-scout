@@ -1,7 +1,8 @@
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Link2 } from 'lucide-react';
 
 type GA4Data = {
   success: boolean;
@@ -20,9 +21,15 @@ type GA4Data = {
 };
 
 type Props = {
-  data: GA4Data;
+  data: GA4Data | null;
   onSelectProperty?: (propertyId: string, propertyName: string) => void;
   isSelecting?: boolean;
+  isConnected?: boolean;
+  onConnect?: () => void;
+  isConnecting?: boolean;
+  availableProperties?: { name: string; id: string }[];
+  onFetchProperties?: () => void;
+  isFetchingProperties?: boolean;
 };
 
 function formatNumber(n: number): string {
@@ -50,20 +57,48 @@ function ChangeIndicator({ current, previous }: { current: number; previous: num
     : <span className="flex items-center gap-0.5 text-red-500 text-[10px] font-medium"><TrendingDown className="h-3 w-3" />{change.toFixed(0)}%</span>;
 }
 
-export function GA4Card({ data, onSelectProperty, isSelecting }: Props) {
+export function GA4Card({ data, onSelectProperty, isSelecting, isConnected, onConnect, isConnecting, availableProperties, onFetchProperties, isFetchingProperties }: Props) {
   const [showPages, setShowPages] = useState(false);
   const [showSources, setShowSources] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  if (!data.found) {
-    const count = data.availableProperties?.length || 0;
+  // State 1: Not connected — show connect button
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 space-y-3">
+        <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+          <BarChart3 className="h-5 w-5 text-amber-600" />
+        </div>
+        <p className="text-sm text-muted-foreground text-center max-w-xs">
+          Connect your Google Analytics account to pull traffic, engagement, and top pages data for this site.
+        </p>
+        <Button
+          size="sm"
+          onClick={onConnect}
+          disabled={isConnecting}
+        >
+          {isConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Link2 className="h-3.5 w-3.5 mr-1.5" />}
+          Connect Google Analytics
+        </Button>
+      </div>
+    );
+  }
+
+  // State 2: Connected but no data yet — show property picker
+  if (!data || !data.found) {
+    const props = data?.availableProperties || availableProperties || [];
+    const count = props.length;
     return (
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          {data.message || 'No GA4 property found for this domain.'}
-        </p>
-        {count > 0 && onSelectProperty && (
+        {data?.message ? (
+          <p className="text-sm text-muted-foreground">{data.message}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Google account connected. Select a GA4 property to pull analytics for this site.
+          </p>
+        )}
+        {count > 0 && onSelectProperty ? (
           <div className="space-y-2">
             <button
               onClick={() => setPickerOpen(!pickerOpen)}
@@ -74,7 +109,7 @@ export function GA4Card({ data, onSelectProperty, isSelecting }: Props) {
             </button>
             {pickerOpen && (
               <div className="space-y-1.5 max-h-[300px] overflow-y-auto pl-6">
-                {data.availableProperties!.map((p) => (
+                {props.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => {
@@ -96,11 +131,22 @@ export function GA4Card({ data, onSelectProperty, isSelecting }: Props) {
               </div>
             )}
           </div>
-        )}
+        ) : count === 0 && onFetchProperties ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onFetchProperties}
+            disabled={isFetchingProperties}
+          >
+            {isFetchingProperties ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <BarChart3 className="h-3.5 w-3.5 mr-1.5" />}
+            Load available properties
+          </Button>
+        ) : null}
       </div>
     );
   }
 
+  // State 3: Has data — show analytics
   const overview = data.overview;
   const current = overview?.current || {};
   const previous = overview?.previous || {};

@@ -1,3 +1,6 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { extractOrchestration } from "../_shared/orchestration.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -8,13 +11,39 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { builtwithData, detectzestackData, wappalyzerData, domain } = await req.json();
+  const body = await req.json();
+  const orch = extractOrchestration(body);
+  if (orch) await orch.markRunning();
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
+  try {
+    let { builtwithData, detectzestackData, wappalyzerData, domain } = body;
+
+    // If invoked via orchestration, fetch data from the session
+    if (orch && (!builtwithData || !detectzestackData)) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const sb = createClient(supabaseUrl, serviceKey);
+
+      const { data: session } = await sb
+        .from('crawl_sessions')
+        .select('domain, builtwith_data, detectzestack_data, wappalyzer_data')
+        .eq('id', orch.sessionId)
+        .single();
+
+      if (session) {
+        domain = domain || session.domain;
+        builtwithData = builtwithData || session.builtwith_data;
+        detectzestackData = detectzestackData || session.detectzestack_data;
+        wappalyzerData = wappalyzerData || session.wappalyzer_data;
+      }
+    }
+
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      const err = 'AI gateway key not configured';
+      if (orch) await orch.markFailed(err);
       return new Response(
-        JSON.stringify({ success: false, error: 'AI gateway key not configured' }),
+        JSON.stringify({ success: false, error: err }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -62,6 +91,16 @@ Deno.serve(async (req) => {
           }
         }
       }
+    }
+
+    // If no tech data available yet, return a soft error (batch 2 may run before batch 1 completes)
+    if (allTechs.size === 0) {
+      const err = 'No tech stack data available yet — BuiltWith and DetectZeStack data not yet loaded';
+      if (orch) await orch.markFailed(err);
+      return new Response(
+        JSON.stringify({ success: false, error: err }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const techList = Array.from(allTechs.entries()).map(([name, info]) => {
@@ -120,14 +159,14 @@ IMPORTANT RULES for the scope section:
 - effort: "low" = config only, "medium" = some dev work, "high" = significant custom development
 - Be specific — reference actual detected technologies, not generic categories`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Here are ${allTechs.size} technologies detected for ${domain}:\n\n${techList}` },
@@ -136,18 +175,14 @@ IMPORTANT RULES for the scope section:
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ success: false, error: 'Rate limited — try again shortly' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ success: false, error: 'AI credits exhausted' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
       const t = await response.text();
       console.error('AI gateway error:', response.status, t);
-      return new Response(JSON.stringify({ success: false, error: 'AI analysis failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const errMsg = response.status === 429 ? 'Rate limited — try again shortly'
+        : response.status === 402 ? 'AI credits exhausted'
+        : 'AI analysis failed';
+      if (orch) await orch.markFailed(errMsg);
+      return new Response(JSON.stringify({ success: false, error: errMsg }),
+        { status: response.status === 429 ? 429 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const aiData = await response.json();
@@ -159,26 +194,34 @@ IMPORTANT RULES for the scope section:
       analysis = JSON.parse(cleaned);
     } catch {
       console.error('Failed to parse AI response:', content.slice(0, 500));
-      return new Response(JSON.stringify({ success: false, error: 'Failed to parse AI analysis' }),
+      const errMsg = 'Failed to parse AI analysis';
+      if (orch) await orch.markFailed(errMsg);
+      return new Response(JSON.stringify({ success: false, error: errMsg }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     console.log(`Tech analysis complete for ${domain}: ${allTechs.size} techs from ${sourceCount.length} sources`);
 
+    const result = {
+      success: true,
+      analysis,
+      techCount: allTechs.size,
+      sourceCount: sourceCount.length,
+      sources: sourceCount,
+    };
+
+    if (orch) await orch.markDone(result);
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        analysis,
-        techCount: allTechs.size,
-        sourceCount: sourceCount.length,
-        sources: sourceCount,
-      }),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Tech analysis error:', error);
+    const errMsg = error instanceof Error ? error.message : 'Tech analysis failed';
+    if (orch) await orch.markFailed(errMsg);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Tech analysis failed' }),
+      JSON.stringify({ success: false, error: errMsg }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

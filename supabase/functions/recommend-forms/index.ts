@@ -3,7 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const AI_GATEWAY_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
 const SYSTEM_PROMPT = `You are an expert web designer and UX strategist helping a design agency decide which forms require CUSTOM DESIGN for a website redesign project.
 
@@ -55,10 +55,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const aiKey = Deno.env.get('LOVABLE_API_KEY');
+    const aiKey = Deno.env.get('GEMINI_API_KEY');
     if (!aiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'LOVABLE_API_KEY not configured' }),
+        JSON.stringify({ success: false, error: 'GEMINI_API_KEY not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -101,7 +101,7 @@ For each tier, list ONLY form types that need custom design. Everything not list
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gemini-3-flash-preview',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },

@@ -539,6 +539,7 @@ export const avomaApi = {
     const decoder = new TextDecoder();
     let buffer = '';
     let finalResult: any = null;
+    let currentEventType = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -549,19 +550,21 @@ export const avomaApi = {
       const lines = buffer.split('\n');
       buffer = lines.pop() || ''; // keep incomplete line
 
-      let eventType = '';
       for (const line of lines) {
         if (line.startsWith('event: ')) {
-          eventType = line.slice(7).trim();
+          currentEventType = line.slice(7).trim();
         } else if (line.startsWith('data: ')) {
           try {
             const data = JSON.parse(line.slice(6));
-            if (eventType === 'progress') {
+            if (currentEventType === 'progress') {
               onProgress(data);
-            } else if (eventType === 'result') {
+            } else if (currentEventType === 'result') {
               finalResult = data;
             }
           } catch { /* skip malformed */ }
+        } else if (line.trim() === '') {
+          // Empty line = end of SSE event, reset event type
+          currentEventType = '';
         }
       }
     }

@@ -36,14 +36,32 @@ const CLAUDE_MODELS: Record<string, { model: string; maxOutput: number }> = {
   'claude-opus': { model: 'claude-opus-4-6', maxOutput: 16000 },
 };
 
+// Resolve the correct API endpoint and key for a given model
+function resolveProvider(model: string): { url: string; key: string; apiModel: string } {
+  if (model.startsWith('openai/')) {
+    return {
+      url: 'https://api.openai.com/v1/chat/completions',
+      key: Deno.env.get('OPENAI_API_KEY') || '',
+      apiModel: model.replace('openai/', ''),
+    };
+  }
+  // Default: Google Gemini (strip google/ prefix if present)
+  return {
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    key: Deno.env.get('GEMINI_API_KEY') || '',
+    apiModel: model.replace('google/', ''),
+  };
+}
+
 // Stream a gateway model, emitting chunks via callback
 async function streamGateway(
-  apiKey: string, model: string, systemPrompt: string, userContent: string,
+  _apiKey: string, model: string, systemPrompt: string, userContent: string,
   onChunk: (text: string) => void
 ): Promise<string> {
   const isOpenAI = model.startsWith('openai/');
+  const provider = resolveProvider(model);
   const body: Record<string, unknown> = {
-    model,
+    model: provider.apiModel,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
@@ -56,9 +74,9 @@ async function streamGateway(
     body.max_tokens = 2048;
   }
 
-  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const resp = await fetch(provider.url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${provider.key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!resp.ok) {
@@ -198,8 +216,6 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
     const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
     const { messages, crawlContext, customInstructions, councilModels: customModels, synthesisModel: customSynthesis } = await req.json();
@@ -253,7 +269,7 @@ serve(async (req) => {
               if (m.provider === 'anthropic') {
                 result = await streamAnthropic(ANTHROPIC_KEY, m.id, system, userContent, onChunk);
               } else {
-                result = await streamGateway(LOVABLE_API_KEY!, m.id, system, userContent, onChunk);
+                result = await streamGateway('', m.id, system, userContent, onChunk);
               }
               send('model_done', { key: m.key, name: m.name, response: result });
               return { key: m.key, name: m.name, response: result };
@@ -337,10 +353,11 @@ serve(async (req) => {
               }
             }
           } else {
-            // Gateway synthesis (Gemini/GPT)
+            // Direct provider synthesis (Gemini/GPT)
             const isOpenAI = synthModelId.startsWith('openai/');
+            const synthProvider = resolveProvider(synthModelId);
             const synthGatewayBody: Record<string, unknown> = {
-              model: synthModelId,
+              model: synthProvider.apiModel,
               messages: [
                 { role: 'system', content: SYNTHESIS_SYSTEM },
                 { role: 'user', content: synthUserContent },
@@ -356,9 +373,9 @@ serve(async (req) => {
               synthGatewayBody.reasoning = { effort: synthReasoning };
             }
 
-            const synthResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            const synthResp = await fetch(synthProvider.url, {
               method: 'POST',
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+              headers: { Authorization: `Bearer ${synthProvider.key}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(synthGatewayBody),
             });
 

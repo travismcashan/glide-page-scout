@@ -168,7 +168,7 @@ export default function CrawlPage() {
     setIsStarting(true);
     try {
       const formattedUrl = url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`;
-      const domain = new URL(formattedUrl).hostname;
+      const domain = new URL(formattedUrl).hostname.replace(/^www\./i, '');
 
       const { data: session, error } = await supabase
         .from('crawl_sessions')
