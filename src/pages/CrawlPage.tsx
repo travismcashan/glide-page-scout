@@ -199,10 +199,14 @@ export default function CrawlPage() {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -30, opacity: 0 }}
                     transition={{ duration: 0.35, ease: 'easeInOut' }}
-                    className="absolute left-0 bottom-0 leading-none rainbow-text font-medium"
-                    style={{ animationDelay: `${-(Math.random() * 8).toFixed(2)}s` }}
+                    className="absolute left-0 bottom-0 leading-none font-medium will-change-auto"
                   >
-                    {ROTATING_WORDS[wordIndex]}.
+                    <span
+                      className="rainbow-text"
+                      style={{ animationDelay: `${-(Math.random() * 8).toFixed(2)}s` }}
+                    >
+                      {ROTATING_WORDS[wordIndex]}.
+                    </span>
                   </motion.span>
                 </AnimatePresence>
               </span>
