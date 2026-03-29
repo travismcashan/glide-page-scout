@@ -45,15 +45,15 @@ export default function AppHeader() {
 
   return (
     <header className="border-b border-black/50 bg-background/80 backdrop-blur-xl sticky top-0 z-40 shadow-sm shadow-primary/[0.03]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[55px] flex items-center justify-between">
+      <div className="mx-auto px-3 sm:px-6 max-w-6xl h-[55px] flex items-center justify-between">
         {/* Brand + Product Switcher */}
         <div className="flex items-center gap-1 min-w-0">
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
           >
-            <ProductIcon className="h-6 w-6 sm:h-7 sm:w-7 text-primary shrink-0" />
-            <span className="text-sm sm:text-base font-semibold tracking-tight truncate">
+            <ProductIcon className="h-7 w-7 text-primary shrink-0" />
+            <span className="text-base sm:text-base font-semibold tracking-tight truncate">
               {currentProduct.fullName}
             </span>
           </button>
