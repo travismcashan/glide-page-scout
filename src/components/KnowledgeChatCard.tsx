@@ -1033,6 +1033,15 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   // Track last SSE event ID for stream reconnection
   const lastEventIdRef = useRef<string | null>(null);
 
+  const supportsLiveTools = !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-');
+  const ensureToolCapableModel = useCallback(() => {
+    if (supportsLiveTools) return false;
+    onModelChange('google/gemini-3-flash-preview');
+    onProviderChange('gateway' as ModelProvider);
+    toast.info('Switched to Gemini so live tools like Harvest and Asana can run.');
+    return true;
+  }, [onModelChange, onProviderChange, supportsLiveTools]);
+
   // Thread management
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
@@ -1436,7 +1445,12 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           session_ids: globalMode ? [session.id, ...(attachedSessionIds || [])] : undefined,
           model: selectedModel,
           reasoning: reasoning !== 'none' ? reasoning : undefined,
-          sources: { ...searchSources, analytics: !globalMode && searchSources.analytics && !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-') },
+          sources: {
+            ...searchSources,
+            analytics: !globalMode && searchSources.analytics && supportsLiveTools,
+            harvest: searchSources.harvest && supportsLiveTools,
+            asana: searchSources.asana && supportsLiveTools,
+          },
           rag_depth: ragDepth,
           context_window: contextWindowSize,
           tonePreset: localStorage.getItem('ai-tone-preset') || 'default',
@@ -1731,7 +1745,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds, searchSources, ragDepth, contextWindowSize, onDocumentsChanged]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds, searchSources, ragDepth, contextWindowSize, onDocumentsChanged, supportsLiveTools]);
 
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -2740,27 +2754,25 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                     {searchSources.web && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
                   </button>
                   {!globalMode && (() => {
-                    const supportsAnalytics = !selectedModel.startsWith('claude-') && !selectedModel.startsWith('perplexity-');
                     return (
                       <button
-                        className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsAnalytics ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`}
+                        className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsLiveTools ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`}
                         onClick={() => {
-                          if (!supportsAnalytics) {
-                            onModelChange('google/gemini-3-flash-preview');
-                            onProviderChange('gateway' as ModelProvider);
+                          if (!supportsLiveTools) {
+                            ensureToolCapableModel();
                             setSearchSources(prev => ({ ...prev, analytics: true }));
                           } else {
                             setSearchSources(prev => ({ ...prev, analytics: !prev.analytics }));
                           }
                         }}
-                        title={!supportsAnalytics ? 'Analytics requires a Gemini or GPT model — click to switch' : undefined}
+                        title={!supportsLiveTools ? 'Analytics requires a Gemini or GPT model — click to switch' : undefined}
                       >
                         <span className="flex items-center gap-2">
                           <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
                           Analytics
-                          {!supportsAnalytics && <span className="text-[10px] text-muted-foreground">(Gemini/GPT only)</span>}
+                          {!supportsLiveTools && <span className="text-[10px] text-muted-foreground">(Gemini/GPT only)</span>}
                         </span>
-                        {supportsAnalytics && searchSources.analytics && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                        {supportsLiveTools && searchSources.analytics && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
                       </button>
                     );
                   })()}
@@ -2770,24 +2782,42 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
                 <div className="space-y-1 border-t pt-3">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Tools</p>
                   <button
-                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
-                    onClick={() => setSearchSources(prev => ({ ...prev, harvest: !prev.harvest }))}
+                    className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsLiveTools ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`}
+                    onClick={() => {
+                      if (!supportsLiveTools) {
+                        ensureToolCapableModel();
+                        setSearchSources(prev => ({ ...prev, harvest: true }));
+                        return;
+                      }
+                      setSearchSources(prev => ({ ...prev, harvest: !prev.harvest }));
+                    }}
+                    title={!supportsLiveTools ? 'Harvest requires a Gemini or GPT model — click to switch' : undefined}
                   >
                     <span className="flex items-center gap-2">
                       <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                       Harvest
+                      {!supportsLiveTools && <span className="text-[10px] text-muted-foreground">(Gemini/GPT only)</span>}
                     </span>
-                    {searchSources.harvest && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                    {supportsLiveTools && searchSources.harvest && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
                   </button>
                   <button
-                    className="flex items-center justify-between gap-2 cursor-pointer text-sm hover:bg-muted/50 rounded-xl px-2 py-1.5 w-full text-left"
-                    onClick={() => setSearchSources(prev => ({ ...prev, asana: !prev.asana }))}
+                    className={`flex items-center justify-between gap-2 text-sm rounded-xl px-2 py-1.5 w-full text-left ${supportsLiveTools ? 'cursor-pointer hover:bg-muted/50' : 'opacity-40 cursor-not-allowed'}`}
+                    onClick={() => {
+                      if (!supportsLiveTools) {
+                        ensureToolCapableModel();
+                        setSearchSources(prev => ({ ...prev, asana: true }));
+                        return;
+                      }
+                      setSearchSources(prev => ({ ...prev, asana: !prev.asana }));
+                    }}
+                    title={!supportsLiveTools ? 'Asana requires a Gemini or GPT model — click to switch' : undefined}
                   >
                     <span className="flex items-center gap-2">
                       <Search className="h-3.5 w-3.5 text-muted-foreground" />
                       Asana
+                      {!supportsLiveTools && <span className="text-[10px] text-muted-foreground">(Gemini/GPT only)</span>}
                     </span>
-                    {searchSources.asana && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                    {supportsLiveTools && searchSources.asana && <Check className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
                   </button>
                 </div>
 
