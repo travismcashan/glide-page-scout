@@ -934,6 +934,55 @@ const ANALYTICS_TOOLS = [
   {
     type: 'function' as const,
     function: {
+      name: 'query_harvest',
+      description: 'Query Harvest time tracking for live data. Use when the user asks about hours logged, time entries, project time, billable hours, or time reports. Can query time entries by date range, project, or user, and get project-level time summaries.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['time_entries', 'projects', 'project_report'],
+            description: 'time_entries = individual time logs; projects = list active projects; project_report = hours summary per project',
+          },
+          from: { type: 'string', description: 'Start date YYYY-MM-DD (for time_entries and project_report)' },
+          to: { type: 'string', description: 'End date YYYY-MM-DD' },
+          projectId: { type: 'number', description: 'Filter time entries to a specific Harvest project ID' },
+          userId: { type: 'number', description: 'Filter time entries to a specific user ID' },
+          limit: { type: 'number', description: 'Max entries to return (default 100)' },
+        },
+        required: ['action'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'query_asana',
+      description: 'Query Asana project management for live data. Use when the user asks about tasks, projects, assignments, due dates, or project status in Asana. Can list workspaces, projects, tasks within a project, or search across tasks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['workspaces', 'projects', 'tasks', 'search'],
+            description: 'workspaces = list workspaces; projects = list projects; tasks = list tasks in a project; search = search tasks by text',
+          },
+          projectGid: { type: 'string', description: 'Asana project GID (required for tasks action)' },
+          workspaceGid: { type: 'string', description: 'Asana workspace GID (required for search, optional for projects)' },
+          assigneeGid: { type: 'string', description: 'Filter by assignee GID' },
+          completed: { type: 'boolean', description: 'Filter by completion status (true/false)' },
+          text: { type: 'string', description: 'Search text (for search action)' },
+          limit: { type: 'number', description: 'Max results (default 100)' },
+        },
+        required: ['action'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'generate_presentation',
       description: 'Generate a Beautiful.ai presentation from a text prompt. Use when the user asks to create a presentation, pitch deck, slide deck, or slides. Returns links to edit and view the generated deck.',
       parameters: {
