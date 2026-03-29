@@ -39,6 +39,8 @@ type Props = {
 };
 
 export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey }: Props) {
+  const { currentProduct } = useProduct();
+  const ProductIcon = currentProduct.icon;
   const [open, setOpen] = useState(false);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
