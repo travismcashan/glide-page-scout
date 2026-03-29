@@ -1,8 +1,10 @@
 
 
-# Fix Base Model Calculation — Why It Shows $50K
+# Consolidated Plan — Estimate Engine Overhaul
 
-## Root Cause
+## Part 1: Fix Base Model Calculation — Why It Shows $50K
+
+### Root Cause
 
 Three bugs in `calculateBaseModel()`:
 
@@ -12,11 +14,11 @@ Three bugs in `calculateBaseModel()`:
 
 3. **DoneDone Management formula is extreme** — `bySizeNum(size, 1, 3, 4.5) * 8` = 8 hours even at Small. This is a QA task that should now be handled by the percentage-based QA phase, but it's getting double-counted (once via formula, once via QA percentage distribution).
 
-## Expected Base Model (corrected)
+### Expected Base Model (corrected)
 
 With vars at 1, size=Small, complexity=Simple, only default_included tasks:
 - Strategy: ~20h (fixed size-based tasks + multi-role)
-- Design: ~15h (layouts at 1 minimizes most tasks)  
+- Design: ~15h (layouts at 1 minimizes most tasks)
 - Build: ~37h (fixed complexity floors like Standard Plugins 8h, Custom 4h, Special 6h, Perf 6h + layout-driven at 1)
 - Content: ~1h (pages=1, bulk=none)
 - Review: ~0.2h
@@ -26,24 +28,123 @@ With vars at 1, size=Small, complexity=Simple, only default_included tasks:
 
 **Total: ~102h × $150 = ~$15,300** — a reasonable floor price.
 
-## Changes
+### Changes for Base Model
 
-### `src/lib/estimateFormulas.ts` — `calculateBaseModel()`
+- Reset all `variable_qty` to 1 on each task before passing to recalculate
+- Filter to `is_required` only (ignore `is_selected`) — base model shouldn't change based on user selections
+- Pass `default_included` from master task data through to the tasks array so the base model can filter properly
 
-1. Reset all `variable_qty` to 1 on each task before passing to recalculate
-2. Change filter from `is_selected && is_required` to `(t as any).default_included !== false && is_required` — or better, add a `default_included` field to the task type and filter on it
-3. Since tasks in the estimate don't carry `default_included`, use a simpler approach: filter by `is_required` only, and force `variable_qty = 1`
+---
 
-### `src/components/estimate/EstimateBuilderCard.tsx`
+## Part 2: Simplify Engine to 3 Calculation Modes
 
-Pass `default_included` from master task data through to the tasks array so the base model can filter properly. Or: query master tasks for their `default_included` flag.
+The current engine has 11 calc_types (`size`, `size_multiplied`, `complexity`, `scope`, `variable`, `percentage`, `conditional`, `form_tiers`, `bulk_import`, `bulk_import_check`, `manual`) which is overengineered. The mental model is just 3 modes:
 
-### Alternative (simpler)
+```text
+┌─────────────────────────────────────────────┐
+│  1. FIXED      → hours are constant         │
+│  2. VARIABLE   → hours scale with a driver  │
+│  3. PERCENTAGE → phase gets % of subtotal   │
+│                                             │
+│  + required/optional flag (default on/off)  │
+└─────────────────────────────────────────────┘
+```
 
-Since base model = "absolute minimum project cost", just:
-- Reset variable_qty to 1 on all tasks
-- Filter to `is_required` only (ignore `is_selected`)
-- This gives the true floor regardless of what the user has toggled
+### Simplified `formula_config` schema
 
-This is the cleaner approach — the base model shouldn't change based on user selections.
+| Type | Config fields | Example |
+|------|--------------|---------|
+| `fixed` | `hours: 1` | Project Kickoff = 1h always |
+| `variable` | `driver: "pages"`, `base: 0.5`, `min: 1` | Sitemap = pages × 0.5h, min 1h |
+| `percentage` | `pct: 0.08` | PM phase = 8% of core total |
+
+For **variable** tasks, the `driver` field references a project variable (pages, layouts, personas, forms, custom_posts, etc.). The `base` is hours-per-unit. Optional `min` sets a floor.
+
+Tasks without a `formula_config` (or `calc_type = "fixed"`) just use their `hours_per_person` value as-is.
+
+### Migration mapping
+
+- `size`, `complexity`, `size_multiplied`, `manual`, `conditional` → `fixed` (resolve to their default hours at current settings)
+- `scope`, `variable`, `form_tiers`, `bulk_import`, `bulk_import_check` → `variable` (with a driver + base rate)
+- `percentage` → `percentage` (unchanged)
+
+### Implementation
+
+1. **Rewrite `estimateFormulas.ts`** — collapse `calculateTaskFromFormula` from ~80 lines of switch/case to ~15 lines handling `fixed`, `variable`, `percentage`
+2. **Migrate `formula_config` data** in master_tasks and estimate_tasks
+3. **Update `recalculateAllTasks`** — simplify pass logic to 3 paths
+
+---
+
+## Part 3: Task Type Classification
+
+Add a `task_type` column to classify each of the ~130 tasks as one of:
+
+- **task** — internal work (CSS coding, SEO audit, content migration)
+- **meeting** — time spent with client (kickoff, design review, strategy workshop)
+- **deliverable** — a tangible output (homepage design, clickable prototype, sitemap document)
+
+No duplication of tasks. Each existing task gets classified as what it primarily is. Where naming feels ambiguous, add a verb prefix to clarify (e.g., "Design Homepage" stays a task, "Deliver Homepage Mockup" would be a deliverable — but we're just tagging, not creating new rows).
+
+### Schema change
+
+```sql
+ALTER TABLE master_tasks ADD COLUMN task_type text NOT NULL DEFAULT 'task';
+ALTER TABLE estimate_tasks ADD COLUMN task_type text NOT NULL DEFAULT 'task';
+```
+
+Then UPDATE all ~130 tasks with the correct type.
+
+---
+
+## Part 4: Rate Card Tab (replaces current Formulas tab)
+
+Rebuild `EstimateFormulasTab.tsx` as an editable **Rate Card** — the single source of truth for all estimation logic.
+
+### Columns
+
+| Column | Description |
+|--------|-------------|
+| Task Name | The task name |
+| Type | `task` / `meeting` / `deliverable` badge |
+| Phase | Strategy, Design, Build, etc. |
+| Calc Mode | `Fixed` / `Variable` / `%` badge |
+| Base Hours | For fixed tasks, the hours. For variable, the per-unit rate |
+| Driver | For variable tasks: pages, layouts, personas, etc. |
+| Min Hours | Floor value for variable tasks |
+| Required | Checkbox |
+| Default On | Whether it's included by default |
+
+### Controls at top
+
+- PM % input
+- QA % input
+- Blended hourly rate input
+
+### Filters
+
+- By phase
+- By type (task/meeting/deliverable)
+- By calc mode (fixed/variable/%)
+- Search by name
+
+Edits on this tab update `master_tasks` globally. Per-estimate overrides edit `estimate_tasks` only.
+
+---
+
+## What stays the same
+
+- `is_required` / `default_included` / `is_selected` flags — no change
+- Phase structure and task taxonomy — no change
+- PM/QA percentage logic — same concept, cleaner code path
+- All Tasks tab, Scope tab, Phase Timeline, SOW View — continue working
+- Tab location (after SOW View) — no change
+
+## Files to change
+
+- **Migration SQL**: Add `task_type` column, migrate `formula_config` to 3-type format, populate `task_type` values
+- **`src/lib/estimateFormulas.ts`**: Simplify engine to fixed/variable/percentage (~200 lines removed)
+- **`src/components/estimate/EstimateFormulasTab.tsx`**: Rebuild as editable Rate Card
+- **`src/components/estimate/EstimateBuilderCard.tsx`**: Pass `task_type`, rename tab, fix base model filter
+- **`src/components/estimate/EstimateTaskRow.tsx`**: Show `task_type` badge
 
