@@ -113,8 +113,6 @@ export function getCalcMode(fc: FormulaConfig | null | undefined): CalcMode {
   if (!fc?.calc_type) return 'fixed';
   switch (fc.calc_type) {
     case 'percentage': return 'percentage';
-    case 'size':
-    case 'size_multiplied':
     case 'complexity':
     case 'scope':
     case 'variable':
@@ -133,9 +131,6 @@ export function getCalcMode(fc: FormulaConfig | null | undefined): CalcMode {
 export function getDriver(fc: FormulaConfig | null | undefined): string {
   if (!fc?.calc_type) return '-';
   switch (fc.calc_type) {
-    case 'size':
-    case 'size_multiplied':
-      return 'project_size';
     case 'complexity':
       return 'project_complexity';
     case 'scope':
@@ -156,7 +151,7 @@ export function getDriver(fc: FormulaConfig | null | undefined): string {
 
 // ─── Derivation ────────────────────────────────────────────────────
 
-/** Derive project size from variables: Small/Medium/Large */
+/** @deprecated project_size no longer drives calculations — kept for display only */
 export function deriveProjectSize(v: EstimateVariables): string {
   const sum = (v.design_layouts ?? 5) + (v.pages_for_integration ?? 20) + (v.custom_posts ?? 2);
   if (sum <= 30) return 'Small';
@@ -174,6 +169,7 @@ export function deriveProjectComplexity(v: EstimateVariables): string {
 
 // ─── Internal Calculation Helpers ──────────────────────────────────
 
+/** @deprecated kept for backward compat if any old data uses size tiers */
 function bySizeNum(size: string, small: number, medium: number, large: number): number {
   if (size === 'Small') return small;
   if (size === 'Large') return large;
@@ -214,7 +210,6 @@ export function calculateTaskFromFormula(
     return { hpp, total: Math.round(hpp * roleCount * 100) / 100 };
   }
 
-  const size = deriveProjectSize(variables);
   const complexity = deriveProjectComplexity(variables);
   const pages = variables.pages_for_integration ?? 20;
   const layouts = variables.design_layouts ?? 5;
@@ -230,14 +225,6 @@ export function calculateTaskFromFormula(
   let hpp: number;
 
   switch (fc.calc_type) {
-    // ── VARIABLE: scales with a driver ──
-    case 'size':
-      hpp = bySizeNum(size, fc.small ?? 0, fc.medium ?? 0, fc.large ?? 0);
-      break;
-
-    case 'size_multiplied':
-      hpp = bySizeNum(size, fc.small ?? 0, fc.medium ?? 0, fc.large ?? 0) * (fc.multiplier ?? 1);
-      break;
 
     case 'complexity':
       hpp = byComplexity(complexity, fc.simple ?? 0, fc.moderate ?? 0, fc.complex ?? 0);
@@ -349,10 +336,6 @@ export function describeFormula(fc: FormulaConfig | null | undefined): string {
     case 'variable': {
       const driver = getDriver(fc);
       switch (fc.calc_type) {
-        case 'size':
-          return `S:${fc.small} M:${fc.medium} L:${fc.large}`;
-        case 'size_multiplied':
-          return `S:${fc.small} M:${fc.medium} L:${fc.large} ×${fc.multiplier}`;
         case 'complexity':
           return `Simple:${fc.simple} Mod:${fc.moderate} Complex:${fc.complex}`;
         case 'scope':
