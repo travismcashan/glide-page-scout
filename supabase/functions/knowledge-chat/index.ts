@@ -1082,7 +1082,8 @@ async function executeExternalTool(toolName: string, params: any): Promise<strin
 }
 
 
-  async function handleGatewayRequest(
+async function handleGatewayRequest(
+  model: string,
   messages: any[],
   systemPrompt: string,
   reasoning: string | undefined,
