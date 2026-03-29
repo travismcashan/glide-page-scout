@@ -39,8 +39,8 @@ const SERVICES: Record<string, {
   },
 };
 
-const MAX_RESPONSE_CHARS = 100_000;
-const MAX_ARRAY_ITEMS = 25;
+const MAX_RESPONSE_CHARS = 200_000;
+const MAX_ARRAY_ITEMS = 50;
 const MAX_OBJECT_KEYS = 50;
 const MAX_STRING_CHARS = 2_000;
 const MAX_DEPTH = 6;
@@ -80,13 +80,32 @@ function compactValue(value: unknown, depth = 0): unknown {
   return value;
 }
 
-function buildPreviewPayload(data: unknown, originalLength: number) {
-  return {
+function buildPreviewPayload(data: unknown, originalLength: number, url?: string) {
+  const payload: Record<string, unknown> = {
     _truncated: true,
     _original_length: originalLength,
     _message: 'Response was too large to return in full. Metadata and a preview of the first items are included instead.',
     data: compactValue(data),
   };
+
+  // Add pagination hint so the AI can fetch the next page
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const obj = data as Record<string, unknown>;
+    // Harvest uses next_page / page / per_page; Asana uses next_page.offset
+    if (obj.next_page !== undefined && obj.next_page !== null) {
+      payload._next_page = obj.next_page;
+      payload._pagination_hint = 'Use the _next_page value to fetch additional results. For Harvest, pass page=<next_page> as a param.';
+    } else if (obj.total_pages && obj.page) {
+      const currentPage = Number(obj.page);
+      const totalPages = Number(obj.total_pages);
+      if (currentPage < totalPages) {
+        payload._next_page = currentPage + 1;
+        payload._pagination_hint = `Page ${currentPage} of ${totalPages}. Pass page=${currentPage + 1} to get the next page.`;
+      }
+    }
+  }
+
+  return payload;
 }
 
 serve(async (req) => {
