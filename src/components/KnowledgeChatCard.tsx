@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, useCallback, lazy, Suspense, useMemo } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type Mod
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
 import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
 import { MobileChatDrawer } from '@/components/chat/MobileChatDrawer';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1006,6 +1007,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
 }
 
 export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite }: Props) {
+  const isMobile = useIsMobile();
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -2622,8 +2624,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       {/* Input area - sticky at bottom */}
       <div
         ref={composerRef}
-        className="fixed bottom-0 right-0 z-30 pt-2 bg-gradient-to-t from-background via-background to-transparent"
-        style={{ left: `${sidebarWidth}px`, paddingBottom: '18px' }}
+        className="fixed bottom-0 right-0 z-30 pt-2 px-3 sm:px-4 bg-gradient-to-t from-background via-background to-transparent"
+        style={{ left: isMobile ? 0 : `${sidebarWidth}px`, paddingBottom: isMobile ? '8px' : '18px' }}
       >
       <div
         className={`rounded-[24px] bg-card border-0 shadow-lg py-3 transition-colors w-full max-w-3xl mx-auto px-4 sm:px-[30px] ${isDragging ? 'ring-2 ring-primary bg-primary/5' : ''}`}
