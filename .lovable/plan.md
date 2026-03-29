@@ -1,41 +1,62 @@
 
-Goal
 
-Remove the visible mobile “box”/tone shift behind the rotating homepage verb with the safest fix path: a clean solid-color mobile treatment instead of the multicolor clipped gradient.
+## Problem
 
-What I found
+On mobile, users encounter two competing hamburger menus:
+1. **Top-right**: Global nav (slides in from right) — pages like Chat, Knowledge, Sites, Groups, etc.
+2. **Below header on chat page**: Chat thread nav (slides in from left) — thread list with rename/pin/delete
 
-- In `src/pages/CrawlPage.tsx`, the rotating word sits inside a fixed-size `overflow-hidden` wrapper and is animated with `AnimatePresence` / `motion.span`.
-- The word itself uses `.rainbow-text` from `src/index.css`, which relies on `background-clip: text`, transparent text fill, and an animated gradient.
-- On mobile browsers, especially Safari/WebKit, that combo is a common source of rectangular compositing artifacts. The screenshot lines up with that exact word container.
-- You selected the safest direction: clean solid color.
+Two hamburgers in different corners, opening from opposite sides, is disorienting. Users can't build muscle memory for "the menu button."
 
-Implementation plan
+## Recommended approach: Merge into one left-side drawer
 
-1. Split the headline verb into desktop and mobile render paths in `src/pages/CrawlPage.tsx`.
-   - Desktop keeps the current multicolor treatment.
-   - Mobile gets a plain solid brand color.
+The cleanest mobile UX pattern (used by Slack, Discord, Gmail, ChatGPT) is a **single left-side drawer** that combines both levels of navigation:
 
-2. Simplify the mobile rotating word rendering.
-   - Remove the `rainbow-text` class from the mobile version.
-   - Use a normal text color such as `text-primary`.
-   - Keep the rotation effect, but use a simpler mobile-safe animation so it still feels polished.
+```text
+┌──────────────────────────┐
+│  [Logo]  Thread Title  [+]│  ← slim top bar (always visible)
+├──────────────────────────┤
+│                            │
+│   Chat messages...         │
+│                            │
+│   [Input bar]              │
+└──────────────────────────┘
 
-3. Make the mobile word container more stable.
-   - Replace the current absolute/overflow-heavy mobile setup with a simpler inline-block/min-width container.
-   - Preserve the current two-line headline layout so the word still fits cleanly without wrapping weirdly.
+Tap hamburger (left) → single drawer opens:
 
-4. Keep the gradient style isolated.
-   - Leave `.rainbow-text` available for desktop and any other existing uses.
-   - Avoid global CSS changes that could affect unrelated pages.
+┌─────────────────┐
+│  Global Nav      │  ← Chat · Knowledge · Sites · Groups...
+│─────────────────│
+│  Recent Chats    │  ← thread list (only when on /chat)
+│   Thread 1       │
+│   Thread 2       │
+│   Thread 3       │
+│─────────────────│
+│  👤 User · Settings · Sign Out │
+└─────────────────┘
+```
 
-5. Verify against the exact failure case.
-   - Check the homepage at the current mobile width (`375px`) and a nearby width (`390px`).
-   - Confirm the box/tone shift is gone both when the word is still and while it transitions.
-   - Confirm the headline still feels large, readable, and aligned with the rest of the site.
+### Key design decisions
 
-Technical detail
+1. **One hamburger, top-left** — replaces both current hamburgers. The global header's right-side hamburger is removed on mobile; instead, the MobileChatDrawer's left hamburger becomes the single entry point.
 
-- Likely root cause: `background-clip: text` + transparent fill + animated gradient + motion/overflow clipping on mobile WebKit.
-- Lowest-risk fix: stop using clipped gradient text for this one mobile element instead of trying to keep patching Safari rendering quirks.
-- Files likely affected: `src/pages/CrawlPage.tsx` and possibly `src/index.css`.
+2. **Drawer contents are contextual** — When on `/chat`, the drawer shows global nav links at the top, then the thread list below. On any other page, it just shows global nav + user section (same as current right-side menu, just moved left).
+
+3. **Thread title stays in the top bar** — The slim bar with thread title and [+] new-thread button remains visible, so the user always knows which thread they're in.
+
+4. **No second hamburger** — The AppHeader on mobile drops its own Sheet/hamburger entirely. Instead it renders a compact bar with just the left hamburger trigger and maybe the avatar.
+
+### Files to change
+
+| File | Change |
+|------|--------|
+| `src/components/chat/MobileChatDrawer.tsx` | Add global nav links (from NAV_ITEMS) at the top of the drawer, above "Recents." Add user info / sign-out section at the bottom. |
+| `src/components/AppHeader.tsx` | On mobile when on `/chat` route: hide the hamburger + Sheet entirely (the MobileChatDrawer handles it). On other routes: move the hamburger to the left side and open the Sheet from the left. |
+| `src/components/AppHeader.tsx` | Unify the mobile Sheet to open from the left (`side="left"`) on all pages for consistency. |
+
+### Why this works
+- **One mental model**: "Menu is always top-left" — matches iOS/Android conventions
+- **No lost functionality**: Global nav, thread list, user profile, sign out — all in one place
+- **Contextual sections**: Thread list only appears when relevant (on chat page)
+- **Familiar pattern**: This is exactly how ChatGPT, Slack, and the Lovable app itself handle it
+
