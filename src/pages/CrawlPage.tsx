@@ -312,10 +312,10 @@ export default function CrawlPage() {
                         {page.map((integration) => (
                           <div
                             key={integration.label}
-                            className="group aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between transition-all duration-300 hover:border-primary/30 hover:bg-primary/[0.04]"
+                            className="aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between pointer-events-none select-none"
                           >
-                            <integration.icon className="h-8 w-8 text-primary/60 group-hover:text-primary transition-colors" />
-                            <span className="text-sm font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
+                            <integration.icon className="h-8 w-8 text-primary/60" />
+                            <span className="text-sm font-medium leading-snug text-foreground/80">
                               {integration.label}
                             </span>
                           </div>
@@ -356,10 +356,10 @@ export default function CrawlPage() {
                   {visibleTiles.map((integration) => (
                     <div
                       key={integration.label}
-                      className="group aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between transition-all duration-300 hover:border-primary/30 hover:bg-primary/[0.04] hover:shadow-lg hover:shadow-primary/[0.06] hover:-translate-y-0.5"
+                      className="aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between pointer-events-none select-none"
                     >
-                      <integration.icon className="h-12 w-12 text-primary/60 group-hover:text-primary transition-colors" />
-                      <span className="text-base font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
+                      <integration.icon className="h-12 w-12 text-primary/60" />
+                      <span className="text-base font-medium leading-snug text-foreground/80">
                         {integration.label}
                       </span>
                     </div>
