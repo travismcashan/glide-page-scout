@@ -216,9 +216,12 @@ export default function SettingsPage() {
         body: { email: user.email, firstName: nameParts[0] || undefined, lastName: nameParts.slice(1).join(' ') || undefined },
       });
       if (error) { toast.error('Could not enrich profile'); return; }
+      // Handle credits exhausted or API errors before checking match
+      if (data?.errorCode === 'CREDITS_EXHAUSTED') { toast.error('Apollo API credits exhausted — please top up your Apollo plan'); return; }
+      if (data?.success === false) { toast.error(data?.error || 'Apollo lookup failed'); return; }
       // apollo-enrich returns flat: { success, found, firstName, ... }
       const person = data?.found ? data : data?.data?.person || data?.data || null;
-      if (!person || !person.found) { toast.error(person?.error || 'No matching profile found in Apollo — try adding your domain'); return; }
+      if (!person || !person.found) { toast.error('No matching profile found in Apollo for your email'); return; }
 
       const emailDomain = user.email.split('@')[1];
       const apolloOrgDomain = person.organizationDomain || person.organization?.primary_domain;
