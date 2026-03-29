@@ -1,5 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Simplified Estimate Engine — 3 calculation modes:
+ * 1. FIXED      → hours are constant regardless of project size
+ * 2. VARIABLE   → hours scale with a driver (project_size, layouts, pages, qty, etc.)
+ * 3. PERCENTAGE → phase gets % of subtotal
+ */
+
+// Display type for UI — maps internal calc_types to 3 modes
+export type CalcMode = 'fixed' | 'variable' | 'percentage';
+
+// Keep the full internal calc_type for backward compat with existing data
 export type TaskCalcType = 'size' | 'complexity' | 'variable' | 'scope' | 'percentage' | 'conditional' | 'manual' | 'form_tiers' | 'bulk_import' | 'bulk_import_check' | 'size_multiplied';
 
 export interface FormulaConfig {
@@ -33,8 +44,7 @@ export interface FormulaConfig {
   acf_table?: Record<string, number>;
   no_acf_table?: Record<string, number>;
   table?: Record<string, number>;
-  // Size multiplied (DoneDone)
-  // uses small/medium/large + multiplier
+  // Size multiplied
   // Manual fixed
   fixed_hpp?: number;
 }
@@ -96,6 +106,56 @@ export function clearFormulaCache() {
   cachedFormulas = null;
 }
 
+// ─── Display Helpers ───────────────────────────────────────────────
+
+/** Map internal calc_type to simplified display mode */
+export function getCalcMode(fc: FormulaConfig | null | undefined): CalcMode {
+  if (!fc?.calc_type) return 'fixed';
+  switch (fc.calc_type) {
+    case 'percentage': return 'percentage';
+    case 'size':
+    case 'size_multiplied':
+    case 'complexity':
+    case 'scope':
+    case 'variable':
+    case 'conditional':
+    case 'form_tiers':
+    case 'bulk_import':
+    case 'bulk_import_check':
+      return 'variable';
+    case 'manual':
+    default:
+      return 'fixed';
+  }
+}
+
+/** Get the driver name for variable tasks */
+export function getDriver(fc: FormulaConfig | null | undefined): string {
+  if (!fc?.calc_type) return '-';
+  switch (fc.calc_type) {
+    case 'size':
+    case 'size_multiplied':
+      return 'project_size';
+    case 'complexity':
+      return 'project_complexity';
+    case 'scope':
+      return fc.variable || 'unknown';
+    case 'variable':
+      return 'qty';
+    case 'form_tiers':
+      return 'forms';
+    case 'bulk_import':
+    case 'bulk_import_check':
+      return 'bulk_import';
+    case 'conditional':
+      return fc.field || 'conditional';
+    default:
+      return '-';
+  }
+}
+
+// ─── Derivation ────────────────────────────────────────────────────
+
 /** Derive project size from variables: Small/Medium/Large */
 export function deriveProjectSize(v: EstimateVariables): string {
   const sum = (v.design_layouts ?? 5) + (v.pages_for_integration ?? 20) + (v.custom_posts ?? 2);
@@ -112,14 +172,14 @@ export function deriveProjectComplexity(v: EstimateVariables): string {
   return 'Complex';
 }
 
-/** Pick value based on project size */
+// ─── Internal Calculation Helpers ──────────────────────────────────
+
 function bySizeNum(size: string, small: number, medium: number, large: number): number {
   if (size === 'Small') return small;
   if (size === 'Large') return large;
   return medium;
 }
 
-/** Pick value based on project complexity */
 function byComplexity(complexity: string, simple: number, moderate: number, complex: number): number {
   if (complexity === 'Simple') return simple;
   if (complexity === 'Complex') return complex;
@@ -132,9 +192,11 @@ export function countRoles(roles: string | null | undefined): number {
   return roles.split(',').map(r => r.trim()).filter(Boolean).length || 1;
 }
 
+// ─── Core Engine ───────────────────────────────────────────────────
+
 /**
- * Data-driven formula engine — reads formula_config from the task record.
- * Falls back to currentHpp if no formula_config is present.
+ * Calculate hours for a single task based on its formula_config.
+ * Handles all 3 modes: fixed (no formula or manual), variable (size/complexity/scope/qty/forms/bulk), percentage.
  */
 export function calculateTaskFromFormula(
   formulaConfig: FormulaConfig | null | undefined,
@@ -146,8 +208,8 @@ export function calculateTaskFromFormula(
 ): { hpp: number; total: number } {
   const roleCount = countRoles(roles);
 
+  // FIXED: no formula — use currentHpp as-is
   if (!formulaConfig || !formulaConfig.calc_type) {
-    // No formula — manual task, keep currentHpp
     const hpp = Math.max(currentHpp, 0);
     return { hpp, total: Math.round(hpp * roleCount * 100) / 100 };
   }
@@ -168,6 +230,7 @@ export function calculateTaskFromFormula(
   let hpp: number;
 
   switch (fc.calc_type) {
+    // ── VARIABLE: scales with a driver ──
     case 'size':
       hpp = bySizeNum(size, fc.small ?? 0, fc.medium ?? 0, fc.large ?? 0);
       break;
@@ -185,7 +248,7 @@ export function calculateTaskFromFormula(
       switch (fc.variable) {
         case 'personas': val = personas; break;
         case 'layouts': val = layouts; break;
-        case 'layouts_minus_2': val = layouts - 2; break;
+        case 'layouts_minus_2': val = Math.max(layouts - 2, 0); break;
         case 'pages': val = pages; break;
         case 'custom_posts': val = customPosts; break;
         case 'pages_plus_cpts': val = pages + customPosts; break;
@@ -198,10 +261,6 @@ export function calculateTaskFromFormula(
 
     case 'variable':
       hpp = (variableQty ?? 1) * (fc.multiplier ?? 1);
-      break;
-
-    case 'percentage':
-      hpp = Math.round((allSelectedHours ?? 0) * (fc.pct ?? 0.06) * 100) / 100;
       break;
 
     case 'conditional':
@@ -241,6 +300,11 @@ export function calculateTaskFromFormula(
       hpp = fc.fixed_hpp ?? currentHpp;
       break;
 
+    // ── PERCENTAGE ──
+    case 'percentage':
+      hpp = Math.round((allSelectedHours ?? 0) * (fc.pct ?? 0.06) * 100) / 100;
+      break;
+
     default:
       hpp = currentHpp;
   }
@@ -250,7 +314,7 @@ export function calculateTaskFromFormula(
   return { hpp: Math.round(hpp * 100) / 100, total };
 }
 
-// Legacy wrapper — kept for backward compatibility during transition
+// Legacy wrapper
 export function calculateTaskFromXlsx(
   taskName: string,
   currentHpp: number,
@@ -259,52 +323,58 @@ export function calculateTaskFromXlsx(
   variables: EstimateVariables,
   allSelectedHours?: number
 ): { hpp: number; total: number } {
-  // This is now only called when formula_config is not available
-  // Keep the old regex-based logic as fallback
   return calculateTaskFromFormula(null, currentHpp, roles, variableQty, variables, allSelectedHours);
 }
 
-/** Returns the calculation type from formula_config */
+/** Returns the calc mode for display */
 export function getTaskCalcType(taskName: string, formulaConfig?: FormulaConfig | null): TaskCalcType {
   if (formulaConfig?.calc_type) return formulaConfig.calc_type as TaskCalcType;
   return 'manual';
 }
 
-/** Returns true if a task has a formula_config (data-driven check) */
+/** Returns true if a task has a formula_config */
 export function isFormulaTask(taskName: string, formulaConfig?: FormulaConfig | null): boolean {
   return !!formulaConfig?.calc_type;
 }
 
-/** Human-readable formula description from config */
+/** Human-readable formula description */
 export function describeFormula(fc: FormulaConfig | null | undefined): string {
-  if (!fc) return 'Manual entry';
-  switch (fc.calc_type) {
-    case 'size':
-      return `bySize(${fc.small}/${fc.medium}/${fc.large})`;
-    case 'size_multiplied':
-      return `bySize(${fc.small}/${fc.medium}/${fc.large}) × ${fc.multiplier}`;
-    case 'complexity':
-      return `byComplexity(${fc.simple}/${fc.moderate}/${fc.complex})`;
-    case 'scope':
-      return `${fc.variable} × ${fc.multiplier}${fc.min != null ? `, min ${fc.min}` : ''}`;
-    case 'variable':
-      return `qty × ${fc.multiplier}`;
+  if (!fc) return 'Fixed hours';
+  const mode = getCalcMode(fc);
+  switch (mode) {
+    case 'fixed':
+      return fc.fixed_hpp != null ? `${fc.fixed_hpp}h fixed` : 'Fixed hours';
     case 'percentage':
-      return `total × ${((fc.pct ?? 0) * 100).toFixed(0)}%`;
-    case 'conditional':
-      if (fc.field === 'paid_discovery') return `scope_only → ${fc.when_scope_only}h, paid → ${fc.otherwise}h`;
-      if (fc.field === 'post_launch_services') return `post_launch > 0 → value, else 0`;
-      return 'Conditional';
-    case 'form_tiers':
-      return `S×${fc.s_rate} + M×${fc.m_rate} + L×${fc.l_rate}`;
-    case 'bulk_import':
-      return `ACF: <500→${fc.acf_table?.['<500']}h, 500-1k→${fc.acf_table?.['500-1000']}h`;
-    case 'bulk_import_check':
-      return `<500→${fc.table?.['<500']}h, 500-1k→${fc.table?.['500-1000']}h`;
-    case 'manual':
-      return fc.fixed_hpp != null ? `Fixed: ${fc.fixed_hpp}h` : 'Manual entry';
+      return `${((fc.pct ?? 0) * 100).toFixed(0)}% of subtotal`;
+    case 'variable': {
+      const driver = getDriver(fc);
+      switch (fc.calc_type) {
+        case 'size':
+          return `S:${fc.small} M:${fc.medium} L:${fc.large}`;
+        case 'size_multiplied':
+          return `S:${fc.small} M:${fc.medium} L:${fc.large} ×${fc.multiplier}`;
+        case 'complexity':
+          return `Simple:${fc.simple} Mod:${fc.moderate} Complex:${fc.complex}`;
+        case 'scope':
+          return `${driver} × ${fc.multiplier}${fc.min != null ? ` min:${fc.min}` : ''}`;
+        case 'variable':
+          return `qty × ${fc.multiplier}`;
+        case 'conditional':
+          if (fc.field === 'paid_discovery') return `scope_only→${fc.when_scope_only}h, paid→${fc.otherwise}h`;
+          if (fc.field === 'post_launch_services') return `post_launch value or 0`;
+          return 'Conditional';
+        case 'form_tiers':
+          return `S×${fc.s_rate} M×${fc.m_rate} L×${fc.l_rate}`;
+        case 'bulk_import':
+          return `bulk import lookup`;
+        case 'bulk_import_check':
+          return `bulk check lookup`;
+        default:
+          return `${driver}`;
+      }
+    }
     default:
-      return 'Manual entry';
+      return 'Fixed hours';
   }
 }
 
@@ -336,7 +406,6 @@ export function calculateTaskHours(
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
 ): { hours: number; formula: string | null } {
-  // Legacy — used only if no formula_config
   return { hours: defaultHours, formula: null };
 }
 
@@ -366,7 +435,7 @@ export function recalculateAllTasks(
   const pmPct = (variables.pm_percentage ?? 8) / 100;
   const qaPct = (variables.qa_percentage ?? 6) / 100;
 
-  // Pass 1: Calculate all core phase tasks (not PM, QA, or Admin Hours)
+  // Pass 1: Calculate all core phase tasks (not PM, QA, or percentage-based)
   const pass1 = tasks.map(task => {
     const phase = task.phase_name || '';
     const fc = task.formula_config as FormulaConfig | null | undefined;
@@ -414,7 +483,7 @@ export function recalculateAllTasks(
   distributePhaseHours(pmTasks, pmTargetHours, pass2);
   distributePhaseHours(qaTasks, qaTargetHours, pass2);
 
-  // Pass 3: Calculate Admin Hours (percentage of selected total)
+  // Pass 3: Calculate percentage-based tasks (Admin Hours)
   const selectedTotal = pass2
     .filter(t => t.is_selected && (t.formula_config as FormulaConfig | null)?.calc_type !== 'percentage')
     .reduce((sum, t) => sum + Number(t.hours), 0);
@@ -429,7 +498,7 @@ export function recalculateAllTasks(
   });
 }
 
-/** Calculate the base model — minimum project cost with all variables at 1 */
+/** Calculate the base model — minimum project cost with all variables at minimum */
 export function calculateBaseModel(
   tasks: Array<{
     id?: string;
@@ -440,6 +509,7 @@ export function calculateBaseModel(
     variable_qty?: number | null;
     is_selected?: boolean;
     is_required?: boolean;
+    default_included?: boolean;
     phase_name?: string | null;
     hourly_rate?: number;
     formula_config?: FormulaConfig | null;
@@ -447,6 +517,7 @@ export function calculateBaseModel(
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
 ): { totalHours: number; totalCost: number } {
+  // Base model = absolute minimum: all vars at 1, only required+default_included tasks
   const minVars: EstimateVariables = {
     ...variables,
     design_layouts: 1,
@@ -462,12 +533,16 @@ export function calculateBaseModel(
     bulk_import_amount: 'none',
     post_launch_services: 0,
   };
+
+  // Filter: only is_required tasks for the base model (ignore user selections)
+  // Reset variable_qty to 1
   const tasksWithIds = tasks.map((t, i) => ({
     ...t,
     id: t.id || `base-${i}`,
     variable_qty: 1,
-    is_selected: !!(t as any).is_required,
+    is_selected: !!t.is_required,
   }));
+
   const recalced = recalculateAllTasks(tasksWithIds, minVars, formulas);
   const selected = recalced.filter(t => t.is_selected);
   const totalHours = selected.reduce((s, t) => s + Math.max(Number(t.hours), 0), 0);
