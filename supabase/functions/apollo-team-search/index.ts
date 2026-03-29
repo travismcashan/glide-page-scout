@@ -1,7 +1,11 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+const MAX_ENRICH_PER_GROUP = 5;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -9,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { domain } = await req.json();
+    const { domain, sessionId, skipEnrichment } = await req.json();
 
     if (!domain) {
       return new Response(
@@ -24,6 +28,29 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: 'Apollo API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // --- Cache check: skip if session already has apollo_team_data ---
+    if (sessionId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const sb = createClient(supabaseUrl, supabaseKey);
+        const { data: session } = await sb
+          .from('crawl_sessions')
+          .select('apollo_team_data')
+          .eq('id', sessionId)
+          .maybeSingle();
+        if (session?.apollo_team_data) {
+          console.log('Apollo team data already cached for session', sessionId);
+          return new Response(
+            JSON.stringify({ ...session.apollo_team_data, cached: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (cacheErr) {
+        console.warn('Cache check failed, proceeding with API call:', cacheErr);
+      }
     }
 
     console.log('Apollo team search for domain:', domain);
@@ -86,7 +113,7 @@ Deno.serve(async (req) => {
           'X-Api-Key': apiKey,
         },
         body: JSON.stringify({
-          details: ids.slice(0, 10).map((id) => ({ id })),
+          details: ids.slice(0, MAX_ENRICH_PER_GROUP).map((id) => ({ id })),
           reveal_personal_emails: false,
         }),
       });
@@ -149,14 +176,19 @@ Deno.serve(async (req) => {
         const searchPeople = data.people || [];
         console.log(`Apollo ${search.label}: found ${searchPeople.length} people`);
 
-        const enrichedMap = await enrichPeopleById(
-          searchPeople.map((p: any) => p.id).filter(Boolean)
-        ).catch((error) => {
-          console.error(`Apollo ${search.label} bulk enrich error:`, error);
-          return new Map<string, any>();
-        });
+        if (skipEnrichment) {
+          // Free mode: just return search results without bulk_match (0 credits)
+          results[search.label] = searchPeople.map((p: any) => mapPerson(p));
+        } else {
+          // Enrich top N only (capped to save credits)
+          const idsToEnrich = searchPeople.slice(0, MAX_ENRICH_PER_GROUP).map((p: any) => p.id).filter(Boolean);
+          const enrichedMap = await enrichPeopleById(idsToEnrich).catch((error) => {
+            console.error(`Apollo ${search.label} bulk enrich error:`, error);
+            return new Map<string, any>();
+          });
 
-        results[search.label] = searchPeople.map((p: any) => mapPerson(enrichedMap.get(p.id) || p));
+          results[search.label] = searchPeople.map((p: any) => mapPerson(enrichedMap.get(p.id) || p));
+        }
       } catch (err) {
         console.error(`Apollo ${search.label} search error:`, err);
       }
@@ -172,14 +204,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    const responsePayload = {
+      success: true,
+      domain,
+      marketing: results.marketing,
+      c_suite: results.c_suite,
+      totalFound: results.marketing.length + results.c_suite.length,
+      enriched: !skipEnrichment,
+      enrichCap: MAX_ENRICH_PER_GROUP,
+    };
+
     return new Response(
-      JSON.stringify({
-        success: true,
-        domain,
-        marketing: results.marketing,
-        c_suite: results.c_suite,
-        totalFound: results.marketing.length + results.c_suite.length,
-      }),
+      JSON.stringify(responsePayload),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
