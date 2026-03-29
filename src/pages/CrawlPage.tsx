@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,9 +16,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 import AppHeader from '@/components/AppHeader';
 import { format } from 'date-fns';
 import { getRecentViews, type RecentView } from '@/lib/recentViews';
+import useEmblaCarousel from 'embla-carousel-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 /* ── Integration showcase data ── */
 const INTEGRATIONS = [
@@ -113,10 +116,40 @@ export default function CrawlPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Paginated carousel: 4 tiles per page
-  const TILES_PER_PAGE = 4;
+  const isMobile = useIsMobile();
+  const TILES_PER_PAGE = isMobile ? 4 : 4;
   const totalPages = Math.ceil(shuffledIntegrations.length / TILES_PER_PAGE);
   const [carouselPage, setCarouselPage] = useState(0);
+
+  // Embla for mobile swipe
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
+
+  const onEmblaSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCarouselPage(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', onEmblaSelect);
+    return () => { emblaApi.off('select', onEmblaSelect); };
+  }, [emblaApi, onEmblaSelect]);
+
+  // Sync desktop page changes to embla
+  useEffect(() => {
+    if (emblaApi && isMobile) {
+      emblaApi.scrollTo(carouselPage);
+    }
+  }, [carouselPage, emblaApi, isMobile]);
+
+  // Build pages of tiles
+  const tilePages = useMemo(() => {
+    const pages: typeof INTEGRATIONS[] = [];
+    for (let i = 0; i < shuffledIntegrations.length; i += TILES_PER_PAGE) {
+      pages.push(shuffledIntegrations.slice(i, i + TILES_PER_PAGE));
+    }
+    return pages;
+  }, [shuffledIntegrations, TILES_PER_PAGE]);
 
   const visibleTiles = shuffledIntegrations.slice(
     carouselPage * TILES_PER_PAGE,
@@ -247,7 +280,8 @@ export default function CrawlPage() {
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 What Can You Do?
               </h2>
-              <div className="flex items-center gap-1.5">
+              {/* Desktop: arrow buttons */}
+              <div className="hidden sm:flex items-center gap-1.5">
                 <span className="text-[11px] text-muted-foreground/60 tabular-nums mr-1">
                   {carouselPage + 1}/{totalPages}
                 </span>
@@ -267,28 +301,72 @@ export default function CrawlPage() {
                 </button>
               </div>
             </div>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={carouselPage}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2, ease: 'easeInOut' }}
-                className="grid grid-cols-2 sm:grid-cols-4 gap-3"
-              >
-                {visibleTiles.map((integration) => (
-                  <div
-                    key={integration.label}
-                    className="group aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between transition-all duration-300 hover:border-primary/30 hover:bg-primary/[0.04] hover:shadow-lg hover:shadow-primary/[0.06] hover:-translate-y-0.5"
-                  >
-                    <integration.icon className="h-8 w-8 sm:h-12 sm:w-12 text-primary/60 group-hover:text-primary transition-colors" />
-                    <span className="text-sm sm:text-base font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
-                      {integration.label}
-                    </span>
-                  </div>
+
+            {/* Mobile: swipeable carousel with dots */}
+            <div className="sm:hidden">
+              <div className="overflow-hidden" ref={emblaRef}>
+                <div className="flex">
+                  {tilePages.map((page, pageIdx) => (
+                    <div key={pageIdx} className="flex-[0_0_100%] min-w-0">
+                      <div className="grid grid-cols-2 gap-3">
+                        {page.map((integration) => (
+                          <div
+                            key={integration.label}
+                            className="group aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between transition-all duration-300 hover:border-primary/30 hover:bg-primary/[0.04]"
+                          >
+                            <integration.icon className="h-8 w-8 text-primary/60 group-hover:text-primary transition-colors" />
+                            <span className="text-sm font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
+                              {integration.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Dot indicators */}
+              <div className="flex justify-center gap-1.5 mt-4">
+                {tilePages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => emblaApi?.scrollTo(idx)}
+                    className={cn(
+                      'h-1.5 rounded-full transition-all duration-300',
+                      idx === carouselPage
+                        ? 'w-6 bg-primary'
+                        : 'w-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/40'
+                    )}
+                  />
                 ))}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Desktop: animated grid */}
+            <div className="hidden sm:block">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={carouselPage}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2, ease: 'easeInOut' }}
+                  className="grid grid-cols-4 gap-3"
+                >
+                  {visibleTiles.map((integration) => (
+                    <div
+                      key={integration.label}
+                      className="group aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between transition-all duration-300 hover:border-primary/30 hover:bg-primary/[0.04] hover:shadow-lg hover:shadow-primary/[0.06] hover:-translate-y-0.5"
+                    >
+                      <integration.icon className="h-12 w-12 text-primary/60 group-hover:text-primary transition-colors" />
+                      <span className="text-base font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
+                        {integration.label}
+                      </span>
+                    </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* ── Recently viewed ── */}
