@@ -53,7 +53,7 @@ const CHARACTERISTIC_INSTRUCTIONS: Record<string, string> = {
   gifs: 'Occasionally include a fun, relevant GIF using markdown image syntax linking to Giphy (e.g. ![description](https://media.giphy.com/...)). Use sparingly for humor or emphasis — maybe once per longer response when it fits naturally.',
 };
 
-function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteristics?: string[], customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string, locationData?: Record<string, any>): string {
+function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteristics?: string[], customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string, locationData?: Record<string, any>, harvestApiDocs?: string): string {
   const toneBlock = tonePreset && tonePreset !== 'default' && TONE_INSTRUCTIONS[tonePreset]
     ? `\n\n---\n\n**Communication Style**: ${TONE_INSTRUCTIONS[tonePreset]}\n`
     : '';
