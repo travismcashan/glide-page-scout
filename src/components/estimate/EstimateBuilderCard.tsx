@@ -608,20 +608,9 @@ function getProjectDuration(totalHours: number): string {
                       onRerunRequest={onTemplatesRerunRequest}
                       onActiveTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, template_tier: tier } : prev); supabase.from('project_estimates').update({ template_tier: tier }).eq('id', estimate.id).then(); }}
                       onTiersChange={(tiers) => {
-                        // Save tiers to DB
                         supabase.from('crawl_sessions').update({ template_tiers: tiers as any }).eq('id', sessionId).then();
-                        const nonToolkitCount = (tiers.L || []).length;
-                        const bestTier = nonToolkitCount <= 8 ? 'S' : nonToolkitCount <= 18 ? 'M' : 'L';
-                        const tierLayouts = tiers[bestTier];
-                        if (Array.isArray(tierLayouts) && tierLayouts.length > 0) {
-                          handleVariablesChange({ ...estimate, design_layouts: tierLayouts.length });
-                        }
                       }}
-                      onSelectionChange={(count) => {
-                        if (estimate && count !== estimate.design_layouts) {
-                          handleVariablesChange({ ...estimate, design_layouts: count });
-                        }
-                      }}
+                      onSelectionChange={() => {}}
                     />
                   </SectionCard>
                 )}
