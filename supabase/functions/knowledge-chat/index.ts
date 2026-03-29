@@ -1341,6 +1341,8 @@ serve(async (req) => {
     const useDocuments = sources?.documents !== false; // default true
     const useWeb = sources?.web === true; // default false
     const useAnalytics = sources?.analytics !== false; // default true
+    const useHarvest = sources?.harvest === true; // default false
+    const useAsana = sources?.asana === true; // default false
     const ragMatchCount = Math.min(Math.max(rag_depth?.match_count ?? 25, 5), 100);
     const ragMatchThreshold = Math.min(Math.max(rag_depth?.match_threshold ?? 0.25, 0.05), 0.8);
 
