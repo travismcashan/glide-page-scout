@@ -119,8 +119,16 @@ export default function AppHeader() {
           )}
         </nav>
 
-        {/* Mobile: left hamburger + Sheet (hidden on /chat where MobileChatDrawer handles it) */}
-        <div className={cn("flex md:hidden items-center gap-2", location.pathname === '/chat' && 'hidden')}>
+        {/* Mobile: left hamburger */}
+        <div className="flex md:hidden items-center gap-2">
+          {location.pathname === '/chat' ? (
+            <button
+              className="p-0 bg-transparent border-none outline-none"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-mobile-chat-drawer'))}
+            >
+              <Menu className="h-7 w-7 text-foreground" />
+            </button>
+          ) : (
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <button className="p-0 bg-transparent border-none outline-none">
@@ -213,6 +221,7 @@ export default function AppHeader() {
               </div>
             </SheetContent>
           </Sheet>
+          )}
         </div>
       </div>
     </header>
