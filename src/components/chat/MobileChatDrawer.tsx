@@ -118,13 +118,8 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
               </button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0 border-none bg-background flex flex-col">
-              {/* Logo */}
-              <div className="flex items-center gap-2 px-6 pt-12 pb-3">
-                <ProductIcon className="h-6 w-6 text-primary" />
-                <span className="text-sm font-semibold tracking-tight">{currentProduct.fullName}</span>
-              </div>
               {/* Global Nav */}
-              <nav className="px-6 pb-2 flex flex-col border-b border-border/30">
+              <nav className="px-6 pt-12 pb-2 flex flex-col border-b border-border/30">
                 {NAV_ITEMS.map((item) => (
                   <button
                     key={item.to}
