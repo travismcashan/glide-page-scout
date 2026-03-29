@@ -72,7 +72,7 @@ serve(async (req) => {
 
     if (action === 'projects') {
       const params = new URLSearchParams();
-      params.set('is_active', 'true');
+      params.set('is_active', body.is_active === false ? 'false' : 'true');
       params.set('per_page', String(limit || 100));
 
       const res = await fetch(`${HARVEST_API}/projects?${params}`, { headers });
