@@ -53,7 +53,7 @@ const CHARACTERISTIC_INSTRUCTIONS: Record<string, string> = {
   gifs: 'Occasionally include a fun, relevant GIF using markdown image syntax linking to Giphy (e.g. ![description](https://media.giphy.com/...)). Use sparingly for humor or emphasis — maybe once per longer response when it fits naturally.',
 };
 
-function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteristics?: string[], customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string, locationData?: Record<string, any>): string {
+function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteristics?: string[], customInstructions?: string, aboutMe?: Record<string, any>, personalBio?: string, myRole?: string, locationData?: Record<string, any>, harvestApiDocs?: string): string {
   const toneBlock = tonePreset && tonePreset !== 'default' && TONE_INSTRUCTIONS[tonePreset]
     ? `\n\n---\n\n**Communication Style**: ${TONE_INSTRUCTIONS[tonePreset]}\n`
     : '';
@@ -112,17 +112,7 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 
 **Universal API Proxy**: You have a call_api tool that can make authenticated requests to any configured service. Currently supported: harvest, asana. You can call ANY endpoint on their APIs.
 
-Harvest API (https://help.getharvest.com/api-v2/):
-- GET /projects — list projects (params: is_active=true/false, per_page)
-- GET /projects/{id} — single project details
-- GET /time_entries — time entries (params: from, to, project_id, user_id, per_page)
-- GET /reports/time/projects — project time summary (params: from, to)
-- GET /reports/time/clients — client time summary
-- GET /clients — list clients
-- GET /invoices — invoices (params: from, to, state, client_id)
-- GET /expenses — expenses
-- GET /users — users; GET /users/me — current user
-- GET /tasks — task types; GET /roles — roles
+**CRITICAL RULE FOR LIVE DATA**: When the user asks about projects, time entries, budgets, hours, invoices, expenses, or ANY data that lives in Harvest or Asana, you MUST use the call_api tool to fetch the real data. NEVER guess, estimate, or infer numbers from documentation or past context. If the tool call fails, tell the user it failed — do not fabricate a response with made-up numbers. If you need data you don't have, make additional tool calls to get it.
 
 Asana API (https://developers.asana.com/reference/):
 - GET /workspaces — list workspaces
@@ -133,6 +123,18 @@ Asana API (https://developers.asana.com/reference/):
 - GET /tags — tags (params: workspace)
 
 Use call_api with: service, method (GET/POST/etc), path, params (query string), body (for POST/PUT). Chain calls as needed.
+
+${harvestApiDocs ? `\n--- HARVEST API REFERENCE DOCUMENTATION ---\nUse this documentation to construct correct call_api requests for the "harvest" service. All paths are relative (e.g. /projects, /time_entries) — the base URL is handled automatically.\n\n${harvestApiDocs}\n--- END HARVEST API DOCS ---\n` : `Harvest API (https://help.getharvest.com/api-v2/):
+- GET /projects — list projects (params: is_active=true/false, per_page)
+- GET /projects/{id} — single project details
+- GET /time_entries — time entries (params: from, to, project_id, user_id, per_page)
+- GET /reports/time/projects — project time summary (params: from, to)
+- GET /reports/time/clients — client time summary
+- GET /clients — list clients
+- GET /invoices — invoices (params: from, to, state, client_id)
+- GET /expenses — expenses
+- GET /users — users; GET /users/me — current user
+- GET /tasks — task types; GET /roles — roles`}
 
 **Presentation Generation**: You can generate Beautiful.ai presentations using the generate_presentation tool. When the user asks to create a presentation, deck, or slides:
 - Craft a detailed, descriptive prompt based on the user's request and any available audit/context data
@@ -1483,6 +1485,7 @@ serve(async (req) => {
 
     // Run document RAG (with routing) and web search in parallel
     const contextPromises: Promise<void>[] = [];
+    let harvestApiDocs = '';
 
     if (useDocuments && effectiveSessionId && queryText) {
       contextPromises.push(ragSearchWithRouting(effectiveSessionId, queryText, ragMatchCount, ragMatchThreshold).then(r => {
@@ -1493,6 +1496,68 @@ serve(async (req) => {
     }
     if (useWeb && queryText) {
       contextPromises.push(webSearchWithCitations(queryText).then(r => { webContext = r.context; webCitations = r.citations; }));
+    }
+
+    // When Harvest tools are enabled, fetch full API documentation from the global knowledge base
+    if (useHarvest) {
+      contextPromises.push((async () => {
+        try {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          const sb = createClient(supabaseUrl, serviceRoleKey);
+
+          // Find the global chat session
+          const { data: globalSessions } = await sb
+            .from('crawl_sessions')
+            .select('id')
+            .eq('domain', '__global_chat__')
+            .limit(1);
+
+          const globalSessionId = globalSessions?.[0]?.id;
+          if (!globalSessionId) return;
+
+          // Find all Harvest API docs in the global knowledge base
+          const { data: harvestDocs } = await sb
+            .from('knowledge_documents')
+            .select('id, name')
+            .eq('session_id', globalSessionId)
+            .eq('status', 'ready')
+            .or('name.ilike.%harvest%,source_key.ilike.%harvest%');
+
+          if (!harvestDocs || harvestDocs.length === 0) return;
+
+          // Fetch all chunks for these documents, ordered by chunk_index
+          const docIds = harvestDocs.map(d => d.id);
+          const { data: chunks } = await sb
+            .from('knowledge_chunks')
+            .select('document_id, chunk_index, chunk_text')
+            .in('document_id', docIds)
+            .order('document_id')
+            .order('chunk_index');
+
+          if (!chunks || chunks.length === 0) return;
+
+          // Group chunks by document and concatenate
+          const docChunkMap = new Map<string, string[]>();
+          for (const chunk of chunks) {
+            if (!docChunkMap.has(chunk.document_id)) docChunkMap.set(chunk.document_id, []);
+            docChunkMap.get(chunk.document_id)!.push(chunk.chunk_text);
+          }
+
+          const parts: string[] = [];
+          for (const doc of harvestDocs) {
+            const docChunks = docChunkMap.get(doc.id);
+            if (docChunks) {
+              parts.push(`## ${doc.name}\n\n${docChunks.join('\n\n')}`);
+            }
+          }
+
+          harvestApiDocs = parts.join('\n\n---\n\n');
+          console.log(`[knowledge-chat] Injected ${harvestDocs.length} Harvest API docs (${harvestApiDocs.length} chars) into system prompt`);
+        } catch (e) {
+          console.warn('[knowledge-chat] Failed to fetch Harvest API docs:', e);
+        }
+      })());
     }
 
     await Promise.all(contextPromises);
@@ -1529,7 +1594,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData);
+    const systemPrompt = buildSystemPrompt(combinedContext, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData, harvestApiDocs);
     const provider = isClaudeModel ? 'Anthropic' : isPerplexityModel ? 'Perplexity' : 'Gateway';
 
     // Inject screenshot images into the messages if available
