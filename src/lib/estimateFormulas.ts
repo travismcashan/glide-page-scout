@@ -113,8 +113,6 @@ export function getCalcMode(fc: FormulaConfig | null | undefined): CalcMode {
   if (!fc?.calc_type) return 'fixed';
   switch (fc.calc_type) {
     case 'percentage': return 'percentage';
-    case 'size':
-    case 'size_multiplied':
     case 'complexity':
     case 'scope':
     case 'variable':
@@ -133,9 +131,6 @@ export function getCalcMode(fc: FormulaConfig | null | undefined): CalcMode {
 export function getDriver(fc: FormulaConfig | null | undefined): string {
   if (!fc?.calc_type) return '-';
   switch (fc.calc_type) {
-    case 'size':
-    case 'size_multiplied':
-      return 'project_size';
     case 'complexity':
       return 'project_complexity';
     case 'scope':
@@ -230,14 +225,6 @@ export function calculateTaskFromFormula(
   let hpp: number;
 
   switch (fc.calc_type) {
-    // ── VARIABLE: scales with a driver ──
-    case 'size':
-      hpp = bySizeNum(size, fc.small ?? 0, fc.medium ?? 0, fc.large ?? 0);
-      break;
-
-    case 'size_multiplied':
-      hpp = bySizeNum(size, fc.small ?? 0, fc.medium ?? 0, fc.large ?? 0) * (fc.multiplier ?? 1);
-      break;
 
     case 'complexity':
       hpp = byComplexity(complexity, fc.simple ?? 0, fc.moderate ?? 0, fc.complex ?? 0);
