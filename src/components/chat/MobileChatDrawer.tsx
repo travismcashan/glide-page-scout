@@ -1,5 +1,5 @@
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Plus, MoreHorizontal, Pencil, Pin, Trash2, MessageSquare, Settings, LogOut, Shield, Link2 } from 'lucide-react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Plus, MoreHorizontal, Pencil, Pin, Trash2, MessageSquare, Settings, LogOut, Shield, Link2 } from 'lucide-react';
 import { useProduct } from '@/contexts/ProductContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
