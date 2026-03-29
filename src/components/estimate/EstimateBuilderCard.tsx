@@ -580,6 +580,7 @@ function getProjectDuration(totalHours: number): string {
 
             <TabsContent value="variables">
               <div className="space-y-6">
+                <EstimateVariablesTab variables={estimate} onChange={handleVariablesChange} baseModel={baseModel} />
 
                 {pageTags && (
                   <SectionCard
