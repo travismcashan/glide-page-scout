@@ -321,9 +321,9 @@ export default function CrawlPage() {
             {/* Mobile: swipeable carousel with dots */}
             <div className="sm:hidden">
               <div className="overflow-hidden touch-pan-y" ref={emblaRef}>
-                <div className="flex will-change-transform">
+                <div className="flex will-change-transform -ml-3">
                   {tilePages.map((page, pageIdx) => (
-                    <div key={pageIdx} className="flex-[0_0_100%] min-w-0">
+                    <div key={pageIdx} className="flex-[0_0_100%] min-w-0 pl-3">
                       <div className="grid grid-cols-2 gap-3">
                         {page.map((integration) => (
                           <div
