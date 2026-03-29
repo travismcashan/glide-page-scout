@@ -312,6 +312,9 @@ export function calculateTaskFromXlsx(
     hpp = currentHpp;
   }
 
+  // Clamp to 0 — negative hours make no sense
+  hpp = Math.max(hpp, 0);
+
   // Calculate total: hpp * roleCount (XLSX pattern)
   const total = Math.round(hpp * roleCount * 100) / 100;
 
@@ -485,8 +488,8 @@ export function calculateBaseModel(
   };
   const tasksWithIds = tasks.map((t, i) => ({ ...t, id: t.id || `base-${i}` }));
   const recalced = recalculateAllTasks(tasksWithIds, minVars, formulas);
-  const selected = recalced.filter(t => t.is_selected);
-  const totalHours = selected.reduce((s, t) => s + Number(t.hours), 0);
+  const selected = recalced.filter(t => t.is_selected && (t as any).is_required);
+  const totalHours = selected.reduce((s, t) => s + Math.max(Number(t.hours), 0), 0);
   const totalCost = selected.reduce((s, t) => s + Number(t.hours) * Number((t as any).hourly_rate || 150), 0);
   return { totalHours, totalCost };
 }
