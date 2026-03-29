@@ -119,29 +119,21 @@ export default function AppHeader() {
           )}
         </nav>
 
-        {/* Mobile hamburger */}
-        <div className="flex md:hidden items-center gap-2">
-          {user && (
-            <Avatar className="h-7 w-7">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="text-xs">
-                {(profile?.display_name || user.email || '?')[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          )}
+        {/* Mobile: left hamburger + Sheet (hidden on /chat where MobileChatDrawer handles it) */}
+        <div className={cn("flex md:hidden items-center gap-2", location.pathname === '/chat' && 'hidden')}>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <button className="p-0 bg-transparent border-none outline-none">
-                <Menu className="h-8 w-8 text-foreground" />
+                <Menu className="h-7 w-7 text-foreground" />
               </button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:w-[320px] p-0 border-none bg-background flex flex-col overflow-y-auto">
+            <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0 border-none bg-background flex flex-col overflow-y-auto">
               {/* Nav section */}
-              <nav className="flex-1 flex flex-col justify-center px-8 py-10">
+              <nav className="flex-1 flex flex-col px-6 pt-14 pb-6">
                 <button
                   onClick={() => { navigate('/'); setMobileOpen(false); }}
                   className={cn(
-                    'text-left text-2xl font-semibold py-2.5 transition-colors tracking-tight',
+                    'text-left text-lg font-semibold py-2.5 transition-colors tracking-tight',
                     'text-foreground/40 active:text-foreground',
                     location.pathname === '/' && 'text-foreground'
                   )}
@@ -153,7 +145,7 @@ export default function AppHeader() {
                     key={item.to}
                     onClick={() => { navigate(item.to); setMobileOpen(false); }}
                     className={cn(
-                      'text-left text-2xl font-semibold py-2.5 transition-colors tracking-tight',
+                      'text-left text-lg font-semibold py-2.5 transition-colors tracking-tight',
                       'text-foreground/40 active:text-foreground',
                       isNavActive(item) && 'text-foreground'
                     )}
@@ -164,7 +156,7 @@ export default function AppHeader() {
               </nav>
 
               {/* Bottom section — user info & secondary links */}
-              <div className="px-8 pb-10 flex flex-col gap-3">
+              <div className="px-6 pb-8 flex flex-col gap-3">
                 {user ? (
                   <>
                     <div className="flex items-center gap-3 pb-3 mb-3 border-b border-border/30">
