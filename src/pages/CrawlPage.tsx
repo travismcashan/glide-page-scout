@@ -418,7 +418,7 @@ export default function CrawlPage() {
       </main>
 
       {/* Footer */}
-      <footer className="pb-6 text-center">
+      <footer className="pb-6 text-center bg-background">
         <p className="text-xs text-muted-foreground/50">
           AI-generated results are based on available data and may not always be 100% accurate.
         </p>
