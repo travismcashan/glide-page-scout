@@ -646,6 +646,7 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
 }
 
 const SOURCE_TYPE_ICONS: Record<string, string> = {
+  api: '🔌',
   integration: '📊',
   scrape: '🌐',
   upload: '📎',
@@ -685,16 +686,38 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick, webCitations }:
       </button>
       {expanded && (
         <div className="mt-2 ml-5 space-y-0.5">
-          {ragDocuments.length > 0 && (
-            <div className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mt-1 mb-1">Documents</div>
-          )}
-          {ragDocuments.map((doc, i) => (
-            <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-              <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
-              <span className="truncate max-w-[300px]">{doc.name}</span>
-              <span className="text-[11px] opacity-60">({doc.source_type})</span>
-            </div>
-          ))}
+          {(() => {
+            const apiDocs = ragDocuments.filter(d => d.source_type === 'api');
+            const otherDocs = ragDocuments.filter(d => d.source_type !== 'api');
+            return (
+              <>
+                {apiDocs.length > 0 && (
+                  <>
+                    <div className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mt-1 mb-1">Live Data</div>
+                    {apiDocs.map((doc, i) => (
+                      <div key={`api-${i}`} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <span>{SOURCE_TYPE_ICONS.api}</span>
+                        <span className="truncate max-w-[300px]">{doc.name}</span>
+                        <span className="text-[11px] opacity-60">(live)</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {otherDocs.length > 0 && (
+                  <>
+                    <div className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mt-1 mb-1">Documents</div>
+                    {otherDocs.map((doc, i) => (
+                      <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
+                        <span className="truncate max-w-[300px]">{doc.name}</span>
+                        <span className="text-[11px] opacity-60">({doc.source_type})</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            );
+          })()}
           {integrationSources.map(s => (
             <button
               key={`src-${s}`}

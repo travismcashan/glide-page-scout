@@ -1110,6 +1110,7 @@ async function handleGatewayRequest(
   reasoning: string | undefined,
   enableTools: boolean | { analytics: boolean; apiProxy: boolean } = false,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
+  ragDocuments?: { name: string; source_type: string }[],
 ): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
@@ -1281,6 +1282,24 @@ async function handleGatewayRequest(
         },
         ...toolResults,
       ];
+    }
+
+    // Derive API sources from tool calls and push into ragDocuments
+    if (ragDocuments && allToolResults.length > 0) {
+      const apiSourcesSeen = new Set<string>();
+      for (const tr of allToolResults) {
+        if (tr.toolName === 'call_api') {
+          try {
+            const a = JSON.parse(tr.args);
+            const key = `${a.service}:${a.path}`;
+            if (!apiSourcesSeen.has(key)) {
+              apiSourcesSeen.add(key);
+              const label = (a.service || 'API').charAt(0).toUpperCase() + (a.service || 'api').slice(1);
+              ragDocuments.push({ name: `${label}: ${a.path}`, source_type: 'api' });
+            }
+          } catch {}
+        }
+      }
     }
 
     // If we gathered any tool results, do a final synthesis pass
@@ -1657,12 +1676,13 @@ serve(async (req) => {
         ragDocuments.push({ name: `Screenshot: ${ss.url}`, source_type: 'screenshot' });
       }
     }
-    if (ragDocuments.length > 0) {
-      metadataEvents.push(`data: ${JSON.stringify({ rag_documents: ragDocuments })}\n\n`);
-    }
-
     // Helper to prepend metadata events to a streaming response
+    // ragDocuments metadata is built lazily so handleGatewayRequest can push API sources first
     const prependMetadata = (aiResponse: Response): Response => {
+      // Build ragDocuments event now (after handler may have added API sources)
+      if (ragDocuments.length > 0) {
+        metadataEvents.push(`data: ${JSON.stringify({ rag_documents: ragDocuments })}\n\n`);
+      }
       if (metadataEvents.length === 0 || !aiResponse.body) return aiResponse;
       const encoder = new TextEncoder();
       const metadataChunks = metadataEvents.map(e => encoder.encode(e));
@@ -1693,7 +1713,7 @@ serve(async (req) => {
     } else if (isPerplexityModel) {
       return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt, contextPreset));
     } else {
-      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, { analytics: useAnalytics, apiProxy: useHarvest || useAsana }, contextPreset));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, { analytics: useAnalytics, apiProxy: useHarvest || useAsana }, contextPreset, ragDocuments));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
