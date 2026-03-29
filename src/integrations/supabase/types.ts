@@ -295,6 +295,7 @@ export type Database = {
           created_at: string
           display_order: number
           estimate_id: string
+          formula_config: Json | null
           hourly_rate: number
           hours: number
           hours_per_person: number
@@ -314,6 +315,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           estimate_id: string
+          formula_config?: Json | null
           hourly_rate?: number
           hours?: number
           hours_per_person?: number
@@ -333,6 +335,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           estimate_id?: string
+          formula_config?: Json | null
           hourly_rate?: number
           hours?: number
           hours_per_person?: number
