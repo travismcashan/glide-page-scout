@@ -1216,11 +1216,32 @@ async function handleGatewayRequest(
           })
         );
 
-        const finalMessages = [
-          ...messages,
-          choice.message,
-          ...toolResults,
-        ];
+        const toolSummaryBlock = choice.message.tool_calls.map((tc: any, index: number) => {
+          const toolResult = toolResults[index]?.content ?? '';
+          return [
+            `Tool: ${tc.function.name}`,
+            `Arguments: ${tc.function.arguments || '{}'}`,
+            'Result:',
+            toolResult,
+          ].join('\n');
+        }).join('\n\n---\n\n');
+
+        const synthesisBody: any = {
+          model: selectedModel,
+          max_tokens: contextPreset.gateway,
+          messages: [
+            {
+              role: 'system',
+              content: `${systemPrompt}\n\nYou have already executed the required live tools. Do not call any tools now. Use the tool results below as the source of truth, answer the user's latest request directly, and cite the tool names you used.\n\nLive tool results:\n${toolSummaryBlock}`,
+            },
+            ...messages,
+          ],
+          stream: true,
+        };
+
+        if (selectedReasoning) {
+          synthesisBody.reasoning = { effort: selectedReasoning };
+        }
 
         const finalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -1228,7 +1249,7 @@ async function handleGatewayRequest(
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(buildRequestBody(finalMessages, false)),
+          body: JSON.stringify(synthesisBody),
         });
 
         if (!finalResponse.ok) {
