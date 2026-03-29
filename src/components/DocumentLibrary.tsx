@@ -438,6 +438,102 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     }
   };
 
+  const SCRAPE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/firecrawl-scrape`;
+
+  const handleUrlSubmit = async () => {
+    let url = urlInput.trim();
+    if (!url) { toast.error('Please enter a URL'); return; }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+
+    setUrlSubmitting(true);
+    try {
+      // Extract a display name from the URL
+      let displayName: string;
+      try { displayName = new URL(url).hostname + new URL(url).pathname; } catch { displayName = url; }
+      if (displayName.length > 120) displayName = displayName.slice(0, 117) + '…';
+
+      // Insert placeholder
+      const { data: inserted, error: insertErr } = await supabase
+        .from('knowledge_documents')
+        .insert({
+          session_id: sessionId,
+          name: displayName,
+          source_type: 'url',
+          source_key: url,
+          status: 'uploading',
+          char_count: 0,
+          chunk_count: 0,
+        })
+        .select('id')
+        .single();
+      if (insertErr || !inserted) { toast.error('Failed to create document'); setUrlSubmitting(false); return; }
+      fetchDocuments();
+
+      // Scrape via Firecrawl
+      const scrapeResp = await fetch(SCRAPE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ url, options: { formats: ['markdown'], onlyMainContent: true } }),
+      });
+
+      const scrapeResult = await scrapeResp.json().catch(() => null);
+      const markdown = scrapeResult?.data?.markdown || scrapeResult?.markdown || '';
+      const title = scrapeResult?.data?.metadata?.title || scrapeResult?.metadata?.title || '';
+
+      if (!markdown || markdown.length < 30) {
+        await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'No content extracted from page' }).eq('id', inserted.id);
+        toast.error('Could not extract content from that URL');
+        fetchDocuments();
+        setUrlSubmitting(false);
+        return;
+      }
+
+      // Use page title as doc name if available
+      if (title) {
+        await supabase.from('knowledge_documents').update({ name: title }).eq('id', inserted.id);
+      }
+
+      // Ingest the markdown
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          documents: [{ document_id: inserted.id, name: title || displayName, content: markdown, source_type: 'url' }],
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      const ingestResult = result?.results?.[0];
+
+      if (!response.ok || ingestResult?.status === 'error') {
+        await supabase.from('knowledge_documents').update({
+          status: 'error',
+          error_message: ingestResult?.reason || 'Indexing failed',
+        }).eq('id', inserted.id);
+        toast.error('Failed to index page content');
+      } else {
+        toast.success(`Indexed "${title || displayName}" into knowledge base`);
+      }
+
+      setUrlInput('');
+      setUrlModalOpen(false);
+      fetchDocuments();
+    } catch (err) {
+      console.error('URL scrape error:', err);
+      toast.error('Failed to scrape URL');
+    } finally {
+      setUrlSubmitting(false);
+    }
+  };
+
   const RENAME_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rename-document`;
 
   const handleRenameAll = useCallback(async () => {
