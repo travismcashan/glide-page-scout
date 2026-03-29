@@ -197,7 +197,7 @@ serve(async (req) => {
     // Truncate large responses to prevent context overflow
     const jsonStr = JSON.stringify(data);
     if (jsonStr.length > MAX_RESPONSE_CHARS) {
-      return new Response(JSON.stringify(buildPreviewPayload(data, jsonStr.length)), {
+      return new Response(JSON.stringify(buildPreviewPayload(data, jsonStr.length, url)), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
