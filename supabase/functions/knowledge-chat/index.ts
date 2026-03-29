@@ -1093,7 +1093,7 @@ async function handleGatewayRequest(
   messages: any[],
   systemPrompt: string,
   reasoning: string | undefined,
-  enableTools: boolean | { analytics: boolean; harvest: boolean; asana: boolean } = false,
+  enableTools: boolean | { analytics: boolean; apiProxy: boolean } = false,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
 ): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
