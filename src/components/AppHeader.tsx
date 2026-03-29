@@ -58,42 +58,6 @@ export default function AppHeader() {
             </span>
           </button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 ml-0.5 shrink-0">
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                Glide Products
-              </DropdownMenuLabel>
-              {PRODUCTS.map((product) => {
-                const Icon = product.icon;
-                const isCurrent = product.id === currentProduct.id;
-                return (
-                  <DropdownMenuItem
-                    key={product.id}
-                    disabled={!product.active}
-                    onClick={() => product.active && setCurrentProduct(product.id)}
-                    className="flex items-center gap-3 py-2"
-                  >
-                    <Icon className={`h-5 w-5 ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{product.fullName}</span>
-                        {!product.active && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Soon</Badge>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">{product.description}</span>
-                    </div>
-                    {isCurrent && <Check className="h-4 w-4 text-primary shrink-0" />}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         {/* Desktop nav */}
