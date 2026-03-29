@@ -216,8 +216,9 @@ export default function SettingsPage() {
         body: { email: user.email, firstName: nameParts[0] || undefined, lastName: nameParts.slice(1).join(' ') || undefined },
       });
       if (error) { toast.error('Could not enrich profile'); return; }
-      const person = data?.data?.person || data?.data || (data?.found ? data : null);
-      if (!person) { toast.error('No profile data found'); return; }
+      // apollo-enrich returns flat: { success, found, firstName, ... }
+      const person = data?.found ? data : data?.data?.person || data?.data || null;
+      if (!person || !person.found) { toast.error(person?.error || 'No matching profile found in Apollo — try adding your domain'); return; }
 
       const emailDomain = user.email.split('@')[1];
       const apolloOrgDomain = person.organizationDomain || person.organization?.primary_domain;
