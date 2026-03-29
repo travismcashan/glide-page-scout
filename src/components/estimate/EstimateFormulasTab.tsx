@@ -16,6 +16,7 @@ interface TaskWithFormula {
   hours?: number;
   roles?: string | null;
   task_type?: string;
+  variable_qty?: number | null;
 }
 
 const MODE_LABELS: Record<CalcMode, string> = {
