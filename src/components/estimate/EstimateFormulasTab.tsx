@@ -10,7 +10,7 @@ import { type FormulaConfig, type TaskCalcType, describeFormula } from '@/lib/es
 interface TaskWithFormula {
   task_name: string;
   phase_name: string | null;
-  formula_config: FormulaConfig | null;
+  formula_config?: FormulaConfig | null;
 }
 
 const CALC_TYPE_LABELS: Record<string, string> = {

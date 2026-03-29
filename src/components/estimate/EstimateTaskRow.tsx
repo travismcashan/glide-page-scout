@@ -3,6 +3,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { isFormulaTask } from '@/lib/estimateFormulas';
 
+import type { FormulaConfig } from '@/lib/estimateFormulas';
+
 export interface EstimateTask {
   id: string;
   task_name: string;
@@ -19,6 +21,7 @@ export interface EstimateTask {
   variable_label?: string | null;
   variable_qty?: number | null;
   is_required?: boolean;
+  formula_config?: FormulaConfig | null;
 }
 
 interface Props {
