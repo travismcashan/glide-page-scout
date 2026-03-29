@@ -12,7 +12,7 @@ import { Save, Clock, DollarSign, Users, Layers, Settings2, PlusCircle, Loader2,
 import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateTaskTable } from './EstimateTaskTable';
 
-import { recalculateAllTasks, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
+import { recalculateAllTasks, calculateBaseModel, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import type { PageTagsMap } from '@/lib/pageTags';
@@ -54,6 +54,8 @@ interface Estimate extends EstimateVariables {
   content_tier?: string | null;
   tech_tier?: string | null;
   forms_tier?: string | null;
+  pm_percentage?: number | null;
+  qa_percentage?: number | null;
 }
 
 export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
