@@ -16,12 +16,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 import AppHeader from '@/components/AppHeader';
 import { format } from 'date-fns';
 import { getRecentViews, type RecentView } from '@/lib/recentViews';
 import useEmblaCarousel from 'embla-carousel-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { getRecentViews, type RecentView } from '@/lib/recentViews';
 
 /* ── Integration showcase data ── */
 const INTEGRATIONS = [
