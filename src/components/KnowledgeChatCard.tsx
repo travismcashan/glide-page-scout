@@ -1594,7 +1594,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             }
 
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            const reasoningContent = parsed.choices?.[0]?.delta?.reasoning_content as string | undefined;
+            const reasoningContent = (
+              parsed.choices?.[0]?.delta?.reasoning_content ??
+              parsed.choices?.[0]?.delta?.reasoning ??
+              parsed.choices?.[0]?.delta?.reasoning_details?.find((d: any) => d?.type === 'reasoning.text')?.text
+            ) as string | undefined;
             if (reasoningContent) {
               thinkingContent += reasoningContent;
               updateMessages();
@@ -1630,7 +1634,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            const reasoningContent = parsed.choices?.[0]?.delta?.reasoning_content as string | undefined;
+            const reasoningContent = (
+              parsed.choices?.[0]?.delta?.reasoning_content ??
+              parsed.choices?.[0]?.delta?.reasoning ??
+              parsed.choices?.[0]?.delta?.reasoning_details?.find((d: any) => d?.type === 'reasoning.text')?.text
+            ) as string | undefined;
             if (reasoningContent) {
               thinkingContent += reasoningContent;
             }
@@ -1698,7 +1706,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds, searchSources, ragDepth, contextWindowSize, onDocumentsChanged]);
 
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {
