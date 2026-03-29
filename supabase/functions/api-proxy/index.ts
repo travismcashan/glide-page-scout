@@ -39,6 +39,56 @@ const SERVICES: Record<string, {
   },
 };
 
+const MAX_RESPONSE_CHARS = 100_000;
+const MAX_ARRAY_ITEMS = 25;
+const MAX_OBJECT_KEYS = 50;
+const MAX_STRING_CHARS = 2_000;
+const MAX_DEPTH = 6;
+
+function compactValue(value: unknown, depth = 0): unknown {
+  if (depth >= MAX_DEPTH) return '[truncated nested data]';
+
+  if (typeof value === 'string') {
+    return value.length > MAX_STRING_CHARS
+      ? `${value.slice(0, MAX_STRING_CHARS)}… [truncated ${value.length - MAX_STRING_CHARS} chars]`
+      : value;
+  }
+
+  if (Array.isArray(value)) {
+    const items = value.slice(0, MAX_ARRAY_ITEMS).map((item) => compactValue(item, depth + 1));
+    return value.length > MAX_ARRAY_ITEMS
+      ? {
+          _type: 'array_preview',
+          _returned_items: items.length,
+          _remaining_items: value.length - MAX_ARRAY_ITEMS,
+          items,
+        }
+      : items;
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    const limitedEntries = entries.slice(0, MAX_OBJECT_KEYS).map(([key, entryValue]) => [key, compactValue(entryValue, depth + 1)]);
+
+    if (entries.length > MAX_OBJECT_KEYS) {
+      limitedEntries.push(['_truncated_keys', entries.length - MAX_OBJECT_KEYS]);
+    }
+
+    return Object.fromEntries(limitedEntries);
+  }
+
+  return value;
+}
+
+function buildPreviewPayload(data: unknown, originalLength: number) {
+  return {
+    _truncated: true,
+    _original_length: originalLength,
+    _message: 'Response was too large to return in full. Metadata and a preview of the first items are included instead.',
+    data: compactValue(data),
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -109,16 +159,26 @@ serve(async (req) => {
       });
     }
 
-    const data = await res.json();
+    const responseText = await res.text();
+
+    let data: unknown;
+    try {
+      data = responseText ? JSON.parse(responseText) : null;
+    } catch (_parseError) {
+      console.error(`[api-proxy] ${service} returned non-JSON success payload:` , responseText.slice(0, 500));
+      return new Response(JSON.stringify({
+        error: `${service} API returned an invalid JSON payload`,
+        details: responseText.slice(0, 500),
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Truncate large responses to prevent context overflow
     const jsonStr = JSON.stringify(data);
-    if (jsonStr.length > 100_000) {
-      return new Response(JSON.stringify({
-        _truncated: true,
-        _original_length: jsonStr.length,
-        data: JSON.parse(jsonStr.slice(0, 100_000).replace(/[^}]*$/, '}}')),
-      }), {
+    if (jsonStr.length > MAX_RESPONSE_CHARS) {
+      return new Response(JSON.stringify(buildPreviewPayload(data, jsonStr.length)), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
