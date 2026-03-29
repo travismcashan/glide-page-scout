@@ -215,14 +215,14 @@ export default function CrawlPage() {
         <div className="max-w-3xl w-full space-y-8 sm:space-y-12">
           {/* ── Greeting + rotating tagline ── */}
           <div className="space-y-[-0.15em]">
-            <h1 className="text-2xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
+            <h1 className="font-bold tracking-tight leading-[1.05] text-[clamp(1.75rem,7.5vw,3rem)] whitespace-nowrap">
               {firstName ? (
                 <>{greeting}, {firstName}.</>
               ) : (
                 <>{greeting}.</>
               )}
             </h1>
-            <div className="flex flex-wrap items-end gap-x-2 gap-y-0 text-2xl sm:text-5xl font-bold tracking-tight leading-none">
+            <div className="flex items-end gap-x-2 gap-y-0 font-bold tracking-tight leading-none text-[clamp(1.75rem,7.5vw,3rem)] whitespace-nowrap">
               <span className="leading-none text-foreground">{phrase}</span>
               <span className="relative inline-flex h-[1.35em] w-[5.5em] sm:w-[7em] items-end overflow-hidden align-baseline leading-none" style={{ background: 'transparent' }}>
                 <AnimatePresence mode="wait">
