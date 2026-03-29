@@ -117,7 +117,7 @@ export default function CrawlPage() {
   }, []);
 
   const isMobile = useIsMobile();
-  const TILES_PER_PAGE = isMobile ? 4 : 4;
+  const TILES_PER_PAGE = isMobile ? 2 : 4;
   const totalPages = Math.ceil(shuffledIntegrations.length / TILES_PER_PAGE);
   const [carouselPage, setCarouselPage] = useState(0);
 
