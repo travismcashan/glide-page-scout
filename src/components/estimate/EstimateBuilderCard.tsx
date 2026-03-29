@@ -13,7 +13,7 @@ import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateTaskTable } from './EstimateTaskTable';
 import { EstimateFormulasTab } from './EstimateFormulasTab';
 
-import { recalculateAllTasks, calculateBaseModel, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
+import { recalculateAllTasks, calculateBaseModel, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromFormula, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables, type FormulaConfig } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import type { PageTagsMap } from '@/lib/pageTags';
