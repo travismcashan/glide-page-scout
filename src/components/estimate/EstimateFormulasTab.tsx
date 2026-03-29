@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calculator, Percent, DollarSign, Search, Layers } from 'lucide-react';
-import { type FormulaConfig, type CalcMode, getCalcMode, getDriver, describeFormula } from '@/lib/estimateFormulas';
+import { type FormulaConfig, type CalcMode, type EstimateVariables, getCalcMode, getDriver, describeFormula } from '@/lib/estimateFormulas';
 
 interface TaskWithFormula {
   task_name: string;
@@ -44,6 +44,23 @@ interface Props {
   onQaPercentageChange: (val: number) => void;
   onBlendedRateChange: (val: number) => void;
   tasks: TaskWithFormula[];
+  estimate?: EstimateVariables | null;
+}
+
+function resolveDriverQty(driver: string, estimate?: EstimateVariables | null): number | null {
+  if (!estimate || driver === '-') return null;
+  const map: Record<string, number | null | undefined> = {
+    design_layouts: estimate.design_layouts,
+    content_pages: estimate.content_pages,
+    pages_for_integration: estimate.pages_for_integration,
+    custom_posts: estimate.custom_posts,
+    form_count: estimate.form_count,
+    integration_count: estimate.integration_count,
+    third_party_integrations: estimate.third_party_integrations,
+    user_personas: estimate.user_personas,
+    post_launch_services: estimate.post_launch_services,
+  };
+  return map[driver] ?? null;
 }
 
 export function EstimateFormulasTab({
@@ -54,6 +71,7 @@ export function EstimateFormulasTab({
   onQaPercentageChange,
   onBlendedRateChange,
   tasks,
+  estimate,
 }: Props) {
   const [search, setSearch] = useState('');
   const [modeFilter, setModeFilter] = useState<CalcMode | 'all'>('all');
@@ -66,11 +84,13 @@ export function EstimateFormulasTab({
       const mode = getCalcMode(fc);
       const driver = getDriver(fc);
       const taskType = (t as any).task_type || 'task';
+      const driverQty = mode === 'variable' ? resolveDriverQty(driver, estimate) : null;
       return {
         name: t.task_name,
         phase: t.phase_name || 'Other',
         mode,
         driver: mode === 'variable' ? driver : '-',
+        driverQty,
         formula: describeFormula(fc),
         hours: Number(t.hours_per_person ?? t.hours ?? 0),
         required: !!t.is_required,
@@ -78,7 +98,7 @@ export function EstimateFormulasTab({
         taskType,
       };
     });
-  }, [tasks]);
+  }, [tasks, estimate]);
 
   const filtered = useMemo(() => {
     return rateCardRows.filter(r => {
@@ -242,6 +262,7 @@ export function EstimateFormulasTab({
                   <TableHead className="h-8 text-xs w-[70px]">Type</TableHead>
                   <TableHead className="h-8 text-xs w-[70px]">Mode</TableHead>
                   <TableHead className="h-8 text-xs w-[90px]">Driver</TableHead>
+                  <TableHead className="h-8 text-xs w-[40px] text-right">Qty</TableHead>
                   <TableHead className="h-8 text-xs">Formula</TableHead>
                   <TableHead className="h-8 text-xs w-[60px] text-right">Hrs</TableHead>
                   <TableHead className="h-8 text-xs w-[40px] text-center">Req</TableHead>
@@ -271,6 +292,9 @@ export function EstimateFormulasTab({
                     <TableCell className="py-1.5 text-xs text-muted-foreground">
                       {row.driver !== '-' ? row.driver : ''}
                     </TableCell>
+                    <TableCell className="py-1.5 text-xs text-right font-medium tabular-nums">
+                      {row.driverQty != null ? row.driverQty : ''}
+                    </TableCell>
                     <TableCell className="py-1.5">
                       <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{row.formula}</code>
                     </TableCell>
@@ -284,7 +308,7 @@ export function EstimateFormulasTab({
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                       No tasks match your filters
                     </TableCell>
                   </TableRow>
