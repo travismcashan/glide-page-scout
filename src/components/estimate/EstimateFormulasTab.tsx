@@ -308,7 +308,7 @@ export function EstimateFormulasTab({
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                       No tasks match your filters
                     </TableCell>
                   </TableRow>
