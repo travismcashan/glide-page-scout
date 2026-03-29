@@ -224,7 +224,7 @@ export default function CrawlPage() {
             </h1>
             <div className="flex flex-wrap items-end gap-x-2 gap-y-0 text-2xl sm:text-5xl font-bold tracking-tight leading-none">
               <span className="leading-none text-foreground">{phrase}</span>
-              <span className="relative inline-flex h-[1.35em] w-[5.5em] sm:w-[7em] items-end overflow-hidden align-baseline leading-none">
+              <span className="relative inline-flex h-[1.35em] w-[5.5em] sm:w-[7em] items-end overflow-hidden align-baseline leading-none" style={{ background: 'transparent' }}>
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={wordIndex}
@@ -232,7 +232,7 @@ export default function CrawlPage() {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -30, opacity: 0 }}
                     transition={{ duration: 0.35, ease: 'easeInOut' }}
-                    className="absolute left-0 bottom-0 leading-none font-medium will-change-auto"
+                    className="absolute left-0 bottom-0 leading-none font-medium"
                   >
                     <span
                       className="rainbow-text"
