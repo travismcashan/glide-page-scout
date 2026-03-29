@@ -110,9 +110,29 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 - The user asks about MQLs, SQLs, lifecycle stages, deal pipeline, pipeline value, or CRM metrics (use query_hubspot)
 - When combining web analytics (GA4/GSC) with CRM data (HubSpot), call multiple tools and synthesize the results
 
-**Project Management & Time Tracking Tools**: You also have access to Harvest (time tracking) and Asana (task management):
-- Use query_harvest when the user asks about hours logged, time entries, billable hours, project time reports, or Harvest data. Actions: time_entries (individual logs), projects (list projects), project_report (hours summary per project).
-- Use query_asana when the user asks about tasks, project status, assignments, due dates, or Asana data. Actions: workspaces, projects, tasks (by project), search (by text). For tasks, you need a projectGid — list projects first if needed.
+**Universal API Proxy**: You have a call_api tool that can make authenticated requests to any configured service. Currently supported: harvest, asana. You can call ANY endpoint on their APIs.
+
+Harvest API (https://help.getharvest.com/api-v2/):
+- GET /projects — list projects (params: is_active=true/false, per_page)
+- GET /projects/{id} — single project details
+- GET /time_entries — time entries (params: from, to, project_id, user_id, per_page)
+- GET /reports/time/projects — project time summary (params: from, to)
+- GET /reports/time/clients — client time summary
+- GET /clients — list clients
+- GET /invoices — invoices (params: from, to, state, client_id)
+- GET /expenses — expenses
+- GET /users — users; GET /users/me — current user
+- GET /tasks — task types; GET /roles — roles
+
+Asana API (https://developers.asana.com/reference/):
+- GET /workspaces — list workspaces
+- GET /projects — projects (params: workspace, opt_fields)
+- GET /tasks — tasks (params: project, opt_fields, completed_since)
+- GET /workspaces/{gid}/tasks/search — search (params: text, completed, assignee.any)
+- GET /sections — sections (params: project)
+- GET /tags — tags (params: workspace)
+
+Use call_api with: service, method (GET/POST/etc), path, params (query string), body (for POST/PUT). Chain calls as needed.
 
 **Presentation Generation**: You can generate Beautiful.ai presentations using the generate_presentation tool. When the user asks to create a presentation, deck, or slides:
 - Craft a detailed, descriptive prompt based on the user's request and any available audit/context data
@@ -938,49 +958,36 @@ const ANALYTICS_TOOLS = [
   {
     type: 'function' as const,
     function: {
-      name: 'query_harvest',
-      description: 'Query Harvest time tracking for live data. Use when the user asks about hours logged, time entries, project time, billable hours, or time reports. Can query time entries by date range, project, or user, and get project-level time summaries.',
+      name: 'call_api',
+      description: 'Make an authenticated API request to any configured service (harvest, asana, etc). You can call ANY endpoint on their APIs. Construct path and params from the API docs in the system prompt.',
       parameters: {
         type: 'object',
         properties: {
-          action: {
+          service: {
             type: 'string',
-            enum: ['time_entries', 'projects', 'project_report'],
-            description: 'time_entries = individual time logs; projects = list active projects; project_report = hours summary per project',
+            enum: ['harvest', 'asana'],
+            description: 'Which service to call',
           },
-          is_active: { type: 'boolean', description: 'For projects action: true for active (default), false for archived/inactive projects' },
-          from: { type: 'string', description: 'Start date YYYY-MM-DD (for time_entries and project_report)' },
-          to: { type: 'string', description: 'End date YYYY-MM-DD' },
-          projectId: { type: 'number', description: 'Filter time entries to a specific Harvest project ID' },
-          userId: { type: 'number', description: 'Filter time entries to a specific user ID' },
-          limit: { type: 'number', description: 'Max entries to return (default 100)' },
-        },
-        required: ['action'],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'query_asana',
-      description: 'Query Asana project management for live data. Use when the user asks about tasks, projects, assignments, due dates, or project status in Asana. Can list workspaces, projects, tasks within a project, or search across tasks.',
-      parameters: {
-        type: 'object',
-        properties: {
-          action: {
+          method: {
             type: 'string',
-            enum: ['workspaces', 'projects', 'tasks', 'search'],
-            description: 'workspaces = list workspaces; projects = list projects; tasks = list tasks in a project; search = search tasks by text',
+            enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+            description: 'HTTP method (default GET)',
           },
-          projectGid: { type: 'string', description: 'Asana project GID (required for tasks action)' },
-          workspaceGid: { type: 'string', description: 'Asana workspace GID (required for search, optional for projects)' },
-          assigneeGid: { type: 'string', description: 'Filter by assignee GID' },
-          completed: { type: 'boolean', description: 'Filter by completion status (true/false)' },
-          text: { type: 'string', description: 'Search text (for search action)' },
-          limit: { type: 'number', description: 'Max results (default 100)' },
+          path: {
+            type: 'string',
+            description: 'API endpoint path (e.g. /projects, /time_entries, /workspaces)',
+          },
+          params: {
+            type: 'object',
+            description: 'Query string parameters as key-value pairs',
+            additionalProperties: { type: 'string' },
+          },
+          body: {
+            type: 'object',
+            description: 'Request body for POST/PUT/PATCH requests',
+          },
         },
-        required: ['action'],
+        required: ['service', 'path'],
         additionalProperties: false,
       },
     },
@@ -1057,16 +1064,14 @@ async function executeAnalyticsTool(toolName: string, params: any): Promise<stri
   }
 }
 /**
- * Execute Harvest or Asana tool calls by invoking their edge functions
+ * Execute a generic API proxy call (replaces old harvest/asana specific handlers)
  */
-async function executeExternalTool(toolName: string, params: any): Promise<string> {
+async function executeApiProxy(params: any): Promise<string> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-  const fnName = toolName === 'query_harvest' ? 'harvest-lookup' : 'asana-lookup';
-
   try {
-    const response = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/api-proxy`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1078,7 +1083,7 @@ async function executeExternalTool(toolName: string, params: any): Promise<strin
     const result = await response.json();
     return JSON.stringify(result, null, 2);
   } catch (e) {
-    return JSON.stringify({ error: `${fnName} failed: ${e instanceof Error ? e.message : String(e)}` });
+    return JSON.stringify({ error: `api-proxy failed: ${e instanceof Error ? e.message : String(e)}` });
   }
 }
 
@@ -1088,7 +1093,7 @@ async function handleGatewayRequest(
   messages: any[],
   systemPrompt: string,
   reasoning: string | undefined,
-  enableTools: boolean | { analytics: boolean; harvest: boolean; asana: boolean } = false,
+  enableTools: boolean | { analytics: boolean; apiProxy: boolean } = false,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
 ): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -1104,14 +1109,13 @@ async function handleGatewayRequest(
   const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
 
   // Determine which tools to include
-  const toolFlags = typeof enableTools === 'object' ? enableTools : { analytics: !!enableTools, harvest: false, asana: false };
-  const hasAnyTool = toolFlags.analytics || toolFlags.harvest || toolFlags.asana;
+  const toolFlags = typeof enableTools === 'object' ? enableTools : { analytics: !!enableTools, apiProxy: false };
+  const hasAnyTool = toolFlags.analytics || toolFlags.apiProxy;
 
   const filteredTools = hasAnyTool
     ? ANALYTICS_TOOLS.filter(t => {
         const name = t.function.name;
-        if (name === 'query_harvest') return toolFlags.harvest;
-        if (name === 'query_asana') return toolFlags.asana;
+        if (name === 'call_api') return toolFlags.apiProxy;
         // All other tools (GA4, Search Console, HubSpot, presentation) are gated by analytics
         return toolFlags.analytics;
       })
@@ -1204,8 +1208,8 @@ async function handleGatewayRequest(
             let result: string;
             if (tc.function.name === 'generate_presentation') {
               result = await executeBeautifulAi(args);
-            } else if (tc.function.name === 'query_harvest' || tc.function.name === 'query_asana') {
-              result = await executeExternalTool(tc.function.name, args);
+            } else if (tc.function.name === 'call_api') {
+              result = await executeApiProxy(args);
             } else {
               result = await executeAnalyticsTool(tc.function.name, args);
             }
@@ -1606,7 +1610,7 @@ serve(async (req) => {
     } else if (isPerplexityModel) {
       return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt, contextPreset));
     } else {
-      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, { analytics: useAnalytics, harvest: useHarvest, asana: useAsana }, contextPreset));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, { analytics: useAnalytics, apiProxy: useHarvest || useAsana }, contextPreset));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);
