@@ -857,6 +857,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         </DialogContent>
       </Dialog>
 
+      <div>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
