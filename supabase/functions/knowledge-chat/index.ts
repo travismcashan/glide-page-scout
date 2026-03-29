@@ -1102,6 +1102,20 @@ async function handleGatewayRequest(
   const ALLOWED_REASONING = ['low', 'medium', 'high', 'xhigh'];
   const selectedReasoning = reasoning && ALLOWED_REASONING.includes(reasoning) ? reasoning : undefined;
 
+  // Determine which tools to include
+  const toolFlags = typeof enableTools === 'object' ? enableTools : { analytics: !!enableTools, harvest: false, asana: false };
+  const hasAnyTool = toolFlags.analytics || toolFlags.harvest || toolFlags.asana;
+
+  const filteredTools = hasAnyTool
+    ? ANALYTICS_TOOLS.filter(t => {
+        const name = t.function.name;
+        if (name === 'query_harvest') return toolFlags.harvest;
+        if (name === 'query_asana') return toolFlags.asana;
+        // All other tools (GA4, Search Console, HubSpot, presentation) are gated by analytics
+        return toolFlags.analytics;
+      })
+    : [];
+
   const buildRequestBody = (msgs: any[], includeTools: boolean): any => {
     const body: any = {
       model: selectedModel,
@@ -1115,8 +1129,8 @@ async function handleGatewayRequest(
     if (selectedReasoning) {
       body.reasoning = { effort: selectedReasoning };
     }
-    if (includeTools) {
-      body.tools = ANALYTICS_TOOLS;
+    if (includeTools && filteredTools.length > 0) {
+      body.tools = filteredTools;
     }
     return body;
   };
