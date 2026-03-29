@@ -138,6 +138,16 @@ export default function AppHeader() {
             <SheetContent side="right" className="w-full sm:w-[320px] p-0 border-none bg-background flex flex-col">
               {/* Nav section — centered vertically in available space */}
               <nav className="flex-1 flex flex-col justify-center px-8 py-16">
+                <button
+                  onClick={() => { navigate('/'); setMobileOpen(false); }}
+                  className={cn(
+                    'text-left text-[1.75rem] font-semibold py-4 transition-colors tracking-tight',
+                    'text-foreground/40 active:text-foreground',
+                    location.pathname === '/' && 'text-foreground'
+                  )}
+                >
+                  New Search
+                </button>
                 {NAV_ITEMS.map((item) => (
                   <button
                     key={item.to}
