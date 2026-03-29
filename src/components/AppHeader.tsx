@@ -135,13 +135,13 @@ export default function AppHeader() {
                 <Menu className="h-8 w-8 text-foreground" />
               </button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:w-[320px] p-0 border-none bg-background flex flex-col">
-              {/* Nav section — centered vertically in available space */}
-              <nav className="flex-1 flex flex-col justify-center px-8 py-16">
+            <SheetContent side="right" className="w-full sm:w-[320px] p-0 border-none bg-background flex flex-col overflow-y-auto">
+              {/* Nav section */}
+              <nav className="flex-1 flex flex-col justify-center px-8 py-10">
                 <button
                   onClick={() => { navigate('/'); setMobileOpen(false); }}
                   className={cn(
-                    'text-left text-[1.75rem] font-semibold py-4 transition-colors tracking-tight',
+                    'text-left text-2xl font-semibold py-2.5 transition-colors tracking-tight',
                     'text-foreground/40 active:text-foreground',
                     location.pathname === '/' && 'text-foreground'
                   )}
@@ -153,7 +153,7 @@ export default function AppHeader() {
                     key={item.to}
                     onClick={() => { navigate(item.to); setMobileOpen(false); }}
                     className={cn(
-                      'text-left text-[1.75rem] font-semibold py-4 transition-colors tracking-tight',
+                      'text-left text-2xl font-semibold py-2.5 transition-colors tracking-tight',
                       'text-foreground/40 active:text-foreground',
                       isNavActive(item) && 'text-foreground'
                     )}
