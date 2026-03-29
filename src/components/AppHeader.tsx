@@ -135,60 +135,74 @@ export default function AppHeader() {
                 <Menu className="h-8 w-8 text-foreground" />
               </button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[280px] pt-12">
-              <nav className="flex flex-col gap-1">
+            <SheetContent side="right" className="w-full sm:w-[320px] p-0 border-none bg-background flex flex-col">
+              {/* Nav section — centered vertically in available space */}
+              <nav className="flex-1 flex flex-col justify-center px-8 py-16">
                 {NAV_ITEMS.map((item) => (
                   <button
                     key={item.to}
                     onClick={() => { navigate(item.to); setMobileOpen(false); }}
                     className={cn(
-                      'text-left text-base font-medium px-4 py-3 rounded-lg transition-colors',
-                      'text-foreground/70 hover:text-foreground hover:bg-muted/50',
-                      isNavActive(item) && 'text-foreground bg-accent/10'
+                      'text-left text-[1.75rem] font-semibold py-4 transition-colors tracking-tight',
+                      'text-foreground/40 active:text-foreground',
+                      isNavActive(item) && 'text-foreground'
                     )}
                   >
                     {item.label}
                   </button>
                 ))}
               </nav>
-              <div className="mt-6 border-t border-border pt-4 flex flex-col gap-1">
+
+              {/* Bottom section — user info & secondary links */}
+              <div className="px-8 pb-10 flex flex-col gap-3">
                 {user ? (
                   <>
-                    <div className="px-4 pb-2">
-                      <p className="text-sm font-medium truncate">{profile?.display_name || 'User'}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    <div className="flex items-center gap-3 pb-3 mb-3 border-b border-border/30">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={profile?.avatar_url || undefined} />
+                        <AvatarFallback className="text-sm">
+                          {(profile?.display_name || user.email || '?')[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-base font-medium truncate">{profile?.display_name || 'User'}</p>
+                        <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                      </div>
                     </div>
-                    {isAdmin && (
+                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                      {isAdmin && (
+                        <button
+                          onClick={() => { navigate('/admin'); setMobileOpen(false); }}
+                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Shield className="h-4 w-4" /> Admin
+                        </button>
+                      )}
                       <button
-                        onClick={() => { navigate('/admin'); setMobileOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/70 hover:text-foreground hover:bg-muted/50 rounded-lg"
+                        onClick={() => { navigate('/connections'); setMobileOpen(false); }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        <Shield className="h-4 w-4" /> Admin Panel
+                        <Link2 className="h-4 w-4" /> Connections
                       </button>
-                    )}
-                    <button
-                      onClick={() => { navigate('/connections'); setMobileOpen(false); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/70 hover:text-foreground hover:bg-muted/50 rounded-lg"
-                    >
-                      <Link2 className="h-4 w-4" /> Connections
-                    </button>
-                    <button
-                      onClick={() => { navigate('/settings'); setMobileOpen(false); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/70 hover:text-foreground hover:bg-muted/50 rounded-lg"
-                    >
-                      <Settings className="h-4 w-4" /> Settings
-                    </button>
-                    <button
-                      onClick={() => { signOut(); setMobileOpen(false); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg"
-                    >
-                      <LogOut className="h-4 w-4" /> Sign Out
-                    </button>
+                      <button
+                        onClick={() => { navigate('/settings'); setMobileOpen(false); }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Settings className="h-4 w-4" /> Settings
+                      </button>
+                      <button
+                        onClick={() => { signOut(); setMobileOpen(false); }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" /> Sign Out
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <Button
                     variant="default"
-                    className="mx-4"
+                    size="lg"
+                    className="w-full text-base"
                     onClick={() => { navigate('/login'); setMobileOpen(false); }}
                   >
                     Sign In
