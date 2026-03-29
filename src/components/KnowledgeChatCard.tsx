@@ -19,6 +19,7 @@ import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type Mod
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
 import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
 import { MobileChatDrawer } from '@/components/chat/MobileChatDrawer';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
