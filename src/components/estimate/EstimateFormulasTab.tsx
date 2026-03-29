@@ -67,7 +67,6 @@ function resolveDriverQty(driver: string, estimate?: EstimateVariables | null): 
   }
   // String/derived drivers
   const strMap: Record<string, string | null | undefined> = {
-    project_size: estimate.project_size,
     project_complexity: estimate.project_complexity,
     bulk_import: estimate.bulk_import_amount,
     paid_discovery: estimate.paid_discovery,
