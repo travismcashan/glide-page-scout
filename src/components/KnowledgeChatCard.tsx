@@ -1219,8 +1219,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     const currentAttachments = [...attachments];
     const hasAttachments = currentAttachments.length > 0;
     const hasParsing = currentAttachments.some(a => a.parsing);
+    const requiresLiveTools = searchSources.harvest || searchSources.asana || (!globalMode && searchSources.analytics);
+    const requestModel = !supportsLiveTools && requiresLiveTools ? 'google/gemini-3-flash-preview' : selectedModel;
+    const requestSupportsLiveTools = !requestModel.startsWith('claude-') && !requestModel.startsWith('perplexity-');
 
     if ((!messageText && !hasAttachments) || isStreaming || hasParsing) return;
+    if (requiresLiveTools && !supportsLiveTools) {
+      ensureToolCapableModel();
+    }
 
     // Build message content - multimodal if images attached
     const imageAttachments = currentAttachments.filter(a => a.type === 'image');
@@ -1310,7 +1316,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       abortControllerRef.current = controller;
 
       // ─── Council mode: SSE streaming ───
-      const isCouncil = selectedModel.startsWith('council-');
+      const isCouncil = requestModel.startsWith('council-');
       if (isCouncil) {
         setIsThinking(false); // We'll show custom status instead
         const councilResp = await fetch(COUNCIL_URL, {
@@ -1443,13 +1449,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           crawlContext,
           session_id: globalMode ? undefined : session.id,
           session_ids: globalMode ? [session.id, ...(attachedSessionIds || [])] : undefined,
-          model: selectedModel,
+          model: requestModel,
           reasoning: reasoning !== 'none' ? reasoning : undefined,
           sources: {
             ...searchSources,
-            analytics: !globalMode && searchSources.analytics && supportsLiveTools,
-            harvest: searchSources.harvest && supportsLiveTools,
-            asana: searchSources.asana && supportsLiveTools,
+            analytics: !globalMode && searchSources.analytics && requestSupportsLiveTools,
+            harvest: searchSources.harvest && requestSupportsLiveTools,
+            asana: searchSources.asana && requestSupportsLiveTools,
           },
           rag_depth: ragDepth,
           context_window: contextWindowSize,
@@ -1745,7 +1751,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     abortControllerRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
-  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds, searchSources, ragDepth, contextWindowSize, onDocumentsChanged, supportsLiveTools]);
+  }, [messages, isStreaming, crawlContext, session.id, attachments, scrollToLastUserMessage, activeThreadId, selectedModel, reasoning, globalMode, attachedSessionIds, searchSources, ragDepth, contextWindowSize, onDocumentsChanged, supportsLiveTools, ensureToolCapableModel]);
 
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {
