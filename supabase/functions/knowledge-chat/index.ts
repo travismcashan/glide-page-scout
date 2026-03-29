@@ -1275,6 +1275,36 @@ async function handleGatewayRequest(
       }
 
       console.warn('[knowledge-chat] Tool planning returned no usable content', JSON.stringify({ finish_reason: choice?.finish_reason, native_finish_reason: choice?.native_finish_reason }));
+
+      // If MALFORMED_FUNCTION_CALL, the model tried to generate a tool call but failed.
+      // Retry the planning pass with a simplified prompt that explicitly forbids tool calls.
+      if (choice?.finish_reason === 'error' || choice?.native_finish_reason === 'MALFORMED_FUNCTION_CALL') {
+        console.log('[knowledge-chat] MALFORMED_FUNCTION_CALL detected, retrying planning without tools');
+        const retryBody = buildRequestBody(messages, false);
+        retryBody.stream = false;
+        retryBody.model = 'google/gemini-3-flash-preview';
+        delete retryBody.reasoning;
+
+        const retryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(retryBody),
+        });
+
+        if (retryResponse.ok) {
+          const retryData = await retryResponse.json();
+          const retryContent = retryData.choices?.[0]?.message?.content;
+          if (typeof retryContent === 'string' && retryContent.trim()) {
+            const sseChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: retryContent }, index: 0 }] })}\n\ndata: [DONE]\n\n`;
+            return new Response(sseChunk, {
+              headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+            });
+          }
+        }
+      }
     } else {
       const errText = await checkResponse.text();
       console.error('AI gateway tool planning error:', checkResponse.status, errText);

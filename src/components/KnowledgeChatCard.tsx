@@ -990,7 +990,23 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [hasInputText, setHasInputText] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [searchSources, setSearchSources] = useState<{ documents: boolean; web: boolean; analytics: boolean; harvest: boolean; asana: boolean }>({ documents: true, web: false, analytics: false, harvest: false, asana: false });
+  const [searchSources, setSearchSourcesRaw] = useState<{ documents: boolean; web: boolean; analytics: boolean; harvest: boolean; asana: boolean }>(() => {
+    try {
+      const saved = localStorage.getItem('chat-search-sources');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { documents: parsed.documents !== false, web: !!parsed.web, analytics: !!parsed.analytics, harvest: !!parsed.harvest, asana: !!parsed.asana };
+      }
+    } catch {}
+    return { documents: true, web: false, analytics: false, harvest: false, asana: false };
+  });
+  const setSearchSources: typeof setSearchSourcesRaw = (updater) => {
+    setSearchSourcesRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try { localStorage.setItem('chat-search-sources', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const [ragDepth, setRagDepth] = useState<{ match_count: number; match_threshold: number }>({ match_count: 50, match_threshold: 0.15 });
   const [contextWindowSize, setContextWindowSize] = useState<'small' | 'medium' | 'large'>(
     () => (localStorage.getItem('ai-context-window') as 'small' | 'medium' | 'large') || 'medium'
@@ -1653,6 +1669,15 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       displayedAssistantContent = assistantContent;
       displayedThinkingContent = thinkingContent;
       commitMessages(assistantContent, thinkingContent);
+
+      // If assistant content is empty (e.g. MALFORMED_FUNCTION_CALL), show a helpful message
+      if (!assistantContent.trim()) {
+        const retryMsg = 'I encountered an issue processing that request. Please try again — sometimes rephrasing the question helps.';
+        assistantContent = retryMsg;
+        displayedAssistantContent = retryMsg;
+        commitMessages(retryMsg, thinkingContent);
+        toast.error('Response was empty — the AI model may have encountered a processing error. Try again.');
+      }
 
       // Detect sources and save assistant message
       const sources = detectSources(assistantContent);
