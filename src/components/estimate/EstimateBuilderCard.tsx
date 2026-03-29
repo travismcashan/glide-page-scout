@@ -641,11 +641,7 @@ function getProjectDuration(totalHours: number): string {
                       mode="estimate"
                       savedTier={estimate.page_tier}
                       onTierChange={(tier) => { setEstimate(prev => prev ? { ...prev, page_tier: tier } : prev); supabase.from('project_estimates').update({ page_tier: tier }).eq('id', estimate.id).then(); }}
-                      onSelectionChange={(count) => {
-                        if (estimate && count !== estimate.pages_for_integration) {
-                          handleVariablesChange({ ...estimate, pages_for_integration: count });
-                        }
-                      }}
+                      onSelectionChange={() => {}}
                     />
                   </SectionCard>
                 )}
