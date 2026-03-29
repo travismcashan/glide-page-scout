@@ -858,9 +858,11 @@ export type Database = {
           page_tier: string | null
           pages_for_integration: number | null
           paid_discovery: string | null
+          pm_percentage: number
           post_launch_services: number | null
           project_complexity: string | null
           project_size: string | null
+          qa_percentage: number
           session_id: string | null
           site_builder_acf: boolean | null
           status: string | null
@@ -891,9 +893,11 @@ export type Database = {
           page_tier?: string | null
           pages_for_integration?: number | null
           paid_discovery?: string | null
+          pm_percentage?: number
           post_launch_services?: number | null
           project_complexity?: string | null
           project_size?: string | null
+          qa_percentage?: number
           session_id?: string | null
           site_builder_acf?: boolean | null
           status?: string | null
@@ -924,9 +928,11 @@ export type Database = {
           page_tier?: string | null
           pages_for_integration?: number | null
           paid_discovery?: string | null
+          pm_percentage?: number
           post_launch_services?: number | null
           project_complexity?: string | null
           project_size?: string | null
+          qa_percentage?: number
           session_id?: string | null
           site_builder_acf?: boolean | null
           status?: string | null
