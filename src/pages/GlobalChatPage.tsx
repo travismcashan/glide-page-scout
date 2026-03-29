@@ -1,74 +1,77 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { Loader2 } from 'lucide-react';
+import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { withQueryTimeout } from '@/lib/queryTimeout';
 
 const GLOBAL_SESSION_DOMAIN = '__global_chat__';
-
-const DEFAULT_BEST: Record<ModelProvider, string> = {
-  gemini: 'google/gemini-3.1-pro-preview',
-  claude: 'claude-opus',
-  gpt: 'openai/gpt-5.2',
-  perplexity: 'perplexity-sonar-reasoning-pro',
-  council: 'council-synthesis',
-};
-
-const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
-  gemini: 'medium',
-  claude: 'high',
-  gpt: 'medium',
-  perplexity: 'none',
-  council: 'none',
-};
 
 type AttachedSite = { session_id: string; domain: string };
 
 export default function GlobalChatPage() {
   const [globalSession, setGlobalSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const initialChatSelectionRef = useRef(resolveStoredChatSelection());
+  const initialChatSelection = initialChatSelectionRef.current;
 
   // Attached sites
   const [attachedSites, setAttachedSites] = useState<AttachedSite[]>([]);
 
   // Model state (persisted to localStorage — shared with Settings page)
   const [chatProvider, setChatProviderRaw] = useState<ModelProvider>(() => {
-    return (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
+    return initialChatSelection.provider;
   });
   const [chatModel, setChatModel] = useState(() => {
-    return localStorage.getItem('chat-model') || 'google/gemini-3.1-pro-preview';
+    return initialChatSelection.model;
   });
   const [chatReasoning, setChatReasoning] = useState<ReasoningEffort>(() => {
-    const savedProvider = (localStorage.getItem('chat-provider') as ModelProvider) || 'gemini';
-    return DEFAULT_REASONING[savedProvider] || 'medium';
+    return initialChatSelection.reasoning;
   });
+
+  useEffect(() => {
+    persistResolvedChatSelection(initialChatSelection);
+  }, [initialChatSelection]);
 
   const setChatProvider = useCallback((p: ModelProvider) => {
     setChatProviderRaw(p);
-    localStorage.setItem('chat-provider', p);
-    localStorage.setItem('chat-individual-provider', p);
     // Auto-switch model to best for the new provider
     const best = DEFAULT_BEST[p] || VERSIONS[p]?.[VERSIONS[p].length - 1]?.id;
+    const nextReasoning = DEFAULT_REASONING[p] || 'none';
     if (best) {
       setChatModel(best);
-      localStorage.setItem('chat-model', best);
-      localStorage.setItem('chat-individual-model', best);
+      persistResolvedChatSelection({
+        mode: p === 'council' ? 'council' : 'individual',
+        provider: p,
+        model: best,
+        reasoning: nextReasoning,
+      });
     }
-    setChatReasoning(DEFAULT_REASONING[p] || 'none');
+    setChatReasoning(nextReasoning);
   }, []);
 
   const handleModelChange = useCallback((m: string) => {
     setChatModel(m);
-    localStorage.setItem('chat-model', m);
-    localStorage.setItem('chat-individual-model', m);
-  }, []);
+    persistResolvedChatSelection({
+      mode: chatProvider === 'council' ? 'council' : 'individual',
+      provider: chatProvider,
+      model: m,
+      reasoning: chatReasoning,
+    });
+  }, [chatProvider, chatReasoning]);
 
   const handleReasoningChange = useCallback((r: ReasoningEffort) => {
     setChatReasoning(r);
-  }, []);
+    persistResolvedChatSelection({
+      mode: chatProvider === 'council' ? 'council' : 'individual',
+      provider: chatProvider,
+      model: chatModel,
+      reasoning: r,
+    });
+  }, [chatModel, chatProvider]);
 
   // Load or create the global sentinel session
   useEffect(() => {

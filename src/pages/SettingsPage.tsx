@@ -13,6 +13,7 @@ import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, MODEL_OPTIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { DEFAULT_BEST, DEFAULT_REASONING } from '@/lib/chatPreferences';
 import { toast } from 'sonner';
 import { PromptLibrary } from '@/components/PromptLibrary';
 
@@ -20,22 +21,6 @@ const TIER_DOT: Record<string, string> = {
   fast: 'bg-emerald-500',
   balanced: 'bg-blue-500',
   powerful: 'bg-amber-500',
-};
-
-const DEFAULT_BEST: Record<ModelProvider, string> = {
-  gemini: 'google/gemini-3.1-pro-preview',
-  claude: 'claude-opus',
-  gpt: 'openai/gpt-5.2',
-  perplexity: 'perplexity-sonar-reasoning-pro',
-  council: 'council-synthesis',
-};
-
-const DEFAULT_REASONING: Record<ModelProvider, ReasoningEffort> = {
-  gemini: 'medium',
-  claude: 'high',
-  gpt: 'medium',
-  perplexity: 'none',
-  council: 'none',
 };
 
 export default function SettingsPage() {
