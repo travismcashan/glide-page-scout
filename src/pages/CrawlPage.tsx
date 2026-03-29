@@ -178,20 +178,20 @@ export default function CrawlPage() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-primary/[0.04] blur-[120px]" />
       <AppHeader />
 
-      <main className="flex-1 flex flex-col items-center px-6 pt-16 pb-24">
-        <div className="max-w-3xl w-full space-y-12">
+      <main className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-10 sm:pt-16 pb-16 sm:pb-24">
+        <div className="max-w-3xl w-full space-y-8 sm:space-y-12">
           {/* ── Greeting + rotating tagline ── */}
           <div className="space-y-[-0.15em]">
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
+            <h1 className="text-2xl sm:text-5xl font-bold tracking-tight leading-[1.05]">
               {firstName ? (
                 <>{greeting}, {firstName}.</>
               ) : (
                 <>{greeting}.</>
               )}
             </h1>
-            <div className="flex items-end gap-3 text-4xl sm:text-5xl font-bold tracking-tight leading-none">
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-0 text-2xl sm:text-5xl font-bold tracking-tight leading-none">
               <span className="leading-none text-foreground">{phrase}</span>
-              <span className="relative inline-flex h-[1.35em] w-[7em] items-end overflow-hidden align-baseline leading-none">
+              <span className="relative inline-flex h-[1.35em] w-[5.5em] sm:w-[7em] items-end overflow-hidden align-baseline leading-none">
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={wordIndex}
@@ -215,27 +215,27 @@ export default function CrawlPage() {
 
           {/* ── Search bar ── */}
           <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-3 px-3 h-[4.5rem] rounded-2xl bg-card border border-border/40 shadow-xl shadow-primary/[0.08] hover:shadow-2xl hover:shadow-primary/[0.12] hover:border-primary/25 transition-all duration-500">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 h-14 sm:h-[4.5rem] rounded-2xl bg-card border border-border/40 shadow-xl shadow-primary/[0.08] hover:shadow-2xl hover:shadow-primary/[0.12] hover:border-primary/25 transition-all duration-500">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                 <Input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="Enter a URL to analyze…"
-                  className="pl-12 h-full text-xl md:text-xl border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  placeholder="Enter a URL…"
+                  className="pl-9 sm:pl-12 h-full text-base sm:text-xl border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   disabled={isStarting}
                 />
               </div>
               <Button
                 type="submit"
                 disabled={isStarting || !url.trim()}
-                className="rounded-xl px-6 gap-2 h-11 text-base shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all"
+                className="rounded-xl px-3 sm:px-6 gap-1.5 sm:gap-2 h-9 sm:h-11 text-sm sm:text-base shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all shrink-0"
               >
                 {isStarting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" />Analyzing…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /><span className="hidden sm:inline">Analyzing…</span></>
                 ) : (
-                  <>Analyze<ArrowRight className="h-4 w-4" /></>
+                  <><span className="hidden sm:inline">Analyze</span><ArrowRight className="h-4 w-4" /></>
                 )}
               </Button>
             </div>
@@ -274,15 +274,15 @@ export default function CrawlPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2, ease: 'easeInOut' }}
-                className="grid grid-cols-4 gap-3"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3"
               >
                 {visibleTiles.map((integration) => (
                   <div
                     key={integration.label}
                     className="group aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between transition-all duration-300 hover:border-primary/30 hover:bg-primary/[0.04] hover:shadow-lg hover:shadow-primary/[0.06] hover:-translate-y-0.5"
                   >
-                    <integration.icon className="h-12 w-12 text-primary/60 group-hover:text-primary transition-colors" />
-                    <span className="text-base font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
+                    <integration.icon className="h-8 w-8 sm:h-12 sm:w-12 text-primary/60 group-hover:text-primary transition-colors" />
+                    <span className="text-sm sm:text-base font-medium leading-snug text-foreground/80 group-hover:text-foreground transition-colors">
                       {integration.label}
                     </span>
                   </div>
