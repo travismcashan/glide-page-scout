@@ -221,6 +221,7 @@ export default function AppHeader() {
               </div>
             </SheetContent>
           </Sheet>
+          )}
         </div>
       </div>
     </header>
