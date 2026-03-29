@@ -212,11 +212,15 @@ export function EstimateTaskTable({ tasks, onToggle, onHoursChange, onHoursPerPe
 
 const CALC_TYPE_CONFIG: Record<TaskCalcType, { label: string; className: string }> = {
   size: { label: 'Size', className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' },
+  size_multiplied: { label: 'Size×N', className: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' },
   complexity: { label: 'Cmplx', className: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' },
   variable: { label: 'Var', className: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' },
   scope: { label: 'Scope', className: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800' },
   percentage: { label: '%', className: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800' },
   conditional: { label: 'Cond', className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800' },
+  form_tiers: { label: 'Forms', className: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800' },
+  bulk_import: { label: 'Bulk', className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800' },
+  bulk_import_check: { label: 'Bulk✓', className: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800' },
   manual: { label: 'Manual', className: 'bg-muted text-muted-foreground border-border' },
 };
 
@@ -357,7 +361,7 @@ function TaskTableRow({
   onHoursPerPersonChange: (id: string, hpp: number) => void;
   onVariableQtyChange: (id: string, qty: number) => void;
 }) {
-  const formulaDriven = isFormulaTask(task.task_name);
+  const formulaDriven = isFormulaTask(task.task_name, task.formula_config);
   const roleList = (task.roles || '').split(',').map(r => r.trim()).filter(Boolean);
   const roleCount = roleList.length || 1;
   const hasVariable = !!task.variable_label && task.variable_label !== '-';
@@ -402,7 +406,7 @@ function TaskTableRow({
 
       {/* Type */}
       <TableCell className="py-0 text-center">
-        <CalcTypeBadge type={getTaskCalcType(task.task_name)} />
+        <CalcTypeBadge type={getTaskCalcType(task.task_name, task.formula_config)} />
       </TableCell>
 
       {/* Variable label */}

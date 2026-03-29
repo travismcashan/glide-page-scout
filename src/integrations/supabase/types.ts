@@ -295,6 +295,7 @@ export type Database = {
           created_at: string
           display_order: number
           estimate_id: string
+          formula_config: Json | null
           hourly_rate: number
           hours: number
           hours_per_person: number
@@ -314,6 +315,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           estimate_id: string
+          formula_config?: Json | null
           hourly_rate?: number
           hours?: number
           hours_per_person?: number
@@ -333,6 +335,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           estimate_id?: string
+          formula_config?: Json | null
           hourly_rate?: number
           hours?: number
           hours_per_person?: number
@@ -717,6 +720,7 @@ export type Database = {
           default_included: boolean
           default_variable_qty: number | null
           display_order: number
+          formula_config: Json | null
           hours_per_person: number
           id: string
           is_required: boolean
@@ -732,6 +736,7 @@ export type Database = {
           default_included?: boolean
           default_variable_qty?: number | null
           display_order?: number
+          formula_config?: Json | null
           hours_per_person?: number
           id?: string
           is_required?: boolean
@@ -747,6 +752,7 @@ export type Database = {
           default_included?: boolean
           default_variable_qty?: number | null
           display_order?: number
+          formula_config?: Json | null
           hours_per_person?: number
           id?: string
           is_required?: boolean

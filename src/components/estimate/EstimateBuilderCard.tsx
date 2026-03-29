@@ -13,7 +13,7 @@ import { EstimateTaskRow, type EstimateTask } from './EstimateTaskRow';
 import { EstimateTaskTable } from './EstimateTaskTable';
 import { EstimateFormulasTab } from './EstimateFormulasTab';
 
-import { recalculateAllTasks, calculateBaseModel, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromXlsx, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables } from '@/lib/estimateFormulas';
+import { recalculateAllTasks, calculateBaseModel, fetchFormulas, calculatePhaseTimeline, countRoles, calculateTaskFromFormula, deriveProjectSize, deriveProjectComplexity, type TaskFormula, type EstimateVariables, type FormulaConfig } from '@/lib/estimateFormulas';
 import type { TechTierCounts } from '@/components/TechAnalysisCard';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import type { PageTagsMap } from '@/lib/pageTags';
@@ -166,7 +166,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         .select('*')
         .eq('estimate_id', est.id)
         .order('display_order');
-      const loadedTasks = (taskData || []) as EstimateTask[];
+      const loadedTasks = (taskData || []) as unknown as EstimateTask[];
       // Recalculate formula-driven tasks on load to ensure consistency
       const recalced = recalculateAllTasks(loadedTasks, est, formulasData);
       setTasks(recalced as EstimateTask[]);
@@ -252,6 +252,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
             roles: task.roles,
             variable_label: task.variable_label || null,
             variable_qty: task.default_variable_qty || null,
+            formula_config: task.formula_config || null,
           };
         });
 
@@ -264,7 +265,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         .select('*')
         .eq('estimate_id', newEstimate.id)
         .order('display_order');
-      setTasks((taskData || []) as EstimateTask[]);
+      setTasks((taskData || []) as unknown as EstimateTask[]);
       toast.success('Estimate created with crawl data pre-filled!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to create estimate');
@@ -298,7 +299,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     if (!estimate) return;
     setTasks(tasks.map((t) => {
       if (t.id !== taskId) return t;
-      const result = calculateTaskFromXlsx(t.task_name, t.hours_per_person ?? t.hours, t.roles, qty, estimate);
+      const result = calculateTaskFromFormula(t.formula_config as FormulaConfig | null, t.hours_per_person ?? t.hours, t.roles, qty, estimate);
       return { ...t, variable_qty: qty, hours_per_person: result.hpp, hours: result.total };
     }));
   };
@@ -867,6 +868,7 @@ function getProjectDuration(totalHours: number): string {
 
             <TabsContent value="formulas">
               <EstimateFormulasTab
+                tasks={tasks}
                 pmPercentage={estimate?.pm_percentage ?? 8}
                 qaPercentage={estimate?.qa_percentage ?? 6}
                 blendedRate={tasks.length > 0 ? Number(tasks[0].hourly_rate || 150) : 150}

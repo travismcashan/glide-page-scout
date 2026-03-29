@@ -1,5 +1,44 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export type TaskCalcType = 'size' | 'complexity' | 'variable' | 'scope' | 'percentage' | 'conditional' | 'manual' | 'form_tiers' | 'bulk_import' | 'bulk_import_check' | 'size_multiplied';
+
+export interface FormulaConfig {
+  calc_type: TaskCalcType;
+  // Size buckets
+  small?: number;
+  medium?: number;
+  large?: number;
+  // Complexity buckets
+  simple?: number;
+  moderate?: number;
+  complex?: number;
+  // Scope/variable
+  variable?: string;
+  multiplier?: number;
+  min?: number;
+  // Percentage
+  of?: string;
+  pct?: number;
+  // Conditional
+  field?: string;
+  when_scope_only?: number;
+  otherwise?: number;
+  when_positive?: string;
+  // Form tiers
+  s_rate?: number;
+  m_rate?: number;
+  l_rate?: number;
+  fallback_rate?: number;
+  // Bulk import
+  acf_table?: Record<string, number>;
+  no_acf_table?: Record<string, number>;
+  table?: Record<string, number>;
+  // Size multiplied (DoneDone)
+  // uses small/medium/large + multiplier
+  // Manual fixed
+  fixed_hpp?: number;
+}
+
 export interface TaskFormula {
   id: string;
   task_name_pattern: string;
@@ -94,21 +133,27 @@ export function countRoles(roles: string | null | undefined): number {
 }
 
 /**
- * Master formula engine - calculates hours_per_person for each task
- * based on the XLSX formulas from Jessica's Estimator Tool.
- * Returns { hpp, total } where total = hpp * roleCount (unless overridden).
+ * Data-driven formula engine — reads formula_config from the task record.
+ * Falls back to currentHpp if no formula_config is present.
  */
-export function calculateTaskFromXlsx(
-  taskName: string,
+export function calculateTaskFromFormula(
+  formulaConfig: FormulaConfig | null | undefined,
   currentHpp: number,
   roles: string | null,
   variableQty: number | null,
   variables: EstimateVariables,
-  allSelectedHours?: number // for Admin Hours calc
+  allSelectedHours?: number
 ): { hpp: number; total: number } {
+  const roleCount = countRoles(roles);
+
+  if (!formulaConfig || !formulaConfig.calc_type) {
+    // No formula — manual task, keep currentHpp
+    const hpp = Math.max(currentHpp, 0);
+    return { hpp, total: Math.round(hpp * roleCount * 100) / 100 };
+  }
+
   const size = deriveProjectSize(variables);
   const complexity = deriveProjectComplexity(variables);
-  const roleCount = countRoles(roles);
   const pages = variables.pages_for_integration ?? 20;
   const layouts = variables.design_layouts ?? 5;
   const personas = variables.user_personas ?? 3;
@@ -118,207 +163,149 @@ export function calculateTaskFromXlsx(
   const siteBuilderAcf = variables.site_builder_acf ?? true;
   const paidDiscovery = variables.paid_discovery ?? 'scope_only';
   const postLaunchServices = variables.post_launch_services ?? 0;
-  const name = taskName.trim();
+  const fc = formulaConfig;
 
-  let hpp: number | null = null; // hours per person (if computed)
+  let hpp: number;
 
-  // === PROJECT MANAGEMENT ===
-  if (/^Timeline \(setup \+ adjustments\)$/i.test(name)) {
-    hpp = bySizeNum(size, 2.5, 3.5, 4.5);
-  } else if (/^KOC Prep \+ Recap$/i.test(name)) {
-    hpp = bySizeNum(size, 2, 2.5, 3);
-  } else if (/^Admin Hours$/i.test(name)) {
-    // 6% of all selected task hours (excluding admin itself)
-    const base = allSelectedHours ?? 0;
-    hpp = Math.round(base * 0.06 * 100) / 100;
+  switch (fc.calc_type) {
+    case 'size':
+      hpp = bySizeNum(size, fc.small ?? 0, fc.medium ?? 0, fc.large ?? 0);
+      break;
+
+    case 'size_multiplied':
+      hpp = bySizeNum(size, fc.small ?? 0, fc.medium ?? 0, fc.large ?? 0) * (fc.multiplier ?? 1);
+      break;
+
+    case 'complexity':
+      hpp = byComplexity(complexity, fc.simple ?? 0, fc.moderate ?? 0, fc.complex ?? 0);
+      break;
+
+    case 'scope': {
+      let val: number;
+      switch (fc.variable) {
+        case 'personas': val = personas; break;
+        case 'layouts': val = layouts; break;
+        case 'layouts_minus_2': val = layouts - 2; break;
+        case 'pages': val = pages; break;
+        case 'custom_posts': val = customPosts; break;
+        case 'pages_plus_cpts': val = pages + customPosts; break;
+        default: val = 1;
+      }
+      hpp = val * (fc.multiplier ?? 1);
+      if (fc.min != null) hpp = Math.max(hpp, fc.min);
+      break;
+    }
+
+    case 'variable':
+      hpp = (variableQty ?? 1) * (fc.multiplier ?? 1);
+      break;
+
+    case 'percentage':
+      hpp = Math.round((allSelectedHours ?? 0) * (fc.pct ?? 0.06) * 100) / 100;
+      break;
+
+    case 'conditional':
+      if (fc.field === 'paid_discovery') {
+        hpp = (paidDiscovery === 'scope_only' || !paidDiscovery) ? (fc.when_scope_only ?? 1) : (fc.otherwise ?? 0.5);
+      } else if (fc.field === 'post_launch_services') {
+        hpp = postLaunchServices > 0 ? postLaunchServices : 0;
+      } else {
+        hpp = currentHpp;
+      }
+      break;
+
+    case 'form_tiers': {
+      const sF = variables.form_count_s ?? 0;
+      const mF = variables.form_count_m ?? 0;
+      const lF = variables.form_count_l ?? 0;
+      hpp = (sF > 0 || mF > 0 || lF > 0)
+        ? (sF * (fc.s_rate ?? 0)) + (mF * (fc.m_rate ?? 0)) + (lF * (fc.l_rate ?? 0))
+        : forms * (fc.fallback_rate ?? 0.5);
+      break;
+    }
+
+    case 'bulk_import': {
+      const table = siteBuilderAcf ? fc.acf_table : fc.no_acf_table;
+      hpp = table?.[bulkImport] ?? table?.['<500'] ?? 0;
+      if (bulkImport === 'none') hpp = 0;
+      break;
+    }
+
+    case 'bulk_import_check': {
+      hpp = fc.table?.[bulkImport] ?? fc.table?.['<500'] ?? 0;
+      if (bulkImport === 'none') hpp = 0;
+      break;
+    }
+
+    case 'manual':
+      hpp = fc.fixed_hpp ?? currentHpp;
+      break;
+
+    default:
+      hpp = currentHpp;
   }
 
-  // === STRATEGY - Size-based ===
-  else if (/^Current Site Review$/i.test(name)) {
-    hpp = bySizeNum(size, 0.5, 1, 1.5);
-  } else if (/^Content Inventory$/i.test(name)) {
-    hpp = bySizeNum(size, 1, 1.5, 2);
-  } else if (/^Content Audit$/i.test(name)) {
-    hpp = bySizeNum(size, 1, 2, 3);
-  } else if (/^Competitor Review$/i.test(name)) {
-    hpp = bySizeNum(size, 2, 2, 3);
-  } else if (/^SEO Insights$/i.test(name)) {
-    hpp = bySizeNum(size, 1, 1.5, 2);
-  } else if (/^Hotjar Review$/i.test(name) && !/Check/i.test(name)) {
-    hpp = bySizeNum(size, 1, 1.5, 2);
-  } else if (/^Keyword Research$/i.test(name)) {
-    hpp = bySizeNum(size, 2, 2.5, 3);
-  } else if (/^Information Architecture$/i.test(name)) {
-    hpp = bySizeNum(size, 4, 6, 8);
-  }
-
-  // === STRATEGY - Paid Discovery based ===
-  else if (/^Strategy Workshop \(KOC\)$/i.test(name)) {
-    hpp = (paidDiscovery === 'scope_only' || !paidDiscovery) ? 1.5 : 0.5;
-  } else if (/^Strategy Review$/i.test(name)) {
-    hpp = (paidDiscovery === 'scope_only' || !paidDiscovery) ? 1 : 0.5;
-  }
-
-  // === STRATEGY - Variable-based (personas) ===
-  else if (/^User Personas$/i.test(name)) {
-    hpp = personas * 1;
-  } else if (/^User Journey Map$/i.test(name)) {
-    hpp = personas * 1.5;
-  } else if (/^Empathy Map$/i.test(name)) {
-    hpp = personas * 2.5;
-  } else if (/^Scenario Map$/i.test(name)) {
-    hpp = personas * 3;
-  }
-
-  // === STRATEGY - Variable tasks with qty ===
-  else if (/^Design Thinking Workshop$/i.test(name)) {
-    const qty = variableQty ?? 4;
-    hpp = qty * 1;
-  } else if (/^Brainstorming Sessions$/i.test(name)) {
-    const qty = variableQty ?? 1;
-    hpp = qty * 1;
-  } else if (/^Interviews$/i.test(name)) {
-    const qty = variableQty ?? 4;
-    hpp = qty * 2.5;
-  } else if (/^Moderated User Testing$/i.test(name) && !/Design Validation/i.test(name)) {
-    const qty = variableQty ?? 4;
-    hpp = qty * 3;
-  } else if (/^Focus Groups$/i.test(name) && !/Design Validation/i.test(name)) {
-    const qty = variableQty ?? 1;
-    hpp = qty * 6;
-  }
-
-  // === STRATEGY - Complexity-based ===
-  else if (/^Functional Requirements$/i.test(name)) {
-    hpp = byComplexity(complexity, 2, 3, 4);
-  } else if (/^Heuristic Evaluation$/i.test(name) && !/Design Validation/i.test(name)) {
-    hpp = 0.5; // multi-role
-  }
-
-  // === DESIGN ===
-  else if (/^Client Design Review \(weekly\)$/i.test(name)) {
-    hpp = bySizeNum(size, 4, 5, 6);
-  } else if (/^Storybrand > WFs \+ Copy Writing$/i.test(name)) {
-    hpp = layouts * 2.4;
-  } else if (/^Internal Page SFs$/i.test(name)) {
-    hpp = (layouts - 2) * 1.5;
-  } else if (/^Internal Page Layouts$/i.test(name)) {
-    hpp = (layouts - 2) * 4.75;
-  } else if (/^Toolkit Outline$/i.test(name)) {
-    hpp = bySizeNum(size, 0.5, 1, 1.5);
-  } else if (/^Responsive$/i.test(name)) {
-    hpp = layouts * 0.5;
-  } else if (/^Revisions$/i.test(name)) {
-    hpp = layouts * 1;
-  } else if (/^Block Map \+ Functional Notes$/i.test(name)) {
-    hpp = bySizeNum(size, 1, 2, 2.5);
-  } else if (/^Content Collection$/i.test(name) && !/Client Call/i.test(name)) {
-    hpp = bySizeNum(size, 2, 4, 6);
-  } else if (/^Technical Roadmap > Create$/i.test(name)) {
-    hpp = byComplexity(complexity, 1, 1.5, 2);
-  } else if (/^Functional Notes$/i.test(name) && !/Block Map/i.test(name)) {
-    hpp = bySizeNum(size, 0.5, 1, 1.5);
-  } else if (/^UX Notes$/i.test(name)) {
-    hpp = bySizeNum(size, 0.5, 1, 1.5);
-  }
-
-  // === DESIGN VALIDATION - Variable tasks ===
-  else if (/^Design Validation > Moderated User Testing$/i.test(name)) {
-    const qty = variableQty ?? 4;
-    hpp = qty * 1;
-  } else if (/^Design Validation > Focus Groups$/i.test(name)) {
-    const qty = variableQty ?? 1;
-    hpp = qty * 6;
-  }
-
-  // === BUILD ===
-  else if (/^CSS, HTML, Javascript$/i.test(name)) {
-    hpp = layouts * 7;
-  } else if (/^Wordpress Development$/i.test(name)) {
-    hpp = layouts * 4;
-  } else if (/^Standard Third Party Plugins \+ Integrations$/i.test(name)) {
-    hpp = byComplexity(complexity, 8, 10, 12);
-  } else if (/^Custom Third Party Integrations$/i.test(name)) {
-    hpp = byComplexity(complexity, 4, 6, 10);
-  } else if (/^Special Setup Integrations$/i.test(name)) {
-    hpp = byComplexity(complexity, 6, 10, 16);
-  } else if (/^Performance Optimization$/i.test(name)) {
-    hpp = bySizeNum(size, 6, 8, 12);
-  } else if (/^Quality Assurance$/i.test(name)) {
-    hpp = layouts * 2;
-  }
-
-  // === CONTENT ===
-  else if (/^Content Integration \(primary, secondary, footer\)$/i.test(name) || /^Content Integration$/i.test(name)) {
-    hpp = pages * 0.8;
-  } else if (/^Additional CPT Integration$/i.test(name)) {
-    hpp = customPosts * 0.5;
-  } else if (/^Bulk Import$/i.test(name) && !/Check/i.test(name)) {
-    hpp = getBulkImportHours(bulkImport, siteBuilderAcf);
-  } else if (/^Bulk Import > Check \+ Clean$/i.test(name)) {
-    hpp = getBulkImportCheckHours(bulkImport);
-  } else if (/^Form Integration$/i.test(name)) {
-    const sF = variables.form_count_s ?? 0;
-    const mF = variables.form_count_m ?? 0;
-    const lF = variables.form_count_l ?? 0;
-    hpp = (sF > 0 || mF > 0 || lF > 0) ? (sF * 0.25) + (mF * 0.5) + (lF * 1.5) : forms * 0.5;
-  } else if (/^Content \+ CMS Review$/i.test(name)) {
-    hpp = (pages + customPosts) * 0.1;
-  } else if (/^URL Swap \+ Check$/i.test(name)) {
-    hpp = (pages + customPosts) * 0.1;
-  }
-
-  // === REVIEW ===
-  else if (/^Design Review$/i.test(name)) {
-    hpp = pages * 0.05;
-  } else if (/^UX Review$/i.test(name)) {
-    hpp = pages * 0.05;
-  } else if (/^AMP Review$/i.test(name)) {
-    hpp = pages * 0.02;
-  } else if (/^Functional Review$/i.test(name)) {
-    hpp = pages * 0.05;
-  }
-
-  // === OPTIMIZATION ===
-  else if (/^301 Redirect Setup$/i.test(name)) {
-    hpp = Math.max(pages * 0.1, 2);
-  } else if (/^Technical On-Page SEO$/i.test(name)) {
-    hpp = bySizeNum(size, 4, 6, 8);
-  } else if (/^Alt Image\/Title Integraton$/i.test(name) || /^Alt Image.Title Integration$/i.test(name)) {
-    hpp = bySizeNum(size, 4, 6, 8);
-  } else if (/^Resolve Self Inflicted 301s$/i.test(name)) {
-    hpp = bySizeNum(size, 1, 1.5, 2);
-  }
-
-  // === QA ===
-  else if (/^QA Forms$/i.test(name)) {
-    const sF = variables.form_count_s ?? 0;
-    const mF = variables.form_count_m ?? 0;
-    const lF = variables.form_count_l ?? 0;
-    hpp = (sF > 0 || mF > 0 || lF > 0) ? (sF * 0.15) + (mF * 0.25) + (lF * 0.5) : forms * 0.25;
-  } else if (/^Proof Reading$/i.test(name)) {
-    hpp = pages * 0.05;
-  } else if (/^DoneDone Management$/i.test(name)) {
-    hpp = bySizeNum(size, 1, 3, 4.5) * 8;
-  }
-
-  // === POST LAUNCH ===
-  else if (/^Services Handoff Meeting$/i.test(name)) {
-    hpp = postLaunchServices > 0 ? postLaunchServices : 0;
-  }
-
-  // If no formula matched, keep current hpp
-  if (hpp === null) {
-    hpp = currentHpp;
-  }
-
-  // Clamp to 0 — negative hours make no sense
   hpp = Math.max(hpp, 0);
-
-  // Calculate total: hpp * roleCount (XLSX pattern)
   const total = Math.round(hpp * roleCount * 100) / 100;
-
   return { hpp: Math.round(hpp * 100) / 100, total };
+}
+
+// Legacy wrapper — kept for backward compatibility during transition
+export function calculateTaskFromXlsx(
+  taskName: string,
+  currentHpp: number,
+  roles: string | null,
+  variableQty: number | null,
+  variables: EstimateVariables,
+  allSelectedHours?: number
+): { hpp: number; total: number } {
+  // This is now only called when formula_config is not available
+  // Keep the old regex-based logic as fallback
+  return calculateTaskFromFormula(null, currentHpp, roles, variableQty, variables, allSelectedHours);
+}
+
+/** Returns the calculation type from formula_config */
+export function getTaskCalcType(taskName: string, formulaConfig?: FormulaConfig | null): TaskCalcType {
+  if (formulaConfig?.calc_type) return formulaConfig.calc_type as TaskCalcType;
+  return 'manual';
+}
+
+/** Returns true if a task has a formula_config (data-driven check) */
+export function isFormulaTask(taskName: string, formulaConfig?: FormulaConfig | null): boolean {
+  return !!formulaConfig?.calc_type;
+}
+
+/** Human-readable formula description from config */
+export function describeFormula(fc: FormulaConfig | null | undefined): string {
+  if (!fc) return 'Manual entry';
+  switch (fc.calc_type) {
+    case 'size':
+      return `bySize(${fc.small}/${fc.medium}/${fc.large})`;
+    case 'size_multiplied':
+      return `bySize(${fc.small}/${fc.medium}/${fc.large}) × ${fc.multiplier}`;
+    case 'complexity':
+      return `byComplexity(${fc.simple}/${fc.moderate}/${fc.complex})`;
+    case 'scope':
+      return `${fc.variable} × ${fc.multiplier}${fc.min != null ? `, min ${fc.min}` : ''}`;
+    case 'variable':
+      return `qty × ${fc.multiplier}`;
+    case 'percentage':
+      return `total × ${((fc.pct ?? 0) * 100).toFixed(0)}%`;
+    case 'conditional':
+      if (fc.field === 'paid_discovery') return `scope_only → ${fc.when_scope_only}h, paid → ${fc.otherwise}h`;
+      if (fc.field === 'post_launch_services') return `post_launch > 0 → value, else 0`;
+      return 'Conditional';
+    case 'form_tiers':
+      return `S×${fc.s_rate} + M×${fc.m_rate} + L×${fc.l_rate}`;
+    case 'bulk_import':
+      return `ACF: <500→${fc.acf_table?.['<500']}h, 500-1k→${fc.acf_table?.['500-1000']}h`;
+    case 'bulk_import_check':
+      return `<500→${fc.table?.['<500']}h, 500-1k→${fc.table?.['500-1000']}h`;
+    case 'manual':
+      return fc.fixed_hpp != null ? `Fixed: ${fc.fixed_hpp}h` : 'Manual entry';
+    default:
+      return 'Manual entry';
+  }
 }
 
 export function getBulkImportHours(amount: string | null, siteBuilderAcf: boolean = true): number {
@@ -342,28 +329,14 @@ export function getBulkImportHours(amount: string | null, siteBuilderAcf: boolea
   }
 }
 
-function getBulkImportCheckHours(amount: string | null): number {
-  if (amount === 'none') return 0;
-  switch (amount) {
-    case '<500': case '< 500': return 4;
-    case '500-1000': case '500 +': return 6;
-    case '1000-5000': return 10;
-    case '>5000': return 16;
-    default: return 4;
-  }
-}
-
-/** Calculate total hours for a task using the XLSX formula engine */
+/** Calculate total hours for a task using the formula engine */
 export function calculateTaskHours(
   taskName: string,
   defaultHours: number,
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
 ): { hours: number; formula: string | null } {
-  const result = calculateTaskFromXlsx(taskName, defaultHours, null, null, variables);
-  if (result.hpp !== defaultHours) {
-    return { hours: result.total, formula: `Calculated from variables` };
-  }
+  // Legacy — used only if no formula_config
   return { hours: defaultHours, formula: null };
 }
 
@@ -385,6 +358,7 @@ export function recalculateAllTasks(
     variable_qty?: number | null;
     is_selected?: boolean;
     phase_name?: string | null;
+    formula_config?: FormulaConfig | null;
   }>,
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
@@ -395,9 +369,10 @@ export function recalculateAllTasks(
   // Pass 1: Calculate all core phase tasks (not PM, QA, or Admin Hours)
   const pass1 = tasks.map(task => {
     const phase = task.phase_name || '';
-    if (phase === PM_PHASE || phase === QA_PHASE || /^Admin Hours$/i.test(task.task_name)) return task;
+    const fc = task.formula_config as FormulaConfig | null | undefined;
+    if (phase === PM_PHASE || phase === QA_PHASE || fc?.calc_type === 'percentage') return task;
     const currentHpp = task.hours_per_person ?? task.hours;
-    const result = calculateTaskFromXlsx(task.task_name, currentHpp, task.roles, task.variable_qty, variables);
+    const result = calculateTaskFromFormula(fc, currentHpp, task.roles, task.variable_qty, variables);
     return { ...task, hours_per_person: result.hpp, hours: result.total };
   });
 
@@ -407,19 +382,18 @@ export function recalculateAllTasks(
     .reduce((sum, t) => sum + Number(t.hours), 0);
 
   // Pass 2: Distribute PM and QA hours proportionally across their tasks
-  const pmTasks = tasks.filter(t => t.phase_name === PM_PHASE && !/^Admin Hours$/i.test(t.task_name));
+  const pmTasks = tasks.filter(t => t.phase_name === PM_PHASE && (t.formula_config as FormulaConfig | null)?.calc_type !== 'percentage');
   const qaTasks = tasks.filter(t => t.phase_name === QA_PHASE);
 
   const pmTargetHours = coreSubtotal * pmPct;
   const qaTargetHours = coreSubtotal * qaPct;
 
-  // Get original weights for distributing phase hours across tasks
   const distributePhaseHours = (phaseTasks: typeof tasks, targetTotal: number, allTasks: typeof pass1) => {
     if (phaseTasks.length === 0) return;
-    // Calculate each task's "natural" hours to get weight ratios
     const naturalHours = phaseTasks.map(t => {
       const currentHpp = t.hours_per_person ?? t.hours;
-      const result = calculateTaskFromXlsx(t.task_name, currentHpp, t.roles, t.variable_qty, variables);
+      const fc = t.formula_config as FormulaConfig | null | undefined;
+      const result = calculateTaskFromFormula(fc, currentHpp, t.roles, t.variable_qty, variables);
       return { id: t.id, hpp: result.hpp, total: result.total, roleCount: countRoles(t.roles) };
     });
     const naturalTotal = naturalHours.reduce((s, t) => s + t.total, 0);
@@ -440,14 +414,15 @@ export function recalculateAllTasks(
   distributePhaseHours(pmTasks, pmTargetHours, pass2);
   distributePhaseHours(qaTasks, qaTargetHours, pass2);
 
-  // Pass 3: Calculate Admin Hours as 6% of everything else selected
+  // Pass 3: Calculate Admin Hours (percentage of selected total)
   const selectedTotal = pass2
-    .filter(t => t.is_selected && !/^Admin Hours$/i.test(t.task_name))
+    .filter(t => t.is_selected && (t.formula_config as FormulaConfig | null)?.calc_type !== 'percentage')
     .reduce((sum, t) => sum + Number(t.hours), 0);
 
   return pass2.map(task => {
-    if (/^Admin Hours$/i.test(task.task_name)) {
-      const result = calculateTaskFromXlsx(task.task_name, 0, task.roles, task.variable_qty, variables, selectedTotal);
+    const fc = task.formula_config as FormulaConfig | null | undefined;
+    if (fc?.calc_type === 'percentage') {
+      const result = calculateTaskFromFormula(fc, 0, task.roles, task.variable_qty, variables, selectedTotal);
       return { ...task, hours_per_person: result.hpp, hours: result.total };
     }
     return task;
@@ -467,6 +442,7 @@ export function calculateBaseModel(
     is_required?: boolean;
     phase_name?: string | null;
     hourly_rate?: number;
+    formula_config?: FormulaConfig | null;
   }>,
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
@@ -486,12 +462,11 @@ export function calculateBaseModel(
     bulk_import_amount: 'none',
     post_launch_services: 0,
   };
-  // Force variable_qty to 1 and only include required tasks (ignore user selections)
   const tasksWithIds = tasks.map((t, i) => ({
     ...t,
     id: t.id || `base-${i}`,
     variable_qty: 1,
-    is_selected: !!(t as any).is_required, // only required tasks count in base model
+    is_selected: !!(t as any).is_required,
   }));
   const recalced = recalculateAllTasks(tasksWithIds, minVars, formulas);
   const selected = recalced.filter(t => t.is_selected);
@@ -512,163 +487,4 @@ export function calculatePhaseTimeline(
     lowWeeks: Math.round((data.hours / 40) * 1000) / 1000,
     highWeeks: Math.round((data.hours / 30) * 100) / 100,
   }));
-}
-
-export type TaskCalcType = 'size' | 'complexity' | 'variable' | 'scope' | 'percentage' | 'conditional' | 'manual';
-
-/** Returns the calculation type for a task */
-export function getTaskCalcType(taskName: string): TaskCalcType {
-  const name = taskName.trim();
-
-  // Percentage-based
-  if (/^Admin Hours$/i.test(name)) return 'percentage';
-
-  // Conditional/lookup
-  if (/^Strategy Workshop \(KOC\)$/i.test(name)) return 'conditional';
-  if (/^Strategy Review$/i.test(name)) return 'conditional';
-  if (/^Bulk Import$/i.test(name) && !/Check/i.test(name)) return 'conditional';
-  if (/^Bulk Import > Check \+ Clean$/i.test(name)) return 'conditional';
-  if (/^Services Handoff Meeting$/i.test(name)) return 'conditional';
-
-  // Variable × rate (qty-driven, uses variableQty)
-  if (/^Design Thinking Workshop$/i.test(name)) return 'variable';
-  if (/^Brainstorming Sessions$/i.test(name)) return 'variable';
-  if (/^Interviews$/i.test(name)) return 'variable';
-  if (/^Moderated User Testing$/i.test(name) && !/Design Validation/i.test(name)) return 'variable';
-  if (/^Focus Groups$/i.test(name) && !/Design Validation/i.test(name)) return 'variable';
-  if (/^Design Validation > Moderated User Testing$/i.test(name)) return 'variable';
-  if (/^Design Validation > Focus Groups$/i.test(name)) return 'variable';
-
-  // Scope-variable-driven (layouts, pages, personas, forms, custom_posts)
-  if (/^User Personas$/i.test(name)) return 'scope';
-  if (/^User Journey Map$/i.test(name)) return 'scope';
-  if (/^Empathy Map$/i.test(name)) return 'scope';
-  if (/^Scenario Map$/i.test(name)) return 'scope';
-  if (/^Storybrand > WFs \+ Copy Writing$/i.test(name)) return 'scope';
-  if (/^Internal Page SFs$/i.test(name)) return 'scope';
-  if (/^Internal Page Layouts$/i.test(name)) return 'scope';
-  if (/^Responsive$/i.test(name)) return 'scope';
-  if (/^Revisions$/i.test(name)) return 'scope';
-  if (/^CSS, HTML, Javascript$/i.test(name)) return 'scope';
-  if (/^Wordpress Development$/i.test(name)) return 'scope';
-  if (/^Quality Assurance$/i.test(name)) return 'scope';
-  if (/^Content Integration/i.test(name)) return 'scope';
-  if (/^Additional CPT Integration$/i.test(name)) return 'scope';
-  if (/^Form Integration$/i.test(name)) return 'scope';
-  if (/^Content \+ CMS Review$/i.test(name)) return 'scope';
-  if (/^URL Swap \+ Check$/i.test(name)) return 'scope';
-  if (/^Design Review$/i.test(name)) return 'scope';
-  if (/^UX Review$/i.test(name)) return 'scope';
-  if (/^AMP Review$/i.test(name)) return 'scope';
-  if (/^Functional Review$/i.test(name)) return 'scope';
-  if (/^301 Redirect Setup$/i.test(name)) return 'scope';
-  if (/^QA Forms$/i.test(name)) return 'scope';
-  if (/^Proof Reading$/i.test(name)) return 'scope';
-  if (/^DoneDone Management$/i.test(name)) return 'scope';
-
-  // Complexity-based
-  if (/^Functional Requirements$/i.test(name)) return 'complexity';
-  if (/^Standard Third Party Plugins \+ Integrations$/i.test(name)) return 'complexity';
-  if (/^Custom Third Party Integrations$/i.test(name)) return 'complexity';
-  if (/^Special Setup Integrations$/i.test(name)) return 'complexity';
-  if (/^Technical Roadmap > Create$/i.test(name)) return 'complexity';
-
-  // Size-based
-  if (/^Timeline \(setup \+ adjustments\)$/i.test(name)) return 'size';
-  if (/^KOC Prep \+ Recap$/i.test(name)) return 'size';
-  if (/^Current Site Review$/i.test(name)) return 'size';
-  if (/^Content Inventory$/i.test(name)) return 'size';
-  if (/^Content Audit$/i.test(name)) return 'size';
-  if (/^Competitor Review$/i.test(name)) return 'size';
-  if (/^SEO Insights$/i.test(name)) return 'size';
-  if (/^Hotjar Review$/i.test(name) && !/Check/i.test(name)) return 'size';
-  if (/^Keyword Research$/i.test(name)) return 'size';
-  if (/^Information Architecture$/i.test(name)) return 'size';
-  if (/^Client Design Review \(weekly\)$/i.test(name)) return 'size';
-  if (/^Toolkit Outline$/i.test(name)) return 'size';
-  if (/^Block Map \+ Functional Notes$/i.test(name)) return 'size';
-  if (/^Content Collection$/i.test(name) && !/Client Call/i.test(name)) return 'size';
-  if (/^Functional Notes$/i.test(name) && !/Block Map/i.test(name)) return 'size';
-  if (/^UX Notes$/i.test(name)) return 'size';
-  if (/^Performance Optimization$/i.test(name)) return 'size';
-  if (/^Technical On-Page SEO$/i.test(name)) return 'size';
-  if (/^Alt Image\/Title Integraton$/i.test(name) || /^Alt Image.Title Integration$/i.test(name)) return 'size';
-  if (/^Resolve Self Inflicted 301s$/i.test(name)) return 'size';
-  if (/^Heuristic Evaluation$/i.test(name) && !/Design Validation/i.test(name)) return 'size';
-
-  return 'manual';
-}
-
-/** Returns true if a task's hours are dynamically calculated by the formula engine */
-export function isFormulaTask(taskName: string): boolean {
-  const name = taskName.trim();
-  const patterns = [
-    /^Timeline \(setup \+ adjustments\)$/i,
-    /^KOC Prep \+ Recap$/i,
-    /^Admin Hours$/i,
-    /^Current Site Review$/i,
-    /^Content Inventory$/i,
-    /^Content Audit$/i,
-    /^Competitor Review$/i,
-    /^SEO Insights$/i,
-    /^Hotjar Review$/i,
-    /^Keyword Research$/i,
-    /^Information Architecture$/i,
-    /^Strategy Workshop \(KOC\)$/i,
-    /^Strategy Review$/i,
-    /^User Personas$/i,
-    /^User Journey Map$/i,
-    /^Empathy Map$/i,
-    /^Scenario Map$/i,
-    /^Design Thinking Workshop$/i,
-    /^Brainstorming Sessions$/i,
-    /^Interviews$/i,
-    /^Moderated User Testing$/i,
-    /^Focus Groups$/i,
-    /^Functional Requirements$/i,
-    /^Heuristic Evaluation$/i,
-    /^Client Design Review \(weekly\)$/i,
-    /^Storybrand > WFs \+ Copy Writing$/i,
-    /^Internal Page SFs$/i,
-    /^Internal Page Layouts$/i,
-    /^Toolkit Outline$/i,
-    /^Responsive$/i,
-    /^Revisions$/i,
-    /^Block Map \+ Functional Notes$/i,
-    /^Content Collection$/i,
-    /^Technical Roadmap > Create$/i,
-    /^Functional Notes$/i,
-    /^UX Notes$/i,
-    /^Design Validation > Moderated User Testing$/i,
-    /^Design Validation > Focus Groups$/i,
-    /^CSS, HTML, Javascript$/i,
-    /^Wordpress Development$/i,
-    /^Standard Third Party Plugins \+ Integrations$/i,
-    /^Custom Third Party Integrations$/i,
-    /^Special Setup Integrations$/i,
-    /^Performance Optimization$/i,
-    /^Quality Assurance$/i,
-    /^Content Integration \(primary, secondary, footer\)$/i,
-    /^Content Integration$/i,
-    /^Additional CPT Integration$/i,
-    /^Bulk Import$/i,
-    /^Bulk Import > Check \+ Clean$/i,
-    /^Form Integration$/i,
-    /^Content \+ CMS Review$/i,
-    /^URL Swap \+ Check$/i,
-    /^Design Review$/i,
-    /^UX Review$/i,
-    /^AMP Review$/i,
-    /^Functional Review$/i,
-    /^301 Redirect Setup$/i,
-    /^Technical On-Page SEO$/i,
-    /^Alt Image\/Title Integraton$/i,
-    /^Alt Image.Title Integration$/i,
-    /^Resolve Self Inflicted 301s$/i,
-    /^QA Forms$/i,
-    /^Proof Reading$/i,
-    /^DoneDone Management$/i,
-    /^Services Handoff Meeting$/i,
-  ];
-  return patterns.some(p => p.test(name));
 }
