@@ -44,6 +44,23 @@ interface Props {
   onQaPercentageChange: (val: number) => void;
   onBlendedRateChange: (val: number) => void;
   tasks: TaskWithFormula[];
+  estimate?: EstimateVariables | null;
+}
+
+function resolveDriverQty(driver: string, estimate?: EstimateVariables | null): number | null {
+  if (!estimate || driver === '-') return null;
+  const map: Record<string, number | null | undefined> = {
+    design_layouts: estimate.design_layouts,
+    content_pages: estimate.content_pages,
+    pages_for_integration: estimate.pages_for_integration,
+    custom_posts: estimate.custom_posts,
+    form_count: estimate.form_count,
+    integration_count: estimate.integration_count,
+    third_party_integrations: estimate.third_party_integrations,
+    user_personas: estimate.user_personas,
+    post_launch_services: estimate.post_launch_services,
+  };
+  return map[driver] ?? null;
 }
 
 export function EstimateFormulasTab({
