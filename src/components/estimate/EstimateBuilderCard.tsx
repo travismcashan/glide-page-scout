@@ -23,6 +23,7 @@ import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { FormsCard } from '@/components/FormsCard';
 import { RedesignEstimateCard } from '@/components/RedesignEstimateCard';
 import { SectionCard } from '@/components/SectionCard';
+import { EstimateVariablesTab } from './EstimateVariablesTab';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 
 
@@ -455,6 +456,11 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
 
 
   const phaseTimeline = useMemo(() => calculatePhaseTimeline(totals.byPhase), [totals.byPhase]);
+
+  const baseModel = useMemo(() => {
+    if (!estimate || tasks.length === 0) return null;
+    return calculateBaseModel(tasks, estimate, formulas);
+  }, [estimate, tasks, formulas]);
 
   const sowTasks = useMemo(() => tasks.filter(t => t.is_selected), [tasks]);
 
