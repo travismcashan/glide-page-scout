@@ -22,6 +22,8 @@ export interface EstimateTask {
   variable_qty?: number | null;
   is_required?: boolean;
   formula_config?: FormulaConfig | null;
+  task_type?: string;
+  default_included?: boolean;
 }
 
 interface Props {

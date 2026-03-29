@@ -253,6 +253,7 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
             variable_label: task.variable_label || null,
             variable_qty: task.default_variable_qty || null,
             formula_config: task.formula_config || null,
+            task_type: task.task_type || 'task',
           };
         });
 
@@ -568,7 +569,7 @@ function getProjectDuration(totalHours: number): string {
                   <FileText className="h-3.5 w-3.5" />SOW View
                 </TabsTrigger>
                 <TabsTrigger value="formulas" className="gap-1.5 text-xs">
-                  <Calculator className="h-3.5 w-3.5" />Formulas
+                  <Calculator className="h-3.5 w-3.5" />Rate Card
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2">

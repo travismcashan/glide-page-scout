@@ -306,6 +306,7 @@ export type Database = {
           phase_name: string | null
           roles: string | null
           task_name: string
+          task_type: string
           team_role_abbreviation: string | null
           team_role_name: string | null
           variable_label: string | null
@@ -326,6 +327,7 @@ export type Database = {
           phase_name?: string | null
           roles?: string | null
           task_name: string
+          task_type?: string
           team_role_abbreviation?: string | null
           team_role_name?: string | null
           variable_label?: string | null
@@ -346,6 +348,7 @@ export type Database = {
           phase_name?: string | null
           roles?: string | null
           task_name?: string
+          task_type?: string
           team_role_abbreviation?: string | null
           team_role_name?: string | null
           variable_label?: string | null
@@ -727,6 +730,7 @@ export type Database = {
           name: string
           phase_id: string | null
           roles: string | null
+          task_type: string
           team_role_id: string | null
           variable_label: string | null
         }
@@ -743,6 +747,7 @@ export type Database = {
           name: string
           phase_id?: string | null
           roles?: string | null
+          task_type?: string
           team_role_id?: string | null
           variable_label?: string | null
         }
@@ -759,6 +764,7 @@ export type Database = {
           name?: string
           phase_id?: string | null
           roles?: string | null
+          task_type?: string
           team_role_id?: string | null
           variable_label?: string | null
         }
