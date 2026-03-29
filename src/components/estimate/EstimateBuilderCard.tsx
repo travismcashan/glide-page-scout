@@ -568,7 +568,7 @@ function getProjectDuration(totalHours: number): string {
                   <FileText className="h-3.5 w-3.5" />SOW View
                 </TabsTrigger>
                 <TabsTrigger value="formulas" className="gap-1.5 text-xs">
-                  <Calculator className="h-3.5 w-3.5" />Formulas
+                  <Calculator className="h-3.5 w-3.5" />Rate Card
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2">
