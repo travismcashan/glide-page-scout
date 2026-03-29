@@ -1,62 +1,66 @@
 
 
-# Make Harvest Chat "Just Work"
+# Add API/Platform Sources to Chat References
 
-## Goal
-Let the user ask natural questions about their Harvest data ("How much did we spend on the AllerVie project?", "Show me all archived projects") and get accurate answers — no API talk, no hallucinations, no empty responses.
+## What's Happening Now
+When the AI uses `call_api` to fetch data from Harvest or Asana, the tool calls are tracked internally (`allToolResults`) but never surfaced to the user as sources. The references block only shows RAG documents, integration sources, and web citations.
+
+Additionally, when the tool-call path is taken (multi-step agentic loop), the backend returns the synthesis stream **without prepending metadata events** — so even existing RAG docs and web citations are lost on tool-call responses.
 
 ## Changes
 
-### 1. Strengthen the system prompt guardrails
-**File:** `supabase/functions/knowledge-chat/index.ts`
+### 1. Backend: Emit API sources as ragDocuments (`knowledge-chat/index.ts`)
+After the tool-call loop completes (around line 1287), before the synthesis pass:
+- Iterate `allToolResults` and create deduplicated API source entries
+- For each `call_api` call, extract the `service` (harvest/asana) and `path` from args
+- Push entries like `{ name: "Harvest: /projects", source_type: "api" }` into `ragDocuments`
+- Prepend metadata events (rag_documents, web_citations) to the synthesis stream response — currently only the non-tool path does this
 
-Update the `CRITICAL RULE FOR LIVE DATA` section to be more aggressive:
-- Explicitly tell the model: "The Harvest API documentation in this prompt describes how to CONSTRUCT requests — it does NOT contain actual project data. You MUST call the call_api tool for ANY question about real Harvest data."
-- Add examples of common queries mapped to tool calls (e.g., "archived projects" → `call_api service=harvest path=/projects params={is_active: false}`)
-
-### 2. Add multi-step tool calling (tool call loop)
-**File:** `supabase/functions/knowledge-chat/index.ts`
-
-The current architecture does exactly one round of tool calls. Change `handleGatewayRequest` to support up to 3 rounds:
-- After executing tool calls and getting results, send the results back to the model WITH tools still enabled
-- If the model makes another tool call (e.g., it got a project ID from step 1 and now wants details), execute that too
-- Cap at 3 iterations to prevent runaway loops
-- This enables queries like "What's the budget status of AllerVie?" which requires: (1) search projects for "AllerVie" → get ID, (2) GET /projects/{id} → get budget details, (3) GET /time_entries?project_id={id} → get actuals
-
-### 3. Increase api-proxy truncation limits for chat consumption
-**File:** `supabase/functions/api-proxy/index.ts`
-
-- Increase `MAX_ARRAY_ITEMS` from 25 to 50 (the AI needs enough data to answer aggregate questions)
-- Increase `MAX_RESPONSE_CHARS` from 100k to 200k (Harvest project lists are legitimately large)
-- Keep `MAX_DEPTH` at 6 (sufficient for Harvest responses)
-
-### 4. Add smart pagination hint in truncated responses  
-**File:** `supabase/functions/api-proxy/index.ts`
-
-When a response is truncated, include a `_next_page` hint with the parameters needed to fetch the next page, so the AI can make a follow-up call in the multi-step loop if needed.
+### 2. Frontend: New "api" source type + display order (`KnowledgeChatCard.tsx`)
+- Add `api: '🔌'` to `SOURCE_TYPE_ICONS`
+- In `ReferencesBlock`, split ragDocuments into two groups: API sources (`source_type === 'api'`) and regular documents
+- Render API sources first under a "Live Data" heading, then documents under "Documents"
+- Show the service name prominently (e.g., "Harvest: /projects/12345") with the path as secondary text
 
 ## Technical Details
 
-### Multi-step tool loop (the key change)
-```text
-User: "How much did we spend on AllerVie?"
-  ↓
-Pass 1 (planning): Model calls call_api(service=harvest, path=/projects, params={is_active:false, per_page:50})
-  → Execute → Get list of projects → Find AllerVie ID = 12345
-  ↓
-Pass 2 (follow-up): Model sees results, calls call_api(service=harvest, path=/projects/12345)
-  → Execute → Get budget = $36,600, fees = $39,847
-  ↓
-Pass 3 (synthesis): Model has all data, generates final answer with real numbers
-  → Stream to user
+**Backend** — after the `for` loop that gathers `allToolResults` (~line 1284):
+```typescript
+// Derive API sources from tool calls
+const apiSourcesSeen = new Set<string>();
+for (const tr of allToolResults) {
+  if (tr.toolName === 'call_api') {
+    try {
+      const a = JSON.parse(tr.args);
+      const key = `${a.service}:${a.path}`;
+      if (!apiSourcesSeen.has(key)) {
+        apiSourcesSeen.add(key);
+        const label = (a.service || 'API').charAt(0).toUpperCase() + (a.service || 'api').slice(1);
+        ragDocuments.push({ name: `${label}: ${a.path}`, source_type: 'api' });
+      }
+    } catch {}
+  }
+}
 ```
 
-The loop replaces the current single-pass architecture (lines 1176-1341) with a `while` loop that checks `finish_reason === 'tool_calls'` up to `MAX_TOOL_ROUNDS = 3` times.
+Then wrap the synthesis response with `prependMetadata()` (line 1332):
+```typescript
+return prependMetadata(new Response(finalResponse.body, {
+  headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+}));
+```
 
-### Files modified
-- `supabase/functions/knowledge-chat/index.ts` — prompt hardening + multi-step tool loop
-- `supabase/functions/api-proxy/index.ts` — relaxed truncation limits + pagination hints
+**Frontend** — `ReferencesBlock` updated render order:
+```
+Live Data (API sources)  ← new section, shown first
+  🔌 Harvest: /projects
+  🔌 Harvest: /time_entries?project_id=123
+Documents               ← existing section
+  📄 Harvest API Docs
+Web                     ← existing section
+```
 
-### No UI changes needed
-The chat interface already supports Harvest toggle and displays streamed responses. This is purely a backend intelligence upgrade.
+### Files Modified
+- `supabase/functions/knowledge-chat/index.ts` — emit API tool calls as sources + prepend metadata on tool-call path
+- `src/components/KnowledgeChatCard.tsx` — add "api" icon, reorder ReferencesBlock sections
 
