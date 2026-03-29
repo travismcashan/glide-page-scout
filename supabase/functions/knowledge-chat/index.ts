@@ -112,7 +112,20 @@ You have access to comprehensive audit data from multiple integration tools. Whe
 
 **Universal API Proxy**: You have a call_api tool that can make authenticated requests to any configured service. Currently supported: harvest, asana. You can call ANY endpoint on their APIs.
 
-**CRITICAL RULE FOR LIVE DATA**: When the user asks about projects, time entries, budgets, hours, invoices, expenses, or ANY data that lives in Harvest or Asana, you MUST use the call_api tool to fetch the real data. NEVER guess, estimate, or infer numbers from documentation or past context. If the tool call fails, tell the user it failed — do not fabricate a response with made-up numbers. If you need data you don't have, make additional tool calls to get it.
+**CRITICAL RULES FOR LIVE DATA**:
+1. When the user asks about projects, time entries, budgets, hours, invoices, expenses, or ANY data that lives in Harvest or Asana, you MUST use the call_api tool to fetch the real data.
+2. NEVER guess, estimate, or infer numbers from documentation, past conversation context, or general knowledge. The API documentation included in this prompt describes how to CONSTRUCT requests — it does NOT contain actual project data.
+3. If a tool call returns an error or empty result, tell the user exactly what happened — do not fabricate a response with made-up numbers.
+4. If you need data you don't have, make additional tool calls to get it. You can make multiple sequential calls (e.g., first search for a project, then get its details).
+5. When a response is truncated (_truncated: true), use the _next_page or _pagination_hint to fetch additional pages if needed.
+
+**Common Harvest queries mapped to tool calls** (use these as a guide):
+- "Show me all archived projects" → call_api(service="harvest", path="/projects", params={is_active: "false", per_page: "50"})
+- "What's the budget for project X?" → First call_api to find the project ID, then call_api(service="harvest", path="/projects/{id}")
+- "How many hours on project X?" → call_api(service="harvest", path="/time_entries", params={project_id: "{id}", per_page: "100"})
+- "Project report for last quarter" → call_api(service="harvest", path="/reports/time/projects", params={from: "YYYY-MM-DD", to: "YYYY-MM-DD"})
+- "List all clients" → call_api(service="harvest", path="/clients")
+- "Invoices for client X" → call_api(service="harvest", path="/invoices", params={client_id: "{id}"})
 
 Asana API (https://developers.asana.com/reference/):
 - GET /workspaces — list workspaces
@@ -124,7 +137,7 @@ Asana API (https://developers.asana.com/reference/):
 
 Use call_api with: service, method (GET/POST/etc), path, params (query string), body (for POST/PUT). Chain calls as needed.
 
-${harvestApiDocs ? `\n--- HARVEST API REFERENCE DOCUMENTATION ---\nUse this documentation to construct correct call_api requests for the "harvest" service. All paths are relative (e.g. /projects, /time_entries) — the base URL is handled automatically.\n\n${harvestApiDocs}\n--- END HARVEST API DOCS ---\n` : `Harvest API (https://help.getharvest.com/api-v2/):
+${harvestApiDocs ? `\n--- HARVEST API REFERENCE DOCUMENTATION ---\nThis documentation describes how to CONSTRUCT correct call_api requests for the "harvest" service. All paths are relative (e.g. /projects, /time_entries) — the base URL is handled automatically.\nIMPORTANT: This documentation is a SYNTAX GUIDE ONLY. It does NOT contain real project data. You MUST call the API to get actual data.\n\n${harvestApiDocs}\n--- END HARVEST API DOCS ---\n` : `Harvest API (https://help.getharvest.com/api-v2/):
 - GET /projects — list projects (params: is_active=true/false, per_page)
 - GET /projects/{id} — single project details
 - GET /time_entries — time entries (params: from, to, project_id, user_id, per_page)
@@ -1173,150 +1186,155 @@ async function handleGatewayRequest(
     );
   }
 
-  // If tools are enabled, do a non-streaming planning pass first
+  // If tools are enabled, do multi-step tool calling (up to 3 rounds)
   if (hasAnyTool && filteredTools.length > 0) {
-    const toolPlanningBody = buildRequestBody(messages, true);
-    toolPlanningBody.stream = false;
-    toolPlanningBody.model = 'google/gemini-3-flash-preview';
-    delete toolPlanningBody.reasoning;
+    const MAX_TOOL_ROUNDS = 3;
+    let conversationMessages = [...messages];
+    let allToolResults: { toolName: string; args: string; result: string }[] = [];
 
-    const checkResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(toolPlanningBody),
-    });
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const toolPlanningBody = buildRequestBody(conversationMessages, true);
+      toolPlanningBody.stream = false;
+      toolPlanningBody.model = 'google/gemini-3-flash-preview';
+      delete toolPlanningBody.reasoning;
 
-    if (checkResponse.ok) {
+      const checkResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(toolPlanningBody),
+      });
+
+      if (!checkResponse.ok) {
+        const errText = await checkResponse.text();
+        console.error(`AI gateway tool planning error (round ${round + 1}):`, checkResponse.status, errText);
+        break;
+      }
+
       const checkData = await checkResponse.json();
       const choice = checkData.choices?.[0];
 
-      if (choice?.finish_reason === 'tool_calls' && choice?.message?.tool_calls?.length > 0) {
-        console.log(`[knowledge-chat] Tool calls detected: ${choice.message.tool_calls.map((tc: any) => tc.function.name).join(', ')}`);
-
-        const toolResults = await Promise.all(
-          choice.message.tool_calls.map(async (tc: any) => {
-            let args: any = {};
-            try {
-              args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
-            } catch (error) {
-              console.error(`[knowledge-chat] Failed to parse tool arguments for ${tc.function.name}:`, tc.function.arguments, error);
-              args = {};
-            }
-
-            console.log(`[knowledge-chat] Executing tool: ${tc.function.name}`, JSON.stringify(args));
-            let result: string;
-            if (tc.function.name === 'generate_presentation') {
-              result = await executeBeautifulAi(args);
-            } else if (tc.function.name === 'call_api') {
-              result = await executeApiProxy(args);
-            } else {
-              result = await executeAnalyticsTool(tc.function.name, args);
-            }
-            return {
-              role: 'tool' as const,
-              tool_call_id: tc.id,
-              content: result,
-            };
-          })
-        );
-
-        const toolSummaryBlock = choice.message.tool_calls.map((tc: any, index: number) => {
-          const toolResult = toolResults[index]?.content ?? '';
-          return [
-            `Tool: ${tc.function.name}`,
-            `Arguments: ${tc.function.arguments || '{}'}`,
-            'Result:',
-            toolResult,
-          ].join('\n');
-        }).join('\n\n---\n\n');
-
-        const synthesisBody: any = {
-          model: selectedModel,
-          max_tokens: contextPreset.gateway,
-          messages: [
-            {
-              role: 'system',
-              content: `${systemPrompt}\n\nYou have already executed the required live tools. Do not call any tools now. Use the tool results below as the source of truth, answer the user's latest request directly, and cite the tool names you used.\n\nLive tool results:\n${toolSummaryBlock}`,
-            },
-            ...messages,
-          ],
-          stream: true,
-        };
-
-        if (selectedReasoning) {
-          synthesisBody.reasoning = { effort: selectedReasoning };
-        }
-
-        const finalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(synthesisBody),
-        });
-
-        if (!finalResponse.ok) {
-          const errText = await finalResponse.text();
-          console.error('AI gateway final response error:', finalResponse.status, errText);
-          return new Response(
-            JSON.stringify({ error: `AI gateway error (${finalResponse.status})` }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        return new Response(finalResponse.body, {
-          headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
-        });
-      }
-
-      const directContent = choice?.message?.content;
-      if (typeof directContent === 'string' && directContent.trim()) {
-        const sseChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: directContent }, index: 0 }] })}\n\ndata: [DONE]\n\n`;
-        return new Response(sseChunk, {
-          headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
-        });
-      }
-
-      console.warn('[knowledge-chat] Tool planning returned no usable content', JSON.stringify({ finish_reason: choice?.finish_reason, native_finish_reason: choice?.native_finish_reason }));
-
-      // If MALFORMED_FUNCTION_CALL, the model tried to generate a tool call but failed.
-      // Retry the planning pass with a simplified prompt that explicitly forbids tool calls.
+      // Handle malformed function calls
       if (choice?.finish_reason === 'error' || choice?.native_finish_reason === 'MALFORMED_FUNCTION_CALL') {
-        console.log('[knowledge-chat] MALFORMED_FUNCTION_CALL detected, retrying planning without tools');
-        const retryBody = buildRequestBody(messages, false);
-        retryBody.stream = false;
-        retryBody.model = 'google/gemini-3-flash-preview';
-        delete retryBody.reasoning;
-
-        const retryResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(retryBody),
-        });
-
-        if (retryResponse.ok) {
-          const retryData = await retryResponse.json();
-          const retryContent = retryData.choices?.[0]?.message?.content;
-          if (typeof retryContent === 'string' && retryContent.trim()) {
-            const sseChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: retryContent }, index: 0 }] })}\n\ndata: [DONE]\n\n`;
-            return new Response(sseChunk, {
-              headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
-            });
-          }
-        }
+        console.log(`[knowledge-chat] MALFORMED_FUNCTION_CALL on round ${round + 1}, breaking loop`);
+        break;
       }
-    } else {
-      const errText = await checkResponse.text();
-      console.error('AI gateway tool planning error:', checkResponse.status, errText);
+
+      // If the model didn't request tools, we're done with the loop
+      if (choice?.finish_reason !== 'tool_calls' || !choice?.message?.tool_calls?.length) {
+        // If round 0 and model returned direct content, use it
+        if (round === 0 && typeof choice?.message?.content === 'string' && choice.message.content.trim()) {
+          const sseChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: choice.message.content }, index: 0 }] })}\n\ndata: [DONE]\n\n`;
+          return new Response(sseChunk, {
+            headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+          });
+        }
+        break;
+      }
+
+      console.log(`[knowledge-chat] Tool round ${round + 1}: ${choice.message.tool_calls.map((tc: any) => tc.function.name).join(', ')}`);
+
+      // Execute all tool calls for this round
+      const toolResults = await Promise.all(
+        choice.message.tool_calls.map(async (tc: any) => {
+          let args: any = {};
+          try {
+            args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+          } catch (error) {
+            console.error(`[knowledge-chat] Failed to parse tool arguments for ${tc.function.name}:`, tc.function.arguments, error);
+            args = {};
+          }
+
+          console.log(`[knowledge-chat] Executing tool: ${tc.function.name}`, JSON.stringify(args));
+          let result: string;
+          if (tc.function.name === 'generate_presentation') {
+            result = await executeBeautifulAi(args);
+          } else if (tc.function.name === 'call_api') {
+            result = await executeApiProxy(args);
+          } else {
+            result = await executeAnalyticsTool(tc.function.name, args);
+          }
+
+          allToolResults.push({
+            toolName: tc.function.name,
+            args: tc.function.arguments || '{}',
+            result,
+          });
+
+          return {
+            role: 'tool' as const,
+            tool_call_id: tc.id,
+            content: result,
+          };
+        })
+      );
+
+      // Add assistant message with tool calls + tool results to conversation for next round
+      conversationMessages = [
+        ...conversationMessages,
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: choice.message.tool_calls,
+        },
+        ...toolResults,
+      ];
     }
 
+    // If we gathered any tool results, do a final synthesis pass
+    if (allToolResults.length > 0) {
+      const toolSummaryBlock = allToolResults.map((tr) => {
+        return [
+          `Tool: ${tr.toolName}`,
+          `Arguments: ${tr.args}`,
+          'Result:',
+          tr.result,
+        ].join('\n');
+      }).join('\n\n---\n\n');
+
+      const synthesisBody: any = {
+        model: selectedModel,
+        max_tokens: contextPreset.gateway,
+        messages: [
+          {
+            role: 'system',
+            content: `${systemPrompt}\n\nYou have already executed the required live tools. Do not call any tools now. Use the tool results below as the source of truth, answer the user's latest request directly, and cite the tool names you used.\n\nLive tool results:\n${toolSummaryBlock}`,
+          },
+          ...messages,
+        ],
+        stream: true,
+      };
+
+      if (selectedReasoning) {
+        synthesisBody.reasoning = { effort: selectedReasoning };
+      }
+
+      const finalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(synthesisBody),
+      });
+
+      if (!finalResponse.ok) {
+        const errText = await finalResponse.text();
+        console.error('AI gateway final response error:', finalResponse.status, errText);
+        return new Response(
+          JSON.stringify({ error: `AI gateway error (${finalResponse.status})` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(finalResponse.body, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+      });
+    }
+
+    // No tool results gathered — fall back to streaming without tools
     const fallbackResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
