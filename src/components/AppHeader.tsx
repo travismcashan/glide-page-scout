@@ -44,7 +44,7 @@ export default function AppHeader() {
     location.pathname === item.to || (item.matchPrefix && location.pathname.startsWith(item.matchPrefix));
 
   return (
-    <header className="border-b border-black/50 bg-background/80 backdrop-blur-xl sticky top-0 z-40 shadow-sm shadow-primary/[0.03]">
+    <header className="border-b border-black/50 bg-background sticky top-0 z-40 shadow-sm shadow-primary/[0.03]">
       <div className="mx-auto px-3 sm:px-6 max-w-6xl h-[55px] flex items-center justify-between">
         {/* Brand + Product Switcher */}
         <div className="flex items-center gap-1 min-w-0">

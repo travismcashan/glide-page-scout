@@ -304,15 +304,15 @@ export default function CrawlPage() {
 
             {/* Mobile: swipeable carousel with dots */}
             <div className="sm:hidden">
-              <div className="overflow-hidden" ref={emblaRef}>
-                <div className="flex">
+              <div className="overflow-hidden touch-pan-y" ref={emblaRef}>
+                <div className="flex will-change-transform">
                   {tilePages.map((page, pageIdx) => (
                     <div key={pageIdx} className="flex-[0_0_100%] min-w-0">
                       <div className="grid grid-cols-2 gap-3">
                         {page.map((integration) => (
                           <div
                             key={integration.label}
-                            className="aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between pointer-events-none select-none"
+                            className="aspect-square rounded-xl border border-border/50 bg-card p-4 flex flex-col justify-between select-none"
                           >
                             <integration.icon className="h-8 w-8 text-primary/60" />
                             <span className="text-sm font-medium leading-snug text-foreground/80">
