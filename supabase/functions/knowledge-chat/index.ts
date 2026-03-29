@@ -1472,7 +1472,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb} analytics=${useAnalytics}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
+    console.log(`[knowledge-chat] Provider: ${provider}, Model: ${model || 'default'}, Sources: docs=${useDocuments} web=${useWeb} analytics=${useAnalytics} harvest=${useHarvest} asana=${useAsana}, RAG: ${ragContext ? ragContext.length + ' chars' : 'none'}, Web: ${webContext ? webContext.length + ' chars' : 'none'}, Screenshots: ${screenshotImages.length}, Messages: ${augmentedMessages.length}`);
 
     // Build metadata events to send before the AI stream
     const metadataEvents: string[] = [];
