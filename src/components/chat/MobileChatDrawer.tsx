@@ -66,6 +66,13 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
+  // Listen for header hamburger trigger
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('open-mobile-chat-drawer', handler);
+    return () => window.removeEventListener('open-mobile-chat-drawer', handler);
+  }, []);
+
   const isNavActive = (item: typeof NAV_ITEMS[number]) =>
     location.pathname === item.to || (item.matchPrefix && location.pathname.startsWith(item.matchPrefix));
 
