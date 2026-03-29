@@ -16,6 +16,7 @@ interface TaskWithFormula {
   hours?: number;
   roles?: string | null;
   task_type?: string;
+  variable_qty?: number | null;
 }
 
 const MODE_LABELS: Record<CalcMode, string> = {
@@ -47,9 +48,9 @@ interface Props {
   estimate?: EstimateVariables | null;
 }
 
-function resolveDriverQty(driver: string, estimate?: EstimateVariables | null): number | null {
+function resolveDriverQty(driver: string, estimate?: EstimateVariables | null): string | null {
   if (!estimate || driver === '-') return null;
-  const map: Record<string, number | null | undefined> = {
+  const numMap: Record<string, number | null | undefined> = {
     design_layouts: estimate.design_layouts,
     content_pages: estimate.content_pages,
     pages_for_integration: estimate.pages_for_integration,
@@ -60,7 +61,26 @@ function resolveDriverQty(driver: string, estimate?: EstimateVariables | null): 
     user_personas: estimate.user_personas,
     post_launch_services: estimate.post_launch_services,
   };
-  return map[driver] ?? null;
+  if (driver in numMap) {
+    const v = numMap[driver];
+    return v != null ? String(v) : null;
+  }
+  // String/derived drivers
+  const strMap: Record<string, string | null | undefined> = {
+    project_size: estimate.project_size,
+    project_complexity: estimate.project_complexity,
+    bulk_import: estimate.bulk_import_amount,
+    paid_discovery: estimate.paid_discovery,
+  };
+  if (driver in strMap) return strMap[driver] ?? null;
+  // Form tiers — show S/M/L counts
+  if (driver === 'forms') {
+    const s = estimate.form_count_s ?? 0;
+    const m = estimate.form_count_m ?? 0;
+    const l = estimate.form_count_l ?? 0;
+    return `${s}/${m}/${l}`;
+  }
+  return null;
 }
 
 export function EstimateFormulasTab({
@@ -84,7 +104,9 @@ export function EstimateFormulasTab({
       const mode = getCalcMode(fc);
       const driver = getDriver(fc);
       const taskType = (t as any).task_type || 'task';
-      const driverQty = mode === 'variable' ? resolveDriverQty(driver, estimate) : null;
+      const driverQty = mode === 'variable'
+        ? (driver === 'qty' ? (t.variable_qty != null ? String(t.variable_qty) : null) : resolveDriverQty(driver, estimate))
+        : null;
       return {
         name: t.task_name,
         phase: t.phase_name || 'Other',
