@@ -262,6 +262,7 @@ export function EstimateFormulasTab({
                   <TableHead className="h-8 text-xs w-[70px]">Type</TableHead>
                   <TableHead className="h-8 text-xs w-[70px]">Mode</TableHead>
                   <TableHead className="h-8 text-xs w-[90px]">Driver</TableHead>
+                  <TableHead className="h-8 text-xs w-[40px] text-right">Qty</TableHead>
                   <TableHead className="h-8 text-xs">Formula</TableHead>
                   <TableHead className="h-8 text-xs w-[60px] text-right">Hrs</TableHead>
                   <TableHead className="h-8 text-xs w-[40px] text-center">Req</TableHead>
@@ -290,6 +291,9 @@ export function EstimateFormulasTab({
                     </TableCell>
                     <TableCell className="py-1.5 text-xs text-muted-foreground">
                       {row.driver !== '-' ? row.driver : ''}
+                    </TableCell>
+                    <TableCell className="py-1.5 text-xs text-right font-medium tabular-nums">
+                      {row.driverQty != null ? row.driverQty : ''}
                     </TableCell>
                     <TableCell className="py-1.5">
                       <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{row.formula}</code>
