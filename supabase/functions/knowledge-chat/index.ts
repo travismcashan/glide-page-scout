@@ -1051,8 +1051,33 @@ async function executeAnalyticsTool(toolName: string, params: any): Promise<stri
     return JSON.stringify({ error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}` });
   }
 }
+/**
+ * Execute Harvest or Asana tool calls by invoking their edge functions
+ */
+async function executeExternalTool(toolName: string, params: any): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-async function handleGatewayRequest(
+  const fnName = toolName === 'query_harvest' ? 'harvest-lookup' : 'asana-lookup';
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    return JSON.stringify(result, null, 2);
+  } catch (e) {
+    return JSON.stringify({ error: `${fnName} failed: ${e instanceof Error ? e.message : String(e)}` });
+  }
+}
+
+
   model: string,
   messages: any[],
   systemPrompt: string,
