@@ -948,6 +948,7 @@ const ANALYTICS_TOOLS = [
             enum: ['time_entries', 'projects', 'project_report'],
             description: 'time_entries = individual time logs; projects = list active projects; project_report = hours summary per project',
           },
+          is_active: { type: 'boolean', description: 'For projects action: true for active (default), false for archived/inactive projects' },
           from: { type: 'string', description: 'Start date YYYY-MM-DD (for time_entries and project_report)' },
           to: { type: 'string', description: 'End date YYYY-MM-DD' },
           projectId: { type: 'number', description: 'Filter time entries to a specific Harvest project ID' },
