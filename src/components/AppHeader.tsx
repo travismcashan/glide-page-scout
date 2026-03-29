@@ -131,9 +131,9 @@ export default function AppHeader() {
           )}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-10 w-10">
-                <Menu className="h-6 w-6" />
-              </Button>
+              <button className="p-0 bg-transparent border-none outline-none">
+                <Menu className="h-8 w-8 text-foreground" />
+              </button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] pt-12">
               <nav className="flex flex-col gap-1">
