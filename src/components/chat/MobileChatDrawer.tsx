@@ -115,188 +115,184 @@ export function MobileChatDrawer({ sessionId, activeThreadId, onSelectThread, on
 
   return (
     <>
-      <div className="md:hidden flex flex-col sticky top-[55px] z-30">
-        {/* Nav bar */}
-        <div className="flex items-center justify-between px-4 h-12 border-b border-border bg-background">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <button className="p-0 bg-transparent border-none">
-                <Menu className="h-6 w-6 text-foreground" />
+      {/* Sheet drawer (triggered by header hamburger via custom event) */}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0 border-none bg-background flex flex-col">
+          {/* Global Nav */}
+          <nav className="px-6 pt-12 pb-2 flex flex-col border-b border-border/30">
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.to}
+                onClick={() => { navigate(item.to); setOpen(false); }}
+                className={cn(
+                  'text-left text-base font-semibold py-1.5 transition-colors tracking-tight',
+                  'text-foreground/40 active:text-foreground',
+                  isNavActive(item) && 'text-foreground'
+                )}
+              >
+                {item.label}
               </button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[85vw] max-w-[340px] p-0 border-none bg-background flex flex-col">
-              {/* Global Nav */}
-              <nav className="px-6 pt-12 pb-2 flex flex-col border-b border-border/30">
-                {NAV_ITEMS.map((item) => (
-                  <button
-                    key={item.to}
-                    onClick={() => { navigate(item.to); setOpen(false); }}
-                    className={cn(
-                      'text-left text-base font-semibold py-1.5 transition-colors tracking-tight',
-                      'text-foreground/40 active:text-foreground',
-                      isNavActive(item) && 'text-foreground'
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </nav>
+            ))}
+          </nav>
 
-              {/* Thread list */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                  <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Recents</span>
-                  <button
-                    onClick={() => { onNewThread(); setOpen(false); }}
-                    className="p-2 rounded-full hover:bg-muted/50 transition-colors"
-                  >
-                    <Plus className="h-5 w-5 text-foreground" />
-                  </button>
+          {/* Thread list */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Recents</span>
+              <button
+                onClick={() => { onNewThread(); setOpen(false); }}
+                className="p-2 rounded-full hover:bg-muted/50 transition-colors"
+              >
+                <Plus className="h-5 w-5 text-foreground" />
+              </button>
+            </div>
+
+            <div className="px-3 pb-4">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-sm text-muted-foreground">Loading…</span>
                 </div>
-
-                <div className="px-3 pb-4">
-                  {loading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <span className="text-sm text-muted-foreground">Loading…</span>
-                    </div>
-                  ) : threads.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-                      <MessageSquare className="h-6 w-6 text-muted-foreground/40 mb-3" />
-                      <span className="text-base text-muted-foreground">No conversations yet</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col">
-                      {threads.map(thread => (
-                        <div
-                          key={thread.id}
-                          className={cn(
-                            'flex items-center justify-between rounded-xl px-4 py-3 transition-colors',
-                            thread.id === activeThreadId
-                              ? 'bg-muted'
-                              : 'active:bg-muted/50'
-                          )}
-                        >
-                          {renamingId === thread.id ? (
-                            <input
-                              ref={renameInputRef}
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              onBlur={() => handleRename(thread.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleRename(thread.id);
-                                if (e.key === 'Escape') setRenamingId(null);
-                              }}
-                              className="flex-1 text-base font-medium bg-background border border-border rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-ring"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            <button
-                              onClick={() => { onSelectThread(thread.id); setOpen(false); }}
-                              className="flex-1 text-left min-w-0"
-                            >
-                              <span className="text-base font-medium text-foreground truncate block">
-                                {thread.title}
-                              </span>
-                            </button>
-                          )}
-                          {renamingId !== thread.id && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all shrink-0 ml-2"
-                                >
-                                  <MoreHorizontal className="h-5 w-5" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40">
-                                <DropdownMenuItem onClick={() => {
-                                  setRenameValue(thread.title);
-                                  setRenamingId(thread.id);
-                                }}>
-                                  <Pencil className="h-4 w-4 mr-2" /> Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handlePin(thread.id)}>
-                                  <Pin className="h-4 w-4 mr-2" /> Pin to top
-                                </DropdownMenuItem>
-                                {threads.length > 1 && (
-                                  <DropdownMenuItem
-                                    onClick={() => setDeleteConfirmId(thread.id)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              ) : threads.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+                  <MessageSquare className="h-6 w-6 text-muted-foreground/40 mb-3" />
+                  <span className="text-base text-muted-foreground">No conversations yet</span>
                 </div>
-              </div>
-
-              {/* User section at bottom */}
-              <div className="px-6 pb-8 pt-4 border-t border-border/30 flex flex-col gap-3">
-                {user ? (
-                  <>
-                    <div className="flex items-center gap-3 pb-3 mb-2">
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={profile?.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {(profile?.display_name || user.email || '?')[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{profile?.display_name || 'User'}</p>
-                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-x-6 gap-y-2">
-                      {isAdmin && (
+              ) : (
+                <div className="flex flex-col">
+                  {threads.map(thread => (
+                    <div
+                      key={thread.id}
+                      className={cn(
+                        'flex items-center justify-between rounded-xl px-4 py-3 transition-colors',
+                        thread.id === activeThreadId
+                          ? 'bg-muted'
+                          : 'active:bg-muted/50'
+                      )}
+                    >
+                      {renamingId === thread.id ? (
+                        <input
+                          ref={renameInputRef}
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={() => handleRename(thread.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRename(thread.id);
+                            if (e.key === 'Escape') setRenamingId(null);
+                          }}
+                          className="flex-1 text-base font-medium bg-background border border-border rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-ring"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
                         <button
-                          onClick={() => { navigate('/admin'); setOpen(false); }}
-                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => { onSelectThread(thread.id); setOpen(false); }}
+                          className="flex-1 text-left min-w-0"
                         >
-                          <Shield className="h-4 w-4" /> Admin
+                          <span className="text-base font-medium text-foreground truncate block">
+                            {thread.title}
+                          </span>
                         </button>
                       )}
-                      <button
-                        onClick={() => { navigate('/connections'); setOpen(false); }}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Link2 className="h-4 w-4" /> Connections
-                      </button>
-                      <button
-                        onClick={() => { navigate('/settings'); setOpen(false); }}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Settings className="h-4 w-4" /> Settings
-                      </button>
-                      <button
-                        onClick={() => { signOut(); setOpen(false); }}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <LogOut className="h-4 w-4" /> Sign Out
-                      </button>
+                      {renamingId !== thread.id && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all shrink-0 ml-2"
+                            >
+                              <MoreHorizontal className="h-5 w-5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={() => {
+                              setRenameValue(thread.title);
+                              setRenamingId(thread.id);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2" /> Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handlePin(thread.id)}>
+                              <Pin className="h-4 w-4 mr-2" /> Pin to top
+                            </DropdownMenuItem>
+                            {threads.length > 1 && (
+                              <DropdownMenuItem
+                                onClick={() => setDeleteConfirmId(thread.id)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
-                  </>
-                ) : (
-                  <Button
-                    variant="default"
-                    size="lg"
-                    className="w-full text-base"
-                    onClick={() => { navigate('/login'); setOpen(false); }}
-                  >
-                    Sign In
-                  </Button>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-          <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
+          {/* User section at bottom */}
+          <div className="px-6 pb-8 pt-4 border-t border-border/30 flex flex-col gap-3">
+            {user ? (
+              <>
+                <div className="flex items-center gap-3 pb-3 mb-2">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="text-xs">
+                      {(profile?.display_name || user.email || '?')[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{profile?.display_name || 'User'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  {isAdmin && (
+                    <button
+                      onClick={() => { navigate('/admin'); setOpen(false); }}
+                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Shield className="h-4 w-4" /> Admin
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { navigate('/connections'); setOpen(false); }}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Link2 className="h-4 w-4" /> Connections
+                  </button>
+                  <button
+                    onClick={() => { navigate('/settings'); setOpen(false); }}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Settings className="h-4 w-4" /> Settings
+                  </button>
+                  <button
+                    onClick={() => { signOut(); setOpen(false); }}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" /> Sign Out
+                  </button>
+                </div>
+              </>
+            ) : (
+              <Button
+                variant="default"
+                size="lg"
+                className="w-full text-base"
+                onClick={() => { navigate('/login'); setOpen(false); }}
+              >
+                Sign In
+              </Button>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sub-bar: thread title + new thread */}
+      <div className="md:hidden flex flex-col sticky top-[55px] z-30">
+        <div className="flex items-center justify-between px-4 h-12 border-b border-border bg-background">
+          <span className="text-sm font-medium text-foreground truncate max-w-[260px]">
             {activeTitle}
           </span>
 
