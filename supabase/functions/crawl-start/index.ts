@@ -154,8 +154,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 6. Run firecrawl-map DIRECTLY (it's critical — batch 2 depends on it, and it's fast <2s).
-    // All other integrations go through workers to avoid blocking crawl-start.
+    // 6. Run firecrawl-map directly (~2s) — batch 2 needs discovered_urls.
     const functionsUrl = `${supabaseUrl}/functions/v1`;
     const firecrawlInt = toRun.find(i => i.key === "firecrawl-map");
     if (firecrawlInt) {
@@ -175,7 +174,6 @@ Deno.serve(async (req) => {
           const data = await resp.json();
           if (data && !data.error) {
             await sb.from("crawl_sessions").update({ [firecrawlInt.column]: data } as any).eq("id", session_id);
-            (session as any)[firecrawlInt.column] = data;
           }
           await sb.from("integration_runs").update({ status: "done" })
             .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
@@ -190,57 +188,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Fire remaining integrations through crawl-worker with staggered dispatch.
-    // 300ms delay between each prevents cold-start stampede that causes 503s.
-    const remainingToRun = toRun.filter(i => i.key !== "firecrawl-map");
-
-    for (let idx = 0; idx < remainingToRun.length; idx++) {
-      const int = remainingToRun[idx];
-      const body = {
-        session_id,
-        integration_key: int.key,
-        db_column: int.column,
-        fn_name: int.fn,
-        fn_body: int.buildBody(session),
-        // Tell crawl-worker which column to wait for before calling the function
-        ...(int.waitFor ? { _wait_for_column: int.waitFor }
-          : int.batch === 2 ? { _wait_for_column: "discovered_urls" }
-          : int.batch === 3 ? { _wait_for_column: "apollo_data" }
-          : {}),
-      };
-
-      // Stagger: wait 300ms between dispatches to avoid cold-start stampede
-      if (idx > 0) await new Promise(r => setTimeout(r, 300));
-
-      // Fire and forget — don't await the response.
-      fetch(`${functionsUrl}/crawl-worker`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify(body),
-      }).catch(e => console.error(`Failed to dispatch ${int.key}:`, e));
-    }
-
-    // 8. Fire a delayed cleanup worker that marks zombie runs as failed after 130s.
-    // This catches workers killed by 503/504/OOM before they could update their status.
-    fetch(`${functionsUrl}/crawl-worker`, {
+    // 7. Dispatch 3-phase pipeline (fire-and-forget).
+    // Phase 1 → Phase 2 → Phase 3, each runs as a single edge function.
+    // 3 workers total instead of 24. No dependency polling. No cleanup worker.
+    fetch(`${functionsUrl}/crawl-phase1`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${anonKey}`,
-      },
-      body: JSON.stringify({
-        session_id,
-        integration_key: null,
-        db_column: "_cleanup",
-        fn_name: "_cleanup",
-        _cleanup_after_ms: 130_000, // 130s — must be under 150s edge function timeout
-      }),
-    }).catch(e => console.error(`Failed to dispatch cleanup:`, e));
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+      body: JSON.stringify({ session_id }),
+    }).catch(e => console.error("Failed to dispatch crawl-phase1:", e));
 
-    console.log(`crawl-start: firecrawl-map direct + dispatched ${remainingToRun.length} workers + cleanup, skipped ${skippedKeys.length} for session ${session_id}`);
+    console.log(`crawl-start: firecrawl-map direct + dispatched phase pipeline, skipped ${skippedKeys.length} for session ${session_id}`);
 
     return new Response(
       JSON.stringify({
