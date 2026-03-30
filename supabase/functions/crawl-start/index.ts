@@ -154,44 +154,45 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 6. Run firecrawl-map DIRECTLY first (it's fast, <2s) so discovered_urls
-    // is available before batch 2 workers start. This avoids concurrency issues
-    // where firecrawl-map's worker gets queued behind 25 other workers.
+    // 6. Run fast, critical integrations DIRECTLY in crawl-start (not through workers).
+    // These are <5s APIs that either (a) produce data other batches depend on, or
+    // (b) consistently fail from concurrency queuing when dispatched as workers.
+    // Running them directly avoids cold-start competition with 20+ simultaneous workers.
     const functionsUrl = `${supabaseUrl}/functions/v1`;
-    const firecrawlInt = toRun.find(i => i.key === "firecrawl-map");
-    if (firecrawlInt) {
+    const DIRECT_RUN_KEYS = new Set(["firecrawl-map", "builtwith", "detectzestack", "sitemap", "crux"]);
+    const directRuns = toRun.filter(i => DIRECT_RUN_KEYS.has(i.key));
+
+    for (const int of directRuns) {
       try {
         await sb.from("integration_runs").update({ status: "running" })
-          .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
-        const fcResp = await fetch(`${functionsUrl}/${firecrawlInt.fn}`, {
+          .eq("session_id", session_id).eq("integration_key", int.key);
+        const resp = await fetch(`${functionsUrl}/${int.fn}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-          body: JSON.stringify(firecrawlInt.buildBody(session)),
+          body: JSON.stringify(int.buildBody(session)),
         });
-        if (fcResp.ok) {
-          const fcData = await fcResp.json();
-          if (fcData && !fcData.error) {
-            await sb.from("crawl_sessions").update({ [firecrawlInt.column]: fcData } as any).eq("id", session_id);
-            // Update local session so batch 2 buildBody gets fresh URLs
-            (session as any)[firecrawlInt.column] = fcData;
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && !data.error) {
+            await sb.from("crawl_sessions").update({ [int.column]: data } as any).eq("id", session_id);
+            (session as any)[int.column] = data;
           }
           await sb.from("integration_runs").update({ status: "done" })
-            .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
+            .eq("session_id", session_id).eq("integration_key", int.key);
         } else {
           await sb.from("integration_runs").update({ status: "failed" })
-            .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
+            .eq("session_id", session_id).eq("integration_key", int.key);
         }
-        console.log(`crawl-start: firecrawl-map completed directly (${fcResp.status})`);
       } catch (e) {
-        console.error("crawl-start: firecrawl-map direct call failed:", e);
+        console.error(`crawl-start: ${int.key} direct call failed:`, e);
         await sb.from("integration_runs").update({ status: "failed" })
-          .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
+          .eq("session_id", session_id).eq("integration_key", int.key);
       }
     }
+    console.log(`crawl-start: ${directRuns.length} fast integrations completed directly`);
 
     // 7. Fire remaining integrations through crawl-worker (fire-and-forget).
-    // Batch 2 workers no longer need to poll for discovered_urls — it's already in the session.
-    const remainingToRun = toRun.filter(i => i.key !== "firecrawl-map");
+    const remainingToRun = toRun.filter(i => !DIRECT_RUN_KEYS.has(i.key));
 
     for (const int of remainingToRun) {
       const body = {
