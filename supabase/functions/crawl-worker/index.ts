@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
     if (resp.ok) {
       try {
         const data = await resp.json();
-        if (data && !data.error) {
+        if (data && !data.error && !data._self_persisted) {
           await sb.from("crawl_sessions")
             .update({ [db_column]: data } as any)
             .eq("id", session_id);
