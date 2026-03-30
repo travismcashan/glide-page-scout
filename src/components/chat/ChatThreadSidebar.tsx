@@ -87,20 +87,18 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
       style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, height: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', maxHeight: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', top: stickyTabVisible ? 64 : 55 }}
     >
       {collapsed ? (
-        <div className="flex flex-col items-center gap-2 pt-3 px-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCollapsed(false)}
-            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-            title="Show chat history"
-          >
+        <div
+          className="flex flex-col items-center gap-2 pt-3 px-1 h-full cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setCollapsed(false)}
+          title="Show chat history"
+        >
+          <div className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground">
             <ChevronRight className="h-5 w-5" />
-          </Button>
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            onClick={onNewThread}
+            onClick={(e) => { e.stopPropagation(); onNewThread(); }}
             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
             title="New chat"
           >

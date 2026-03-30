@@ -2641,28 +2641,31 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         )}
       </div>
 
-      {/* Scroll to top button - shown when at bottom */}
-      {showScrollTop && !showScrollBottom && scrollBtnLeft !== null && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-[180px] z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
+      {/* Scroll navigation buttons - side by side */}
+      {(showScrollTop || showScrollBottom) && scrollBtnLeft !== null && (
+        <div
+          className="fixed bottom-[180px] z-40 flex items-center gap-1.5"
           style={{ left: scrollBtnLeft, transform: 'translateX(-50%)' }}
-          aria-label="Scroll to top"
         >
-          <ArrowUp className="h-5 w-5" />
-        </button>
-      )}
-
-      {/* Scroll to bottom button - shown when scrolled up */}
-      {showScrollBottom && scrollBtnLeft !== null && (
-        <button
-          onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-          className="fixed bottom-[180px] z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
-          style={{ left: scrollBtnLeft, transform: 'translateX(-50%)' }}
-          aria-label="Scroll to bottom"
-        >
-          <ArrowDown className="h-5 w-5" />
-        </button>
+          {showScrollTop && (
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center"
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="h-5 w-5" />
+            </button>
+          )}
+          {showScrollBottom && (
+            <button
+              onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+              className="h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center"
+              aria-label="Scroll to bottom"
+            >
+              <ArrowDown className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Input area - sticky at bottom */}
