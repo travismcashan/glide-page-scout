@@ -2434,28 +2434,35 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
   const outerRef = useRef<HTMLDivElement>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollBtnLeft, setScrollBtnLeft] = useState<number | null>(null);
 
-  // Track whether user has scrolled away from bottom
+  // Track scroll position for top/bottom buttons + recalculate on sidebar toggle
   useEffect(() => {
-    const checkDistance = () => {
+    const updatePosition = () => {
       const distanceFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
+      const distanceFromTop = window.scrollY;
       const hasAssistantReply = messages.some(m => m.role === 'assistant' && m.content);
       setShowScrollBottom(distanceFromBottom > 200 && hasAssistantReply);
+      setShowScrollTop(distanceFromTop > 300 && hasAssistantReply);
       if (outerRef.current) {
         const rect = outerRef.current.getBoundingClientRect();
         setScrollBtnLeft(rect.left + rect.width / 2);
       }
     };
-    checkDistance();
-    window.addEventListener('scroll', checkDistance, { passive: true });
-    window.addEventListener('resize', checkDistance, { passive: true });
-    const observer = new MutationObserver(checkDistance);
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, { passive: true });
+    window.addEventListener('resize', updatePosition, { passive: true });
+    const observer = new MutationObserver(updatePosition);
     observer.observe(document.body, { childList: true, subtree: true });
+    // Also observe sidebar width changes (ResizeObserver on outer container)
+    const resizeObs = outerRef.current ? new ResizeObserver(updatePosition) : null;
+    if (outerRef.current && resizeObs) resizeObs.observe(outerRef.current);
     return () => {
-      window.removeEventListener('scroll', checkDistance);
-      window.removeEventListener('resize', checkDistance);
+      window.removeEventListener('scroll', updatePosition);
+      window.removeEventListener('resize', updatePosition);
       observer.disconnect();
+      resizeObs?.disconnect();
     };
   }, [messages]);
 
@@ -2630,7 +2637,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         )}
       </div>
 
-      {/* Scroll to bottom button - centered on thread body */}
+      {/* Scroll to top button - shown when at bottom */}
+      {showScrollTop && !showScrollBottom && scrollBtnLeft !== null && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-[180px] z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
+          style={{ left: scrollBtnLeft, transform: 'translateX(-50%)' }}
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </button>
+      )}
+
+      {/* Scroll to bottom button - shown when scrolled up */}
       {showScrollBottom && scrollBtnLeft !== null && (
         <button
           onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
