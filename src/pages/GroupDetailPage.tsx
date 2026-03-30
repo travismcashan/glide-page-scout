@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import AppHeader from '@/components/AppHeader';
@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, ChevronDown, Settings2, ChevronRight, Share2 } from 'lucide-react';
+import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, ChevronDown, ChevronUp, Settings2, ChevronRight, Share2, Check, AlertTriangle } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -134,21 +134,40 @@ const INTEGRATION_CATEGORIES = [
   },
 ];
 
+// ── Flat key → label map built from INTEGRATION_CATEGORIES ───
+const KEY_TO_LABEL: Record<string, string> = {};
+INTEGRATION_CATEGORIES.forEach(c => c.keys.forEach(k => { KEY_TO_LABEL[k.key] = k.label; }));
+
+// ── Integration run type for per-session tracking ────────────
+type IntegrationRun = { integration_key: string; status: string };
+
 // ── Sites Tab (member list) ────────────────────────────────────
 
 function SitesTab({
   members,
   progress,
+  integrationRuns,
   domainCounts,
   onRemove,
   onNavigate,
 }: {
   members: GroupMember[];
   progress: Map<string, IntegrationProgress>;
+  integrationRuns: Map<string, IntegrationRun[]>;
   domainCounts: Map<string, number>;
   onRemove: (id: string) => void;
   onNavigate: (m: GroupMember) => void;
 }) {
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
   if (members.length === 0) {
     return (
       <div className="text-center py-16 space-y-3">
@@ -163,6 +182,7 @@ function SitesTab({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-8"></TableHead>
             <TableHead>Domain</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Status</TableHead>
@@ -174,50 +194,113 @@ function SitesTab({
             const p = progress.get(m.session_id);
             const pct = p && p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
             const isComplete = (p && p.total > 0 && p.done === p.total) || m.status === 'completed';
+            const isExpanded = expandedRows.has(m.id);
+            const runs = integrationRuns?.get(m.session_id) ?? [];
+            const sortedRuns = [...runs].sort((a, b) => {
+              const order: Record<string, number> = { done: 0, failed: 1, running: 2, pending: 3, skipped: 4 };
+              return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+            });
 
             return (
-              <TableRow
-                key={m.id}
-                className="cursor-pointer"
-                onClick={() => onNavigate(m)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 shrink-0 text-primary/60" />
-                    <span className="text-sm font-medium truncate">{m.domain}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {format(new Date(m.created_at), 'MMM d, yyyy')}
-                </TableCell>
-                <TableCell>
-                  {isComplete
-                    ? <Badge variant="default">completed</Badge>
-                    : p && p.total > 0
-                      ? <Badge variant="secondary">{pct}%</Badge>
-                      : null}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
+              <Fragment key={m.id}>
+                <TableRow
+                  className="cursor-pointer relative"
+                  onClick={() => onNavigate(m)}
+                >
+                  <TableCell className="w-8 px-2">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(window.location.origin + '/' + m.domain); }}
+                      className="h-6 w-6 text-muted-foreground"
+                      onClick={e => { e.stopPropagation(); toggleExpand(m.id); }}
                     >
-                      <Share2 className="h-3.5 w-3.5" />
+                      {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={e => { e.stopPropagation(); onRemove(m.id); }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 shrink-0 text-primary/60" />
+                      <span className="text-sm font-medium truncate">{m.domain}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {format(new Date(m.created_at), 'MMM d, yyyy')}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {isComplete
+                        ? <Badge variant="default">completed</Badge>
+                        : p && p.total > 0
+                          ? (
+                            <div className="flex items-center gap-2 min-w-[120px]">
+                              <div className="flex-1 h-[4px] rounded-full bg-border overflow-hidden">
+                                <div
+                                  className="h-full transition-all duration-700 ease-out rounded-full"
+                                  style={{
+                                    width: `${pct}%`,
+                                    background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0000)',
+                                    backgroundSize: '200% auto',
+                                    animation: 'rainbow-shift 8s linear infinite',
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground tabular-nums">{pct}%</span>
+                            </div>
+                          )
+                          : null}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(window.location.origin + '/' + m.domain); }}
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={e => { e.stopPropagation(); onRemove(m.id); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                {isExpanded && runs.length > 0 && (
+                  <TableRow key={`${m.id}-capsules`} className="hover:bg-transparent">
+                    <TableCell colSpan={5} className="py-2 px-4">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {sortedRuns.map(r => (
+                          <span
+                            key={r.integration_key}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
+                              r.status === 'done'
+                                ? 'bg-green-600/20 text-green-700 dark:bg-green-500/20 dark:text-green-300'
+                                : r.status === 'running'
+                                ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300'
+                                : r.status === 'failed'
+                                ? 'bg-destructive/15 text-destructive'
+                                : r.status === 'skipped'
+                                ? 'bg-muted text-muted-foreground/40 line-through'
+                                : 'bg-muted text-muted-foreground/60'
+                            }`}
+                          >
+                            {r.status === 'done' && <Check className="h-2.5 w-2.5" />}
+                            {r.status === 'running' && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                            {r.status === 'failed' && <AlertTriangle className="h-2.5 w-2.5" />}
+                            {KEY_TO_LABEL[r.integration_key] ?? r.integration_key}
+                          </span>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
             );
           })}
         </TableBody>
@@ -490,6 +573,7 @@ export default function GroupDetailPage() {
   const [group, setGroup] = useState<{ id: string; name: string; description: string | null } | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [progress, setProgress] = useState<Map<string, IntegrationProgress>>(new Map());
+  const [integrationRuns, setIntegrationRuns] = useState<Map<string, IntegrationRun[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [mainTab, setMainTab] = useState('sites');
@@ -548,6 +632,16 @@ export default function GroupDetailPage() {
       progMap.set(s.id, { session_id: s.id, total: DATA_COLUMNS.length, done: populated + extraFinished });
     });
     setProgress(progMap);
+
+    // Store per-session integration runs for capsule display
+    const runsMap = new Map<string, IntegrationRun[]>();
+    runs?.forEach(r => {
+      const list = runsMap.get(r.session_id) ?? [];
+      list.push({ integration_key: r.integration_key, status: r.status });
+      runsMap.set(r.session_id, list);
+    });
+    setIntegrationRuns(runsMap);
+
     setLoading(false);
   };
 
@@ -718,6 +812,7 @@ export default function GroupDetailPage() {
             <SitesTab
               members={members}
               progress={progress}
+              integrationRuns={integrationRuns}
               domainCounts={domainCounts}
               onRemove={handleRemoveMember}
               onNavigate={(m) => { const path = buildSitePath(m.domain, m.created_at, (domainCounts.get(m.domain) ?? 0) > 1); navigate(path, { state: { fromGroup: { id: groupId, name: group.name } } }); }}
