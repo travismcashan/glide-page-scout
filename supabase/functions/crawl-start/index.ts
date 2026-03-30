@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
         integration_key: null,
         db_column: "_cleanup",
         fn_name: "_cleanup",
-        _cleanup_after_ms: 180_000, // 3 minutes
+        _cleanup_after_ms: 130_000, // 130s — must be under 150s edge function timeout
       }),
     }).catch(e => console.error(`Failed to dispatch cleanup:`, e));
 
