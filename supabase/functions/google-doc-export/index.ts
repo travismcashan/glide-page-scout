@@ -200,21 +200,26 @@ serve(async (req) => {
       `--${boundary}--`,
     ].join('\r\n');
 
-    const response = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': `multipart/related; boundary=${boundary}`,
-        },
-        body,
-      }
-    );
+    let response: Response | null = null;
+    let lastErrorText = '';
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Google Doc creation error:', errorText);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': `multipart/related; boundary=${boundary}`,
+          },
+          body,
+        }
+      );
+
+      if (response.ok) break;
+
+      lastErrorText = await response.text();
+      console.error(`Google Doc creation error (attempt ${attempt + 1}):`, lastErrorText);
 
       if (response.status === 401 || response.status === 403) {
         return new Response(JSON.stringify({
@@ -226,7 +231,15 @@ serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ error: 'Failed to create Google Doc' }), {
+      // Only retry on 5xx errors
+      if (response.status < 500) break;
+
+      // Wait before retry (exponential backoff)
+      if (attempt < 2) await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+    }
+
+    if (!response || !response.ok) {
+      return new Response(JSON.stringify({ error: 'Failed to create Google Doc', details: lastErrorText }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       });
