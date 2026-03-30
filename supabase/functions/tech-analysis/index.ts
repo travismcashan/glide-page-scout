@@ -79,15 +79,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If no tech data available yet, return a soft error (batch 2 may run before batch 1 completes)
+    // If no tech data available from either source, return a soft error
     if (allTechs.size === 0) {
-      const err = 'No tech stack data available yet — BuiltWith and DetectZeStack data not yet loaded';
+      const err = 'No tech stack data available — neither BuiltWith nor DetectZeStack returned data';
       if (orch) await orch.markFailed(err);
       return new Response(
         JSON.stringify({ success: false, error: err }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    // Note: proceeds with whichever source(s) have data — builtwith alone, detectzestack alone, or both
 
     const techList = Array.from(allTechs.entries()).map(([name, info]) => {
       let line = `${name} (${info.category})`;

@@ -26,6 +26,7 @@ const INTEGRATIONS: {
   fn: string;
   column: string;
   batch: number;
+  waitFor?: string; // column to poll for before calling the function
   buildBody: (session: any) => Record<string, unknown>;
 }[] = [
   // ── Batch 1: independent ──
@@ -49,7 +50,7 @@ const INTEGRATIONS: {
   { key: "nav-structure", fn: "nav-extract", column: "nav_structure", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   { key: "firecrawl-map", fn: "firecrawl-map", column: "discovered_urls", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   // ── Batch 1 (moved from batch 2 — these don't actually depend on batch 1) ──
-  { key: "tech-analysis", fn: "tech-analysis", column: "tech_analysis_data", batch: 1, buildBody: (s) => ({ domain: s.domain, session_id: s.id }) },
+  { key: "tech-analysis", fn: "tech-analysis", column: "tech_analysis_data", batch: 2, waitFor: "builtwith_data", buildBody: (s) => ({ domain: s.domain, session_id: s.id }) },
   { key: "avoma", fn: "avoma-lookup", column: "avoma_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
   { key: "apollo", fn: "apollo-enrich", column: "apollo_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
   // ── Batch 2: depends on discovered_urls ──
@@ -165,8 +166,10 @@ Deno.serve(async (req) => {
         fn_name: int.fn,
         fn_body: int.buildBody(session),
         // Tell crawl-worker which column to wait for before calling the function
-        ...(int.batch === 2 ? { _wait_for_column: "discovered_urls" } : {}),
-        ...(int.batch === 3 ? { _wait_for_column: "apollo_data" } : {}),
+        ...(int.waitFor ? { _wait_for_column: int.waitFor }
+          : int.batch === 2 ? { _wait_for_column: "discovered_urls" }
+          : int.batch === 3 ? { _wait_for_column: "apollo_data" }
+          : {}),
       };
 
       // Fire and forget — don't await. Each gets its own isolate + timeout.

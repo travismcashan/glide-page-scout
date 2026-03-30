@@ -381,9 +381,14 @@ function AddSiteDialog({
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [showIntPicker, setShowIntPicker] = useState(false);
 
-  // All integrations enabled by default
+  // All integrations enabled by default EXCEPT enrichment (burns API credits)
   const allKeys = INTEGRATION_CATEGORIES.flatMap(c => c.keys.map(k => k.key));
-  const [enabledInts, setEnabledInts] = useState<Set<string>>(new Set(allKeys));
+  const enrichmentKeys = new Set(
+    INTEGRATION_CATEGORIES.find(c => c.name === 'Enrichment & Prospecting')?.keys.map(k => k.key) ?? []
+  );
+  const [enabledInts, setEnabledInts] = useState<Set<string>>(
+    new Set(allKeys.filter(k => !enrichmentKeys.has(k)))
+  );
   const toggleInt = (key: string) => {
     setEnabledInts(prev => {
       const next = new Set(prev);
