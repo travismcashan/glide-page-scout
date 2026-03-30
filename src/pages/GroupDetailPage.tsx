@@ -61,6 +61,21 @@ const DATA_COLUMNS = [
   'apollo_team_data',
 ];
 
+// ── Map integration_key → db column (must match crawl-start INTEGRATIONS) ──
+const KEY_TO_COLUMN: Record<string, string> = {
+  'builtwith': 'builtwith_data', 'semrush': 'semrush_data', 'psi': 'psi_data',
+  'detectzestack': 'detectzestack_data', 'gtmetrix': 'gtmetrix_scores',
+  'carbon': 'carbon_data', 'crux': 'crux_data', 'wave': 'wave_data',
+  'observatory': 'observatory_data', 'httpstatus': 'httpstatus_data',
+  'w3c': 'w3c_data', 'schema': 'schema_data', 'readable': 'readable_data',
+  'yellowlab': 'yellowlab_data', 'ocean': 'ocean_data', 'hubspot': 'hubspot_data',
+  'sitemap': 'sitemap_data', 'nav-structure': 'nav_structure',
+  'firecrawl-map': 'discovered_urls', 'tech-analysis': 'tech_analysis_data',
+  'avoma': 'avoma_data', 'apollo': 'apollo_data',
+  'content-types': 'content_types_data', 'forms': 'forms_data',
+  'link-checker': 'linkcheck_data', 'apollo-team': 'apollo_team_data',
+};
+
 // ── Integration categories for the picker ─────────────────────
 const INTEGRATION_CATEGORIES = [
   {
@@ -525,11 +540,10 @@ export default function GroupDetailPage() {
     sessions?.forEach(s => {
       const populated = DATA_COLUMNS.filter(col => (s as any)[col] != null).length;
       // Count finished integrations whose column is still null (no data found, but not a failure)
-      const populatedKeys = new Set(DATA_COLUMNS.filter(col => (s as any)[col] != null));
+      const populatedCols = new Set(DATA_COLUMNS.filter(col => (s as any)[col] != null));
       const extraFinished = [...(finishedBySession.get(s.id) ?? [])].filter(k => {
-        // Map integration_key back to column name to check overlap
-        const col = DATA_COLUMNS.find(c => c.replace('_data', '').replace('_scores', '') === k.replace(/-/g, '_'));
-        return !col || !populatedKeys.has(col);
+        const col = KEY_TO_COLUMN[k];
+        return col && !populatedCols.has(col);
       }).length;
       progMap.set(s.id, { session_id: s.id, total: DATA_COLUMNS.length, done: populated + extraFinished });
     });
