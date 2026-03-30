@@ -180,7 +180,24 @@ Deno.serve(async (req) => {
       }).catch(e => console.error(`Failed to dispatch ${int.key}:`, e));
     }
 
-    console.log(`crawl-start: dispatched ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`);
+    // 7. Fire a delayed cleanup worker that marks zombie runs as failed after 3 minutes.
+    // This catches workers killed by 503/504/OOM before they could update their status.
+    fetch(`${functionsUrl}/crawl-worker`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify({
+        session_id,
+        integration_key: null,
+        db_column: "_cleanup",
+        fn_name: "_cleanup",
+        _cleanup_after_ms: 180_000, // 3 minutes
+      }),
+    }).catch(e => console.error(`Failed to dispatch cleanup:`, e));
+
+    console.log(`crawl-start: dispatched ${toRun.length} integrations + cleanup, skipped ${skippedKeys.length} for session ${session_id}`);
 
     return new Response(
       JSON.stringify({

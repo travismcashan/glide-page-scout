@@ -64,7 +64,34 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { session_id, integration_key, db_column, fn_name, fn_body, _wait_for_column } = await req.json();
+    const { session_id, integration_key, db_column, fn_name, fn_body, _wait_for_column, _cleanup_after_ms } = await req.json();
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const sb = createClient(supabaseUrl, serviceKey);
+
+    // ── Cleanup mode: wait, then mark any zombie runs as failed ──
+    if (_cleanup_after_ms && session_id) {
+      await new Promise(r => setTimeout(r, _cleanup_after_ms));
+      const { data: zombies } = await sb.from("integration_runs")
+        .select("integration_key")
+        .eq("session_id", session_id)
+        .in("status", ["pending", "running"]);
+      if (zombies && zombies.length > 0) {
+        const keys = zombies.map((z: any) => z.integration_key);
+        console.log(`crawl-worker cleanup: marking ${keys.length} zombie runs as failed: ${keys.join(", ")}`);
+        await sb.from("integration_runs")
+          .update({ status: "failed" })
+          .eq("session_id", session_id)
+          .in("status", ["pending", "running"]);
+      }
+      await maybeCompleteSession(sb, session_id);
+      return new Response(
+        JSON.stringify({ success: true, cleanup: true, zombies: zombies?.length ?? 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!session_id || !fn_name || !db_column) {
       return new Response(
@@ -72,11 +99,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const sb = createClient(supabaseUrl, serviceKey);
 
     // Mark as running
     if (integration_key) {
