@@ -12,10 +12,12 @@ import {
   Collapsible, CollapsibleTrigger, CollapsibleContent,
 } from '@/components/ui/collapsible';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, ChevronDown, Settings2 } from 'lucide-react';
+import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, ChevronDown, Settings2, ChevronRight, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -138,42 +140,69 @@ function SitesTab({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-      {members.map(m => {
-        const p = progress.get(m.session_id);
-        const pct = p && p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
-        const isComplete = (p && p.total > 0 && p.done === p.total) || m.status === 'completed';
-        const needsTimestamp = (domainCounts.get(m.domain) ?? 0) > 1;
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Domain</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {members.map(m => {
+            const p = progress.get(m.session_id);
+            const pct = p && p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
+            const isComplete = (p && p.total > 0 && p.done === p.total) || m.status === 'completed';
 
-        return (
-          <div key={m.id} className="flex items-center gap-4 px-5 py-4 group">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4 shrink-0 text-primary/60" />
-                <span className="text-sm font-medium truncate">{m.domain}</span>
-                {!isComplete && p && p.total > 0 && (
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{pct}%</span>
-                )}
-                {isComplete && (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">Complete</span>
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1 ml-6">
-                <Clock className="h-3 w-3" />
-                {format(new Date(m.created_at), 'MMM d, yyyy')}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onNavigate(m)}>
-                View <ArrowRight className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onRemove(m.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        );
-      })}
+            return (
+              <TableRow
+                key={m.id}
+                className="cursor-pointer"
+                onClick={() => onNavigate(m)}
+              >
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 shrink-0 text-primary/60" />
+                    <span className="text-sm font-medium truncate">{m.domain}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {format(new Date(m.created_at), 'MMM d, yyyy')}
+                </TableCell>
+                <TableCell>
+                  {isComplete
+                    ? <Badge variant="default">completed</Badge>
+                    : p && p.total > 0
+                      ? <Badge variant="secondary">{pct}%</Badge>
+                      : null}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(window.location.origin + '/' + m.domain); }}
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={e => { e.stopPropagation(); onRemove(m.id); }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -574,7 +603,11 @@ export default function GroupDetailPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{group.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+              <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground transition-colors font-bold">Sites</button>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              <span className="text-foreground">{group.name}</span>
+            </h1>
             {group.description && <p className="text-sm text-muted-foreground mt-1">{group.description}</p>}
             <p className="text-xs text-muted-foreground mt-2">
               {members.length} site{members.length !== 1 ? 's' : ''}
@@ -602,7 +635,7 @@ export default function GroupDetailPage() {
               progress={progress}
               domainCounts={domainCounts}
               onRemove={handleRemoveMember}
-              onNavigate={(m) => navigate(buildSitePath(m.domain, m.created_at, (domainCounts.get(m.domain) ?? 0) > 1))}
+              onNavigate={(m) => { const path = buildSitePath(m.domain, m.created_at, (domainCounts.get(m.domain) ?? 0) > 1); navigate(path, { state: { fromGroup: { id: groupId, name: group.name } } }); }}
             />
           </TabsContent>
 

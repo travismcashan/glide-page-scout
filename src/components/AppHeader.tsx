@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 const NAV_ITEMS = [
   { label: 'Chat', to: '/chat' },
   { label: 'Knowledge', to: '/knowledge' },
-  { label: 'Sites', to: '/history', matchPrefix: '/sites/' },
+  { label: 'Sites', to: '/sites', matchPrefix: '/sites' },
   { label: 'Groups', to: '/groups' },
   { label: 'Wishlist', to: '/wishlist' },
   { label: 'Integrations', to: '/integrations' },

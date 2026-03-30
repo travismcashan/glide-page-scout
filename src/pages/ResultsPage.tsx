@@ -2,14 +2,14 @@ import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } fro
 import { recordView } from '@/lib/recentViews';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 const ReactMarkdown = lazy(() => import('react-markdown'));
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowUp, Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, DollarSign, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
+import { ArrowUp, Menu, Brain, Building2, ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, DollarSign, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
@@ -175,6 +175,8 @@ function BackToTopButton() {
 export default function ResultsPage() {
   const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string; tab?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromGroup = (location.state as any)?.fromGroup as { id: string; name: string } | undefined;
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
 
   // Resolve friendly slug to session ID
@@ -2152,8 +2154,16 @@ export default function ResultsPage() {
       {/* Domain + crawl info — matches header height */}
       <div>
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <h1 className="text-[1.5rem] font-semibold tracking-tight text-foreground leading-none">
-            {session?.domain?.replace(/^www\./i, '')}
+          <h1 className="text-[1.5rem] font-semibold tracking-tight leading-none flex items-center gap-1.5">
+            <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground transition-colors">Sites</button>
+            {fromGroup && (
+              <>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <button onClick={() => navigate(`/groups/${fromGroup.id}`)} className="text-muted-foreground hover:text-foreground transition-colors">{fromGroup.name}</button>
+              </>
+            )}
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            <span className="text-foreground">{session?.domain?.replace(/^www\./i, '')}</span>
           </h1>
           <div className="flex items-center gap-4 shrink-0">
             {session?.created_at && (
