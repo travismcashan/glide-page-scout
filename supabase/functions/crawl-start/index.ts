@@ -6,6 +6,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Extract URL list from session's discovered_urls (handles array or {links:[...]} or {urls:[...]} formats) */
+function extractUrls(session: any): string[] {
+  const d = session.discovered_urls;
+  if (Array.isArray(d)) return d;
+  if (d?.links && Array.isArray(d.links)) return d.links;
+  if (d?.urls && Array.isArray(d.urls)) return d.urls;
+  return [];
+}
+
 /* ── Integration registry ──
  * Maps integration_key → { fn: edge function name, column: crawl_sessions column, batch }
  * batch 1 = independent, batch 2 = depends on batch 1, batch 3 = depends on batch 2
@@ -41,9 +50,18 @@ const INTEGRATIONS: {
   { key: "tech-analysis", fn: "tech-analysis", column: "tech_analysis_data", batch: 2, buildBody: (s) => ({ domain: s.domain, session_id: s.id }) },
   { key: "avoma", fn: "avoma-lookup", column: "avoma_data", batch: 2, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
   { key: "apollo", fn: "apollo-enrich", column: "apollo_data", batch: 2, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  { key: "content-types", fn: "content-types", column: "content_types_data", batch: 2, buildBody: (s) => ({ session_id: s.id }) },
-  { key: "forms", fn: "forms-detect", column: "forms_data", batch: 2, buildBody: (s) => ({ session_id: s.id }) },
-  { key: "link-checker", fn: "link-checker", column: "linkcheck_data", batch: 2, buildBody: (s) => ({ session_id: s.id }) },
+  { key: "content-types", fn: "content-types", column: "content_types_data", batch: 2, buildBody: (s) => {
+    const urls = extractUrls(s);
+    return { urls, baseUrl: s.base_url, session_id: s.id };
+  }},
+  { key: "forms", fn: "forms-detect", column: "forms_data", batch: 2, buildBody: (s) => {
+    const urls = extractUrls(s);
+    return { urls, domain: s.domain };
+  }},
+  { key: "link-checker", fn: "link-checker", column: "linkcheck_data", batch: 2, buildBody: (s) => {
+    const urls = extractUrls(s);
+    return { urls };
+  }},
   // ── Batch 3: depends on batch 2 ──
   { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", batch: 3, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
 ];
