@@ -669,7 +669,7 @@ export default function GroupDetailPage() {
     const anyInProgress = Array.from(progress.values()).some(p => p.done < p.total);
     if (anyInProgress && members.length > 0) {
       if (!pollingRef.current) {
-        pollingRef.current = setInterval(() => { fetchData(); }, 5_000);
+        pollingRef.current = setInterval(() => { fetchData(); }, 3_000);
       }
     } else {
       if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
