@@ -1222,25 +1222,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, []);
 
   const scrollToLastUserMessage = useCallback(() => {
-    // Triple rAF + fallback timeout to ensure DOM has updated after React render
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const el = lastUserMsgRef.current;
-          if (!el) return;
-          const top = el.getBoundingClientRect().top + window.scrollY - 75;
-          window.scrollTo({ top, behavior: 'smooth' });
-        });
-      });
-    });
-    // Fallback in case rAF doesn't catch it
-    setTimeout(() => {
+    const doScroll = () => {
       const el = lastUserMsgRef.current;
       if (!el) return;
-      const top = el.getBoundingClientRect().top + window.scrollY - 75;
+      // Position prompt 20px below the sticky header (55px) + any tab bar
+      const headerOffset = stickyTabVisible ? 64 + 20 : 55 + 20;
+      const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
       window.scrollTo({ top, behavior: 'smooth' });
-    }, 150);
-  }, []);
+    };
+    // Triple rAF to ensure DOM has updated after React render
+    requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(doScroll)));
+    // Fallback timeout
+    setTimeout(doScroll, 200);
+  }, [stickyTabVisible]);
 
   const saveMessage = async (role: string, content: string, sources: string[] = [], ragDocs?: RagDocument[], webCites?: string[]) => {
     if (!activeThreadId) return;
