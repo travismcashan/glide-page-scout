@@ -197,9 +197,27 @@ export default function IntegrationsPage() {
   const navigate = useNavigate();
   const [pausedSet, setPausedSet] = useState(() => getPausedIntegrations());
   const [bulkLoading, setBulkLoading] = useState<string | null>(null);
+  const [usageCounts, setUsageCounts] = useState<Map<string, { done: number; failed: number; total: number }>>(new Map());
 
   useEffect(() => {
     loadPausedIntegrations().then(setPausedSet);
+  }, []);
+
+  useEffect(() => {
+    const fetchUsage = async () => {
+      const { data } = await supabase.from('integration_runs').select('integration_key, status');
+      if (!data) return;
+      const counts = new Map<string, { done: number; failed: number; total: number }>();
+      data.forEach(r => {
+        const c = counts.get(r.integration_key) ?? { done: 0, failed: 0, total: 0 };
+        c.total++;
+        if (r.status === 'done') c.done++;
+        if (r.status === 'failed') c.failed++;
+        counts.set(r.integration_key, c);
+      });
+      setUsageCounts(counts);
+    };
+    fetchUsage();
   }, []);
 
   const handleToggle = async (id: string) => {
@@ -298,6 +316,17 @@ export default function IntegrationsPage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
+                      {(() => {
+                        const usage = usageCounts.get(integration.id);
+                        if (!usage) return null;
+                        return (
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1.5">
+                            <CreditCard className="h-3 w-3 shrink-0" />
+                            <span><strong className="text-foreground">{usage.done}</strong> successful run{usage.done !== 1 ? 's' : ''}</span>
+                            {usage.failed > 0 && <span className="text-destructive/70">{usage.failed} failed</span>}
+                          </div>
+                        );
+                      })()}
                       {integration.hasCredits && !isPaused && (
                         <CreditsDisplay integrationId={integration.id} />
                       )}

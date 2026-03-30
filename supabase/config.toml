@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.crawl-start]
 verify_jwt = false
+
+[functions.auto-index]
+verify_jwt = false

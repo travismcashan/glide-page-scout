@@ -90,7 +90,7 @@ import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
-import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
+import { autoIngestIntegrations, autoIngestPages, autoIngestScreenshots } from '@/lib/ragIngest';
 import { computeOverallScore, getIntegrationScore, getCategoryScore, SECTION_TO_CATEGORY, type OverallScore, scoreToGrade } from '@/lib/siteScore';
 import { buildSitePath, tabSlugToValue, TAB_SLUGS } from '@/lib/sessionSlug';
 import { ScoreOverview } from '@/components/ScoreOverview';
@@ -318,6 +318,7 @@ export default function ResultsPage() {
   // Pending prompt from Prompts tab → passed to chat
   const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
+  const autoIndexTriggered = useRef(false);
   // Tab from URL path param or query string fallback
   const urlTab = params.tab;
   const activeTab = urlTab && TAB_SLUGS.includes(urlTab as any) ? tabSlugToValue(urlTab) : (searchParams.get('tab') || 'raw-data');
@@ -2011,6 +2012,20 @@ export default function ResultsPage() {
       updateSession({ status: 'completed' } as any);
     });
   }, [integrationsAllDone, session?.id, session?.status]);
+
+  // Auto-index knowledge base after all integrations complete
+  useEffect(() => {
+    if (!session || !integrationsAllDone || isSharedView) return;
+    if (autoIndexTriggered.current) return;
+    autoIndexTriggered.current = true;
+    const scrapedForIngest = pages.filter(p => p.status === 'scraped');
+    Promise.all([
+      autoIngestIntegrations(session.id, session),
+      scrapedForIngest.length > 0 ? autoIngestPages(session.id, scrapedForIngest) : Promise.resolve(0),
+    ]).then(() => {
+      autoIngestScreenshots(session.id).catch(console.error);
+    }).catch(console.error);
+  }, [integrationsAllDone, session?.id]);
 
   const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
     if (isSharedView) return null;

@@ -2,7 +2,10 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Globe, Clock, Trash2, Share2, Database, FileText, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Globe, Clock, Trash2, Share2, Database, FileText, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
@@ -57,6 +60,12 @@ export default function HistoryPage() {
   const [integrationCounts, setIntegrationCounts] = useState<Map<string, number>>(new Map());
   const [docCounts, setDocCounts] = useState<Map<string, number>>(new Map());
 
+  // Bulk delete state
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   // Search, sort, filter, group state
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('date');
@@ -65,109 +74,97 @@ export default function HistoryPage() {
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchSessions = async () => {
+    setLoading(true);
+    setError(null);
 
-    const fetchSessions = async () => {
-      setLoading(true);
-      setError(null);
+    try {
+      const { data, error } = await withQueryTimeout(
+        supabase
+          .from('crawl_sessions')
+          .select('id, domain, base_url, status, created_at')
+          .neq('domain', '__global_chat__')
+          .order('created_at', { ascending: false }),
+        12000,
+        'Loading sites timed out'
+      );
 
-      try {
-        const { data, error } = await withQueryTimeout(
-          supabase
-            .from('crawl_sessions')
-            .select('id, domain, base_url, status, created_at')
-            .neq('domain', '__global_chat__')
-            .order('created_at', { ascending: false }),
-          12000,
-          'Loading sites timed out'
-        );
-
-        if (cancelled) return;
-
-        if (error) {
-          throw error;
-        }
-
-        const data_ = (data ?? []) as CrawlSession[];
-        setSessions(data_);
-
-        const domainCounts = new Map<string, number>();
-        data_.forEach(s => {
-          domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1);
-        });
-        setMultiDomains(domainCounts);
-        setIntegrationCounts(new Map());
-        setDocCounts(new Map(data_.map((session) => [session.id, 0] as const)));
-        setLoading(false);
-
-        const sessionIds = data_.map(d => d.id);
-        if (sessionIds.length > 0) {
-          void (async () => {
-            try {
-              const { data: docs, error: docsError } = await withQueryTimeout(
-                supabase
-                  .from('knowledge_documents')
-                  .select('session_id')
-                  .in('session_id', sessionIds),
-                12000,
-                'Loading file counts timed out'
-              );
-
-              if (cancelled) return;
-              if (docsError) {
-                throw docsError;
-              }
-
-              const dCounts = new Map<string, number>(data_.map((session) => [session.id, 0] as const));
-              (docs ?? []).forEach(d => dCounts.set(d.session_id, (dCounts.get(d.session_id) ?? 0) + 1));
-              setDocCounts(dCounts);
-            } catch (docsError) {
-              console.error('Failed to load knowledge file counts:', docsError);
-            }
-          })();
-
-          void (async () => {
-            try {
-              const { data: counts, error: countError } = await withQueryTimeout(
-                (supabase.rpc as any)('count_integrations', { session_ids: sessionIds }),
-                12000,
-                'Loading integration counts timed out'
-              );
-
-              if (cancelled) return;
-              if (countError) {
-                throw countError;
-              }
-
-              const intCounts = new Map<string, number>();
-              ((counts ?? []) as unknown as Array<{ session_id: string; integration_count: number }>).forEach(r => {
-                intCounts.set(r.session_id, r.integration_count);
-              });
-              setIntegrationCounts(intCounts);
-            } catch (err) {
-              console.error('Integration count RPC failed:', err);
-            }
-          })();
-        }
-      } catch (error) {
-        if (cancelled) return;
-
-        console.error('Failed to load crawl history:', error);
-        setError('Failed to load crawl history. Please refresh and try again.');
-        setSessions([]);
-        setIntegrationCounts(new Map());
-        setDocCounts(new Map());
-        setMultiDomains(new Map());
-        setLoading(false);
+      if (error) {
+        throw error;
       }
-    };
 
+      const data_ = (data ?? []) as CrawlSession[];
+      setSessions(data_);
+
+      const domainCounts = new Map<string, number>();
+      data_.forEach(s => {
+        domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1);
+      });
+      setMultiDomains(domainCounts);
+      setIntegrationCounts(new Map());
+      setDocCounts(new Map(data_.map((session) => [session.id, 0] as const)));
+      setLoading(false);
+
+      const sessionIds = data_.map(d => d.id);
+      if (sessionIds.length > 0) {
+        void (async () => {
+          try {
+            const { data: docs, error: docsError } = await withQueryTimeout(
+              supabase
+                .from('knowledge_documents')
+                .select('session_id')
+                .in('session_id', sessionIds),
+              12000,
+              'Loading file counts timed out'
+            );
+
+            if (docsError) {
+              throw docsError;
+            }
+
+            const dCounts = new Map<string, number>(data_.map((session) => [session.id, 0] as const));
+            (docs ?? []).forEach(d => dCounts.set(d.session_id, (dCounts.get(d.session_id) ?? 0) + 1));
+            setDocCounts(dCounts);
+          } catch (docsError) {
+            console.error('Failed to load knowledge file counts:', docsError);
+          }
+        })();
+
+        void (async () => {
+          try {
+            const { data: counts, error: countError } = await withQueryTimeout(
+              (supabase.rpc as any)('count_integrations', { session_ids: sessionIds }),
+              12000,
+              'Loading integration counts timed out'
+            );
+
+            if (countError) {
+              throw countError;
+            }
+
+            const intCounts = new Map<string, number>();
+            ((counts ?? []) as unknown as Array<{ session_id: string; integration_count: number }>).forEach(r => {
+              intCounts.set(r.session_id, r.integration_count);
+            });
+            setIntegrationCounts(intCounts);
+          } catch (err) {
+            console.error('Integration count RPC failed:', err);
+          }
+        })();
+      }
+    } catch (error) {
+      console.error('Failed to load crawl history:', error);
+      setError('Failed to load crawl history. Please refresh and try again.');
+      setSessions([]);
+      setIntegrationCounts(new Map());
+      setDocCounts(new Map());
+      setMultiDomains(new Map());
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchSessions();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   // Unique statuses for filter
@@ -284,12 +281,60 @@ export default function HistoryPage() {
     setDeleteTarget(null);
   };
 
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    for (const id of bulkSelected) {
+      try {
+        await supabase.from('crawl_pages').delete().eq('session_id', id);
+        await supabase.from('crawl_screenshots').delete().eq('session_id', id);
+        await supabase.from('integration_runs').delete().eq('session_id', id);
+        await supabase.from('knowledge_documents').delete().eq('session_id', id);
+        await supabase.from('site_group_members').delete().eq('session_id', id);
+        await supabase.from('crawl_sessions').delete().eq('id', id);
+      } catch (e) { console.error('Failed to delete session:', id, e); }
+    }
+    toast.success(`Deleted ${bulkSelected.size} site${bulkSelected.size !== 1 ? 's' : ''}`);
+    setBulkSelected(new Set());
+    setBulkMode(false);
+    setBulkDeleteOpen(false);
+    setBulkDeleting(false);
+    fetchSessions();
+  };
+
+  const toggleBulkSelect = (id: string) => {
+    setBulkSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (bulkSelected.size === processedSessions.length) setBulkSelected(new Set());
+    else setBulkSelected(new Set(processedSessions.map(s => s.id)));
+  };
+
   const renderRow = (session: CrawlSession) => (
     <TableRow
       key={session.id}
-      className="cursor-pointer hover:bg-muted/50 transition-colors"
-      onClick={() => navigate(buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1))}
+      className={`cursor-pointer hover:bg-muted/50 transition-colors${bulkMode && bulkSelected.has(session.id) ? ' bg-primary/5' : ''}`}
+      onClick={() => {
+        if (bulkMode) {
+          toggleBulkSelect(session.id);
+        } else {
+          navigate(buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1));
+        }
+      }}
     >
+      {bulkMode && (
+        <TableCell className="w-10 pl-4">
+          <Checkbox
+            checked={bulkSelected.has(session.id)}
+            onCheckedChange={() => toggleBulkSelect(session.id)}
+            onClick={e => e.stopPropagation()}
+          />
+        </TableCell>
+      )}
       <TableCell>
         <div className="flex items-center gap-2 min-w-0">
           <Globe className="h-4 w-4 shrink-0 text-primary" />
@@ -322,31 +367,33 @@ export default function HistoryPage() {
         )}
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const path = buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1);
-              const url = `${window.location.origin}${path}?view=shared`;
-              navigator.clipboard.writeText(url);
-              toast.success('View-only link copied to clipboard');
-            }}
-            className="p-1.5 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"
-            title="Copy share link"
-          >
-            <Share2 className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteTarget(session);
-            }}
-            className="p-1.5 rounded-md text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Delete crawl"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        {!bulkMode && (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const path = buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1);
+                const url = `${window.location.origin}${path}?view=shared`;
+                navigator.clipboard.writeText(url);
+                toast.success('View-only link copied to clipboard');
+              }}
+              className="p-1.5 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Copy share link"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteTarget(session);
+              }}
+              className="p-1.5 rounded-md text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Delete crawl"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </TableCell>
     </TableRow>
   );
@@ -410,12 +457,52 @@ export default function HistoryPage() {
               <span className="text-xs text-muted-foreground ml-auto">
                 {processedSessions.length} of {sessions.length} sites
               </span>
+
+              {bulkMode ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={bulkSelected.size === 0}
+                    onClick={() => setBulkDeleteOpen(true)}
+                    className="gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete ({bulkSelected.size})
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setBulkMode(false); setBulkSelected(new Set()); }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkMode(true)}
+                  className="gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Bulk Delete
+                </Button>
+              )}
             </div>
 
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
+                    {bulkMode && (
+                      <TableHead className="w-10 pl-4">
+                        <Checkbox
+                          checked={processedSessions.length > 0 && bulkSelected.size === processedSessions.length}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="w-[40%]">
                       <button onClick={() => toggleSort('domain')} className="flex items-center gap-1 hover:text-foreground transition-colors">
                         Domain <SortIcon col="domain" />
@@ -447,7 +534,7 @@ export default function HistoryPage() {
                 <TableBody>
                   {processedSessions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={bulkMode ? 7 : 6} className="text-center py-8 text-muted-foreground">
                         No sites match your search or filter.
                       </TableCell>
                     </TableRow>
@@ -457,7 +544,7 @@ export default function HistoryPage() {
                     Array.from(groupedSessions.entries()).map(([groupKey, items]) => (
                       <>
                         <TableRow key={`group-${groupKey}`} className="bg-muted/30 hover:bg-muted/40">
-                          <TableCell colSpan={6} className="py-1.5">
+                          <TableCell colSpan={bulkMode ? 7 : 6} className="py-1.5">
                             <button
                               onClick={() => toggleGroup(groupKey)}
                               className="flex items-center gap-2 text-xs font-semibold text-foreground w-full"
@@ -500,6 +587,38 @@ export default function HistoryPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {bulkSelected.size} site{bulkSelected.size !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected sites and all associated data. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ScrollArea className="max-h-[200px] my-2">
+            <div className="space-y-1 text-xs text-muted-foreground px-1">
+              {sessions.filter(s => bulkSelected.has(s.id)).map(s => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <Globe className="h-3 w-3 shrink-0" />
+                  {s.domain}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              {bulkDeleting ? 'Deleting…' : `Delete ${bulkSelected.size} Site${bulkSelected.size !== 1 ? 's' : ''}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

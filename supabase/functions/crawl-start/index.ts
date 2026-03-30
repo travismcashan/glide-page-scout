@@ -230,6 +230,13 @@ Deno.serve(async (req) => {
       `crawl-start: completed ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`
     );
 
+    // Auto-index knowledge base
+    fetch(`${functionsUrl}/auto-index`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+      body: JSON.stringify({ session_id }),
+    }).then(r => console.log(`auto-index: ${r.status}`)).catch(e => console.error("auto-index failed:", e));
+
     return new Response(
       JSON.stringify({
         success: true,

@@ -9,6 +9,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Collapsible, CollapsibleTrigger, CollapsibleContent,
 } from '@/components/ui/collapsible';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -474,6 +478,9 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [mainTab, setMainTab] = useState('sites');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteSitesToo, setDeleteSitesToo] = useState(false);
 
   // Full session data for comparison tabs
   const [fullSessions, setFullSessions] = useState<any[]>([]);
@@ -578,6 +585,32 @@ export default function GroupDetailPage() {
     toast.success('Site removed from group');
   };
 
+  const handleDeleteGroup = async () => {
+    if (!groupId) return;
+    setDeleting(true);
+    try {
+      if (deleteSitesToo) {
+        // Delete all sessions and their child data
+        for (const m of members) {
+          await supabase.from('crawl_pages').delete().eq('session_id', m.session_id);
+          await supabase.from('crawl_screenshots').delete().eq('session_id', m.session_id);
+          await supabase.from('integration_runs').delete().eq('session_id', m.session_id);
+          await supabase.from('knowledge_documents').delete().eq('session_id', m.session_id);
+          await supabase.from('crawl_sessions').delete().eq('id', m.session_id);
+        }
+      }
+      const { error } = await supabase.from('site_groups').delete().eq('id', groupId);
+      if (error) throw error;
+      toast.success('Group deleted');
+      navigate('/sites');
+    } catch (err) {
+      toast.error('Failed to delete group');
+    } finally {
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -614,9 +647,14 @@ export default function GroupDetailPage() {
               {members.length > 0 && ` · ${completedCount}/${members.length} complete`}
             </p>
           </div>
-          <Button className="gap-2" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4" /> Add Sites
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+            </Button>
+            <Button className="gap-2" onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4" /> Add Sites
+            </Button>
+          </div>
         </div>
 
         {/* Main tabbed dashboard */}
@@ -680,6 +718,37 @@ export default function GroupDetailPage() {
         </Tabs>
 
         <AddSiteDialog open={addOpen} onOpenChange={setAddOpen} members={members} groupId={groupId!} onAdded={() => { fetchData(); setFullSessions([]); }} />
+
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete group "{group.name}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove the group. Sites will remain in your sites list unless you check the option below.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {members.length > 0 && (
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={deleteSitesToo} onCheckedChange={(v) => setDeleteSitesToo(!!v)} />
+                  Also delete all {members.length} sites in this group
+                </label>
+                <ScrollArea className="max-h-[200px]">
+                  <div className="space-y-1 text-xs text-muted-foreground pl-6">
+                    {members.map(m => <div key={m.id}>{m.domain}</div>)}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteGroup} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                {deleteSitesToo ? `Delete Group & ${members.length} Sites` : 'Delete Group'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
