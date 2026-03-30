@@ -121,9 +121,6 @@ export default function KnowledgePage() {
         <DocumentLibrary
           sessionId={globalSession.id}
           refreshKey={refreshKey}
-          onIngestIntegrations={runIngest}
-          onStopIngestion={stopIngest}
-          ingesting={ingesting}
         />
       </div>
     </div>
