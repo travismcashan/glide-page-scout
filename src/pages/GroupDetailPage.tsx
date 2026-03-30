@@ -685,9 +685,9 @@ export default function GroupDetailPage() {
     setLoading(false);
   };
 
-  // Fetch full session data when switching to comparison tabs
+  // Fetch full session data when switching to comparison tabs (always re-fetch for fresh data)
   const fetchFullSessions = async () => {
-    if (members.length === 0 || fullSessions.length > 0) return;
+    if (members.length === 0) return;
     setLoadingSessions(true);
     const sessionIds = members.map(m => m.session_id);
     const { data } = await supabase.from('crawl_sessions').select('*').in('id', sessionIds);
