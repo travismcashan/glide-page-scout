@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
 import { AnimatedLogo } from '@/components/AnimatedLogo';
+import { useActiveCrawl } from '@/hooks/use-active-crawl';
 
 const NAV_ITEMS = [
   { label: 'Chat', to: '/chat' },
@@ -36,6 +37,7 @@ export default function AppHeader() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const { currentProduct, setCurrentProduct } = useProduct();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isCrawling = useActiveCrawl();
 
   const linkBase =
     'text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md';
@@ -55,7 +57,7 @@ export default function AppHeader() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
           >
-            <AnimatedLogo size={32} />
+            <AnimatedLogo size={32} isAnimating={isCrawling} />
             <span className="text-lg sm:text-base font-semibold tracking-tight truncate">
               {currentProduct.fullName}
             </span>

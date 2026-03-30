@@ -208,7 +208,7 @@ function SitesTab({
             return (
               <Fragment key={m.id}>
                 <TableRow
-                  className="cursor-pointer relative overflow-hidden"
+                  className={`cursor-pointer relative overflow-hidden ${!isComplete && p && p.total > 0 ? 'border-b-0' : ''}`}
                   onClick={() => onNavigate(m)}
                 >
                   <TableCell className="w-8 px-2">

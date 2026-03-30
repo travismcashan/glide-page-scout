@@ -97,7 +97,7 @@ export function AnimatedLogo({ size = 32, isAnimating = false }: AnimatedLogoPro
           ctx.beginPath();
           ctx.arc(x, y, r, 0, Math.PI * 2);
           ctx.strokeStyle = `rgba(${rgb}, ${alpha})`;
-          ctx.lineWidth = size > 40 ? 2 : 1.5;
+          ctx.lineWidth = size > 40 ? 3 : 2.5;
           ctx.stroke();
         }
 
@@ -141,7 +141,7 @@ export function AnimatedLogo({ size = 32, isAnimating = false }: AnimatedLogoPro
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${rgb}, 1)`;
-        ctx.lineWidth = size > 40 ? 2 : 1.5;
+        ctx.lineWidth = size > 40 ? 3 : 2.5;
         ctx.stroke();
 
         parentX = x; parentY = y; parentR = r;
@@ -180,7 +180,7 @@ export function AnimatedLogo({ size = 32, isAnimating = false }: AnimatedLogoPro
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${rgb}, 1)`;
-        ctx.lineWidth = size > 40 ? 2 : 1.5;
+        ctx.lineWidth = size > 40 ? 3 : 2.5;
         ctx.stroke();
 
         parentX = x; parentY = y; parentR = r;
@@ -213,7 +213,7 @@ export function AnimatedLogo({ size = 32, isAnimating = false }: AnimatedLogoPro
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${rgb}, 1)`;
-        ctx.lineWidth = size > 40 ? 2 : 1.5;
+        ctx.lineWidth = size > 40 ? 3 : 2.5;
         ctx.stroke();
 
         parentX = x; parentY = y; parentR = r;
