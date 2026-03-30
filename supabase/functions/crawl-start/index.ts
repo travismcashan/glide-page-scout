@@ -153,12 +153,46 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 6. Fire all integrations through crawl-worker (fire-and-forget).
-    // Each crawl-worker invocation gets its own 150s timeout.
-    // Batch 2/3 workers poll for their dependencies before calling the function.
+    // 6. Run firecrawl-map DIRECTLY first (it's fast, <2s) so discovered_urls
+    // is available before batch 2 workers start. This avoids concurrency issues
+    // where firecrawl-map's worker gets queued behind 25 other workers.
     const functionsUrl = `${supabaseUrl}/functions/v1`;
+    const firecrawlInt = toRun.find(i => i.key === "firecrawl-map");
+    if (firecrawlInt) {
+      try {
+        await sb.from("integration_runs").update({ status: "running" })
+          .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
+        const fcResp = await fetch(`${functionsUrl}/${firecrawlInt.fn}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+          body: JSON.stringify(firecrawlInt.buildBody(session)),
+        });
+        if (fcResp.ok) {
+          const fcData = await fcResp.json();
+          if (fcData && !fcData.error) {
+            await sb.from("crawl_sessions").update({ [firecrawlInt.column]: fcData } as any).eq("id", session_id);
+            // Update local session so batch 2 buildBody gets fresh URLs
+            (session as any)[firecrawlInt.column] = fcData;
+          }
+          await sb.from("integration_runs").update({ status: "done" })
+            .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
+        } else {
+          await sb.from("integration_runs").update({ status: "failed" })
+            .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
+        }
+        console.log(`crawl-start: firecrawl-map completed directly (${fcResp.status})`);
+      } catch (e) {
+        console.error("crawl-start: firecrawl-map direct call failed:", e);
+        await sb.from("integration_runs").update({ status: "failed" })
+          .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
+      }
+    }
 
-    for (const int of toRun) {
+    // 7. Fire remaining integrations through crawl-worker (fire-and-forget).
+    // Batch 2 workers no longer need to poll for discovered_urls — it's already in the session.
+    const remainingToRun = toRun.filter(i => i.key !== "firecrawl-map");
+
+    for (const int of remainingToRun) {
       const body = {
         session_id,
         integration_key: int.key,
@@ -183,7 +217,7 @@ Deno.serve(async (req) => {
       }).catch(e => console.error(`Failed to dispatch ${int.key}:`, e));
     }
 
-    // 7. Fire a delayed cleanup worker that marks zombie runs as failed after 3 minutes.
+    // 8. Fire a delayed cleanup worker that marks zombie runs as failed after 130s.
     // This catches workers killed by 503/504/OOM before they could update their status.
     fetch(`${functionsUrl}/crawl-worker`, {
       method: "POST",
@@ -200,7 +234,7 @@ Deno.serve(async (req) => {
       }),
     }).catch(e => console.error(`Failed to dispatch cleanup:`, e));
 
-    console.log(`crawl-start: dispatched ${toRun.length} integrations + cleanup, skipped ${skippedKeys.length} for session ${session_id}`);
+    console.log(`crawl-start: firecrawl-map direct + dispatched ${remainingToRun.length} workers + cleanup, skipped ${skippedKeys.length} for session ${session_id}`);
 
     return new Response(
       JSON.stringify({
