@@ -17,6 +17,7 @@ import { LogOut, Settings, Shield, ChevronDown, Check, Menu, Link2 } from 'lucid
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
+import { AnimatedLogo } from '@/components/AnimatedLogo';
 
 const NAV_ITEMS = [
   { label: 'Chat', to: '/chat' },
@@ -54,7 +55,7 @@ export default function AppHeader() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
           >
-            <ProductIcon className="h-8 w-8 sm:h-8 sm:w-8 text-primary shrink-0" />
+            <AnimatedLogo size={32} />
             <span className="text-lg sm:text-base font-semibold tracking-tight truncate">
               {currentProduct.fullName}
             </span>
