@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, MessageSquare, MoreHorizontal, Trash2, Pencil, Pin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, MessageSquare, MoreHorizontal, Trash2, Pencil, Pin, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -93,7 +93,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
           title="Show chat history"
         >
           <div className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground">
-            <ChevronRight className="h-5 w-5" />
+            <PanelLeftOpen className="h-5 w-5" />
           </div>
           <Button
             variant="ghost"
@@ -127,7 +127,7 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                 className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
                 title="Collapse sidebar"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <PanelLeftClose className="h-5 w-5" />
               </Button>
             </div>
           </div>
