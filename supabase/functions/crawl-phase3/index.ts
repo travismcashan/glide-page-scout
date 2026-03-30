@@ -57,21 +57,27 @@ Deno.serve(async (req) => {
     await runPool(tasks, 2);
 
     // ── Mark session complete ──
-    // Check all integration_runs for this session
+    // Wait for self-persisting functions to flush their DB writes
+    await new Promise(r => setTimeout(r, 2000));
+
+    // Force any phase 3 runs that are still "running" to "done" (they completed via runPool)
+    await sb.from("integration_runs")
+      .update({ status: "done", completed_at: new Date().toISOString() })
+      .eq("session_id", session_id)
+      .eq("status", "running");
+
+    // Now check all runs
     const { data: allRuns } = await sb.from("integration_runs")
       .select("status")
       .eq("session_id", session_id);
 
     const hasFailed = (allRuns || []).some(r => r.status === "failed");
-    const hasStillRunning = (allRuns || []).some(r => r.status === "pending" || r.status === "running");
+    const hasStillPending = (allRuns || []).some(r => r.status === "pending");
 
-    if (!hasStillRunning) {
-      const status = hasFailed ? "completed_with_errors" : "completed";
-      await sb.from("crawl_sessions").update({ status }).eq("id", session_id);
-      console.log(`crawl-phase3: session ${session_id} marked ${status}`);
-    } else {
-      console.warn(`crawl-phase3: ${hasStillRunning} runs still not finished — not marking complete`);
-    }
+    // Always mark complete at end of phase 3 — this is the final phase
+    const status = hasFailed ? "completed_with_errors" : hasStillPending ? "completed_with_errors" : "completed";
+    await sb.from("crawl_sessions").update({ status }).eq("id", session_id);
+    console.log(`crawl-phase3: session ${session_id} marked ${status}`);
 
     console.log(`crawl-phase3: complete for ${session.domain}`);
 

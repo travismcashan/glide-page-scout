@@ -2244,11 +2244,11 @@ export default function ResultsPage() {
       <div>
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <h1 className="text-[1.5rem] font-semibold tracking-tight leading-none flex items-center gap-1.5">
-            <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground transition-colors">Sites</button>
+            <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">Sites</button>
             {groupInfo && (
               <>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                <button onClick={() => navigate(`/groups/${groupInfo.id}`)} className="text-muted-foreground hover:text-foreground transition-colors">{groupInfo.name}</button>
+                <button onClick={() => navigate(`/groups/${groupInfo.id}`)} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">{groupInfo.name}</button>
               </>
             )}
             <ChevronRight className="h-5 w-5 text-muted-foreground" />

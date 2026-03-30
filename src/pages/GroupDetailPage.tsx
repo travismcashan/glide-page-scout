@@ -818,7 +818,7 @@ export default function GroupDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
-              <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground transition-colors font-bold">Sites</button>
+              <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-bold">Sites</button>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
               <span className="text-foreground">{group.name}</span>
             </h1>
