@@ -66,8 +66,9 @@ const INTEGRATIONS: {
     const urls = extractUrls(s);
     return { urls };
   }},
-  // ── Batch 3: depends on apollo_data ──
-  { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", batch: 3, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
+  // ── Batch 3: depends on other batch 2 results ──
+  { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", batch: 3, waitFor: "apollo_data", buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
+  { key: "page-tags", fn: "page-tag-orchestrate", column: "page_tags", batch: 3, waitFor: "content_types_data", buildBody: (s) => ({ session_id: s.id }) },
 ];
 
 Deno.serve(async (req) => {

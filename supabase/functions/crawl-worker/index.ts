@@ -32,6 +32,8 @@ function rebuildBody(integration_key: string, session: any): Record<string, unkn
     }
     case "apollo-team":
       return { domain: session.prospect_domain || session.domain };
+    case "page-tags":
+      return { session_id: session.id };
     default:
       return null;
   }

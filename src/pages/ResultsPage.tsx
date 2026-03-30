@@ -2021,6 +2021,7 @@ export default function ResultsPage() {
     { key: 'content-types', label: 'Content Types', loading: contentTypesLoading, failed: contentTypesFailed, data: (session as any).content_types_data, paused: isIntegrationPaused('content-types') },
     { key: 'forms', label: 'Forms', loading: formsLoading, failed: formsFailed, data: (session as any).forms_data, paused: isIntegrationPaused('forms') },
     { key: 'link-checker', label: 'Link Checker', loading: linkcheckLoading, failed: linkcheckFailed, data: (session as any).linkcheck_data, paused: isIntegrationPaused('link-checker') },
+    { key: 'page-tags', label: 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
     { key: 'apollo', label: 'Apollo.io', loading: apolloLoading, failed: false, data: apolloData || session.apollo_data, paused: isIntegrationPaused('apollo') },
     { key: 'apollo-team', label: 'Apollo Team', loading: apolloTeamLoading, failed: false, data: apolloTeamData || (session as any).apollo_team_data, paused: isIntegrationPaused('apollo-team') },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },

@@ -59,6 +59,7 @@ const DATA_COLUMNS = [
   'tech_analysis_data', 'avoma_data', 'apollo_data',
   'content_types_data', 'forms_data', 'linkcheck_data',
   'apollo_team_data',
+  'page_tags',
 ];
 
 // ── Map integration_key → db column (must match crawl-start INTEGRATIONS) ──
@@ -74,6 +75,7 @@ const KEY_TO_COLUMN: Record<string, string> = {
   'avoma': 'avoma_data', 'apollo': 'apollo_data',
   'content-types': 'content_types_data', 'forms': 'forms_data',
   'link-checker': 'linkcheck_data', 'apollo-team': 'apollo_team_data',
+  'page-tags': 'page_tags',
 };
 
 // ── Integration categories for the picker ─────────────────────
@@ -89,6 +91,7 @@ const INTEGRATION_CATEGORIES = [
   {
     name: 'Content Analysis', keys: [
       { key: 'content-types', label: 'Content Types' },
+      { key: 'page-tags', label: 'Page Tagging' },
       { key: 'forms', label: 'Forms Detection' },
       { key: 'readable', label: 'Readability' },
       { key: 'schema', label: 'Schema.org Validation' },
