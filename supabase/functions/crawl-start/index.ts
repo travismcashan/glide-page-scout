@@ -46,7 +46,6 @@ const INTEGRATIONS: {
   { key: "link-checker", fn: "link-checker", column: "linkcheck_data", batch: 2, buildBody: (s) => ({ session_id: s.id }) },
   // ── Batch 3: depends on batch 2 ──
   { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", batch: 3, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  { key: "observations", fn: "observations-insights", column: "observations_data", batch: 3, buildBody: (s) => ({ session_id: s.id }) },
 ];
 
 Deno.serve(async (req) => {
@@ -133,9 +132,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Dispatch each integration via crawl-worker for independent timeouts.
-    // Each crawl-worker invocation gets its own 400s timeout (Pro plan),
-    // so a slow integration can't block or kill others.
+    // 5. Call each integration directly, read response, persist to DB.
+    // This is the approach that worked (v26) — no crawl-worker indirection.
     const functionsUrl = `${supabaseUrl}/functions/v1`;
 
     const SELF_PERSIST_KEYS = new Set([
@@ -143,49 +141,99 @@ Deno.serve(async (req) => {
     ]);
 
     // Group by batch
-    const batch1 = toRun.filter(i => i.batch === 1);
-    const batch2 = toRun.filter(i => i.batch === 2);
-    const batch3 = toRun.filter(i => i.batch === 3);
+    const batches = new Map<number, typeof toRun>();
+    for (const int of toRun) {
+      const list = batches.get(int.batch) ?? [];
+      list.push(int);
+      batches.set(int.batch, list);
+    }
 
-    // Fire one integration — self-persisting go direct, others via crawl-worker
-    const fireOne = (int: typeof toRun[0], sessionData: any) => {
-      const body = int.buildBody(sessionData);
-      if (SELF_PERSIST_KEYS.has(int.key)) {
-        return fetch(`${functionsUrl}/${int.fn}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-          body: JSON.stringify({ ...body, _orchestrated: true, _session_id: session_id, _integration_key: int.key, _db_column: int.column }),
-        }).then(r => ({ key: int.key, status: r.status })).catch(e => { console.error(`${int.key} failed:`, e); return { key: int.key, status: 500 }; });
-      } else {
-        return fetch(`${functionsUrl}/crawl-worker`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-          body: JSON.stringify({ session_id, integration_key: int.key, db_column: int.column, fn_name: int.fn, fn_body: body }),
-        }).then(r => ({ key: int.key, status: r.status })).catch(e => { console.error(`${int.key} worker failed:`, e); return { key: int.key, status: 500 }; });
+    for (const batchNum of [1, 2, 3]) {
+      const batch = batches.get(batchNum);
+      if (!batch || batch.length === 0) continue;
+
+      // Reload session between batches so dependent integrations see previous data
+      let currentSession = session;
+      if (batchNum > 1) {
+        const { data: reloaded } = await sb
+          .from("crawl_sessions").select("*").eq("id", session_id).single();
+        if (reloaded) currentSession = reloaded;
       }
-    };
 
-    // Batch 1: fire all in parallel, await completion
-    const b1Results = await Promise.allSettled(batch1.map(int => fireOne(int, session)));
-    console.log(`crawl-start batch 1: ${b1Results.filter(r => r.status === 'fulfilled').length}/${batch1.length} dispatched`);
+      const results = await Promise.allSettled(
+        batch.map(async (int) => {
+          const body = {
+            ...int.buildBody(currentSession),
+            _orchestrated: true,
+            _session_id: session_id,
+            _integration_key: int.key,
+            _db_column: int.column,
+          };
 
-    // Batch 2: reload session (batch 1 results now in DB), fire all
-    if (batch2.length > 0) {
-      const { data: freshSession } = await sb.from("crawl_sessions").select("*").eq("id", session_id).single();
-      const b2Results = await Promise.allSettled(batch2.map(int => fireOne(int, freshSession || session)));
-      console.log(`crawl-start batch 2: ${b2Results.filter(r => r.status === 'fulfilled').length}/${batch2.length} dispatched`);
+          try {
+            const resp = await fetch(`${functionsUrl}/${int.fn}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${anonKey}`,
+              },
+              body: JSON.stringify(body),
+            });
+
+            // Self-persisting functions write their own results
+            if (SELF_PERSIST_KEYS.has(int.key)) {
+              return { key: int.key, status: resp.status };
+            }
+
+            // For all others: read response and write to DB
+            if (resp.ok) {
+              try {
+                const data = await resp.json();
+                if (data && !data.error) {
+                  await sb.from("crawl_sessions")
+                    .update({ [int.column]: data } as any)
+                    .eq("id", session_id);
+                }
+                // Whether data was found or not, the integration ran successfully
+                await sb.from("integration_runs")
+                  .update({ status: "done" })
+                  .eq("session_id", session_id)
+                  .eq("integration_key", int.key);
+              } catch {
+                // Non-JSON response — mark done
+                await sb.from("integration_runs")
+                  .update({ status: "done" })
+                  .eq("session_id", session_id)
+                  .eq("integration_key", int.key);
+              }
+            } else {
+              // HTTP error — the function itself broke, mark as failed
+              await sb.from("integration_runs")
+                .update({ status: "failed" })
+                .eq("session_id", session_id)
+                .eq("integration_key", int.key);
+            }
+
+            return { key: int.key, status: resp.status };
+          } catch (e) {
+            console.error(`${int.key} failed:`, e);
+            await sb.from("integration_runs")
+              .update({ status: "failed" })
+              .eq("session_id", session_id)
+              .eq("integration_key", int.key);
+            return { key: int.key, status: 500 };
+          }
+        })
+      );
+
+      console.log(
+        `crawl-start batch ${batchNum}: ${results.filter(r => r.status === "fulfilled").length}/${batch.length} completed`
+      );
     }
 
-    // Batch 3: reload session, fire all
-    if (batch3.length > 0) {
-      const { data: freshSession } = await sb.from("crawl_sessions").select("*").eq("id", session_id).single();
-      const b3Results = await Promise.allSettled(batch3.map(int => fireOne(int, freshSession || session)));
-      console.log(`crawl-start batch 3: ${b3Results.filter(r => r.status === 'fulfilled').length}/${batch3.length} dispatched`);
-    }
+    console.log(`crawl-start: processed ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`);
 
-    console.log(`crawl-start: dispatched ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`);
-
-    // Auto-index knowledge base (fire-and-forget)
+    // Auto-index knowledge base (fire-and-forget — ok if this dies with the isolate)
     fetch(`${functionsUrl}/auto-index`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },

@@ -63,23 +63,30 @@ Deno.serve(async (req) => {
           await sb.from("crawl_sessions")
             .update({ [db_column]: data } as any)
             .eq("id", session_id);
-          if (integration_key) {
-            await sb.from("integration_runs")
-              .update({ status: "done" })
-              .eq("session_id", session_id)
-              .eq("integration_key", integration_key);
-          }
-          return new Response(
-            JSON.stringify({ success: true, key: integration_key }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
         }
+        // Whether data was found or not, the integration ran successfully
+        if (integration_key) {
+          await sb.from("integration_runs")
+            .update({ status: "done" })
+            .eq("session_id", session_id)
+            .eq("integration_key", integration_key);
+        }
+        return new Response(
+          JSON.stringify({ success: true, key: integration_key }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       } catch {
         // Non-JSON response — self-persisting function handled it
+        if (integration_key) {
+          await sb.from("integration_runs")
+            .update({ status: "done" })
+            .eq("session_id", session_id)
+            .eq("integration_key", integration_key);
+        }
       }
     }
 
-    // If we get here, the function either failed or self-persisted
+    // If we get here, the function returned an HTTP error (the function itself broke)
     if (!resp.ok && integration_key) {
       await sb.from("integration_runs")
         .update({ status: "failed" })
