@@ -257,12 +257,28 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
+  // Per-session "collapse all" state — defaults to false (all open) for new sessions
   const [allCollapsed, setAllCollapsed] = useState(() => {
-    try { return localStorage.getItem('all-cards-collapsed') === 'true'; } catch { return false; }
+    if (!sessionId) return false;
+    try {
+      const raw = localStorage.getItem('all-cards-collapsed-sessions');
+      if (!raw) return false;
+      const map = JSON.parse(raw);
+      return map[sessionId] === true;
+    } catch { return false; }
   });
   const handleSetAllCollapsed = (v: boolean) => {
     setAllCollapsed(v);
-    try { localStorage.setItem('all-cards-collapsed', String(v)); } catch {}
+    if (!sessionId) return;
+    try {
+      const raw = localStorage.getItem('all-cards-collapsed-sessions');
+      const map = raw ? JSON.parse(raw) : {};
+      map[sessionId] = v;
+      // Keep only last 20 sessions
+      const keys = Object.keys(map);
+      if (keys.length > 20) keys.slice(0, keys.length - 20).forEach(k => delete map[k]);
+      localStorage.setItem('all-cards-collapsed-sessions', JSON.stringify(map));
+    } catch {}
   };
 
   // Guard: don't fire site-analysis integrations for synthetic sessions (e.g. global chat)
