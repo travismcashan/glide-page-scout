@@ -15,27 +15,52 @@ function extractUrls(session: any): string[] {
   return [];
 }
 
-/** Rebuild fn_body for batch 2/3 integrations using fresh session data */
+/** Rebuild fn_body from session data. Used for dependency polling AND manual reruns. */
 function rebuildBody(integration_key: string, session: any): Record<string, unknown> | null {
+  const d = session.domain;
+  const pd = session.prospect_domain || session.domain;
+  const url = session.base_url;
   switch (integration_key) {
+    // Batch 1: independent
+    case "builtwith": return { domain: d };
+    case "semrush": return { domain: d };
+    case "psi": return { url };
+    case "detectzestack": return { domain: d };
+    case "gtmetrix": return { url };
+    case "carbon": return { url };
+    case "crux": try { return { origin: new URL(url).origin }; } catch { return { origin: url }; }
+    case "wave": return { url };
+    case "observatory": try { return { host: new URL(url).hostname }; } catch { return { host: d }; }
+    case "httpstatus": return { url };
+    case "w3c": return { url };
+    case "schema": return { url };
+    case "readable": return { url };
+    case "yellowlab": return { url };
+    case "ocean": return { domain: d };
+    case "hubspot": return { domain: pd };
+    case "sitemap": return { baseUrl: url };
+    case "nav-structure": return { url };
+    case "firecrawl-map": return { url };
+    case "avoma": return { domain: pd };
+    case "apollo": return { domain: pd };
+    // Batch 2: depends on discovered_urls
+    case "tech-analysis": return { domain: d, session_id: session.id };
     case "content-types": {
       const urls = extractUrls(session);
-      return urls.length > 0 ? { urls, baseUrl: session.base_url, phase: "classify", session_id: session.id } : null;
+      return urls.length > 0 ? { urls, baseUrl: url, phase: "classify", session_id: session.id } : null;
     }
     case "forms": {
       const urls = extractUrls(session);
-      return urls.length > 0 ? { urls, domain: session.domain } : null;
+      return urls.length > 0 ? { urls, domain: d } : null;
     }
     case "link-checker": {
       const urls = extractUrls(session);
       return urls.length > 0 ? { urls } : null;
     }
-    case "apollo-team":
-      return { domain: session.prospect_domain || session.domain };
-    case "page-tags":
-      return { session_id: session.id };
-    default:
-      return null;
+    // Batch 3
+    case "apollo-team": return { domain: pd };
+    case "page-tags": return { session_id: session.id };
+    default: return null;
   }
 }
 
@@ -111,8 +136,18 @@ Deno.serve(async (req) => {
         .eq("integration_key", integration_key);
     }
 
-    // If this integration depends on another column, poll until it's available
+    // If fn_body is empty (manual rerun), load session and rebuild body
     let actualBody = fn_body;
+    if (!fn_body || Object.keys(fn_body).length === 0) {
+      const { data: session } = await sb
+        .from("crawl_sessions").select("*").eq("id", session_id).single();
+      if (session && integration_key) {
+        const rebuilt = rebuildBody(integration_key, session);
+        if (rebuilt) actualBody = rebuilt;
+      }
+    }
+
+    // If this integration depends on another column, poll until it's available
     if (_wait_for_column) {
       const maxWaitMs = 120_000; // 2 minutes max wait
       const pollIntervalMs = 3_000;

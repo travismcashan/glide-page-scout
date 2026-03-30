@@ -1787,61 +1787,61 @@ export default function ResultsPage() {
   }, [pages, session]);
 
   // ── Re-run helpers ──
+  // Integration key → edge function name mapping (must match crawl-start INTEGRATIONS)
+  const INTEGRATION_FN_MAP: Record<string, string> = {
+    builtwith: 'builtwith-lookup', semrush: 'semrush-domain', psi: 'pagespeed-insights',
+    detectzestack: 'detectzestack-lookup', gtmetrix: 'gtmetrix-test', carbon: 'website-carbon',
+    crux: 'crux-lookup', wave: 'wave-lookup', observatory: 'observatory-scan',
+    httpstatus: 'httpstatus-check', w3c: 'w3c-validate', schema: 'schema-validate',
+    readable: 'readable-score', yellowlab: 'yellowlab-scan', ocean: 'ocean-enrich',
+    hubspot: 'hubspot-lookup', sitemap: 'sitemap-parse', 'nav-structure': 'nav-extract',
+    'firecrawl-map': 'firecrawl-map', 'tech-analysis': 'tech-analysis',
+    avoma: 'avoma-lookup', apollo: 'apollo-enrich', 'content-types': 'content-types',
+    forms: 'forms-detect', 'link-checker': 'link-checker', 'apollo-team': 'apollo-team-search',
+    'page-tags': 'page-tag-orchestrate',
+  };
+
   const rerunIntegration = useCallback(async (key: string, dbColumn: string) => {
     if (!session) return;
-    // If session was server-completed, reset to analyzing so useEffect guards allow re-trigger
+
+    // Snapshot scroll position
+    const cardEl = document.querySelector(`[data-section-id="${key}"]`);
+    const cardTop = cardEl?.getBoundingClientRect().top ?? null;
+
+    // 1. Clear data in DB
+    await supabase.from('crawl_sessions').update({ [dbColumn]: null } as any).eq('id', session.id);
+
+    // 2. Reset session status if it was completed
     if (session.status === 'completed' || session.status === 'completed_with_errors') {
       await supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', session.id);
       updateSession({ status: 'analyzing' } as any);
     }
-    // Snapshot scroll position so layout shift from clearing data doesn't jerk the page
-    const cardEl = document.querySelector(`[data-section-id="${key}"]`);
-    const cardTop = cardEl?.getBoundingClientRect().top ?? null;
-    // Clear stored data
-    await supabase.from('crawl_sessions').update({ [dbColumn]: null } as any).eq('id', session.id);
-    // Clear local error & failed state
+
+    // 3. Reset integration_run to pending
+    await supabase.from('integration_runs')
+      .update({ status: 'pending', error_message: null })
+      .eq('session_id', session.id)
+      .eq('integration_key', key);
+
+    // 4. Clear local UI state
     clearError(key);
-    // Reset failed flags & polling refs so useEffect re-triggers
-    const resetMap: Record<string, () => void> = {
-      builtwith: () => { setBuiltwithFailed(false); setBuiltwithLoading(false); builtwithTriggeredRef.current = false; },
-      semrush: () => { setSemrushFailed(false); setSemrushLoading(false); semrushTriggeredRef.current = false; },
-      psi: () => { setPsiFailed(false); setPsiLoading(false); psiTriggeredRef.current = false; },
-      detectzestack: () => { setDetectzestackFailed(false); setDetectzestackLoading(false); detectzestackTriggeredRef.current = false; },
-      gtmetrix: () => { setGtmetrixFailed(false); setRunningGtmetrix(false); gtmetrixTriggeredRef.current = false; },
-      carbon: () => { setCarbonFailed(false); setCarbonLoading(false); carbonTriggeredRef.current = false; },
-      crux: () => { setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); cruxTriggeredRef.current = false; },
-      wave: () => { setWaveFailed(false); setWaveLoading(false); waveTriggeredRef.current = false; },
-      observatory: () => { setObservatoryFailed(false); setObservatoryLoading(false); observatoryTriggeredRef.current = false; },
-      ocean: () => { setOceanFailed(false); setOceanLoading(false); oceanTriggeredRef.current = false; },
-      avoma: () => { setAvomaFailed(false); setAvomaLoading(false); avomaTriggeredRef.current = false; },
-      hubspot: () => { setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false; },
-      apollo: () => { setApolloData(null); setApolloTeamData(null); setApolloLoading(false); apolloAutoTriggered.current = false; apolloTeamAutoTriggered.current = false; supabase.from('crawl_sessions').update({ apollo_team_data: null } as any).eq('id', session!.id).then(); },
-      ssllabs: () => { setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false; },
-      httpstatus: () => { setHttpstatusFailed(false); setHttpstatusLoading(false); httpstatusTriggeredRef.current = false; },
-      w3c: () => { setW3cFailed(false); setW3cLoading(false); w3cTriggeredRef.current = false; },
-      schema: () => { setSchemaFailed(false); setSchemaLoading(false); schemaTriggeredRef.current = false; },
-      readable: () => { setReadableFailed(false); setReadableLoading(false); readableTriggeredRef.current = false; },
-      yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
-      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false; },
-      'nav-structure': () => { setNavFailed(false); setNavLoading(false); navTriggeredRef.current = false; },
-      'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false; },
-      'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false; },
-      'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
-      'page-tags': () => { setAutoTagging(false); autoTagTriedRef.current = false; },
-      'forms': () => {
-        setFormsFailed(false); formsAutoRunRef.current = false;
-        formsRerunFnRef.current?.();
-        void runFormsDetection();
-        // Also clear forms_tiers
-        supabase.from('crawl_sessions').update({ forms_tiers: null } as any).eq('id', session!.id).then();
-      },
-      'ga4': () => { setGa4Failed(false); setGa4Loading(false); },
-      'search-console': () => { setGscFailed(false); setGscLoading(false); },
-    };
-    resetMap[key]?.();
-    // Refresh session so useEffect picks up null data
     updateSession({ [dbColumn]: null } as any);
-    // Restore scroll so the card stays in the same viewport position
+
+    // 5. Fire server-side rerun via crawl-worker (fire-and-forget)
+    const fnName = INTEGRATION_FN_MAP[key];
+    if (fnName) {
+      supabase.functions.invoke('crawl-worker', {
+        body: {
+          session_id: session.id,
+          integration_key: key,
+          db_column: dbColumn,
+          fn_name: fnName,
+          fn_body: {},  // crawl-worker will rebuild body from session data
+        },
+      }).catch(err => console.error(`Rerun ${key} failed:`, err));
+    }
+
+    // 6. Restore scroll position
     if (cardEl && cardTop !== null) {
       requestAnimationFrame(() => {
         const newTop = cardEl.getBoundingClientRect().top;
@@ -1851,7 +1851,7 @@ export default function ResultsPage() {
         }
       });
     }
-  }, [session, runFormsDetection]);
+  }, [session]);
 
   const integrationList: { key: string; dbColumn: string }[] = [
     { key: 'sitemap', dbColumn: 'sitemap_data' },
