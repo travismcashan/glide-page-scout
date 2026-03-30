@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
         await sb.from("integration_runs").update({ status: "running" })
           .eq("session_id", session_id).eq("integration_key", "firecrawl-map");
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10_000);
+        const timeout = setTimeout(() => controller.abort(), 30_000);
         const resp = await fetch(`${functionsUrl}/${firecrawlInt.fn}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
