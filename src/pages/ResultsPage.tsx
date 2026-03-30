@@ -177,7 +177,25 @@ export default function ResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const fromGroup = (location.state as any)?.fromGroup as { id: string; name: string } | undefined;
+  const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | undefined>(fromGroup);
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (fromGroup || !resolvedSessionId) return;
+    const lookup = async () => {
+      const { data } = await supabase
+        .from('site_group_members')
+        .select('group_id, site_groups(id, name)')
+        .eq('session_id', resolvedSessionId)
+        .limit(1)
+        .single();
+      if (data?.site_groups) {
+        const g = data.site_groups as any;
+        setGroupInfo({ id: g.id, name: g.name });
+      }
+    };
+    lookup();
+  }, [resolvedSessionId, fromGroup]);
 
   // Resolve friendly slug to session ID
   useEffect(() => {
@@ -2156,10 +2174,10 @@ export default function ResultsPage() {
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <h1 className="text-[1.5rem] font-semibold tracking-tight leading-none flex items-center gap-1.5">
             <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground transition-colors">Sites</button>
-            {fromGroup && (
+            {groupInfo && (
               <>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                <button onClick={() => navigate(`/groups/${fromGroup.id}`)} className="text-muted-foreground hover:text-foreground transition-colors">{fromGroup.name}</button>
+                <button onClick={() => navigate(`/groups/${groupInfo.id}`)} className="text-muted-foreground hover:text-foreground transition-colors">{groupInfo.name}</button>
               </>
             )}
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -2357,7 +2375,18 @@ export default function ResultsPage() {
             {activeTab === 'raw-data' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'raw-data' ? null : <div className="animate-fade-in space-y-8">
 
         {/* Score Overview */}
-        {overallScore && <ScoreOverview overallScore={overallScore} analyzing={!integrationsAllDone && !analysisStopped && !isSharedView} />}
+        {overallScore && (() => {
+          const integrationProgressPercent = integrationSteps.length > 0
+            ? Math.round((integrationSteps.filter(s => s.status === 'done' || s.status === 'failed' || s.status === 'paused').length / integrationSteps.length) * 100)
+            : 0;
+          return (
+            <ScoreOverview
+              overallScore={overallScore}
+              analyzing={!integrationsAllDone && !analysisStopped && !isSharedView}
+              progressPercent={integrationsAllDone ? undefined : integrationProgressPercent}
+            />
+          );
+        })()}
 
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(

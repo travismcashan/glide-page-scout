@@ -34,7 +34,12 @@ type SortKey = 'domain' | 'integrations' | 'files' | 'date' | 'status';
 type SortDir = 'asc' | 'desc';
 type GroupBy = 'none' | 'domain' | 'status';
 
-function resolveStatus(session: CrawlSession): string {
+const TOTAL_INTEGRATIONS = 27;
+
+function resolveStatus(session: CrawlSession, integrationCount?: number): string {
+  if (integrationCount !== undefined && integrationCount >= TOTAL_INTEGRATIONS) {
+    return 'completed';
+  }
   if (session.status === 'analyzing' && Date.now() - new Date(session.created_at).getTime() > 10 * 60 * 1000) {
     return 'completed';
   }
@@ -168,9 +173,9 @@ export default function HistoryPage() {
   // Unique statuses for filter
   const statuses = useMemo(() => {
     const set = new Set<string>();
-    sessions.forEach(s => set.add(resolveStatus(s)));
+    sessions.forEach(s => set.add(resolveStatus(s, integrationCounts.get(s.id))));
     return Array.from(set).sort();
-  }, [sessions]);
+  }, [sessions, integrationCounts]);
 
   // Filtered + sorted sessions
   const processedSessions = useMemo(() => {
@@ -184,7 +189,7 @@ export default function HistoryPage() {
 
     // Status filter
     if (statusFilter !== 'all') {
-      list = list.filter(s => resolveStatus(s) === statusFilter);
+      list = list.filter(s => resolveStatus(s, integrationCounts.get(s.id)) === statusFilter);
     }
 
     // Sort
@@ -195,7 +200,7 @@ export default function HistoryPage() {
         case 'integrations': cmp = (integrationCounts.get(a.id) ?? 0) - (integrationCounts.get(b.id) ?? 0); break;
         case 'files': cmp = (docCounts.get(a.id) ?? 0) - (docCounts.get(b.id) ?? 0); break;
         case 'date': cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break;
-        case 'status': cmp = resolveStatus(a).localeCompare(resolveStatus(b)); break;
+        case 'status': cmp = resolveStatus(a, integrationCounts.get(a.id)).localeCompare(resolveStatus(b, integrationCounts.get(b.id))); break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -208,7 +213,7 @@ export default function HistoryPage() {
     if (groupBy === 'none') return null;
     const groups = new Map<string, CrawlSession[]>();
     for (const s of processedSessions) {
-      const key = groupBy === 'domain' ? s.domain : resolveStatus(s);
+      const key = groupBy === 'domain' ? s.domain : resolveStatus(s, integrationCounts.get(s.id));
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(s);
     }
@@ -310,9 +315,11 @@ export default function HistoryPage() {
         </div>
       </TableCell>
       <TableCell className="text-center">
-        <Badge variant={resolveStatus(session) === 'completed' ? 'default' : 'secondary'}>
-          {resolveStatus(session)}
-        </Badge>
+        {resolveStatus(session, integrationCounts.get(session.id)) === 'completed' ? (
+          <Badge variant="default">completed</Badge>
+        ) : (
+          <Badge variant="secondary">{integrationCounts.get(session.id) ? Math.round((integrationCounts.get(session.id)! / TOTAL_INTEGRATIONS) * 100) : 0}%</Badge>
+        )}
       </TableCell>
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-1">
