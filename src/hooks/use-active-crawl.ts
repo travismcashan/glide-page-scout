@@ -17,7 +17,7 @@ export function useActiveCrawl(): boolean {
     };
 
     check();
-    const interval = setInterval(check, 3000);
+    const interval = setInterval(check, 10000);
 
     // Also listen for realtime changes
     const channel = supabase
