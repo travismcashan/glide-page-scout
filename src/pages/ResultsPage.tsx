@@ -238,6 +238,7 @@ export default function ResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isSharedView = searchParams.get('view') === 'shared';
   const [session, setSession] = useState<CrawlSession | null>(null);
+  const [integrationRunStatuses, setIntegrationRunStatuses] = useState<Record<string, string>>({});
   const [pages, setPages] = useState<CrawlPage[]>([]);
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const [processingPages, setProcessingPages] = useState<Set<string>>(new Set());
@@ -426,10 +427,17 @@ export default function ResultsPage() {
   }, []);
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
-    const [sessionRes, pagesRes] = await Promise.all([
+    const [sessionRes, pagesRes, runsRes] = await Promise.all([
       supabase.from('crawl_sessions').select('*').eq('id', sessionId).single(),
       supabase.from('crawl_pages').select('*').eq('session_id', sessionId),
+      supabase.from('integration_runs').select('integration_key, status').eq('session_id', sessionId),
     ]);
+    // Store integration_runs statuses for server-completed sessions
+    if (runsRes.data) {
+      const map: Record<string, string> = {};
+      runsRes.data.forEach((r: any) => { map[r.integration_key] = r.status; });
+      setIntegrationRunStatuses(map);
+    }
     if (sessionRes.data) {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
@@ -2001,17 +2009,34 @@ export default function ResultsPage() {
     { key: 'apollo-team', label: 'Apollo Team', loading: apolloTeamLoading, failed: false, data: apolloTeamData || (session as any).apollo_team_data, paused: isIntegrationPaused('apollo-team') },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
     { key: 'hubspot', label: 'HubSpot', loading: hubspotLoading, failed: hubspotFailed, data: (session as any).hubspot_data, paused: isIntegrationPaused('hubspot') },
-  ].map(s => ({
-    key: s.key,
-    label: s.label,
-    cardId: (s as any).cardId as string | undefined,
-    status: s.paused ? 'paused' as const
-      : s.data ? 'done' as const
-      : s.failed ? 'failed' as const
-      : s.loading ? 'loading' as const
-      : (s as any).manual ? 'paused' as const
-      : 'pending' as const,
-  })) : [];
+  ].map(s => {
+    // When server-completed, use integration_runs status as source of truth
+    if (serverCompleted) {
+      const serverStatus = integrationRunStatuses[s.key];
+      return {
+        key: s.key,
+        label: s.label,
+        cardId: (s as any).cardId as string | undefined,
+        status: s.paused ? 'paused' as const
+          : s.data ? 'done' as const
+          : serverStatus === 'done' ? 'done' as const
+          : serverStatus === 'failed' ? 'failed' as const
+          : serverStatus === 'skipped' ? 'paused' as const
+          : 'done' as const, // server says completed, trust it
+      };
+    }
+    return {
+      key: s.key,
+      label: s.label,
+      cardId: (s as any).cardId as string | undefined,
+      status: s.paused ? 'paused' as const
+        : s.data ? 'done' as const
+        : s.failed ? 'failed' as const
+        : s.loading ? 'loading' as const
+        : (s as any).manual ? 'paused' as const
+        : 'pending' as const,
+    };
+  }) : [];
 
   // Mark session as completed when all integrations finish
   const integrationsAllDone = integrationSteps.length > 0 && integrationSteps.every(s => s.status === 'done' || s.status === 'failed' || s.status === 'paused');
