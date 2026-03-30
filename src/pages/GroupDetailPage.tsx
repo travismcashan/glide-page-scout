@@ -705,7 +705,7 @@ export default function GroupDetailPage() {
     const anyQueued = members.some(m => m.status === 'queued');
     if ((anyInProgress || anyQueued) && members.length > 0) {
       if (!pollingRef.current) {
-        pollingRef.current = setInterval(() => { fetchData(); }, 10_000);
+        pollingRef.current = setInterval(() => { fetchData(); }, 3_000);
       }
     } else {
       if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
