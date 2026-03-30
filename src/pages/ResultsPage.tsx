@@ -1789,6 +1789,11 @@ export default function ResultsPage() {
   // ── Re-run helpers ──
   const rerunIntegration = useCallback(async (key: string, dbColumn: string) => {
     if (!session) return;
+    // If session was server-completed, reset to analyzing so useEffect guards allow re-trigger
+    if (session.status === 'completed' || session.status === 'completed_with_errors') {
+      await supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', session.id);
+      updateSession({ status: 'analyzing' } as any);
+    }
     // Snapshot scroll position so layout shift from clearing data doesn't jerk the page
     const cardEl = document.querySelector(`[data-section-id="${key}"]`);
     const cardTop = cardEl?.getBoundingClientRect().top ?? null;
