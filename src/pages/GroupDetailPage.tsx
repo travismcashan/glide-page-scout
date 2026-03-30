@@ -510,11 +510,30 @@ export default function GroupDetailPage() {
       .filter(Boolean) as GroupMember[];
     setMembers(merged);
 
-    // Calculate progress from actual data columns populated in crawl_sessions
+    // Calculate progress: count data columns populated + failed/skipped integration_runs
+    // A failed integration is "done" from a progress perspective — it tried, it's finished
+    const { data: runs } = await supabase.from('integration_runs').select('session_id, integration_key, status').in('session_id', sessionIds);
+    const failedBySession = new Map<string, Set<string>>();
+    runs?.forEach(r => {
+      if (r.status === 'failed' || r.status === 'skipped') {
+        const set = failedBySession.get(r.session_id) ?? new Set();
+        set.add(r.integration_key);
+        failedBySession.set(r.session_id, set);
+      }
+    });
+
     const progMap = new Map<string, IntegrationProgress>();
     sessions?.forEach(s => {
       const populated = DATA_COLUMNS.filter(col => (s as any)[col] != null).length;
-      progMap.set(s.id, { session_id: s.id, total: DATA_COLUMNS.length, done: populated });
+      const failedKeys = failedBySession.get(s.id)?.size ?? 0;
+      // Don't double-count: only add failed keys that don't already have data
+      const populatedKeys = new Set(DATA_COLUMNS.filter(col => (s as any)[col] != null));
+      const extraFailed = [...(failedBySession.get(s.id) ?? [])].filter(k => {
+        // Map integration_key back to column name to check overlap
+        const col = DATA_COLUMNS.find(c => c.replace('_data', '').replace('_scores', '') === k.replace(/-/g, '_'));
+        return !col || !populatedKeys.has(col);
+      }).length;
+      progMap.set(s.id, { session_id: s.id, total: DATA_COLUMNS.length, done: populated + extraFailed });
     });
     setProgress(progMap);
     setLoading(false);
