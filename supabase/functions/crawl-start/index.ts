@@ -33,7 +33,7 @@ const INTEGRATIONS: {
   { key: "detectzestack", fn: "detectzestack-lookup", column: "detectzestack_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
   { key: "gtmetrix", fn: "gtmetrix-test", column: "gtmetrix_scores", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   { key: "carbon", fn: "website-carbon", column: "carbon_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "crux", fn: "crux-lookup", column: "crux_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
+  { key: "crux", fn: "crux-lookup", column: "crux_data", batch: 1, buildBody: (s) => ({ origin: new URL(s.base_url).origin }) },
   { key: "wave", fn: "wave-lookup", column: "wave_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   { key: "observatory", fn: "observatory-scan", column: "observatory_data", batch: 1, buildBody: (s) => ({ host: new URL(s.base_url).hostname }) },
   { key: "httpstatus", fn: "httpstatus-check", column: "httpstatus_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
@@ -43,7 +43,7 @@ const INTEGRATIONS: {
   { key: "yellowlab", fn: "yellowlab-scan", column: "yellowlab_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   { key: "ocean", fn: "ocean-enrich", column: "ocean_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
   { key: "hubspot", fn: "hubspot-lookup", column: "hubspot_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  { key: "sitemap", fn: "sitemap-parse", column: "sitemap_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
+  { key: "sitemap", fn: "sitemap-parse", column: "sitemap_data", batch: 1, buildBody: (s) => ({ baseUrl: s.base_url }) },
   { key: "nav-structure", fn: "nav-extract", column: "nav_structure", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   { key: "firecrawl-map", fn: "firecrawl-map", column: "discovered_urls", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   // ── Batch 2: depends on batch 1 ──
@@ -52,7 +52,7 @@ const INTEGRATIONS: {
   { key: "apollo", fn: "apollo-enrich", column: "apollo_data", batch: 2, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
   { key: "content-types", fn: "content-types", column: "content_types_data", batch: 2, buildBody: (s) => {
     const urls = extractUrls(s);
-    return { urls, baseUrl: s.base_url, session_id: s.id };
+    return { urls, baseUrl: s.base_url, phase: "classify", session_id: s.id };
   }},
   { key: "forms", fn: "forms-detect", column: "forms_data", batch: 2, buildBody: (s) => {
     const urls = extractUrls(s);
