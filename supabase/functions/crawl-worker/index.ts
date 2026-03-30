@@ -6,12 +6,43 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+/** Extract URL list from session's discovered_urls */
+function extractUrls(session: any): string[] {
+  const d = session.discovered_urls;
+  if (Array.isArray(d)) return d;
+  if (d?.links && Array.isArray(d.links)) return d.links;
+  if (d?.urls && Array.isArray(d.urls)) return d.urls;
+  return [];
+}
+
+/** Rebuild fn_body for batch 2/3 integrations using fresh session data */
+function rebuildBody(integration_key: string, session: any): Record<string, unknown> | null {
+  switch (integration_key) {
+    case "content-types": {
+      const urls = extractUrls(session);
+      return urls.length > 0 ? { urls, baseUrl: session.base_url, phase: "classify", session_id: session.id } : null;
+    }
+    case "forms": {
+      const urls = extractUrls(session);
+      return urls.length > 0 ? { urls, domain: session.domain } : null;
+    }
+    case "link-checker": {
+      const urls = extractUrls(session);
+      return urls.length > 0 ? { urls } : null;
+    }
+    case "apollo-team":
+      return { domain: session.prospect_domain || session.domain };
+    default:
+      return null;
+  }
+}
+
 /**
  * crawl-worker: Calls a single integration edge function, reads the response,
  * and persists the result to crawl_sessions + integration_runs.
  *
- * This runs as its own edge function invocation, so each integration gets
- * its own timeout window (no shared timeout with other integrations).
+ * Each invocation gets its own 150s timeout (Pro plan).
+ * If _wait_for_column is set, polls until that column is populated before proceeding.
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -19,7 +50,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { session_id, integration_key, db_column, fn_name, fn_body } = await req.json();
+    const { session_id, integration_key, db_column, fn_name, fn_body, _wait_for_column } = await req.json();
 
     if (!session_id || !fn_name || !db_column) {
       return new Response(
@@ -40,6 +71,50 @@ Deno.serve(async (req) => {
         .eq("integration_key", integration_key);
     }
 
+    // If this integration depends on another column, poll until it's available
+    let actualBody = fn_body;
+    if (_wait_for_column) {
+      const maxWaitMs = 120_000; // 2 minutes max wait
+      const pollIntervalMs = 3_000;
+      const startTime = Date.now();
+
+      while (Date.now() - startTime < maxWaitMs) {
+        const { data: freshSession } = await sb
+          .from("crawl_sessions").select("*").eq("id", session_id).single();
+
+        if (freshSession && freshSession[_wait_for_column] != null) {
+          // Dependency is ready — rebuild the body with fresh data
+          const rebuilt = rebuildBody(integration_key, freshSession);
+          if (rebuilt) {
+            actualBody = rebuilt;
+          }
+          break;
+        }
+
+        await new Promise(r => setTimeout(r, pollIntervalMs));
+      }
+
+      // If we timed out waiting, check one more time
+      const { data: finalCheck } = await sb
+        .from("crawl_sessions").select("*").eq("id", session_id).single();
+      if (!finalCheck || finalCheck[_wait_for_column] == null) {
+        // Dependency never arrived — mark done (no data available, not a failure)
+        console.log(`crawl-worker: ${integration_key} timed out waiting for ${_wait_for_column}`);
+        if (integration_key) {
+          await sb.from("integration_runs").update({ status: "done" })
+            .eq("session_id", session_id)
+            .eq("integration_key", integration_key);
+        }
+        return new Response(
+          JSON.stringify({ success: true, key: integration_key, skipped: "dependency_timeout" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Rebuild body with final data if not rebuilt above
+      const rebuilt = rebuildBody(integration_key, finalCheck);
+      if (rebuilt) actualBody = rebuilt;
+    }
+
     // Call the actual integration function
     const resp = await fetch(`${supabaseUrl}/functions/v1/${fn_name}`, {
       method: "POST",
@@ -48,7 +123,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${anonKey}`,
       },
       body: JSON.stringify({
-        ...fn_body,
+        ...actualBody,
         _orchestrated: true,
         _session_id: session_id,
         _integration_key: integration_key,
@@ -86,7 +161,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If we get here, the function returned an HTTP error (the function itself broke)
+    // HTTP error — the function itself broke
     if (!resp.ok && integration_key) {
       await sb.from("integration_runs")
         .update({ status: "failed" })

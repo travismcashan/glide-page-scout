@@ -16,8 +16,10 @@ function extractUrls(session: any): string[] {
 }
 
 /* ── Integration registry ──
- * Maps integration_key → { fn: edge function name, column: crawl_sessions column, batch }
- * batch 1 = independent, batch 2 = depends on batch 1, batch 3 = depends on batch 2
+ * Maps integration_key → { fn, column, batch, buildBody }
+ * batch 1 = independent (fire immediately)
+ * batch 2 = depends on discovered_urls from batch 1
+ * batch 3 = depends on batch 2 (apollo_data)
  */
 const INTEGRATIONS: {
   key: string;
@@ -46,10 +48,11 @@ const INTEGRATIONS: {
   { key: "sitemap", fn: "sitemap-parse", column: "sitemap_data", batch: 1, buildBody: (s) => ({ baseUrl: s.base_url }) },
   { key: "nav-structure", fn: "nav-extract", column: "nav_structure", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
   { key: "firecrawl-map", fn: "firecrawl-map", column: "discovered_urls", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  // ── Batch 2: depends on batch 1 ──
-  { key: "tech-analysis", fn: "tech-analysis", column: "tech_analysis_data", batch: 2, buildBody: (s) => ({ domain: s.domain, session_id: s.id }) },
-  { key: "avoma", fn: "avoma-lookup", column: "avoma_data", batch: 2, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  { key: "apollo", fn: "apollo-enrich", column: "apollo_data", batch: 2, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
+  // ── Batch 1 (moved from batch 2 — these don't actually depend on batch 1) ──
+  { key: "tech-analysis", fn: "tech-analysis", column: "tech_analysis_data", batch: 1, buildBody: (s) => ({ domain: s.domain, session_id: s.id }) },
+  { key: "avoma", fn: "avoma-lookup", column: "avoma_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
+  { key: "apollo", fn: "apollo-enrich", column: "apollo_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
+  // ── Batch 2: depends on discovered_urls ──
   { key: "content-types", fn: "content-types", column: "content_types_data", batch: 2, buildBody: (s) => {
     const urls = extractUrls(s);
     return { urls, baseUrl: s.base_url, phase: "classify", session_id: s.id };
@@ -62,7 +65,7 @@ const INTEGRATIONS: {
     const urls = extractUrls(s);
     return { urls };
   }},
-  // ── Batch 3: depends on batch 2 ──
+  // ── Batch 3: depends on apollo_data ──
   { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", batch: 3, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
 ];
 
@@ -109,7 +112,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Apply integration_overrides from group picker (paused overrides)
+    // 3. Apply integration_overrides from group picker
     if (integration_overrides && typeof integration_overrides === 'object') {
       for (const [key, val] of Object.entries(integration_overrides)) {
         if ((val as any)?.paused) pausedSet.add(key);
@@ -118,7 +121,6 @@ Deno.serve(async (req) => {
     }
 
     // 4. Determine which integrations to run
-    // Skip if paused or if data already exists in session
     const toRun = INTEGRATIONS.filter((int) => {
       if (pausedSet.has(int.key)) return false;
       const existingData = (session as any)[int.column];
@@ -130,7 +132,7 @@ Deno.serve(async (req) => {
       (int) => pausedSet.has(int.key)
     ).map((int) => int.key);
 
-    // 4. Insert integration_runs rows
+    // 5. Insert integration_runs rows
     const runRows = [
       ...toRun.map((int) => ({
         session_id,
@@ -150,113 +152,35 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Call each integration directly, read response, persist to DB.
-    // This is the approach that worked (v26) — no crawl-worker indirection.
+    // 6. Fire all integrations through crawl-worker (fire-and-forget).
+    // Each crawl-worker invocation gets its own 150s timeout.
+    // Batch 2/3 workers poll for their dependencies before calling the function.
     const functionsUrl = `${supabaseUrl}/functions/v1`;
 
-    const SELF_PERSIST_KEYS = new Set([
-      "schema", "avoma", "tech-analysis", "semrush", "psi", "builtwith",
-    ]);
-
-    // Group by batch
-    const batches = new Map<number, typeof toRun>();
     for (const int of toRun) {
-      const list = batches.get(int.batch) ?? [];
-      list.push(int);
-      batches.set(int.batch, list);
+      const body = {
+        session_id,
+        integration_key: int.key,
+        db_column: int.column,
+        fn_name: int.fn,
+        fn_body: int.buildBody(session),
+        // Tell crawl-worker which column to wait for before calling the function
+        ...(int.batch === 2 ? { _wait_for_column: "discovered_urls" } : {}),
+        ...(int.batch === 3 ? { _wait_for_column: "apollo_data" } : {}),
+      };
+
+      // Fire and forget — don't await. Each gets its own isolate + timeout.
+      fetch(`${functionsUrl}/crawl-worker`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify(body),
+      }).catch(e => console.error(`Failed to dispatch ${int.key}:`, e));
     }
 
-    for (const batchNum of [1, 2, 3]) {
-      const batch = batches.get(batchNum);
-      if (!batch || batch.length === 0) continue;
-
-      // Reload session between batches so dependent integrations see previous data
-      let currentSession = session;
-      if (batchNum > 1) {
-        const { data: reloaded } = await sb
-          .from("crawl_sessions").select("*").eq("id", session_id).single();
-        if (reloaded) currentSession = reloaded;
-      }
-
-      const results = await Promise.allSettled(
-        batch.map(async (int) => {
-          const body = {
-            ...int.buildBody(currentSession),
-            _orchestrated: true,
-            _session_id: session_id,
-            _integration_key: int.key,
-            _db_column: int.column,
-          };
-
-          try {
-            const resp = await fetch(`${functionsUrl}/${int.fn}`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${anonKey}`,
-              },
-              body: JSON.stringify(body),
-            });
-
-            // Self-persisting functions write their own results
-            if (SELF_PERSIST_KEYS.has(int.key)) {
-              return { key: int.key, status: resp.status };
-            }
-
-            // For all others: read response and write to DB
-            if (resp.ok) {
-              try {
-                const data = await resp.json();
-                if (data && !data.error) {
-                  await sb.from("crawl_sessions")
-                    .update({ [int.column]: data } as any)
-                    .eq("id", session_id);
-                }
-                // Whether data was found or not, the integration ran successfully
-                await sb.from("integration_runs")
-                  .update({ status: "done" })
-                  .eq("session_id", session_id)
-                  .eq("integration_key", int.key);
-              } catch {
-                // Non-JSON response — mark done
-                await sb.from("integration_runs")
-                  .update({ status: "done" })
-                  .eq("session_id", session_id)
-                  .eq("integration_key", int.key);
-              }
-            } else {
-              // HTTP error — the function itself broke, mark as failed
-              await sb.from("integration_runs")
-                .update({ status: "failed" })
-                .eq("session_id", session_id)
-                .eq("integration_key", int.key);
-            }
-
-            return { key: int.key, status: resp.status };
-          } catch (e) {
-            console.error(`${int.key} failed:`, e);
-            await sb.from("integration_runs")
-              .update({ status: "failed" })
-              .eq("session_id", session_id)
-              .eq("integration_key", int.key);
-            return { key: int.key, status: 500 };
-          }
-        })
-      );
-
-      console.log(
-        `crawl-start batch ${batchNum}: ${results.filter(r => r.status === "fulfilled").length}/${batch.length} completed`
-      );
-    }
-
-    console.log(`crawl-start: processed ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`);
-
-    // Auto-index knowledge base (fire-and-forget — ok if this dies with the isolate)
-    fetch(`${functionsUrl}/auto-index`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-      body: JSON.stringify({ session_id }),
-    }).catch(e => console.error("auto-index failed:", e));
+    console.log(`crawl-start: dispatched ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`);
 
     return new Response(
       JSON.stringify({
