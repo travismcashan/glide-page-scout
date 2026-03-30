@@ -208,7 +208,7 @@ function SitesTab({
             return (
               <Fragment key={m.id}>
                 <TableRow
-                  className="cursor-pointer relative"
+                  className="cursor-pointer relative overflow-hidden"
                   onClick={() => onNavigate(m)}
                 >
                   <TableCell className="w-8 px-2">
@@ -231,30 +231,27 @@ function SitesTab({
                     {format(new Date(m.created_at), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      {isComplete
-                        ? hasErrors
-                          ? <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">completed with errors</Badge>
-                          : <Badge variant="default">completed</Badge>
-                        : p && p.total > 0
-                          ? (
-                            <div className="flex items-center gap-2 min-w-[120px]">
-                              <div className="flex-1 h-[4px] rounded-full bg-border overflow-hidden">
-                                <div
-                                  className="h-full transition-all duration-700 ease-out rounded-full"
-                                  style={{
-                                    width: `${pct}%`,
-                                    background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0000)',
-                                    backgroundSize: '200% auto',
-                                    animation: 'rainbow-shift 8s linear infinite',
-                                  }}
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground tabular-nums">{pct}%</span>
-                            </div>
-                          )
-                          : null}
-                    </div>
+                    {isComplete
+                      ? hasErrors
+                        ? <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">completed with errors</Badge>
+                        : <Badge variant="default">completed</Badge>
+                      : p && p.total > 0
+                        ? <span className="text-xs text-muted-foreground tabular-nums">{pct}%</span>
+                        : null}
+                    {/* Full-width rainbow progress bar at bottom of row */}
+                    {!isComplete && p && p.total > 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-border/50">
+                        <div
+                          className="h-full transition-all duration-700 ease-out"
+                          style={{
+                            width: `${pct}%`,
+                            background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0000)',
+                            backgroundSize: '200% auto',
+                            animation: 'rainbow-shift 8s linear infinite',
+                          }}
+                        />
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
