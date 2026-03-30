@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, ChevronDown, ChevronUp, Settings2, ChevronRight, Share2, Check, AlertTriangle } from 'lucide-react';
+import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, Layers, ChevronDown, ChevronUp, Settings2, ChevronRight, Share2, Check, AlertTriangle } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -29,6 +29,10 @@ import { buildSitePath } from '@/lib/sessionSlug';
 import { GroupScoreGrid } from '@/components/groups/GroupScoreGrid';
 import { GroupTechMatrix } from '@/components/groups/GroupTechMatrix';
 import { GroupPerformanceChart } from '@/components/groups/GroupPerformanceChart';
+import { GroupContentMatrix } from '@/components/groups/GroupContentMatrix';
+import { GroupTemplateMatrix } from '@/components/groups/GroupTemplateMatrix';
+import { GroupNavComparison } from '@/components/groups/GroupNavComparison';
+import { GroupReusabilitySummary } from '@/components/groups/GroupReusabilitySummary';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -694,7 +698,7 @@ export default function GroupDetailPage() {
   useEffect(() => { fetchData(); }, [groupId]);
 
   useEffect(() => {
-    if (['scores', 'technology', 'performance'].includes(mainTab)) {
+    if (['scores', 'technology', 'performance', 'comparison'].includes(mainTab)) {
       fetchFullSessions();
     }
   }, [mainTab, members.length]);
@@ -842,6 +846,7 @@ export default function GroupDetailPage() {
             <TabsTrigger value="scores" className="gap-1.5"><Gauge className="h-3.5 w-3.5" /> Scores</TabsTrigger>
             <TabsTrigger value="technology" className="gap-1.5"><Cpu className="h-3.5 w-3.5" /> Technology</TabsTrigger>
             <TabsTrigger value="performance" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Performance</TabsTrigger>
+            <TabsTrigger value="comparison" className="gap-1.5"><Layers className="h-3.5 w-3.5" /> Comparison</TabsTrigger>
             <TabsTrigger value="strategy" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Strategy</TabsTrigger>
           </TabsList>
 
@@ -877,6 +882,19 @@ export default function GroupDetailPage() {
               <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : (
               <GroupPerformanceChart sessions={fullSessions} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="comparison" className="mt-6">
+            {loadingSessions ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : (
+              <div className="space-y-12">
+                <GroupReusabilitySummary sessions={fullSessions} />
+                <GroupTemplateMatrix sessions={fullSessions} />
+                <GroupContentMatrix sessions={fullSessions} />
+                <GroupNavComparison sessions={fullSessions} />
+              </div>
             )}
           </TabsContent>
 
