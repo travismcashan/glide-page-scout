@@ -86,6 +86,8 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [sortDir, setSortDir] = useState<SortDir>(initial.sortDir);
   const [groupBy, setGroupBy] = useState<string>(initial.groupBy);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [driveImporting, setDriveImporting] = useState(false);
+  const [driveProgress, setDriveProgress] = useState<{ current: number; total: number } | null>(null);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteBody, setNoteBody] = useState('');
@@ -294,14 +296,15 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const handleDriveFilesSelected = async (driveFiles: { name: string; content?: string; mimeType: string; isText: boolean }[]) => {
     const validFiles = driveFiles.filter(f => f.content && f.content.length > 0);
     if (validFiles.length === 0) return;
-    setUploading(true);
+    setDriveImporting(true);
+    setDriveProgress({ current: 0, total: validFiles.length });
 
     // Insert placeholders
     const placeholders = validFiles.map(f => ({
       session_id: sessionId,
       name: f.name,
       source_type: 'google-drive' as const,
-      status: 'uploading',
+      status: 'processing',
       char_count: 0,
       chunk_count: 0,
     }));
@@ -309,7 +312,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
       .from('knowledge_documents')
       .insert(placeholders)
       .select('id, name');
-    if (insertErr) { toast.error('Failed to queue files'); setUploading(false); return; }
+    if (insertErr) { toast.error('Failed to queue files'); setDriveImporting(false); setDriveProgress(null); return; }
     const idMap = new Map<string, string>();
     for (const row of (inserted || []) as any[]) idMap.set(row.name, row.id);
     fetchDocuments();
@@ -375,10 +378,12 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
         if (docId) await supabase.from('knowledge_documents').update({ status: 'error', error_message: 'Import failed' }).eq('id', docId);
         fetchDocuments();
       }
+      setDriveProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null);
     }
 
     if (successCount > 0) toast.success(`${successCount} file${successCount !== 1 ? 's' : ''} imported from Google Drive`);
-    setUploading(false);
+    setDriveProgress(null);
+    setDriveImporting(false);
   };
 
   const handleNoteSubmit = async () => {
@@ -724,9 +729,11 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
           {uploading ? 'Processing...' : 'Upload'}
         </Button>
-        <Button variant="outline" size="sm" className="flex-1" onClick={() => setDrivePickerOpen(true)} disabled={uploading}>
-          <HardDrive className="h-3.5 w-3.5 mr-1.5" />
-          Google Drive
+        <Button variant="outline" size="sm" className="flex-1" onClick={() => setDrivePickerOpen(true)} disabled={uploading || driveImporting}>
+          {driveImporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <HardDrive className="h-3.5 w-3.5 mr-1.5" />}
+          {driveImporting
+            ? (driveProgress ? `${driveProgress.current}/${driveProgress.total} (${Math.round((driveProgress.current / driveProgress.total) * 100)}%)` : 'Importing...')
+            : 'Google Drive'}
         </Button>
         <Button variant="outline" size="sm" className="flex-1" onClick={() => setNoteModalOpen(true)} disabled={uploading || noteSubmitting}>
           <StickyNote className="h-3.5 w-3.5 mr-1.5" />
