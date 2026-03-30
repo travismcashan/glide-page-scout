@@ -218,6 +218,32 @@ function UserBubbleContent({ content, attachmentNames }: { content: string; atta
   );
 }
 
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => {
+      // Fallback for when clipboard API fails (non-secure context, no focus, etc.)
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    });
+  }
+  // No clipboard API at all — use execCommand fallback
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return Promise.resolve();
+}
+
 function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { content: string; attachmentNames?: string[]; onEdit: (newText: string) => void; disabled?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -225,7 +251,7 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   const editRef = useRef<HTMLTextAreaElement>(null);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
+    copyToClipboard(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -763,7 +789,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
+    copyToClipboard(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
