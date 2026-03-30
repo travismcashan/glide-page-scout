@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -164,6 +165,56 @@ function markdownToHtml(md: string): string {
   return html;
 }
 
+async function getValidAccessToken(): Promise<string | null> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  const { data: connections } = await supabase
+    .from('oauth_connections')
+    .select('*')
+    .eq('provider', 'google-drive')
+    .order('updated_at', { ascending: false });
+
+  const conn = connections?.find((c: any) => c.provider_email && c.provider_email !== 'unknown') || connections?.[0];
+  if (!conn) return null;
+
+  const expiresAt = new Date(conn.token_expires_at).getTime();
+  if (Date.now() < expiresAt - 5 * 60 * 1000) {
+    return conn.access_token;
+  }
+
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+  if (!clientId || !clientSecret || !conn.refresh_token) return null;
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: conn.refresh_token,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) return null;
+
+  const newExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
+  await supabase
+    .from('oauth_connections')
+    .update({
+      access_token: tokenData.access_token,
+      token_expires_at: newExpiresAt,
+      ...(tokenData.refresh_token ? { refresh_token: tokenData.refresh_token } : {}),
+    })
+    .eq('id', conn.id);
+
+  return tokenData.access_token;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -172,10 +223,19 @@ serve(async (req) => {
   try {
     const { accessToken, content, title } = await req.json();
 
-    if (!accessToken || !content) {
-      return new Response(JSON.stringify({ error: 'accessToken and content are required' }), {
+    if (!content) {
+      return new Response(JSON.stringify({ error: 'content is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
+      });
+    }
+
+    // Resolve token: use provided one or fetch from DB
+    const resolvedToken = accessToken || await getValidAccessToken();
+    if (!resolvedToken) {
+      return new Response(JSON.stringify({ error: 'drive_auth_required', message: 'Google Drive is not connected.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
       });
     }
 
@@ -209,7 +269,7 @@ serve(async (req) => {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${resolvedToken}`,
             'Content-Type': `multipart/related; boundary=${boundary}`,
           },
           body,
