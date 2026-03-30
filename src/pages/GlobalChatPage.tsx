@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
-import { Loader2 } from 'lucide-react';
+import { BrandLoader } from '@/components/BrandLoader';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { withQueryTimeout } from '@/lib/queryTimeout';
 
@@ -157,8 +158,7 @@ export default function GlobalChatPage() {
       <div className="min-h-screen bg-background flex flex-col">
         <AppHeader />
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Loading chat…</span>
+          <BrandLoader size={48} />
         </div>
       </div>
     );
@@ -169,21 +169,35 @@ export default function GlobalChatPage() {
       <AppHeader />
 
       <div className="flex-1">
-        <KnowledgeChatCard
-          session={globalSession}
-          pages={[]}
-          selectedModel={chatModel}
-          provider={chatProvider}
-          reasoning={chatReasoning}
-          onProviderChange={setChatProvider}
-          onModelChange={handleModelChange}
-          onReasoningChange={handleReasoningChange}
-          globalMode
-          attachedSessionIds={attachedSites.map(s => s.session_id)}
-          attachedSites={attachedSites}
-          onSelectSite={handleSelectSite}
-          onDetachSite={handleDetachSite}
-        />
+        <ErrorBoundary fallback={
+          <div className="flex-1 flex items-center justify-center p-8 text-center">
+            <div>
+              <p className="text-muted-foreground mb-2">Chat failed to load.</p>
+              <button
+                className="text-sm underline text-muted-foreground hover:text-foreground"
+                onClick={() => window.location.reload()}
+              >
+                Reload page
+              </button>
+            </div>
+          </div>
+        }>
+          <KnowledgeChatCard
+            session={globalSession}
+            pages={[]}
+            selectedModel={chatModel}
+            provider={chatProvider}
+            reasoning={chatReasoning}
+            onProviderChange={setChatProvider}
+            onModelChange={handleModelChange}
+            onReasoningChange={handleReasoningChange}
+            globalMode
+            attachedSessionIds={attachedSites.map(s => s.session_id)}
+            attachedSites={attachedSites}
+            onSelectSite={handleSelectSite}
+            onDetachSite={handleDetachSite}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );

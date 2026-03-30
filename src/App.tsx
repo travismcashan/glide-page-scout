@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProductProvider } from "@/contexts/ProductContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { BrandLoader } from "@/components/BrandLoader";
 import CrawlPage from "./pages/CrawlPage";
 import ResultsPage from "./pages/ResultsPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -26,7 +27,7 @@ import NotFound from "./pages/NotFound";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><BrandLoader size={64} /></div>;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
+import { BrandLoader } from '@/components/BrandLoader';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const EMAIL_SCOPE = 'email profile';
@@ -431,9 +432,8 @@ export default function ConnectionsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Loading connections…</span>
+          <div className="flex items-center justify-center py-16">
+            <BrandLoader size={48} />
           </div>
         ) : (<>
         {/* Live Sources */}

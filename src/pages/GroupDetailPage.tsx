@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, ChevronDown, Settings2, ChevronRight, Share2 } from 'lucide-react';
+import { BrandLoader } from '@/components/BrandLoader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -572,6 +573,20 @@ export default function GroupDetailPage() {
     return m.status === 'completed';
   }).length;
 
+  const overallProgress = useMemo(() => {
+    if (members.length === 0) return 0;
+    let totalDone = 0;
+    let totalPossible = 0;
+    members.forEach(m => {
+      const p = progress.get(m.session_id);
+      if (p && p.total > 0) {
+        totalDone += p.done;
+        totalPossible += p.total;
+      }
+    });
+    return totalPossible > 0 ? Math.round((totalDone / totalPossible) * 100) : 0;
+  }, [members, progress]);
+
   const domainCounts = useMemo(() => {
     const counts = new Map<string, number>();
     members.forEach(m => counts.set(m.domain, (counts.get(m.domain) ?? 0) + 1));
@@ -615,7 +630,7 @@ export default function GroupDetailPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <AppHeader />
-        <div className="flex-1 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        <div className="flex-1 flex items-center justify-center"><BrandLoader size={48} /></div>
       </div>
     );
   }
@@ -644,7 +659,8 @@ export default function GroupDetailPage() {
             {group.description && <p className="text-sm text-muted-foreground mt-1">{group.description}</p>}
             <p className="text-xs text-muted-foreground mt-2">
               {members.length} site{members.length !== 1 ? 's' : ''}
-              {members.length > 0 && ` · ${completedCount}/${members.length} complete`}
+              {members.length > 0 && completedCount < members.length && ` · ${overallProgress}% overall`}
+              {members.length > 0 && completedCount === members.length && ` · All complete`}
             </p>
           </div>
           <div className="flex items-center gap-2">
