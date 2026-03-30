@@ -46,8 +46,10 @@ async function maybeCompleteSession(sb: any, session_id: string) {
   if (!runs || runs.length === 0) return;
   const allFinished = runs.every((r: any) => r.status === "done" || r.status === "failed" || r.status === "skipped");
   if (allFinished) {
-    await sb.from("crawl_sessions").update({ status: "completed" }).eq("id", session_id);
-    console.log(`crawl-worker: session ${session_id} marked completed (${runs.length} runs finished)`);
+    const hasFailed = runs.some((r: any) => r.status === "failed");
+    const status = hasFailed ? "completed_with_errors" : "completed";
+    await sb.from("crawl_sessions").update({ status }).eq("id", session_id);
+    console.log(`crawl-worker: session ${session_id} marked ${status} (${runs.length} runs finished)`);
   }
 }
 

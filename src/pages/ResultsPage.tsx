@@ -268,7 +268,7 @@ export default function ResultsPage() {
   // Guard: don't fire site-analysis integrations for synthetic sessions (e.g. global chat)
   const isRealSite = !!session?.domain && !session.domain.startsWith('__');
   // Guard: don't re-trigger integrations if server-side crawl already completed
-  const serverCompleted = session?.status === 'completed';
+  const serverCompleted = session?.status === 'completed' || session?.status === 'completed_with_errors';
 
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');

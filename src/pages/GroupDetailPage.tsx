@@ -193,9 +193,10 @@ function SitesTab({
           {members.map(m => {
             const p = progress.get(m.session_id);
             const pct = p && p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
-            const isComplete = (p && p.total > 0 && p.done === p.total) || m.status === 'completed';
-            const isExpanded = expandedRows.has(m.id);
+            const isComplete = (p && p.total > 0 && p.done === p.total) || m.status === 'completed' || m.status === 'completed_with_errors';
             const runs = integrationRuns?.get(m.session_id) ?? [];
+            const hasErrors = m.status === 'completed_with_errors' || runs.some(r => r.status === 'failed');
+            const isExpanded = expandedRows.has(m.id);
             const sortedRuns = [...runs].sort((a, b) => {
               const order: Record<string, number> = { done: 0, failed: 1, running: 2, pending: 3, skipped: 4 };
               return (order[a.status] ?? 3) - (order[b.status] ?? 3);
@@ -229,7 +230,9 @@ function SitesTab({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {isComplete
-                        ? <Badge variant="default">completed</Badge>
+                        ? hasErrors
+                          ? <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">completed with errors</Badge>
+                          : <Badge variant="default">completed</Badge>
                         : p && p.total > 0
                           ? (
                             <div className="flex items-center gap-2 min-w-[120px]">
@@ -700,7 +703,7 @@ export default function GroupDetailPage() {
   const completedCount = members.filter(m => {
     const p = progress.get(m.session_id);
     if (p && p.total > 0) return p.done === p.total;
-    return m.status === 'completed';
+    return m.status === 'completed' || m.status === 'completed_with_errors';
   }).length;
 
   const overallProgress = useMemo(() => {
