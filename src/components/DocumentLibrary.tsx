@@ -587,6 +587,7 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
             current_name: doc.name,
             content_preview: contentPreview,
             source_type: doc.source_type,
+            source_key: doc.source_key,
           }),
         });
 

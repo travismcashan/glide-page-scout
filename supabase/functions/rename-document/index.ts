@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { document_id, current_name, content_preview, source_type } = await req.json();
+    const { document_id, current_name, content_preview, source_type, source_key } = await req.json();
 
     if (!document_id || !content_preview) {
       return new Response(
@@ -39,21 +39,27 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a file naming assistant. Given a document's current name, source type, and a preview of its content, generate a clear, descriptive filename.
+            content: `You are a file naming assistant. Given a document's metadata and content preview, generate a clear, descriptive name.
 
 Rules:
 - Keep it concise: 4-8 words max, under 60 characters
 - Make it descriptive of the actual content, not generic
 - Don't include file extensions
 - Don't include dates unless the content is date-specific
+- Use the source context to infer document type:
+  - source_type "google-drive" → it's a document (spreadsheet, doc, presentation)
+  - source_type "upload" → user-uploaded file, use the original filename for clues
+  - source_type "web-scrape" or URL source_key → it's a scraped web page, use page title/topic
+  - source_type "integration" → analysis data from a tool
+  - source_type "note" → user-created note
+- The original filename (current_name) and source_key often contain useful context
 - For web pages: use the page's actual title or topic, not the URL
 - For emails: use the subject or key topic
-- For uploaded docs: use the document's title or main topic
 - Return ONLY the new name, nothing else — no quotes, no explanation`,
           },
           {
             role: 'user',
-            content: `Current name: ${current_name}\nSource type: ${source_type || 'unknown'}\n\nContent preview:\n${content_preview.substring(0, 2000)}`,
+            content: `Current name: ${current_name}\nSource type: ${source_type || 'unknown'}\nSource key: ${source_key || 'none'}\n\nContent preview:\n${content_preview.substring(0, 2000)}`,
           },
         ],
         max_tokens: 100,
