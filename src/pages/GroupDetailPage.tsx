@@ -464,24 +464,22 @@ function AddSiteDialog({
       ? Object.fromEntries(disabledKeys.map(k => [k, { paused: true }]))
       : undefined;
 
-    // Create all sessions, but only start crawling the first one.
-    // The rest are queued — the polling logic will start the next one
-    // when the current one completes (sequential processing).
+    // Create all sessions. First 3 start immediately, rest are queued.
+    // Polling logic starts the next batch when slots open up.
+    const MAX_CONCURRENT = 3;
     let succeeded = 0;
-    let firstSessionId: string | null = null;
+    const startSessionIds: string[] = [];
     for (let i = 0; i < urls.length; i++) {
       try {
         const domain = new URL(urls[i]).hostname;
-        const isFirst = succeeded === 0;
+        const startNow = succeeded < MAX_CONCURRENT;
         const { data: session, error: sessErr } = await supabase
           .from('crawl_sessions')
-          .insert({ domain, base_url: urls[i], status: isFirst ? 'analyzing' : 'queued' } as any)
+          .insert({ domain, base_url: urls[i], status: startNow ? 'analyzing' : 'queued' } as any)
           .select().single();
         if (sessErr) throw sessErr;
         await supabase.from('site_group_members').insert({ group_id: groupId, session_id: session.id });
-        if (isFirst) {
-          firstSessionId = session.id;
-        }
+        if (startNow) startSessionIds.push(session.id);
         succeeded++;
       } catch (e) {
         console.error(`Failed to add ${urls[i]}:`, e);
@@ -489,14 +487,14 @@ function AddSiteDialog({
       setAddingProgress({ current: i + 1, total: urls.length });
     }
 
-    // Fire crawl-start ONLY for the first site
-    if (firstSessionId) {
+    // Fire crawl-start for the first batch (up to 3)
+    for (const sid of startSessionIds) {
       supabase.functions.invoke('crawl-start', {
-        body: { session_id: firstSessionId, integration_overrides },
+        body: { session_id: sid, integration_overrides },
       }).catch(console.error);
     }
 
-    toast.success(`Started analyzing ${succeeded} site${succeeded !== 1 ? 's' : ''} (sequential)`);
+    toast.success(`Started analyzing ${succeeded} site${succeeded !== 1 ? 's' : ''} (${startSessionIds.length} concurrent)`);
     onOpenChange(false);
     setBulkUrls('');
     setAddingProgress(null);
@@ -664,15 +662,18 @@ export default function GroupDetailPage() {
     });
     setIntegrationRuns(runsMap);
 
-    // Sequential crawl: if no site is currently analyzing, start the next queued one
-    const anyAnalyzing = sessions?.some(s => s.status === 'analyzing');
-    if (!anyAnalyzing) {
-      const nextQueued = sessions?.find(s => s.status === 'queued');
-      if (nextQueued) {
-        console.log(`[group] Starting next queued site: ${nextQueued.domain}`);
-        await supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', nextQueued.id);
+    // Concurrent crawl: allow up to 3 sites analyzing simultaneously.
+    // When a slot opens, start the next queued site.
+    const MAX_CONCURRENT = 3;
+    const analyzingCount = sessions?.filter(s => s.status === 'analyzing').length ?? 0;
+    const slotsAvailable = MAX_CONCURRENT - analyzingCount;
+    if (slotsAvailable > 0) {
+      const queued = sessions?.filter(s => s.status === 'queued').slice(0, slotsAvailable) ?? [];
+      for (const next of queued) {
+        console.log(`[group] Starting queued site: ${next.domain} (${analyzingCount + 1}/${MAX_CONCURRENT} slots used)`);
+        await supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', next.id);
         supabase.functions.invoke('crawl-start', {
-          body: { session_id: nextQueued.id },
+          body: { session_id: next.id },
         }).catch(console.error);
       }
     }
