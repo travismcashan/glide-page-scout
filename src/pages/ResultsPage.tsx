@@ -332,7 +332,7 @@ export default function ResultsPage() {
     });
   };
   const [showAllIntegrations, setShowAllIntegrations] = useState(false);
-  const freezeVisibilityForCompletedSession = session?.status === 'completed';
+  const freezeVisibilityForCompletedSession = serverCompleted;
   // Pending prompt from Prompts tab → passed to chat
   const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
