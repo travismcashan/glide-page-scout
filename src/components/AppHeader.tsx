@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,8 @@ const NAV_ITEMS = [
 export default function AppHeader() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isSharedView = searchParams.get('view') === 'shared';
   const { user, profile, isAdmin, signOut } = useAuth();
   const { currentProduct, setCurrentProduct } = useProduct();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -60,8 +62,8 @@ export default function AppHeader() {
 
         </div>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* Desktop nav - hidden in shared view */}
+        {!isSharedView && <nav className="hidden md:flex items-center gap-1">
           {NAV_ITEMS.map((item) =>
             item.matchPrefix ? (
               <button
@@ -117,9 +119,10 @@ export default function AppHeader() {
               Sign In
             </Button>
           )}
-        </nav>
+        </nav>}
 
-        {/* Mobile: left hamburger */}
+        {/* Mobile: left hamburger - hidden in shared view */}
+        {isSharedView ? null :
         <div className="flex md:hidden items-center gap-2">
           {location.pathname === '/chat' ? (
             <button
@@ -222,7 +225,7 @@ export default function AppHeader() {
             </SheetContent>
           </Sheet>
           )}
-        </div>
+        </div>}
       </div>
     </header>
   );
