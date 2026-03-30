@@ -20,9 +20,10 @@ async function getValidAccessToken(supabase: any): Promise<string | null> {
     .from('oauth_connections')
     .select('*')
     .eq('provider', 'google-drive')
-    .limit(1);
+    .order('updated_at', { ascending: false });
 
-  const conn = connections?.[0];
+  // Prefer connection with a known email, fall back to most recent
+  const conn = connections?.find(c => c.provider_email && c.provider_email !== 'unknown') || connections?.[0];
   if (!conn) return null;
 
   const expiresAt = new Date(conn.token_expires_at).getTime();

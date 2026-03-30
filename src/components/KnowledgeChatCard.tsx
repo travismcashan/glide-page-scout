@@ -783,11 +783,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   };
 
   const handleExportGoogleDoc = async () => {
-    const TOKEN_KEY = 'google-drive-access-token';
-    const PICKER_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-drive-picker`;
-    const SCOPES = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
-
-    const tryExport = async (token: string) => {
+    const tryExport = async () => {
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-doc-export`, {
         method: 'POST',
         headers: {
@@ -796,7 +792,6 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          accessToken: token,
           content,
           title: `AI Response — ${domain || 'Chat'} — ${new Date().toLocaleDateString()}`,
         }),
@@ -804,74 +799,14 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       return response;
     };
 
-    const reconnectAndGetToken = async (): Promise<string | null> => {
-      try {
-        const clientIdResp = await fetch(PICKER_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ action: 'get-client-id' }),
-        });
-        if (!clientIdResp.ok) throw new Error('Could not get Google config');
-        const { clientId } = await clientIdResp.json();
-
-        // Load GSI script if needed
-        if (!(window as any).google?.accounts?.oauth2) {
-          await new Promise<void>((resolve, reject) => {
-            if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) { resolve(); return; }
-            const s = document.createElement('script');
-            s.src = 'https://accounts.google.com/gsi/client';
-            s.onload = () => resolve();
-            s.onerror = reject;
-            document.head.appendChild(s);
-          });
-        }
-
-        const token = await new Promise<string>((resolve, reject) => {
-          const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: SCOPES,
-            callback: (resp: any) => {
-              if (resp.error) reject(new Error(resp.error));
-              else resolve(resp.access_token);
-            },
-          });
-          tokenClient.requestAccessToken();
-        });
-
-        localStorage.setItem(TOKEN_KEY, token);
-        return token;
-      } catch (e) {
-        console.error('Google reconnect failed:', e);
-        return null;
-      }
-    };
-
-    let accessToken = localStorage.getItem(TOKEN_KEY);
-
-    // If no token at all, prompt connect first
-    if (!accessToken) {
-      toast('Connecting to Google Drive…');
-      accessToken = await reconnectAndGetToken();
-      if (!accessToken) { toast.error('Google Drive connection cancelled'); return; }
-    }
-
     setExporting('gdoc');
     try {
-      let response = await tryExport(accessToken);
-      let data = await response.json();
+      const response = await tryExport();
+      const data = await response.json();
 
-      // If insufficient scope or auth error, auto-reconnect with new scopes
-      if (data.error === 'insufficient_scope' || response.status === 401 || response.status === 403) {
-        localStorage.removeItem(TOKEN_KEY);
-        toast('Reconnecting Google Drive with write access…');
-        const newToken = await reconnectAndGetToken();
-        if (!newToken) { toast.error('Google Drive reconnection cancelled'); return; }
-        response = await tryExport(newToken);
-        data = await response.json();
+      if (data.error === 'drive_auth_required' || response.status === 401) {
+        toast.error('Google Drive is not connected. Please connect it from the Connections page first.');
+        return;
       }
 
       if (!response.ok || !data.success) {
