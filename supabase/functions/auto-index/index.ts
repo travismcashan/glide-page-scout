@@ -26,7 +26,6 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   content_types_data: 'Content Types',
   forms_data: 'Forms Detection',
   nav_structure: 'Site Navigation',
-  observations_data: 'Observations & Insights',
 };
 
 Deno.serve(async (req) => {

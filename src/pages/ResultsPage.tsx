@@ -143,7 +143,6 @@ type CrawlSession = {
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
   deep_research_data: any | null;
-  observations_data: any | null;
   content_types_data: any | null;
   page_tags: PageTagsMap | null;
   sitemap_data: any | null;
@@ -510,7 +509,7 @@ export default function ResultsPage() {
     'firecrawl-map': 'discovered_urls', 'tech-analysis': 'tech_analysis_data',
     avoma: 'avoma_data', apollo: 'apollo_data', hubspot: 'hubspot_data',
     'content-types': 'content_types_data', forms: 'forms_data',
-    'apollo-team': 'apollo_team_data', observations: 'observations_data',
+    'apollo-team': 'apollo_team_data',
     ga4: 'ga4_data', 'search-console': 'search_console_data',
   };
 
@@ -2258,12 +2257,6 @@ export default function ResultsPage() {
                       <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
                         <Brain className="h-3.5 w-3.5 mr-1.5" />
                         Deep Research PDF
-                      </DropdownMenuItem>
-                    )}
-                    {session?.observations_data && (
-                      <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                        <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-                        Observations PDF
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => exportAsPdf()}>

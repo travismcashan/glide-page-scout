@@ -58,7 +58,7 @@ const DATA_COLUMNS = [
   'sitemap_data', 'nav_structure', 'discovered_urls',
   'tech_analysis_data', 'avoma_data', 'apollo_data',
   'content_types_data', 'forms_data', 'linkcheck_data',
-  'apollo_team_data', 'observations_data',
+  'apollo_team_data',
 ];
 
 // ── Integration categories for the picker ─────────────────────
@@ -82,7 +82,6 @@ const INTEGRATION_CATEGORIES = [
   },
   {
     name: 'Design Analysis', keys: [
-      { key: 'observations', label: 'Observations & Insights' },
       { key: 'yellowlab', label: 'Yellow Lab Tools' },
     ],
   },

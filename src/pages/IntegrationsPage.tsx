@@ -75,7 +75,6 @@ const integrations: Integration[] = [
   { name: 'URLScan.io', id: 'urlscan', description: 'Sandbox every outbound request a site makes to expose 3rd-party tracker bloat and data leakage to questionable domains', secretKey: '', configured: false, category: 'security', status: 'coming-soon', tier: 'premium' },
 
   // ── 📊 Competitive Intelligence ──
-  { name: 'Observations & Insights', id: 'observations', description: 'AI-generated analysis of key findings — patterns, opportunities, and recommendations synthesized from all collected data', secretKey: '', configured: true, category: 'intelligence', status: 'active', tier: 'free' },
   { name: 'Gemini Deep Research', id: 'deep-research', description: 'Autonomous multi-step research agent — competitive analysis, market research, and detailed reports powered by Gemini 3.1 Pro (~$2-5/task)', secretKey: 'GEMINI_API_KEY', configured: true, category: 'intelligence', status: 'active', tier: 'premium' },
   { name: 'Avoma', id: 'avoma', description: 'Call intelligence — match meetings and transcripts where attendee email matches the crawled domain', secretKey: 'AVOMA_API_KEY', configured: true, category: 'intelligence', status: 'active', tier: 'premium' },
   { name: 'HubSpot', id: 'hubspot', description: 'CRM data — pull contacts, companies, and deals associated with the crawled domain', secretKey: 'HUBSPOT_ACCESS_TOKEN', configured: true, category: 'enrichment', status: 'active', tier: 'premium' },

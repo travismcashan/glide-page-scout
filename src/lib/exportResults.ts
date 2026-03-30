@@ -28,7 +28,6 @@ type ExportSession = {
   detectzestack_data?: any | null;
   tech_analysis_data?: any | null;
   deep_research_data?: any | null;
-  observations_data?: any | null;
   content_types_data?: any | null;
   nav_structure?: any | null;
   sitemap_data?: any | null;
@@ -71,7 +70,6 @@ function getIntegrationSections(session: ExportSession) {
     { key: 'carbon', label: 'Website Carbon', data: session.carbon_data },
     { key: 'ocean', label: 'Ocean.io', data: session.ocean_data },
     { key: 'deep-research', label: 'Deep Research', data: session.deep_research_data },
-    { key: 'observations', label: 'Observations & Insights', data: session.observations_data },
     { key: 'content-types', label: 'Content Types', data: session.content_types_data },
     { key: 'nav-structure', label: 'Navigation Structure', data: session.nav_structure },
     { key: 'sitemap', label: 'Sitemap', data: session.sitemap_data },
