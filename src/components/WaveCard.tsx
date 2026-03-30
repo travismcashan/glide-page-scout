@@ -70,7 +70,7 @@ function WaveItemList({ items, variant }: { items: Record<string, any>; variant:
 }
 
 function WaveCard({ data, isLoading }: { data: WaveData | null; isLoading: boolean }) {
-  if (isLoading || !data) return null;
+  if (isLoading || !data || !data.summary || !data.items) return null;
 
   return (
     <div className="space-y-3">
