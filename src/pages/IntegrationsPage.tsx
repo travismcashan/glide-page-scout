@@ -46,7 +46,6 @@ const integrations: Integration[] = [
 
   // ── 🔧 Technology Detection ──
   { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true, tier: 'premium' },
-  { name: 'Wappalyzer', id: 'wappalyzer', description: 'Real-time technology profiling with version detection', secretKey: 'WAPPALYZER_API_KEY', configured: true, category: 'technology', status: 'active', tier: 'premium' },
   { name: 'DetectZeStack', id: 'detectzestack', description: 'Technology detection via RapidAPI — 100 free lookups/month', secretKey: 'RAPIDAPI_KEY', configured: true, category: 'technology', status: 'active', tier: 'premium' },
   { name: 'AI Tech Analysis', id: 'tech-analysis', description: 'AI-powered merged analysis of all tech sources — identifies platform, risks, and redesign recommendations', secretKey: '', configured: true, category: 'technology', status: 'active', tier: 'free' },
 

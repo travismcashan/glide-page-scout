@@ -14,13 +14,12 @@ import AppHeader from '@/components/AppHeader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
 import { PromptLibrary, type PromptTemplate } from '@/components/PromptLibrary';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
 import { PageSpeedCard } from '@/components/PageSpeedCard';
-import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { DetectZeStackCard } from '@/components/DetectZeStackCard';
 import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
@@ -124,7 +123,6 @@ type CrawlSession = {
   builtwith_data: any | null;
   semrush_data: any | null;
   psi_data: any | null;
-  wappalyzer_data: any | null;
   carbon_data: any | null;
   crux_data: any | null;
   wave_data: any | null;
@@ -229,7 +227,6 @@ export default function ResultsPage() {
   const [builtwithLoading, setBuiltwithLoading] = useState(false);
   const [semrushLoading, setSemrushLoading] = useState(false);
   const [psiLoading, setPsiLoading] = useState(false);
-  const [wappalyzerLoading, setWappalyzerLoading] = useState(false);
   const [detectzestackLoading, setDetectzestackLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
   const [cruxLoading, setCruxLoading] = useState(false);
@@ -429,7 +426,6 @@ export default function ResultsPage() {
         ['builtwith_data', setBuiltwithFailed, 'builtwith'],
         ['semrush_data', setSemrushFailed, 'semrush'],
         ['psi_data', setPsiFailed, 'psi'],
-        ['wappalyzer_data', setWappalyzerFailed, 'wappalyzer'],
         ['detectzestack_data', setDetectzestackFailed, 'detectzestack'],
         ['carbon_data', setCarbonFailed, 'carbon'],
         ['crux_data', setCruxFailed, 'crux'],
@@ -483,7 +479,7 @@ export default function ResultsPage() {
   // When server-side orchestration completes an integration, re-fetch its data
   const INTEGRATION_COLUMN_MAP: Record<string, string> = {
     builtwith: 'builtwith_data', semrush: 'semrush_data', psi: 'psi_data',
-    wappalyzer: 'wappalyzer_data', detectzestack: 'detectzestack_data',
+    detectzestack: 'detectzestack_data',
     gtmetrix: 'gtmetrix_scores', carbon: 'carbon_data', crux: 'crux_data',
     wave: 'wave_data', observatory: 'observatory_data', ocean: 'ocean_data',
     ssllabs: 'ssllabs_data', httpstatus: 'httpstatus_data',
@@ -525,7 +521,7 @@ export default function ResultsPage() {
                 // Mark the triggered ref so client-side effect doesn't re-fire
                 const refMap: Record<string, any> = {
                   builtwith: builtwithTriggeredRef, semrush: semrushTriggeredRef,
-                  psi: psiTriggeredRef, wappalyzer: wappalyzerTriggeredRef,
+                  psi: psiTriggeredRef,
                   detectzestack: detectzestackTriggeredRef,
                 };
                 if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
@@ -538,7 +534,7 @@ export default function ResultsPage() {
               // Mark triggered ref
               const refMap: Record<string, any> = {
                 builtwith: builtwithTriggeredRef, semrush: semrushTriggeredRef,
-                psi: psiTriggeredRef, wappalyzer: wappalyzerTriggeredRef,
+                psi: psiTriggeredRef,
                 detectzestack: detectzestackTriggeredRef,
               };
               if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
@@ -559,7 +555,7 @@ export default function ResultsPage() {
     analysisStoppedRef.current = true;
     setAnalysisStopped(true);
     // Set all trigger refs to prevent any new effects from firing
-    [builtwithTriggeredRef, semrushTriggeredRef, psiTriggeredRef, wappalyzerTriggeredRef,
+    [builtwithTriggeredRef, semrushTriggeredRef, psiTriggeredRef,
      detectzestackTriggeredRef, gtmetrixTriggeredRef, carbonTriggeredRef, cruxTriggeredRef,
      waveTriggeredRef, observatoryTriggeredRef, httpstatusTriggeredRef, w3cTriggeredRef,
      schemaTriggeredRef, readableTriggeredRef, navTriggeredRef, sitemapTriggeredRef,
@@ -576,7 +572,6 @@ export default function ResultsPage() {
   const builtwithTriggeredRef = useRef(false);
   const semrushTriggeredRef = useRef(false);
   const psiTriggeredRef = useRef(false);
-  const wappalyzerTriggeredRef = useRef(false);
   const detectzestackTriggeredRef = useRef(false);
   const gtmetrixTriggeredRef = useRef(false);
   const carbonTriggeredRef = useRef(false);
@@ -654,9 +649,6 @@ export default function ResultsPage() {
       setPsiLoading(false);
     }).catch((e) => { const msg = e?.message || 'PageSpeed request failed'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); setPsiLoading(false); });
   }, [session, psiLoading, psiFailed, pauseVersion]);
-  // Wappalyzer — disabled (no API key)
-  const [wappalyzerFailed, setWappalyzerFailed] = useState(true);
-  const wappalyzerDisabled = true;
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
@@ -696,16 +688,14 @@ export default function ResultsPage() {
     if (session.tech_analysis_data) { techAnalysisTriggeredRef.current = true; return; }
     const bw = session.builtwith_data;
     const dz = (session as any).detectzestack_data;
-    const wp = session.wappalyzer_data;
-    if (!bw && !dz && !wp) return;
+    if (!bw && !dz) return;
     const bwReady = !!bw || isIntegrationPaused('builtwith') || builtwithFailed || (!builtwithLoading && !bw);
     const dzReady = !!dz || isIntegrationPaused('detectzestack') || detectzestackFailed || (!detectzestackLoading && !dz);
-    const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed || (!wappalyzerLoading && !wp);
-    if (!bwReady || !dzReady || !wpReady) return;
+    if (!bwReady || !dzReady) return;
 
     techAnalysisTriggeredRef.current = true;
     setTechAnalysisLoading(true);
-    techAnalysisApi.analyze(bw, dz, wp, session.domain).then(async (result) => {
+    techAnalysisApi.analyze(bw, dz, session.domain).then(async (result) => {
       if (result.success) {
         const data = { analysis: result.analysis, techCount: result.techCount, sourceCount: result.sourceCount, sources: result.sources };
         setTechAnalysisData(data);
@@ -720,7 +710,7 @@ export default function ResultsPage() {
       }
       setTechAnalysisLoading(false);
     }).catch((e) => { const msg = e?.message || 'AI tech analysis failed'; setTechAnalysisFailed(true); setError('tech-analysis', msg); persistFailure('tech_analysis_data', msg); setTechAnalysisLoading(false); });
-  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed, builtwithLoading, detectzestackLoading, wappalyzerLoading, pauseVersion]);
+  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, builtwithLoading, detectzestackLoading, pauseVersion]);
 
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
@@ -1759,7 +1749,6 @@ export default function ResultsPage() {
       builtwith: () => { setBuiltwithFailed(false); setBuiltwithLoading(false); builtwithTriggeredRef.current = false; },
       semrush: () => { setSemrushFailed(false); setSemrushLoading(false); semrushTriggeredRef.current = false; },
       psi: () => { setPsiFailed(false); setPsiLoading(false); psiTriggeredRef.current = false; },
-      wappalyzer: () => { setWappalyzerFailed(false); setWappalyzerLoading(false); wappalyzerTriggeredRef.current = false; },
       detectzestack: () => { setDetectzestackFailed(false); setDetectzestackLoading(false); detectzestackTriggeredRef.current = false; },
       gtmetrix: () => { setGtmetrixFailed(false); setRunningGtmetrix(false); gtmetrixTriggeredRef.current = false; },
       carbon: () => { setCarbonFailed(false); setCarbonLoading(false); carbonTriggeredRef.current = false; },
@@ -1810,7 +1799,6 @@ export default function ResultsPage() {
   const integrationList: { key: string; dbColumn: string }[] = [
     { key: 'sitemap', dbColumn: 'sitemap_data' },
     { key: 'builtwith', dbColumn: 'builtwith_data' },
-    // { key: 'wappalyzer', dbColumn: 'wappalyzer_data' }, // disabled
     { key: 'detectzestack', dbColumn: 'detectzestack_data' },
     { key: 'gtmetrix', dbColumn: 'gtmetrix_grade' },
     { key: 'psi', dbColumn: 'psi_data' },
@@ -1855,7 +1843,6 @@ export default function ResultsPage() {
     setBuiltwithFailed(false); setBuiltwithLoading(false); builtwithTriggeredRef.current = false;
     setSemrushFailed(false); setSemrushLoading(false); semrushTriggeredRef.current = false;
     setPsiFailed(false); setPsiLoading(false); psiTriggeredRef.current = false;
-    setWappalyzerFailed(false); setWappalyzerLoading(false); wappalyzerTriggeredRef.current = false;
     setDetectzestackFailed(false); setDetectzestackLoading(false); detectzestackTriggeredRef.current = false;
     setGtmetrixFailed(false); setRunningGtmetrix(false); gtmetrixTriggeredRef.current = false;
     setCarbonFailed(false); setCarbonLoading(false); carbonTriggeredRef.current = false;
@@ -1899,7 +1886,7 @@ export default function ResultsPage() {
   const prevLoadingRef = useRef<Record<string, boolean>>({});
   const loadingMap: Record<string, boolean> = {
     builtwith: builtwithLoading, semrush: semrushLoading, psi: psiLoading,
-    wappalyzer: wappalyzerLoading, detectzestack: detectzestackLoading, carbon: carbonLoading, crux: cruxLoading,
+    detectzestack: detectzestackLoading, carbon: carbonLoading, crux: cruxLoading,
     wave: waveLoading, observatory: observatoryLoading, ocean: oceanLoading,
     ssllabs: ssllabsLoading, httpstatus: httpstatusLoading, w3c: w3cLoading,
     schema: schemaLoading, readable: readableLoading, yellowlab: yellowlabLoading,
@@ -1960,7 +1947,6 @@ export default function ResultsPage() {
   const integrationSteps = session ? [
     { key: 'sitemap', label: 'Sitemaps', loading: sitemapLoading, failed: sitemapFailed, data: session.sitemap_data, paused: isIntegrationPaused('sitemap') },
     { key: 'builtwith', label: 'BuiltWith', loading: builtwithLoading, failed: builtwithFailed, data: session.builtwith_data, paused: isIntegrationPaused('builtwith') },
-    // Wappalyzer disabled — no API key
     { key: 'detectzestack', label: 'DetectZeStack', loading: detectzestackLoading, failed: detectzestackFailed, data: (session as any).detectzestack_data, paused: isIntegrationPaused('detectzestack') },
     { key: 'tech-analysis', label: 'Tech Analysis', loading: techAnalysisLoading, failed: techAnalysisFailed, data: techAnalysisData, paused: isIntegrationPaused('tech-analysis') },
     { key: 'semrush', label: 'SEMrush', loading: semrushLoading, failed: semrushFailed, data: session.semrush_data, paused: isIntegrationPaused('semrush') },
@@ -2071,7 +2057,6 @@ export default function ResultsPage() {
       case 'yellowlab': return (session as any).yellowlab_data?.runId ? `https://yellowlab.tools/result/${(session as any).yellowlab_data.runId}` : undefined;
       case 'w3c': return baseUrl ? `https://validator.w3.org/nu/?doc=${encodeURIComponent(baseUrl)}` : undefined;
       case 'carbon': return domain ? `https://www.websitecarbon.com/website/${domain}/` : undefined;
-      case 'wappalyzer': return domain ? `https://www.wappalyzer.com/lookup/${domain}/` : undefined;
       case 'schema': return baseUrl ? `https://search.google.com/test/rich-results?url=${encodeURIComponent(baseUrl)}` : undefined;
       case 'readable': return baseUrl ? `https://readable.com/text/?url=${encodeURIComponent(baseUrl)}` : undefined;
       default: return undefined;
@@ -2535,7 +2520,7 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔧 Technology Detection ══════ */}
-        {(shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
+        {(shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
           <CollapsibleSection title="Technology Detection" collapsed={isSectionCollapsed("section-tech-detection") ?? false} onToggle={(c) => toggleSection("section-tech-detection", c)} {...catGrade("section-tech-detection")}>
             <SortedIntegrationList className="space-y-6">
               {/* AI Tech Analysis — merged card */}
@@ -2563,9 +2548,8 @@ export default function ResultsPage() {
                       const startTime = Date.now();
                       const bw = session.builtwith_data;
                       const dz = (session as any).detectzestack_data;
-                      const wp = session.wappalyzer_data;
                       try {
-                        const result = await techAnalysisApi.analyze(bw, dz, wp, session.domain);
+                        const result = await techAnalysisApi.analyze(bw, dz, session.domain);
                         const elapsed = Math.round((Date.now() - startTime) / 1000);
                         setIntegrationDurations(d => ({ ...d, 'tech-analysis': elapsed }));
                         if (result.success) {
@@ -2616,7 +2600,6 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {/* Wappalyzer — disabled, no API key */}
             </SortedIntegrationList>
           </CollapsibleSection>
         )}
@@ -2972,7 +2955,6 @@ export default function ResultsPage() {
                 pageTags={session.page_tags as any}
                 contentTypesData={session.content_types_data as any}
                 formsData={visibleFormsData}
-                wappalyzerData={session.wappalyzer_data}
                 templateTiers={(session as any).template_tiers}
                 formsTiers={(session as any).forms_tiers}
                 navStructure={(session as any).nav_structure || null}

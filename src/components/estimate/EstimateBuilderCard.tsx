@@ -36,7 +36,6 @@ interface Props {
   pageTags: PageTagsMap | null;
   contentTypesData: ContentTypesData | null;
   formsData: any;
-  wappalyzerData: any;
   templateTiers: any;
   formsTiers: any;
   navStructure: { primary?: NavItem[]; secondary?: NavItem[]; footer?: NavItem[] } | null;
@@ -60,7 +59,7 @@ interface Estimate extends EstimateVariables {
   qa_percentage?: number | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, wappalyzerData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -130,17 +129,8 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     if (formsData?.forms) {
       defaults.form_count = Array.isArray(formsData.forms) ? formsData.forms.length : 0;
     }
-    // Tech analysis tier-based count is now handled via onTechTierChange callback
-    // Fall back to Wappalyzer categories if no tech analysis
-    if (!techAnalysisData?.analysis?.scope && wappalyzerData?.technologies) {
-      const integrationCats = ['marketing-automation', 'analytics', 'crm', 'email', 'payment-processors'];
-      const integrations = wappalyzerData.technologies.filter((t: any) =>
-        t.categories?.some((c: any) => integrationCats.includes(c.slug))
-      );
-      defaults.third_party_integrations = integrations.length || 2;
-    }
     return defaults;
-  }, [pageTags, contentTypesData, formsData, wappalyzerData, techAnalysisData]);
+  }, [pageTags, contentTypesData, formsData, techAnalysisData]);
 
   useEffect(() => { loadEstimate(); }, [sessionId]);
 

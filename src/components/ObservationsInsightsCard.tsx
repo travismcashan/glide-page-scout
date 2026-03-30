@@ -23,7 +23,6 @@ type SessionData = {
   builtwith_data?: any;
   semrush_data?: any;
   psi_data?: any;
-  wappalyzer_data?: any;
   ocean_data?: any;
   carbon_data?: any;
   wave_data?: any;

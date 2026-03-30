@@ -103,7 +103,7 @@ const GLOBAL_SUGGESTED_QUESTIONS = [
 
 const SOURCE_LABELS: Record<string, string> = {
   semrush: 'SEMrush', psi: 'PageSpeed', crux: 'CrUX', builtwith: 'BuiltWith',
-  wappalyzer: 'Wappalyzer', detectzestack: 'DetectZeStack', wave: 'WAVE',
+  detectzestack: 'DetectZeStack', wave: 'WAVE',
   observatory: 'Observatory', ssllabs: 'SSL Labs', httpstatus: 'HTTP Status',
   w3c: 'W3C', schema: 'Schema', readable: 'Readable',
   carbon: 'Carbon', yellowlab: 'Yellow Lab', gtmetrix: 'GTmetrix',
@@ -118,7 +118,6 @@ const SOURCE_TAB_MAP: Record<string, { tab: string; sectionId: string }> = {
   psi: { tab: 'raw-data', sectionId: 'pagespeed' },
   crux: { tab: 'raw-data', sectionId: 'crux' },
   builtwith: { tab: 'raw-data', sectionId: 'builtwith' },
-  wappalyzer: { tab: 'raw-data', sectionId: 'wappalyzer' },
   detectzestack: { tab: 'raw-data', sectionId: 'detectzestack' },
   wave: { tab: 'raw-data', sectionId: 'wave' },
   observatory: { tab: 'raw-data', sectionId: 'observatory' },
@@ -151,7 +150,6 @@ function detectSources(text: string): string[] {
     ['psi', ['pagespeed', 'psi', 'lighthouse']],
     ['crux', ['crux', 'chrome ux']],
     ['builtwith', ['builtwith']],
-    ['wappalyzer', ['wappalyzer']],
     ['detectzestack', ['detectzestack', 'zestack']],
     ['wave', ['wave accessibility', 'wave scan', 'wave found', 'wave report']],
     ['observatory', ['observatory', 'mozilla observatory']],

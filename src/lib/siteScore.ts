@@ -445,11 +445,7 @@ function extractTechCoverage(session: any): number | null {
   if (bw?.technologies) {
     bw.technologies.forEach((t: any) => allTechs.push(t.name?.toLowerCase() || ''));
   }
-  const wap = session.wappalyzer_data;
-  if (wap?.technologies) {
-    wap.technologies.forEach((t: any) => allTechs.push(t.name?.toLowerCase() || ''));
-  }
-  
+
   if (allTechs.length === 0) return null;
 
   const techStr = allTechs.join(' ');

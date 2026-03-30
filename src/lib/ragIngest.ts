@@ -8,7 +8,6 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   psi_data: 'PageSpeed Insights',
   crux_data: 'Chrome UX Report (CrUX)',
   builtwith_data: 'BuiltWith Technology Profile',
-  wappalyzer_data: 'Wappalyzer Technology Detection',
   detectzestack_data: 'DetectZeStack Analysis',
   tech_analysis_data: 'Technology Analysis',
   wave_data: 'WAVE Accessibility Scan',

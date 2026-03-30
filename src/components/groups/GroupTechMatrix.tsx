@@ -32,13 +32,6 @@ function extractTechs(session: any): { name: string; category: string }[] {
     }
   }
 
-  const wap = session.wappalyzer_data;
-  if (wap?.technologies) {
-    for (const t of wap.technologies) {
-      if (t.name) techs.push({ name: t.name, category: t.categories?.[0]?.name || t.category || 'Other' });
-    }
-  }
-
   return techs;
 }
 
