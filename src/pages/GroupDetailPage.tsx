@@ -1,16 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import AppHeader from '@/components/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Collapsible, CollapsibleTrigger, CollapsibleContent,
+} from '@/components/ui/collapsible';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, ChevronDown, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -36,6 +41,77 @@ interface IntegrationProgress {
   total: number;
   done: number;
 }
+
+// ── Data columns used to calculate real progress ──────────────
+const DATA_COLUMNS = [
+  'builtwith_data', 'semrush_data', 'psi_data', 'detectzestack_data',
+  'gtmetrix_scores', 'carbon_data', 'crux_data', 'wave_data',
+  'observatory_data', 'httpstatus_data', 'w3c_data', 'schema_data',
+  'readable_data', 'yellowlab_data', 'ocean_data', 'hubspot_data',
+  'sitemap_data', 'nav_structure', 'discovered_urls',
+  'tech_analysis_data', 'avoma_data', 'apollo_data',
+  'content_types_data', 'forms_data', 'linkcheck_data',
+  'apollo_team_data', 'observations_data',
+];
+
+// ── Integration categories for the picker ─────────────────────
+const INTEGRATION_CATEGORIES = [
+  {
+    name: 'URL Analysis', keys: [
+      { key: 'httpstatus', label: 'HTTP Status & Redirects' },
+      { key: 'sitemap', label: 'Sitemap Parse' },
+      { key: 'firecrawl-map', label: 'URL Discovery' },
+      { key: 'nav-structure', label: 'Navigation Extract' },
+    ],
+  },
+  {
+    name: 'Content Analysis', keys: [
+      { key: 'content-types', label: 'Content Types' },
+      { key: 'forms', label: 'Forms Detection' },
+      { key: 'readable', label: 'Readability' },
+      { key: 'schema', label: 'Schema.org Validation' },
+      { key: 'link-checker', label: 'Link Checker' },
+    ],
+  },
+  {
+    name: 'Design Analysis', keys: [
+      { key: 'observations', label: 'Observations & Insights' },
+      { key: 'yellowlab', label: 'Yellow Lab Tools' },
+    ],
+  },
+  {
+    name: 'Technology Detection', keys: [
+      { key: 'builtwith', label: 'BuiltWith' },
+      { key: 'detectzestack', label: 'DetectZeStack' },
+      { key: 'tech-analysis', label: 'AI Tech Analysis' },
+    ],
+  },
+  {
+    name: 'Performance & Sustainability', keys: [
+      { key: 'psi', label: 'PageSpeed Insights' },
+      { key: 'gtmetrix', label: 'GTmetrix' },
+      { key: 'crux', label: 'CrUX Field Data' },
+      { key: 'carbon', label: 'Website Carbon' },
+      { key: 'semrush', label: 'SEMrush' },
+    ],
+  },
+  {
+    name: 'Security & Compliance', keys: [
+      { key: 'wave', label: 'WAVE Accessibility' },
+      { key: 'w3c', label: 'W3C Validation' },
+      { key: 'observatory', label: 'Mozilla Observatory' },
+    ],
+  },
+  {
+    name: 'Enrichment & Prospecting', keys: [
+      { key: 'apollo', label: 'Apollo.io' },
+      { key: 'apollo-team', label: 'Apollo Team Search' },
+      { key: 'hubspot', label: 'HubSpot' },
+      { key: 'ocean', label: 'Ocean.io' },
+      { key: 'avoma', label: 'Avoma' },
+    ],
+  },
+];
 
 // ── Sites Tab (member list) ────────────────────────────────────
 
@@ -102,6 +178,54 @@ function SitesTab({
   );
 }
 
+// ── Integration Picker ─────────────────────────────────────────
+
+function IntegrationPicker({ enabled, onToggle }: { enabled: Set<string>; onToggle: (key: string) => void }) {
+  const allKeys = INTEGRATION_CATEGORIES.flatMap(c => c.keys.map(k => k.key));
+  const allOn = allKeys.every(k => enabled.has(k));
+  const count = allKeys.filter(k => enabled.has(k)).length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">{count}/{allKeys.length} integrations enabled</span>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => allKeys.forEach(k => { if (!enabled.has(k)) onToggle(k); })}>All On</Button>
+          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => allKeys.forEach(k => { if (enabled.has(k)) onToggle(k); })}>All Off</Button>
+        </div>
+      </div>
+      {INTEGRATION_CATEGORIES.map(cat => {
+        const catEnabled = cat.keys.filter(k => enabled.has(k.key)).length;
+        return (
+          <Collapsible key={cat.name}>
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/30">
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium flex-1">
+                <ChevronDown className="h-3 w-3" />
+                {cat.name} ({catEnabled}/{cat.keys.length})
+              </CollapsibleTrigger>
+              <div className="flex gap-1.5">
+                <button className="text-[10px] text-muted-foreground hover:text-foreground" onClick={() => cat.keys.forEach(k => { if (!enabled.has(k.key)) onToggle(k.key); })}>On</button>
+                <span className="text-muted-foreground/30">|</span>
+                <button className="text-[10px] text-muted-foreground hover:text-foreground" onClick={() => cat.keys.forEach(k => { if (enabled.has(k.key)) onToggle(k.key); })}>Off</button>
+              </div>
+            </div>
+            <CollapsibleContent>
+              <div className="pl-4 py-1 space-y-1">
+                {cat.keys.map(k => (
+                  <label key={k.key} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted/30 cursor-pointer">
+                    <span className="text-xs">{k.label}</span>
+                    <Switch checked={enabled.has(k.key)} onCheckedChange={() => onToggle(k.key)} className="scale-75" />
+                  </label>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Add Site Dialog ────────────────────────────────────────────
 
 function AddSiteDialog({
@@ -117,12 +241,25 @@ function AddSiteDialog({
   groupId: string;
   onAdded: () => void;
 }) {
-  const [addTab, setAddTab] = useState<string>('existing');
-  const [newUrl, setNewUrl] = useState('');
+  const [addTab, setAddTab] = useState<string>('new');
+  const [bulkUrls, setBulkUrls] = useState('');
   const [adding, setAdding] = useState(false);
+  const [addingProgress, setAddingProgress] = useState<{ current: number; total: number } | null>(null);
   const [existingSessions, setExistingSessions] = useState<{ id: string; domain: string; created_at: string }[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [loadingExisting, setLoadingExisting] = useState(false);
+  const [showIntPicker, setShowIntPicker] = useState(false);
+
+  // All integrations enabled by default
+  const allKeys = INTEGRATION_CATEGORIES.flatMap(c => c.keys.map(k => k.key));
+  const [enabledInts, setEnabledInts] = useState<Set<string>>(new Set(allKeys));
+  const toggleInt = (key: string) => {
+    setEnabledInts(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (open && addTab === 'existing') {
@@ -165,36 +302,106 @@ function AddSiteDialog({
     finally { setAdding(false); }
   };
 
-  const handleAddNew = async () => {
-    if (!newUrl.trim()) return;
-    setAdding(true);
-    try {
-      const formattedUrl = newUrl.trim().startsWith('http') ? newUrl.trim() : `https://${newUrl.trim()}`;
-      const domain = new URL(formattedUrl).hostname;
-      const { data: session, error: sessErr } = await supabase
-        .from('crawl_sessions')
-        .insert({ domain, base_url: formattedUrl, status: 'analyzing' } as any)
-        .select().single();
-      if (sessErr) throw sessErr;
-      await supabase.from('site_group_members').insert({ group_id: groupId, session_id: session.id });
-      supabase.functions.invoke('crawl-start', { body: { session_id: session.id } }).catch(console.error);
-      toast.success(`Started analyzing ${domain}`);
-      onOpenChange(false);
-      setNewUrl('');
-      onAdded();
-    } catch { toast.error('Failed to add site'); }
-    finally { setAdding(false); }
+  const parseUrls = (text: string): string[] => {
+    return text
+      .split(/[\n,\/]/)
+      .map(u => u.trim())
+      .filter(Boolean)
+      .map(u => u.startsWith('http') ? u : `https://${u}`)
+      .filter(u => { try { new URL(u); return true; } catch { return false; } });
   };
+
+  const handleAnalyzeBulk = async () => {
+    const urls = parseUrls(bulkUrls);
+    if (urls.length === 0) return;
+    setAdding(true);
+    setAddingProgress({ current: 0, total: urls.length });
+
+    // Build integration_overrides from picker (paused = keys NOT enabled)
+    const disabledKeys = allKeys.filter(k => !enabledInts.has(k));
+    const integration_overrides = disabledKeys.length > 0
+      ? Object.fromEntries(disabledKeys.map(k => [k, { paused: true }]))
+      : undefined;
+
+    let succeeded = 0;
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const domain = new URL(urls[i]).hostname;
+        const { data: session, error: sessErr } = await supabase
+          .from('crawl_sessions')
+          .insert({ domain, base_url: urls[i], status: 'analyzing' } as any)
+          .select().single();
+        if (sessErr) throw sessErr;
+        await supabase.from('site_group_members').insert({ group_id: groupId, session_id: session.id });
+        supabase.functions.invoke('crawl-start', {
+          body: { session_id: session.id, integration_overrides },
+        }).catch(console.error);
+        succeeded++;
+      } catch (e) {
+        console.error(`Failed to add ${urls[i]}:`, e);
+      }
+      setAddingProgress({ current: i + 1, total: urls.length });
+    }
+
+    toast.success(`Started analyzing ${succeeded} site${succeeded !== 1 ? 's' : ''}`);
+    onOpenChange(false);
+    setBulkUrls('');
+    setAddingProgress(null);
+    onAdded();
+    setAdding(false);
+  };
+
+  const parsedCount = parseUrls(bulkUrls).length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>Add Site to Group</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Add Sites</DialogTitle></DialogHeader>
         <Tabs value={addTab} onValueChange={setAddTab} className="w-full">
           <TabsList className="w-full">
+            <TabsTrigger value="new" className="flex-1 gap-1.5"><Plus className="h-3.5 w-3.5" /> New URLs</TabsTrigger>
             <TabsTrigger value="existing" className="flex-1 gap-1.5"><History className="h-3.5 w-3.5" /> Existing Sites</TabsTrigger>
-            <TabsTrigger value="new" className="flex-1 gap-1.5"><Plus className="h-3.5 w-3.5" /> New URL</TabsTrigger>
           </TabsList>
+          <TabsContent value="new" className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Textarea
+                placeholder={"example.com\nanother-site.com\nhttps://third-site.com"}
+                value={bulkUrls}
+                onChange={e => setBulkUrls(e.target.value)}
+                rows={5}
+                className="resize-none text-sm"
+              />
+              {parsedCount > 0 && (
+                <p className="text-xs text-muted-foreground">{parsedCount} URL{parsedCount !== 1 ? 's' : ''} detected</p>
+              )}
+            </div>
+
+            <Collapsible open={showIntPicker} onOpenChange={setShowIntPicker}>
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Settings2 className="h-3.5 w-3.5" />
+                Customize integrations
+                <ChevronDown className={`h-3 w-3 transition-transform ${showIntPicker ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <ScrollArea className="h-[240px]">
+                  <IntegrationPicker enabled={enabledInts} onToggle={toggleInt} />
+                </ScrollArea>
+              </CollapsibleContent>
+            </Collapsible>
+
+            <DialogFooter>
+              <Button onClick={handleAnalyzeBulk} disabled={parsedCount === 0 || adding} className="gap-2">
+                {adding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {addingProgress ? `${addingProgress.current}/${addingProgress.total}` : 'Starting...'}
+                  </>
+                ) : (
+                  `Analyze ${parsedCount || ''} Site${parsedCount !== 1 ? 's' : ''}`
+                )}
+              </Button>
+            </DialogFooter>
+          </TabsContent>
           <TabsContent value="existing" className="mt-4 space-y-4">
             {loadingExisting ? (
               <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
@@ -218,21 +425,6 @@ function AddSiteDialog({
               <Button onClick={handleAddExisting} disabled={selectedSessionIds.size === 0 || adding} className="gap-2">
                 {adding && <Loader2 className="h-4 w-4 animate-spin" />}
                 Add {selectedSessionIds.size || ''} Site{selectedSessionIds.size !== 1 ? 's' : ''}
-              </Button>
-            </DialogFooter>
-          </TabsContent>
-          <TabsContent value="new" className="mt-4 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">URL</label>
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                <Input placeholder="Enter a URL to analyze…" value={newUrl} onChange={e => setNewUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddNew()} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddNew} disabled={!newUrl.trim() || adding} className="gap-2">
-                {adding && <Loader2 className="h-4 w-4 animate-spin" />}
-                Add & Analyze
               </Button>
             </DialogFooter>
           </TabsContent>
@@ -269,9 +461,10 @@ export default function GroupDetailPage() {
     if (!memberRows?.length) { setMembers([]); setLoading(false); return; }
 
     const sessionIds = memberRows.map(m => m.session_id);
+    // Fetch full session data so we can calculate progress from actual columns
     const { data: sessions } = await supabase
       .from('crawl_sessions')
-      .select('id, domain, base_url, status, created_at')
+      .select('*')
       .in('id', sessionIds);
 
     const sessionMap = new Map(sessions?.map(s => [s.id, s]) ?? []);
@@ -280,9 +473,12 @@ export default function GroupDetailPage() {
       .filter(Boolean) as GroupMember[];
     setMembers(merged);
 
-    const { data: runs } = await supabase.from('integration_runs').select('session_id, status').in('session_id', sessionIds);
+    // Calculate progress from actual data columns populated in crawl_sessions
     const progMap = new Map<string, IntegrationProgress>();
-    runs?.forEach(r => { const p = progMap.get(r.session_id) ?? { session_id: r.session_id, total: 0, done: 0 }; p.total++; if (r.status === 'done' || r.status === 'failed') p.done++; progMap.set(r.session_id, p); });
+    sessions?.forEach(s => {
+      const populated = DATA_COLUMNS.filter(col => (s as any)[col] != null).length;
+      progMap.set(s.id, { session_id: s.id, total: DATA_COLUMNS.length, done: populated });
+    });
     setProgress(progMap);
     setLoading(false);
   };
@@ -305,14 +501,29 @@ export default function GroupDetailPage() {
     }
   }, [mainTab, members.length]);
 
-  // Realtime for integration_runs
+  // Polling: every 10s while any site is still in progress
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    const anyInProgress = Array.from(progress.values()).some(p => p.done < p.total);
+    if (anyInProgress && members.length > 0) {
+      if (!pollingRef.current) {
+        pollingRef.current = setInterval(() => { fetchData(); }, 10_000);
+      }
+    } else {
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    }
+    return () => { if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; } };
+  }, [progress, members.length]);
+
+  // Realtime for crawl_sessions updates
   useEffect(() => {
     if (!members.length) return;
+    const sessionIds = members.map(m => m.session_id);
     const channel = supabase
-      .channel(`group-${groupId}-runs`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'integration_runs' }, (payload: any) => {
-        const row = payload.new ?? payload.old;
-        if (!row || !members.some(m => m.session_id === row.session_id)) return;
+      .channel(`group-${groupId}-sessions`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'crawl_sessions' }, (payload: any) => {
+        const row = payload.new;
+        if (!row || !sessionIds.includes(row.id)) return;
         fetchData();
       })
       .subscribe();
@@ -321,7 +532,6 @@ export default function GroupDetailPage() {
 
   const completedCount = members.filter(m => {
     const p = progress.get(m.session_id);
-    // If integration_runs exist, use them; otherwise fall back to session status
     if (p && p.total > 0) return p.done === p.total;
     return m.status === 'completed';
   }).length;
@@ -372,7 +582,7 @@ export default function GroupDetailPage() {
             </p>
           </div>
           <Button className="gap-2" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4" /> Add Site
+            <Plus className="h-4 w-4" /> Add Sites
           </Button>
         </div>
 

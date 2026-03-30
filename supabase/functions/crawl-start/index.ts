@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { session_id } = await req.json();
+    const { session_id, integration_overrides } = await req.json();
     if (!session_id) {
       return new Response(JSON.stringify({ error: "session_id required" }), {
         status: 400,
@@ -93,7 +93,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Determine which integrations to run
+    // 3. Apply integration_overrides from group picker (paused overrides)
+    if (integration_overrides && typeof integration_overrides === 'object') {
+      for (const [key, val] of Object.entries(integration_overrides)) {
+        if ((val as any)?.paused) pausedSet.add(key);
+        else pausedSet.delete(key);
+      }
+    }
+
+    // 4. Determine which integrations to run
     // Skip if paused or if data already exists in session
     const toRun = INTEGRATIONS.filter((int) => {
       if (pausedSet.has(int.key)) return false;
@@ -133,30 +141,94 @@ Deno.serve(async (req) => {
     // For now, fire ALL batches — each function will check deps internally.
     const functionsUrl = `${supabaseUrl}/functions/v1`;
 
+    // Group by batch and run sequentially (batch 1, then 2, then 3)
+    const batches = new Map<number, typeof toRun>();
     for (const int of toRun) {
-      const body = {
-        ...int.buildBody(session),
-        _orchestrated: true,
-        _session_id: session_id,
-        _integration_key: int.key,
-        _db_column: int.column,
-      };
+      const list = batches.get(int.batch) ?? [];
+      list.push(int);
+      batches.set(int.batch, list);
+    }
 
-      // Fire-and-forget — don't await
-      fetch(`${functionsUrl}/${int.fn}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify(body),
-      }).catch((e) => {
-        console.error(`Failed to invoke ${int.fn}:`, e);
-      });
+    const SELF_PERSIST_KEYS = new Set([
+      "schema", "avoma", "tech-analysis", "semrush", "psi", "builtwith",
+    ]);
+
+    for (const batchNum of [1, 2, 3]) {
+      const batch = batches.get(batchNum);
+      if (!batch || batch.length === 0) continue;
+
+      // Reload session between batches so dependent integrations see batch 1 data
+      let freshSession = session;
+      if (batchNum > 1) {
+        const { data: reloaded } = await sb
+          .from("crawl_sessions")
+          .select("*")
+          .eq("id", session_id)
+          .single();
+        if (reloaded) freshSession = reloaded;
+      }
+
+      const results = await Promise.allSettled(
+        batch.map(async (int) => {
+          const body = {
+            ...int.buildBody(freshSession),
+            _orchestrated: true,
+            _session_id: session_id,
+            _integration_key: int.key,
+            _db_column: int.column,
+          };
+
+          const resp = await fetch(`${functionsUrl}/${int.fn}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${anonKey}`,
+            },
+            body: JSON.stringify(body),
+          });
+
+          // For non-self-persisting functions, save result to DB
+          if (!SELF_PERSIST_KEYS.has(int.key) && resp.ok) {
+            try {
+              const data = await resp.json();
+              if (data && !data.error) {
+                await sb
+                  .from("crawl_sessions")
+                  .update({ [int.column]: data } as any)
+                  .eq("id", session_id);
+                await sb
+                  .from("integration_runs")
+                  .update({ status: "done" })
+                  .eq("session_id", session_id)
+                  .eq("integration_key", int.key);
+              } else {
+                await sb
+                  .from("integration_runs")
+                  .update({ status: "failed" })
+                  .eq("session_id", session_id)
+                  .eq("integration_key", int.key);
+              }
+            } catch {
+              // Response wasn't JSON — mark as done anyway
+              await sb
+                .from("integration_runs")
+                .update({ status: "done" })
+                .eq("session_id", session_id)
+                .eq("integration_key", int.key);
+            }
+          }
+
+          return { key: int.key, status: resp.status };
+        })
+      );
+
+      console.log(
+        `crawl-start batch ${batchNum}: ${results.filter((r) => r.status === "fulfilled").length}/${batch.length} succeeded`
+      );
     }
 
     console.log(
-      `crawl-start: fired ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`
+      `crawl-start: completed ${toRun.length} integrations, skipped ${skippedKeys.length} for session ${session_id}`
     );
 
     return new Response(
