@@ -266,6 +266,8 @@ export default function ResultsPage() {
 
   // Guard: don't fire site-analysis integrations for synthetic sessions (e.g. global chat)
   const isRealSite = !!session?.domain && !session.domain.startsWith('__');
+  // Guard: don't re-trigger integrations if server-side crawl already completed
+  const serverCompleted = session?.status === 'completed';
 
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
@@ -610,7 +612,7 @@ export default function ResultsPage() {
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
   const [builtwithCredits, setBuiltwithCredits] = useState<{ available?: string | null; used?: string | null; remaining?: string | null } | null>(null);
   useEffect(() => {
-    if (!session || !isRealSite || session.builtwith_data || builtwithLoading || builtwithFailed || isIntegrationPaused('builtwith')) return;
+    if (!session || !isRealSite || serverCompleted || session.builtwith_data || builtwithLoading || builtwithFailed || isIntegrationPaused('builtwith')) return;
     if (builtwithTriggeredRef.current) return;
     builtwithTriggeredRef.current = true;
     setBuiltwithLoading(true);
@@ -633,7 +635,7 @@ export default function ResultsPage() {
   // SEMrush
   const [semrushFailed, setSemrushFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.semrush_data || semrushLoading || semrushFailed || isIntegrationPaused('semrush')) return;
+    if (!session || !isRealSite || serverCompleted || session.semrush_data || semrushLoading || semrushFailed || isIntegrationPaused('semrush')) return;
     if (semrushTriggeredRef.current) return;
     semrushTriggeredRef.current = true;
     setSemrushLoading(true);
@@ -655,7 +657,7 @@ export default function ResultsPage() {
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.psi_data || psiLoading || psiFailed || isIntegrationPaused('psi')) return;
+    if (!session || !isRealSite || serverCompleted || session.psi_data || psiLoading || psiFailed || isIntegrationPaused('psi')) return;
     if (psiTriggeredRef.current) return;
     psiTriggeredRef.current = true;
     setPsiLoading(true);
@@ -672,7 +674,7 @@ export default function ResultsPage() {
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).detectzestack_data || detectzestackLoading || detectzestackFailed || isIntegrationPaused('detectzestack')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).detectzestack_data || detectzestackLoading || detectzestackFailed || isIntegrationPaused('detectzestack')) return;
     if (detectzestackTriggeredRef.current) return;
     detectzestackTriggeredRef.current = true;
     setDetectzestackLoading(true);
@@ -734,7 +736,7 @@ export default function ResultsPage() {
 
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
+    if (!session || !isRealSite || serverCompleted || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
     if (gtmetrixTriggeredRef.current) return;
     gtmetrixTriggeredRef.current = true;
     setRunningGtmetrix(true);
@@ -750,7 +752,7 @@ export default function ResultsPage() {
   // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.carbon_data || carbonLoading || carbonFailed || isIntegrationPaused('carbon')) return;
+    if (!session || !isRealSite || serverCompleted || session.carbon_data || carbonLoading || carbonFailed || isIntegrationPaused('carbon')) return;
     if (carbonTriggeredRef.current) return;
     carbonTriggeredRef.current = true;
     setCarbonLoading(true);
@@ -768,7 +770,7 @@ export default function ResultsPage() {
   const [cruxFailed, setCruxFailed] = useState(false);
   const [cruxNoData, setCruxNoData] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.crux_data || cruxLoading || cruxFailed || cruxNoData || isIntegrationPaused('crux')) return;
+    if (!session || !isRealSite || serverCompleted || session.crux_data || cruxLoading || cruxFailed || cruxNoData || isIntegrationPaused('crux')) return;
     if (cruxTriggeredRef.current) return;
     cruxTriggeredRef.current = true;
     setCruxLoading(true);
@@ -788,7 +790,7 @@ export default function ResultsPage() {
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.wave_data || waveLoading || waveFailed || isIntegrationPaused('wave')) return;
+    if (!session || !isRealSite || serverCompleted || session.wave_data || waveLoading || waveFailed || isIntegrationPaused('wave')) return;
     if (waveTriggeredRef.current) return;
     waveTriggeredRef.current = true;
     setWaveLoading(true);
@@ -805,7 +807,7 @@ export default function ResultsPage() {
   // Mozilla Observatory
   const [observatoryFailed, setObservatoryFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.observatory_data || observatoryLoading || observatoryFailed || isIntegrationPaused('observatory')) return;
+    if (!session || !isRealSite || serverCompleted || session.observatory_data || observatoryLoading || observatoryFailed || isIntegrationPaused('observatory')) return;
     if (observatoryTriggeredRef.current) return;
     observatoryTriggeredRef.current = true;
     setObservatoryLoading(true);
@@ -824,7 +826,7 @@ export default function ResultsPage() {
   const [oceanFailed, setOceanFailed] = useState(false);
   const oceanTriggeredRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
+    if (!session || !isRealSite || serverCompleted || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
     if (oceanTriggeredRef.current) return;
     oceanTriggeredRef.current = true;
     setOceanLoading(true);
@@ -843,7 +845,7 @@ export default function ResultsPage() {
   const [avomaProgress, setAvomaProgress] = useState<{ page: number; meetingsScanned: number; totalMeetings: number; matchesFound: number; phase: string } | null>(null);
   const avomaTriggeredRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
     if (avomaTriggeredRef.current) return;
     avomaTriggeredRef.current = true;
     setAvomaLoading(true);
@@ -870,7 +872,7 @@ export default function ResultsPage() {
   const [hubspotFailed, setHubspotFailed] = useState(false);
   const hubspotTriggeredRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).hubspot_data || hubspotLoading || hubspotFailed || isIntegrationPaused('hubspot')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).hubspot_data || hubspotLoading || hubspotFailed || isIntegrationPaused('hubspot')) return;
     if (hubspotTriggeredRef.current) return;
     hubspotTriggeredRef.current = true;
     setHubspotLoading(true);
@@ -943,7 +945,7 @@ export default function ResultsPage() {
 
   // Auto-enrich Apollo using primary HubSpot contact
   useEffect(() => {
-    if (apolloAutoTriggered.current) return;
+    if (serverCompleted || apolloAutoTriggered.current) return;
     if (apolloLoading || apolloData || session?.apollo_data) return;
     if (isIntegrationPaused('apollo')) return;
     const hubspot = (session as any)?.hubspot_data;
@@ -968,7 +970,7 @@ export default function ResultsPage() {
 
   // Auto-trigger team search once Apollo enrichment completes with org domain
   useEffect(() => {
-    if (apolloTeamAutoTriggered.current) return;
+    if (serverCompleted || apolloTeamAutoTriggered.current) return;
     if (apolloTeamLoading || apolloTeamData || (session as any)?.apollo_team_data) return;
     if (isIntegrationPaused('apollo')) return;
     const domain = apolloData?.organizationDomain || prospectingDomain;
@@ -990,7 +992,7 @@ export default function ResultsPage() {
   const ssllabsPollingRef = useRef(false);
 
   const runSslLabsScan = useCallback(async () => {
-    if (!session || !isRealSite || ssllabsPollingRef.current) return;
+    if (!session || !isRealSite || serverCompleted || ssllabsPollingRef.current) return;
     ssllabsPollingRef.current = true;
     setSsllabsLoading(true);
     setSsllabsFailed(false);
@@ -1081,7 +1083,7 @@ export default function ResultsPage() {
   const [httpstatusLoading, setHttpstatusLoading] = useState(false);
   const [httpstatusFailed, setHttpstatusFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.httpstatus_data || httpstatusLoading || httpstatusFailed || isIntegrationPaused('httpstatus')) return;
+    if (!session || !isRealSite || serverCompleted || session.httpstatus_data || httpstatusLoading || httpstatusFailed || isIntegrationPaused('httpstatus')) return;
     if (httpstatusTriggeredRef.current) return;
     httpstatusTriggeredRef.current = true;
     setHttpstatusLoading(true);
@@ -1098,7 +1100,7 @@ export default function ResultsPage() {
   const [w3cLoading, setW3cLoading] = useState(false);
   const [w3cFailed, setW3cFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.w3c_data || w3cLoading || w3cFailed || isIntegrationPaused('w3c')) return;
+    if (!session || !isRealSite || serverCompleted || session.w3c_data || w3cLoading || w3cFailed || isIntegrationPaused('w3c')) return;
     if (w3cTriggeredRef.current) return;
     w3cTriggeredRef.current = true;
     setW3cLoading(true);
@@ -1115,7 +1117,7 @@ export default function ResultsPage() {
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaFailed, setSchemaFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.schema_data || schemaLoading || schemaFailed || isIntegrationPaused('schema')) return;
+    if (!session || !isRealSite || serverCompleted || session.schema_data || schemaLoading || schemaFailed || isIntegrationPaused('schema')) return;
     if (schemaTriggeredRef.current) return;
     schemaTriggeredRef.current = true;
     setSchemaLoading(true);
@@ -1132,7 +1134,7 @@ export default function ResultsPage() {
   const [readableLoading, setReadableLoading] = useState(false);
   const [readableFailed, setReadableFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).readable_data || readableLoading || readableFailed || isIntegrationPaused('readable')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).readable_data || readableLoading || readableFailed || isIntegrationPaused('readable')) return;
     if (readableTriggeredRef.current) return;
     readableTriggeredRef.current = true;
     setReadableLoading(true);
@@ -1150,7 +1152,7 @@ export default function ResultsPage() {
   const [yellowlabFailed, setYellowlabFailed] = useState(false);
   const yellowlabPollingRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).yellowlab_data || yellowlabLoading || yellowlabFailed || isIntegrationPaused('yellowlab') || yellowlabPollingRef.current) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).yellowlab_data || yellowlabLoading || yellowlabFailed || isIntegrationPaused('yellowlab') || yellowlabPollingRef.current) return;
     yellowlabPollingRef.current = true;
     setYellowlabLoading(true);
 
@@ -1244,7 +1246,7 @@ export default function ResultsPage() {
   }, []);
 
   useEffect(() => {
-    if (!session || !isRealSite || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
+    if (!session || !isRealSite || serverCompleted || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
     if (linkcheckRunningRef.current) return;
     linkcheckRunningRef.current = true;
     // Snapshot URLs at start so mid-run URL changes don't cause issues
@@ -1276,7 +1278,7 @@ export default function ResultsPage() {
   const [navLoading, setNavLoading] = useState(false);
   const [navFailed, setNavFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).nav_structure || navLoading || navFailed || isIntegrationPaused('nav-structure')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).nav_structure || navLoading || navFailed || isIntegrationPaused('nav-structure')) return;
     if (navTriggeredRef.current) return;
     navTriggeredRef.current = true;
     setNavLoading(true);
@@ -1293,7 +1295,7 @@ export default function ResultsPage() {
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapFailed, setSitemapFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
+    if (!session || !isRealSite || serverCompleted || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
     if (sitemapTriggeredRef.current) return;
     sitemapTriggeredRef.current = true;
     setSitemapLoading(true);
@@ -1331,7 +1333,7 @@ export default function ResultsPage() {
   const visibleFormsData = (session as any)?.forms_data ?? (formsLoading ? lastFormsData : null);
 
   const runFormsDetection = useCallback(async () => {
-    if (!session || !isRealSite || formsLoading) return;
+    if (!session || !isRealSite || serverCompleted || formsLoading) return;
     setFormsLoading(true);
     setFormsFailed(false);
     clearError('forms');
@@ -1387,7 +1389,7 @@ export default function ResultsPage() {
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
   const [contentTypesProgress, setContentTypesProgress] = useState('');
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
     if (contentTypesTriggeredRef.current) return;
     contentTypesTriggeredRef.current = true;
@@ -1576,7 +1578,7 @@ export default function ResultsPage() {
   }, [session]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
     if (effectiveDiscoveredUrls.length === 0) return;
     if (!contentTypesFailed && !(session as any).content_types_data) return;
     if (!navFailed && !(session as any).nav_structure) return;
@@ -1594,7 +1596,7 @@ export default function ResultsPage() {
   const prerequisitesReady = contentTypesReady && navReady && effectiveDiscoveredUrls.length > 0;
 
   useEffect(() => {
-    if (!session || !isRealSite || !prerequisitesReady || autoTagging || autoTagTriedRef.current) return;
+    if (!session || !isRealSite || serverCompleted || !prerequisitesReady || autoTagging || autoTagTriedRef.current) return;
     // Only auto-seed if page_tags is empty/null
     if ((session as any).page_tags && Object.keys((session as any).page_tags).length > 0) return;
 
@@ -1753,7 +1755,7 @@ export default function ResultsPage() {
 
   // Mark session complete
   useEffect(() => {
-    if (!session || !isRealSite || session.status !== 'crawling') return;
+    if (!session || !isRealSite || serverCompleted || session.status !== 'crawling') return;
     const allDone = pages.length > 0 && pages.every(p => p.status !== 'pending');
     if (allDone) {
       supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => updateSession({ status: 'completed' } as any));
@@ -2014,7 +2016,7 @@ export default function ResultsPage() {
   // Mark session as completed when all integrations finish
   const integrationsAllDone = integrationSteps.length > 0 && integrationSteps.every(s => s.status === 'done' || s.status === 'failed' || s.status === 'paused');
   useEffect(() => {
-    if (!session || !isRealSite || !integrationsAllDone || session.status === 'completed') return;
+    if (!session || !isRealSite || serverCompleted || !integrationsAllDone || session.status === 'completed') return;
     supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => {
       updateSession({ status: 'completed' } as any);
     });

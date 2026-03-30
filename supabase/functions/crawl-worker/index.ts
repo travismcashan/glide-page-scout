@@ -37,6 +37,20 @@ function rebuildBody(integration_key: string, session: any): Record<string, unkn
   }
 }
 
+/** Check if all integration_runs for a session are finished; if so mark session completed */
+async function maybeCompleteSession(sb: any, session_id: string) {
+  const { data: runs } = await sb
+    .from("integration_runs")
+    .select("status")
+    .eq("session_id", session_id);
+  if (!runs || runs.length === 0) return;
+  const allFinished = runs.every((r: any) => r.status === "done" || r.status === "failed" || r.status === "skipped");
+  if (allFinished) {
+    await sb.from("crawl_sessions").update({ status: "completed" }).eq("id", session_id);
+    console.log(`crawl-worker: session ${session_id} marked completed (${runs.length} runs finished)`);
+  }
+}
+
 /**
  * crawl-worker: Calls a single integration edge function, reads the response,
  * and persists the result to crawl_sessions + integration_runs.
@@ -105,6 +119,7 @@ Deno.serve(async (req) => {
             .eq("session_id", session_id)
             .eq("integration_key", integration_key);
         }
+        await maybeCompleteSession(sb, session_id);
         return new Response(
           JSON.stringify({ success: true, key: integration_key, skipped: "dependency_timeout" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -146,6 +161,7 @@ Deno.serve(async (req) => {
             .eq("session_id", session_id)
             .eq("integration_key", integration_key);
         }
+        await maybeCompleteSession(sb, session_id);
         return new Response(
           JSON.stringify({ success: true, key: integration_key }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -158,6 +174,7 @@ Deno.serve(async (req) => {
             .eq("session_id", session_id)
             .eq("integration_key", integration_key);
         }
+        await maybeCompleteSession(sb, session_id);
       }
     }
 
@@ -168,6 +185,7 @@ Deno.serve(async (req) => {
         .eq("session_id", session_id)
         .eq("integration_key", integration_key);
     }
+    await maybeCompleteSession(sb, session_id);
 
     return new Response(
       JSON.stringify({ success: resp.ok, key: integration_key, status: resp.status }),
