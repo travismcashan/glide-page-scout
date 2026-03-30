@@ -14,7 +14,7 @@ import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
-import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
+import { ChatProviderPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
 import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
@@ -2862,9 +2862,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
           {/* Provider picker (icon-only on mobile) */}
           <ChatProviderPicker provider={provider} model={selectedModel} onProviderChange={onProviderChange} disabled={isStreaming} />
 
-          {/* Reasoning picker (icon-only on mobile) */}
-          <ChatReasoningPicker model={selectedModel} reasoning={reasoning} onReasoningChange={onReasoningChange} disabled={isStreaming} />
-
           {/* Send / Stop */}
           <Button
             variant="ghost"
@@ -3092,13 +3089,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             onProviderChange={onProviderChange}
             disabled={isStreaming}
           />
-          <ChatReasoningPicker
-            model={selectedModel}
-            reasoning={reasoning}
-            onReasoningChange={onReasoningChange}
-            disabled={isStreaming}
-          />
-
           {/* Send / Stop button */}
             <Button
               variant="ghost"
