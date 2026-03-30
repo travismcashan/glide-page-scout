@@ -60,12 +60,15 @@ export async function runIntegration(
       try {
         const data = await resp.json();
         if (data && !data.error) {
-          // Write result (unless the function self-persisted via orchestration)
-          // Self-persisting functions still return JSON, but they already wrote to DB.
-          // We write anyway — idempotent update, ensures data is there either way.
-          await sb.from("crawl_sessions").update({ [int.column]: data } as any).eq("id", sessionId);
-          // Update local session cache so subsequent integrations can read it
-          (session as any)[int.column] = data;
+          // Skip DB write if the function already persisted its own data
+          // (indicated by _self_persisted flag or orchestration markDone)
+          if (data._self_persisted) {
+            selfPersisted = true;
+          } else {
+            await sb.from("crawl_sessions").update({ [int.column]: data } as any).eq("id", sessionId);
+            // Update local session cache so subsequent integrations can read it
+            (session as any)[int.column] = data;
+          }
         }
       } catch {
         // Non-JSON response = self-persisting function handled everything

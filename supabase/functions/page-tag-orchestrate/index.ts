@@ -311,6 +311,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        _self_persisted: true,
         tagged: Object.keys(merged).length,
         aiTagged: Object.keys(tagMap).length,
         patternTagged: Object.keys(patternTags).length,

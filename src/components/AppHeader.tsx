@@ -57,7 +57,7 @@ export default function AppHeader() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
           >
-            <AnimatedLogo size={32} isAnimating={isCrawling} />
+            <AnimatedLogo size={40} isAnimating={isCrawling} />
             <span className="text-lg sm:text-base font-semibold tracking-tight truncate">
               {currentProduct.fullName}
             </span>
