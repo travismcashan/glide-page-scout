@@ -130,21 +130,41 @@ Deno.serve(async (req) => {
       if (rebuilt) actualBody = rebuilt;
     }
 
-    // Call the actual integration function
-    const resp = await fetch(`${supabaseUrl}/functions/v1/${fn_name}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${anonKey}`,
-      },
-      body: JSON.stringify({
-        ...actualBody,
-        _orchestrated: true,
-        _session_id: session_id,
-        _integration_key: integration_key,
-        _db_column: db_column,
-      }),
-    });
+    // Call the actual integration function with 120s timeout
+    // (leaves 30s buffer before the 150s hard edge function timeout)
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 120_000);
+    let resp: Response;
+    try {
+      resp = await fetch(`${supabaseUrl}/functions/v1/${fn_name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({
+          ...actualBody,
+          _orchestrated: true,
+          _session_id: session_id,
+          _integration_key: integration_key,
+          _db_column: db_column,
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr: any) {
+      clearTimeout(fetchTimeout);
+      console.error(`crawl-worker: ${integration_key} fetch failed/timed out:`, fetchErr?.message);
+      if (integration_key) {
+        await sb.from("integration_runs").update({ status: "failed" })
+          .eq("session_id", session_id).eq("integration_key", integration_key);
+      }
+      await maybeCompleteSession(sb, session_id);
+      return new Response(
+        JSON.stringify({ success: false, key: integration_key, error: "timeout" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    clearTimeout(fetchTimeout);
 
     if (resp.ok) {
       try {
