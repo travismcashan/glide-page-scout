@@ -190,10 +190,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Fire ALL remaining integrations through crawl-worker (fire-and-forget).
+    // 7. Fire remaining integrations through crawl-worker with staggered dispatch.
+    // 300ms delay between each prevents cold-start stampede that causes 503s.
     const remainingToRun = toRun.filter(i => i.key !== "firecrawl-map");
 
-    for (const int of remainingToRun) {
+    for (let idx = 0; idx < remainingToRun.length; idx++) {
+      const int = remainingToRun[idx];
       const body = {
         session_id,
         integration_key: int.key,
@@ -207,7 +209,10 @@ Deno.serve(async (req) => {
           : {}),
       };
 
-      // Fire and forget — don't await. Each gets its own isolate + timeout.
+      // Stagger: wait 300ms between dispatches to avoid cold-start stampede
+      if (idx > 0) await new Promise(r => setTimeout(r, 300));
+
+      // Fire and forget — don't await the response.
       fetch(`${functionsUrl}/crawl-worker`, {
         method: "POST",
         headers: {
