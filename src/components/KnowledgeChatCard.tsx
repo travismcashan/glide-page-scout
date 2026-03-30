@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X, Presentation, MoreHorizontal, Cpu } from 'lucide-react';
+import { ArrowUp, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X, Presentation, MoreHorizontal, Cpu } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -2437,17 +2437,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, [activeThreadId, isStreaming]);
 
   const outerRef = useRef<HTMLDivElement>(null);
-  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollBtnLeft, setScrollBtnLeft] = useState<number | null>(null);
 
   // Track scroll position for top/bottom buttons + recalculate on sidebar toggle
   useEffect(() => {
     const updatePosition = () => {
-      const distanceFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
       const distanceFromTop = window.scrollY;
       const hasAssistantReply = messages.some(m => m.role === 'assistant' && m.content);
-      setShowScrollBottom(distanceFromBottom > 200 && hasAssistantReply);
       setShowScrollTop(distanceFromTop > 300 && hasAssistantReply);
       if (outerRef.current) {
         const rect = outerRef.current.getBoundingClientRect();
@@ -2641,30 +2638,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         )}
       </div>
 
-      {/* Scroll navigation buttons - side by side */}
-      {(showScrollTop || showScrollBottom) && scrollBtnLeft !== null && (
+      {/* Scroll to top button */}
+      {showScrollTop && scrollBtnLeft !== null && (
         <div
-          className="fixed bottom-[180px] z-40 flex items-center gap-1.5"
+          className="fixed bottom-[180px] z-40"
           style={{ left: scrollBtnLeft, transform: 'translateX(-50%)' }}
         >
-          {showScrollTop && (
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center"
-              aria-label="Scroll to top"
-            >
-              <ArrowUp className="h-5 w-5" />
-            </button>
-          )}
-          {showScrollBottom && (
-            <button
-              onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-              className="h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center"
-              aria-label="Scroll to bottom"
-            >
-              <ArrowDown className="h-5 w-5" />
-            </button>
-          )}
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="h-5 w-5" />
+          </button>
         </div>
       )}
 
