@@ -1219,7 +1219,13 @@ export default function ResultsPage() {
   const [linkcheckStreamingResults, setLinkcheckStreamingResults] = useState<{ url: string; statusCode: number }[] | null>(null);
   const linkcheckRunningRef = useRef(false);
   const linkcheckAbortRef = useRef<AbortController | null>(null);
-  const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
+  const effectiveDiscoveredUrls = discoveredUrls.length > 0
+    ? discoveredUrls
+    : Array.isArray(session?.discovered_urls)
+      ? session.discovered_urls
+      : Array.isArray((session?.discovered_urls as any)?.urls)
+        ? (session.discovered_urls as any).urls
+        : [];
 
   // Unified scoring system
   const overallScore = useMemo(() => computeOverallScore(session), [session]);

@@ -1222,14 +1222,24 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, []);
 
   const scrollToLastUserMessage = useCallback(() => {
+    // Triple rAF + fallback timeout to ensure DOM has updated after React render
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const el = lastUserMsgRef.current;
-        if (!el) return;
-        const top = el.getBoundingClientRect().top + window.scrollY - 75;
-        window.scrollTo({ top, behavior: 'smooth' });
+        requestAnimationFrame(() => {
+          const el = lastUserMsgRef.current;
+          if (!el) return;
+          const top = el.getBoundingClientRect().top + window.scrollY - 75;
+          window.scrollTo({ top, behavior: 'smooth' });
+        });
       });
     });
+    // Fallback in case rAF doesn't catch it
+    setTimeout(() => {
+      const el = lastUserMsgRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY - 75;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }, 150);
   }, []);
 
   const saveMessage = async (role: string, content: string, sources: string[] = [], ragDocs?: RagDocument[], webCites?: string[]) => {
