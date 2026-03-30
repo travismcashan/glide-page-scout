@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Layers, Navigation, FileText, BarChart3 } from 'lucide-react';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
@@ -7,11 +7,12 @@ type Props = { sessions: SessionData[] };
 function computeOverlap(
   sessions: SessionData[],
   extractor: (session: any) => string[],
-): { shared: number; unique: number; total: number; percent: number } {
+  minSites: number = 1,
+): { shared: number; unique: number; total: number; included: number; percent: number } {
   const sessionsWithData = sessions.filter(s => {
     try { return extractor(s).length > 0; } catch { return false; }
   });
-  if (sessionsWithData.length < 2) return { shared: 0, unique: 0, total: 0, percent: 0 };
+  if (sessionsWithData.length < 2) return { shared: 0, unique: 0, total: 0, included: 0, percent: 0 };
 
   const itemSites = new Map<string, Set<string>>();
   for (const s of sessionsWithData) {
@@ -23,48 +24,54 @@ function computeOverlap(
     }
   }
 
+  // Filter to items appearing on at least minSites
+  const filtered = Array.from(itemSites.entries()).filter(([, sites]) => sites.size >= minSites);
   const total = itemSites.size;
-  const shared = Array.from(itemSites.values()).filter(s => s.size === sessionsWithData.length).length;
+  const included = filtered.length;
+  const shared = filtered.filter(([, s]) => s.size === sessionsWithData.length).length;
   const unique = Array.from(itemSites.values()).filter(s => s.size === 1).length;
 
-  // Weighted reusability: items used by more sites contribute more
+  // Weighted reusability based on filtered items only
   let totalWeight = 0;
   let sharedWeight = 0;
-  for (const sites of itemSites.values()) {
+  for (const [, sites] of filtered) {
     totalWeight += sessionsWithData.length;
     sharedWeight += sites.size;
   }
   const percent = totalWeight > 0 ? Math.round((sharedWeight / totalWeight) * 100) : 0;
 
-  return { shared, unique, total, percent };
+  return { shared, unique, total, included, percent };
 }
 
 export function GroupReusabilitySummary({ sessions }: Props) {
+  const [minSites, setMinSites] = useState(2); // Default: exclude unique items
+  const siteCount = sessions.filter(s => s.page_tags || s.content_types_data || s.nav_structure).length;
+
+  const templateExtractor = (s: any) => {
+    const tags = s.page_tags;
+    if (!tags || typeof tags !== 'object') return [];
+    return [...new Set(Object.values(tags).map((t: any) => t.template).filter(Boolean))];
+  };
+  const contentExtractor = (s: any) => {
+    const ct = s.content_types_data;
+    if (!ct?.classified) return [];
+    return [...new Set(ct.classified.map((c: any) => c.contentType).filter(Boolean))];
+  };
+  const navExtractor = (s: any) => {
+    const nav = s.nav_structure;
+    if (!nav?.primary) return [];
+    return nav.primary.map((item: any) => item.label).filter(Boolean);
+  };
+
   const analysis = useMemo(() => {
-    const templates = computeOverlap(sessions, s => {
-      const tags = s.page_tags;
-      if (!tags || typeof tags !== 'object') return [];
-      return [...new Set(Object.values(tags).map((t: any) => t.template).filter(Boolean))];
-    });
+    const templates = computeOverlap(sessions, templateExtractor, minSites);
+    const contentTypes = computeOverlap(sessions, contentExtractor, minSites);
+    const navItems = computeOverlap(sessions, navExtractor, minSites);
 
-    const contentTypes = computeOverlap(sessions, s => {
-      const ct = s.content_types_data;
-      if (!ct?.classified) return [];
-      return [...new Set(ct.classified.map((c: any) => c.contentType).filter(Boolean))];
-    });
-
-    const navItems = computeOverlap(sessions, s => {
-      const nav = s.nav_structure;
-      if (!nav?.primary) return [];
-      return nav.primary.map((item: any) => item.label).filter(Boolean);
-    });
-
-    // Overall reusability = weighted average of the three dimensions
     const overallPercent = Math.round(
       (templates.percent * 0.4 + contentTypes.percent * 0.35 + navItems.percent * 0.25)
     );
 
-    // Page count stats
     const pageCounts = sessions
       .map(s => {
         const urls = s.discovered_urls;
@@ -80,7 +87,7 @@ export function GroupReusabilitySummary({ sessions }: Props) {
     const maxPages = pageCounts.length > 0 ? Math.max(...pageCounts) : 0;
 
     return { templates, contentTypes, navItems, overallPercent, avgPages, minPages, maxPages, pageCounts };
-  }, [sessions]);
+  }, [sessions, minSites]);
 
   const hasData = analysis.templates.total > 0 || analysis.contentTypes.total > 0 || analysis.navItems.total > 0;
   if (!hasData) {
@@ -98,8 +105,25 @@ export function GroupReusabilitySummary({ sessions }: Props) {
         <div className="text-6xl font-bold tracking-tight">{analysis.overallPercent}%</div>
         <div className="text-lg text-muted-foreground mt-2">Structural Similarity</div>
         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-          Based on shared templates, content types, and navigation patterns across {sessions.length} sites
+          Items appearing on {minSites}+ of {siteCount} sites
         </p>
+        {/* Threshold control */}
+        <div className="flex items-center justify-center gap-3 mt-4">
+          <span className="text-xs text-muted-foreground">Min sites:</span>
+          {[1, 2, 3, 5, Math.ceil(siteCount / 2), siteCount].filter((v, i, a) => v > 0 && v <= siteCount && a.indexOf(v) === i).map(n => (
+            <button
+              key={n}
+              onClick={() => setMinSites(n)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                minSites === n
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {n === siteCount ? 'All' : `${n}+`}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Dimension breakdown */}
@@ -109,7 +133,7 @@ export function GroupReusabilitySummary({ sessions }: Props) {
           label="Templates"
           percent={analysis.templates.percent}
           shared={analysis.templates.shared}
-          unique={analysis.templates.unique}
+          included={analysis.templates.included}
           total={analysis.templates.total}
         />
         <DimensionCard
@@ -117,7 +141,7 @@ export function GroupReusabilitySummary({ sessions }: Props) {
           label="Content Types"
           percent={analysis.contentTypes.percent}
           shared={analysis.contentTypes.shared}
-          unique={analysis.contentTypes.unique}
+          included={analysis.contentTypes.included}
           total={analysis.contentTypes.total}
         />
         <DimensionCard
@@ -125,7 +149,7 @@ export function GroupReusabilitySummary({ sessions }: Props) {
           label="Navigation"
           percent={analysis.navItems.percent}
           shared={analysis.navItems.shared}
-          unique={analysis.navItems.unique}
+          included={analysis.navItems.included}
           total={analysis.navItems.total}
         />
       </div>
@@ -157,12 +181,12 @@ export function GroupReusabilitySummary({ sessions }: Props) {
   );
 }
 
-function DimensionCard({ icon, label, percent, shared, unique, total }: {
+function DimensionCard({ icon, label, percent, shared, included, total }: {
   icon: React.ReactNode;
   label: string;
   percent: number;
   shared: number;
-  unique: number;
+  included: number;
   total: number;
 }) {
   return (
@@ -178,8 +202,8 @@ function DimensionCard({ icon, label, percent, shared, unique, total }: {
         <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
       </div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{shared} shared</span>
-        <span>{unique} unique</span>
+        <span>{shared} universal</span>
+        <span>{included} included</span>
         <span>{total} total</span>
       </div>
     </div>
