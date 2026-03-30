@@ -235,9 +235,11 @@ function SitesTab({
                       ? hasErrors
                         ? <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">completed with errors</Badge>
                         : <Badge variant="default">completed</Badge>
-                      : p && p.total > 0
-                        ? <span className="text-xs text-muted-foreground tabular-nums">{pct}%</span>
-                        : null}
+                      : m.status === 'queued'
+                        ? <Badge variant="outline" className="text-muted-foreground">queued</Badge>
+                        : p && p.total > 0
+                          ? <span className="text-xs text-muted-foreground tabular-nums">{pct}%</span>
+                          : null}
                     {/* Full-width rainbow progress bar at bottom of row */}
                     {!isComplete && p && p.total > 0 && (
                       <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-border/50">
@@ -462,19 +464,24 @@ function AddSiteDialog({
       ? Object.fromEntries(disabledKeys.map(k => [k, { paused: true }]))
       : undefined;
 
+    // Create all sessions, but only start crawling the first one.
+    // The rest are queued — the polling logic will start the next one
+    // when the current one completes (sequential processing).
     let succeeded = 0;
+    let firstSessionId: string | null = null;
     for (let i = 0; i < urls.length; i++) {
       try {
         const domain = new URL(urls[i]).hostname;
+        const isFirst = succeeded === 0;
         const { data: session, error: sessErr } = await supabase
           .from('crawl_sessions')
-          .insert({ domain, base_url: urls[i], status: 'analyzing' } as any)
+          .insert({ domain, base_url: urls[i], status: isFirst ? 'analyzing' : 'queued' } as any)
           .select().single();
         if (sessErr) throw sessErr;
         await supabase.from('site_group_members').insert({ group_id: groupId, session_id: session.id });
-        supabase.functions.invoke('crawl-start', {
-          body: { session_id: session.id, integration_overrides },
-        }).catch(console.error);
+        if (isFirst) {
+          firstSessionId = session.id;
+        }
         succeeded++;
       } catch (e) {
         console.error(`Failed to add ${urls[i]}:`, e);
@@ -482,7 +489,14 @@ function AddSiteDialog({
       setAddingProgress({ current: i + 1, total: urls.length });
     }
 
-    toast.success(`Started analyzing ${succeeded} site${succeeded !== 1 ? 's' : ''}`);
+    // Fire crawl-start ONLY for the first site
+    if (firstSessionId) {
+      supabase.functions.invoke('crawl-start', {
+        body: { session_id: firstSessionId, integration_overrides },
+      }).catch(console.error);
+    }
+
+    toast.success(`Started analyzing ${succeeded} site${succeeded !== 1 ? 's' : ''} (sequential)`);
     onOpenChange(false);
     setBulkUrls('');
     setAddingProgress(null);
@@ -650,6 +664,19 @@ export default function GroupDetailPage() {
     });
     setIntegrationRuns(runsMap);
 
+    // Sequential crawl: if no site is currently analyzing, start the next queued one
+    const anyAnalyzing = sessions?.some(s => s.status === 'analyzing');
+    if (!anyAnalyzing) {
+      const nextQueued = sessions?.find(s => s.status === 'queued');
+      if (nextQueued) {
+        console.log(`[group] Starting next queued site: ${nextQueued.domain}`);
+        await supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', nextQueued.id);
+        supabase.functions.invoke('crawl-start', {
+          body: { session_id: nextQueued.id },
+        }).catch(console.error);
+      }
+    }
+
     setLoading(false);
   };
 
@@ -671,11 +698,12 @@ export default function GroupDetailPage() {
     }
   }, [mainTab, members.length]);
 
-  // Polling: every 10s while any site is still in progress
+  // Polling: every 1s while any site is in progress or queued
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     const anyInProgress = Array.from(progress.values()).some(p => p.done < p.total);
-    if (anyInProgress && members.length > 0) {
+    const anyQueued = members.some(m => m.status === 'queued');
+    if ((anyInProgress || anyQueued) && members.length > 0) {
       if (!pollingRef.current) {
         pollingRef.current = setInterval(() => { fetchData(); }, 1_000);
       }
