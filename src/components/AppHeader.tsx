@@ -44,10 +44,10 @@ export default function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [hoveredId, setHoveredId] = useState<ProductId | null>(null);
-  const [animatingId, setAnimatingId] = useState<ProductId | null>(null);
+  const [animatingIds, setAnimatingIds] = useState<Set<ProductId>>(new Set());
   const [headerAnimating, setHeaderAnimating] = useState(true);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animTimers = useRef<Map<ProductId, ReturnType<typeof setTimeout>>>(new Map());
   const headerAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCrawling = useActiveCrawl();
 
@@ -71,18 +71,26 @@ export default function AppHeader() {
     closeTimer.current = setTimeout(() => {
       setSwitcherOpen(false);
       setHoveredId(null);
-      setAnimatingId(null);
+      // Clear all animation timers
+      animTimers.current.forEach(t => clearTimeout(t));
+      animTimers.current.clear();
+      setAnimatingIds(new Set());
     }, 250);
   };
 
-  // Keep animation playing until complete even after mouse-off (~1s covers longest anim)
+  // Each row manages its own animation lifecycle — rows animate independently
   const startRowAnim = (id: ProductId) => {
-    if (animTimer.current) clearTimeout(animTimer.current);
-    setAnimatingId(id);
+    const existing = animTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    animTimers.current.delete(id);
+    setAnimatingIds(prev => new Set([...prev, id]));
   };
-  const endRowAnim = () => {
-    if (animTimer.current) clearTimeout(animTimer.current);
-    animTimer.current = setTimeout(() => setAnimatingId(null), 1050);
+  const endRowAnim = (id: ProductId) => {
+    const timer = setTimeout(() => {
+      setAnimatingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      animTimers.current.delete(id);
+    }, 1050);
+    animTimers.current.set(id, timer);
   };
 
   const isNavActive = (item: typeof NAV_ITEMS[number]) =>
@@ -156,7 +164,7 @@ export default function AppHeader() {
                       <div className="h-px bg-foreground/15 mx-4" />
                       <button
                         onMouseEnter={() => { setHoveredId(product.id); startRowAnim(product.id); }}
-                        onMouseLeave={() => { setHoveredId(null); endRowAnim(); }}
+                        onMouseLeave={() => { setHoveredId(null); endRowAnim(product.id); }}
                         onClick={() => {
                           if (product.active) {
                             setCurrentProduct(product.id);
@@ -168,10 +176,10 @@ export default function AppHeader() {
                           'w-full flex items-center gap-3 pl-3 pr-4 py-3 text-left transition-colors',
                           !product.active ? 'cursor-not-allowed' : 'cursor-pointer'
                         )}
-                        style={{ backgroundColor: isHovered ? hoverBg : 'transparent', transition: 'background-color 0.2s ease' }}
+                        style={{ backgroundColor: isHovered ? hoverBg : 'transparent', transition: 'background-color 0.45s ease' }}
                       >
-                        <div className="shrink-0 w-[34px] h-[34px] flex items-center justify-center" data-hovered={animatingId === product.id ? "true" : undefined} style={{ color: product.color }}>
-                          {animatingId === product.id && product.settleAngle !== undefined
+                        <div className="shrink-0 w-[34px] h-[34px] flex items-center justify-center" data-hovered={animatingIds.has(product.id) ? "true" : undefined} style={{ color: product.color }}>
+                          {animatingIds.has(product.id) && product.settleAngle !== undefined
                             ? <AnimatedProductIcon size={34} settleAngle={product.settleAngle} settleAngles={product.settleAngles} startAngles={product.startAngles} introAngles={product.introAngles} />
                             : <Icon className="w-[34px] h-[34px]" />
                           }
