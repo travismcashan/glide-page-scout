@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { FullBleedTable } from './FullBleedTable';
+
+const MIN_VISIBLE_SITES = 3; // Hide items appearing on fewer than 3 sites
 
 type SessionData = { id: string; domain: string; [key: string]: any };
 type Props = { sessions: SessionData[]; minSites?: number };
@@ -12,6 +15,7 @@ type ContentEntry = {
 };
 
 export function GroupContentMatrix({ sessions, minSites = 1 }: Props) {
+  const [showHidden, setShowHidden] = useState(false);
   const { entries, sharedCount, uniqueCount, totalTypes } = useMemo(() => {
     const map = new Map<string, ContentEntry>();
 
@@ -102,7 +106,7 @@ export function GroupContentMatrix({ sessions, minSites = 1 }: Props) {
             </tr>
           </thead>
           <tbody>
-            {entries.map(entry => {
+            {entries.filter(e => e.sites.size >= MIN_VISIBLE_SITES).map(entry => {
               const inScope = entry.sites.size >= minSites;
               return (
                 <tr key={entry.type} className={`border-b border-border/30 transition-colors ${inScope ? 'hover:bg-muted/20' : 'opacity-40'}`}>
@@ -129,8 +133,43 @@ export function GroupContentMatrix({ sessions, minSites = 1 }: Props) {
                 </tr>
               );
             })}
+            {showHidden && entries.filter(e => e.sites.size < MIN_VISIBLE_SITES).map(entry => (
+              <tr key={entry.type} className="border-b border-border/30 opacity-30">
+                <td className="py-2 px-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm line-through">{entry.type}</span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{entry.baseType}</Badge>
+                  </div>
+                </td>
+                <td className="text-center py-2 px-2">
+                  <span className="text-xs font-medium text-muted-foreground/40">{entry.sites.size}/{sessionsWithData.length}</span>
+                </td>
+                {sessionsWithData.map(s => (
+                  <td key={s.id} className="text-center py-2 px-3">
+                    {entry.sites.has(s.id) ? (
+                      <span className="text-xs font-medium text-muted-foreground/40">{entry.sites.get(s.id)}</span>
+                    ) : (
+                      <span className="text-muted-foreground/20">—</span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
+        {(() => {
+          const hiddenCount = entries.filter(e => e.sites.size < MIN_VISIBLE_SITES).length;
+          if (hiddenCount === 0) return null;
+          return (
+            <button
+              onClick={() => setShowHidden(!showHidden)}
+              className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1"
+            >
+              {showHidden ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showHidden ? 'Hide' : `Show ${hiddenCount} more`} items on fewer than {MIN_VISIBLE_SITES} sites
+            </button>
+          );
+        })()}
       </FullBleedTable>
     </div>
   );

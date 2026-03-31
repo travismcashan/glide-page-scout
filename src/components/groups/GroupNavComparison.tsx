@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
-import { Check, Minus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Check, Minus, ChevronDown, ChevronUp } from 'lucide-react';
 import { FullBleedTable } from './FullBleedTable';
+
+const MIN_VISIBLE_SITES = 3;
 
 type SessionData = { id: string; domain: string; [key: string]: any };
 type Props = { sessions: SessionData[]; minSites?: number };
@@ -11,6 +13,7 @@ type NavEntry = {
 };
 
 export function GroupNavComparison({ sessions, minSites = 1 }: Props) {
+  const [showHidden, setShowHidden] = useState(false);
   const { entries, sharedCount, uniqueCount, totalItems } = useMemo(() => {
     const map = new Map<string, NavEntry>();
 
@@ -93,20 +96,21 @@ export function GroupNavComparison({ sessions, minSites = 1 }: Props) {
             </tr>
           </thead>
           <tbody>
-            {entries.map(entry => {
+            {entries.filter(e => e.sites.size >= MIN_VISIBLE_SITES || showHidden).map(entry => {
               const inScope = entry.sites.size >= minSites;
+              const belowMin = entry.sites.size < MIN_VISIBLE_SITES;
               return (
-                <tr key={entry.label} className={`border-b border-border/30 transition-colors ${inScope ? 'hover:bg-muted/20' : 'opacity-40'}`}>
-                  <td className={`py-2 px-3 text-sm font-medium ${inScope ? '' : 'line-through'}`}>{entry.label}</td>
+                <tr key={entry.label} className={`border-b border-border/30 transition-colors ${belowMin ? 'opacity-30' : inScope ? 'hover:bg-muted/20' : 'opacity-40'}`}>
+                  <td className={`py-2 px-3 text-sm font-medium ${inScope && !belowMin ? '' : 'line-through'}`}>{entry.label}</td>
                   <td className="text-center py-2 px-2">
-                    <span className={`text-xs font-medium ${inScope ? (entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : 'text-foreground') : 'text-destructive'}`}>
+                    <span className={`text-xs font-medium ${belowMin ? 'text-muted-foreground/40' : inScope ? (entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : 'text-foreground') : 'text-destructive'}`}>
                       {entry.sites.size}/{sessionsWithData.length}
                     </span>
                   </td>
                   {sessionsWithData.map(s => (
                     <td key={s.id} className="text-center py-2 px-3">
                       {entry.sites.has(s.id) ? (
-                        <Check className={`h-4 w-4 mx-auto ${inScope ? 'text-emerald-500' : 'text-destructive/40'}`} />
+                        <Check className={`h-4 w-4 mx-auto ${belowMin ? 'text-muted-foreground/30' : inScope ? 'text-emerald-500' : 'text-destructive/40'}`} />
                       ) : (
                         <Minus className="h-3.5 w-3.5 mx-auto text-muted-foreground/20" />
                       )}
@@ -117,6 +121,19 @@ export function GroupNavComparison({ sessions, minSites = 1 }: Props) {
             })}
           </tbody>
         </table>
+        {(() => {
+          const hiddenCount = entries.filter(e => e.sites.size < MIN_VISIBLE_SITES).length;
+          if (hiddenCount === 0) return null;
+          return (
+            <button
+              onClick={() => setShowHidden(!showHidden)}
+              className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1"
+            >
+              {showHidden ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showHidden ? 'Hide' : `Show ${hiddenCount} more`} items on fewer than {MIN_VISIBLE_SITES} sites
+            </button>
+          );
+        })()}
       </FullBleedTable>
     </div>
   );
