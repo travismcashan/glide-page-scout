@@ -187,8 +187,10 @@ export default function TimelineCanvas({
         {activePillars.map((pillar, pillarIdx) => {
           const pillarItems = items.filter((i) => i.pillar === pillar.code).sort((a, b) => a.sortOrder - b.sortOrder);
           const barHeight = 40;
-          const gap = 6;
-          const laneHeight = gap + pillarItems.length * (barHeight + gap) + 3;
+          const topPad = 6;
+          const bottomPad = 9;
+          const gutter = 9;
+          const laneHeight = topPad + pillarItems.length * barHeight + (pillarItems.length - 1) * gutter + bottomPad;
           const isLastPillar = pillarIdx === activePillars.length - 1;
           const showBorder = !isLastPillar || showLastBorder;
 
@@ -205,7 +207,7 @@ export default function TimelineCanvas({
                     <div
                       key={item.sku}
                       className="absolute left-0 right-0"
-                      style={{ top: `${gap + idx * (barHeight + gap)}px` }}
+                      style={{ top: `${topPad + idx * (barHeight + gutter)}px` }}
                     >
                       <TimelineBar
                         item={item}
