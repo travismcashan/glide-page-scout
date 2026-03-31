@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PILLARS } from "@/data/offerings";
 import { useServiceOfferings } from "@/hooks/useServiceOfferings";
 import AppHeader from "@/components/AppHeader";
@@ -51,6 +52,7 @@ function priceRange(
 
 export default function ServicesPage() {
   const { offerings, loading } = useServiceOfferings();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [pillarFilter, setPillarFilter] = useState<string | null>(null);
 
@@ -71,7 +73,7 @@ export default function ServicesPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Services</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Service catalog — all offerings available for roadmap planning.
+            Service catalog — click any row to view or edit service details.
           </p>
         </div>
 
@@ -152,7 +154,11 @@ export default function ServicesPage() {
                     }
 
                     return (
-                      <TableRow key={o.sku} className="hover:bg-muted/30">
+                      <TableRow
+                        key={o.sku}
+                        className="hover:bg-muted/30 cursor-pointer"
+                        onClick={() => o.id && navigate(`/services/${o.id}`)}
+                      >
                         <TableCell className="font-mono text-xs text-muted-foreground">{o.sku}</TableCell>
                         <TableCell className="font-medium">{o.name}</TableCell>
                         <TableCell>
