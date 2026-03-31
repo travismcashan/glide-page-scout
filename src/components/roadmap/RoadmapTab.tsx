@@ -7,8 +7,10 @@ import type { TimelineItem } from "@/types/roadmap";
 import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
-import { PanelLeftOpen, Sparkles, Loader2 } from "lucide-react";
+import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MONTH_NAMES } from "@/data/offerings";
 
 interface RoadmapTabProps {
   sessionId: string;
@@ -35,7 +37,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [loaded, setLoaded] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [catalogVisible, setCatalogVisible] = useState(true);
+  const [outcomesData, setOutcomesData] = useState<Record<number, string[]>>({});
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const outcomesTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const generateOutcomesRef = useRef<(() => Promise<void>) | null>(null);
   const [generatingOutcomes, setGeneratingOutcomes] = useState(false);
 
@@ -70,6 +74,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       setRoadmapId(roadmap.id);
       setStartMonthIndex(roadmap.start_month ?? new Date().getMonth());
       setTotalMonths(roadmap.total_months ?? 12);
+      if (roadmap.outcomes_data && typeof roadmap.outcomes_data === "object") {
+        setOutcomesData(roadmap.outcomes_data as Record<number, string[]>);
+      }
 
       const { data: dbItems } = await supabase
         .from("roadmap_items" as any)
@@ -295,6 +302,15 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     setItems((prev) => prev.map((item) => (item.sku === sku ? { ...item, discountType: type, discountValue: value } : item)));
   }, []);
 
+  const handleOutcomesChange = useCallback((outcomes: Record<number, string[]>) => {
+    setOutcomesData(outcomes);
+    if (!roadmapId) return;
+    if (outcomesTimeoutRef.current) clearTimeout(outcomesTimeoutRef.current);
+    outcomesTimeoutRef.current = setTimeout(async () => {
+      await supabase.from("roadmaps" as any).update({ outcomes_data: outcomes }).eq("id", roadmapId);
+    }, 500);
+  }, [roadmapId]);
+
   const isSelected = useCallback((sku: number) => items.some((i) => i.sku === sku), [items]);
   const getCountForPillar = useCallback((code: string) => items.filter((i) => i.pillar === code).length, [items]);
 
@@ -310,7 +326,55 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     <div className="space-y-8">
       {/* Timeline editor */}
       <div>
-        <h2 className="mb-5 text-4xl font-light tracking-tight text-foreground">12-Month Growth Plan</h2>
+        <div className="mb-5 flex items-end justify-between">
+          <h2 className="text-4xl font-light tracking-tight text-foreground">12-Month Growth Plan</h2>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground">Start</label>
+              <Select
+                value={String(startMonthIndex)}
+                onValueChange={(v) => setStartMonthIndex(Number(v))}
+              >
+                <SelectTrigger className="h-8 w-[100px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTH_NAMES.map((m, i) => (
+                    <SelectItem key={i} value={String(i)}>{m} {new Date().getFullYear() + (i < new Date().getMonth() ? 1 : 0)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground">Duration</label>
+              <Select
+                value={String(totalMonths)}
+                onValueChange={(v) => setTotalMonths(Number(v))}
+              >
+                <SelectTrigger className="h-8 w-[100px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[6, 9, 12, 18, 24].map((m) => (
+                    <SelectItem key={m} value={String(m)}>{m} months</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => {
+                const url = window.location.href;
+                navigator.clipboard.writeText(url);
+              }}
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              Share
+            </Button>
+          </div>
+        </div>
         <div className="flex overflow-hidden rounded-xl border border-border bg-background shadow-sm">
           {catalogVisible && (
             <div className="w-[300px] shrink-0 max-h-[calc(100vh-200px)]">
@@ -407,6 +471,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           offerings={offerings}
           sessionId={sessionId}
           onGenerateRef={(fn) => { generateOutcomesRef.current = fn; }}
+          savedOutcomes={outcomesData}
+          onOutcomesChange={handleOutcomesChange}
         />
       </div>
     </div>
