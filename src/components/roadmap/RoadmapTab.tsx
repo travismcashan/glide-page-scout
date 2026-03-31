@@ -7,6 +7,7 @@ import type { TimelineItem } from "@/types/roadmap";
 import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
+import FeatureMatrix from "@/components/roadmap/FeatureMatrix";
 import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,6 +36,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [startMonthIndex, setStartMonthIndex] = useState(new Date().getMonth());
   const [totalMonths, setTotalMonths] = useState(12);
   const [loaded, setLoaded] = useState(false);
+  const [viewOffset, setViewOffset] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const [catalogVisible, setCatalogVisible] = useState(true);
   const [outcomesData, setOutcomesData] = useState<Record<number, string[]>>({});
@@ -327,13 +329,13 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       {/* Timeline editor */}
       <div>
         <div className="mb-5 flex items-end justify-between">
-          <h2 className="text-4xl font-light tracking-tight text-foreground">12-Month Growth Plan</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-foreground">12-Month Digital Growth Plan</h2>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-xs font-medium text-muted-foreground">Start</label>
               <Select
                 value={String(startMonthIndex)}
-                onValueChange={(v) => setStartMonthIndex(Number(v))}
+                onValueChange={(v) => { setStartMonthIndex(Number(v)); setViewOffset(0); }}
               >
                 <SelectTrigger className="h-8 w-[100px] text-xs">
                   <SelectValue />
@@ -349,7 +351,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               <label className="text-xs font-medium text-muted-foreground">Duration</label>
               <Select
                 value={String(totalMonths)}
-                onValueChange={(v) => setTotalMonths(Number(v))}
+                onValueChange={(v) => { setTotalMonths(Number(v)); setViewOffset(0); }}
               >
                 <SelectTrigger className="h-8 w-[100px] text-xs">
                   <SelectValue />
@@ -408,6 +410,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               offerings={offerings}
               startMonthIndex={startMonthIndex}
               totalMonths={totalMonths}
+              viewOffset={viewOffset}
               onMove={moveItem}
               onResize={resizeItem}
               onRemove={removeItem}
@@ -419,8 +422,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               onSetAdSpend={setItemAdSpend}
               onSetDiscount={setItemDiscount}
               showLastBorder={catalogVisible}
-              onStartMonthChange={(delta) => {
-                setStartMonthIndex((prev) => Math.max(0, Math.min(11, prev + delta)));
+              onViewOffsetChange={(delta) => {
+                setViewOffset((prev) => Math.max(0, prev + delta));
               }}
             />
           </div>
@@ -444,7 +447,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       {/* Investment Options */}
       <div>
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-4xl font-light tracking-tight text-foreground">Investment Options</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-foreground">Investment Options</h2>
           {items.length > 0 && (
             <Button
               size="sm"
@@ -478,6 +481,14 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           onOutcomesChange={handleOutcomesChange}
         />
       </div>
+
+      {/* Feature Comparison Matrix */}
+      {items.length > 0 && (
+        <div>
+          <h2 className="mb-5 text-4xl font-bold tracking-tight text-foreground">What's Included</h2>
+          <FeatureMatrix items={items} offerings={offerings} />
+        </div>
+      )}
     </div>
   );
 }

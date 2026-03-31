@@ -21,6 +21,7 @@ interface TimelineBarProps {
   columnWidth: number;
   totalMonths: number;
   startMonthIndex: number;
+  viewOffset?: number;
   onMove: (sku: number, newStart: number) => void;
   onResize: (sku: number, newStart: number, newDuration: number) => void;
   onRemove: (sku: number) => void;
@@ -126,6 +127,7 @@ export default function TimelineBar({
   onFocus,
   rowIndex,
   rowCount,
+  viewOffset = 0,
 }: TimelineBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
@@ -303,7 +305,7 @@ export default function TimelineBar({
 
   const PAD = 6;
   const visibleDuration = Math.min(item.duration, totalMonths - item.startMonth);
-  const barLeft = item.startMonth * columnWidth + PAD;
+  const barLeft = (item.startMonth - viewOffset) * columnWidth + PAD;
   const barWidth = visibleDuration * columnWidth - PAD * 2;
   const labelText = `${item.name} (${visibleDuration} mo)`;
   const barEnd = item.startMonth + visibleDuration;

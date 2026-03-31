@@ -11,6 +11,7 @@ interface TimelineCanvasProps {
   offerings: Offering[];
   startMonthIndex: number;
   totalMonths: number;
+  viewOffset: number;
   onMove: (sku: number, newStart: number) => void;
   onResize: (sku: number, newStart: number, newDuration: number) => void;
   onRemove: (sku: number) => void;
@@ -22,7 +23,7 @@ interface TimelineCanvasProps {
   onSetAdSpend?: (sku: number, adSpend: number) => void;
   onSetDiscount?: (sku: number, type: "percent" | "fixed" | null, value: number | null) => void;
   showLastBorder?: boolean;
-  onStartMonthChange?: (delta: number) => void;
+  onViewOffsetChange?: (delta: number) => void;
 }
 
 const LANE_LABEL_COLORS: Record<string, string> = {
@@ -44,6 +45,7 @@ export default function TimelineCanvas({
   offerings,
   startMonthIndex,
   totalMonths,
+  viewOffset,
   onMove,
   onResize,
   onRemove,
@@ -55,7 +57,7 @@ export default function TimelineCanvas({
   onSetAdSpend,
   onSetDiscount,
   showLastBorder,
-  onStartMonthChange,
+  onViewOffsetChange,
 }: TimelineCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [columnWidth, setColumnWidth] = useState(80);
@@ -108,15 +110,18 @@ export default function TimelineCanvas({
       const skuStr = e.dataTransfer.getData("application/sku");
       if (!skuStr) return;
       const sku = Number(skuStr);
-      const month = getMonthFromX(e.clientX);
-      onDropOffering(sku, month);
+      const viewportMonth = getMonthFromX(e.clientX);
+      // Convert viewport column to plan-relative month
+      onDropOffering(sku, viewportMonth + viewOffset);
       setDropMonth(null);
     },
-    [getMonthFromX, onDropOffering]
+    [getMonthFromX, onDropOffering, viewOffset]
   );
 
-  const months = getMonthLabels(startMonthIndex, totalMonths);
-  const monthYears = getMonthYearLabels(startMonthIndex, totalMonths);
+  // The visible columns always show totalMonths columns, but shifted by viewOffset
+  const visibleColumns = totalMonths;
+  const months = getMonthLabels(startMonthIndex + viewOffset, visibleColumns);
+  const monthYears = getMonthYearLabels(startMonthIndex + viewOffset, visibleColumns);
   const activePillars = PILLARS.filter((p) =>
     items.some((i) => i.pillar === p.code)
   );
@@ -148,15 +153,15 @@ export default function TimelineCanvas({
       {/* Month headers — drag left/right to shift timeline */}
       <div
         ref={containerRef}
-        className={`flex h-16 border-b border-border bg-foreground ${onStartMonthChange ? "cursor-grab active:cursor-grabbing" : ""}`}
-        onMouseDown={onStartMonthChange ? (e) => {
+        className={`flex h-16 border-b border-border bg-foreground ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
+        onMouseDown={onViewOffsetChange ? (e) => {
           e.preventDefault();
           const startX = e.clientX;
           let lastDelta = 0;
           const onMouseMove = (ev: MouseEvent) => {
             const delta = Math.round((startX - ev.clientX) / columnWidth);
             if (delta !== lastDelta) {
-              onStartMonthChange(delta - lastDelta);
+              onViewOffsetChange(delta - lastDelta);
               lastDelta = delta;
             }
           };
@@ -229,9 +234,11 @@ export default function TimelineCanvas({
                   {pillarItems.map((item, idx) => {
                     const barEnd = item.startMonth + Math.min(item.duration, totalMonths - item.startMonth);
                     const offering = offerings.find((o) => o.sku === item.sku);
-                    // Only GO and TS tracks show ghost continuation bars
-                    const showGhost = (item.pillar === "GO" || item.pillar === "TS") && barEnd < totalMonths;
-                    const ghostStart = barEnd * columnWidth + 6;
+                    // Only GO and TS tracks show ghost continuation bars (after their plan duration ends)
+                    const showGhost = (item.pillar === "GO" || item.pillar === "TS") && barEnd <= totalMonths + viewOffset;
+                    const ghostStartMonth = barEnd;
+                    const ghostStartPx = (ghostStartMonth - viewOffset) * columnWidth + 6;
+                    const ghostEndPx = visibleColumns * columnWidth - 6;
                     const GHOST_COLORS: Record<string, string> = { GO: "bg-pillar-go/50", TS: "bg-pillar-ts/50" };
 
                     return (
@@ -246,6 +253,7 @@ export default function TimelineCanvas({
                           columnWidth={columnWidth}
                           totalMonths={totalMonths}
                           startMonthIndex={startMonthIndex}
+                          viewOffset={viewOffset}
                           onMove={onMove}
                           onResize={onResize}
                           onRemove={onRemove}
@@ -259,12 +267,12 @@ export default function TimelineCanvas({
                           rowIndex={idx}
                           rowCount={pillarItems.length}
                         />
-                        {showGhost && (
+                        {showGhost && ghostEndPx > ghostStartPx && (
                           <div
                             className={`absolute h-10 flex items-center rounded-lg ${GHOST_COLORS[item.pillar] || "bg-muted/50"} border border-dashed border-foreground/15`}
                             style={{
-                              left: `${ghostStart}px`,
-                              width: `${totalMonths * columnWidth - ghostStart - 6}px`,
+                              left: `${Math.max(6, ghostStartPx)}px`,
+                              width: `${ghostEndPx - Math.max(6, ghostStartPx)}px`,
                             }}
                           >
                             <span className="truncate px-2.5 text-sm text-foreground/50 select-none">

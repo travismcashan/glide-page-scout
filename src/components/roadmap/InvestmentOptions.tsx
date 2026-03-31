@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Check } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { TimelineItem } from "@/types/roadmap";
 import type { Offering } from "@/hooks/useServiceOfferings";
+import { PPC_TIERS, PPC_FLAT_FEE, PPC_FLAT_THRESHOLD, isPpcOffering } from "@/lib/ppcPricing";
 
 interface InvestmentOptionsProps {
   items: TimelineItem[];
@@ -137,16 +139,18 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
   );
 }
 
-function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange }: {
+function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle }: {
   option: OptionDef;
   offerings: Offering[];
   outcomes: string[];
   outcomesLoading: boolean;
   discount?: { percent: number } | null;
   onDiscountChange?: (discount: { percent: number } | null) => void;
+  isBundle?: boolean;
 }) {
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
+  const [pricingExpanded, setPricingExpanded] = useState(false);
 
   const rawPrice = computePriceRaw(option.scopeItems, offerings, option.priceMode);
   const isMonthly = option.priceMode === "monthly" || option.priceMode === "monthly-blended";
@@ -169,7 +173,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           {option.name}
         </h3>
       </div>
-      <div className="bg-foreground px-6 py-5">
+      <div className="bg-muted/60 px-6 py-5">
         {onDiscountChange ? (
           <Popover open={discountOpen} onOpenChange={setDiscountOpen}>
             <PopoverTrigger asChild>
@@ -181,10 +185,10 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   setDiscountOpen(true);
                 }}
               >
-                <p className="text-3xl font-bold text-background cursor-pointer hover:text-background/80 transition-colors">
+                <p className="text-3xl font-bold text-foreground cursor-pointer hover:text-foreground/70 transition-colors">
                   {displayPrice}
                   {hasDiscount && (
-                    <span className="ml-2 text-lg font-medium text-background/60">
+                    <span className="ml-2 text-lg font-medium text-muted-foreground">
                       ({discount.percent}% discount)
                     </span>
                   )}
@@ -233,18 +237,18 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             </PopoverContent>
           </Popover>
         ) : (
-          <p className="text-3xl font-bold text-background">
+          <p className="text-3xl font-bold text-foreground">
             {displayPrice}
           </p>
         )}
-        <p className="mt-1 text-sm text-background/60">
+        <p className="mt-1 text-sm text-muted-foreground">
           {option.terms.join(" | ")}
         </p>
       </div>
 
       <div className="border-b border-border px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
-          {option.priceMode === "monthly-blended" ? "WHY BUNDLE?" : "OUTCOMES"}
+          {isBundle ? "WHY BUNDLE?" : "OUTCOMES"}
         </p>
         {outcomesLoading ? (
           <p className="text-sm italic text-muted-foreground">Generating outcomes…</p>
@@ -252,7 +256,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           <p className="text-sm italic text-muted-foreground">Add services to generate outcomes</p>
         ) : (
           <ul className="space-y-2.5">
-            {outcomes.map((outcome, i) => (
+            {(isBundle ? outcomes : outcomes.slice(0, option.scopeItems.length)).map((outcome, i) => (
               <li key={i} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
                 <span className="text-sm text-foreground">{outcome}</span>
@@ -270,6 +274,24 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           <p className="text-sm italic text-muted-foreground">
             Add services to the timeline to populate
           </p>
+        ) : isBundle ? (
+          <ul className="space-y-2.5 pl-3">
+            <li className="flex items-start gap-2.5">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground">Everything in Option 1</span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground">Everything in Option 2</span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm text-foreground">
+                <span className="font-medium">Quarterly Strategic Review</span>
+                <span className="ml-1.5 text-muted-foreground">with your dedicated senior team</span>
+              </span>
+            </li>
+          </ul>
         ) : (
           <ul className="space-y-2.5 pl-3">
             {option.scopeItems.map((si) => (
@@ -284,7 +306,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         )}
       </div>
 
-      {/* Pricing math breakdown table */}
+      {/* Collapsible pricing breakdown */}
       {option.scopeItems.length > 0 && (() => {
         const fixedItems: Array<{ name: string; price: number }> = [];
         const recurringItems: Array<{ name: string; price: number; months: number; total: number }> = [];
@@ -313,98 +335,155 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         if (fixedItems.length === 0 && recurringItems.length === 0 && tmItems.length === 0) return null;
 
         return (
-          <div className="border-t border-border px-6 py-5">
-            <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
-              PRICING BREAKDOWN
-            </p>
-            <table className="w-full text-sm">
-              <tbody>
-                {fixedItems.length > 0 && (
-                  <>
-                    {fixedItems.map((fi) => (
-                      <tr key={fi.name}>
-                        <td className="py-1.5 text-foreground">{fi.name}</td>
-                        <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(fi.price)}</td>
-                      </tr>
-                    ))}
-                    {(recurringItems.length > 0 || fixedItems.length > 1) && (
-                      <tr className="border-t border-foreground/20">
-                        <td className="py-1.5 font-semibold text-foreground">Fixed Subtotal</td>
-                        <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
-                      </tr>
-                    )}
-                  </>
-                )}
-                {recurringItems.length > 0 && (
-                  <>
-                    {recurringItems.map((ri) => (
-                      <tr key={ri.name}>
-                        <td className="py-1.5">
-                          <span className="text-foreground">{ri.name}</span>
-                          <span className="ml-1.5 text-muted-foreground/50">
-                            ({formatCurrency(ri.price)}/mo x {ri.months} mo)
-                          </span>
-                        </td>
-                        <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(ri.total)}</td>
-                      </tr>
-                    ))}
-                    {(fixedItems.length > 0 || recurringItems.length > 1) && (
-                      <tr className="border-t border-foreground/20">
-                        <td className="py-1.5 font-semibold text-foreground">Recurring Subtotal</td>
-                        <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
-                      </tr>
-                    )}
-                  </>
-                )}
-                {tmItems.length > 0 && tmItems.map((ti) => (
-                  <tr key={ti.name}>
-                    <td className="py-1.5 text-foreground">{ti.name}</td>
-                    <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">T&M</td>
-                  </tr>
-                ))}
-                {/* Grand total row — clean math, no box */}
-                {(() => {
-                  const monthlyTotal = recurringItems.reduce((s, ri) => s + ri.price, 0);
-                  const isMonthlyMode = option.priceMode === "monthly";
-
-                  if (isMonthlyMode && recurringItems.length > 1) {
-                    return (
-                      <>
-                        <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
-                        <tr>
-                          <td className="py-1.5 font-bold text-foreground">Monthly Total</td>
-                          <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
+          <div className="border-t border-border px-6 py-4">
+            <button
+              className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => { e.stopPropagation(); setPricingExpanded(!pricingExpanded); }}
+            >
+              {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
+            </button>
+            {pricingExpanded && (<>
+              <table className="mt-4 w-full text-sm">
+                <tbody>
+                  {fixedItems.length > 0 && (
+                    <>
+                      {fixedItems.map((fi) => (
+                        <tr key={fi.name}>
+                          <td className="py-1.5 text-foreground">{fi.name}</td>
+                          <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(fi.price)}</td>
                         </tr>
-                      </>
-                    );
-                  }
-
-                  if (fixedItems.length > 0 && recurringItems.length > 0) {
-                    return (
-                      <>
-                        <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
-                        <tr>
-                          <td className="py-1.5 font-bold text-foreground">Grand Total</td>
-                          <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
+                      ))}
+                      {(recurringItems.length > 0 || fixedItems.length > 1) && (
+                        <tr className="border-t border-foreground/20">
+                          <td className="py-1.5 font-semibold text-foreground">Fixed Subtotal</td>
+                          <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
                         </tr>
-                        {option.priceMode === "monthly-blended" && (
+                      )}
+                    </>
+                  )}
+                  {recurringItems.length > 0 && (
+                    <>
+                      {recurringItems.map((ri) => (
+                        <tr key={ri.name}>
+                          <td className="py-1.5">
+                            <span className="text-foreground">{ri.name}</span>
+                            <span className="ml-1.5 text-muted-foreground/50">
+                              ({formatCurrency(ri.price)}/mo x {ri.months} mo)
+                            </span>
+                          </td>
+                          <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(ri.total)}</td>
+                        </tr>
+                      ))}
+                      {(fixedItems.length > 0 || recurringItems.length > 1) && (
+                        <tr className="border-t border-foreground/20">
+                          <td className="py-1.5 font-semibold text-foreground">Recurring Subtotal</td>
+                          <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
+                        </tr>
+                      )}
+                    </>
+                  )}
+                  {tmItems.length > 0 && tmItems.map((ti) => (
+                    <tr key={ti.name}>
+                      <td className="py-1.5 text-foreground">{ti.name}</td>
+                      <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">T&M</td>
+                    </tr>
+                  ))}
+                  {/* Quarterly Strategic Review for bundle */}
+                  {isBundle && (
+                    <tr>
+                      <td className="py-1.5 text-foreground">Quarterly Strategic Review</td>
+                      <td className="py-1.5 text-right text-emerald-600 font-medium tabular-nums italic">Included</td>
+                    </tr>
+                  )}
+                  {/* Grand total row */}
+                  {(() => {
+                    const monthlyTotal = recurringItems.reduce((s, ri) => s + ri.price, 0);
+                    const isMonthlyMode = option.priceMode === "monthly";
+
+                    if (isMonthlyMode && recurringItems.length > 1) {
+                      return (
+                        <>
+                          <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
                           <tr>
-                            <td className="py-1.5 text-muted-foreground">
-                              {formatCurrency(grandTotal)} / 12 months
-                            </td>
-                            <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">
-                              {formatCurrency(grandTotal / 12)}/mo
-                            </td>
+                            <td className="py-1.5 font-bold text-foreground">Monthly Total</td>
+                            <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
                           </tr>
-                        )}
-                      </>
-                    );
-                  }
+                        </>
+                      );
+                    }
 
-                  return null;
-                })()}
-              </tbody>
-            </table>
+                    if (fixedItems.length > 0 && recurringItems.length > 0) {
+                      return (
+                        <>
+                          <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
+                          <tr>
+                            <td className="py-1.5 font-bold text-foreground">Grand Total</td>
+                            <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
+                          </tr>
+                          {option.priceMode === "monthly-blended" && (
+                            <tr>
+                              <td className="py-1.5 text-muted-foreground">
+                                {formatCurrency(grandTotal)} / 12 months
+                              </td>
+                              <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">
+                                {formatCurrency(grandTotal / 12)}/mo
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    }
+
+                    return null;
+                  })()}
+                </tbody>
+              </table>
+              {/* Ad spend disclaimer for PPC */}
+              {option.scopeItems.some((si) => isPpcOffering(si.name)) && (
+                <div className="mt-3 flex items-start gap-1.5">
+                  <span className="text-xs text-muted-foreground/70">*</span>
+                  <span className="text-xs text-muted-foreground/70">
+                    Does not include the cost of ad spend.{" "}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="inline-flex items-center gap-0.5 text-xs text-primary/70 hover:text-primary underline decoration-dotted underline-offset-2 transition-colors">
+                          View PPC pricing tiers
+                          <Info className="h-3 w-3" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="w-72 p-0">
+                        <div className="p-3">
+                          <p className="mb-2 text-xs font-semibold">PPC Management Fee Tiers</p>
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="py-1 text-left font-medium text-muted-foreground">Monthly Ad Spend</th>
+                                <th className="py-1 text-right font-medium text-muted-foreground">Management Fee</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="border-b border-border/50">
+                                <td className="py-1">Under ${(PPC_FLAT_THRESHOLD / 1000).toFixed(0)}k</td>
+                                <td className="py-1 text-right">Flat ${PPC_FLAT_FEE.toLocaleString()}/mo</td>
+                              </tr>
+                              {PPC_TIERS.map((tier, i) => (
+                                <tr key={i} className="border-b border-border/50 last:border-b-0">
+                                  <td className="py-1">
+                                    ${(tier.min / 1000).toFixed(0)}k{tier.max === Infinity ? "+" : `–$${(tier.max / 1000).toFixed(0)}k`}
+                                  </td>
+                                  <td className="py-1 text-right">{tier.pct}% of ad spend</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </span>
+                </div>
+              )}
+            </>)}
           </div>
         );
       })()}
@@ -537,6 +616,7 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
               outcomesLoading={!!loadingByIdx[idx]}
               discount={idx === 2 ? option3Discount : undefined}
               onDiscountChange={idx === 2 ? setOption3Discount : undefined}
+              isBundle={idx === 2}
             />
           </div>
         ))}
@@ -567,6 +647,7 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
           outcomesLoading={!!loadingByIdx[expandedIdx]}
           discount={expandedIdx === 2 ? option3Discount : undefined}
           onDiscountChange={expandedIdx === 2 ? setOption3Discount : undefined}
+          isBundle={expandedIdx === 2}
         />
       </div>
     </div>
