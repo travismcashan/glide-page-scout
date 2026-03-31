@@ -308,6 +308,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     <div className="space-y-8">
       {/* Timeline editor */}
       <div>
+        <h2 className="mb-5 text-3xl font-bold tracking-tight text-foreground">12-Month Growth Plan</h2>
         <div className="flex overflow-hidden rounded-xl border border-border bg-background shadow-sm">
           {catalogVisible && (
             <div className="w-[300px] shrink-0 max-h-[calc(100vh-200px)]">
@@ -372,7 +373,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
 
       {/* Investment Options */}
       <div>
-        <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">Investment Options</h2>
+        <h2 className="mb-5 text-3xl font-bold tracking-tight text-foreground">Investment Options</h2>
         <InvestmentOptions items={items} offerings={offerings} />
       </div>
     </div>

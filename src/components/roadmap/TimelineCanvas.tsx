@@ -142,18 +142,21 @@ export default function TimelineCanvas({
       onDrop={handleDrop}
     >
       {/* Month headers */}
-      <div ref={containerRef} className="flex h-14 border-b border-border bg-foreground">
-        {monthYears.map((my, i) => (
-          <div
-            key={i}
-            className={`flex-1 flex flex-col items-center justify-center border-r border-foreground/20 transition-colors last:border-r-0 ${
-              dropMonth === i ? "bg-accent" : ""
-            }`}
-          >
-            <span className="text-sm font-bold text-background">{my.month}</span>
-            <span className="text-[10px] font-normal text-background/50">{my.year}</span>
-          </div>
-        ))}
+      <div ref={containerRef} className="flex h-16 border-b border-border bg-foreground">
+        {monthYears.map((my, i) => {
+          const isYearEnd = i < monthYears.length - 1 && monthYears[i].year !== monthYears[i + 1].year;
+          return (
+            <div
+              key={i}
+              className={`flex-1 flex flex-col items-center justify-center border-r transition-colors last:border-r-0 ${
+                isYearEnd ? "border-background/40" : "border-foreground/20"
+              } ${dropMonth === i ? "bg-accent" : ""}`}
+            >
+              <span className="text-base font-bold text-background">{my.month}</span>
+              <span className="text-xs font-normal text-background/60">{my.year}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Swim lanes */}
@@ -186,12 +189,15 @@ export default function TimelineCanvas({
           const laneHeight = gap + pillarItems.length * (barHeight + gap);
 
           return (
-            <div key={pillar.code} className="relative border-b border-border">
+            <div key={pillar.code} className="relative border-b border-foreground/50">
               <div className="relative">
                 <div className="absolute inset-0 flex">
-                  {months.map((_, i) => (
-                    <div key={i} className="flex-1 border-r border-border/50 last:border-r-0" />
-                  ))}
+                  {months.map((_, i) => {
+                    const isYearEnd = i < monthYears.length - 1 && monthYears[i].year !== monthYears[i + 1].year;
+                    return (
+                      <div key={i} className={`flex-1 border-r last:border-r-0 ${isYearEnd ? "border-foreground/50" : "border-foreground/25"}`} />
+                    );
+                  })}
                 </div>
                 <div className="relative" style={{ height: `${laneHeight}px` }}>
                   {pillarItems.map((item, idx) => (
