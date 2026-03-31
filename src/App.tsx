@@ -68,6 +68,7 @@ const App = () => (
               <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
               <Route path="/sites" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
               <Route path="/lists" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
+              <Route path="/lists/:groupId/:tab" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
               <Route path="/lists/:groupId" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
               {/* Legacy redirects */}
               <Route path="/groups" element={<Navigate to="/lists" replace />} />
@@ -82,10 +83,10 @@ const App = () => (
               <Route path="/brand" element={<ProtectedRoute><BrandGuidePage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <Analytics />
             </ErrorBoundary>
           </BrowserRouter>
         </TooltipProvider>
-        <Analytics />
         </ProductProvider>
       </AuthProvider>
     </ThemeProvider>

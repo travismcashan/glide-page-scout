@@ -437,9 +437,10 @@ export default function ConnectionsPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 py-8">
         <div className="mb-6">
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-2xl font-bold tracking-tight">Connections</h1>
+          <p className="text-muted-foreground text-sm mt-1">
             Connect your accounts once — they stay active across all scans. No more re-authenticating every session.
           </p>
         </div>

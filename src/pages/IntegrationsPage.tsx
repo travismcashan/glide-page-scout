@@ -262,7 +262,7 @@ export default function IntegrationsPage() {
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Integrations</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {activeCount} active{pausedCount > 0 && <> · {pausedCount} paused</>}
               {' · '}{activeIntegrations.filter(i => i.tier === 'free').length} free · {activeIntegrations.filter(i => i.tier === 'premium').length} premium

@@ -644,18 +644,31 @@ function AddSiteDialog({
 
 // ── Main Page ──────────────────────────────────────────────────
 
+const LIST_TABS = ['sites', 'scores', 'performance', 'technology', 'comparison', 'chat'] as const;
+type ListTab = typeof LIST_TABS[number];
+
 export default function GroupDetailPage() {
-  const { groupId } = useParams<{ groupId: string }>();
+  const { groupId, tab: tabParam } = useParams<{ groupId: string; tab?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSharedView = searchParams.get('view') === 'shared';
+  const resolvedTab: ListTab = (LIST_TABS as readonly string[]).includes(tabParam ?? '') ? (tabParam as ListTab) : 'sites';
   const [group, setGroup] = useState<{ id: string; name: string; slug: string; description: string | null } | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [progress, setProgress] = useState<Map<string, IntegrationProgress>>(new Map());
   const [integrationRuns, setIntegrationRuns] = useState<Map<string, IntegrationRun[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [mainTab, setMainTab] = useState('sites');
+  const mainTab = resolvedTab;
+  const setMainTab = (tab: string) => {
+    const slug = group?.slug ?? groupId;
+    const search = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    if (tab === 'sites') {
+      navigate(`/lists/${slug}${search}`, { replace: true });
+    } else {
+      navigate(`/lists/${slug}/${tab}${search}`, { replace: true });
+    }
+  };
 
   // Sticky tab bar on scroll-up
   const groupTabBarRef = useRef<HTMLDivElement>(null);
@@ -717,7 +730,8 @@ export default function GroupDetailPage() {
     // Redirect UUID URLs to slug URL for canonical links
     if (isUuidParam && groupData.slug) {
       const search = window.location.search;
-      navigate(`/lists/${groupData.slug}${search}`, { replace: true });
+      const tabSuffix = tabParam && tabParam !== 'sites' ? `/${tabParam}` : '';
+      navigate(`/lists/${groupData.slug}${tabSuffix}${search}`, { replace: true });
     }
     const { data: memberRows } = await supabase
       .from('site_group_members').select('*').eq('group_id', groupData.id).order('priority', { ascending: true });
@@ -1034,7 +1048,8 @@ export default function GroupDetailPage() {
                       const newSlug = slugifyName(trimmed);
                       await supabase.from('site_groups').update({ name: trimmed, slug: newSlug }).eq('id', group.id);
                       setGroup(g => g ? { ...g, name: trimmed, slug: newSlug } : g);
-                      navigate(`/lists/${newSlug}${window.location.search}`, { replace: true });
+                      const tabSuffix = mainTab !== 'sites' ? `/${mainTab}` : '';
+                      navigate(`/lists/${newSlug}${tabSuffix}${window.location.search}`, { replace: true });
                       toast.success('List renamed');
                     }
                     setEditingName(false);

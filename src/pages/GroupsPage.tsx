@@ -189,15 +189,17 @@ export default function GroupsPage() {
                 onClick={() => navigate(buildListPath(g.slug))}
               >
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-semibold">{g.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{g.name}</span>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                      <Globe className="h-3 w-3" />{g.member_count}
+                    </span>
+                  </div>
                   {g.description && (
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{g.description}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Globe className="h-3 w-3" /> {g.member_count} site{g.member_count !== 1 ? 's' : ''}
-                  </span>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" /> {format(new Date(g.created_at), 'MMM d, yyyy')}
                   </span>
