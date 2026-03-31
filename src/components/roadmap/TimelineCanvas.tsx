@@ -193,15 +193,12 @@ export default function TimelineCanvas({
           const showBorder = !isLastPillar || showLastBorder;
 
           return (
-            <div key={pillar.code} className={`relative ${showBorder ? "border-b border-foreground/25" : ""}`}>
+            <div key={pillar.code} className={`relative ${showBorder ? "border-b-[3px] border-foreground/25" : ""}`}>
               <div className="relative">
                 <div className="absolute inset-0 flex">
-                  {months.map((_, i) => {
-                    const isYearEnd = i < monthYears.length - 1 && monthYears[i].year !== monthYears[i + 1].year;
-                    return (
-                      <div key={i} className={`flex-1 border-r last:border-r-0 ${isYearEnd ? "border-foreground/25" : "border-foreground/10"}`} />
-                    );
-                  })}
+                  {months.map((_, i) => (
+                    <div key={i} className="flex-1 border-r border-foreground/25 last:border-r-0" />
+                  ))}
                 </div>
                 <div className="relative" style={{ height: `${laneHeight}px` }}>
                   {pillarItems.map((item, idx) => (
