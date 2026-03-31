@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
@@ -14,8 +16,10 @@ const GLOBAL_SESSION_DOMAIN = '__global_chat__';
 type AttachedSite = { session_id: string; domain: string };
 
 export default function GlobalChatPage() {
+  const navigate = useNavigate();
   const [globalSession, setGlobalSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [threadTitle, setThreadTitle] = useState<string | null>(null);
   const initialChatSelectionRef = useRef(resolveStoredChatSelection());
   const initialChatSelection = initialChatSelectionRef.current;
 
@@ -168,6 +172,21 @@ export default function GlobalChatPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
 
+      {/* Breadcrumb bar — scrolls with page, not sticky */}
+      <div className="border-b border-border/50">
+        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
+          <h1 className="text-[1.5rem] font-semibold tracking-tight leading-none flex items-center gap-1.5">
+            <button onClick={() => navigate('/chat')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">Chat</button>
+            {threadTitle && (
+              <>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <span className="text-foreground truncate max-w-[400px]">{threadTitle}</span>
+              </>
+            )}
+          </h1>
+        </div>
+      </div>
+
       <div className="flex-1">
         <ErrorBoundary fallback={
           <div className="flex-1 flex items-center justify-center p-8 text-center">
@@ -196,6 +215,7 @@ export default function GlobalChatPage() {
             attachedSites={attachedSites}
             onSelectSite={handleSelectSite}
             onDetachSite={handleDetachSite}
+            onThreadTitleChange={setThreadTitle}
           />
         </ErrorBoundary>
       </div>

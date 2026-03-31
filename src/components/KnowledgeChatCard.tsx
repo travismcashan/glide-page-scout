@@ -77,6 +77,8 @@ type Props = {
   /** Callback to attach a site by session ID + domain */
   onSelectSite?: (sessionId: string, domain: string) => void;
   onDetachSite?: (sessionId: string) => void;
+  /** Callback when active thread title changes (for breadcrumb display) */
+  onThreadTitleChange?: (title: string | null) => void;
 };
 
 const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
@@ -1030,7 +1032,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite, onThreadTitleChange }: Props) {
   const isMobile = useIsMobile();
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1098,6 +1100,13 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const threadInitRef = useRef<string | null>(null);
   const queuedPromptRef = useRef<{ text: string; deepResearch: boolean; threadId: string } | null>(null);
+
+  // Notify parent when active thread title changes
+  useEffect(() => {
+    if (!onThreadTitleChange || !activeThreadId) { onThreadTitleChange?.(null); return; }
+    supabase.from('chat_threads').select('title').eq('id', activeThreadId).single()
+      .then(({ data }) => { if (data?.title) onThreadTitleChange(data.title); });
+  }, [activeThreadId, sidebarRefreshKey]); // sidebarRefreshKey changes when title is updated
 
   const crawlContext = globalMode ? '' : buildCrawlContext(session, pages);
 
