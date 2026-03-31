@@ -313,7 +313,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                       </tr>
                     ))}
                     {(recurringItems.length > 0 || fixedItems.length > 1) && (
-                      <tr className="border-t border-foreground/20">
+                      <tr className="border-t border-foreground/20 bg-foreground/5">
                         <td className="py-1.5 font-semibold text-foreground">Fixed Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
                       </tr>
@@ -334,7 +334,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                       </tr>
                     ))}
                     {(fixedItems.length > 0 || recurringItems.length > 1) && (
-                      <tr className="border-t border-foreground/20">
+                      <tr className="border-t border-foreground/20 bg-foreground/5">
                         <td className="py-1.5 font-semibold text-foreground">Recurring Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
                       </tr>
