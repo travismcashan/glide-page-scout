@@ -21,6 +21,7 @@ interface TimelineCanvasProps {
   onSetPrice?: (sku: number, price: number) => void;
   onSetAdSpend?: (sku: number, adSpend: number) => void;
   onSetDiscount?: (sku: number, type: "percent" | "fixed" | null, value: number | null) => void;
+  showLastBorder?: boolean;
 }
 
 const LANE_LABEL_COLORS: Record<string, string> = {
@@ -52,6 +53,7 @@ export default function TimelineCanvas({
   onSetPrice,
   onSetAdSpend,
   onSetDiscount,
+  showLastBorder,
 }: TimelineCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [columnWidth, setColumnWidth] = useState(80);
@@ -185,12 +187,13 @@ export default function TimelineCanvas({
         {activePillars.map((pillar, pillarIdx) => {
           const pillarItems = items.filter((i) => i.pillar === pillar.code).sort((a, b) => a.sortOrder - b.sortOrder);
           const barHeight = 40;
-          const gap = 8;
+          const gap = 6;
           const laneHeight = gap + pillarItems.length * (barHeight + gap);
           const isLastPillar = pillarIdx === activePillars.length - 1;
+          const showBorder = !isLastPillar || showLastBorder;
 
           return (
-            <div key={pillar.code} className={`relative ${isLastPillar ? "" : "border-b border-foreground/25"}`}>
+            <div key={pillar.code} className={`relative ${showBorder ? "border-b border-foreground/25" : ""}`}>
               <div className="relative">
                 <div className="absolute inset-0 flex">
                   {months.map((_, i) => {

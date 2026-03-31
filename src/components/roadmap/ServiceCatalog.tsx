@@ -15,26 +15,26 @@ interface ServiceCatalogProps {
   onShowAllChange: (v: boolean) => void;
   isSelected: (sku: number) => boolean;
   onToggle: (sku: number) => void;
-  getCountForPillar: (code: string) => number;
+  getCountForPillar?: (code: string) => number;
   onCollapse?: () => void;
 }
 
 const PILLAR_STYLES: Record<string, { chip: string; chipSelected: string }> = {
   IS: {
-    chip: "border-pillar-is/20 hover:bg-pillar-is-light",
-    chipSelected: "bg-pillar-is-light border-pillar-is/40 text-pillar-is-foreground",
+    chip: "hover:bg-pillar-is-light",
+    chipSelected: "bg-pillar-is-light text-pillar-is-foreground",
   },
   FB: {
-    chip: "border-pillar-fb/20 hover:bg-pillar-fb-light",
-    chipSelected: "bg-pillar-fb-light border-pillar-fb/40 text-pillar-fb-foreground",
+    chip: "hover:bg-pillar-fb-light",
+    chipSelected: "bg-pillar-fb-light text-pillar-fb-foreground",
   },
   GO: {
-    chip: "border-pillar-go/20 hover:bg-pillar-go-light",
-    chipSelected: "bg-pillar-go-light border-pillar-go/40 text-pillar-go-foreground",
+    chip: "hover:bg-pillar-go-light",
+    chipSelected: "bg-pillar-go-light text-pillar-go-foreground",
   },
   TS: {
-    chip: "border-pillar-ts/20 hover:bg-pillar-ts-light",
-    chipSelected: "bg-pillar-ts-light border-pillar-ts/40 text-pillar-ts-foreground",
+    chip: "hover:bg-pillar-ts-light",
+    chipSelected: "bg-pillar-ts-light text-pillar-ts-foreground",
   },
 };
 
@@ -76,8 +76,6 @@ export default function ServiceCatalog({
           const pillarOfferings = offerings.filter(
             (o) => o.pillar === p.code && !o.phaseOf && (showAll || o.roadmapGrade)
           );
-          const count = getCountForPillar(p.code);
-
           return (
             <Collapsible key={p.code} defaultOpen>
               <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-1 py-2 text-left hover:bg-accent/50">
@@ -86,16 +84,9 @@ export default function ServiceCatalog({
                 <span className="flex-1 text-xs font-semibold text-foreground">
                   {p.name} ({p.code})
                 </span>
-                {count > 0 && (
-                  <span
-                    className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-primary-foreground ${DOT_COLORS[p.code]}`}
-                  >
-                    {count}
-                  </span>
-                )}
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="flex flex-col gap-1 pb-2 pl-6">
+                <div className="flex flex-col gap-0.5 pb-2 pl-6">
                   {pillarOfferings.map((o) => {
                     const selected = isSelected(o.sku);
                     const styles = PILLAR_STYLES[p.code];
@@ -108,7 +99,7 @@ export default function ServiceCatalog({
                           e.dataTransfer.effectAllowed = "copy";
                         }}
                         onClick={() => onToggle(o.sku)}
-                        className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-sm transition-all ${
+                        className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-all ${
                           selected ? styles.chipSelected : `${styles.chip} cursor-grab active:cursor-grabbing`
                         }`}
                       >
