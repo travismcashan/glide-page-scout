@@ -6,7 +6,7 @@ import { useServiceOfferings, type Offering } from "@/hooks/useServiceOfferings"
 import type { TimelineItem } from "@/types/roadmap";
 import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
-import InvestmentOptions, { type InvestmentOptionsHandle } from "@/components/roadmap/InvestmentOptions";
+import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
 import { PanelLeftOpen, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,7 +36,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [showAll, setShowAll] = useState(false);
   const [catalogVisible, setCatalogVisible] = useState(true);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  const investmentRef = useRef<InvestmentOptionsHandle>(null);
+  const generateOutcomesRef = useRef<(() => Promise<void>) | null>(null);
   const [generatingOutcomes, setGeneratingOutcomes] = useState(false);
 
   // Load or create roadmap for this session
@@ -384,9 +384,10 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               className="gap-1.5 bg-foreground text-background hover:bg-foreground/80 transition-colors"
               disabled={generatingOutcomes}
               onClick={async () => {
+                if (!generateOutcomesRef.current) return;
                 setGeneratingOutcomes(true);
                 try {
-                  await investmentRef.current?.generateOutcomes();
+                  await generateOutcomesRef.current();
                 } finally {
                   setGeneratingOutcomes(false);
                 }
@@ -401,7 +402,12 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
             </Button>
           )}
         </div>
-        <InvestmentOptions ref={investmentRef} items={items} offerings={offerings} sessionId={sessionId} />
+        <InvestmentOptions
+          items={items}
+          offerings={offerings}
+          sessionId={sessionId}
+          onGenerateRef={(fn) => { generateOutcomesRef.current = fn; }}
+        />
       </div>
     </div>
   );

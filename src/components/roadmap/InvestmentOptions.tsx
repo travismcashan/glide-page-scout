@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { TimelineItem } from "@/types/roadmap";
 import type { Offering } from "@/hooks/useServiceOfferings";
-import { isPpcOffering, getPpcTierLabel } from "@/lib/ppcPricing";
 
 interface InvestmentOptionsProps {
   items: TimelineItem[];
   offerings: Offering[];
   sessionId?: string;
+  onGenerateRef?: (fn: () => Promise<void>) => void;
 }
 
 function formatCurrency(value: number): string {
@@ -88,6 +88,13 @@ function computePriceRaw(
   return totalFixed + totalMonthly;
 }
 
+/** Round headline price to clean number based on mode */
+function roundHeadline(value: number, mode: PriceMode): number {
+  if (mode === "monthly-blended") return Math.round(value / 500) * 500;   // nearest $500
+  if (mode === "monthly") return Math.round(value / 250) * 250;           // nearest $250
+  return Math.round(value / 1000) * 1000;                                  // nearest $1,000
+}
+
 function computePrice(
   scopeItems: TimelineItem[],
   offerings: Offering[],
@@ -95,8 +102,9 @@ function computePrice(
 ): string {
   const raw = computePriceRaw(scopeItems, offerings, mode);
   if (raw == null) return "—";
+  const rounded = roundHeadline(raw, mode);
   const suffix = mode === "monthly" || mode === "monthly-blended" ? "/mo" : "";
-  return `${formatCurrency(raw)}${suffix}`;
+  return `${formatCurrency(rounded)}${suffix}`;
 }
 
 interface OptionDef {
@@ -139,7 +147,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   const isMonthly = option.priceMode === "monthly" || option.priceMode === "monthly-blended";
   const hasDiscount = discount && discount.percent > 0 && rawPrice != null;
   const displayPrice = hasDiscount
-    ? `${formatCurrency(rawPrice * (1 - discount.percent / 100))}${isMonthly ? "/mo" : ""}`
+    ? `${formatCurrency(roundHeadline(rawPrice * (1 - discount.percent / 100), option.priceMode))}${isMonthly ? "/mo" : ""}`
     : computePrice(option.scopeItems, offerings, option.priceMode);
 
   return (
@@ -255,47 +263,14 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           </p>
         ) : (
           <ul className="space-y-2.5">
-            {option.scopeItems.map((si) => {
-              const offering = offerings.find((o) => o.sku === si.sku);
-              const recurring = offering && isRecurring(offering);
-              const isPpc = offering ? isPpcOffering(offering.name) : false;
-              return (
-                <li key={si.sku} className="flex flex-col gap-1 break-inside-avoid">
-                  <div className="flex items-start gap-2.5">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
-                    <span className="text-sm font-medium text-foreground">
-                      {shortName(si.name)}
-                      {offering?.billingType === "T&M" && si.unitPrice == null ? (
-                        <span className="ml-1.5 text-muted-foreground">
-                          (T&M at {formatCurrency(offering.hourlyRateExternal ?? 150)}/hr)
-                        </span>
-                      ) : si.unitPrice != null ? (
-                        <span className="ml-1.5 text-muted-foreground">
-                          {(() => {
-                            const discounted = applyItemDiscount(si.unitPrice, si);
-                            if (isPpc) {
-                              return `(${formatCurrency(discounted)}/mo)`;
-                            }
-                            if (recurring) {
-                              return `(${formatCurrency(discounted)}/mo)`;
-                            }
-                            return `(${formatCurrency(discounted)})`;
-                          })()}
-                        </span>
-                      ) : null}
-                    </span>
-                  </div>
-                  {isPpc && si.estimatedAdSpend != null && si.estimatedAdSpend > 0 && (
-                    <div className="ml-5 flex items-center gap-1.5">
-                      <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-                      <span className="text-xs text-muted-foreground">
-                        Est. ad spend: {formatCurrency(si.estimatedAdSpend)}/mo
-                      </span>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+            {option.scopeItems.map((si) => (
+              <li key={si.sku} className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                <span className="text-sm font-medium text-foreground">
+                  {shortName(si.name)}
+                </span>
+              </li>
+            ))}
           </ul>
         )}
       </div>
@@ -416,13 +391,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   );
 }
 
-export interface InvestmentOptionsHandle {
-  generateOutcomes: () => Promise<void>;
-  isGenerating: boolean;
-  hasOutcomes: boolean;
-}
-
-const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsProps>(function InvestmentOptions({ items, offerings, sessionId }, ref) {
+export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef }: InvestmentOptionsProps) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [option3Discount, setOption3Discount] = useState<{ percent: number } | null>(null);
 
@@ -521,13 +490,10 @@ const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsP
   }, [items, offerings, sessionId]);
 
   const isGenerating = Object.values(loadingByIdx).some(Boolean);
-  const hasOutcomes = Object.values(outcomesByIdx).some((arr) => arr.length > 0);
 
-  useImperativeHandle(ref, () => ({
-    generateOutcomes: generateAllOutcomes,
-    isGenerating,
-    hasOutcomes,
-  }), [generateAllOutcomes, isGenerating, hasOutcomes]);
+  useEffect(() => {
+    if (onGenerateRef) onGenerateRef(generateAllOutcomes);
+  }, [onGenerateRef, generateAllOutcomes]);
 
   if (expandedIdx === null) {
     return (
@@ -605,6 +571,4 @@ const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsP
       {expandedCard}
     </div>
   );
-});
-
-export default InvestmentOptions;
+}
