@@ -186,6 +186,7 @@ body[data-scroll-locked] {
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-size: 17px;
   }
 
   code, pre, .font-mono {
