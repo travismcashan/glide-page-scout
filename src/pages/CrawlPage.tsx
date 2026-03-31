@@ -196,7 +196,10 @@ export default function CrawlPage() {
     }
   };
 
-  const firstName = profile?.display_name?.split(' ')[0] || null;
+  const firstName = (() => {
+    const n = profile?.display_name?.split(' ')[0];
+    return n ? n.charAt(0).toUpperCase() + n.slice(1) : null;
+  })();
 
   // Compute multiDomain map for recent views
   const multiDomains = useMemo(() => {
