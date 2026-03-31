@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -10,15 +11,21 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { LogOut, Settings, Shield, ChevronDown, Check, Menu, Link2, Heart, Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
-import { Badge } from '@/components/ui/badge';
+import { useProduct, PRODUCTS, type ProductId } from '@/contexts/ProductContext';
 import { AnimatedLogo } from '@/components/AnimatedLogo';
+import { AnimatedProductIcon } from '@/components/AnimatedProductIcon';
 import { useActiveCrawl } from '@/hooks/use-active-crawl';
+
+function darkenHex(hex: string, factor = 0.55): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgb(${Math.round(r * factor)}, ${Math.round(g * factor)}, ${Math.round(b * factor)})`;
+}
 
 const NAV_ITEMS = [
   { label: 'Chat', to: '/chat' },
@@ -36,32 +43,167 @@ export default function AppHeader() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const { currentProduct, setCurrentProduct } = useProduct();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [hoveredId, setHoveredId] = useState<ProductId | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCrawling = useActiveCrawl();
 
   const linkBase =
     'text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md';
   const linkActive = 'text-foreground bg-accent/10';
 
-  const ProductIcon = currentProduct.icon;
+  const previewProduct = hoveredId ? PRODUCTS.find(p => p.id === hoveredId) : null;
+  const displayProduct = previewProduct || currentProduct;
+  const PreviewIcon = displayProduct.icon;
+
+  const openSwitcher = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setSwitcherOpen(true);
+  };
+  const closeSwitcher = () => {
+    closeTimer.current = setTimeout(() => {
+      setSwitcherOpen(false);
+      setHoveredId(null);
+    }, 120);
+  };
 
   const isNavActive = (item: typeof NAV_ITEMS[number]) =>
     location.pathname === item.to || (item.matchPrefix && location.pathname.startsWith(item.matchPrefix));
 
   return (
-    <header className="border-b border-black/50 bg-background sticky top-0 z-40 shadow-sm shadow-primary/[0.03]">
+    <header className="border-b border-foreground/15 bg-background sticky top-0 z-40">
       <div className="mx-auto px-3 sm:px-6 max-w-6xl h-[55px] flex items-center justify-between">
         {/* Brand + Product Switcher */}
-        <div className="flex items-center gap-1 min-w-0">
+        <div
+          className="relative flex items-center gap-1 min-w-0 cursor-pointer self-stretch"
+          onMouseEnter={openSwitcher}
+          onMouseLeave={closeSwitcher}
+        >
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 min-w-0"
+            className="flex items-center gap-2 min-w-0 cursor-pointer"
           >
-            <AnimatedLogo size={34} isAnimating={isCrawling} />
-            <span className="text-xl sm:text-lg font-semibold tracking-tight truncate">
-              {currentProduct.fullName}
-            </span>
+            <div className="relative w-[34px] h-[34px] shrink-0">
+              <AnimatePresence>
+                {!previewProduct && (
+                  <motion.div
+                    key="animated"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute inset-0"
+                  >
+                    <AnimatedLogo size={34} isAnimating={isCrawling} />
+                  </motion.div>
+                )}
+                {previewProduct && previewProduct.settleAngle !== undefined && (
+                  <motion.div
+                    key={previewProduct.id}
+                    initial={{ opacity: 1 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ color: displayProduct.color }}
+                  >
+                    <AnimatedProductIcon size={34} settleAngle={previewProduct.settleAngle} />
+                  </motion.div>
+                )}
+                {previewProduct && previewProduct.settleAngle === undefined && (
+                  <motion.div
+                    key={previewProduct.id}
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ color: displayProduct.color }}
+                    data-hovered="true"
+                  >
+                    <PreviewIcon className="w-[34px] h-[34px]" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={displayProduct.id}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+                className="text-xl sm:text-lg font-semibold tracking-tight truncate flex items-center gap-1"
+              >
+                {displayProduct.fullName}
+                <ChevronDown className={cn(
+                  'h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200',
+                  switcherOpen && 'rotate-180'
+                )} />
+              </motion.span>
+            </AnimatePresence>
           </button>
 
+          {/* Product switcher panel */}
+          <AnimatePresence>
+            {switcherOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                onMouseEnter={openSwitcher}
+                onMouseLeave={closeSwitcher}
+                className="absolute top-full left-0 w-80 bg-background border border-foreground/15 border-t-0 rounded-b-xl shadow-md overflow-hidden z-50"
+              >
+                {PRODUCTS.map((product, index) => {
+                  const Icon = product.icon;
+                  const isCurrent = product.id === currentProduct.id;
+                  const isHovered = hoveredId === product.id;
+                  const hoverBg = product.color.startsWith('hsl(') ? product.color.replace(/\)$/, ' / 0.12)') : `${product.color}1F`;
+                  return (
+                    <div key={product.id}>
+                      {index > 0 && <div className="h-px bg-border/50 mx-3" />}
+                      <button
+                        onMouseEnter={() => setHoveredId(product.id)}
+                        onMouseLeave={() => setHoveredId(null)}
+                        onClick={() => {
+                          if (product.active) {
+                            setCurrentProduct(product.id);
+                            setSwitcherOpen(false);
+                          }
+                        }}
+                        className={cn(
+                          'w-full flex items-center gap-3 pl-3 pr-4 py-3 text-left transition-colors',
+                          !product.active ? 'cursor-not-allowed' : 'cursor-pointer'
+                        )}
+                        style={isHovered ? { backgroundColor: hoverBg } : undefined}
+                      >
+                        <div className="shrink-0 w-[34px] h-[34px] flex items-center justify-center">
+                          <Icon className="w-[34px] h-[34px]" style={{ color: product.color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{product.fullName}</span>
+                            {!product.active && (
+                              <span
+                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none"
+                                style={{ backgroundColor: `${product.color}25`, color: product.color.startsWith('hsl') ? 'hsl(var(--primary))' : darkenHex(product.color) }}
+                              >
+                                Coming Soon
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{product.description}</p>
+                        </div>
+                        {isCurrent && <Check className="h-5 w-5 text-primary shrink-0" strokeWidth={2.5} />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Desktop nav - hidden in shared view */}

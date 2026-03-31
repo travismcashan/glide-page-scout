@@ -84,8 +84,7 @@ export default function HistoryPage() {
         supabase
           .from('crawl_sessions')
           .select('id, domain, base_url, status, created_at')
-          .neq('domain', '__global_chat__')
-          .not('domain', 'like', '__group_chat__%')
+          .not('domain', 'like', '_\\_%')
           .order('created_at', { ascending: false }),
         12000,
         'Loading sites timed out'
