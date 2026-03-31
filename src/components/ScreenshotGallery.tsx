@@ -178,20 +178,24 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
     setRecapturing(false);
   };
 
+  // Cap URLs sent to AI and shown in picker to avoid overwhelming the AI context window
+  const MAX_PICKER_URLS = 500;
+  const pickerUrls = discoveredUrls.slice(0, MAX_PICKER_URLS);
+
   // Auto-run analysis when picker opens for first time
   useEffect(() => {
-    if (!pickerOpen || analysisDone || analyzing || paused || discoveredUrls.length === 0) return;
-    setEntries(discoveredUrls.map(u => ({ url: u, isRecommended: false })));
+    if (!pickerOpen || analysisDone || analyzing || paused || pickerUrls.length === 0) return;
+    setEntries(pickerUrls.map(u => ({ url: u, isRecommended: false })));
     runAnalysis();
-  }, [pickerOpen, discoveredUrls]);
+  }, [pickerOpen, pickerUrls.length]);
 
   const runAnalysis = async () => {
     setAnalyzing(true);
     try {
-      const result = await aiApi.recommendPages(baseUrl, discoveredUrls, 'screenshots');
+      const result = await aiApi.recommendPages(baseUrl, pickerUrls, 'screenshots');
       if (result.success && result.recommendations?.length) {
         const recMap = new Map(result.recommendations.map(r => [r.url, r.reason]));
-        setEntries(discoveredUrls.map(u => ({ url: u, reason: recMap.get(u), isRecommended: recMap.has(u) })));
+        setEntries(pickerUrls.map(u => ({ url: u, reason: recMap.get(u), isRecommended: recMap.has(u) })));
         setSelected(new Set(result.recommendations.map(r => r.url)));
         toast.success(`AI selected ${result.recommendations.length} pages for screenshots`);
       }
@@ -308,7 +312,12 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
         {/* Inline picker */}
         {!isCollapsed && pickerOpen && (
           <div className="px-6 py-4 border-b border-border bg-muted/30">
-            <p className="text-xs text-muted-foreground mb-3">Select pages to capture screenshots (5–15 key template pages)</p>
+            <p className="text-xs text-muted-foreground mb-3">
+            Select pages to capture screenshots (5–15 key template pages)
+            {discoveredUrls.length > MAX_PICKER_URLS && (
+              <span className="ml-1 text-amber-600">— showing first {MAX_PICKER_URLS} of {discoveredUrls.length} discovered URLs</span>
+            )}
+          </p>
             {analyzing ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                 <Loader2 className="h-4 w-4 animate-spin" />
