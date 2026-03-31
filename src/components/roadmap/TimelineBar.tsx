@@ -202,7 +202,7 @@ export default function TimelineBar({
     }
   };
 
-  const ROW_HEIGHT = 52;
+  const ROW_HEIGHT = 48;
 
   const handleDragMove = useCallback(
     (e: React.MouseEvent) => {
@@ -301,7 +301,7 @@ export default function TimelineBar({
   const startLabel = months[item.startMonth];
   const endLabel = months[Math.min(item.startMonth + item.duration - 1, totalMonths - 1)];
 
-  const PAD = 4;
+  const PAD = 6;
   const visibleDuration = Math.min(item.duration, totalMonths - item.startMonth);
   const barLeft = item.startMonth * columnWidth + PAD;
   const barWidth = visibleDuration * columnWidth - PAD * 2;

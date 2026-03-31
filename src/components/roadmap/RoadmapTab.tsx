@@ -233,14 +233,35 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   }, [totalMonths]);
 
   const resizeItem = useCallback((sku: number, newStartMonth: number, newDuration: number) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.sku !== sku) return item;
-        const duration = Math.max(0.5, newDuration);
-        const start = Math.max(0, newStartMonth);
-        return { ...item, startMonth: start, duration: Math.min(duration, totalMonths - start) };
-      })
-    );
+    setItems((prev) => {
+      const resized = prev.find((i) => i.sku === sku);
+      if (!resized) return prev;
+
+      const duration = Math.max(0.5, newDuration);
+      const start = Math.max(0, newStartMonth);
+      const clampedDuration = Math.min(duration, totalMonths - start);
+      const newEnd = start + clampedDuration;
+      const oldEnd = resized.startMonth + resized.duration;
+      const delta = newEnd - oldEnd;
+
+      // If an IS/FB bar grew, push GO/TS bars forward by the same amount
+      const isFB = resized.pillar === "IS" || resized.pillar === "FB";
+
+      return prev.map((item) => {
+        if (item.sku === sku) {
+          return { ...item, startMonth: start, duration: clampedDuration };
+        }
+        // Cascade: push GO/TS bars that started at or after the old end
+        if (isFB && delta > 0 && (item.pillar === "GO" || item.pillar === "TS") && item.startMonth >= oldEnd - 0.5) {
+          const pushed = item.startMonth + delta;
+          const newItemDuration = Math.min(item.duration, totalMonths - pushed);
+          if (pushed < totalMonths) {
+            return { ...item, startMonth: pushed, duration: Math.max(0.5, newItemDuration) };
+          }
+        }
+        return item;
+      });
+    });
   }, [totalMonths]);
 
   const reorderItem = useCallback((sku: number, direction: "up" | "down") => {
