@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Plus, FolderOpen, Globe, Clock, Loader2, Share2, Trash2 } from 'lucide-react';
+import { BrandLoader } from '@/components/BrandLoader';
 import { slugifyName, buildListPath } from '@/lib/sessionSlug';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -172,8 +173,8 @@ export default function GroupsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-20 animate-in fade-in duration-300">
+            <BrandLoader size={96} />
           </div>
         ) : groups.length === 0 ? (
           <div className="text-center py-20 space-y-3">

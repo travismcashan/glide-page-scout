@@ -1191,7 +1191,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="scores" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
             ) : (
               <GroupScoreGrid sessions={fullSessions} />
             )}
@@ -1199,7 +1199,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="technology" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
             ) : (
               <div className="space-y-12">
                 <GroupTechSummary sessions={fullSessions} minPct={techMinPct} onMinPctChange={setTechMinPct} />
@@ -1210,7 +1210,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="performance" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
             ) : (
               <GroupPerformanceChart sessions={fullSessions} />
             )}
@@ -1218,7 +1218,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="comparison" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
             ) : (
               <div className="space-y-12">
                 <GroupReusabilitySummary sessions={fullSessions} minPct={comparisonMinPct} onMinPctChange={setComparisonMinPct} onAiRecommend={handleAiRecommend} aiLoading={aiScopeLoading} aiReasoning={aiScopeReasoning} />

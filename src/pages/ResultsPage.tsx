@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowUp, Menu, Brain, Building2, ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, DollarSign, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
+import { BrandLoader } from '@/components/BrandLoader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -2285,8 +2286,8 @@ export default function ResultsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center animate-in fade-in duration-300">
+        <BrandLoader size={96} />
       </div>
     );
   }
