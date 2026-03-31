@@ -423,7 +423,7 @@ export default function HistoryPage() {
       <AppHeader />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight mb-6">Sites</h1>
+        <h1 className="text-2xl font-bold tracking-tight mb-6">Sites</h1>
 
         {loading ? (
           <p className="py-16 text-center text-muted-foreground">Loading...</p>

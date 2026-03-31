@@ -199,10 +199,10 @@ export default function WishlistPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Wishlist</h2>
+            <h1 className="text-2xl font-bold tracking-tight">Wishlist</h1>
             <p className="text-muted-foreground text-sm mt-1">
               Brain dump your ideas and let AI break them into actionable items.
             </p>
