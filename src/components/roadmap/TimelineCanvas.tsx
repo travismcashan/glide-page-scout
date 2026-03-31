@@ -229,12 +229,10 @@ export default function TimelineCanvas({
                   {pillarItems.map((item, idx) => {
                     const barEnd = item.startMonth + Math.min(item.duration, totalMonths - item.startMonth);
                     const offering = offerings.find((o) => o.sku === item.sku);
-                    const isRecurring = offering && (
-                      offering.billingType === "Retainer" ||
-                      (offering.billingType === "T&M" && offering.minRetainer == null && offering.maxRetainer == null)
-                    );
+                    // Only GO and TS tracks show ghost continuation bars
+                    const showGhost = (item.pillar === "GO" || item.pillar === "TS") && barEnd < totalMonths;
                     const ghostStart = barEnd * columnWidth + 6;
-                    const GHOST_COLORS: Record<string, string> = { IS: "bg-pillar-is/20", FB: "bg-pillar-fb/20", GO: "bg-pillar-go/20", TS: "bg-pillar-ts/20" };
+                    const GHOST_COLORS: Record<string, string> = { GO: "bg-pillar-go/50", TS: "bg-pillar-ts/50" };
 
                     return (
                       <div
@@ -261,14 +259,18 @@ export default function TimelineCanvas({
                           rowIndex={idx}
                           rowCount={pillarItems.length}
                         />
-                        {isRecurring && barEnd < totalMonths && (
+                        {showGhost && (
                           <div
-                            className={`absolute h-10 rounded-lg ${GHOST_COLORS[item.pillar] || "bg-muted/20"} border border-dashed border-foreground/10`}
+                            className={`absolute h-10 flex items-center rounded-lg ${GHOST_COLORS[item.pillar] || "bg-muted/50"} border border-dashed border-foreground/15`}
                             style={{
                               left: `${ghostStart}px`,
                               width: `${totalMonths * columnWidth - ghostStart - 6}px`,
                             }}
-                          />
+                          >
+                            <span className="truncate px-2.5 text-sm text-foreground/50 select-none">
+                              {item.name} (month to month)
+                            </span>
+                          </div>
                         )}
                       </div>
                     );
