@@ -121,8 +121,9 @@ Generate exactly ${outcomeCount} compelling reasons to bundle these services tog
 Each reason should:
 - Be one punchy sentence (8-10 words, no filler)
 - Emphasize synergy between services, not individual service benefits
-- Reference the client context to make it specific and empathetic${fullContext}`;
-      systemMsg = `You return exactly ${outcomeCount} reasons to bundle. Use the return_outcomes tool. No other text.`;
+- Reference the client context to make it specific and empathetic
+- Bold exactly ONE key word or short phrase using **markdown bold** — the action verb or the most compelling metric (e.g. "**Compound** growth across every digital channel" or "Save **$12K+** through unified strategy")${fullContext}`;
+      systemMsg = `You return exactly ${outcomeCount} reasons to bundle. Each must use **bold** on exactly one key word/phrase. Use the return_outcomes tool. No other text.`;
     } else {
       outcomeCount = count;
       prompt = `You are a senior digital agency strategist presenting to a prospective client. Given the following ${count} services included in an investment option called "${optionName}", generate exactly ${count} highly specific, compelling business outcomes, one per service, in the same order.
@@ -132,11 +133,12 @@ Each outcome should:
 - Reference specific, measurable results when possible
 - Connect the service directly to client business impact
 - Sound like a confident promise, not generic marketing speak
-- Use the client context below to make each outcome deeply relevant to THIS specific client${fullContext}
+- Use the client context below to make each outcome deeply relevant to THIS specific client
+- Bold exactly ONE key word or short phrase using **markdown bold** — the action verb or the most compelling metric (e.g. "**Double** organic traffic within six months" or "Cut bounce rate by **40%** in 90 days")${fullContext}
 
 Services:
 ${serviceNames.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`;
-      systemMsg = `You return exactly ${count} business outcomes in order, one per service. Each must be 8-10 words. Use the return_outcomes tool. No other text.`;
+      systemMsg = `You return exactly ${count} business outcomes in order, one per service. Each must be 8-10 words and use **bold** on exactly one key word/phrase. Use the return_outcomes tool. No other text.`;
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {

@@ -48,6 +48,15 @@ function shortName(name: string): string {
   return SHORT_NAMES[name] || name;
 }
 
+/** Render markdown **bold** as <strong> elements */
+function renderBold(text: string): React.ReactNode {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
+  );
+}
+
 type PriceMode = "total" | "monthly" | "monthly-blended";
 
 function applyItemDiscount(price: number, item: TimelineItem): number {
@@ -259,7 +268,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             {(isBundle ? outcomes : outcomes.slice(0, option.scopeItems.length)).map((outcome, i) => (
               <li key={i} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-                <span className="text-sm text-foreground">{outcome}</span>
+                <span className="text-sm text-foreground">{renderBold(outcome)}</span>
               </li>
             ))}
           </ul>
