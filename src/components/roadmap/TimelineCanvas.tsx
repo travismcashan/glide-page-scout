@@ -187,7 +187,7 @@ export default function TimelineCanvas({
         {activePillars.map((pillar, pillarIdx) => {
           const pillarItems = items.filter((i) => i.pillar === pillar.code).sort((a, b) => a.sortOrder - b.sortOrder);
           const barHeight = 40;
-          const gap = 6;
+          const gap = 9;
           const borderWidth = 3;
           const laneHeight = gap + pillarItems.length * (barHeight + gap) + borderWidth;
           const isLastPillar = pillarIdx === activePillars.length - 1;
