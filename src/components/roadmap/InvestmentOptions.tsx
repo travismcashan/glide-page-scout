@@ -260,22 +260,13 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                         <span className="ml-1.5 text-muted-foreground">
                           {(() => {
                             const discounted = applyItemDiscount(si.unitPrice, si);
-                            const hasItemDiscount = si.discountType && si.discountValue && si.discountValue > 0;
-                            const discountLabel = hasItemDiscount
-                              ? si.discountType === "percent"
-                                ? ` (${si.discountValue}% off)`
-                                : ` (${formatCurrency(si.discountValue)} off)`
-                              : "";
                             if (isPpc) {
-                              return `(${formatCurrency(discounted)}/mo${discountLabel} — ${si.estimatedAdSpend ? getPpcTierLabel(si.estimatedAdSpend) : "flat fee"})`;
+                              return `(${formatCurrency(discounted)}/mo)`;
                             }
                             if (recurring) {
-                              if (option.priceMode === "monthly-blended") {
-                                return `(${formatCurrency(discounted)}/mo × ${si.duration} mo = ${formatCurrency(discounted * si.duration)}${discountLabel})`;
-                              }
-                              return `(${formatCurrency(discounted)}/mo${discountLabel})`;
+                              return `(${formatCurrency(discounted)}/mo)`;
                             }
-                            return `(${formatCurrency(discounted)}${discountLabel})`;
+                            return `(${formatCurrency(discounted)})`;
                           })()}
                         </span>
                       ) : null}
@@ -295,6 +286,96 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           </ul>
         )}
       </div>
+
+      {/* Pricing math breakdown table */}
+      {option.scopeItems.length > 0 && (() => {
+        const fixedItems: Array<{ name: string; price: number }> = [];
+        const recurringItems: Array<{ name: string; price: number; months: number; total: number }> = [];
+
+        for (const si of option.scopeItems) {
+          if (si.unitPrice == null) continue;
+          const offering = offerings.find((o) => o.sku === si.sku);
+          const discounted = applyItemDiscount(si.unitPrice, si);
+          if (offering && isRecurring(offering)) {
+            recurringItems.push({ name: si.name, price: discounted, months: si.duration, total: discounted * si.duration });
+          } else {
+            fixedItems.push({ name: si.name, price: discounted });
+          }
+        }
+
+        const fixedTotal = fixedItems.reduce((s, i) => s + i.price, 0);
+        const recurringTotal = recurringItems.reduce((s, i) => s + i.total, 0);
+        const grandTotal = fixedTotal + recurringTotal;
+
+        if (fixedItems.length === 0 && recurringItems.length === 0) return null;
+
+        return (
+          <div className="border-t border-border px-6 py-5">
+            <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
+              PRICING BREAKDOWN
+            </p>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-border/50">
+                {fixedItems.length > 0 && (
+                  <>
+                    {fixedItems.map((fi) => (
+                      <tr key={fi.name}>
+                        <td className="py-1.5 text-muted-foreground">{fi.name}</td>
+                        <td className="py-1.5 text-right font-medium tabular-nums">{formatCurrency(fi.price)}</td>
+                      </tr>
+                    ))}
+                    {(recurringItems.length > 0 || fixedItems.length > 1) && (
+                      <tr className="border-t border-border">
+                        <td className="py-1.5 text-xs font-semibold uppercase text-muted-foreground">Fixed Subtotal</td>
+                        <td className="py-1.5 text-right font-semibold tabular-nums">{formatCurrency(fixedTotal)}</td>
+                      </tr>
+                    )}
+                  </>
+                )}
+                {recurringItems.length > 0 && (
+                  <>
+                    {recurringItems.map((ri) => (
+                      <tr key={ri.name}>
+                        <td className="py-1.5 text-muted-foreground">
+                          {ri.name}
+                          <span className="ml-1 text-xs text-muted-foreground/70">
+                            {formatCurrency(ri.price)}/mo x {ri.months} mo
+                          </span>
+                        </td>
+                        <td className="py-1.5 text-right font-medium tabular-nums">{formatCurrency(ri.total)}</td>
+                      </tr>
+                    ))}
+                    {(fixedItems.length > 0 || recurringItems.length > 1) && (
+                      <tr className="border-t border-border">
+                        <td className="py-1.5 text-xs font-semibold uppercase text-muted-foreground">Recurring Subtotal</td>
+                        <td className="py-1.5 text-right font-semibold tabular-nums">{formatCurrency(recurringTotal)}</td>
+                      </tr>
+                    )}
+                  </>
+                )}
+                {(fixedItems.length > 0 && recurringItems.length > 0) && (
+                  <>
+                    <tr className="border-t-2 border-foreground/20">
+                      <td className="py-2 text-xs font-bold uppercase">Total Investment</td>
+                      <td className="py-2 text-right font-bold tabular-nums">{formatCurrency(grandTotal)}</td>
+                    </tr>
+                    {option.priceMode === "monthly-blended" && (
+                      <tr>
+                        <td className="pb-1 text-xs text-muted-foreground">
+                          {formatCurrency(grandTotal)} / 12 months
+                        </td>
+                        <td className="pb-1 text-right text-sm font-bold text-primary tabular-nums">
+                          {formatCurrency(grandTotal / 12)}/mo
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
     </div>
   );
 }

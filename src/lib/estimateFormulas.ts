@@ -500,21 +500,32 @@ export function calculateBaseModel(
   variables: EstimateVariables,
   formulas: TaskFormula[] = []
 ): { totalHours: number; totalCost: number } {
-  // Base model = absolute minimum: all vars at 1, only required+default_included tasks
+  // Base model = absolute minimum: fixed vars, only required tasks.
+  // Must NOT spread current variables — base model is a fixed floor.
   const minVars: EstimateVariables = {
-    ...variables,
-    design_layouts: 1,
-    pages_for_integration: 1,
+    name: variables.name,
+    client_name: variables.client_name,
+    description: variables.description,
+    project_size: 'small',
+    project_complexity: 'low',
     user_personas: 1,
-    custom_posts: 0,
+    content_pages: 1,
+    design_layouts: 1,
     form_count: 1,
     form_count_s: 1,
     form_count_m: 0,
     form_count_l: 0,
-    third_party_integrations: 1,
-    complexity_score: 1,
+    integration_count: 0,
+    paid_discovery: 'no',
+    pages_for_integration: 1,
+    custom_posts: 0,
     bulk_import_amount: 'none',
+    site_builder_acf: false,
+    third_party_integrations: 1,
     post_launch_services: 0,
+    complexity_score: 1,
+    pm_percentage: variables.pm_percentage ?? 15,
+    qa_percentage: variables.qa_percentage ?? 10,
   };
 
   // Filter: only is_required tasks for the base model (ignore user selections)
