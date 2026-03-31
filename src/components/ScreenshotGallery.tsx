@@ -203,18 +203,42 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
   };
 
   const handleSubmit = async () => {
-    const newUrls = Array.from(selected).filter(u => !existingUrls.has(u));
-    if (newUrls.length === 0) {
-      const hasPending = Array.from(selected).some(u => screenshots.find(s => s.url === u && s.status === 'pending'));
-      toast.info(hasPending ? 'Screenshots already queued — processing now' : 'All selected pages already captured');
+    const selectedArr = Array.from(selected);
+    // URLs not in DB at all → insert new
+    const newUrls = selectedArr.filter(u => !existingUrls.has(u));
+    // URLs already in DB but errored → reset to pending
+    const errorUrls = selectedArr
+      .map(u => screenshots.find(s => s.url === u && s.status === 'error'))
+      .filter(Boolean) as Screenshot[];
+    // URLs already pending → skip
+    const pendingUrls = selectedArr.filter(u => screenshots.find(s => s.url === u && s.status === 'pending'));
+
+    if (newUrls.length === 0 && errorUrls.length === 0) {
+      toast.info(pendingUrls.length > 0 ? 'Screenshots already queued — processing now' : 'All selected pages already captured');
       return;
     }
+
     setSubmitting(true);
     try {
-      const rows = newUrls.map(url => ({ session_id: sessionId, url, status: 'pending' }));
-      const { error } = await supabase.from('crawl_screenshots').insert(rows);
-      if (error) throw error;
-      toast.success(`Taking ${newUrls.length} screenshots`);
+      let count = 0;
+      if (newUrls.length > 0) {
+        const rows = newUrls.map(url => ({ session_id: sessionId, url, status: 'pending' }));
+        const { error } = await supabase.from('crawl_screenshots').insert(rows);
+        if (error) throw error;
+        count += newUrls.length;
+      }
+      if (errorUrls.length > 0) {
+        for (const shot of errorUrls) {
+          await supabase.from('crawl_screenshots').update({ status: 'pending', screenshot_url: null }).eq('id', shot.id);
+        }
+        setProcessingIds(prev => {
+          const next = new Set(prev);
+          errorUrls.forEach(s => next.delete(s.id));
+          return next;
+        });
+        count += errorUrls.length;
+      }
+      toast.success(`Taking ${count} screenshot${count !== 1 ? 's' : ''}`);
       fetchScreenshots();
     } catch (e) { console.error(e); toast.error('Failed to take screenshots'); }
     setSubmitting(false);
