@@ -439,6 +439,11 @@ const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsP
   const option1WeeksLow = Math.max(1, Math.round(option1Months * 4.33) - 1);
   const option1WeeksHigh = Math.round(option1Months * 4.33) + 1;
 
+  // Option 2 commitment term: longest recurring span on the timeline
+  const option2CommitMonths = option2Items.length > 0
+    ? Math.max(...option2Items.map((i) => i.duration))
+    : 0;
+
   const options: OptionDef[] = [
     {
       label: "Option 1",
@@ -452,7 +457,9 @@ const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsP
     {
       label: "Option 2",
       name: "Growth & Optimization",
-      terms: ["Monthly", "6-month min.", "30-day cancel"],
+      terms: option2CommitMonths > 0
+        ? ["Monthly", `${option2CommitMonths}-month commitment`, "30-day cancel"]
+        : ["Monthly", "30-day cancel"],
       scopeItems: option2Items,
       priceMode: "monthly",
     },
