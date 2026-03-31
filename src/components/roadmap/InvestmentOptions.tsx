@@ -268,7 +268,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             {outcomes.slice(0, 3).map((outcome, i) => (
               <li key={i} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-                <span className="text-sm text-foreground">{renderBold(outcome)}</span>
+                <span className="text-sm text-foreground line-clamp-2">{renderBold(outcome)}</span>
               </li>
             ))}
           </ul>
@@ -284,24 +284,24 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             Add services to the timeline to populate
           </p>
         ) : isBundle ? (
-          <ul className="space-y-3 pl-3">
-            <li className="flex items-center gap-2.5">
+          <ul className="space-y-3">
+            <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
               <span className="text-sm font-medium text-foreground">Everything in</span>
-              <span className="inline-block rounded-full bg-pillar-fb px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-foreground">Option 1</span>
+              <span className="inline-block rounded-full bg-pillar-fb px-2.5 py-0.5 text-xs font-bold tracking-wide text-foreground">Option 1</span>
             </li>
-            <li className="flex items-center gap-2.5">
+            <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
               <span className="text-sm font-medium text-foreground">Everything in</span>
-              <span className="inline-block rounded-full bg-pillar-go px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-foreground">Option 2</span>
+              <span className="inline-block rounded-full bg-pillar-go px-2.5 py-0.5 text-xs font-bold tracking-wide text-foreground">Option 2</span>
             </li>
-            <li className="flex items-center gap-2.5">
+            <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-              <span className="text-sm font-medium text-foreground">Quarterly Strategic Review</span>
-              <Tooltip>
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Quarterly Strategic Review</span>
+              <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <button className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[240px]">
@@ -311,7 +311,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             </li>
           </ul>
         ) : (
-          <ul className="space-y-2.5 pl-3">
+          <ul className="space-y-2.5">
             {option.scopeItems.map((si) => (
               <li key={si.sku} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
@@ -353,16 +353,10 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         if (fixedItems.length === 0 && recurringItems.length === 0 && tmItems.length === 0) return null;
 
         return (
-          <div className="border-t border-border px-6 py-4">
-            <button
-              className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-              onClick={(e) => { e.stopPropagation(); setPricingExpanded(!pricingExpanded); }}
-            >
-              {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
-            </button>
-            {pricingExpanded && (<>
-              <table className="mt-4 w-full text-sm">
+          <div className="border-t border-border">
+            {pricingExpanded && (
+              <div className="px-6 pt-4 pb-2">
+              <table className="w-full text-sm">
                 <tbody>
                   {fixedItems.length > 0 && (
                     <>
@@ -501,7 +495,15 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   </span>
                 </div>
               )}
-            </>)}
+              </div>
+            )}
+            <button
+              className="flex w-full items-center justify-center gap-1.5 px-6 py-3 text-xs font-semibold tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => { e.stopPropagation(); setPricingExpanded(!pricingExpanded); }}
+            >
+              {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
+            </button>
           </div>
         );
       })()}

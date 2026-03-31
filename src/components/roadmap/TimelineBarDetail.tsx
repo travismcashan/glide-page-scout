@@ -289,7 +289,46 @@ export default function TimelineBarDetail({
   );
 
   const BAR_HEIGHT = 40;
-  const BAR_GAP = 12;
+  const BAR_GAP = 8;
+  const LANE_PAD = 6;
+
+  // Pack phases into lanes — overlapping phases get separate lanes
+  const packIntoLanes = useCallback(
+    (layout: { id: string; startWeek: number; widthWeeks: number }[]) => {
+      const lanes: number[][] = []; // each lane is an array of phase indices
+      const laneAssignment: number[] = [];
+
+      for (let i = 0; i < layout.length; i++) {
+        const pl = layout[i];
+        const end = pl.startWeek + pl.widthWeeks;
+        let placed = false;
+
+        for (let lane = 0; lane < lanes.length; lane++) {
+          const canFit = lanes[lane].every((idx) => {
+            const other = layout[idx];
+            const otherEnd = other.startWeek + other.widthWeeks;
+            return end <= other.startWeek || pl.startWeek >= otherEnd;
+          });
+          if (canFit) {
+            lanes[lane].push(i);
+            laneAssignment[i] = lane;
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          laneAssignment[i] = lanes.length;
+          lanes.push([i]);
+        }
+      }
+
+      return { laneAssignment, laneCount: lanes.length };
+    },
+    []
+  );
+
+  const { laneAssignment, laneCount } = packIntoLanes(phaseLayout);
 
   return (
     <div className="flex flex-col">
@@ -360,11 +399,12 @@ export default function TimelineBarDetail({
                   </div>
                   <div
                     className="relative"
-                    style={{ height: `${BAR_GAP + phaseLayout.length * (BAR_HEIGHT + BAR_GAP)}px` }}
+                    style={{ height: `${LANE_PAD + laneCount * (BAR_HEIGHT + BAR_GAP) + LANE_PAD}px` }}
                   >
                     {phaseLayout.map((pl, idx) => {
                       const phase = phases.find((p) => p.id === pl.id);
                       if (!phase) return null;
+                      const lane = laneAssignment[idx] ?? 0;
                       const leftPct = (pl.startWeek / totalWeeks) * 100;
                       const widthPct = (pl.widthWeeks / totalWeeks) * 100;
                       return (
@@ -375,7 +415,7 @@ export default function TimelineBarDetail({
                           leftPct={leftPct}
                           widthPct={widthPct}
                           widthWeeks={pl.widthWeeks}
-                          top={BAR_GAP + idx * (BAR_HEIGHT + BAR_GAP)}
+                          top={LANE_PAD + lane * (BAR_HEIGHT + BAR_GAP)}
                           height={BAR_HEIGHT}
                           totalWeeks={totalWeeks}
                           containerRef={containerRef}
