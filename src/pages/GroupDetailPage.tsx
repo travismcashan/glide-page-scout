@@ -82,6 +82,20 @@ const KEY_TO_COLUMN: Record<string, string> = {
   'page-tags': 'page_tags',
 };
 
+// ── Map integration_key → edge function name (for server-side reruns) ──
+const KEY_TO_FN: Record<string, string> = {
+  'builtwith': 'builtwith-lookup', 'semrush': 'semrush-domain', 'psi': 'pagespeed-insights',
+  'detectzestack': 'detectzestack-lookup', 'gtmetrix': 'gtmetrix-test', 'carbon': 'website-carbon',
+  'crux': 'crux-lookup', 'wave': 'wave-lookup', 'observatory': 'observatory-scan',
+  'httpstatus': 'httpstatus-check', 'w3c': 'w3c-validate', 'schema': 'schema-validate',
+  'readable': 'readable-score', 'yellowlab': 'yellowlab-scan', 'ocean': 'ocean-enrich',
+  'hubspot': 'hubspot-lookup', 'sitemap': 'sitemap-parse', 'nav-structure': 'nav-extract',
+  'firecrawl-map': 'firecrawl-map', 'tech-analysis': 'tech-analysis',
+  'avoma': 'avoma-lookup', 'apollo': 'apollo-enrich', 'content-types': 'content-types',
+  'forms': 'forms-detect', 'link-checker': 'link-checker', 'apollo-team': 'apollo-team-search',
+  'page-tags': 'page-tag-orchestrate',
+};
+
 // ── Integration categories for the picker ─────────────────────
 const INTEGRATION_CATEGORIES = [
   {
@@ -284,27 +298,50 @@ function SitesTab({
                   <TableRow key={`${m.id}-capsules`} className="hover:bg-transparent">
                     <TableCell colSpan={5} className="py-2 px-4">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {sortedRuns.map(r => (
-                          <span
-                            key={r.integration_key}
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
-                              r.status === 'done'
-                                ? 'bg-green-600/20 text-green-700 dark:bg-green-500/20 dark:text-green-300'
-                                : r.status === 'running'
-                                ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300'
-                                : r.status === 'failed'
-                                ? 'bg-destructive/15 text-destructive'
-                                : r.status === 'skipped'
-                                ? 'bg-muted text-muted-foreground/40 line-through'
-                                : 'bg-muted text-muted-foreground/60'
-                            }`}
-                          >
-                            {r.status === 'done' && <Check className="h-2.5 w-2.5" />}
-                            {r.status === 'running' && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
-                            {r.status === 'failed' && <AlertTriangle className="h-2.5 w-2.5" />}
-                            {KEY_TO_LABEL[r.integration_key] ?? r.integration_key}
-                          </span>
-                        ))}
+                        {sortedRuns.map(r => {
+                          const isFailed = r.status === 'failed';
+                          const handleRerun = isFailed ? (e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            const col = KEY_TO_COLUMN[r.integration_key];
+                            const fn = KEY_TO_FN[r.integration_key];
+                            if (!col || !fn) return;
+                            // Clear data + reset status
+                            supabase.from('crawl_sessions').update({ [col]: null } as any).eq('id', m.session_id);
+                            supabase.from('integration_runs').update({ status: 'pending', error_message: null })
+                              .eq('session_id', m.session_id).eq('integration_key', r.integration_key);
+                            supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', m.session_id);
+                            // Fire server-side rerun
+                            supabase.functions.invoke('crawl-worker', {
+                              body: { session_id: m.session_id, integration_key: r.integration_key, db_column: col, fn_name: fn, fn_body: {} },
+                            }).catch(console.error);
+                            toast.success(`Rerunning ${KEY_TO_LABEL[r.integration_key] ?? r.integration_key}`);
+                          } : undefined;
+                          return (
+                            <span
+                              key={r.integration_key}
+                              onClick={handleRerun}
+                              title={isFailed ? 'Click to rerun' : undefined}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
+                                isFailed ? 'cursor-pointer hover:bg-destructive/25' : ''
+                              } ${
+                                r.status === 'done'
+                                  ? 'bg-green-600/20 text-green-700 dark:bg-green-500/20 dark:text-green-300'
+                                  : r.status === 'running'
+                                  ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300'
+                                  : r.status === 'failed'
+                                  ? 'bg-destructive/15 text-destructive'
+                                  : r.status === 'skipped'
+                                  ? 'bg-muted text-muted-foreground/40 line-through'
+                                  : 'bg-muted text-muted-foreground/60'
+                              }`}
+                            >
+                              {r.status === 'done' && <Check className="h-2.5 w-2.5" />}
+                              {r.status === 'running' && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                              {r.status === 'failed' && <AlertTriangle className="h-2.5 w-2.5" />}
+                              {KEY_TO_LABEL[r.integration_key] ?? r.integration_key}
+                            </span>
+                          );
+                        })}
                       </div>
                     </TableCell>
                   </TableRow>
