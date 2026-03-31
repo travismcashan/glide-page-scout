@@ -420,15 +420,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               onSetDiscount={setItemDiscount}
               showLastBorder={catalogVisible}
               onStartMonthChange={(delta) => {
-                const newStart = Math.max(0, Math.min(11, startMonthIndex + delta));
-                const actualDelta = newStart - startMonthIndex;
-                if (actualDelta === 0) return;
-                setStartMonthIndex(newStart);
-                // Shift all bars by the opposite so they stay anchored to their calendar months
-                setItems((prev) => prev.map((item) => ({
-                  ...item,
-                  startMonth: Math.max(0, item.startMonth - actualDelta),
-                })));
+                setStartMonthIndex((prev) => Math.max(0, Math.min(11, prev + delta)));
               }}
             />
           </div>
