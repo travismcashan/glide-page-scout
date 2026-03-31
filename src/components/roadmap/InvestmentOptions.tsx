@@ -90,7 +90,7 @@ function computePriceRaw(
 
 /** Round headline price to clean number based on mode */
 function roundHeadline(value: number, mode: PriceMode): number {
-  if (mode === "monthly-blended") return Math.round(value / 500) * 500;   // nearest $500
+  if (mode === "monthly-blended") return Math.floor(value / 500) * 500;   // round DOWN to $500
   if (mode === "monthly") return Math.round(value / 250) * 250;           // nearest $250
   return Math.round(value / 1000) * 1000;                                  // nearest $1,000
 }
@@ -116,15 +116,18 @@ interface OptionDef {
 }
 
 function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => void }) {
-  const [word, number] = option.label.split(" ");
   return (
     <div
       className="flex h-full cursor-pointer flex-col items-center justify-start rounded-xl border border-border bg-background px-1 pt-6 pb-4 transition-colors hover:bg-muted/50"
       onClick={onClick}
     >
-      <p className="text-sm font-semibold tracking-wide text-muted-foreground">
-        {number}
-      </p>
+      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
+        option.label === "Option 1" ? "bg-pillar-fb text-foreground" :
+        option.label === "Option 2" ? "bg-pillar-go text-foreground" :
+        "border border-foreground/30 text-foreground"
+      }`}>
+        {option.label.split(" ")[1]}
+      </span>
       <p className="mt-4 text-2xl font-bold text-foreground [writing-mode:vertical-lr] whitespace-nowrap">
         {option.name}
       </p>
@@ -153,10 +156,14 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   return (
     <div className="flex flex-col rounded-xl border border-border bg-background">
       <div className="px-6 py-6">
-        <p className="text-sm font-semibold tracking-wide text-muted-foreground">
+        <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold tracking-wide ${
+          option.label === "Option 1" ? "bg-pillar-fb-light text-pillar-fb-foreground" :
+          option.label === "Option 2" ? "bg-pillar-go-light text-pillar-go-foreground" :
+          "border border-foreground/30 text-foreground"
+        }`}>
           {option.label}
-        </p>
-        <h3 className="mt-1 text-2xl font-bold text-foreground">
+        </span>
+        <h3 className="mt-2 text-2xl font-bold text-foreground">
           {option.name}
         </h3>
       </div>
@@ -235,7 +242,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
 
       <div className="border-b border-border px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
-          OUTCOMES
+          {option.priceMode === "monthly-blended" ? "WHY BUNDLE" : "OUTCOMES"}
         </p>
         {outcomesLoading ? (
           <p className="text-sm italic text-muted-foreground">Generating outcomes…</p>
@@ -245,7 +252,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           <ul className="space-y-2.5">
             {outcomes.map((outcome, i) => (
               <li key={i} className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
                 <span className="text-sm font-medium text-foreground">{outcome}</span>
               </li>
             ))}
@@ -319,7 +326,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                       </tr>
                     ))}
                     {(recurringItems.length > 0 || fixedItems.length > 1) && (
-                      <tr className="border-t border-foreground/20 bg-foreground/5">
+                      <tr className="border-t border-foreground/20">
                         <td className="py-1.5 font-semibold text-foreground">Fixed Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
                       </tr>
@@ -340,7 +347,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                       </tr>
                     ))}
                     {(fixedItems.length > 0 || recurringItems.length > 1) && (
-                      <tr className="border-t border-foreground/20 bg-foreground/5">
+                      <tr className="border-t border-foreground/20">
                         <td className="py-1.5 font-semibold text-foreground">Recurring Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
                       </tr>
@@ -483,8 +490,9 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
 
       setLoadingByIdx((prev) => ({ ...prev, [idx]: true }));
       try {
+        const isBundle = option.priceMode === "monthly-blended";
         const { data, error } = await supabase.functions.invoke("generate-outcomes", {
-          body: { optionName: option.name, serviceNames, sessionId },
+          body: { optionName: option.name, serviceNames, sessionId, whyBundle: isBundle },
         });
         if (!error && data?.outcomes) {
           setOutcomesByIdx((prev) => ({ ...prev, [idx]: data.outcomes }));
