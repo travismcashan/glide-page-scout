@@ -38,7 +38,7 @@ serve(async (req) => {
 
   try {
     const userId = getUserIdFromRequest(req);
-    const { optionName, serviceNames, sessionId } = await req.json();
+    const { optionName, serviceNames, sessionId, whyBundle } = await req.json();
 
     if (!serviceNames || !Array.isArray(serviceNames) || serviceNames.length === 0) {
       return new Response(JSON.stringify({ outcomes: [] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -48,9 +48,12 @@ serve(async (req) => {
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
     let clientContext = "";
+    let ragContext = "";
+
     if (sessionId) {
+      const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
       try {
-        const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
         const { data: session } = await supabase.from("crawl_sessions").select("prospect_domain, observations_data, semrush_data, ga4_data, psi_data, tech_analysis_data").eq("id", sessionId).maybeSingle();
         if (session) {
           const parts: string[] = [];
@@ -86,20 +89,55 @@ serve(async (req) => {
           if (parts.length > 0) clientContext = `\n\nClient Context:\n${parts.join("\n\n")}`;
         }
       } catch (e) { console.error("Failed to fetch session context:", e); }
+
+      // RAG search for deeper context (meeting notes, transcripts, uploads)
+      try {
+        const query = `business goals challenges priorities for ${serviceNames.join(" and ")}`;
+        const { data: embResp } = await supabase.functions.invoke("rag-search", {
+          body: { sessionId, query, limit: 5 },
+        });
+        if (embResp?.chunks?.length) {
+          const chunks = embResp.chunks.slice(0, 5).map((c: any) => c.chunk_text || c.text).filter(Boolean);
+          if (chunks.length > 0) {
+            ragContext = `\n\nDeep Context (from meeting notes, transcripts, and documents):\n${chunks.join("\n---\n")}`;
+          }
+        }
+      } catch (e) { console.error("RAG search failed (non-fatal):", e); }
     }
 
     const count = serviceNames.length;
-    const prompt = `You are a senior digital agency strategist presenting to a prospective client. Given the following ${count} services included in an investment option called "${optionName}", generate exactly ${count} highly specific, compelling business outcomes, one per service, in the same order.
+    const fullContext = clientContext + ragContext;
+
+    let prompt: string;
+    let systemMsg: string;
+    let outcomeCount: number;
+
+    if (whyBundle) {
+      outcomeCount = Math.min(4, count);
+      prompt = `You are a senior digital agency strategist. The client is considering a 12-month bundled growth plan that includes ALL of the following services: ${serviceNames.join(", ")}.
+
+Generate exactly ${outcomeCount} compelling reasons to bundle these services together instead of buying them separately. Focus on the compounding effect, cost savings, and strategic alignment.
+
+Each reason should:
+- Be one punchy sentence (8-10 words, no filler)
+- Emphasize synergy between services, not individual service benefits
+- Reference the client context to make it specific and empathetic${fullContext}`;
+      systemMsg = `You return exactly ${outcomeCount} reasons to bundle. Use the return_outcomes tool. No other text.`;
+    } else {
+      outcomeCount = count;
+      prompt = `You are a senior digital agency strategist presenting to a prospective client. Given the following ${count} services included in an investment option called "${optionName}", generate exactly ${count} highly specific, compelling business outcomes, one per service, in the same order.
 
 Each outcome should:
 - Be one punchy sentence (8-10 words, no filler words)
 - Reference specific, measurable results when possible
 - Connect the service directly to client business impact
 - Sound like a confident promise, not generic marketing speak
-- Use the client context below to make each outcome deeply relevant to THIS specific client${clientContext}
+- Use the client context below to make each outcome deeply relevant to THIS specific client${fullContext}
 
 Services:
 ${serviceNames.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`;
+      systemMsg = `You return exactly ${count} business outcomes in order, one per service. Each must be 8-10 words. Use the return_outcomes tool. No other text.`;
+    }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -107,9 +145,9 @@ ${serviceNames.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`;
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
-        system: `You return exactly ${count} business outcomes in order, one per service. Use the return_outcomes tool. No other text.`,
+        system: systemMsg,
         messages: [{ role: "user", content: prompt }],
-        tools: [{ name: "return_outcomes", description: `Return exactly ${count} business outcomes, one per service`, input_schema: { type: "object", properties: { outcomes: { type: "array", items: { type: "string" }, description: `Exactly ${count} outcomes` } }, required: ["outcomes"] } }],
+        tools: [{ name: "return_outcomes", description: `Return exactly ${outcomeCount} outcomes`, input_schema: { type: "object", properties: { outcomes: { type: "array", items: { type: "string" }, description: `Exactly ${outcomeCount} outcomes, 8-10 words each` } }, required: ["outcomes"] } }],
         tool_choice: { type: "tool", name: "return_outcomes" },
       }),
     });
