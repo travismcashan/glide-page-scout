@@ -284,21 +284,30 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             Add services to the timeline to populate
           </p>
         ) : isBundle ? (
-          <ul className="space-y-2.5 pl-3">
-            <li className="flex items-start gap-2.5">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-              <span className="text-sm font-medium text-foreground">Everything in Option 1</span>
+          <ul className="space-y-3 pl-3">
+            <li className="flex items-center gap-2.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground">Everything in</span>
+              <span className="inline-block rounded-full bg-pillar-fb px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-foreground">Option 1</span>
             </li>
-            <li className="flex items-start gap-2.5">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-              <span className="text-sm font-medium text-foreground">Everything in Option 2</span>
+            <li className="flex items-center gap-2.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground">Everything in</span>
+              <span className="inline-block rounded-full bg-pillar-go px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-foreground">Option 2</span>
             </li>
-            <li className="flex items-start gap-2.5">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-              <span className="text-sm text-foreground">
-                <span className="font-medium">Quarterly Strategic Review</span>
-                <span className="ml-1.5 text-muted-foreground">with your dedicated senior team</span>
-              </span>
+            <li className="flex items-center gap-2.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground">Quarterly Strategic Review</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[240px]">
+                  <p className="text-xs">Your dedicated senior team (strategist + service leads for your active services) meets quarterly to review performance, adjust priorities, and align your roadmap with business goals. <span className="font-medium">$1,800/yr value, included.</span></p>
+                </TooltipContent>
+              </Tooltip>
             </li>
           </ul>
         ) : (
