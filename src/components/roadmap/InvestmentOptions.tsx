@@ -349,7 +349,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   if (isMonthlyMode && recurringItems.length > 1) {
                     return (
                       <>
-                        <tr><td colSpan={2} className="pt-2 pb-1"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
+                        <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
                         <tr>
                           <td className="py-1.5 font-bold text-foreground">Monthly Total</td>
                           <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
@@ -361,7 +361,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   if (fixedItems.length > 0 && recurringItems.length > 0) {
                     return (
                       <>
-                        <tr><td colSpan={2} className="pt-2 pb-1"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
+                        <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
                         <tr>
                           <td className="py-1.5 font-bold text-foreground">Grand Total</td>
                           <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
