@@ -13,12 +13,14 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Plus, FolderOpen, Globe, Clock, Loader2, Share2, Trash2 } from 'lucide-react';
+import { slugifyName, buildListPath } from '@/lib/sessionSlug';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 interface SiteGroup {
   id: string;
   name: string;
+  slug: string;
   description: string | null;
   created_at: string;
   member_count: number;
@@ -62,27 +64,38 @@ export default function GroupsPage() {
   const handleCreate = async () => {
     if (!name.trim()) return;
     setCreating(true);
-    const { data, error } = await supabase
-      .from('site_groups')
-      .insert({ name: name.trim(), description: description.trim() || null })
-      .select()
-      .single();
+    try {
+      // Generate a unique slug
+      const base = slugifyName(name.trim());
+      const { data: existing } = await supabase
+        .from('site_groups')
+        .select('slug')
+        .ilike('slug', `${base}%`);
+      const taken = new Set((existing || []).map((r: any) => r.slug));
+      let slug = base;
+      let i = 2;
+      while (taken.has(slug)) { slug = `${base}-${i++}`; }
 
-    if (error) {
+      const { data, error } = await supabase
+        .from('site_groups')
+        .insert({ name: name.trim(), description: description.trim() || null, slug })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setDialogOpen(false);
+      setName('');
+      setDescription('');
+      navigate(buildListPath(data.slug));
+    } catch {
       toast.error('Failed to create list');
-      setCreating(false);
-      return;
     }
-    setDialogOpen(false);
-    setName('');
-    setDescription('');
     setCreating(false);
-    navigate(`/lists/${data.id}`);
   };
 
   const handleShare = async (e: React.MouseEvent, g: SiteGroup) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/lists/${g.id}?view=shared`;
+    const url = `${window.location.origin}${buildListPath(g.slug)}?view=shared`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('Shareable list link copied');
@@ -173,7 +186,7 @@ export default function GroupsPage() {
               <div
                 key={g.id}
                 className="flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/lists/${g.id}`)}
+                onClick={() => navigate(buildListPath(g.slug))}
               >
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-semibold">{g.name}</span>

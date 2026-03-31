@@ -69,3 +69,23 @@ export function buildResultsPath(domain: string, createdAt: string, needsTimesta
 export function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 }
+
+/**
+ * Generate a URL-friendly slug from a list name.
+ * Matches the DB slugify() function logic.
+ */
+export function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Build a friendly list path: /lists/signature-health-v6
+ */
+export function buildListPath(slug: string): string {
+  return `/lists/${slug}`;
+}
