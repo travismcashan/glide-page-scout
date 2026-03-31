@@ -42,6 +42,7 @@ CREATE POLICY "Authenticated users can view service_steps" ON public.service_ste
 CREATE TABLE IF NOT EXISTS public.roadmaps (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id UUID NOT NULL REFERENCES public.crawl_sessions(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   client_name TEXT NOT NULL DEFAULT 'Client',
   start_month INTEGER NOT NULL DEFAULT 0,
   total_months INTEGER NOT NULL DEFAULT 12,
@@ -53,8 +54,8 @@ CREATE TABLE IF NOT EXISTS public.roadmaps (
 
 ALTER TABLE public.roadmaps ENABLE ROW LEVEL SECURITY;
 
--- Check session ownership via crawl_sessions.user_id
-CREATE OR REPLACE FUNCTION public.owns_session_for_roadmap(_roadmap_id UUID)
+-- Check ownership directly via roadmaps.user_id
+CREATE OR REPLACE FUNCTION public.owns_roadmap(_roadmap_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
@@ -64,25 +65,19 @@ AS $$
   SELECT EXISTS (
     SELECT 1
     FROM public.roadmaps r
-    JOIN public.crawl_sessions cs ON cs.id = r.session_id
     WHERE r.id = _roadmap_id
-      AND cs.user_id = auth.uid()
+      AND r.user_id = auth.uid()
   )
 $$;
 
 CREATE POLICY "Users can view own roadmaps" ON public.roadmaps
-  FOR SELECT USING (public.owns_session_for_roadmap(id));
-CREATE POLICY "Users can insert roadmaps for own sessions" ON public.roadmaps
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.crawl_sessions cs
-      WHERE cs.id = session_id AND cs.user_id = auth.uid()
-    )
-  );
+  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can insert own roadmaps" ON public.roadmaps
+  FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "Users can update own roadmaps" ON public.roadmaps
-  FOR UPDATE USING (public.owns_session_for_roadmap(id));
+  FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "Users can delete own roadmaps" ON public.roadmaps
-  FOR DELETE USING (public.owns_session_for_roadmap(id));
+  FOR DELETE USING (user_id = auth.uid());
 
 -- Roadmap items
 CREATE TABLE IF NOT EXISTS public.roadmap_items (
@@ -104,24 +99,14 @@ CREATE TABLE IF NOT EXISTS public.roadmap_items (
 
 ALTER TABLE public.roadmap_items ENABLE ROW LEVEL SECURITY;
 
-CREATE OR REPLACE FUNCTION public.owns_roadmap_for_item(_roadmap_id UUID)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT public.owns_session_for_roadmap(_roadmap_id)
-$$;
-
 CREATE POLICY "Users can view own roadmap items" ON public.roadmap_items
-  FOR SELECT USING (public.owns_roadmap_for_item(roadmap_id));
+  FOR SELECT USING (public.owns_roadmap(roadmap_id));
 CREATE POLICY "Users can insert own roadmap items" ON public.roadmap_items
-  FOR INSERT WITH CHECK (public.owns_roadmap_for_item(roadmap_id));
+  FOR INSERT WITH CHECK (public.owns_roadmap(roadmap_id));
 CREATE POLICY "Users can update own roadmap items" ON public.roadmap_items
-  FOR UPDATE USING (public.owns_roadmap_for_item(roadmap_id));
+  FOR UPDATE USING (public.owns_roadmap(roadmap_id));
 CREATE POLICY "Users can delete own roadmap items" ON public.roadmap_items
-  FOR DELETE USING (public.owns_roadmap_for_item(roadmap_id));
+  FOR DELETE USING (public.owns_roadmap(roadmap_id));
 
 -- updated_at trigger for roadmaps
 CREATE OR REPLACE FUNCTION public.update_roadmaps_updated_at()

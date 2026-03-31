@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { PILLARS } from "@/data/offerings";
 import { useServiceOfferings, type Offering } from "@/hooks/useServiceOfferings";
 import type { TimelineItem } from "@/types/roadmap";
@@ -25,6 +26,7 @@ function isRecurringOffering(offering: Offering): boolean {
 }
 
 export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
+  const { user } = useAuth();
   const { offerings, loading: offeringsLoading } = useServiceOfferings();
   const [roadmapId, setRoadmapId] = useState<string | null>(null);
   const [items, setItems] = useState<TimelineItem[]>([]);
@@ -55,7 +57,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           : "Client";
         const { data: created } = await supabase
           .from("roadmaps" as any)
-          .insert({ session_id: sessionId, client_name: defaultName, start_month: new Date().getMonth(), total_months: 12 })
+          .insert({ session_id: sessionId, user_id: user?.id ?? null, client_name: defaultName, start_month: new Date().getMonth(), total_months: 12 })
           .select()
           .single();
         roadmap = created as any;
