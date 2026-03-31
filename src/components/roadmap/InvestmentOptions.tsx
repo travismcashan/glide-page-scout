@@ -354,8 +354,15 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
 
         return (
           <div className="border-t border-border">
+            <button
+              className="flex w-full items-center justify-center gap-1.5 px-6 py-3 text-xs font-semibold tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => { e.stopPropagation(); setPricingExpanded(!pricingExpanded); }}
+            >
+              {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
+            </button>
             {pricingExpanded && (
-              <div className="px-6 pt-4 pb-2">
+              <div className="px-6 pb-4">
               <table className="w-full text-sm">
                 <tbody>
                   {fixedItems.length > 0 && (
@@ -497,13 +504,6 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
               )}
               </div>
             )}
-            <button
-              className="flex w-full items-center justify-center gap-1.5 px-6 py-3 text-xs font-semibold tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-              onClick={(e) => { e.stopPropagation(); setPricingExpanded(!pricingExpanded); }}
-            >
-              {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
-            </button>
           </div>
         );
       })()}
