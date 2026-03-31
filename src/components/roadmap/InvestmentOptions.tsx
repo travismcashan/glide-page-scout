@@ -31,6 +31,18 @@ function isRecurring(offering: Offering): boolean {
   );
 }
 
+const SHORT_NAMES: Record<string, string> = {
+  "Search Engine Optimization": "SEO",
+  "Continuous Improvement": "CI",
+  "PPC Management": "PPC",
+  "Quarterly Maintenance": "Maintenance",
+  "On-Demand Support": "On-Demand",
+};
+
+function shortName(name: string): string {
+  return SHORT_NAMES[name] || name;
+}
+
 type PriceMode = "total" | "monthly" | "monthly-blended";
 
 function applyItemDiscount(price: number, item: TimelineItem): number {
@@ -251,7 +263,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   <div className="flex items-start gap-2.5">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
                     <span className="text-sm font-medium text-foreground">
-                      {si.name}
+                      {shortName(si.name)}
                       {offering?.billingType === "T&M" && si.unitPrice == null ? (
                         <span className="ml-1.5 text-muted-foreground">
                           (T&M at {formatCurrency(offering.hourlyRateExternal ?? 150)}/hr)
@@ -297,9 +309,9 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           const offering = offerings.find((o) => o.sku === si.sku);
           const discounted = applyItemDiscount(si.unitPrice, si);
           if (offering && isRecurring(offering)) {
-            recurringItems.push({ name: si.name, price: discounted, months: si.duration, total: discounted * si.duration });
+            recurringItems.push({ name: shortName(si.name), price: discounted, months: si.duration, total: discounted * si.duration });
           } else {
-            fixedItems.push({ name: si.name, price: discounted });
+            fixedItems.push({ name: shortName(si.name), price: discounted });
           }
         }
 
