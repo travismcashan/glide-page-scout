@@ -267,7 +267,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
               <li key={si.sku} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
                 <span className="text-sm font-medium text-foreground">
-                  {shortName(si.name)}
+                  {si.name}
                 </span>
               </li>
             ))}
@@ -279,10 +279,16 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
       {option.scopeItems.length > 0 && (() => {
         const fixedItems: Array<{ name: string; price: number }> = [];
         const recurringItems: Array<{ name: string; price: number; months: number; total: number }> = [];
+        const tmItems: Array<{ name: string }> = [];
 
         for (const si of option.scopeItems) {
-          if (si.unitPrice == null) continue;
           const offering = offerings.find((o) => o.sku === si.sku);
+          if (si.unitPrice == null) {
+            if (offering?.billingType === "T&M") {
+              tmItems.push({ name: shortName(si.name) });
+            }
+            continue;
+          }
           const discounted = applyItemDiscount(si.unitPrice, si);
           if (offering && isRecurring(offering)) {
             recurringItems.push({ name: shortName(si.name), price: discounted, months: si.duration, total: discounted * si.duration });
@@ -295,7 +301,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         const recurringTotal = recurringItems.reduce((s, i) => s + i.total, 0);
         const grandTotal = fixedTotal + recurringTotal;
 
-        if (fixedItems.length === 0 && recurringItems.length === 0) return null;
+        if (fixedItems.length === 0 && recurringItems.length === 0 && tmItems.length === 0) return null;
 
         return (
           <div className="border-t border-border px-6 py-5">
@@ -341,6 +347,12 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                     )}
                   </>
                 )}
+                {tmItems.length > 0 && tmItems.map((ti) => (
+                  <tr key={ti.name}>
+                    <td className="py-1.5 text-foreground">{ti.name}</td>
+                    <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">T&M</td>
+                  </tr>
+                ))}
                 {/* Grand total row — clean math, no box */}
                 {(() => {
                   const monthlyTotal = recurringItems.reduce((s, ri) => s + ri.price, 0);
