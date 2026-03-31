@@ -12,6 +12,8 @@ interface InvestmentOptionsProps {
   offerings: Offering[];
   sessionId?: string;
   onGenerateRef?: (fn: () => Promise<void>) => void;
+  savedOutcomes?: Record<number, string[]>;
+  onOutcomesChange?: (outcomes: Record<number, string[]>) => void;
 }
 
 function formatCurrency(value: number): string {
@@ -242,7 +244,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
 
       <div className="border-b border-border px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
-          {option.priceMode === "monthly-blended" ? "WHY BUNDLE" : "OUTCOMES"}
+          {option.priceMode === "monthly-blended" ? "WHY BUNDLE?" : "OUTCOMES"}
         </p>
         {outcomesLoading ? (
           <p className="text-sm italic text-muted-foreground">Generating outcomes…</p>
@@ -253,7 +255,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             {outcomes.map((outcome, i) => (
               <li key={i} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-                <span className="text-sm font-medium text-foreground">{outcome}</span>
+                <span className="text-sm text-foreground">{outcome}</span>
               </li>
             ))}
           </ul>
@@ -410,7 +412,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   );
 }
 
-export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef }: InvestmentOptionsProps) {
+export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef, savedOutcomes, onOutcomesChange }: InvestmentOptionsProps) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [option3Discount, setOption3Discount] = useState<{ percent: number } | null>(null);
 
@@ -477,7 +479,7 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
     })(),
   ];
 
-  const [outcomesByIdx, setOutcomesByIdx] = useState<Record<number, string[]>>({});
+  const [outcomesByIdx, setOutcomesByIdx] = useState<Record<number, string[]>>(savedOutcomes || {});
   const [loadingByIdx, setLoadingByIdx] = useState<Record<number, boolean>>({});
   const [outcomesGenerated, setOutcomesGenerated] = useState(false);
 
@@ -495,7 +497,11 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
           body: { optionName: option.name, serviceNames, sessionId, whyBundle: isBundle },
         });
         if (!error && data?.outcomes) {
-          setOutcomesByIdx((prev) => ({ ...prev, [idx]: data.outcomes }));
+          setOutcomesByIdx((prev) => {
+            const next = { ...prev, [idx]: data.outcomes };
+            onOutcomesChange?.(next);
+            return next;
+          });
         }
       } catch (e) {
         console.error("Failed to fetch outcomes:", e);
