@@ -341,46 +341,42 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                     )}
                   </>
                 )}
-                {/* Total investment box — shows for mixed (fixed+recurring) or monthly-only options */}
+                {/* Grand total row — clean math, no box */}
                 {(() => {
-                  const showTotalBox = (fixedItems.length > 0 && recurringItems.length > 0) ||
-                    (option.priceMode === "monthly" && recurringItems.length > 1);
-                  if (!showTotalBox) return null;
-
                   const monthlyTotal = recurringItems.reduce((s, ri) => s + ri.price, 0);
                   const isMonthlyMode = option.priceMode === "monthly";
 
-                  return (
-                    <tr><td colSpan={2} className="pt-3 pb-0"><div className="rounded-lg border border-foreground/20 bg-foreground/5 px-3 py-3">
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {isMonthlyMode ? (
-                            <tr>
-                              <td className="text-xs font-bold text-foreground">Monthly Investment</td>
-                              <td className="text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
-                            </tr>
-                          ) : (
-                            <>
-                              <tr>
-                                <td className="text-xs font-bold text-foreground">Total Investment</td>
-                                <td className="text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
-                              </tr>
-                              {option.priceMode === "monthly-blended" && (
-                                <tr>
-                                  <td className="pt-1 text-xs text-muted-foreground">
-                                    {formatCurrency(grandTotal)} / 12 months
-                                  </td>
-                                  <td className="pt-1 text-right text-sm font-bold text-primary tabular-nums">
-                                    {formatCurrency(grandTotal / 12)}/mo
-                                  </td>
-                                </tr>
-                              )}
-                            </>
-                          )}
-                        </tbody>
-                      </table>
-                    </div></td></tr>
-                  );
+                  if (isMonthlyMode && recurringItems.length > 1) {
+                    return (
+                      <tr className="border-t border-foreground/50">
+                        <td className="py-1.5 text-xs font-bold text-foreground">Monthly Total</td>
+                        <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
+                      </tr>
+                    );
+                  }
+
+                  if (fixedItems.length > 0 && recurringItems.length > 0) {
+                    return (
+                      <>
+                        <tr className="border-t-2 border-foreground/20">
+                          <td className="py-1.5 text-xs font-bold text-foreground">Grand Total</td>
+                          <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
+                        </tr>
+                        {option.priceMode === "monthly-blended" && (
+                          <tr>
+                            <td className="py-1 text-xs text-muted-foreground">
+                              {formatCurrency(grandTotal)} / 12 months
+                            </td>
+                            <td className="py-1 text-right text-xs font-semibold text-foreground tabular-nums">
+                              {formatCurrency(grandTotal / 12)}/mo
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  }
+
+                  return null;
                 })()}
               </tbody>
             </table>
