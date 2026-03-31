@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { FullBleedTable } from './FullBleedTable';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
 type Props = { sessions: SessionData[] };
@@ -87,7 +88,7 @@ export function GroupContentMatrix({ sessions }: Props) {
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <FullBleedTable>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -127,7 +128,7 @@ export function GroupContentMatrix({ sessions }: Props) {
             ))}
           </tbody>
         </table>
-      </div>
+      </FullBleedTable>
     </div>
   );
 }

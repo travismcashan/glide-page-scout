@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Check, Minus } from 'lucide-react';
+import { FullBleedTable } from './FullBleedTable';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
 type Props = { sessions: SessionData[] };
@@ -78,7 +79,7 @@ export function GroupNavComparison({ sessions }: Props) {
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <FullBleedTable>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -113,7 +114,7 @@ export function GroupNavComparison({ sessions }: Props) {
             ))}
           </tbody>
         </table>
-      </div>
+      </FullBleedTable>
     </div>
   );
 }

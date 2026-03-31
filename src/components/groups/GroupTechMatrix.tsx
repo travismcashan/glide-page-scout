@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Check, Minus } from 'lucide-react';
+import { FullBleedTable } from './FullBleedTable';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
 
@@ -105,7 +106,7 @@ export function GroupTechMatrix({ sessions }: Props) {
       )}
 
       {/* Matrix table */}
-      <div className="overflow-x-auto">
+      <FullBleedTable>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -143,7 +144,7 @@ export function GroupTechMatrix({ sessions }: Props) {
             ))}
           </tbody>
         </table>
-      </div>
+      </FullBleedTable>
     </div>
   );
 }
