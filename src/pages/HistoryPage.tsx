@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Globe, Clock, Trash2, Share2, Database, FileText, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
+import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
@@ -33,7 +33,7 @@ type CrawlSession = {
   created_at: string;
 };
 
-type SortKey = 'domain' | 'integrations' | 'files' | 'date' | 'status';
+type SortKey = 'domain' | 'date' | 'status';
 type SortDir = 'asc' | 'desc';
 type GroupBy = 'none' | 'domain' | 'status';
 
@@ -59,6 +59,7 @@ export default function HistoryPage() {
   const [deleting, setDeleting] = useState(false);
   const [integrationCounts, setIntegrationCounts] = useState<Map<string, number>>(new Map());
   const [docCounts, setDocCounts] = useState<Map<string, number>>(new Map());
+  const [sessionGroups, setSessionGroups] = useState<Map<string, { id: string; name: string }[]>>(new Map());
 
   // Bulk delete state
   const [bulkMode, setBulkMode] = useState(false);
@@ -130,6 +131,27 @@ export default function HistoryPage() {
           }
         })();
 
+        // Load group memberships
+        void (async () => {
+          try {
+            const { data: members } = await supabase
+              .from('site_group_members')
+              .select('session_id, group_id, site_groups(id, name)')
+              .in('session_id', sessionIds);
+            if (members) {
+              const groupMap = new Map<string, { id: string; name: string }[]>();
+              for (const m of members as any[]) {
+                const group = m.site_groups;
+                if (!group) continue;
+                const existing = groupMap.get(m.session_id) || [];
+                existing.push({ id: group.id, name: group.name });
+                groupMap.set(m.session_id, existing);
+              }
+              setSessionGroups(groupMap);
+            }
+          } catch { /* optional */ }
+        })();
+
         void (async () => {
           try {
             const { data: counts, error: countError } = await withQueryTimeout(
@@ -194,8 +216,6 @@ export default function HistoryPage() {
       let cmp = 0;
       switch (sortKey) {
         case 'domain': cmp = a.domain.localeCompare(b.domain); break;
-        case 'integrations': cmp = (integrationCounts.get(a.id) ?? 0) - (integrationCounts.get(b.id) ?? 0); break;
-        case 'files': cmp = (docCounts.get(a.id) ?? 0) - (docCounts.get(b.id) ?? 0); break;
         case 'date': cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break;
         case 'status': cmp = resolveStatus(a, integrationCounts.get(a.id)).localeCompare(resolveStatus(b, integrationCounts.get(b.id))); break;
       }
@@ -341,17 +361,17 @@ export default function HistoryPage() {
           <span className="truncate font-medium">{session.domain}</span>
         </div>
       </TableCell>
-      <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-1 text-muted-foreground">
-          <Database className="h-3 w-3" />
-          <span className="text-xs font-mono">{integrationCounts.get(session.id) ?? 0}</span>
-        </div>
-      </TableCell>
-      <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-1 text-muted-foreground">
-          <FileText className="h-3 w-3" />
-          <span className="text-xs font-mono">{docCounts.get(session.id) ?? 0}</span>
-        </div>
+      <TableCell>
+        {sessionGroups.get(session.id)?.map(g => (
+          <Badge
+            key={g.id}
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 cursor-pointer hover:bg-muted/50"
+            onClick={(e) => { e.stopPropagation(); navigate(`/groups/${g.id}`); }}
+          >
+            {g.name}
+          </Badge>
+        ))}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
@@ -508,15 +528,8 @@ export default function HistoryPage() {
                         Domain <SortIcon col="domain" />
                       </button>
                     </TableHead>
-                    <TableHead className="text-center">
-                      <button onClick={() => toggleSort('integrations')} className="flex items-center gap-1 mx-auto hover:text-foreground transition-colors">
-                        Integrations <SortIcon col="integrations" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-center">
-                      <button onClick={() => toggleSort('files')} className="flex items-center gap-1 mx-auto hover:text-foreground transition-colors">
-                        Files <SortIcon col="files" />
-                      </button>
+                    <TableHead>
+                      <span className="flex items-center gap-1">Group</span>
                     </TableHead>
                     <TableHead>
                       <button onClick={() => toggleSort('date')} className="flex items-center gap-1 hover:text-foreground transition-colors">

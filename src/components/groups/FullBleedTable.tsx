@@ -1,8 +1,8 @@
 /**
- * FullBleedTable: breaks a table out of the max-w-6xl container to use
- * the full viewport width. The table scrolls horizontally if it exceeds
- * the viewport. Headers/summaries above this wrapper stay within the
- * normal body width.
+ * FullBleedTable: breaks a table out of the parent container to use
+ * the full viewport width with consistent padding from the browser edge.
+ * The table scrolls horizontally if it exceeds the viewport.
+ * Headers/summaries above this wrapper stay within the normal body width.
  */
 export function FullBleedTable({ children }: { children: React.ReactNode }) {
   return (
@@ -11,8 +11,8 @@ export function FullBleedTable({ children }: { children: React.ReactNode }) {
       style={{
         width: '100vw',
         marginLeft: 'calc(50% - 50vw)',
-        paddingLeft: 'max(1rem, calc(50vw - 576px))',  // 576px = half of max-w-6xl (1152px)
-        paddingRight: 'max(1rem, calc(50vw - 576px))',
+        paddingLeft: 'clamp(1rem, 4vw, 6rem)',
+        paddingRight: 'clamp(1rem, 4vw, 6rem)',
       }}
     >
       {children}

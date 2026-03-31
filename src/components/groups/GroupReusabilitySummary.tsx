@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Layers, Navigation, FileText, BarChart3 } from 'lucide-react';
+import { Layers, Navigation, FileText, BarChart3, Sparkles, Loader2 } from 'lucide-react';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
 type Props = { sessions: SessionData[] };
@@ -43,10 +43,17 @@ function computeOverlap(
   return { shared, unique, total, included, percent };
 }
 
-type SummaryProps = Props & { minSites: number; onMinSitesChange: (n: number) => void };
+type SummaryProps = Props & {
+  minPct: number;
+  onMinPctChange: (n: number) => void;
+  onAiRecommend?: () => void;
+  aiLoading?: boolean;
+  aiReasoning?: string | null;
+};
 
-export function GroupReusabilitySummary({ sessions, minSites, onMinSitesChange }: SummaryProps) {
+export function GroupReusabilitySummary({ sessions, minPct, onMinPctChange, onAiRecommend, aiLoading, aiReasoning }: SummaryProps) {
   const siteCount = sessions.filter(s => s.page_tags || s.content_types_data || s.nav_structure).length;
+  const minSites = Math.max(1, Math.ceil(siteCount * minPct / 100));
 
   const templateExtractor = (s: any) => {
     const tags = s.page_tags;
@@ -88,7 +95,7 @@ export function GroupReusabilitySummary({ sessions, minSites, onMinSitesChange }
     const maxPages = pageCounts.length > 0 ? Math.max(...pageCounts) : 0;
 
     return { templates, contentTypes, navItems, overallPercent, avgPages, minPages, maxPages, pageCounts };
-  }, [sessions, minSites]);
+  }, [sessions, minSites, minPct]);
 
   const hasData = analysis.templates.total > 0 || analysis.contentTypes.total > 0 || analysis.navItems.total > 0;
   if (!hasData) {
@@ -105,25 +112,43 @@ export function GroupReusabilitySummary({ sessions, minSites, onMinSitesChange }
       <div className="text-center py-8 rounded-xl border border-border bg-muted/20">
         <div className="text-6xl font-bold tracking-tight">{analysis.overallPercent}%</div>
         <div className="text-lg text-muted-foreground mt-2">Structural Similarity</div>
-        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-          Scope: items on <strong>{minSites}+</strong> of {siteCount} sites
-        </p>
         {/* Scope slider */}
         <div className="flex items-center justify-center gap-4 mt-5 max-w-sm mx-auto">
           <span className="text-xs text-muted-foreground whitespace-nowrap">More scope</span>
           <input
             type="range"
-            min={1}
-            max={siteCount}
-            value={minSites}
-            onChange={e => onMinSitesChange(Number(e.target.value))}
+            min={0}
+            max={100}
+            step={5}
+            value={minPct}
+            onChange={e => onMinPctChange(Number(e.target.value))}
             className="flex-1 accent-primary h-2 cursor-pointer"
           />
           <span className="text-xs text-muted-foreground whitespace-nowrap">Less scope</span>
         </div>
-        <div className="text-xs text-muted-foreground mt-1">
-          {minSites === 1 ? 'Including everything' : minSites === siteCount ? 'Only universal items' : `${minSites}+ sites required`}
-        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          {minPct === 0
+            ? 'Including all items'
+            : minPct >= 100
+              ? 'Only items on every site'
+              : `Items on ${minPct}%+ of sites (${minSites}+ of ${siteCount})`
+          }
+        </p>
+        {onAiRecommend && (
+          <div className="mt-5">
+            <button
+              onClick={onAiRecommend}
+              disabled={aiLoading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {aiLoading ? 'Analyzing...' : 'AI Recommend Scope'}
+            </button>
+          </div>
+        )}
+        {aiReasoning && (
+          <p className="text-xs text-muted-foreground mt-3 max-w-lg mx-auto italic">{aiReasoning}</p>
+        )}
       </div>
 
       {/* Dimension breakdown */}

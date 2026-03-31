@@ -79,6 +79,8 @@ type Props = {
   onDetachSite?: (sessionId: string) => void;
   /** Callback when active thread title changes (for breadcrumb display) */
   onThreadTitleChange?: (title: string | null) => void;
+  /** Override crawl context (e.g. for group chat with combined multi-session context) */
+  crawlContextOverride?: string;
 };
 
 const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
@@ -1032,7 +1034,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite, onThreadTitleChange }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite, onThreadTitleChange, crawlContextOverride }: Props) {
   const isMobile = useIsMobile();
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1108,7 +1110,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       .then(({ data }) => { if (data?.title) onThreadTitleChange(data.title); });
   }, [activeThreadId, sidebarRefreshKey]); // sidebarRefreshKey changes when title is updated
 
-  const crawlContext = globalMode ? '' : buildCrawlContext(session, pages);
+  const crawlContext = crawlContextOverride ?? (globalMode ? '' : buildCrawlContext(session, pages));
 
   // Load available sites for the site picker (global mode only)
   useEffect(() => {
@@ -1866,7 +1868,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     saveMessage('user', text);
 
     try {
-      const crawlCtx = globalMode ? '' : buildCrawlContext(session, pages);
+      const crawlCtx = crawlContextOverride ?? (globalMode ? '' : buildCrawlContext(session, pages));
       const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
       const defaultDocs = await loadDefaultDocs();
 

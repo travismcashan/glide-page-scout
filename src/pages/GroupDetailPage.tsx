@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, Layers, ChevronDown, ChevronUp, Settings2, ChevronRight, Share2, Check, AlertTriangle } from 'lucide-react';
+import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, Layers, ChevronDown, ChevronUp, Settings2, ChevronRight, Share2, Check, AlertTriangle, MessageSquare } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -29,10 +29,12 @@ import { buildSitePath } from '@/lib/sessionSlug';
 import { GroupScoreGrid } from '@/components/groups/GroupScoreGrid';
 import { GroupTechMatrix } from '@/components/groups/GroupTechMatrix';
 import { GroupPerformanceChart } from '@/components/groups/GroupPerformanceChart';
-import { GroupContentMatrix } from '@/components/groups/GroupContentMatrix';
 import { GroupTemplateMatrix } from '@/components/groups/GroupTemplateMatrix';
+import { GroupContentMatrix } from '@/components/groups/GroupContentMatrix';
 import { GroupNavComparison } from '@/components/groups/GroupNavComparison';
 import { GroupReusabilitySummary } from '@/components/groups/GroupReusabilitySummary';
+import { GroupTechSummary } from '@/components/groups/GroupTechSummary';
+import { GroupChatTab } from '@/components/groups/GroupChatTab';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -638,7 +640,14 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [mainTab, setMainTab] = useState('sites');
-  const [comparisonMinSites, setComparisonMinSites] = useState(3); // Default: 3+ sites required
+  const [comparisonMinPct, setComparisonMinPct] = useState(20); // Default: items on 20%+ of sites
+  const [checkedTemplates, setCheckedTemplates] = useState<Set<string>>(new Set());
+  const [checkedContentTypes, setCheckedContentTypes] = useState<Set<string>>(new Set());
+  const [checkedNavItems, setCheckedNavItems] = useState<Set<string>>(new Set());
+  const [checkedTech, setCheckedTech] = useState<Set<string>>(new Set());
+  const [techMinPct, setTechMinPct] = useState(20);
+  const [aiScopeLoading, setAiScopeLoading] = useState(false);
+  const [aiScopeReasoning, setAiScopeReasoning] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteSitesToo, setDeleteSitesToo] = useState(false);
@@ -830,6 +839,97 @@ export default function GroupDetailPage() {
     }
   };
 
+  // AI Scope Recommend
+  const handleAiRecommend = async () => {
+    if (!fullSessions.length) return;
+    setAiScopeLoading(true);
+    setAiScopeReasoning(null);
+    try {
+      // Build template summary
+      const templateMap = new Map<string, { name: string; baseType: string; siteCount: number }>();
+      for (const s of fullSessions) {
+        const tags = s.page_tags;
+        if (!tags || typeof tags !== 'object') continue;
+        const seen = new Set<string>();
+        for (const t of Object.values(tags) as any[]) {
+          const name = t.template || 'Unknown';
+          if (seen.has(name)) continue;
+          seen.add(name);
+          if (!templateMap.has(name)) templateMap.set(name, { name, baseType: t.baseType || 'Page', siteCount: 0 });
+          templateMap.get(name)!.siteCount++;
+        }
+      }
+
+      // Build content type summary
+      const ctMap = new Map<string, { name: string; baseType: string; siteCount: number; totalPages: number }>();
+      for (const s of fullSessions) {
+        const ct = s.content_types_data;
+        if (!ct?.classified) continue;
+        const seen = new Map<string, number>();
+        for (const p of ct.classified) {
+          const name = p.contentType || p.template || 'Unknown';
+          seen.set(name, (seen.get(name) || 0) + 1);
+        }
+        for (const [name, count] of seen) {
+          if (!ctMap.has(name)) ctMap.set(name, { name, baseType: 'Page', siteCount: 0, totalPages: 0 });
+          const entry = ctMap.get(name)!;
+          entry.siteCount++;
+          entry.totalPages += count;
+        }
+      }
+
+      // Build nav summary
+      const navMap = new Map<string, { name: string; siteCount: number }>();
+      for (const s of fullSessions) {
+        const nav = s.nav_structure;
+        if (!nav?.primary) continue;
+        const seen = new Set<string>();
+        for (const item of nav.primary) {
+          const label = item.label?.trim();
+          if (!label) continue;
+          const key = label.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          if (!navMap.has(key)) navMap.set(key, { name: label, siteCount: 0 });
+          navMap.get(key)!.siteCount++;
+        }
+      }
+
+      const siteCount = fullSessions.length;
+      const { data, error } = await supabase.functions.invoke('ai-group-scope', {
+        body: {
+          groupName: group?.name,
+          siteCount,
+          templates: Array.from(templateMap.values()),
+          contentTypes: Array.from(ctMap.values()).map(c => ({
+            ...c,
+            avgPages: Math.round(c.totalPages / c.siteCount),
+          })),
+          navItems: Array.from(navMap.values()),
+        },
+      });
+
+      if (error || !data?.success) {
+        toast.error('AI recommendation failed');
+        console.error('AI scope error:', error || data?.error);
+        return;
+      }
+
+      const rec = data.recommendations;
+      // Set checked items from AI recommendations
+      setCheckedTemplates(new Set(rec.templates || []));
+      setCheckedContentTypes(new Set(rec.contentTypes || []));
+      setCheckedNavItems(new Set((rec.navItems || []).map((n: string) => n.toLowerCase())));
+      if (rec.reasoning) setAiScopeReasoning(rec.reasoning);
+      toast.success('AI recommendations applied');
+    } catch (err) {
+      console.error('AI recommend error:', err);
+      toast.error('Failed to get AI recommendations');
+    } finally {
+      setAiScopeLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -882,10 +982,10 @@ export default function GroupDetailPage() {
           <TabsList>
             <TabsTrigger value="sites" className="gap-1.5"><Globe className="h-3.5 w-3.5" /> Sites</TabsTrigger>
             <TabsTrigger value="scores" className="gap-1.5"><Gauge className="h-3.5 w-3.5" /> Scores</TabsTrigger>
-            <TabsTrigger value="technology" className="gap-1.5"><Cpu className="h-3.5 w-3.5" /> Technology</TabsTrigger>
             <TabsTrigger value="performance" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Performance</TabsTrigger>
-            <TabsTrigger value="comparison" className="gap-1.5"><Layers className="h-3.5 w-3.5" /> Comparison</TabsTrigger>
-            <TabsTrigger value="strategy" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Strategy</TabsTrigger>
+            <TabsTrigger value="technology" className="gap-1.5"><Cpu className="h-3.5 w-3.5" /> Technology</TabsTrigger>
+            <TabsTrigger value="comparison" className="gap-1.5"><Layers className="h-3.5 w-3.5" /> Structure</TabsTrigger>
+            <TabsTrigger value="chat" className="gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> Chat</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sites" className="mt-6">
@@ -911,7 +1011,10 @@ export default function GroupDetailPage() {
             {loadingSessions ? (
               <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : (
-              <GroupTechMatrix sessions={fullSessions} />
+              <div className="space-y-12">
+                <GroupTechSummary sessions={fullSessions} minPct={techMinPct} onMinPctChange={setTechMinPct} />
+                <GroupTechMatrix sessions={fullSessions} minPct={techMinPct} checkedItems={checkedTech} onCheckedChange={setCheckedTech} />
+              </div>
             )}
           </TabsContent>
 
@@ -928,27 +1031,23 @@ export default function GroupDetailPage() {
               <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : (
               <div className="space-y-12">
-                <GroupReusabilitySummary sessions={fullSessions} minSites={comparisonMinSites} onMinSitesChange={setComparisonMinSites} />
-                <GroupTemplateMatrix sessions={fullSessions} minSites={comparisonMinSites} />
-                <GroupContentMatrix sessions={fullSessions} minSites={comparisonMinSites} />
-                <GroupNavComparison sessions={fullSessions} minSites={comparisonMinSites} />
+                <GroupReusabilitySummary sessions={fullSessions} minPct={comparisonMinPct} onMinPctChange={setComparisonMinPct} onAiRecommend={handleAiRecommend} aiLoading={aiScopeLoading} aiReasoning={aiScopeReasoning} />
+                <GroupTemplateMatrix sessions={fullSessions} minPct={comparisonMinPct} checkedItems={checkedTemplates} onCheckedChange={setCheckedTemplates} />
+                <GroupContentMatrix sessions={fullSessions} minPct={comparisonMinPct} checkedItems={checkedContentTypes} onCheckedChange={setCheckedContentTypes} />
+                <GroupNavComparison sessions={fullSessions} minPct={comparisonMinPct} checkedItems={checkedNavItems} onCheckedChange={setCheckedNavItems} />
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="strategy" className="mt-6">
-            <div className="text-center py-16 space-y-4">
-              <Sparkles className="h-10 w-10 mx-auto text-muted-foreground/40" />
-              <div className="space-y-1">
-                <p className="font-medium">AI Strategy Brief</p>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Generate a unified platform recommendation, migration priority order, and consolidation roadmap across all sites in this group.
-                </p>
-              </div>
-              <Button disabled variant="outline" className="gap-2">
-                <Sparkles className="h-4 w-4" /> Coming Soon
-              </Button>
-            </div>
+          <TabsContent value="chat" className="mt-6">
+            {group && (
+              <GroupChatTab
+                groupId={groupId!}
+                groupName={group.name}
+                members={members.map(m => ({ session_id: m.session_id, domain: m.domain }))}
+                sessions={fullSessions}
+              />
+            )}
           </TabsContent>
         </Tabs>
 

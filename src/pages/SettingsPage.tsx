@@ -200,6 +200,7 @@ export default function SettingsPage() {
   const [customInstructions, setCustomInstructions] = useState(
     () => localStorage.getItem('ai-custom-instructions') || ''
   );
+  const [savedCustomInstructions, setSavedCustomInstructions] = useState('');
 
   // About Me - enriched profile
   const [aboutMe, setAboutMe] = useState<Record<string, any> | null>(() => {
@@ -295,6 +296,13 @@ export default function SettingsPage() {
 
       setAboutMe(enriched);
       localStorage.setItem('ai-about-me', JSON.stringify(enriched));
+      // Also persist to DB
+      if (user?.id) {
+        await supabase.from('user_settings').upsert(
+          { user_id: user.id, about_me: enriched as any },
+          { onConflict: 'user_id' }
+        );
+      }
       toast.success('Profile enriched!');
     } catch {
       toast.error('Failed to enrich profile');
@@ -307,9 +315,84 @@ export default function SettingsPage() {
   const [personalBio, setPersonalBio] = useState(
     () => localStorage.getItem('ai-personal-bio') || ''
   );
+  const [savedPersonalBio, setSavedPersonalBio] = useState('');
   const [myRole, setMyRole] = useState(
     () => localStorage.getItem('ai-my-role') || ''
   );
+  const [savedMyRole, setSavedMyRole] = useState('');
+  const [savingSection, setSavingSection] = useState<string | null>(null);
+
+  // Load settings from DB on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from('user_settings')
+        .select('custom_instructions, my_role, personal_bio, about_me, location_data')
+        .eq('user_id', user.id)
+        .single();
+      if (data) {
+        const ci = data.custom_instructions || '';
+        const role = data.my_role || '';
+        const bio = data.personal_bio || '';
+        setCustomInstructions(ci);
+        setSavedCustomInstructions(ci);
+        localStorage.setItem('ai-custom-instructions', ci);
+        setMyRole(role);
+        setSavedMyRole(role);
+        localStorage.setItem('ai-my-role', role);
+        setPersonalBio(bio);
+        setSavedPersonalBio(bio);
+        localStorage.setItem('ai-personal-bio', bio);
+        if (data.about_me) {
+          setAboutMe(data.about_me as Record<string, any>);
+          localStorage.setItem('ai-about-me', JSON.stringify(data.about_me));
+        }
+        if (data.location_data) {
+          setLocationData(data.location_data as Record<string, any>);
+          localStorage.setItem('ai-location', JSON.stringify(data.location_data));
+        }
+      } else {
+        // No DB row yet — use localStorage values as baseline
+        setSavedCustomInstructions(customInstructions);
+        setSavedMyRole(myRole);
+        setSavedPersonalBio(personalBio);
+      }
+    })();
+  }, [user?.id]);
+
+  // Save a specific section to DB
+  const saveSection = async (section: 'custom_instructions' | 'my_role' | 'personal_bio') => {
+    if (!user?.id) return;
+    setSavingSection(section);
+    const payload: Record<string, string> = {};
+    if (section === 'custom_instructions') payload.custom_instructions = customInstructions;
+    if (section === 'my_role') payload.my_role = myRole;
+    if (section === 'personal_bio') payload.personal_bio = personalBio;
+
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: user.id, ...payload }, { onConflict: 'user_id' });
+
+    if (error) {
+      toast.error('Failed to save settings');
+    } else {
+      toast.success('Saved');
+      if (section === 'custom_instructions') {
+        setSavedCustomInstructions(customInstructions);
+        localStorage.setItem('ai-custom-instructions', customInstructions);
+      }
+      if (section === 'my_role') {
+        setSavedMyRole(myRole);
+        localStorage.setItem('ai-my-role', myRole);
+      }
+      if (section === 'personal_bio') {
+        setSavedPersonalBio(personalBio);
+        localStorage.setItem('ai-personal-bio', personalBio);
+      }
+    }
+    setSavingSection(null);
+  };
 
   // Location & timezone (auto-detected via IP)
   const [locationData, setLocationData] = useState<Record<string, any> | null>(() => {
@@ -883,10 +966,7 @@ export default function SettingsPage() {
             <Textarea
               placeholder="e.g. Always respond in bullet points. Focus on actionable recommendations. Use a consultative tone. When analyzing competitors, prioritize SEO and content strategy insights."
               value={customInstructions}
-              onChange={(e) => {
-                setCustomInstructions(e.target.value);
-                localStorage.setItem('ai-custom-instructions', e.target.value);
-              }}
+              onChange={(e) => setCustomInstructions(e.target.value)}
               className="min-h-[120px] resize-y text-sm"
               maxLength={2000}
             />
@@ -898,19 +978,29 @@ export default function SettingsPage() {
               </p>
               <span className="text-xs text-muted-foreground tabular-nums">{customInstructions.length}/2,000</span>
             </div>
-            {customInstructions.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => {
-                  setCustomInstructions('');
-                  localStorage.removeItem('ai-custom-instructions');
-                }}
-              >
-                Clear instructions
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {customInstructions !== savedCustomInstructions && (
+                <Button
+                  size="sm"
+                  onClick={() => saveSection('custom_instructions')}
+                  disabled={savingSection === 'custom_instructions'}
+                  className="gap-1.5"
+                >
+                  {savingSection === 'custom_instructions' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Save
+                </Button>
+              )}
+              {customInstructions.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setCustomInstructions('')}
+                >
+                  Clear instructions
+                </Button>
+              )}
+            </div>
           </div>
         </section>
 
@@ -1179,10 +1269,7 @@ export default function SettingsPage() {
             <Textarea
               placeholder="e.g. I lead the marketing team and oversee website strategy, content production, and lead generation. I work closely with sales to align on messaging and evaluate new tools for our martech stack."
               value={myRole}
-              onChange={(e) => {
-                setMyRole(e.target.value);
-                localStorage.setItem('ai-my-role', e.target.value);
-              }}
+              onChange={(e) => setMyRole(e.target.value)}
               className="min-h-[80px] resize-y text-sm"
               maxLength={1000}
             />
@@ -1192,6 +1279,17 @@ export default function SettingsPage() {
               </p>
               <span className="text-xs text-muted-foreground tabular-nums">{myRole.length}/1,000</span>
             </div>
+            {myRole !== savedMyRole && (
+              <Button
+                size="sm"
+                onClick={() => saveSection('my_role')}
+                disabled={savingSection === 'my_role'}
+                className="gap-1.5"
+              >
+                {savingSection === 'my_role' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Save
+              </Button>
+            )}
           </div>
 
           {/* Personal bio */}
@@ -1201,10 +1299,7 @@ export default function SettingsPage() {
             <Textarea
               placeholder="e.g. I'm a digital marketing strategist specializing in B2B SaaS. I focus on conversion optimization and content strategy. I prefer data-driven recommendations with specific action items."
               value={personalBio}
-              onChange={(e) => {
-                setPersonalBio(e.target.value);
-                localStorage.setItem('ai-personal-bio', e.target.value);
-              }}
+              onChange={(e) => setPersonalBio(e.target.value)}
               className="min-h-[100px] resize-y text-sm"
               maxLength={2000}
             />
@@ -1214,6 +1309,17 @@ export default function SettingsPage() {
               </p>
               <span className="text-xs text-muted-foreground tabular-nums">{personalBio.length}/2,000</span>
             </div>
+            {personalBio !== savedPersonalBio && (
+              <Button
+                size="sm"
+                onClick={() => saveSection('personal_bio')}
+                disabled={savingSection === 'personal_bio'}
+                className="gap-1.5"
+              >
+                {savingSection === 'personal_bio' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Save
+              </Button>
+            )}
           </div>
         </section>
 
