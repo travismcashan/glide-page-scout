@@ -251,9 +251,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
         if (item.sku === sku) {
           return { ...item, startMonth: start, duration: clampedDuration };
         }
-        // Cascade: push GO/TS bars that started at or after the old end
-        if (isFB && delta > 0 && (item.pillar === "GO" || item.pillar === "TS") && item.startMonth >= oldEnd - 0.5) {
-          const pushed = item.startMonth + delta;
+        // Cascade: only push GO/TS bars whose start the new end actually overlaps
+        if (isFB && delta > 0 && (item.pillar === "GO" || item.pillar === "TS") && newEnd > item.startMonth) {
+          const pushed = newEnd;
           const newItemDuration = Math.min(item.duration, totalMonths - pushed);
           if (pushed < totalMonths) {
             return { ...item, startMonth: pushed, duration: Math.max(0.5, newItemDuration) };
