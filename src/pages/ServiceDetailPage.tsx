@@ -1,523 +1,480 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isPpcOffering, PPC_FLAT_FEE, PPC_FLAT_THRESHOLD, PPC_TIERS, PPC_STARTUP_COST } from "@/lib/ppcPricing";
+import ServiceStepsEditor from "@/components/ServiceStepsEditor";
 import AppHeader from "@/components/AppHeader";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BrandLoader } from "@/components/BrandLoader";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, X, Save, ExternalLink } from "lucide-react";
-import { PILLARS } from "@/data/offerings";
-import type { PillarCode } from "@/data/offerings";
 
-const PILLAR_BADGE: Record<string, string> = {
-  IS: "bg-pillar-is-light text-pillar-is-foreground border-pillar-is/30",
-  FB: "bg-pillar-fb-light text-pillar-fb-foreground border-pillar-fb/30",
-  GO: "bg-pillar-go-light text-pillar-go-foreground border-pillar-go/30",
-  TS: "bg-pillar-ts-light text-pillar-ts-foreground border-pillar-ts/30",
-};
-
-const PILLAR_DOT: Record<string, string> = {
-  IS: "bg-pillar-is",
-  FB: "bg-pillar-fb",
-  GO: "bg-pillar-go",
-  TS: "bg-pillar-ts",
-};
-
-type ServiceRecord = {
-  id: string;
-  sku: number | null;
+interface ServiceForm {
   name: string;
-  pillar: PillarCode;
-  sort_order: number;
-  default_duration_months: number;
-  roadmap_grade: boolean;
-  active: boolean;
-  phase_eligible: boolean;
-  billing_type: string | null;
+  category: string;
+  type_of_engagement: string;
+  frequency: string;
+  priority: string;
+  phase: string;
+  billing_type: string;
+  onboarding_cost: string | null;
+  hourly_rate_external: number | null;
+  hourly_rate_internal: number | null;
   min_fixed: number | null;
   max_fixed: number | null;
   min_retainer: number | null;
   max_retainer: number | null;
   min_hourly: number | null;
   max_hourly: number | null;
-  hourly_rate_external: number | null;
-  hourly_rate_internal: number | null;
-  min_duration_months: number | null;
-  max_duration_months: number | null;
-  short_description: string | null;
-  description: string | null;
-  ideal_for: string | null;
-  typical_team: string | null;
-  deliverables: string[];
-  not_included: string | null;
-  discovery_questions: string[];
-  proposal_language: string | null;
-  internal_notes: string | null;
-  case_study_url: string | null;
+  min_term_months: number | null;
+  avg_duration_low_weeks: number | null;
+  avg_duration_high_weeks: number | null;
+  teams_involved: string | null;
+  has_one_pager: boolean;
+  has_sow: boolean;
+  has_faq: boolean;
+  has_outcomes: boolean;
+  has_testimonials: boolean;
+  roadmap_grade: boolean;
+  pillar: string | null;
+  sku: number | null;
+  default_duration_months: number | null;
+}
+
+const EMPTY: ServiceForm = {
+  name: "",
+  category: "Service",
+  type_of_engagement: "Recurring",
+  frequency: "Monthly",
+  priority: "Core",
+  phase: "Foundation",
+  billing_type: "Retainer",
+  onboarding_cost: null,
+  hourly_rate_external: null,
+  hourly_rate_internal: null,
+  min_fixed: null,
+  max_fixed: null,
+  min_retainer: null,
+  max_retainer: null,
+  min_hourly: null,
+  max_hourly: null,
+  min_term_months: null,
+  avg_duration_low_weeks: null,
+  avg_duration_high_weeks: null,
+  teams_involved: null,
+  has_one_pager: false,
+  has_sow: false,
+  has_faq: false,
+  has_outcomes: false,
+  has_testimonials: false,
+  roadmap_grade: false,
+  pillar: null,
+  sku: null,
+  default_duration_months: 1,
 };
 
-function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <div className="mb-4 pb-3 border-b border-border">
-      <h2 className="text-sm font-semibold text-foreground tracking-tight">{title}</h2>
-      {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-    </div>
-  );
-}
-
-function FieldRow({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
-  return (
-    <div className="grid grid-cols-[200px_1fr] gap-4 items-start py-3 border-b border-border/50 last:border-0">
-      <div className="pt-2">
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        {hint && <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{hint}</p>}
-      </div>
-      <div>{children}</div>
-    </div>
-  );
-}
-
-function NumberField({ value, onChange, placeholder, prefix }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string; prefix?: string }) {
-  return (
-    <div className="relative">
-      {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{prefix}</span>}
-      <Input
-        type="number"
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value === "" ? null : parseFloat(e.target.value))}
-        placeholder={placeholder}
-        className={prefix ? "pl-7" : ""}
-      />
-    </div>
-  );
-}
-
-function JsonListField({ value, onChange, placeholder }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
-  const [draft, setDraft] = useState("");
-
-  const add = () => {
-    const trimmed = draft.trim();
-    if (!trimmed) return;
-    onChange([...value, trimmed]);
-    setDraft("");
-  };
-
-  const remove = (i: number) => {
-    onChange(value.filter((_, idx) => idx !== i));
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={placeholder}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          className="flex-1"
-        />
-        <Button type="button" variant="outline" size="sm" onClick={add}>
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      {value.length > 0 && (
-        <ul className="space-y-1.5">
-          {value.map((item, i) => (
-            <li key={i} className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
-              <span className="flex-1 leading-snug">{item}</span>
-              <button type="button" onClick={() => remove(i)} className="mt-0.5 text-muted-foreground hover:text-destructive transition-colors shrink-0">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
+const CATEGORIES = ["Service", "Project", "Add-On", "Support", "Signature", "Diagnostic", "Strategy"];
+const ENGAGEMENT_TYPES = ["Recurring", "Timebound"];
+const FREQUENCIES = ["Monthly", "Quarterly", "One-Time"];
+const PRIORITIES = ["Core", "Premium", "Add-On", "One-Off", "Legacy", "Base", "NEW"];
+const PHASES = ["Roadmap", "Foundation", "Accelerate", "Momentum", "All"];
+const BILLING_TYPES = ["Retainer", "Fixed Cost", "T&M"];
+const PILLAR_OPTIONS = [
+  { value: "IS", label: "Insight & Strategy" },
+  { value: "FB", label: "Foundation & Build" },
+  { value: "GO", label: "Growth & Optimization" },
+  { value: "TS", label: "Technical & Support" },
+];
 
 export default function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [service, setService] = useState<ServiceRecord | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const isNew = id === "new";
+  const [form, setForm] = useState<ServiceForm>(EMPTY);
+  const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [serviceId, setServiceId] = useState<string | null>(isNew ? null : (id ?? null));
 
-  const fetchService = useCallback(async () => {
-    if (!id) return;
-    const { data, error } = await (supabase as any)
-      .from("services")
-      .select("*")
-      .eq("id", id)
-      .single();
+  useEffect(() => {
+    if (isNew || !id) return;
+    const fetch = async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (error || !data) {
+        toast.error("Service not found");
+        navigate("/services");
+        return;
+      }
+      const s = data as any;
+      setForm({
+        name: s.name ?? "",
+        category: s.category ?? "Service",
+        type_of_engagement: s.type_of_engagement ?? "Recurring",
+        frequency: s.frequency ?? "Monthly",
+        priority: s.priority ?? "Core",
+        phase: s.phase ?? "Foundation",
+        billing_type: s.billing_type ?? "Retainer",
+        onboarding_cost: s.onboarding_cost ?? null,
+        hourly_rate_external: s.hourly_rate_external ?? null,
+        hourly_rate_internal: s.hourly_rate_internal ?? null,
+        min_fixed: s.min_fixed ?? null,
+        max_fixed: s.max_fixed ?? null,
+        min_retainer: s.min_retainer ?? null,
+        max_retainer: s.max_retainer ?? null,
+        min_hourly: s.min_hourly ?? null,
+        max_hourly: s.max_hourly ?? null,
+        min_term_months: s.min_term_months ?? null,
+        avg_duration_low_weeks: s.avg_duration_low_weeks ?? null,
+        avg_duration_high_weeks: s.avg_duration_high_weeks ?? null,
+        teams_involved: s.teams_involved ?? null,
+        has_one_pager: s.has_one_pager ?? false,
+        has_sow: s.has_sow ?? false,
+        has_faq: s.has_faq ?? false,
+        has_outcomes: s.has_outcomes ?? false,
+        has_testimonials: s.has_testimonials ?? false,
+        roadmap_grade: s.roadmap_grade ?? false,
+        pillar: s.pillar ?? null,
+        sku: s.sku ?? null,
+        default_duration_months: s.default_duration_months ?? 1,
+      });
+      setLoading(false);
+    };
+    fetch();
+  }, [id]);
 
-    if (error || !data) {
-      toast.error("Service not found");
-      navigate("/services");
+  const updateForm = (key: string, value: any) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const save = async () => {
+    if (!form.name.trim()) {
+      toast.error("Name is required");
       return;
     }
-
-    setService({
-      ...data,
-      deliverables: Array.isArray(data.deliverables) ? data.deliverables : [],
-      discovery_questions: Array.isArray(data.discovery_questions) ? data.discovery_questions : [],
-    });
-    setLoading(false);
-  }, [id, navigate]);
-
-  useEffect(() => { fetchService(); }, [fetchService]);
-
-  const update = <K extends keyof ServiceRecord>(key: K, value: ServiceRecord[K]) => {
-    setService((prev) => prev ? { ...prev, [key]: value } : prev);
-    setDirty(true);
-  };
-
-  const handleSave = async () => {
-    if (!service) return;
     setSaving(true);
-    const { error } = await (supabase as any)
-      .from("services")
-      .update({
-        name: service.name,
-        pillar: service.pillar,
-        sort_order: service.sort_order,
-        default_duration_months: service.default_duration_months,
-        roadmap_grade: service.roadmap_grade,
-        active: service.active,
-        phase_eligible: service.phase_eligible,
-        billing_type: service.billing_type,
-        min_fixed: service.min_fixed,
-        max_fixed: service.max_fixed,
-        min_retainer: service.min_retainer,
-        max_retainer: service.max_retainer,
-        min_hourly: service.min_hourly,
-        max_hourly: service.max_hourly,
-        hourly_rate_external: service.hourly_rate_external,
-        hourly_rate_internal: service.hourly_rate_internal,
-        min_duration_months: service.min_duration_months,
-        max_duration_months: service.max_duration_months,
-        short_description: service.short_description,
-        description: service.description,
-        ideal_for: service.ideal_for,
-        typical_team: service.typical_team,
-        deliverables: service.deliverables,
-        not_included: service.not_included,
-        discovery_questions: service.discovery_questions,
-        proposal_language: service.proposal_language,
-        internal_notes: service.internal_notes,
-        case_study_url: service.case_study_url,
-      })
-      .eq("id", service.id);
-
-    if (error) {
-      toast.error("Failed to save: " + error.message);
+    if (isNew) {
+      const { data, error } = await supabase
+        .from("services")
+        .insert(form as any)
+        .select("id")
+        .single();
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Service created");
+        setServiceId(data.id);
+        navigate(`/services/${data.id}`, { replace: true });
+      }
     } else {
-      toast.success("Service saved");
-      setDirty(false);
+      const { error } = await supabase
+        .from("services")
+        .update(form as any)
+        .eq("id", id!);
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Changes saved");
+      }
     }
     setSaving(false);
   };
 
+  const deleteService = async () => {
+    if (!id || isNew) return;
+    const { error } = await supabase.from("services").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Service deleted");
+      navigate("/services");
+    }
+  };
+
+  const numField = (key: string, label: string) => (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        type="number"
+        value={(form as any)[key] ?? ""}
+        onChange={(e) =>
+          updateForm(key, e.target.value === "" ? null : Number(e.target.value))
+        }
+        className="h-8 text-sm"
+      />
+    </div>
+  );
+
+  const selectField = (key: string, label: string, options: string[]) => (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Select value={(form as any)[key]} onValueChange={(v) => updateForm(key, v)}>
+        <SelectTrigger className="h-8 text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o} value={o}>
+              {o}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  const boolField = (key: string, label: string) => (
+    <div className="flex items-center gap-2">
+      <Switch
+        checked={(form as any)[key]}
+        onCheckedChange={(v) => updateForm(key, v)}
+      />
+      <Label className="text-xs">{label}</Label>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen bg-background">
         <AppHeader />
-        <div className="flex-1 flex items-center justify-center animate-in fade-in duration-300">
+        <div className="flex h-[60vh] items-center justify-center animate-in fade-in duration-300">
           <BrandLoader size={96} />
         </div>
       </div>
     );
   }
 
-  if (!service) return null;
-
-  const pillarMeta = PILLARS.find((p) => p.code === service.pillar);
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
+      <div className="max-w-2xl mx-auto px-6 py-8">
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/services")}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+              className="rounded-md p-1 text-muted-foreground hover:text-foreground"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Services
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{service.name}</h1>
-              <span className="font-mono text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                SKU {service.sku}
-              </span>
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${PILLAR_BADGE[service.pillar]}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${PILLAR_DOT[service.pillar]}`} />
-                {pillarMeta?.name ?? service.pillar}
-              </span>
-              {!service.active && (
-                <Badge variant="outline" className="text-muted-foreground text-xs">Inactive</Badge>
-              )}
-            </div>
+            <h1 className="text-xl font-bold text-foreground">
+              {isNew ? "New Service" : form.name || "Service Detail"}
+            </h1>
           </div>
-          <Button onClick={handleSave} disabled={saving || !dirty} className="gap-1.5 shrink-0">
-            <Save className="h-4 w-4" />
-            {saving ? "Saving…" : "Save Changes"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {!isNew && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-destructive hover:text-destructive"
+                onClick={deleteService}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+            )}
+            <Button size="sm" className="gap-1.5" onClick={save} disabled={saving}>
+              <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save"}
+            </Button>
+          </div>
         </div>
 
-        <div className="space-y-10">
-          {/* ── Identity ── */}
-          <section>
-            <SectionHeader title="Identity" subtitle="Core service identification and catalog settings." />
-            <FieldRow label="Name">
-              <Input value={service.name} onChange={(e) => update("name", e.target.value)} />
-            </FieldRow>
-            <FieldRow label="Pillar">
-              <Select value={service.pillar} onValueChange={(v) => update("pillar", v as PillarCode)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+        {/* Form */}
+        <div className="flex flex-col gap-5">
+          {/* Name */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Service Name</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => updateForm("name", e.target.value)}
+              className="h-9"
+              placeholder="e.g. Search Engine Optimization"
+            />
+          </div>
+
+          {/* Row 1: Category, Engagement, Frequency */}
+          <div className="grid grid-cols-3 gap-3">
+            {selectField("category", "Category", CATEGORIES)}
+            {selectField("type_of_engagement", "Engagement", ENGAGEMENT_TYPES)}
+            {selectField("frequency", "Frequency", FREQUENCIES)}
+          </div>
+
+          {/* Row 2: Priority, Pillar, Billing Type */}
+          <div className="grid grid-cols-3 gap-3">
+            {selectField("priority", "Priority", PRIORITIES)}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Pillar</Label>
+              <Select
+                value={form.pillar || "none"}
+                onValueChange={(v) => updateForm("pillar", v === "none" ? null : v)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {PILLARS.map((p) => (
-                    <SelectItem key={p.code} value={p.code}>{p.code} — {p.name}</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                  {PILLAR_OPTIONS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label} ({p.value})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </FieldRow>
-            <FieldRow label="Sort Order" hint="Lower numbers appear first in the catalog.">
-              <NumberField value={service.sort_order} onChange={(v) => update("sort_order", v ?? 0)} />
-            </FieldRow>
-            <FieldRow label="Active">
-              <div className="flex items-center gap-2 pt-1.5">
-                <Switch
-                  checked={service.active}
-                  onCheckedChange={(v) => update("active", v)}
-                />
-                <Label className="text-sm text-muted-foreground">
-                  {service.active ? "Visible in catalog and roadmaps" : "Hidden from catalog and roadmaps"}
-                </Label>
-              </div>
-            </FieldRow>
-            <FieldRow label="Roadmap Grade" hint="Can be recommended as a primary roadmap offering.">
-              <div className="flex items-center gap-2 pt-1.5">
-                <Switch
-                  checked={service.roadmap_grade}
-                  onCheckedChange={(v) => update("roadmap_grade", v)}
-                />
-                <Label className="text-sm text-muted-foreground">
-                  {service.roadmap_grade ? "Eligible for roadmap" : "Not roadmap eligible"}
-                </Label>
-              </div>
-            </FieldRow>
-            <FieldRow label="Phase Eligible" hint="Can be split into phases on the project timeline.">
-              <div className="flex items-center gap-2 pt-1.5">
-                <Switch
-                  checked={service.phase_eligible}
-                  onCheckedChange={(v) => update("phase_eligible", v)}
-                />
-                <Label className="text-sm text-muted-foreground">
-                  {service.phase_eligible ? "Can be phased" : "Single phase only"}
-                </Label>
-              </div>
-            </FieldRow>
-          </section>
+            </div>
+            {selectField("billing_type", "Billing Type", BILLING_TYPES)}
+          </div>
 
-          {/* ── Description ── */}
-          <section>
-            <SectionHeader title="Description" subtitle="Client-facing and internal descriptions used in proposals and the catalog." />
-            <FieldRow label="Short Description" hint="One-liner shown in the catalog table and proposals.">
-              <Input
-                value={service.short_description ?? ""}
-                onChange={(e) => update("short_description", e.target.value || null)}
-                placeholder="e.g. Full website redesign from strategy through launch"
-              />
-            </FieldRow>
-            <FieldRow label="Full Description" hint="Detailed description for the service detail view.">
-              <Textarea
-                value={service.description ?? ""}
-                onChange={(e) => update("description", e.target.value || null)}
-                placeholder="Describe what this service is, how it works, and why clients love it…"
-                rows={5}
-              />
-            </FieldRow>
-            <FieldRow label="Ideal For" hint="Who is this service best suited for?">
-              <Textarea
-                value={service.ideal_for ?? ""}
-                onChange={(e) => update("ideal_for", e.target.value || null)}
-                placeholder="e.g. B2B companies with 5+ year old websites, looking to modernize…"
-                rows={3}
-              />
-            </FieldRow>
-            <FieldRow label="Typical Team" hint="Who from GLIDE works on this?">
-              <Input
-                value={service.typical_team ?? ""}
-                onChange={(e) => update("typical_team", e.target.value || null)}
-                placeholder="e.g. Strategist, UX Designer, Developer, Project Manager"
-              />
-            </FieldRow>
-          </section>
+          {/* SKU + Default Duration */}
+          <div className="grid grid-cols-2 gap-3">
+            {numField("sku", "SKU")}
+            {numField("default_duration_months", "Default Duration (months)")}
+          </div>
 
-          {/* ── Pricing ── */}
-          <section>
-            <SectionHeader title="Pricing" subtitle="All pricing fields. Only fill in the fields relevant to this service's billing type." />
-            <FieldRow label="Billing Type">
-              <Select
-                value={service.billing_type ?? ""}
-                onValueChange={(v) => update("billing_type", v || null)}
-              >
-                <SelectTrigger><SelectValue placeholder="Select billing type…" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fixed">Fixed Price</SelectItem>
-                  <SelectItem value="retainer">Monthly Retainer</SelectItem>
-                  <SelectItem value="hourly">Hourly</SelectItem>
-                  <SelectItem value="mixed">Mixed</SelectItem>
-                </SelectContent>
-              </Select>
-            </FieldRow>
-            <FieldRow label="Fixed Price Range" hint="Min and max fixed project price.">
-              <div className="grid grid-cols-2 gap-3">
-                <NumberField value={service.min_fixed} onChange={(v) => update("min_fixed", v)} placeholder="Min" prefix="$" />
-                <NumberField value={service.max_fixed} onChange={(v) => update("max_fixed", v)} placeholder="Max" prefix="$" />
-              </div>
-            </FieldRow>
-            <FieldRow label="Retainer Range /mo" hint="Min and max monthly retainer.">
-              <div className="grid grid-cols-2 gap-3">
-                <NumberField value={service.min_retainer} onChange={(v) => update("min_retainer", v)} placeholder="Min" prefix="$" />
-                <NumberField value={service.max_retainer} onChange={(v) => update("max_retainer", v)} placeholder="Max" prefix="$" />
-              </div>
-            </FieldRow>
-            <FieldRow label="Hourly Range" hint="Min and max hours for this engagement.">
-              <div className="grid grid-cols-2 gap-3">
-                <NumberField value={service.min_hourly} onChange={(v) => update("min_hourly", v)} placeholder="Min hrs" />
-                <NumberField value={service.max_hourly} onChange={(v) => update("max_hourly", v)} placeholder="Max hrs" />
-              </div>
-            </FieldRow>
-            <FieldRow label="Hourly Rate (Client)" hint="External rate shown to clients.">
-              <NumberField value={service.hourly_rate_external} onChange={(v) => update("hourly_rate_external", v)} placeholder="e.g. 150" prefix="$" />
-            </FieldRow>
-            <FieldRow label="Hourly Rate (Internal)" hint="Internal blended rate for margin calculations.">
-              <NumberField value={service.hourly_rate_internal} onChange={(v) => update("hourly_rate_internal", v)} placeholder="e.g. 95" prefix="$" />
-            </FieldRow>
-          </section>
-
-          {/* ── Duration ── */}
-          <section>
-            <SectionHeader title="Duration" subtitle="How long this service typically runs." />
-            <FieldRow label="Default Duration" hint="Default number of months shown on roadmaps.">
-              <div className="flex items-center gap-2">
-                <NumberField value={service.default_duration_months} onChange={(v) => update("default_duration_months", v ?? 1)} placeholder="e.g. 4" />
-                <span className="text-sm text-muted-foreground shrink-0">months</span>
-              </div>
-            </FieldRow>
-            <FieldRow label="Min / Max Duration" hint="Optional range if duration varies significantly.">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                  <NumberField value={service.min_duration_months} onChange={(v) => update("min_duration_months", v)} placeholder="Min" />
-                  <span className="text-xs text-muted-foreground shrink-0">mo</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <NumberField value={service.max_duration_months} onChange={(v) => update("max_duration_months", v)} placeholder="Max" />
-                  <span className="text-xs text-muted-foreground shrink-0">mo</span>
-                </div>
-              </div>
-            </FieldRow>
-          </section>
-
-          {/* ── Deliverables ── */}
-          <section>
-            <SectionHeader title="Deliverables & Scope" subtitle="What's included and what's explicitly out of scope." />
-            <FieldRow label="Deliverables" hint="What the client receives. Press Enter or + to add each item.">
-              <JsonListField
-                value={service.deliverables}
-                onChange={(v) => update("deliverables", v)}
-                placeholder="e.g. Fully designed 15-page website…"
-              />
-            </FieldRow>
-            <FieldRow label="Not Included" hint="What's explicitly out of scope (prevents scope creep).">
-              <Textarea
-                value={service.not_included ?? ""}
-                onChange={(e) => update("not_included", e.target.value || null)}
-                placeholder="e.g. Copywriting, photography, third-party integrations beyond 2 APIs…"
-                rows={3}
-              />
-            </FieldRow>
-          </section>
-
-          {/* ── Sales ── */}
-          <section>
-            <SectionHeader title="Sales & Proposal" subtitle="Content used during sales and proposal generation." />
-            <FieldRow label="Discovery Questions" hint="Questions to ask the prospect during discovery calls.">
-              <JsonListField
-                value={service.discovery_questions}
-                onChange={(v) => update("discovery_questions", v)}
-                placeholder="e.g. What's driving the need for a new website right now?"
-              />
-            </FieldRow>
-            <FieldRow label="Proposal Language" hint="Boilerplate description used in proposals and SOWs.">
-              <Textarea
-                value={service.proposal_language ?? ""}
-                onChange={(e) => update("proposal_language", e.target.value || null)}
-                placeholder="Paste or write the standard proposal description for this service…"
-                rows={6}
-              />
-            </FieldRow>
-            <FieldRow label="Case Study URL" hint="Link to a relevant example or case study.">
-              <div className="flex items-center gap-2">
+          {/* Pricing */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Pricing
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {numField("hourly_rate_external", "Hourly Rate (External)")}
+              {numField("hourly_rate_internal", "Hourly Rate (Internal)")}
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Onboarding Cost</Label>
                 <Input
-                  value={service.case_study_url ?? ""}
-                  onChange={(e) => update("case_study_url", e.target.value || null)}
-                  placeholder="https://glidedesign.com/work/…"
-                  type="url"
-                  className="flex-1"
+                  value={form.onboarding_cost ?? ""}
+                  onChange={(e) =>
+                    updateForm(
+                      "onboarding_cost",
+                      e.target.value === "" ? null : e.target.value
+                    )
+                  }
+                  placeholder="e.g. One Month"
+                  className="h-8 text-sm"
                 />
-                {service.case_study_url && (
-                  <a href={service.case_study_url} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </Button>
-                  </a>
-                )}
               </div>
-            </FieldRow>
-          </section>
-
-          {/* ── Internal ── */}
-          <section>
-            <SectionHeader title="Internal Notes" subtitle="Private notes for the GLIDE team — not shown to clients." />
-            <FieldRow label="Notes">
-              <Textarea
-                value={service.internal_notes ?? ""}
-                onChange={(e) => update("internal_notes", e.target.value || null)}
-                placeholder="Any operational notes, gotchas, pricing history, or team guidance…"
-                rows={5}
-              />
-            </FieldRow>
-          </section>
-        </div>
-
-        {/* Sticky save bar when dirty */}
-        {dirty && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border px-6 py-3 flex items-center justify-between animate-in slide-in-from-bottom duration-200">
-            <span className="text-sm text-muted-foreground">You have unsaved changes.</span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => { fetchService(); setDirty(false); }}>
-                Discard
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-                <Save className="h-3.5 w-3.5" />
-                {saving ? "Saving…" : "Save Changes"}
-              </Button>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {numField("min_fixed", "Min (Fixed)")}
+              {numField("max_fixed", "Max (Fixed)")}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {numField("min_retainer", "Min (Retainer)")}
+              {numField("max_retainer", "Max (Retainer)")}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {numField("min_hourly", "Min (Hourly)")}
+              {numField("max_hourly", "Max (Hourly)")}
             </div>
           </div>
-        )}
-      </main>
+
+          {/* Duration & Term */}
+          <div className="grid grid-cols-3 gap-3">
+            {numField("min_term_months", "Min Term (months)")}
+            {numField("avg_duration_low_weeks", "Duration Low (weeks)")}
+            {numField("avg_duration_high_weeks", "Duration High (weeks)")}
+          </div>
+
+          {/* Teams Involved */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Teams Involved</Label>
+            <Input
+              value={form.teams_involved ?? ""}
+              onChange={(e) =>
+                updateForm(
+                  "teams_involved",
+                  e.target.value === "" ? null : e.target.value
+                )
+              }
+              placeholder="e.g. PM, Design, Development"
+              className="h-8 text-sm"
+            />
+          </div>
+
+          {/* Collateral */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Collateral
+            </p>
+            <div className="flex flex-wrap gap-4">
+              {boolField("has_one_pager", "One-Pager")}
+              {boolField("has_sow", "SOW")}
+              {boolField("has_faq", "FAQ")}
+              {boolField("has_outcomes", "Outcomes")}
+              {boolField("has_testimonials", "Testimonials")}
+              {boolField("roadmap_grade", "Roadmap Grade")}
+            </div>
+          </div>
+
+          {/* PPC Pricing Tiers — only for PPC Management */}
+          {isPpcOffering(form.name) && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                PPC Pricing Tiers
+              </p>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">
+                        Monthly Ad Spend
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">
+                        Management Fee
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr>
+                      <td className="px-4 py-2 text-foreground">
+                        Under ${PPC_FLAT_THRESHOLD.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2 text-foreground">
+                        Flat ${PPC_FLAT_FEE.toLocaleString()}/mo
+                      </td>
+                    </tr>
+                    {PPC_TIERS.map((tier) => (
+                      <tr key={tier.pct}>
+                        <td className="px-4 py-2 text-foreground">
+                          ${(tier.min / 1000).toFixed(0)}k –{" "}
+                          {tier.max === Infinity
+                            ? "$50k+"
+                            : `$${(tier.max / 1000).toFixed(0)}k`}
+                        </td>
+                        <td className="px-4 py-2 text-foreground">
+                          {tier.pct}% of ad spend
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-muted/30">
+                      <td className="px-4 py-2 text-muted-foreground">Start-up Cost</td>
+                      <td className="px-4 py-2 text-muted-foreground italic">
+                        ${PPC_STARTUP_COST.toLocaleString()} (waivable)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Minimum 3-month contract, then month to month. 30-day written notice to cancel.
+              </p>
+            </div>
+          )}
+
+          {/* Phases & Cycles — only for existing services */}
+          {!isNew && serviceId && <ServiceStepsEditor serviceId={serviceId} />}
+        </div>
+      </div>
     </div>
   );
 }
