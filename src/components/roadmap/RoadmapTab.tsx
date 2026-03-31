@@ -6,8 +6,8 @@ import { useServiceOfferings, type Offering } from "@/hooks/useServiceOfferings"
 import type { TimelineItem } from "@/types/roadmap";
 import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
-import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
-import { PanelLeftOpen } from "lucide-react";
+import InvestmentOptions, { type InvestmentOptionsHandle } from "@/components/roadmap/InvestmentOptions";
+import { PanelLeftOpen, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface RoadmapTabProps {
@@ -36,6 +36,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [showAll, setShowAll] = useState(false);
   const [catalogVisible, setCatalogVisible] = useState(true);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const investmentRef = useRef<InvestmentOptionsHandle>(null);
+  const [generatingOutcomes, setGeneratingOutcomes] = useState(false);
 
   // Load or create roadmap for this session
   useEffect(() => {
@@ -374,8 +376,33 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
 
       {/* Investment Options */}
       <div>
-        <h2 className="mb-5 text-4xl font-light tracking-tight text-foreground">Investment Options</h2>
-        <InvestmentOptions items={items} offerings={offerings} />
+        <div className="mb-5 flex items-center gap-4">
+          <h2 className="text-4xl font-light tracking-tight text-foreground">Investment Options</h2>
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={generatingOutcomes}
+              onClick={async () => {
+                setGeneratingOutcomes(true);
+                try {
+                  await investmentRef.current?.generateOutcomes();
+                } finally {
+                  setGeneratingOutcomes(false);
+                }
+              }}
+            >
+              {generatingOutcomes ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {generatingOutcomes ? "Generating..." : "Generate Outcomes"}
+            </Button>
+          )}
+        </div>
+        <InvestmentOptions ref={investmentRef} items={items} offerings={offerings} sessionId={sessionId} />
       </div>
     </div>
   );

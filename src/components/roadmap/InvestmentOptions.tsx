@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,6 +11,7 @@ import { isPpcOffering, getPpcTierLabel } from "@/lib/ppcPricing";
 interface InvestmentOptionsProps {
   items: TimelineItem[];
   offerings: Offering[];
+  sessionId?: string;
 }
 
 function formatCurrency(value: number): string {
@@ -327,19 +328,19 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
               PRICING BREAKDOWN
             </p>
             <table className="w-full text-sm">
-              <tbody className="divide-y divide-border/50">
+              <tbody>
                 {fixedItems.length > 0 && (
                   <>
                     {fixedItems.map((fi) => (
                       <tr key={fi.name}>
-                        <td className="py-1.5 text-muted-foreground">{fi.name}</td>
-                        <td className="py-1.5 text-right font-medium tabular-nums">{formatCurrency(fi.price)}</td>
+                        <td className="py-1.5 text-foreground">{fi.name}</td>
+                        <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(fi.price)}</td>
                       </tr>
                     ))}
                     {(recurringItems.length > 0 || fixedItems.length > 1) && (
-                      <tr className="border-t border-border">
-                        <td className="py-1.5 text-xs font-semibold uppercase text-muted-foreground">Fixed Subtotal</td>
-                        <td className="py-1.5 text-right font-semibold tabular-nums">{formatCurrency(fixedTotal)}</td>
+                      <tr className="border-t border-foreground/50">
+                        <td className="py-1.5 text-xs font-semibold uppercase text-foreground">Fixed Subtotal</td>
+                        <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
                       </tr>
                     )}
                   </>
@@ -348,41 +349,64 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   <>
                     {recurringItems.map((ri) => (
                       <tr key={ri.name}>
-                        <td className="py-1.5 text-muted-foreground">
-                          {ri.name}
-                          <span className="ml-1 text-xs text-muted-foreground/70">
-                            {formatCurrency(ri.price)}/mo x {ri.months} mo
+                        <td className="py-1.5">
+                          <span className="text-foreground">{ri.name}</span>
+                          <span className="ml-1.5 text-muted-foreground/50">
+                            ({formatCurrency(ri.price)}/mo x {ri.months} mo)
                           </span>
                         </td>
-                        <td className="py-1.5 text-right font-medium tabular-nums">{formatCurrency(ri.total)}</td>
+                        <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(ri.total)}</td>
                       </tr>
                     ))}
                     {(fixedItems.length > 0 || recurringItems.length > 1) && (
-                      <tr className="border-t border-border">
-                        <td className="py-1.5 text-xs font-semibold uppercase text-muted-foreground">Recurring Subtotal</td>
-                        <td className="py-1.5 text-right font-semibold tabular-nums">{formatCurrency(recurringTotal)}</td>
+                      <tr className="border-t border-foreground/50">
+                        <td className="py-1.5 text-xs font-semibold uppercase text-foreground">Recurring Subtotal</td>
+                        <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
                       </tr>
                     )}
                   </>
                 )}
-                {(fixedItems.length > 0 && recurringItems.length > 0) && (
-                  <>
-                    <tr className="border-t-2 border-foreground/20">
-                      <td className="py-2 text-xs font-bold uppercase">Total Investment</td>
-                      <td className="py-2 text-right font-bold tabular-nums">{formatCurrency(grandTotal)}</td>
-                    </tr>
-                    {option.priceMode === "monthly-blended" && (
-                      <tr>
-                        <td className="pb-1 text-xs text-muted-foreground">
-                          {formatCurrency(grandTotal)} / 12 months
-                        </td>
-                        <td className="pb-1 text-right text-sm font-bold text-primary tabular-nums">
-                          {formatCurrency(grandTotal / 12)}/mo
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                )}
+                {/* Total investment box — shows for mixed (fixed+recurring) or monthly-only options */}
+                {(() => {
+                  const showTotalBox = (fixedItems.length > 0 && recurringItems.length > 0) ||
+                    (option.priceMode === "monthly" && recurringItems.length > 1);
+                  if (!showTotalBox) return null;
+
+                  const monthlyTotal = recurringItems.reduce((s, ri) => s + ri.price, 0);
+                  const isMonthlyMode = option.priceMode === "monthly";
+
+                  return (
+                    <tr><td colSpan={2} className="pt-3 pb-0"><div className="rounded-lg border border-foreground/20 bg-foreground/5 px-3 py-3">
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {isMonthlyMode ? (
+                            <tr>
+                              <td className="text-xs font-bold uppercase text-foreground">Monthly Investment</td>
+                              <td className="text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
+                            </tr>
+                          ) : (
+                            <>
+                              <tr>
+                                <td className="text-xs font-bold uppercase text-foreground">Total Investment</td>
+                                <td className="text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
+                              </tr>
+                              {option.priceMode === "monthly-blended" && (
+                                <tr>
+                                  <td className="pt-1 text-xs text-muted-foreground">
+                                    {formatCurrency(grandTotal)} / 12 months
+                                  </td>
+                                  <td className="pt-1 text-right text-sm font-bold text-primary tabular-nums">
+                                    {formatCurrency(grandTotal / 12)}/mo
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          )}
+                        </tbody>
+                      </table>
+                    </div></td></tr>
+                  );
+                })()}
               </tbody>
             </table>
           </div>
@@ -392,7 +416,13 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   );
 }
 
-export default function InvestmentOptions({ items, offerings }: InvestmentOptionsProps) {
+export interface InvestmentOptionsHandle {
+  generateOutcomes: () => Promise<void>;
+  isGenerating: boolean;
+  hasOutcomes: boolean;
+}
+
+const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsProps>(function InvestmentOptions({ items, offerings, sessionId }, ref) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [option3Discount, setOption3Discount] = useState<{ percent: number } | null>(null);
 
@@ -454,38 +484,43 @@ export default function InvestmentOptions({ items, offerings }: InvestmentOption
 
   const [outcomesByIdx, setOutcomesByIdx] = useState<Record<number, string[]>>({});
   const [loadingByIdx, setLoadingByIdx] = useState<Record<number, boolean>>({});
-  const [cacheKeys, setCacheKeys] = useState<Record<number, string>>({});
+  const [outcomesGenerated, setOutcomesGenerated] = useState(false);
 
-  const fetchOutcomes = useCallback(async (idx: number, option: OptionDef) => {
-    const serviceNames = option.scopeItems.map((si) => si.name);
-    if (serviceNames.length === 0) return;
+  const generateAllOutcomes = useCallback(async () => {
+    const anyLoading = Object.values(loadingByIdx).some(Boolean);
+    if (anyLoading) return;
 
-    const cacheKey = [...serviceNames].sort().join("|");
-    if (cacheKeys[idx] === cacheKey) return;
+    const promises = options.map(async (option, idx) => {
+      const serviceNames = option.scopeItems.map((si) => si.name);
+      if (serviceNames.length === 0) return;
 
-    setLoadingByIdx((prev) => ({ ...prev, [idx]: true }));
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-outcomes", {
-        body: { optionName: option.name, serviceNames },
-      });
-      if (!error && data?.outcomes) {
-        setOutcomesByIdx((prev) => ({ ...prev, [idx]: data.outcomes }));
-        setCacheKeys((prev) => ({ ...prev, [idx]: cacheKey }));
-      }
-    } catch (e) {
-      console.error("Failed to fetch outcomes:", e);
-    } finally {
-      setLoadingByIdx((prev) => ({ ...prev, [idx]: false }));
-    }
-  }, [cacheKeys]);
-
-  useEffect(() => {
-    options.forEach((option, idx) => {
-      if (option.scopeItems.length > 0) {
-        fetchOutcomes(idx, option);
+      setLoadingByIdx((prev) => ({ ...prev, [idx]: true }));
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-outcomes", {
+          body: { optionName: option.name, serviceNames, sessionId },
+        });
+        if (!error && data?.outcomes) {
+          setOutcomesByIdx((prev) => ({ ...prev, [idx]: data.outcomes }));
+        }
+      } catch (e) {
+        console.error("Failed to fetch outcomes:", e);
+      } finally {
+        setLoadingByIdx((prev) => ({ ...prev, [idx]: false }));
       }
     });
-  }, [items, offerings, fetchOutcomes]);
+
+    await Promise.all(promises);
+    setOutcomesGenerated(true);
+  }, [options, loadingByIdx, sessionId]);
+
+  const isGenerating = Object.values(loadingByIdx).some(Boolean);
+  const hasOutcomes = Object.values(outcomesByIdx).some((arr) => arr.length > 0);
+
+  useImperativeHandle(ref, () => ({
+    generateOutcomes: generateAllOutcomes,
+    isGenerating,
+    hasOutcomes,
+  }), [generateAllOutcomes, isGenerating, hasOutcomes]);
 
   if (expandedIdx === null) {
     return (
@@ -563,4 +598,6 @@ export default function InvestmentOptions({ items, offerings }: InvestmentOption
       {expandedCard}
     </div>
   );
-}
+});
+
+export default InvestmentOptions;
