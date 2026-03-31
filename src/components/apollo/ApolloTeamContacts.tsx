@@ -120,7 +120,7 @@ function ContactRow({ contact }: { contact: TeamContact }) {
               {contact.name}
             </button>
             {contact.seniority && (
-              <Badge variant="secondary" className="text-[9px] capitalize px-1 py-0">{contact.seniority}</Badge>
+              <Badge variant="secondary" className="text-[10px] capitalize px-1 py-0">{contact.seniority}</Badge>
             )}
             {hasHistory && (
               <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground transition-colors">

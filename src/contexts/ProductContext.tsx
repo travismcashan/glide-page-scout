@@ -44,17 +44,20 @@ export interface Product {
   id: ProductId;
   name: string;
   fullName: string;
+  discipline: string;
   description: string;
   icon: LucideIcon;
   color: string;
   active: boolean;
   settleAngle?: number; // for AnimatedProductIcon: 0 = right, Math.PI/2 = bottom
+  introAngles?: [number, number, number]; // custom orbital sweep angles for intro animation
+  bloomAnimation?: boolean; // CSS bloom animation (Growth)
 }
 
 export const PRODUCTS: Product[] = [
-  { id: 'growth',   name: 'Growth',   fullName: 'GLIDE® Growth',   description: 'Know the room before you enter it.',           icon: GrowthIcon,   color: 'hsl(var(--primary))', active: true,  settleAngle: Math.PI / 2 },
-  { id: 'delivery', name: 'Delivery', fullName: 'GLIDE® Delivery', description: 'The partner that never stops working.',          icon: DeliveryIcon, color: '#2DD4BF',              active: false, settleAngle: 0            },
-  { id: 'admin',    name: 'Admin',    fullName: 'GLIDE® Admin',    description: 'The business, beautifully in order.',             icon: AdminIcon,    color: '#FB923C',              active: false },
+  { id: 'growth',   name: 'Growth',   fullName: 'GLIDE® Growth',   discipline: 'Sales Intelligence',    description: 'Walk in knowing. Walk out winning.',      icon: GrowthIcon,   color: 'hsl(var(--primary))', active: true,  bloomAnimation: true },
+  { id: 'delivery', name: 'Delivery', fullName: 'GLIDE® Delivery', discipline: 'Client Delivery',        description: 'The partner that never stops working.',   icon: DeliveryIcon, color: '#2DD4BF',              active: false, settleAngle: 0, introAngles: [0, -2 * Math.PI, 2 * Math.PI] },
+  { id: 'admin',    name: 'Admin',    fullName: 'GLIDE® Admin',    discipline: 'Business Operations',    description: 'The business, beautifully in order.',     icon: AdminIcon,    color: '#FB923C',              active: false },
 ];
 
 interface ProductContextValue {

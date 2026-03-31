@@ -455,9 +455,9 @@ function FormRow({ form, index, isExpanded, onToggle, showCheckbox, isExcluded, 
             : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           }
           <span className={`text-xs font-mono leading-5 text-foreground truncate ${isExcluded ? 'line-through' : ''}`}>{form.formType}</span>
-          {isManuallyAdded && <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">added</Badge>}
-          {form.hasFileUpload && <Badge variant="outline" className="text-[9px] px-1 py-0">📎 upload</Badge>}
-          {form.hasCaptcha && <Badge variant="outline" className="text-[9px] px-1 py-0">🛡 captcha</Badge>}
+          {isManuallyAdded && <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 bg-primary/5 text-primary border-primary/20">added</Badge>}
+          {form.hasFileUpload && <Badge variant="outline" className="text-[10px] px-1 py-0">📎 upload</Badge>}
+          {form.hasCaptcha && <Badge variant="outline" className="text-[10px] px-1 py-0">🛡 captcha</Badge>}
         </div>
         <span className="w-[120px] flex justify-center">
           <Badge variant="outline" className={`${platformColors[form.platform || 'Native'] || platformColors.Native} text-[10px] px-1.5 py-0 whitespace-nowrap`}>

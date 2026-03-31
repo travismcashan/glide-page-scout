@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from '@/components/NavLink';
@@ -16,7 +16,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { LogOut, Settings, Shield, ChevronDown, Check, Menu, Link2, Heart, Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS, type ProductId } from '@/contexts/ProductContext';
-import { AnimatedLogo } from '@/components/AnimatedLogo';
 import { AnimatedProductIcon } from '@/components/AnimatedProductIcon';
 import { useActiveCrawl } from '@/hooks/use-active-crawl';
 
@@ -45,16 +44,24 @@ export default function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [hoveredId, setHoveredId] = useState<ProductId | null>(null);
+  const [animatingId, setAnimatingId] = useState<ProductId | null>(null);
+  const [headerAnimating, setHeaderAnimating] = useState(true);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const headerAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCrawling = useActiveCrawl();
 
+  useEffect(() => {
+    if (headerAnimTimer.current) clearTimeout(headerAnimTimer.current);
+    setHeaderAnimating(true);
+    headerAnimTimer.current = setTimeout(() => setHeaderAnimating(false), 4000);
+    return () => { if (headerAnimTimer.current) clearTimeout(headerAnimTimer.current); };
+  }, [location.pathname]);
+
   const linkBase =
-    'text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md';
+    'text-base font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md';
   const linkActive = 'text-foreground bg-accent/10';
 
-  const previewProduct = hoveredId ? PRODUCTS.find(p => p.id === hoveredId) : null;
-  const displayProduct = previewProduct || currentProduct;
-  const PreviewIcon = displayProduct.icon;
 
   const openSwitcher = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -64,15 +71,26 @@ export default function AppHeader() {
     closeTimer.current = setTimeout(() => {
       setSwitcherOpen(false);
       setHoveredId(null);
-    }, 120);
+      setAnimatingId(null);
+    }, 250);
+  };
+
+  // Keep animation playing until complete even after mouse-off (~1s covers longest anim)
+  const startRowAnim = (id: ProductId) => {
+    if (animTimer.current) clearTimeout(animTimer.current);
+    setAnimatingId(id);
+  };
+  const endRowAnim = () => {
+    if (animTimer.current) clearTimeout(animTimer.current);
+    animTimer.current = setTimeout(() => setAnimatingId(null), 1050);
   };
 
   const isNavActive = (item: typeof NAV_ITEMS[number]) =>
     location.pathname === item.to || (item.matchPrefix && location.pathname.startsWith(item.matchPrefix));
 
   return (
-    <header className="border-b border-foreground/15 bg-background sticky top-0 z-40">
-      <div className="mx-auto px-3 sm:px-6 max-w-6xl h-[55px] flex items-center justify-between">
+    <header className="border-b border-foreground/15 bg-background sticky top-0 z-40" style={{ boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)' }}>
+      <div className="mx-auto px-3 sm:px-6 max-w-6xl h-14 flex items-center justify-between">
         {/* Brand + Product Switcher */}
         <div
           className="relative flex items-center gap-1 min-w-0 cursor-pointer self-stretch"
@@ -83,59 +101,26 @@ export default function AppHeader() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2 min-w-0 cursor-pointer"
           >
-            <div className="relative w-[34px] h-[34px] shrink-0">
-              <AnimatePresence>
-                {!previewProduct && (
-                  <motion.div
-                    key="animated"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute inset-0"
-                  >
-                    <AnimatedLogo size={34} isAnimating={isCrawling} />
-                  </motion.div>
-                )}
-                {previewProduct && previewProduct.settleAngle !== undefined && (
-                  <motion.div
-                    key={previewProduct.id}
-                    initial={{ opacity: 1 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{ color: displayProduct.color }}
-                  >
-                    <AnimatedProductIcon size={34} settleAngle={previewProduct.settleAngle} />
-                  </motion.div>
-                )}
-                {previewProduct && previewProduct.settleAngle === undefined && (
-                  <motion.div
-                    key={previewProduct.id}
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{ color: displayProduct.color }}
-                    data-hovered="true"
-                  >
-                    <PreviewIcon className="w-[34px] h-[34px]" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <div
+              className="w-9 h-9 shrink-0 flex items-center justify-center"
+              style={{ color: currentProduct.color }}
+              data-hovered={headerAnimating && currentProduct.settleAngle === undefined ? "true" : undefined}
+            >
+              {headerAnimating && currentProduct.settleAngle !== undefined
+                ? <AnimatedProductIcon key={location.pathname} size={36} settleAngle={currentProduct.settleAngle} introAngles={currentProduct.introAngles} />
+                : (() => { const HeaderIcon = currentProduct.icon; return <HeaderIcon className="w-9 h-9" />; })()
+              }
             </div>
             <AnimatePresence mode="wait">
               <motion.span
-                key={displayProduct.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
+                key={currentProduct.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 className="text-xl sm:text-lg font-semibold tracking-tight truncate flex items-center gap-1"
               >
-                {displayProduct.fullName}
+                {currentProduct.fullName}
                 <ChevronDown className={cn(
                   'h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200',
                   switcherOpen && 'rotate-180'
@@ -148,9 +133,9 @@ export default function AppHeader() {
           <AnimatePresence>
             {switcherOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
                 onMouseEnter={openSwitcher}
                 onMouseLeave={closeSwitcher}
@@ -162,25 +147,34 @@ export default function AppHeader() {
                   const isHovered = hoveredId === product.id;
                   const hoverBg = product.color.startsWith('hsl(') ? product.color.replace(/\)$/, ' / 0.12)') : `${product.color}1F`;
                   return (
-                    <div key={product.id}>
-                      {index > 0 && <div className="h-px bg-border/50 mx-3" />}
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: -12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, ease: 'easeOut', delay: index * 0.07 }}
+                    >
+                      <div className="h-px bg-foreground/15 mx-4" />
                       <button
-                        onMouseEnter={() => setHoveredId(product.id)}
-                        onMouseLeave={() => setHoveredId(null)}
+                        onMouseEnter={() => { setHoveredId(product.id); startRowAnim(product.id); }}
+                        onMouseLeave={() => { setHoveredId(null); endRowAnim(); }}
                         onClick={() => {
                           if (product.active) {
                             setCurrentProduct(product.id);
                             setSwitcherOpen(false);
+                            if (product.id === 'growth') navigate('/');
                           }
                         }}
                         className={cn(
                           'w-full flex items-center gap-3 pl-3 pr-4 py-3 text-left transition-colors',
                           !product.active ? 'cursor-not-allowed' : 'cursor-pointer'
                         )}
-                        style={isHovered ? { backgroundColor: hoverBg } : undefined}
+                        style={{ backgroundColor: isHovered ? hoverBg : 'transparent', transition: 'background-color 0.2s ease' }}
                       >
-                        <div className="shrink-0 w-[34px] h-[34px] flex items-center justify-center">
-                          <Icon className="w-[34px] h-[34px]" style={{ color: product.color }} />
+                        <div className="shrink-0 w-[34px] h-[34px] flex items-center justify-center" data-hovered={animatingId === product.id ? "true" : undefined} style={{ color: product.color }}>
+                          {animatingId === product.id && product.settleAngle !== undefined
+                            ? <AnimatedProductIcon size={34} settleAngle={product.settleAngle} introAngles={product.introAngles} />
+                            : <Icon className="w-[34px] h-[34px]" />
+                          }
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -194,11 +188,12 @@ export default function AppHeader() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{product.description}</p>
+                          <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider leading-none mt-0.5">{product.discipline}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{product.description}</p>
                         </div>
                         {isCurrent && <Check className="h-5 w-5 text-primary shrink-0" strokeWidth={2.5} />}
                       </button>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </motion.div>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 
 // Same Fibonacci ratios and orbital parameters as AnimatedLogo
 const RATIOS = [1, 0.618, 0.382];
-const TOTAL_ANGLES = [0, 5 * Math.PI / 2, -3 * Math.PI / 2];
+const DEFAULT_TOTAL_ANGLES = [0, 5 * Math.PI / 2, -3 * Math.PI / 2];
 const INTRO_DURATION = 2.5;
 const STAGGER = 0.35;
 const SETTLE_DURATION = 1.0;
@@ -18,6 +18,7 @@ function easeInOutCubic(t: number) {
 interface AnimatedProductIconProps {
   size?: number;
   settleAngle?: number; // 0 = right side, Math.PI/2 = bottom
+  introAngles?: [number, number, number];
 }
 
 /**
@@ -27,7 +28,7 @@ interface AnimatedProductIconProps {
  *
  * Color is inherited via CSS `color` property (set `style={{ color: ... }}` on a parent).
  */
-export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2 }: AnimatedProductIconProps) {
+export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, introAngles = DEFAULT_TOTAL_ANGLES }: AnimatedProductIconProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef(0);
   const phaseRef = useRef<'intro' | 'settling' | 'resting'>('intro');
@@ -66,11 +67,12 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2 }: An
       for (let i = 0; i < RATIOS.length; i++) {
         const r = baseRadius * RATIOS[i];
         const orbitR = parentR - r;
-        const angle = TOTAL_ANGLES[i] * progress;
+        const angle = introAngles[i] * progress;
 
         const fadeStart = i * STAGGER;
         const fadeProgress = Math.min(Math.max((elapsed - fadeStart) / 0.8, 0), 1);
-        const alpha = easeOutCubic(fadeProgress);
+        // Outer circle (i=0) is always fully visible — never fades in/out
+        const alpha = i === 0 ? 1 : easeOutCubic(fadeProgress);
 
         let x: number, y: number;
         if (i === 0) {
@@ -161,7 +163,7 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2 }: An
     }
 
     animRef.current = requestAnimationFrame(draw);
-  }, [size, settleAngle]);
+  }, [size, settleAngle, introAngles]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

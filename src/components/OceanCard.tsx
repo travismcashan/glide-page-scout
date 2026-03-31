@@ -193,7 +193,7 @@ function LocationsTab({ locations }: { locations: Location[] }) {
           <div className="text-xs">
             <p className="font-medium">
               {loc.locality}{loc.region ? `, ${loc.region}` : ''}{loc.country ? ` (${loc.country.toUpperCase()})` : ''}
-              {loc.primary && <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1.5">HQ</Badge>}
+              {loc.primary && <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-1.5">HQ</Badge>}
             </p>
             {loc.streetAddress && <p className="text-muted-foreground">{loc.streetAddress}{loc.postalCode ? `, ${loc.postalCode}` : ''}</p>}
           </div>
