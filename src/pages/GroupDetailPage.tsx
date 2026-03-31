@@ -1027,7 +1027,7 @@ export default function GroupDetailPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <button onClick={() => navigate('/lists')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-bold">Lists</button>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
               {editingName ? (
@@ -1067,7 +1067,7 @@ export default function GroupDetailPage() {
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               )}
-              <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-sm font-medium text-muted-foreground">
+              <span className="self-center inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium text-muted-foreground leading-none">
                 {members.length} site{members.length !== 1 ? 's' : ''}
               </span>
             </h1>
