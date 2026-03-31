@@ -358,7 +358,7 @@ export default function HistoryPage() {
       <TableCell>
         <div className="flex items-center gap-2 min-w-0">
           <Globe className="h-4 w-4 shrink-0 text-primary" />
-          <span className="truncate font-medium">{session.domain}</span>
+          <span className="truncate font-medium">{session.domain.replace(/^www\./, '')}</span>
         </div>
       </TableCell>
       <TableCell>
@@ -367,7 +367,7 @@ export default function HistoryPage() {
             key={g.id}
             variant="outline"
             className="text-[10px] px-1.5 py-0 cursor-pointer hover:bg-muted/50"
-            onClick={(e) => { e.stopPropagation(); navigate(`/groups/${g.id}`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/lists/${g.id}`); }}
           >
             {g.name}
           </Badge>
