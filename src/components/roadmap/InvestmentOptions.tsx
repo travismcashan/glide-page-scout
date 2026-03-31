@@ -255,7 +255,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         </p>
       </div>
 
-      <div className="flex-1 border-b border-border px-6 py-5">
+      <div className="border-b border-border px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
           {isBundle ? "WHY BUNDLE?" : "OUTCOMES"}
         </p>
@@ -265,7 +265,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           <p className="text-sm italic text-muted-foreground">Add services to generate outcomes</p>
         ) : (
           <ul className="space-y-2.5">
-            {(isBundle ? outcomes : outcomes.slice(0, option.scopeItems.length)).map((outcome, i) => (
+            {outcomes.slice(0, 3).map((outcome, i) => (
               <li key={i} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
                 <span className="text-sm text-foreground">{renderBold(outcome)}</span>
@@ -275,7 +275,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         )}
       </div>
 
-      <div className="px-6 py-5">
+      <div className="flex-1 px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
           SCOPE OF WORK
         </p>
