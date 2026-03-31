@@ -98,7 +98,7 @@ export default function AppHeader() {
     location.pathname === item.to || (item.matchPrefix && location.pathname.startsWith(item.matchPrefix));
 
   return (
-    <header className="border-b border-gray-500/50 bg-background sticky top-0 z-40">
+    <header className="border-b border-border bg-background sticky top-0 z-40">
       <div className="mx-auto px-3 sm:px-6 max-w-6xl h-14 flex items-center justify-between">
         {/* Brand + Product Switcher */}
         <div
