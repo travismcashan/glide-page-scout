@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   { label: 'Knowledge', to: '/knowledge' },
   { label: 'Sites', to: '/sites', matchPrefix: '/sites' },
   { label: 'Lists', to: '/lists', matchPrefix: '/lists' },
+  { label: 'Services', to: '/services' },
   { label: 'Integrations', to: '/integrations' },
 ];
 

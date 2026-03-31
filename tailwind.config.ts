@@ -61,6 +61,28 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        pillar: {
+          is: {
+            DEFAULT: "hsl(var(--pillar-is))",
+            light: "hsl(var(--pillar-is-light))",
+            foreground: "hsl(var(--pillar-is-foreground))",
+          },
+          fb: {
+            DEFAULT: "hsl(var(--pillar-fb))",
+            light: "hsl(var(--pillar-fb-light))",
+            foreground: "hsl(var(--pillar-fb-foreground))",
+          },
+          go: {
+            DEFAULT: "hsl(var(--pillar-go))",
+            light: "hsl(var(--pillar-go-light))",
+            foreground: "hsl(var(--pillar-go-foreground))",
+          },
+          ts: {
+            DEFAULT: "hsl(var(--pillar-ts))",
+            light: "hsl(var(--pillar-ts-light))",
+            foreground: "hsl(var(--pillar-ts-foreground))",
+          },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

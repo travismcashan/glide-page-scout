@@ -87,6 +87,7 @@ import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
 import { ChatModelSelector, type ReasoningEffort, type ModelProvider, PROVIDERS, VERSIONS } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
+import RoadmapTab from '@/components/roadmap/RoadmapTab';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -3184,15 +3185,16 @@ export default function ResultsPage() {
 
           <TabsContent value="roadmap" className="mt-8 space-y-6" forceMount={activeTab === 'roadmap' ? true : undefined}>
             {activeTab === 'roadmap' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'roadmap' ? null : <div className="animate-fade-in">
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                  <MapIcon className="h-8 w-8 text-muted-foreground" />
+              {sessionId ? (
+                <RoadmapTab sessionId={sessionId} domain={session?.domain} />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                    <MapIcon className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground max-w-md">Loading session…</p>
                 </div>
-                <h3 className="text-lg font-semibold">Roadmap</h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Plan project phases, milestones, and deliverable timelines. Coming soon.
-                </p>
-              </div>
+              )}
             </div>}
           </TabsContent>
 
