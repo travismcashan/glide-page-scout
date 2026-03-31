@@ -188,13 +188,12 @@ export default function TimelineCanvas({
           const pillarItems = items.filter((i) => i.pillar === pillar.code).sort((a, b) => a.sortOrder - b.sortOrder);
           const barHeight = 40;
           const gap = 9;
-          const borderWidth = 3;
-          const laneHeight = gap + pillarItems.length * (barHeight + gap) + borderWidth;
+          const laneHeight = gap + pillarItems.length * (barHeight + gap);
           const isLastPillar = pillarIdx === activePillars.length - 1;
           const showBorder = !isLastPillar || showLastBorder;
 
           return (
-            <div key={pillar.code} className={`relative ${showBorder ? "border-b-[3px] border-foreground/10" : ""}`}>
+            <div key={pillar.code} className={`relative ${showBorder ? "border-b border-foreground/10" : ""}`}>
               <div className="relative">
                 <div className="absolute inset-0 flex">
                   {months.map((_, i) => (
