@@ -1067,7 +1067,7 @@ export default function GroupDetailPage() {
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               )}
-              <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-sm font-medium text-muted-foreground">
                 {members.length} site{members.length !== 1 ? 's' : ''}
               </span>
             </h1>
