@@ -22,6 +22,7 @@ interface TimelineCanvasProps {
   onSetAdSpend?: (sku: number, adSpend: number) => void;
   onSetDiscount?: (sku: number, type: "percent" | "fixed" | null, value: number | null) => void;
   showLastBorder?: boolean;
+  onStartMonthChange?: (delta: number) => void;
 }
 
 const LANE_LABEL_COLORS: Record<string, string> = {
@@ -54,6 +55,7 @@ export default function TimelineCanvas({
   onSetAdSpend,
   onSetDiscount,
   showLastBorder,
+  onStartMonthChange,
 }: TimelineCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [columnWidth, setColumnWidth] = useState(80);
@@ -143,8 +145,29 @@ export default function TimelineCanvas({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Month headers */}
-      <div ref={containerRef} className="flex h-16 border-b border-border bg-foreground">
+      {/* Month headers — drag left/right to shift timeline */}
+      <div
+        ref={containerRef}
+        className={`flex h-16 border-b border-border bg-foreground ${onStartMonthChange ? "cursor-grab active:cursor-grabbing" : ""}`}
+        onMouseDown={onStartMonthChange ? (e) => {
+          e.preventDefault();
+          const startX = e.clientX;
+          let lastDelta = 0;
+          const onMouseMove = (ev: MouseEvent) => {
+            const delta = Math.round((startX - ev.clientX) / columnWidth);
+            if (delta !== lastDelta) {
+              onStartMonthChange(delta - lastDelta);
+              lastDelta = delta;
+            }
+          };
+          const onMouseUp = () => {
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+          };
+          window.addEventListener("mousemove", onMouseMove);
+          window.addEventListener("mouseup", onMouseUp);
+        } : undefined}
+      >
         {monthYears.map((my, i) => {
           const isYearEnd = i < monthYears.length - 1 && monthYears[i].year !== monthYears[i + 1].year;
           return (
@@ -154,8 +177,8 @@ export default function TimelineCanvas({
                 isYearEnd ? "border-background/40" : "border-foreground/20"
               } ${dropMonth === i ? "bg-accent" : ""}`}
             >
-              <span className="text-base font-bold text-background">{my.month}</span>
-              <span className="text-xs font-normal text-background/60">{my.year}</span>
+              <span className="text-base font-bold text-background select-none">{my.month}</span>
+              <span className="text-xs font-normal text-background/60 select-none">{my.year}</span>
             </div>
           );
         })}
@@ -203,33 +226,53 @@ export default function TimelineCanvas({
                   ))}
                 </div>
                 <div className="relative" style={{ height: `${laneHeight}px` }}>
-                  {pillarItems.map((item, idx) => (
-                    <div
-                      key={item.sku}
-                      className="absolute left-0 right-0"
-                      style={{ top: `${topPad + idx * (barHeight + gutter)}px` }}
-                    >
-                      <TimelineBar
-                        item={item}
-                        offerings={offerings}
-                        columnWidth={columnWidth}
-                        totalMonths={totalMonths}
-                        startMonthIndex={startMonthIndex}
-                        onMove={onMove}
-                        onResize={onResize}
-                        onRemove={onRemove}
-                        onSplit={onSplit}
-                        onRename={onRename}
-                        onReorder={onReorder}
-                        onSetPrice={onSetPrice}
-                        onSetAdSpend={onSetAdSpend}
-                        onSetDiscount={onSetDiscount}
-                        onFocus={setFocusedSku}
-                        rowIndex={idx}
-                        rowCount={pillarItems.length}
-                      />
-                    </div>
-                  ))}
+                  {pillarItems.map((item, idx) => {
+                    const barEnd = item.startMonth + Math.min(item.duration, totalMonths - item.startMonth);
+                    const offering = offerings.find((o) => o.sku === item.sku);
+                    const isRecurring = offering && (
+                      offering.billingType === "Retainer" ||
+                      (offering.billingType === "T&M" && offering.minRetainer == null && offering.maxRetainer == null)
+                    );
+                    const ghostStart = barEnd * columnWidth + 6;
+                    const GHOST_COLORS: Record<string, string> = { IS: "bg-pillar-is/20", FB: "bg-pillar-fb/20", GO: "bg-pillar-go/20", TS: "bg-pillar-ts/20" };
+
+                    return (
+                      <div
+                        key={item.sku}
+                        className="absolute left-0 right-0"
+                        style={{ top: `${topPad + idx * (barHeight + gutter)}px` }}
+                      >
+                        <TimelineBar
+                          item={item}
+                          offerings={offerings}
+                          columnWidth={columnWidth}
+                          totalMonths={totalMonths}
+                          startMonthIndex={startMonthIndex}
+                          onMove={onMove}
+                          onResize={onResize}
+                          onRemove={onRemove}
+                          onSplit={onSplit}
+                          onRename={onRename}
+                          onReorder={onReorder}
+                          onSetPrice={onSetPrice}
+                          onSetAdSpend={onSetAdSpend}
+                          onSetDiscount={onSetDiscount}
+                          onFocus={setFocusedSku}
+                          rowIndex={idx}
+                          rowCount={pillarItems.length}
+                        />
+                        {isRecurring && barEnd < totalMonths && (
+                          <div
+                            className={`absolute h-10 rounded-lg ${GHOST_COLORS[item.pillar] || "bg-muted/20"} border border-dashed border-foreground/10`}
+                            style={{
+                              left: `${ghostStart}px`,
+                              width: `${totalMonths * columnWidth - ghostStart - 6}px`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
