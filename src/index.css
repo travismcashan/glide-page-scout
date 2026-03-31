@@ -36,13 +36,22 @@
    and a smooth ease-out curve — no bounce, no elasticity.
    ───────────────────────────────────────────────────────────────────────── */
 
-/* Growth: bloom — outer fades in, inner circles inflate from r=0 (preserves stroke width) */
-.growth-c1 { }
-.growth-c2 { }
-.growth-c3 { }
+/* Growth: bloom — circles inflate from bottom baseline (r=0, cy=95) preserving stroke width */
+/* Dropdown hover: c1 stays static, c2+c3 bloom */
 [data-hovered="true"] .growth-c1 { /* outer circle stays visible — no animation */ }
 [data-hovered="true"] .growth-c2 { animation: growth-bloom-c2 0.6s ease-out 0.1s  both; }
 [data-hovered="true"] .growth-c3 { animation: growth-bloom-c3 0.6s ease-out 0.35s both; }
+
+/* Header page-load: all 3 circles bloom in sequence (c1→c2→c3) */
+[data-header-anim="true"] .growth-c1 { animation: growth-bloom-c1 0.55s ease-out 0s    both; }
+[data-header-anim="true"] .growth-c2 { animation: growth-bloom-c2 0.55s ease-out 0.18s both; }
+[data-header-anim="true"] .growth-c3 { animation: growth-bloom-c3 0.55s ease-out 0.36s both; }
+
+@keyframes growth-bloom-c1 {
+  0%   { r: 0; cy: 95; opacity: 0; }
+  40%  { opacity: 1; }
+  100% { r: 46; cy: 49; opacity: 1; }
+}
 @keyframes growth-bloom-c2 {
   0%   { r: 0; cy: 95; opacity: 0; }
   40%  { opacity: 1; }

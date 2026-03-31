@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 
 // Same Fibonacci ratios and orbital parameters as AnimatedLogo
 const RATIOS = [1, 0.618, 0.382];
-const DEFAULT_TOTAL_ANGLES = [0, 5 * Math.PI / 2, -3 * Math.PI / 2];
+const DEFAULT_INTRO_ANGLES = [0, 5 * Math.PI / 2, -3 * Math.PI / 2];
 const INTRO_DURATION = 2.5;
 const STAGGER = 0.35;
 const SETTLE_DURATION = 1.0;
@@ -17,24 +17,44 @@ function easeInOutCubic(t: number) {
 
 interface AnimatedProductIconProps {
   size?: number;
-  settleAngle?: number; // 0 = right side, Math.PI/2 = bottom
+  /** Single settle angle for all inner circles (legacy, overridden by settleAngles) */
+  settleAngle?: number;
+  /** Per-circle settle angles [c1, c2, c3] — c1 is ignored (always at center) */
+  settleAngles?: [number, number, number];
+  /** Sweep angles for the intro phase. When startAngles is provided, added on top of startAngles. */
   introAngles?: [number, number, number];
+  /** Starting angles [c1, c2, c3]. When provided, circles start here (no fade-in) and sweep from this position. */
+  startAngles?: [number, number, number];
 }
 
 /**
- * Canvas-based orbital intro animation — same motion as the primary AnimatedLogo.
- * Circle 2 sweeps 450° clockwise, circle 3 sweeps 270° counter-clockwise (staggered),
- * then both settle to `settleAngle` (bottom for Growth, right for Delivery).
+ * Canvas-based orbital intro animation.
  *
- * Color is inherited via CSS `color` property (set `style={{ color: ... }}` on a parent).
+ * Default (no startAngles): circles fade in and sweep from 0, then settle.
+ * With startAngles: circles are immediately visible at their resting position,
+ * sweep one orbit, and return — no disappear/reappear.
+ *
+ * Color is inherited via CSS `color` property.
  */
-export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, introAngles = DEFAULT_TOTAL_ANGLES }: AnimatedProductIconProps) {
+export function AnimatedProductIcon({
+  size = 34,
+  settleAngle = Math.PI / 2,
+  settleAngles,
+  introAngles = DEFAULT_INTRO_ANGLES,
+  startAngles,
+}: AnimatedProductIconProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef(0);
   const phaseRef = useRef<'intro' | 'settling' | 'resting'>('intro');
   const startTimeRef = useRef<number | null>(null);
   const settleStartRef = useRef<number>(0);
   const currentAnglesRef = useRef<number[]>([0, 0, 0]);
+
+  // Resolve per-circle settle target
+  const resolveSettle = (i: number) => {
+    if (settleAngles) return settleAngles[i];
+    return settleAngle;
+  };
 
   const draw = useCallback((timestamp: number) => {
     const canvas = canvasRef.current;
@@ -57,7 +77,7 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, intr
 
     ctx.clearRect(0, 0, s * dpr, s * dpr);
 
-    // ── Intro: orbital sweep, staggered fade-in ──────────────────────────────
+    // ── Intro: orbital sweep ─────────────────────────────────────────────────
     if (phaseRef.current === 'intro') {
       const raw = Math.min(elapsed / INTRO_DURATION, 1);
       const progress = easeOutCubic(raw);
@@ -67,12 +87,20 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, intr
       for (let i = 0; i < RATIOS.length; i++) {
         const r = baseRadius * RATIOS[i];
         const orbitR = parentR - r;
-        const angle = introAngles[i] * progress;
 
-        const fadeStart = i * STAGGER;
-        const fadeProgress = Math.min(Math.max((elapsed - fadeStart) / 0.8, 0), 1);
-        // Outer circle (i=0) is always fully visible — never fades in/out
-        const alpha = i === 0 ? 1 : easeOutCubic(fadeProgress);
+        // Start from resting position if startAngles provided, else from 0
+        const base = startAngles ? startAngles[i] : 0;
+        const angle = base + introAngles[i] * progress;
+
+        // Alpha: outer always visible; inner fade in unless startAngles (already visible)
+        let alpha: number;
+        if (i === 0 || startAngles) {
+          alpha = 1;
+        } else {
+          const fadeStart = i * STAGGER;
+          const fadeProgress = Math.min(Math.max((elapsed - fadeStart) / 0.8, 0), 1);
+          alpha = easeOutCubic(fadeProgress);
+        }
 
         let x: number, y: number;
         if (i === 0) {
@@ -94,7 +122,11 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, intr
         parentX = x; parentY = y; parentR = r;
       }
 
-      if (raw >= 1 && elapsed >= RATIOS.length * STAGGER + 0.8) {
+      const readyToSettle = startAngles
+        ? raw >= 1  // no stagger wait needed
+        : raw >= 1 && elapsed >= RATIOS.length * STAGGER + 0.8;
+
+      if (readyToSettle) {
         phaseRef.current = 'settling';
         settleStartRef.current = timestamp;
       }
@@ -116,8 +148,9 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, intr
         if (i === 0) {
           x = cx; y = cy;
         } else {
+          const target = resolveSettle(i);
           const currentAngle = currentAnglesRef.current[i] % (Math.PI * 2);
-          const angle = currentAngle + (settleAngle - currentAngle) * eased;
+          const angle = currentAngle + (target - currentAngle) * eased;
           x = parentX + orbitR * Math.cos(angle);
           y = parentY + orbitR * Math.sin(angle);
         }
@@ -146,8 +179,9 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, intr
         if (i === 0) {
           x = cx; y = cy;
         } else {
-          x = parentX + orbitR * Math.cos(settleAngle);
-          y = parentY + orbitR * Math.sin(settleAngle);
+          const target = resolveSettle(i);
+          x = parentX + orbitR * Math.cos(target);
+          y = parentY + orbitR * Math.sin(target);
         }
 
         ctx.beginPath();
@@ -163,7 +197,7 @@ export function AnimatedProductIcon({ size = 34, settleAngle = Math.PI / 2, intr
     }
 
     animRef.current = requestAnimationFrame(draw);
-  }, [size, settleAngle, introAngles]);
+  }, [size, settleAngle, settleAngles, introAngles, startAngles]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

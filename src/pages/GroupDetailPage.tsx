@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import AppHeader from '@/components/AppHeader';
 import { Button } from '@/components/ui/button';
@@ -173,6 +173,7 @@ function SitesTab({
   domainCounts,
   onRemove,
   onNavigate,
+  isSharedView,
 }: {
   members: GroupMember[];
   progress: Map<string, IntegrationProgress>;
@@ -180,6 +181,7 @@ function SitesTab({
   domainCounts: Map<string, number>;
   onRemove: (id: string) => void;
   onNavigate: (m: GroupMember) => void;
+  isSharedView?: boolean;
 }) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -206,10 +208,10 @@ function SitesTab({
         <TableHeader>
           <TableRow>
             <TableHead className="w-8"></TableHead>
-            <TableHead>Domain</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="font-bold">Domain</TableHead>
+            <TableHead className="font-bold">Date</TableHead>
+            <TableHead className="font-bold">Status</TableHead>
+            <TableHead className="text-right font-bold">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -252,9 +254,7 @@ function SitesTab({
                   </TableCell>
                   <TableCell>
                     {isComplete
-                      ? hasErrors
-                        ? <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">completed with errors</Badge>
-                        : <Badge variant="default">completed</Badge>
+                      ? <Badge variant="default">completed</Badge>
                       : m.status === 'queued'
                         ? <Badge variant="outline" className="text-muted-foreground">queued</Badge>
                         : p && p.total > 0
@@ -281,22 +281,30 @@ function SitesTab({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(window.location.origin + '/' + m.domain); }}
+                        title="Copy shared link"
+                        onClick={e => {
+                          e.stopPropagation();
+                          const sitePath = buildSitePath(m.domain, m.created_at, (domainCounts.get(m.domain) ?? 0) > 1);
+                          navigator.clipboard.writeText(`${window.location.origin}${sitePath}?view=shared`);
+                          toast.success('Shared link copied');
+                        }}
                       >
                         <Share2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={e => { e.stopPropagation(); onRemove(m.id); }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {!isSharedView && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={e => { e.stopPropagation(); onRemove(m.id); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
-                {isExpanded && runs.length > 0 && (
+                {isExpanded && runs.length > 0 && !isSharedView && (
                   <TableRow key={`${m.id}-capsules`} className="hover:bg-transparent">
                     <TableCell colSpan={5} className="py-2 px-4">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -634,6 +642,8 @@ function AddSiteDialog({
 export default function GroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSharedView = searchParams.get('view') === 'shared';
   const [group, setGroup] = useState<{ id: string; name: string; description: string | null } | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [progress, setProgress] = useState<Map<string, IntegrationProgress>>(new Map());
@@ -998,12 +1008,49 @@ export default function GroupDetailPage() {
             {group.description && <p className="text-sm text-muted-foreground mt-1">{group.description}</p>}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-1.5" /> Delete
-            </Button>
-            <Button className="gap-2" onClick={() => setAddOpen(true)}>
-              <Plus className="h-4 w-4" /> Add Sites
-            </Button>
+            {isSharedView ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    toast.success('Group link copied to clipboard');
+                  } catch {
+                    toast.error('Could not copy to clipboard');
+                  }
+                }}
+              >
+                <Share2 className="h-4 w-4" /> Copy Link
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground"
+                  onClick={async () => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('view', 'shared');
+                    try {
+                      await navigator.clipboard.writeText(url.toString());
+                      toast.success('Shareable group link copied');
+                    } catch {
+                      toast.error('Could not copy to clipboard');
+                    }
+                  }}
+                >
+                  <Share2 className="h-4 w-4" /> Share
+                </Button>
+                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                </Button>
+                <Button className="gap-2" onClick={() => setAddOpen(true)}>
+                  <Plus className="h-4 w-4" /> Add Sites
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -1018,7 +1065,7 @@ export default function GroupDetailPage() {
               <div className="relative flex items-center w-full h-14">
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
                 <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
-                  {(['sites', 'scores', 'performance', 'technology', 'comparison', 'chat'] as const).map((value) => {
+                  {(['sites', 'scores', 'performance', 'technology', 'comparison', 'chat'] as const).filter(v => !(isSharedView && v === 'chat')).map((value) => {
                     const icons = { sites: Globe, scores: Gauge, performance: BarChart3, technology: Cpu, comparison: Layers, chat: MessageSquare };
                     const labels = { sites: 'Sites', scores: 'Scores', performance: 'Performance', technology: 'Technology', comparison: 'Structure', chat: 'Chat' };
                     const Icon = icons[value];
@@ -1040,7 +1087,7 @@ export default function GroupDetailPage() {
           <div ref={groupTabBarRef} className="relative h-14 flex items-center">
             <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
             <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
-              {(['sites', 'scores', 'performance', 'technology', 'comparison', 'chat'] as const).map((value) => {
+              {(['sites', 'scores', 'performance', 'technology', 'comparison', 'chat'] as const).filter(v => !(isSharedView && v === 'chat')).map((value) => {
                 const icons = { sites: Globe, scores: Gauge, performance: BarChart3, technology: Cpu, comparison: Layers, chat: MessageSquare };
                 const labels = { sites: 'Sites', scores: 'Scores', performance: 'Performance', technology: 'Technology', comparison: 'Structure', chat: 'Chat' };
                 const Icon = icons[value];
@@ -1065,7 +1112,15 @@ export default function GroupDetailPage() {
               integrationRuns={integrationRuns}
               domainCounts={domainCounts}
               onRemove={handleRemoveMember}
-              onNavigate={(m) => { const path = buildSitePath(m.domain, m.created_at, (domainCounts.get(m.domain) ?? 0) > 1); navigate(path, { state: { fromGroup: { id: groupId, name: group.name } } }); }}
+              isSharedView={isSharedView}
+              onNavigate={(m) => {
+                const path = buildSitePath(m.domain, m.created_at, (domainCounts.get(m.domain) ?? 0) > 1);
+                if (isSharedView) {
+                  navigate(path + '?view=shared');
+                } else {
+                  navigate(path, { state: { fromGroup: { id: groupId, name: group.name } } });
+                }
+              }}
             />
           </TabsContent>
 
