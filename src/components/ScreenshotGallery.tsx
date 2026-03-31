@@ -204,7 +204,11 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
 
   const handleSubmit = async () => {
     const newUrls = Array.from(selected).filter(u => !existingUrls.has(u));
-    if (newUrls.length === 0) { toast.info('All selected pages already captured'); return; }
+    if (newUrls.length === 0) {
+      const hasPending = Array.from(selected).some(u => screenshots.find(s => s.url === u && s.status === 'pending'));
+      toast.info(hasPending ? 'Screenshots already queued — processing now' : 'All selected pages already captured');
+      return;
+    }
     setSubmitting(true);
     try {
       const rows = newUrls.map(url => ({ session_id: sessionId, url, status: 'pending' }));
@@ -320,6 +324,10 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
                       alt={`Screenshot of ${shot.url}`}
                       className="w-full block"
                       loading="lazy"
+                      onError={async () => {
+                        await supabase.from('crawl_screenshots').update({ status: 'pending', screenshot_url: null }).eq('id', shot.id);
+                        fetchScreenshots();
+                      }}
                     />
                     {condensed && (
                       <>

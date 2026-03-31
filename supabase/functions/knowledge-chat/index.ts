@@ -852,13 +852,18 @@ async function handleClaudeRequest(
 
   console.log(`[knowledge-chat] Claude request: model=${claudeConfig.model}, thinking=${reasoning || 'none'}, max_tokens=${requestBody.max_tokens}`);
 
+  const claudeHeaders: Record<string, string> = {
+    'x-api-key': ANTHROPIC_API_KEY,
+    'anthropic-version': '2023-06-01',
+    'Content-Type': 'application/json',
+  };
+  if (reasoning === 'high') {
+    claudeHeaders['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  }
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
+    headers: claudeHeaders,
     body: JSON.stringify(requestBody),
   });
 
