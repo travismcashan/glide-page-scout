@@ -36,10 +36,10 @@ interface TimelineBarProps {
 }
 
 const BAR_STYLES: Record<string, string> = {
-  IS: "bg-pillar-is/85 text-foreground",
-  FB: "bg-pillar-fb/85 text-foreground",
-  GO: "bg-pillar-go/85 text-foreground",
-  TS: "bg-pillar-ts/85 text-foreground",
+  IS: "bg-pillar-is text-foreground",
+  FB: "bg-pillar-fb text-foreground",
+  GO: "bg-pillar-go text-foreground",
+  TS: "bg-pillar-ts text-foreground",
 };
 
 const BAR_HOVER: Record<string, string> = {

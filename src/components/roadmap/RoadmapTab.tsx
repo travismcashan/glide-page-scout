@@ -376,12 +376,12 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
 
       {/* Investment Options */}
       <div>
-        <div className="mb-5 flex items-center gap-4">
+        <div className="mb-5 flex items-center justify-between">
           <h2 className="text-4xl font-light tracking-tight text-foreground">Investment Options</h2>
           {items.length > 0 && (
             <Button
               size="sm"
-              className="gap-1.5 bg-foreground text-background hover:bg-foreground/80 transition-colors"
+              className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"
               disabled={generatingOutcomes}
               onClick={async () => {
                 if (!generateOutcomesRef.current) return;
