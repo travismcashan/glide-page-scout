@@ -380,9 +380,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           <h2 className="text-4xl font-light tracking-tight text-foreground">Investment Options</h2>
           {items.length > 0 && (
             <Button
-              variant="outline"
               size="sm"
-              className="gap-1.5"
+              className="gap-1.5 bg-foreground text-background hover:bg-foreground/80 transition-colors"
               disabled={generatingOutcomes}
               onClick={async () => {
                 setGeneratingOutcomes(true);

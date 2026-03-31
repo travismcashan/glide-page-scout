@@ -494,10 +494,9 @@ const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsP
   const [outcomesGenerated, setOutcomesGenerated] = useState(false);
 
   const generateAllOutcomes = useCallback(async () => {
-    const anyLoading = Object.values(loadingByIdx).some(Boolean);
-    if (anyLoading) return;
+    const optionsSnapshot = options;
 
-    const promises = options.map(async (option, idx) => {
+    const promises = optionsSnapshot.map(async (option, idx) => {
       const serviceNames = option.scopeItems.map((si) => si.name);
       if (serviceNames.length === 0) return;
 
@@ -518,7 +517,8 @@ const InvestmentOptions = forwardRef<InvestmentOptionsHandle, InvestmentOptionsP
 
     await Promise.all(promises);
     setOutcomesGenerated(true);
-  }, [options, loadingByIdx, sessionId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, offerings, sessionId]);
 
   const isGenerating = Object.values(loadingByIdx).some(Boolean);
   const hasOutcomes = Object.values(outcomesByIdx).some((arr) => arr.length > 0);
