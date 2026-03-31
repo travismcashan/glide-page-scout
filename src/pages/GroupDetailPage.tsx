@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, Layers, ChevronDown, ChevronUp, Settings2, ChevronRight, Share2, Check, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarChart3, Cpu, Gauge, Sparkles, Layers, ChevronDown, ChevronUp, Settings2, ChevronRight, Share2, Check, AlertTriangle, MessageSquare, Pencil } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -197,7 +197,7 @@ function SitesTab({
     return (
       <div className="text-center py-16 space-y-3">
         <Globe className="h-10 w-10 mx-auto text-muted-foreground/40" />
-        <p className="text-muted-foreground text-sm">No sites in this group yet. Add one to get started.</p>
+        <p className="text-muted-foreground text-sm">No sites in this list yet. Add one to get started.</p>
       </div>
     );
   }
@@ -246,7 +246,7 @@ function SitesTab({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4 shrink-0 text-primary/60" />
-                      <span className="text-sm font-medium truncate">{m.domain}</span>
+                      <span className="text-sm font-medium truncate">{m.domain.replace(/^www\./, '')}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
@@ -282,11 +282,16 @@ function SitesTab({
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         title="Copy shared link"
-                        onClick={e => {
+                        onClick={async e => {
                           e.stopPropagation();
                           const sitePath = buildSitePath(m.domain, m.created_at, (domainCounts.get(m.domain) ?? 0) > 1);
-                          navigator.clipboard.writeText(`${window.location.origin}${sitePath}?view=shared`);
-                          toast.success('Shared link copied');
+                          const shareUrl = `${window.location.origin}${sitePath}?view=shared`;
+                          try {
+                            await navigator.clipboard.writeText(shareUrl);
+                            toast.success('Shared link copied');
+                          } catch {
+                            toast.success('Shared link', { description: shareUrl });
+                          }
                         }}
                       >
                         <Share2 className="h-3.5 w-3.5" />
@@ -691,6 +696,8 @@ export default function GroupDetailPage() {
   const [aiScopeLoading, setAiScopeLoading] = useState(false);
   const [aiScopeReasoning, setAiScopeReasoning] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteSitesToo, setDeleteSitesToo] = useState(false);
 
@@ -852,7 +859,7 @@ export default function GroupDetailPage() {
     await supabase.from('site_group_members').delete().eq('id', memberId);
     setMembers(prev => prev.filter(m => m.id !== memberId));
     setFullSessions([]); // Clear cached full sessions
-    toast.success('Site removed from group');
+    toast.success('Site removed from list');
   };
 
   const handleDeleteGroup = async () => {
@@ -871,10 +878,10 @@ export default function GroupDetailPage() {
       }
       const { error } = await supabase.from('site_groups').delete().eq('id', groupId);
       if (error) throw error;
-      toast.success('Group deleted');
+      toast.success('List deleted');
       navigate('/sites');
     } catch (err) {
-      toast.error('Failed to delete group');
+      toast.error('Failed to delete list');
     } finally {
       setDeleting(false);
       setDeleteOpen(false);
@@ -985,7 +992,7 @@ export default function GroupDetailPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <AppHeader />
-        <div className="flex-1 flex items-center justify-center"><p className="text-muted-foreground">Group not found.</p></div>
+        <div className="flex-1 flex items-center justify-center"><p className="text-muted-foreground">List not found.</p></div>
       </div>
     );
   }
@@ -998,9 +1005,42 @@ export default function GroupDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
-              <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-bold">Sites</button>
+              <button onClick={() => navigate('/lists')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-bold">Lists</button>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              <span className="text-foreground">{group.name}</span>
+              {editingName ? (
+                <input
+                  autoFocus
+                  value={nameValue}
+                  onChange={e => setNameValue(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    } else if (e.key === 'Escape') {
+                      setEditingName(false);
+                    }
+                  }}
+                  onBlur={async () => {
+                    const trimmed = nameValue.trim();
+                    if (trimmed && trimmed !== group.name) {
+                      await supabase.from('site_groups').update({ name: trimmed }).eq('id', groupId!);
+                      setGroup(g => g ? { ...g, name: trimmed } : g);
+                      toast.success('List renamed');
+                    }
+                    setEditingName(false);
+                  }}
+                  className="text-2xl font-bold tracking-tight bg-transparent border-b-2 border-primary outline-none min-w-[120px] max-w-[320px] text-foreground"
+                  style={{ width: `${Math.max(nameValue.length, 4)}ch` }}
+                />
+              ) : (
+                <button
+                  className="text-foreground hover:text-foreground group flex items-center gap-1"
+                  onClick={() => { setNameValue(group.name); setEditingName(true); }}
+                  title="Click to rename"
+                >
+                  {group.name}
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              )}
               <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {members.length} site{members.length !== 1 ? 's' : ''}
               </span>
@@ -1016,9 +1056,9 @@ export default function GroupDetailPage() {
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(window.location.href);
-                    toast.success('Group link copied to clipboard');
+                    toast.success('List link copied to clipboard');
                   } catch {
-                    toast.error('Could not copy to clipboard');
+                    toast.success('List link', { description: window.location.href });
                   }
                 }}
               >
@@ -1035,9 +1075,9 @@ export default function GroupDetailPage() {
                     url.searchParams.set('view', 'shared');
                     try {
                       await navigator.clipboard.writeText(url.toString());
-                      toast.success('Shareable group link copied');
+                      toast.success('Shareable list link copied');
                     } catch {
-                      toast.error('Could not copy to clipboard');
+                      toast.success('Shareable list link', { description: url.toString() });
                     }
                   }}
                 >
@@ -1181,16 +1221,16 @@ export default function GroupDetailPage() {
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete group "{group.name}"?</AlertDialogTitle>
+              <AlertDialogTitle>Delete list "{group.name}"?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will remove the group. Sites will remain in your sites list unless you check the option below.
+                This will remove the list. Sites will remain in your sites history unless you check the option below.
               </AlertDialogDescription>
             </AlertDialogHeader>
             {members.length > 0 && (
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <Checkbox checked={deleteSitesToo} onCheckedChange={(v) => setDeleteSitesToo(!!v)} />
-                  Also delete all {members.length} sites in this group
+                  Also delete all {members.length} sites in this list
                 </label>
                 <ScrollArea className="max-h-[200px]">
                   <div className="space-y-1 text-xs text-muted-foreground pl-6">

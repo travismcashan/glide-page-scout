@@ -14,7 +14,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
-  loading: true,
+  loading: true,  // true until both session AND role are resolved
   isAdmin: false,
   profile: null,
   signOut: async () => {},
@@ -34,10 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
 
       if (session?.user) {
-        // Fetch profile and role in separate calls to avoid blocking
+        // Fetch profile and role; keep loading=true until role resolves
         setTimeout(() => {
           supabase.from('profiles').select('display_name, avatar_url').eq('id', session.user.id).single()
             .then(({ data }) => {
@@ -55,19 +54,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
             });
           supabase.rpc('has_role', { _user_id: session.user.id, _role: 'admin' })
-            .then(({ data }) => setIsAdmin(!!data));
+            .then(({ data }) => {
+              setIsAdmin(!!data);
+              setLoading(false);
+            });
         }, 0);
       } else {
         setProfile(null);
         setIsAdmin(false);
+        setLoading(false);
       }
     });
 
-    // Then check existing session
+    // Then check existing session (only sets loading=false if no user — role check handles it otherwise)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      if (!session?.user) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();

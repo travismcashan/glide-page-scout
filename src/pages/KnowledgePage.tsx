@@ -117,7 +117,7 @@ export default function KnowledgePage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
-      <div className="flex-1 max-w-6xl mx-auto w-full px-6 py-6">
+      <div className="flex-1 max-w-5xl mx-auto w-full px-6 py-6">
         <DocumentLibrary
           sessionId={globalSession.id}
           refreshKey={refreshKey}

@@ -403,7 +403,7 @@ export default function CrawlPage() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Globe className="h-4 w-4 shrink-0 text-primary/60" />
-                      <span className="text-sm font-medium truncate">{s.domain}</span>
+                      <span className="text-sm font-medium truncate">{s.domain.replace(/^www\./, '')}</span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">

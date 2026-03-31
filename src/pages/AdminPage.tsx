@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Shield, Users, Crown, Loader2, UserPlus, Trash2, KeyRound, Mail } from 'lucide-react';
+import { Shield, Users, Crown, Loader2, UserPlus, Trash2, KeyRound, Mail, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import AppHeader from '@/components/AppHeader';
@@ -25,6 +25,32 @@ type UserRow = {
   roles: string[];
 };
 
+type UsageByUser = {
+  user_id: string | null;
+  display_name: string | null;
+  email: string | null;
+  total_calls: number;
+  total_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  est_cost: number;
+};
+
+type PricingMap = Record<string, [number, number]>;
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function formatCost(cost: number): string {
+  if (cost === 0) return '—';
+  if (cost < 0.01) return `$${cost.toFixed(4)}`;
+  if (cost < 1) return `$${cost.toFixed(3)}`;
+  return `$${cost.toFixed(2)}`;
+}
+
 export default function AdminPage() {
   const navigate = useNavigate();
   const { user: currentUser, isAdmin, loading: authLoading } = useAuth();
@@ -36,12 +62,20 @@ export default function AdminPage() {
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [usageRows, setUsageRows] = useState<UsageByUser[]>([]);
+  const [usageLoading, setUsageLoading] = useState(true);
+  const [usageRange, setUsageRange] = useState(30);
 
   useEffect(() => {
     if (authLoading) return;
     if (!isAdmin) { navigate('/'); return; }
     fetchUsers();
   }, [isAdmin, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !isAdmin) return;
+    fetchUsage();
+  }, [isAdmin, authLoading, usageRange]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -52,7 +86,6 @@ export default function AdminPage() {
 
     const { data: roles } = await supabase.from('user_roles').select('user_id, role');
 
-    // Fetch emails via the admin-users edge function (returns list with emails)
     const { data: authUsers } = await supabase.functions.invoke('admin-users', {
       body: { action: 'list' },
     }).catch(() => ({ data: null }));
@@ -77,8 +110,70 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const fetchUsage = async () => {
+    setUsageLoading(true);
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - usageRange);
+
+      // Fetch pricing
+      const { data: pricingRows } = await supabase.from('model_pricing').select('model, input_per_1m, output_per_1m');
+      const pricing: PricingMap = {};
+      (pricingRows || []).forEach((r: any) => { pricing[r.model] = [Number(r.input_per_1m), Number(r.output_per_1m)]; });
+
+      // Fetch per-user per-model usage
+      const { data: rows } = await supabase
+        .from('ai_usage_log')
+        .select('user_id, model, prompt_tokens, completion_tokens, total_tokens')
+        .gte('created_at', since.toISOString());
+
+      // Fetch profile map
+      const { data: profiles } = await supabase.from('profiles').select('id, display_name');
+      const profileMap = new Map<string, string>();
+      (profiles || []).forEach((p: any) => profileMap.set(p.id, p.display_name));
+
+      // Fetch emails via admin-users
+      const { data: authUsers } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'list' },
+      }).catch(() => ({ data: null }));
+      const emailMap = new Map<string, string>();
+      if (authUsers?.users) authUsers.users.forEach((u: any) => emailMap.set(u.id, u.email));
+
+      // Aggregate by user_id
+      const agg = new Map<string | null, UsageByUser>();
+      (rows || []).forEach((r: any) => {
+        const key = r.user_id ?? null;
+        if (!agg.has(key)) {
+          agg.set(key, {
+            user_id: key,
+            display_name: key ? (profileMap.get(key) ?? null) : null,
+            email: key ? (emailMap.get(key) ?? null) : null,
+            total_calls: 0,
+            total_tokens: 0,
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            est_cost: 0,
+          });
+        }
+        const entry = agg.get(key)!;
+        entry.total_calls += 1;
+        entry.total_tokens += r.total_tokens ?? 0;
+        entry.prompt_tokens += r.prompt_tokens ?? 0;
+        entry.completion_tokens += r.completion_tokens ?? 0;
+        const p = pricing[r.model];
+        if (p) {
+          entry.est_cost += (r.prompt_tokens / 1_000_000) * p[0] + (r.completion_tokens / 1_000_000) * p[1];
+        }
+      });
+
+      setUsageRows([...agg.values()].sort((a, b) => b.total_tokens - a.total_tokens));
+    } catch (err) {
+      console.error('Usage fetch error:', err);
+    }
+    setUsageLoading(false);
+  };
+
   const toggleAdmin = async (userId: string, currentlyAdmin: boolean) => {
-    // Prevent removing your own admin
     if (userId === currentUser?.id && currentlyAdmin) {
       toast.error('Cannot remove your own admin role');
       return;
@@ -148,6 +243,8 @@ export default function AdminPage() {
     setDeleting(false);
   };
 
+  const totalCost = useMemo(() => usageRows.reduce((s, r) => s + r.est_cost, 0), [usageRows]);
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -160,18 +257,16 @@ export default function AdminPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      <main className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+      <main className="max-w-3xl mx-auto px-6 py-10 space-y-10">
 
         {/* Page header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" /> Admin
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {users.length} user{users.length !== 1 ? 's' : ''} · Manage access and accounts
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Shield className="h-6 w-6 text-primary" /> Admin
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {users.length} user{users.length !== 1 ? 's' : ''} · Manage access and accounts
+          </p>
         </div>
 
         {/* Invite user */}
@@ -265,6 +360,81 @@ export default function AdminPage() {
             );
           })}
         </div>
+
+        {/* Usage breakdown */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold flex items-center gap-2">
+              <Activity className="h-4 w-4" /> AI Usage by User
+            </h2>
+            <div className="flex gap-1">
+              {[7, 30, 90].map(d => (
+                <Button
+                  key={d}
+                  variant={usageRange === d ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="text-xs h-7 px-2.5"
+                  onClick={() => setUsageRange(d)}
+                >
+                  {d}d
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {usageLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : usageRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">No usage data in this period.</p>
+          ) : (
+            <Card className="overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="text-left px-4 py-2.5 font-semibold text-xs text-muted-foreground">User</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-xs text-muted-foreground">Calls</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-xs text-muted-foreground">Tokens</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-xs text-muted-foreground">Est. Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usageRows.map((row, i) => {
+                    const label = row.display_name || row.email || 'System / Edge Functions';
+                    const maxTokens = usageRows[0]?.total_tokens ?? 1;
+                    const pct = Math.round((row.total_tokens / maxTokens) * 100);
+                    return (
+                      <tr key={row.user_id ?? 'null'} className={i < usageRows.length - 1 ? 'border-b' : ''}>
+                        <td className="px-4 py-3">
+                          <div className="font-medium truncate max-w-[180px]">{label}</div>
+                          {row.email && row.display_name && (
+                            <div className="text-xs text-muted-foreground truncate max-w-[180px]">{row.email}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">{row.total_calls.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="tabular-nums">{formatTokens(row.total_tokens)}</div>
+                          <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden w-20 ml-auto">
+                            <div className="h-full rounded-full bg-primary/60" style={{ width: `${pct}%` }} />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCost(row.est_cost)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t bg-muted/30">
+                    <td className="px-4 py-2.5 text-xs font-semibold text-muted-foreground" colSpan={3}>Total estimated cost</td>
+                    <td className="px-4 py-2.5 text-right text-sm font-bold">{formatCost(totalCost)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </Card>
+          )}
+        </div>
+
       </main>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>

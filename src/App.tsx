@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProductProvider } from "@/contexts/ProductContext";
@@ -26,8 +26,17 @@ import GroupDetailPage from "./pages/GroupDetailPage";
 import UsagePage from "./pages/UsagePage";
 import NotFound from "./pages/NotFound";
 
+function RedirectGroups() {
+  const { groupId } = useParams<{ groupId: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/lists/${groupId}${search}`} replace />;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const { search } = useLocation();
+  const isSharedView = new URLSearchParams(search).get('view') === 'shared';
+  if (isSharedView) return <>{children}</>;
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><BrandLoader size={64} /></div>;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
@@ -57,8 +66,11 @@ const App = () => (
               <Route path="/results/:domain/:dateSlug" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
               <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
               <Route path="/sites" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-              <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
-              <Route path="/groups/:groupId" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
+              <Route path="/lists" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
+              <Route path="/lists/:groupId" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
+              {/* Legacy redirects */}
+              <Route path="/groups" element={<Navigate to="/lists" replace />} />
+              <Route path="/groups/:groupId" element={<RedirectGroups />} />
               <Route path="/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
               <Route path="/connections" element={<ProtectedRoute><ConnectionsPage /></ProtectedRoute>} />
               <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />

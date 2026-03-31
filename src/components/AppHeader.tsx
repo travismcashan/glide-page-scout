@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { label: 'Chat', to: '/chat' },
   { label: 'Knowledge', to: '/knowledge' },
   { label: 'Sites', to: '/sites', matchPrefix: '/sites' },
-  { label: 'Groups', to: '/groups' },
+  { label: 'Lists', to: '/lists', matchPrefix: '/lists' },
   { label: 'Integrations', to: '/integrations' },
 ];
 
@@ -102,12 +102,12 @@ export default function AppHeader() {
         {/* Brand + Product Switcher */}
         <div
           className="relative flex items-center gap-1 min-w-0 cursor-pointer self-stretch"
-          onMouseEnter={openSwitcher}
-          onMouseLeave={closeSwitcher}
+          onMouseEnter={isSharedView ? undefined : openSwitcher}
+          onMouseLeave={isSharedView ? undefined : closeSwitcher}
         >
           <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 min-w-0 cursor-pointer"
+            onClick={() => !isSharedView && navigate('/')}
+            className={cn("flex items-center gap-2 min-w-0", isSharedView ? "cursor-default" : "cursor-pointer")}
           >
             <div
               className="w-9 h-9 shrink-0 flex items-center justify-center"
@@ -119,22 +119,15 @@ export default function AppHeader() {
                 : (() => { const HeaderIcon = currentProduct.icon; return <HeaderIcon className="w-9 h-9" />; })()
               }
             </div>
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={currentProduct.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="text-xl sm:text-lg font-semibold tracking-tight truncate flex items-center gap-1"
-              >
-                {currentProduct.fullName}
+            <span className="text-xl sm:text-lg font-semibold tracking-tight truncate flex items-center gap-1">
+              {currentProduct.fullName}
+              {!isSharedView && (
                 <ChevronDown className={cn(
                   'h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200',
                   switcherOpen && 'rotate-180'
                 )} />
-              </motion.span>
-            </AnimatePresence>
+              )}
+            </span>
           </button>
 
           {/* Product switcher panel */}

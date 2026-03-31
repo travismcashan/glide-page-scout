@@ -2341,7 +2341,7 @@ export default function ResultsPage() {
             {groupInfo && (
               <>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                <button onClick={() => navigate(`/groups/${groupInfo.id}`)} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">{groupInfo.name}</button>
+                <button onClick={() => navigate(`/lists/${groupInfo.id}`)} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">{groupInfo.name}</button>
               </>
             )}
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -2494,6 +2494,7 @@ export default function ResultsPage() {
       <main className={`max-w-6xl mx-auto px-6 pb-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Sticky tab bar - shown when scrolling up and past the original */}
+          {!isSharedView && (
           <div
             className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
             style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
@@ -2507,6 +2508,8 @@ export default function ResultsPage() {
                 </div>
               </div>
             </div>
+          )}
+          {!isSharedView && (
           <div ref={tabBarRef} className="relative h-14 flex items-center justify-between">
             {/* Horizontal rule drawn BEHIND the tabs so active tab covers it */}
             <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
@@ -2528,6 +2531,7 @@ export default function ResultsPage() {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+          )}
 
           <TabsContent value="raw-data" className="mt-8 space-y-8" forceMount={activeTab === 'raw-data' ? true : undefined}>
             {activeTab === 'raw-data' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'raw-data' ? null : <div className="animate-fade-in space-y-8">
