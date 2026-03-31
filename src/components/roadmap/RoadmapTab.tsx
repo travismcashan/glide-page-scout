@@ -176,9 +176,10 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       const startMonth = getAutoStart(offering, prev);
       const pillarCount = prev.filter((i) => i.pillar === offering.pillar).length;
       const defaultPrice = getMinPrice(offering);
-      return [...prev, { sku: offering.sku, name: offering.name, pillar: offering.pillar, startMonth, duration: offering.defaultDuration, sortOrder: pillarCount, unitPrice: defaultPrice }];
+      const duration = Math.min(offering.defaultDuration, totalMonths - startMonth);
+      return [...prev, { sku: offering.sku, name: offering.name, pillar: offering.pillar, startMonth, duration, sortOrder: pillarCount, unitPrice: defaultPrice }];
     });
-  }, [getAutoStart, offerings, getMinPrice]);
+  }, [getAutoStart, offerings, getMinPrice, totalMonths]);
 
   const removeItem = useCallback((sku: number) => {
     setItems((prev) => prev.filter((i) => i.sku !== sku));
@@ -197,10 +198,13 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       const without = prev.filter((i) => i.sku !== sku);
       const p1 = phases.find((p) => p.phase === 1)!;
       const p2 = phases.find((p) => p.phase === 2)!;
+      const p1Duration = Math.min(p1.defaultDuration, totalMonths - item.startMonth);
+      const p2Start = item.startMonth + p1Duration;
+      const p2Duration = Math.min(p2.defaultDuration, totalMonths - p2Start);
       return [
         ...without,
-        { sku: p1.sku, name: p1.name, pillar: p1.pillar, startMonth: item.startMonth, duration: p1.defaultDuration, sortOrder: item.sortOrder, unitPrice: item.unitPrice },
-        { sku: p2.sku, name: p2.name, pillar: p2.pillar, startMonth: item.startMonth + p1.defaultDuration, duration: p2.defaultDuration, sortOrder: item.sortOrder + 0.5, unitPrice: item.unitPrice },
+        { sku: p1.sku, name: p1.name, pillar: p1.pillar, startMonth: item.startMonth, duration: p1Duration, sortOrder: item.sortOrder, unitPrice: item.unitPrice },
+        { sku: p2.sku, name: p2.name, pillar: p2.pillar, startMonth: p2Start, duration: p2Duration, sortOrder: item.sortOrder + 0.5, unitPrice: item.unitPrice },
       ];
     });
   }, [offerings]);
@@ -210,10 +214,11 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       if (prev.some((i) => i.sku === sku)) return prev;
       const offering = offerings.find((o) => o.sku === sku);
       if (!offering) return prev;
-      const clamped = Math.max(0, Math.min(startMonth, totalMonths - offering.defaultDuration));
+      const clamped = Math.max(0, Math.min(startMonth, totalMonths - 1));
+      const duration = Math.min(offering.defaultDuration, totalMonths - clamped);
       const pillarCount = prev.filter((i) => i.pillar === offering.pillar).length;
       const defaultPrice = getMinPrice(offering);
-      return [...prev, { sku: offering.sku, name: offering.name, pillar: offering.pillar, startMonth: clamped, duration: offering.defaultDuration, sortOrder: pillarCount, unitPrice: defaultPrice }];
+      return [...prev, { sku: offering.sku, name: offering.name, pillar: offering.pillar, startMonth: clamped, duration, sortOrder: pillarCount, unitPrice: defaultPrice }];
     });
   }, [totalMonths, offerings, getMinPrice]);
 
