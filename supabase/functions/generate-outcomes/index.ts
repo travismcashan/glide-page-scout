@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
 
 const corsHeaders = {
@@ -14,7 +15,7 @@ serve(async (req) => {
 
   try {
     const userId = getUserIdFromRequest(req);
-    const { optionName, serviceNames } = await req.json();
+    const { optionName, serviceNames, sessionId } = await req.json();
 
     if (!serviceNames || !Array.isArray(serviceNames) || serviceNames.length === 0) {
       return new Response(
@@ -28,9 +29,108 @@ serve(async (req) => {
       throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
+    // Pull client context from session if provided
+    let clientContext = "";
+    if (sessionId) {
+      try {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+
+        const { data: session } = await supabase
+          .from("crawl_sessions")
+          .select("prospect_domain, observations_data, deep_research_data, semrush_data, ga4_data, psi_data, tech_analysis_data")
+          .eq("id", sessionId)
+          .maybeSingle();
+
+        if (session) {
+          const parts: string[] = [];
+
+          if (session.prospect_domain) {
+            parts.push(`Client website: ${session.prospect_domain}`);
+          }
+
+          // Extract observations pyramid for rich context
+          if (session.observations_data) {
+            const obs = typeof session.observations_data === "string"
+              ? JSON.parse(session.observations_data)
+              : session.observations_data;
+            if (obs.northStar) parts.push(`North Star: ${obs.northStar}`);
+            if (obs.keysToSuccess?.length) parts.push(`Keys to Success:\n${obs.keysToSuccess.map((k: string) => `- ${k}`).join("\n")}`);
+            if (obs.strategies?.length) parts.push(`Strategic Priorities:\n${obs.strategies.map((s: string) => `- ${s}`).join("\n")}`);
+            if (obs.recommendations?.length) {
+              const topRecs = obs.recommendations.slice(0, 5);
+              parts.push(`Top Recommendations:\n${topRecs.map((r: string) => `- ${r}`).join("\n")}`);
+            }
+            if (obs.insights?.length) {
+              const topInsights = obs.insights.slice(0, 5);
+              parts.push(`Key Insights:\n${topInsights.map((i: string) => `- ${i}`).join("\n")}`);
+            }
+          }
+
+          // SEMrush organic/paid data
+          if (session.semrush_data) {
+            const sem = typeof session.semrush_data === "string"
+              ? JSON.parse(session.semrush_data)
+              : session.semrush_data;
+            const metrics: string[] = [];
+            if (sem.organic_keywords) metrics.push(`${sem.organic_keywords} organic keywords`);
+            if (sem.organic_traffic) metrics.push(`${sem.organic_traffic} monthly organic traffic`);
+            if (sem.paid_keywords) metrics.push(`${sem.paid_keywords} paid keywords`);
+            if (sem.authority_score) metrics.push(`Authority score: ${sem.authority_score}`);
+            if (metrics.length) parts.push(`SEMrush Metrics: ${metrics.join(", ")}`);
+          }
+
+          // GA4 traffic data
+          if (session.ga4_data) {
+            const ga = typeof session.ga4_data === "string"
+              ? JSON.parse(session.ga4_data)
+              : session.ga4_data;
+            if (ga.totalUsers || ga.sessions) {
+              parts.push(`Google Analytics: ${ga.totalUsers || "?"} users, ${ga.sessions || "?"} sessions (${ga.lookbackDays || 90}d)`);
+            }
+          }
+
+          // PageSpeed performance
+          if (session.psi_data) {
+            const psi = typeof session.psi_data === "string"
+              ? JSON.parse(session.psi_data)
+              : session.psi_data;
+            if (psi.performance != null) {
+              parts.push(`PageSpeed Performance: ${psi.performance}/100`);
+            }
+          }
+
+          // Tech stack
+          if (session.tech_analysis_data) {
+            const tech = typeof session.tech_analysis_data === "string"
+              ? JSON.parse(session.tech_analysis_data)
+              : session.tech_analysis_data;
+            if (tech.cms) parts.push(`CMS: ${tech.cms}`);
+            if (tech.framework) parts.push(`Framework: ${tech.framework}`);
+          }
+
+          if (parts.length > 0) {
+            clientContext = `\n\nClient Context:\n${parts.join("\n\n")}`;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch session context:", e);
+        // Continue without context
+      }
+    }
+
     const count = serviceNames.length;
 
-    const prompt = `You are a digital agency strategist. Given the following ${count} services included in an investment option called "${optionName}", generate exactly ${count} concise, compelling business outcomes — one outcome per service, in the same order. Each outcome should be one short sentence (under 12 words), action-oriented, and specific to that service. Do not use generic marketing speak.
+    const prompt = `You are a senior digital agency strategist presenting to a prospective client. Given the following ${count} services included in an investment option called "${optionName}", generate exactly ${count} highly specific, compelling business outcomes, one per service, in the same order.
+
+Each outcome should:
+- Be one impactful sentence (10-18 words)
+- Reference specific, measurable results when possible
+- Connect the service directly to client business impact
+- Sound like a confident promise, not generic marketing speak
+- Use the client context below to make each outcome deeply relevant to THIS specific client${clientContext}
 
 Services:
 ${serviceNames.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`;
@@ -45,7 +145,7 @@ ${serviceNames.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`;
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
-        system: `You return exactly ${count} business outcomes in order, one per service. Use the return_outcomes tool — no other text.`,
+        system: `You return exactly ${count} business outcomes in order, one per service. Use the return_outcomes tool. No other text.`,
         messages: [{ role: "user", content: prompt }],
         tools: [
           {
