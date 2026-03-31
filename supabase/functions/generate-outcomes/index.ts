@@ -92,7 +92,7 @@ serve(async (req) => {
     const prompt = `You are a senior digital agency strategist presenting to a prospective client. Given the following ${count} services included in an investment option called "${optionName}", generate exactly ${count} highly specific, compelling business outcomes, one per service, in the same order.
 
 Each outcome should:
-- Be one punchy sentence (8-12 words max)
+- Be one punchy fragment (6-8 words max, no filler words)
 - Reference specific, measurable results when possible
 - Connect the service directly to client business impact
 - Sound like a confident promise, not generic marketing speak
