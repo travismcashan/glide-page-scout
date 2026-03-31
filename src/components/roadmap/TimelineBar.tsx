@@ -305,7 +305,7 @@ export default function TimelineBar({
   const visibleDuration = Math.min(item.duration, totalMonths - item.startMonth);
   const barLeft = item.startMonth * columnWidth + PAD;
   const barWidth = visibleDuration * columnWidth - PAD * 2;
-  const labelText = `${item.name} (${item.duration} mo)`;
+  const labelText = `${item.name} (${visibleDuration} mo)`;
   const barEnd = item.startMonth + visibleDuration;
   const nearRightEdge = barEnd >= totalMonths - 1;
 
@@ -564,7 +564,7 @@ export default function TimelineBar({
       <TooltipContent side="top" className="text-xs">
         <p className="font-semibold">{item.name}</p>
         <p className="text-muted-foreground">
-          SKU {item.sku} · {startLabel}–{endLabel} ({item.duration} mo)
+          SKU {item.sku} · {startLabel}–{endLabel} ({visibleDuration} mo)
           {item.unitPrice != null && ` · ${formatCurrency(item.unitPrice)}/mo`}
           {isPpc && item.estimatedAdSpend != null && ` · Ad spend: ${formatCurrency(item.estimatedAdSpend)}/mo`}
         </p>
