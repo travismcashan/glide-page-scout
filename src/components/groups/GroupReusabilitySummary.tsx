@@ -43,8 +43,9 @@ function computeOverlap(
   return { shared, unique, total, included, percent };
 }
 
-export function GroupReusabilitySummary({ sessions }: Props) {
-  const [minSites, setMinSites] = useState(2); // Default: exclude unique items
+type SummaryProps = Props & { minSites: number; onMinSitesChange: (n: number) => void };
+
+export function GroupReusabilitySummary({ sessions, minSites, onMinSitesChange }: SummaryProps) {
   const siteCount = sessions.filter(s => s.page_tags || s.content_types_data || s.nav_structure).length;
 
   const templateExtractor = (s: any) => {
@@ -105,24 +106,23 @@ export function GroupReusabilitySummary({ sessions }: Props) {
         <div className="text-6xl font-bold tracking-tight">{analysis.overallPercent}%</div>
         <div className="text-lg text-muted-foreground mt-2">Structural Similarity</div>
         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-          Items appearing on {minSites}+ of {siteCount} sites
+          Scope: items on <strong>{minSites}+</strong> of {siteCount} sites
         </p>
-        {/* Threshold control */}
-        <div className="flex items-center justify-center gap-3 mt-4">
-          <span className="text-xs text-muted-foreground">Min sites:</span>
-          {[1, 2, 3, 5, Math.ceil(siteCount / 2), siteCount].filter((v, i, a) => v > 0 && v <= siteCount && a.indexOf(v) === i).map(n => (
-            <button
-              key={n}
-              onClick={() => setMinSites(n)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                minSites === n
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {n === siteCount ? 'All' : `${n}+`}
-            </button>
-          ))}
+        {/* Scope slider */}
+        <div className="flex items-center justify-center gap-4 mt-5 max-w-sm mx-auto">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">More scope</span>
+          <input
+            type="range"
+            min={1}
+            max={siteCount}
+            value={minSites}
+            onChange={e => onMinSitesChange(Number(e.target.value))}
+            className="flex-1 accent-primary h-2 cursor-pointer"
+          />
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Less scope</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          {minSites === 1 ? 'Including everything' : minSites === siteCount ? 'Only universal items' : `${minSites}+ sites required`}
         </div>
       </div>
 

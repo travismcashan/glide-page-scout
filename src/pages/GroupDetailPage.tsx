@@ -638,6 +638,7 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [mainTab, setMainTab] = useState('sites');
+  const [comparisonMinSites, setComparisonMinSites] = useState(3); // Default: 3+ sites required
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteSitesToo, setDeleteSitesToo] = useState(false);
@@ -927,10 +928,10 @@ export default function GroupDetailPage() {
               <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : (
               <div className="space-y-12">
-                <GroupReusabilitySummary sessions={fullSessions} />
-                <GroupTemplateMatrix sessions={fullSessions} />
-                <GroupContentMatrix sessions={fullSessions} />
-                <GroupNavComparison sessions={fullSessions} />
+                <GroupReusabilitySummary sessions={fullSessions} minSites={comparisonMinSites} onMinSitesChange={setComparisonMinSites} />
+                <GroupTemplateMatrix sessions={fullSessions} minSites={comparisonMinSites} />
+                <GroupContentMatrix sessions={fullSessions} minSites={comparisonMinSites} />
+                <GroupNavComparison sessions={fullSessions} minSites={comparisonMinSites} />
               </div>
             )}
           </TabsContent>

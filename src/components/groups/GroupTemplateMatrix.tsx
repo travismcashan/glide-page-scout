@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { FullBleedTable } from './FullBleedTable';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
-type Props = { sessions: SessionData[] };
+type Props = { sessions: SessionData[]; minSites?: number };
 
 type TemplateEntry = {
   template: string;
@@ -15,7 +15,7 @@ type TemplateEntry = {
 // Group templates by their base type for organized display
 const BASE_TYPE_ORDER = ['Page', 'Post', 'CPT', 'Archive', 'Search'];
 
-export function GroupTemplateMatrix({ sessions }: Props) {
+export function GroupTemplateMatrix({ sessions, minSites = 1 }: Props) {
   const { entries, groups, sharedCount, uniqueCount, totalTemplates } = useMemo(() => {
     const map = new Map<string, TemplateEntry>();
 
@@ -131,25 +131,28 @@ export function GroupTemplateMatrix({ sessions }: Props) {
                     {baseType === 'CPT' ? 'Custom Post Types' : baseType === 'Page' ? 'Custom Pages' : baseType + 's'}
                   </td>
                 </tr>
-                {groupEntries.map(entry => (
-                  <tr key={entry.template} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                    <td className="py-2 px-3 text-sm">{entry.template}</td>
-                    <td className="text-center py-2 px-2">
-                      <span className={`text-xs font-medium ${entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : entry.sites.size === 1 ? 'text-muted-foreground/40' : 'text-foreground'}`}>
-                        {entry.sites.size}/{sessionsWithData.length}
-                      </span>
-                    </td>
-                    {sessionsWithData.map(s => (
-                      <td key={s.id} className="text-center py-2 px-3">
-                        {entry.sites.has(s.id) ? (
-                          <Check className="h-4 w-4 mx-auto text-emerald-500" />
-                        ) : (
-                          <Minus className="h-3.5 w-3.5 mx-auto text-muted-foreground/20" />
-                        )}
+                {groupEntries.map(entry => {
+                  const inScope = entry.sites.size >= minSites;
+                  return (
+                    <tr key={entry.template} className={`border-b border-border/30 transition-colors ${inScope ? 'hover:bg-muted/20' : 'opacity-40'}`}>
+                      <td className={`py-2 px-3 text-sm ${inScope ? '' : 'line-through'}`}>{entry.template}</td>
+                      <td className="text-center py-2 px-2">
+                        <span className={`text-xs font-medium ${inScope ? (entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : 'text-foreground') : 'text-destructive'}`}>
+                          {entry.sites.size}/{sessionsWithData.length}
+                        </span>
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      {sessionsWithData.map(s => (
+                        <td key={s.id} className="text-center py-2 px-3">
+                          {entry.sites.has(s.id) ? (
+                            <Check className={`h-4 w-4 mx-auto ${inScope ? 'text-emerald-500' : 'text-destructive/40'}`} />
+                          ) : (
+                            <Minus className="h-3.5 w-3.5 mx-auto text-muted-foreground/20" />
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </>
             ))}
           </tbody>

@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { FullBleedTable } from './FullBleedTable';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
-type Props = { sessions: SessionData[] };
+type Props = { sessions: SessionData[]; minSites?: number };
 
 type ContentEntry = {
   type: string;
@@ -11,7 +11,7 @@ type ContentEntry = {
   sites: Map<string, number>; // sessionId → page count
 };
 
-export function GroupContentMatrix({ sessions }: Props) {
+export function GroupContentMatrix({ sessions, minSites = 1 }: Props) {
   const { entries, sharedCount, uniqueCount, totalTypes } = useMemo(() => {
     const map = new Map<string, ContentEntry>();
 
@@ -102,30 +102,33 @@ export function GroupContentMatrix({ sessions }: Props) {
             </tr>
           </thead>
           <tbody>
-            {entries.map(entry => (
-              <tr key={entry.type} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                <td className="py-2 px-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{entry.type}</span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{entry.baseType}</Badge>
-                  </div>
-                </td>
-                <td className="text-center py-2 px-2">
-                  <span className={`text-xs font-medium ${entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : entry.sites.size === 1 ? 'text-muted-foreground/40' : 'text-foreground'}`}>
-                    {entry.sites.size}/{sessionsWithData.length}
-                  </span>
-                </td>
-                {sessionsWithData.map(s => (
-                  <td key={s.id} className="text-center py-2 px-3">
-                    {entry.sites.has(s.id) ? (
-                      <span className="text-xs font-medium text-emerald-600">{entry.sites.get(s.id)}</span>
-                    ) : (
-                      <span className="text-muted-foreground/20">—</span>
-                    )}
+            {entries.map(entry => {
+              const inScope = entry.sites.size >= minSites;
+              return (
+                <tr key={entry.type} className={`border-b border-border/30 transition-colors ${inScope ? 'hover:bg-muted/20' : 'opacity-40'}`}>
+                  <td className="py-2 px-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm ${inScope ? '' : 'line-through'}`}>{entry.type}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{entry.baseType}</Badge>
+                    </div>
                   </td>
-                ))}
-              </tr>
-            ))}
+                  <td className="text-center py-2 px-2">
+                    <span className={`text-xs font-medium ${inScope ? (entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : 'text-foreground') : 'text-destructive'}`}>
+                      {entry.sites.size}/{sessionsWithData.length}
+                    </span>
+                  </td>
+                  {sessionsWithData.map(s => (
+                    <td key={s.id} className="text-center py-2 px-3">
+                      {entry.sites.has(s.id) ? (
+                        <span className={`text-xs font-medium ${inScope ? 'text-emerald-600' : 'text-destructive/60'}`}>{entry.sites.get(s.id)}</span>
+                      ) : (
+                        <span className="text-muted-foreground/20">—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </FullBleedTable>

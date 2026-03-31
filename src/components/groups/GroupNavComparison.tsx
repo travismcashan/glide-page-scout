@@ -3,14 +3,14 @@ import { Check, Minus } from 'lucide-react';
 import { FullBleedTable } from './FullBleedTable';
 
 type SessionData = { id: string; domain: string; [key: string]: any };
-type Props = { sessions: SessionData[] };
+type Props = { sessions: SessionData[]; minSites?: number };
 
 type NavEntry = {
   label: string;
   sites: Set<string>;
 };
 
-export function GroupNavComparison({ sessions }: Props) {
+export function GroupNavComparison({ sessions, minSites = 1 }: Props) {
   const { entries, sharedCount, uniqueCount, totalItems } = useMemo(() => {
     const map = new Map<string, NavEntry>();
 
@@ -93,25 +93,28 @@ export function GroupNavComparison({ sessions }: Props) {
             </tr>
           </thead>
           <tbody>
-            {entries.map(entry => (
-              <tr key={entry.label} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                <td className="py-2 px-3 text-sm font-medium">{entry.label}</td>
-                <td className="text-center py-2 px-2">
-                  <span className={`text-xs font-medium ${entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : entry.sites.size === 1 ? 'text-muted-foreground/40' : 'text-foreground'}`}>
-                    {entry.sites.size}/{sessionsWithData.length}
-                  </span>
-                </td>
-                {sessionsWithData.map(s => (
-                  <td key={s.id} className="text-center py-2 px-3">
-                    {entry.sites.has(s.id) ? (
-                      <Check className="h-4 w-4 mx-auto text-emerald-500" />
-                    ) : (
-                      <Minus className="h-3.5 w-3.5 mx-auto text-muted-foreground/20" />
-                    )}
+            {entries.map(entry => {
+              const inScope = entry.sites.size >= minSites;
+              return (
+                <tr key={entry.label} className={`border-b border-border/30 transition-colors ${inScope ? 'hover:bg-muted/20' : 'opacity-40'}`}>
+                  <td className={`py-2 px-3 text-sm font-medium ${inScope ? '' : 'line-through'}`}>{entry.label}</td>
+                  <td className="text-center py-2 px-2">
+                    <span className={`text-xs font-medium ${inScope ? (entry.sites.size === sessionsWithData.length ? 'text-emerald-600' : 'text-foreground') : 'text-destructive'}`}>
+                      {entry.sites.size}/{sessionsWithData.length}
+                    </span>
                   </td>
-                ))}
-              </tr>
-            ))}
+                  {sessionsWithData.map(s => (
+                    <td key={s.id} className="text-center py-2 px-3">
+                      {entry.sites.has(s.id) ? (
+                        <Check className={`h-4 w-4 mx-auto ${inScope ? 'text-emerald-500' : 'text-destructive/40'}`} />
+                      ) : (
+                        <Minus className="h-3.5 w-3.5 mx-auto text-muted-foreground/20" />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </FullBleedTable>
