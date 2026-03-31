@@ -81,7 +81,7 @@ function DistributionBar({ good, needsImprovement, poor }: { good: number; needs
         {niPct > 0 && <div className="bg-yellow-500 h-full" style={{ width: `${niPct}%` }} />}
         {pPct > 0 && <div className="bg-red-500 h-full" style={{ width: `${pPct}%` }} />}
       </div>
-      <div className="flex gap-1.5 text-[9px] text-muted-foreground shrink-0">
+      <div className="flex gap-1.5 text-[10px] text-muted-foreground shrink-0">
         <span className="text-green-600">{gPct}%</span>
         <span className="text-yellow-600">{niPct}%</span>
         <span className="text-red-600">{pPct}%</span>

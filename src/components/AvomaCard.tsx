@@ -186,7 +186,7 @@ function MeetingsList({ data, excludedUuids, onToggleExclude }: {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {meeting.matchReason && meeting.matchReason !== 'email_domain' && (
-                        <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
                           {meeting.matchReason === 'attendee_name' ? '👤 name' : '📋 subject'}
                         </Badge>
                       )}
@@ -219,7 +219,7 @@ function MeetingsList({ data, excludedUuids, onToggleExclude }: {
                       <ul className="space-y-1">
                         {meeting.insights.aiNotes.slice(0, 10).map((note, i) => (
                           <li key={i} className="text-xs text-muted-foreground">
-                            {note.noteType && <Badge variant="outline" className="text-[9px] mr-1.5">{note.noteType}</Badge>}
+                            {note.noteType && <Badge variant="outline" className="text-[10px] mr-1.5">{note.noteType}</Badge>}
                             {note.text}
                           </li>
                         ))}

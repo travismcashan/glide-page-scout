@@ -77,7 +77,7 @@ function GridItem({ doc, onDelete, onPreview }: { doc: KnowledgeDocument; onDele
       <span className="text-[10px] leading-tight font-medium text-foreground line-clamp-2 w-full break-all">
         {doc.name}
       </span>
-      <span className="text-[9px] text-muted-foreground">{doc.status === 'uploading' ? 'Uploading…' : `${doc.chunk_count} chunks`}</span>
+      <span className="text-[10px] text-muted-foreground">{doc.status === 'uploading' ? 'Uploading…' : `${doc.chunk_count} chunks`}</span>
     </div>
   );
 }

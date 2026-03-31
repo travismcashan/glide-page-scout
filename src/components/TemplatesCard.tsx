@@ -87,7 +87,7 @@ function TemplateRow({ t, isExcluded, toggleExcluded, isManuallyAdded, showCheck
       </td>
       <td className={`px-3 py-1 text-xs font-mono leading-5 text-foreground ${isExcluded ? 'line-through' : ''}`}>
         {t.name}
-        {isManuallyAdded && <Badge variant="outline" className="ml-2 text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">added</Badge>}
+        {isManuallyAdded && <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0 bg-primary/5 text-primary border-primary/20">added</Badge>}
       </td>
       <td className="px-3 py-1 text-center">
         {t.baseType ? <Badge variant="outline" className={`${baseTypeColors[t.baseType] || ''} text-[10px] px-1.5 py-0`}>{t.baseType}</Badge> : null}

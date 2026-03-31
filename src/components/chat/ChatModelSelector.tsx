@@ -198,7 +198,7 @@ export function ChatModelPicker({ model, provider, reasoning, onModelChange, onR
                   <div className="text-sm font-medium leading-tight flex items-center gap-1.5">
                     {v.label}
                     {v.comingSoon && (
-                      <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
+                      <span className="text-[10px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
                     )}
                   </div>
                   <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{v.description}</div>
@@ -491,7 +491,7 @@ export function ChatUnifiedPicker({ provider, model, reasoning, onProviderChange
                         <div className="text-sm font-medium leading-tight flex items-center gap-1.5">
                           {v.label}
                           {v.comingSoon && (
-                            <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
+                            <span className="text-[10px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
                           )}
                         </div>
                         <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{v.description}</div>
