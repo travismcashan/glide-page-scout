@@ -314,7 +314,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                     ))}
                     {(recurringItems.length > 0 || fixedItems.length > 1) && (
                       <tr className="border-t border-foreground/50">
-                        <td className="py-1.5 text-xs font-semibold text-foreground">Fixed Subtotal</td>
+                        <td className="py-1.5 font-semibold text-foreground">Fixed Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
                       </tr>
                     )}
@@ -335,7 +335,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                     ))}
                     {(fixedItems.length > 0 || recurringItems.length > 1) && (
                       <tr className="border-t border-foreground/50">
-                        <td className="py-1.5 text-xs font-semibold text-foreground">Recurring Subtotal</td>
+                        <td className="py-1.5 font-semibold text-foreground">Recurring Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
                       </tr>
                     )}
@@ -348,26 +348,30 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
 
                   if (isMonthlyMode && recurringItems.length > 1) {
                     return (
-                      <tr className="border-t border-foreground/50">
-                        <td className="py-1.5 text-xs font-bold text-foreground">Monthly Total</td>
-                        <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
-                      </tr>
+                      <>
+                        <tr><td colSpan={2} className="pt-2 pb-1"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
+                        <tr>
+                          <td className="py-1.5 font-bold text-foreground">Monthly Total</td>
+                          <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
+                        </tr>
+                      </>
                     );
                   }
 
                   if (fixedItems.length > 0 && recurringItems.length > 0) {
                     return (
                       <>
-                        <tr className="border-t-2 border-foreground/20">
-                          <td className="py-1.5 text-xs font-bold text-foreground">Grand Total</td>
+                        <tr><td colSpan={2} className="pt-2 pb-1"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
+                        <tr>
+                          <td className="py-1.5 font-bold text-foreground">Grand Total</td>
                           <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
                         </tr>
                         {option.priceMode === "monthly-blended" && (
                           <tr>
-                            <td className="py-1 text-xs text-muted-foreground">
+                            <td className="py-1.5 text-muted-foreground">
                               {formatCurrency(grandTotal)} / 12 months
                             </td>
-                            <td className="py-1 text-right text-xs font-semibold text-foreground tabular-nums">
+                            <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">
                               {formatCurrency(grandTotal / 12)}/mo
                             </td>
                           </tr>
