@@ -186,7 +186,6 @@ body[data-scroll-locked] {
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Space Grotesk', sans-serif;
   }
 
   code, pre, .font-mono {
