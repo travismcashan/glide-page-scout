@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
 
@@ -63,6 +63,46 @@ type ProviderDef = {
   hasPropertyPicker: boolean;
   propertyLabel?: string;
 };
+
+type ApiStatus = 'active' | 'inactive' | 'unknown';
+
+function ApiRow({ name, description, icon: Icon, iconBg, iconColor, status }: {
+  name: string;
+  description: string;
+  icon: any;
+  iconBg: string;
+  iconColor: string;
+  status: ApiStatus;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div className={`h-8 w-8 rounded-md ${iconBg} flex items-center justify-center shrink-0`}>
+          <Icon className={`h-4 w-4 ${iconColor}`} />
+        </div>
+        <div>
+          <span className="text-sm font-medium">{name}</span>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {status === 'active' ? (
+        <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs shrink-0">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Active
+        </Badge>
+      ) : status === 'inactive' ? (
+        <Badge variant="outline" className="text-amber-600 border-amber-600/30 bg-amber-600/10 text-xs shrink-0">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Not configured
+        </Badge>
+      ) : (
+        <Badge variant="outline" className="text-muted-foreground text-xs shrink-0">
+          Server-managed
+        </Badge>
+      )}
+    </div>
+  );
+}
 
 function ProviderRow({ p, connectingProvider, disconnecting, pickerProvider, pickerProperties, pickerLoading, savingProperty, connectProvider, loadProperties, saveProperty, disconnectConnection, setPickerProvider }: {
   p: ProviderDef;
@@ -230,6 +270,7 @@ export default function ConnectionsPage() {
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [hubspotConfigured, setHubspotConfigured] = useState<boolean | null>(null);
+  const [apiHealthData, setApiHealthData] = useState<Record<string, boolean | null>>({});
 
   // Property picker state
   const [pickerProvider, setPickerProvider] = useState<string | null>(null);
@@ -255,18 +296,23 @@ export default function ConnectionsPage() {
 
   useEffect(() => { fetchConnections(); }, [fetchConnections]);
 
-  // Check HubSpot API key status
+  // Check all API key statuses
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/integration-health`, {
           method: 'POST',
           headers: apiHeaders,
-          body: JSON.stringify({ checks: ['hubspot'] }),
+          body: JSON.stringify({}),
         });
         const data = await res.json();
-        const hs = data.results?.hubspot;
-        setHubspotConfigured(hs?.ok ?? false);
+        const results = data.results ?? {};
+        setHubspotConfigured(results.hubspot?.ok ?? false);
+        const health: Record<string, boolean | null> = {};
+        for (const [key, val] of Object.entries(results)) {
+          health[key] = (val as any)?.ok ?? null;
+        }
+        setApiHealthData(health);
       } catch {
         setHubspotConfigured(false);
       }
@@ -433,6 +479,63 @@ export default function ConnectionsPage() {
     saveProperty, disconnectConnection, setPickerProvider,
   };
 
+  const apiStatus = (key: string | null): ApiStatus => {
+    if (!key) return 'unknown';
+    const val = apiHealthData[key];
+    if (val === null || val === undefined) return 'unknown';
+    return val ? 'active' : 'inactive';
+  };
+
+  const API_GROUPS: { label: string; items: { id: string; name: string; description: string; icon: any; iconBg: string; iconColor: string; healthKey: string | null }[] }[] = [
+    {
+      label: 'AI',
+      items: [
+        { id: 'anthropic', name: 'Anthropic', description: 'Claude AI for analysis, chat, and generation across all features', icon: Brain, iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600', healthKey: null },
+      ],
+    },
+    {
+      label: 'Crawling & Discovery',
+      items: [
+        { id: 'firecrawl', name: 'Firecrawl', description: 'Web crawling, URL discovery, and page content extraction', icon: Globe, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-600', healthKey: null },
+      ],
+    },
+    {
+      label: 'Performance',
+      items: [
+        { id: 'psi', name: 'PageSpeed Insights', description: 'Google Lighthouse scores and Core Web Vitals', icon: Gauge, iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600', healthKey: 'psi' },
+        { id: 'gtmetrix', name: 'GTmetrix', description: 'Waterfall analysis, performance grades, and load breakdown', icon: BarChart3, iconBg: 'bg-green-500/10', iconColor: 'text-green-600', healthKey: 'gtmetrix' },
+        { id: 'carbon', name: 'Website Carbon', description: 'CO₂ emissions and sustainability ratings', icon: Leaf, iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600', healthKey: 'carbon' },
+      ],
+    },
+    {
+      label: 'Technical Analysis',
+      items: [
+        { id: 'builtwith', name: 'BuiltWith', description: 'Technology stack and CMS/platform identification', icon: Cpu, iconBg: 'bg-slate-500/10', iconColor: 'text-slate-600', healthKey: 'builtwith' },
+        { id: 'detectzestack', name: 'DetectZeStack', description: 'Additional tech stack fingerprinting and detection', icon: Zap, iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-600', healthKey: null },
+      ],
+    },
+    {
+      label: 'SEO',
+      items: [
+        { id: 'semrush', name: 'SEMrush', description: 'Keyword rankings, backlinks, and organic traffic intelligence', icon: Search, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500', healthKey: null },
+      ],
+    },
+    {
+      label: 'Accessibility & Quality',
+      items: [
+        { id: 'wave', name: 'WAVE', description: 'Accessibility errors, alerts, and contrast analysis', icon: Eye, iconBg: 'bg-blue-500/10', iconColor: 'text-blue-500', healthKey: null },
+      ],
+    },
+    {
+      label: 'Outreach & CRM',
+      items: [
+        { id: 'apollo', name: 'Apollo.io', description: 'Contact and company enrichment for prospect intelligence', icon: Users, iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600', healthKey: null },
+        { id: 'avoma', name: 'Avoma', description: 'Meeting recordings, transcripts, and conversation intelligence', icon: MessageCircle, iconBg: 'bg-purple-500/10', iconColor: 'text-purple-600', healthKey: null },
+        { id: 'ocean', name: 'Ocean.io', description: 'Company lookalike search and firmographic enrichment', icon: Building2, iconBg: 'bg-cyan-500/10', iconColor: 'text-cyan-600', healthKey: null },
+      ],
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -512,8 +615,34 @@ export default function ConnectionsPage() {
           </div>
         </div>
 
-        <div className="text-center py-4 text-muted-foreground/50 text-sm">
-          More connections coming soon — HubSpot CRM, Slack, and more.
+        {/* API Connections */}
+        <div className="mb-8">
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-foreground tracking-tight">API Connections</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Server-side API keys that power integrations. Managed via Supabase environment secrets.
+            </p>
+          </div>
+          <Card className="p-0 overflow-hidden divide-y divide-border">
+            {API_GROUPS.map((group, gi) => (
+              <div key={group.label}>
+                <div className="px-4 py-2 bg-muted/40">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</span>
+                </div>
+                {group.items.map((item) => (
+                  <ApiRow
+                    key={item.id}
+                    name={item.name}
+                    description={item.description}
+                    icon={item.icon}
+                    iconBg={item.iconBg}
+                    iconColor={item.iconColor}
+                    status={apiStatus(item.healthKey)}
+                  />
+                ))}
+              </div>
+            ))}
+          </Card>
         </div>
         </>)}
       </main>

@@ -150,6 +150,19 @@ body[data-scroll-locked] {
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 240 10% 90%;
     --sidebar-ring: 256 72% 54%;
+
+    --pillar-is: 54 100% 50%;
+    --pillar-is-light: 54 100% 92%;
+    --pillar-is-foreground: 54 80% 22%;
+    --pillar-fb: 198 100% 80%;
+    --pillar-fb-light: 198 100% 94%;
+    --pillar-fb-foreground: 198 60% 22%;
+    --pillar-go: 118 100% 78%;
+    --pillar-go-light: 118 80% 94%;
+    --pillar-go-foreground: 118 60% 18%;
+    --pillar-ts: 237 100% 88%;
+    --pillar-ts-light: 237 80% 95%;
+    --pillar-ts-foreground: 237 60% 28%;
   }
 
   .dark {
@@ -192,6 +205,19 @@ body[data-scroll-locked] {
     --sidebar-accent-foreground: 250 8% 92%;
     --sidebar-border: 250 14% 13%;
     --sidebar-ring: 256 80% 65%;
+
+    --pillar-is: 54 90% 55%;
+    --pillar-is-light: 54 60% 18%;
+    --pillar-is-foreground: 54 100% 90%;
+    --pillar-fb: 198 80% 65%;
+    --pillar-fb-light: 198 60% 15%;
+    --pillar-fb-foreground: 198 100% 88%;
+    --pillar-go: 118 70% 60%;
+    --pillar-go-light: 118 50% 13%;
+    --pillar-go-foreground: 118 80% 88%;
+    --pillar-ts: 237 80% 75%;
+    --pillar-ts-light: 237 50% 16%;
+    --pillar-ts-foreground: 237 90% 92%;
   }
 }
 

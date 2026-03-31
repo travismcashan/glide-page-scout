@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
-import { Loader2 } from 'lucide-react';
+import { BrandLoader } from '@/components/BrandLoader';
 import { withQueryTimeout } from '@/lib/queryTimeout';
 import { autoIngestIntegrations } from '@/lib/ragIngest';
 
@@ -106,9 +106,8 @@ export default function KnowledgePage() {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <AppHeader />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Loading knowledge…</span>
+        <div className="flex-1 flex items-center justify-center animate-in fade-in duration-300">
+          <BrandLoader size={96} />
         </div>
       </div>
     );

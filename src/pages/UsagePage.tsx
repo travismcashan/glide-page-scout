@@ -4,7 +4,8 @@ import AppHeader from '@/components/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Activity, Loader2, Zap, Hash, Clock, AlertTriangle, DollarSign } from 'lucide-react';
+import { Activity, Zap, Hash, Clock, AlertTriangle, DollarSign } from 'lucide-react';
+import { BrandLoader } from '@/components/BrandLoader';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -196,8 +197,8 @@ export default function UsagePage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-20 animate-in fade-in duration-300">
+            <BrandLoader size={96} />
           </div>
         ) : data.length === 0 ? (
           <div className="text-center py-20">

@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { ArrowUp, Menu, Brain, Building2, ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, DollarSign, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
+import { BrandLoader } from '@/components/BrandLoader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,6 +88,7 @@ import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
 import { ChatModelSelector, type ReasoningEffort, type ModelProvider, PROVIDERS, VERSIONS } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
+import RoadmapTab from '@/components/roadmap/RoadmapTab';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -2284,8 +2286,8 @@ export default function ResultsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center animate-in fade-in duration-300">
+        <BrandLoader size={96} />
       </div>
     );
   }
@@ -3184,15 +3186,16 @@ export default function ResultsPage() {
 
           <TabsContent value="roadmap" className="mt-8 space-y-6" forceMount={activeTab === 'roadmap' ? true : undefined}>
             {activeTab === 'roadmap' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'roadmap' ? null : <div className="animate-fade-in">
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                  <MapIcon className="h-8 w-8 text-muted-foreground" />
+              {sessionId ? (
+                <RoadmapTab sessionId={sessionId} domain={session?.domain} />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                    <MapIcon className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground max-w-md">Loading session…</p>
                 </div>
-                <h3 className="text-lg font-semibold">Roadmap</h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Plan project phases, milestones, and deliverable timelines. Coming soon.
-                </p>
-              </div>
+              )}
             </div>}
           </TabsContent>
 

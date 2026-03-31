@@ -25,6 +25,7 @@ import BrandGuidePage from "./pages/BrandGuidePage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
 import UsagePage from "./pages/UsagePage";
+import ServicesPage from "./pages/ServicesPage";
 import NotFound from "./pages/NotFound";
 
 function RedirectGroups() {
@@ -81,6 +82,7 @@ const App = () => (
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/usage" element={<ProtectedRoute><UsagePage /></ProtectedRoute>} />
               <Route path="/brand" element={<ProtectedRoute><BrandGuidePage /></ProtectedRoute>} />
+              <Route path="/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Analytics />

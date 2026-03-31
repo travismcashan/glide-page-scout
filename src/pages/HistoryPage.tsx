@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users } from 'lucide-react';
+import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
@@ -426,7 +427,9 @@ export default function HistoryPage() {
         <h1 className="text-2xl font-bold tracking-tight mb-6">Sites</h1>
 
         {loading ? (
-          <p className="py-16 text-center text-muted-foreground">Loading...</p>
+          <div className="flex items-center justify-center py-20 animate-in fade-in duration-300">
+            <BrandLoader size={96} />
+          </div>
         ) : error ? (
           <div className="py-16 text-center">
             <Globe className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
