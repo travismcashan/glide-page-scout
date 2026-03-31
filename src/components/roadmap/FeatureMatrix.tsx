@@ -18,8 +18,8 @@ const PILLAR_DOT: Record<string, string> = {
 };
 
 const OPTION_HEADER_STYLES = [
-  "bg-pillar-fb-light text-pillar-fb-foreground",
-  "bg-pillar-go-light text-pillar-go-foreground",
+  "bg-pillar-fb text-foreground",
+  "bg-pillar-go text-foreground",
   "border border-foreground/30 text-foreground",
 ];
 

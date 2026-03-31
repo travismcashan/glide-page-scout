@@ -9,6 +9,7 @@ import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
 import FeatureMatrix from "@/components/roadmap/FeatureMatrix";
 import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MONTH_NAMES } from "@/data/offerings";
@@ -332,12 +333,12 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           <h2 className="text-4xl font-bold tracking-tight text-foreground">12-Month Digital Growth Plan</h2>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-muted-foreground">Start</label>
+              <label className="text-xs font-bold text-foreground">Start</label>
               <Select
                 value={String(startMonthIndex)}
                 onValueChange={(v) => { setStartMonthIndex(Number(v)); setViewOffset(0); }}
               >
-                <SelectTrigger className="h-8 w-[100px] text-xs">
+                <SelectTrigger className="h-8 w-[100px] text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -348,12 +349,12 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-muted-foreground">Duration</label>
+              <label className="text-xs font-bold text-foreground">Duration</label>
               <Select
                 value={String(totalMonths)}
                 onValueChange={(v) => { setTotalMonths(Number(v)); setViewOffset(0); }}
               >
-                <SelectTrigger className="h-8 w-[100px] text-xs">
+                <SelectTrigger className="h-8 w-[100px] text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -367,9 +368,13 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               variant="outline"
               size="sm"
               className="h-8 gap-1.5 text-xs"
-              onClick={() => {
-                const url = window.location.href;
-                navigator.clipboard.writeText(url);
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(window.location.href);
+                  toast.success("Link copied to clipboard");
+                } catch {
+                  toast.error("Failed to copy link");
+                }
               }}
             >
               <Share2 className="h-3.5 w-3.5" />
@@ -401,7 +406,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
                   onClick={() => setCatalogVisible(true)}
                 >
                   <PanelLeftOpen className="h-3.5 w-3.5" />
-                  Show Catalog
+                  Show Services Catalog
                 </Button>
               </div>
             )}

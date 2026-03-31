@@ -160,11 +160,11 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
     : computePrice(option.scopeItems, offerings, option.priceMode);
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-background">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-background">
       <div className="px-6 py-6">
         <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold tracking-wide ${
-          option.label === "Option 1" ? "bg-pillar-fb-light text-pillar-fb-foreground" :
-          option.label === "Option 2" ? "bg-pillar-go-light text-pillar-go-foreground" :
+          option.label === "Option 1" ? "bg-pillar-fb text-foreground" :
+          option.label === "Option 2" ? "bg-pillar-go text-foreground" :
           "border border-foreground/30 text-foreground"
         }`}>
           {option.label}
@@ -246,7 +246,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         </p>
       </div>
 
-      <div className="border-b border-border px-6 py-5">
+      <div className="flex-1 border-b border-border px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
           {isBundle ? "WHY BUNDLE?" : "OUTCOMES"}
         </p>
