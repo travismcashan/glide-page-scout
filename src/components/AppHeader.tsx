@@ -104,10 +104,10 @@ export default function AppHeader() {
             <div
               className="w-9 h-9 shrink-0 flex items-center justify-center"
               style={{ color: currentProduct.color }}
-              data-hovered={headerAnimating && currentProduct.settleAngle === undefined ? "true" : undefined}
+              data-header-anim={headerAnimating && currentProduct.settleAngle === undefined ? "true" : undefined}
             >
               {headerAnimating && currentProduct.settleAngle !== undefined
-                ? <AnimatedProductIcon key={location.pathname} size={36} settleAngle={currentProduct.settleAngle} introAngles={currentProduct.introAngles} />
+                ? <AnimatedProductIcon key={location.pathname} size={36} settleAngle={currentProduct.settleAngle} settleAngles={currentProduct.settleAngles} startAngles={currentProduct.startAngles} introAngles={currentProduct.introAngles} />
                 : (() => { const HeaderIcon = currentProduct.icon; return <HeaderIcon className="w-9 h-9" />; })()
               }
             </div>
@@ -172,7 +172,7 @@ export default function AppHeader() {
                       >
                         <div className="shrink-0 w-[34px] h-[34px] flex items-center justify-center" data-hovered={animatingId === product.id ? "true" : undefined} style={{ color: product.color }}>
                           {animatingId === product.id && product.settleAngle !== undefined
-                            ? <AnimatedProductIcon size={34} settleAngle={product.settleAngle} introAngles={product.introAngles} />
+                            ? <AnimatedProductIcon size={34} settleAngle={product.settleAngle} settleAngles={product.settleAngles} startAngles={product.startAngles} introAngles={product.introAngles} />
                             : <Icon className="w-[34px] h-[34px]" />
                           }
                         </div>
