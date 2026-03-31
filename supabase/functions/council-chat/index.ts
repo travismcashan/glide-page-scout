@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,7 +58,7 @@ function resolveProvider(model: string): { url: string; key: string; apiModel: s
 async function streamGateway(
   _apiKey: string, model: string, systemPrompt: string, userContent: string,
   onChunk: (text: string) => void
-): Promise<string> {
+): Promise<{ text: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }> {
   const isOpenAI = model.startsWith('openai/');
   const provider = resolveProvider(model);
   const body: Record<string, unknown> = {
@@ -67,6 +68,7 @@ async function streamGateway(
       { role: 'user', content: userContent },
     ],
     stream: true,
+    stream_options: { include_usage: true },
   };
   if (isOpenAI) {
     body.max_completion_tokens = 2048;
@@ -88,6 +90,7 @@ async function streamGateway(
   const decoder = new TextDecoder();
   let buffer = '';
   let fullText = '';
+  let lastUsage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -103,6 +106,7 @@ async function streamGateway(
       if (payload === '[DONE]') continue;
       try {
         const chunk = JSON.parse(payload);
+        if (chunk.usage) lastUsage = chunk.usage;
         const delta = chunk.choices?.[0]?.delta?.content;
         if (delta) {
           fullText += delta;
@@ -112,14 +116,14 @@ async function streamGateway(
     }
   }
 
-  return fullText;
+  return { text: fullText, usage: lastUsage };
 }
 
 // Stream an Anthropic model, emitting chunks via callback
 async function streamAnthropic(
   apiKey: string, modelId: string, systemPrompt: string, userContent: string,
   onChunk: (text: string) => void
-): Promise<string> {
+): Promise<{ text: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }> {
   const cm = CLAUDE_MODELS[modelId] || { model: modelId, maxOutput: 8192 };
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -145,6 +149,8 @@ async function streamAnthropic(
   const decoder = new TextDecoder();
   let buffer = '';
   let fullText = '';
+  let inputTokens = 0;
+  let outputTokens = 0;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -160,6 +166,12 @@ async function streamAnthropic(
       if (payload === '[DONE]') continue;
       try {
         const event = JSON.parse(payload);
+        if (event.type === 'message_start' && event.message?.usage) {
+          inputTokens = event.message.usage.input_tokens || 0;
+        }
+        if (event.type === 'message_delta' && event.usage) {
+          outputTokens = event.usage.output_tokens || 0;
+        }
         if (event.type === 'content_block_delta' && event.delta?.text) {
           fullText += event.delta.text;
           onChunk(event.delta.text);
@@ -168,7 +180,10 @@ async function streamAnthropic(
     }
   }
 
-  return fullText;
+  const usage = (inputTokens > 0 || outputTokens > 0)
+    ? { prompt_tokens: inputTokens, completion_tokens: outputTokens, total_tokens: inputTokens + outputTokens }
+    : undefined;
+  return { text: fullText, usage };
 }
 
 const COUNCIL_SYSTEM = `You are one of 3 AI models in a Model Council. Give your best, most thoughtful and specific response to the user's question. Be concise but substantive — aim for 300-500 words. Take clear positions and provide actionable recommendations.`;
@@ -216,6 +231,7 @@ serve(async (req) => {
   }
 
   try {
+    const userId = getUserIdFromRequest(req);
     const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
     const { messages, crawlContext, customInstructions, councilModels: customModels, synthesisModel: customSynthesis } = await req.json();
@@ -265,14 +281,20 @@ serve(async (req) => {
                 send('model_chunk', { key: m.key, text });
               };
 
-              let result: string;
+              let streamResult: { text: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
               if (m.provider === 'anthropic') {
-                result = await streamAnthropic(ANTHROPIC_KEY, m.id, system, userContent, onChunk);
+                streamResult = await streamAnthropic(ANTHROPIC_KEY, m.id, system, userContent, onChunk);
               } else {
-                result = await streamGateway('', m.id, system, userContent, onChunk);
+                streamResult = await streamGateway('', m.id, system, userContent, onChunk);
               }
-              send('model_done', { key: m.key, name: m.name, response: result });
-              return { key: m.key, name: m.name, response: result };
+              // Log usage for this council model
+              if (streamResult.usage) {
+                const provider = m.provider === 'anthropic' ? 'anthropic' : (m.id.startsWith('openai/') ? 'openai' : 'gemini');
+                const resolvedModel = m.provider === 'anthropic' ? (CLAUDE_MODELS[m.id]?.model || m.id) : resolveProvider(m.id).apiModel;
+                logUsage({ ...streamResult.usage, user_id: userId, provider, model: resolvedModel, edge_function: 'council-chat', is_streaming: true });
+              }
+              send('model_done', { key: m.key, name: m.name, response: streamResult.text });
+              return { key: m.key, name: m.name, response: streamResult.text };
             } catch (e) {
               const err = e instanceof Error ? e.message : 'failed';
               send('model_error', { key: m.key, name: m.name, error: err });
@@ -326,6 +348,8 @@ serve(async (req) => {
               const reader = synthResp.body!.getReader();
               const decoder = new TextDecoder();
               let buffer = '';
+              let synthInputTokens = 0;
+              let synthOutputTokens = 0;
 
               while (true) {
                 const { done, value } = await reader.read();
@@ -341,6 +365,12 @@ serve(async (req) => {
                   if (payload === '[DONE]') continue;
                   try {
                     const event = JSON.parse(payload);
+                    if (event.type === 'message_start' && event.message?.usage) {
+                      synthInputTokens = event.message.usage.input_tokens || 0;
+                    }
+                    if (event.type === 'message_delta' && event.usage) {
+                      synthOutputTokens = event.usage.output_tokens || 0;
+                    }
                     if (event.type === 'content_block_delta') {
                       if (event.delta?.type === 'thinking_delta' && event.delta?.thinking) {
                         send('synthesis_thinking', { text: event.delta.thinking });
@@ -350,6 +380,10 @@ serve(async (req) => {
                     }
                   } catch {}
                 }
+              }
+              // Log synthesis usage
+              if (synthInputTokens > 0 || synthOutputTokens > 0) {
+                logUsage({ user_id: userId, provider: 'anthropic', model: cm.model, edge_function: 'council-chat', prompt_tokens: synthInputTokens, completion_tokens: synthOutputTokens, total_tokens: synthInputTokens + synthOutputTokens, is_streaming: true });
               }
             }
           } else {
@@ -363,6 +397,7 @@ serve(async (req) => {
                 { role: 'user', content: synthUserContent },
               ],
               stream: true,
+              stream_options: { include_usage: true },
             };
             if (isOpenAI) {
               synthGatewayBody.max_completion_tokens = 8192;
@@ -386,6 +421,7 @@ serve(async (req) => {
               const reader = synthResp.body!.getReader();
               const decoder = new TextDecoder();
               let buffer = '';
+              let gwSynthUsage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null = null;
 
               while (true) {
                 const { done, value } = await reader.read();
@@ -401,12 +437,17 @@ serve(async (req) => {
                   if (payload === '[DONE]') continue;
                   try {
                     const chunk = JSON.parse(payload);
+                    if (chunk.usage) gwSynthUsage = chunk.usage;
                     const delta = chunk.choices?.[0]?.delta?.content;
                     if (delta) {
                       send('synthesis_chunk', { text: delta });
                     }
                   } catch {}
                 }
+              }
+              // Log gateway synthesis usage
+              if (gwSynthUsage && (gwSynthUsage.total_tokens || gwSynthUsage.prompt_tokens)) {
+                logUsage({ user_id: userId, provider: isOpenAI ? 'openai' : 'gemini', model: synthProvider.apiModel, edge_function: 'council-chat', prompt_tokens: gwSynthUsage.prompt_tokens || 0, completion_tokens: gwSynthUsage.completion_tokens || 0, total_tokens: gwSynthUsage.total_tokens || 0, is_streaming: true });
               }
             }
           }

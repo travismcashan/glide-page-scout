@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logUsage, extractOpenAIUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +55,10 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    const userId = getUserIdFromRequest(req);
+    const usage = extractOpenAIUsage(data);
+    logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash-lite', edge_function: 'generate-thread-title' });
+
     let title = data.choices?.[0]?.message?.content?.trim() || "";
     
     // Clean up: remove quotes, trailing punctuation

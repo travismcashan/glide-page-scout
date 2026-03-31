@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     console.log('SEMrush domain overview for:', domain);
 
     // 1. Domain Overview (all databases)
-    const overviewUrl = `https://api.semrush.com/?key=${apiKey}&type=domain_ranks&export_columns=Db,Dn,Rk,Or,Ot,Oc,Ad,At,Ac,Sh,Sv&domain=${encodeURIComponent(domain)}`;
+    const overviewUrl = `https://api.semrush.com/?key=${apiKey}&type=domain_ranks&export_columns=Db,Dn,Rk,Or,Ot,Oc,Ad,At,Ac,Sh,Sv,As&domain=${encodeURIComponent(domain)}`;
     const overviewRes = await fetch(overviewUrl);
     const overviewText = await overviewRes.text();
 

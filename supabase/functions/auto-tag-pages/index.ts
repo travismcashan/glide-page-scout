@@ -1,3 +1,5 @@
+import { logUsage, extractOpenAIUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -119,6 +121,7 @@ async function classifyBatch(
   homepageContent: string,
   navSummary: string,
   knownIndustry?: string,
+  req?: Request,
 ): Promise<{ industry: string; industry_confidence: string; pages: any[] }> {
   const systemPrompt = buildSystemPrompt(knownIndustry);
 
@@ -198,6 +201,10 @@ ${urlBatch.join('\n')}`,
   let aiData: any;
   try {
     aiData = JSON.parse(aiText);
+
+    const userId = req ? getUserIdFromRequest(req) : null;
+    const usage = extractOpenAIUsage(aiData);
+    logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash', edge_function: 'auto-tag-pages' });
   } catch {
     console.error('[auto-tag] Truncated AI response, length:', aiText.length, 'tail:', aiText.slice(-200));
     // Attempt to salvage truncated tool_call arguments
@@ -277,7 +284,7 @@ Deno.serve(async (req) => {
     // Single AI call — client handles batching across invocations
     console.log(`[auto-tag] Classifying ${dedupedUrls.length} URLs for domain: ${domain}`);
 
-    const result = await classifyBatch(aiKey, dedupedUrls, domain, homepageContent || '', navSummary, knownIndustry || undefined);
+    const result = await classifyBatch(aiKey, dedupedUrls, domain, homepageContent || '', navSummary, knownIndustry || undefined, req);
     const industry = result.industry || 'Generic / Other';
     const industryConfidence = result.industry_confidence || 'low';
     const allPages: any[] = [...(result.pages || [])];

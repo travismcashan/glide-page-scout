@@ -1,10 +1,51 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { logUsage, extractOpenAIUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+/**
+ * Wrap a streaming response body to capture usage from OpenAI-compatible SSE chunks.
+ * Returns the original stream (passed through) and fires logUsage after stream ends.
+ */
+function wrapStreamWithUsageLog(
+  body: ReadableStream<Uint8Array>,
+  logEntry: { user_id?: string | null; provider: string; model: string; edge_function: string },
+): ReadableStream<Uint8Array> {
+  const decoder = new TextDecoder();
+  let lastUsage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null = null;
+
+  return body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(chunk);
+      // Peek at the text for usage data in the final SSE chunk
+      const text = decoder.decode(chunk, { stream: true });
+      for (const line of text.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.usage) lastUsage = parsed.usage;
+        } catch {}
+      }
+    },
+    flush() {
+      if (lastUsage && (lastUsage.total_tokens || lastUsage.prompt_tokens)) {
+        logUsage({
+          ...logEntry,
+          prompt_tokens: lastUsage.prompt_tokens || 0,
+          completion_tokens: lastUsage.completion_tokens || 0,
+          total_tokens: lastUsage.total_tokens || 0,
+          is_streaming: true,
+        });
+      }
+    },
+  }));
+}
 
 function resolveProvider(model: string): { url: string; key: string; apiModel: string } {
   if (model.startsWith('openai/')) {
@@ -744,6 +785,7 @@ async function handleClaudeRequest(
   systemPrompt: string,
   reasoning: string | undefined,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number },
+  userId?: string | null,
 ): Promise<Response> {
   const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
   if (!ANTHROPIC_API_KEY) {
@@ -840,6 +882,8 @@ async function handleClaudeRequest(
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let inputTokens = 0;
+      let outputTokens = 0;
 
       try {
         while (true) {
@@ -858,6 +902,13 @@ async function handleClaudeRequest(
 
             try {
               const event = JSON.parse(jsonStr);
+              // Capture usage from Anthropic stream events
+              if (event.type === 'message_start' && event.message?.usage) {
+                inputTokens = event.message.usage.input_tokens || 0;
+              }
+              if (event.type === 'message_delta' && event.usage) {
+                outputTokens = event.usage.output_tokens || 0;
+              }
               // Convert Anthropic events to OpenAI delta format
               if (event.type === 'content_block_delta') {
                 if (event.delta?.type === 'text_delta') {
@@ -879,6 +930,19 @@ async function handleClaudeRequest(
       } catch (e) {
         console.error('Stream transform error:', e);
       } finally {
+        // Log usage after stream ends
+        if (inputTokens > 0 || outputTokens > 0) {
+          logUsage({
+            user_id: userId,
+            provider: 'anthropic',
+            model: claudeConfig.model,
+            edge_function: 'knowledge-chat',
+            prompt_tokens: inputTokens,
+            completion_tokens: outputTokens,
+            total_tokens: inputTokens + outputTokens,
+            is_streaming: true,
+          });
+        }
         controller.close();
       }
     },
@@ -1128,6 +1192,7 @@ async function handleGatewayRequest(
   enableTools: boolean | { analytics: boolean; apiProxy: boolean } = false,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
   ragDocuments?: { name: string; source_type: string }[],
+  userId?: string | null,
 ): Promise<Response> {
   const selectedModel = ALLOWED_GATEWAY_MODELS.includes(model) ? model : 'google/gemini-3-flash-preview';
   const provider = resolveProvider(selectedModel);
@@ -1162,6 +1227,7 @@ async function handleGatewayRequest(
         ...msgs,
       ],
       stream: true,
+      stream_options: { include_usage: true },
     };
     const hasTools = includeTools && filteredTools.length > 0;
     // Gemini's OpenAI-compat endpoint does not support the `reasoning` field at all.
@@ -1235,6 +1301,11 @@ async function handleGatewayRequest(
       }
 
       const checkData = await checkResponse.json();
+      // Log usage from non-streaming tool planning call
+      const toolUsage = extractOpenAIUsage(checkData);
+      if (toolUsage.total_tokens > 0) {
+        logUsage({ ...toolUsage, user_id: userId, provider: selectedModel.startsWith('openai/') ? 'openai' : 'gemini', model: provider.apiModel, edge_function: 'knowledge-chat', is_streaming: false });
+      }
       const choice = checkData.choices?.[0];
 
       // Handle malformed function calls
@@ -1336,6 +1407,7 @@ async function handleGatewayRequest(
       const synthesisBody: any = {
         model: provider.apiModel,
         max_tokens: contextPreset.gateway,
+        stream_options: { include_usage: true },
         messages: [
           {
             role: 'system',
@@ -1368,7 +1440,8 @@ async function handleGatewayRequest(
         );
       }
 
-      return new Response(finalResponse.body, {
+      const gwLogEntry = { user_id: userId, provider: selectedModel.startsWith('openai/') ? 'openai' : 'gemini', model: provider.apiModel, edge_function: 'knowledge-chat' };
+      return new Response(wrapStreamWithUsageLog(finalResponse.body!, gwLogEntry), {
         headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
       });
     }
@@ -1392,12 +1465,14 @@ async function handleGatewayRequest(
       );
     }
 
-    return new Response(fallbackResponse.body, {
+    const gwLog2 = { user_id: userId, provider: selectedModel.startsWith('openai/') ? 'openai' : 'gemini', model: provider.apiModel, edge_function: 'knowledge-chat' };
+    return new Response(wrapStreamWithUsageLog(fallbackResponse.body!, gwLog2), {
       headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
     });
   }
 
-  return new Response(response.body, {
+  const gwLog3 = { user_id: userId, provider: selectedModel.startsWith('openai/') ? 'openai' : 'gemini', model: provider.apiModel, edge_function: 'knowledge-chat' };
+  return new Response(wrapStreamWithUsageLog(response.body!, gwLog3), {
     headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
   });
 }
@@ -1407,6 +1482,7 @@ async function handlePerplexityRequest(
   messages: any[],
   systemPrompt: string,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
+  userId?: string | null,
 ): Promise<Response> {
   const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
   if (!PERPLEXITY_API_KEY) {
@@ -1468,6 +1544,7 @@ async function handlePerplexityRequest(
         ...strictMerged,
       ],
       stream: true,
+      stream_options: { include_usage: true },
     }),
   });
 
@@ -1485,8 +1562,9 @@ async function handlePerplexityRequest(
     );
   }
 
-  // Perplexity uses OpenAI-compatible SSE format, pass through directly
-  return new Response(response.body, {
+  // Perplexity uses OpenAI-compatible SSE format, wrap with usage capture
+  const pplxLog = { user_id: userId, provider: 'perplexity', model: pplxModel, edge_function: 'knowledge-chat' };
+  return new Response(wrapStreamWithUsageLog(response.body!, pplxLog), {
     headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
   });
 }
@@ -1497,6 +1575,7 @@ serve(async (req) => {
   }
 
   try {
+    const userId = getUserIdFromRequest(req);
     const { messages, crawlContext, documents, model, reasoning, session_id, session_ids, sources, rag_depth, context_window, tonePreset, characteristics, customInstructions, aboutMe, personalBio, myRole, locationData } = await req.json();
     // Support multi-session: prefer session_ids array, fall back to single session_id
     const effectiveSessionId: string | string[] | undefined = session_ids?.length ? session_ids : session_id;
@@ -1729,11 +1808,11 @@ serve(async (req) => {
     };
 
     if (isClaudeModel) {
-      return prependMetadata(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning, contextPreset));
+      return prependMetadata(await handleClaudeRequest(model, augmentedMessages, systemPrompt, reasoning, contextPreset, userId));
     } else if (isPerplexityModel) {
-      return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt, contextPreset));
+      return prependMetadata(await handlePerplexityRequest(model, augmentedMessages, systemPrompt, contextPreset, userId));
     } else {
-      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, { analytics: useAnalytics, apiProxy: useHarvest || useAsana }, contextPreset, ragDocuments));
+      return prependMetadata(await handleGatewayRequest(model || 'google/gemini-3-flash-preview', augmentedMessages, systemPrompt, reasoning, { analytics: useAnalytics, apiProxy: useHarvest || useAsana }, contextPreset, ragDocuments, userId));
     }
   } catch (e) {
     console.error('knowledge-chat error:', e);

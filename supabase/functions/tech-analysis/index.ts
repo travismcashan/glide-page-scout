@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractOrchestration } from "../_shared/orchestration.ts";
+import { logUsage, extractOpenAIUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -172,6 +173,11 @@ IMPORTANT RULES for the scope section:
     }
 
     const aiData = await response.json();
+
+    const userId = getUserIdFromRequest(req);
+    const usage = extractOpenAIUsage(aiData);
+    logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash', edge_function: 'tech-analysis', session_id: orch?.sessionId });
+
     const content = aiData.choices?.[0]?.message?.content || '';
 
     let analysis: any;

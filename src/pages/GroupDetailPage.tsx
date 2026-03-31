@@ -453,6 +453,7 @@ function AddSiteDialog({
         .from('crawl_sessions')
         .select('id, domain, created_at')
         .neq('domain', '__global_chat__')
+        .not('domain', 'like', '__group_chat__%')
         .order('created_at', { ascending: false })
         .limit(100)
         .then(({ data }) => {
@@ -640,6 +641,37 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [mainTab, setMainTab] = useState('sites');
+
+  // Sticky tab bar on scroll-up
+  const groupTabBarRef = useRef<HTMLDivElement>(null);
+  const [stickyTabVisible, setStickyTabVisible] = useState(false);
+  const lastScrollY = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
+  const scrollUpDistance = useRef(0);
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const delta = lastScrollY.current - currentY;
+      const tabBarTop = groupTabBarRef.current?.getBoundingClientRect().top ?? 0;
+      const tabBarHeight = groupTabBarRef.current?.offsetHeight ?? 56;
+      const pastStickyHandoff = tabBarTop <= -tabBarHeight;
+      if (delta > 0) {
+        scrollUpDistance.current += delta;
+      } else {
+        scrollUpDistance.current = 0;
+        setStickyTabVisible(false);
+      }
+      if (!pastStickyHandoff) {
+        setStickyTabVisible(false);
+      } else if (scrollUpDistance.current > 30) {
+        setStickyTabVisible(true);
+      }
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const [comparisonMinPct, setComparisonMinPct] = useState(20); // Default: items on 20%+ of sites
   const [checkedTemplates, setCheckedTemplates] = useState<Set<string>>(new Set());
   const [checkedContentTypes, setCheckedContentTypes] = useState<Set<string>>(new Set());
@@ -959,13 +991,11 @@ export default function GroupDetailPage() {
               <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors font-bold">Sites</button>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
               <span className="text-foreground">{group.name}</span>
+              <span className="ml-1.5 inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                {members.length} site{members.length !== 1 ? 's' : ''}
+              </span>
             </h1>
             {group.description && <p className="text-sm text-muted-foreground mt-1">{group.description}</p>}
-            <p className="text-xs text-muted-foreground mt-2">
-              {members.length} site{members.length !== 1 ? 's' : ''}
-              {members.length > 0 && completedCount < members.length && ` · ${overallProgress}% overall`}
-              {members.length > 0 && completedCount === members.length && ` · All complete`}
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)}>
@@ -979,14 +1009,54 @@ export default function GroupDetailPage() {
 
         {/* Main tabbed dashboard */}
         <Tabs value={mainTab} onValueChange={setMainTab}>
-          <TabsList>
-            <TabsTrigger value="sites" className="gap-1.5"><Globe className="h-3.5 w-3.5" /> Sites</TabsTrigger>
-            <TabsTrigger value="scores" className="gap-1.5"><Gauge className="h-3.5 w-3.5" /> Scores</TabsTrigger>
-            <TabsTrigger value="performance" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Performance</TabsTrigger>
-            <TabsTrigger value="technology" className="gap-1.5"><Cpu className="h-3.5 w-3.5" /> Technology</TabsTrigger>
-            <TabsTrigger value="comparison" className="gap-1.5"><Layers className="h-3.5 w-3.5" /> Structure</TabsTrigger>
-            <TabsTrigger value="chat" className="gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> Chat</TabsTrigger>
-          </TabsList>
+          {/* Sticky tab bar - shown when scrolling up and past the original */}
+          <div
+            className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
+            style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
+          >
+            <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
+              <div className="relative flex items-center w-full h-14">
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
+                <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
+                  {(['sites', 'scores', 'performance', 'technology', 'comparison', 'chat'] as const).map((value) => {
+                    const icons = { sites: Globe, scores: Gauge, performance: BarChart3, technology: Cpu, comparison: Layers, chat: MessageSquare };
+                    const labels = { sites: 'Sites', scores: 'Scores', performance: 'Performance', technology: 'Technology', comparison: 'Structure', chat: 'Chat' };
+                    const Icon = icons[value];
+                    return (
+                      <TabsTrigger
+                        key={value}
+                        value={value}
+                        style={mainTab === value ? { borderBottomColor: 'transparent', marginBottom: '-1px', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                        className="relative h-14 inline-flex items-center text-base font-medium px-5 rounded-none border border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:rounded-t-md data-[state=active]:border-foreground data-[state=active]:border-b-transparent data-[state=active]:bg-background data-[state=active]:text-foreground"
+                      >
+                        <Icon className="h-4 w-4 mr-2" />{labels[value]}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
+            </div>
+          </div>
+          <div ref={groupTabBarRef} className="relative h-14 flex items-center">
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
+            <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">
+              {(['sites', 'scores', 'performance', 'technology', 'comparison', 'chat'] as const).map((value) => {
+                const icons = { sites: Globe, scores: Gauge, performance: BarChart3, technology: Cpu, comparison: Layers, chat: MessageSquare };
+                const labels = { sites: 'Sites', scores: 'Scores', performance: 'Performance', technology: 'Technology', comparison: 'Structure', chat: 'Chat' };
+                const Icon = icons[value];
+                return (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    style={mainTab === value ? { borderBottomColor: 'transparent', marginBottom: '-1px', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : undefined}
+                    className="relative h-14 inline-flex items-center text-base font-medium px-5 rounded-none border border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:rounded-t-md data-[state=active]:border-foreground data-[state=active]:border-b-transparent data-[state=active]:bg-background data-[state=active]:text-foreground"
+                  >
+                    <Icon className="h-4 w-4 mr-2" />{labels[value]}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
 
           <TabsContent value="sites" className="mt-6">
             <SitesTab

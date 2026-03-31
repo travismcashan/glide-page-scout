@@ -1,3 +1,5 @@
+import { logUsage, extractOpenAIUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -83,6 +85,11 @@ Do NOT add your own commentary, analysis, or synthesis. The output should read l
     }
 
     const outline = data.choices?.[0]?.message?.content || '';
+
+    // Log AI usage
+    const userId = getUserIdFromRequest(req);
+    const usage = extractOpenAIUsage(data);
+    logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash-lite', edge_function: 'ai-outline' });
 
     return new Response(
       JSON.stringify({ success: true, outline }),

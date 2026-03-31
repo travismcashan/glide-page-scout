@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logUsage, extractGeminiNativeUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,6 +58,10 @@ serve(async (req) => {
 
     const data = await response.json();
     const caption = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+
+    const userId = getUserIdFromRequest(req);
+    const usage = extractGeminiNativeUsage(data);
+    logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash-lite', edge_function: 'caption-screenshots' });
 
     console.log(`[caption-screenshots] ✓ ${page_url} (${caption?.length || 0} chars)`);
 

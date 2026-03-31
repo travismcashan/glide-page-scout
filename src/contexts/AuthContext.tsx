@@ -40,7 +40,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fetch profile and role in separate calls to avoid blocking
         setTimeout(() => {
           supabase.from('profiles').select('display_name, avatar_url').eq('id', session.user.id).single()
-            .then(({ data }) => { if (data) setProfile(data); });
+            .then(({ data }) => {
+              if (data) {
+                setProfile(data);
+                // Sync Google avatar if missing in profile but available in user metadata
+                if (!data.avatar_url) {
+                  const metaAvatar = session.user.user_metadata?.avatar_url
+                    || session.user.user_metadata?.picture;
+                  if (metaAvatar) {
+                    supabase.from('profiles').update({ avatar_url: metaAvatar }).eq('id', session.user.id)
+                      .then(() => setProfile(prev => prev ? { ...prev, avatar_url: metaAvatar } : prev));
+                  }
+                }
+              }
+            });
           supabase.rpc('has_role', { _user_id: session.user.id, _role: 'admin' })
             .then(({ data }) => setIsAdmin(!!data));
         }, 0);

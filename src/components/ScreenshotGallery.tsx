@@ -67,6 +67,13 @@ export function ScreenshotGallery({ sessionId, baseUrl, discoveredUrls, collapse
 
   useEffect(() => { fetchScreenshots(); }, [fetchScreenshots]);
 
+  // Re-fetch when new screenshots are auto-queued (e.g. nav auto-crawl)
+  useEffect(() => {
+    const handler = () => fetchScreenshots();
+    window.addEventListener('refetch-screenshots', handler);
+    return () => window.removeEventListener('refetch-screenshots', handler);
+  }, [fetchScreenshots]);
+
   // Process pending screenshots independently
   useEffect(() => {
     const pending = screenshots.filter(s => s.status === 'pending' && !processingIds.has(s.id));

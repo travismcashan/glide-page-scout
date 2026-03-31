@@ -1,3 +1,5 @@
+import { logUsage, extractOpenAIUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -392,6 +394,9 @@ ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : 
 
           if (response.ok) {
             const aiData = await response.json();
+            const userId = getUserIdFromRequest(req);
+            const usage = extractOpenAIUsage(aiData);
+            logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash', edge_function: 'content-types' });
             const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
             if (toolCall?.function?.arguments) {
               try {

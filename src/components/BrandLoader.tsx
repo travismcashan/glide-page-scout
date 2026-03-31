@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { DotLottiePlayer } from '@dotlottie/react-player';
 
 interface BrandLoaderProps {
@@ -5,10 +6,10 @@ interface BrandLoaderProps {
   className?: string;
 }
 
-export function BrandLoader({ size = 48, className = '' }: BrandLoaderProps) {
+export const BrandLoader = memo(function BrandLoader({ size = 48, className = '' }: BrandLoaderProps) {
   return (
-    <div className={className} style={{ width: size, height: size }}>
-      <DotLottiePlayer src="/loader.lottie" autoplay loop style={{ width: '100%', height: '100%' }} />
+    <div className={className} style={{ width: size, height: size, willChange: 'transform' }}>
+      <DotLottiePlayer src="/loader.lottie" autoplay loop renderer="canvas" style={{ width: size, height: size }} />
     </div>
   );
-}
+});

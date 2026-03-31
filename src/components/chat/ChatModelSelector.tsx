@@ -89,11 +89,15 @@ type ModelPickerProps = {
   disabled?: boolean;
 };
 
-function ReasoningFlyout({ modelOption, currentReasoning, onSelect }: { modelOption: ModelOption; currentReasoning: ReasoningEffort; onSelect: (r: ReasoningEffort) => void }) {
+function ReasoningFlyout({ modelOption, currentReasoning, onSelect, side = 'right' }: { modelOption: ModelOption; currentReasoning: ReasoningEffort; onSelect: (r: ReasoningEffort) => void; side?: 'left' | 'right' }) {
   if (modelOption.reasoning.length <= 1) return null;
 
+  const positionClass = side === 'left'
+    ? 'right-full top-0 mr-1'
+    : 'left-full top-0 ml-1';
+
   return (
-    <div className="absolute left-full top-0 ml-1 w-[150px] p-1 rounded-lg border border-border bg-popover shadow-lg z-50">
+    <div className={`absolute ${positionClass} w-[150px] p-1 rounded-lg border border-border bg-popover shadow-lg z-50`}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1 font-medium">Reasoning</div>
       {modelOption.reasoning.map(r => {
         const meta = REASONING_META[r];
@@ -217,15 +221,20 @@ export function ChatModelPicker({ model, provider, reasoning, onModelChange, onR
 type ProviderPickerProps = {
   provider: ModelProvider;
   model?: string;
+  reasoning?: ReasoningEffort;
   onProviderChange: (provider: ModelProvider) => void;
+  onReasoningChange?: (reasoning: ReasoningEffort) => void;
   disabled?: boolean;
 };
 
-export function ChatProviderPicker({ provider, model, onProviderChange, disabled }: ProviderPickerProps) {
+export function ChatProviderPicker({ provider, model, reasoning = 'none', onProviderChange, onReasoningChange, disabled }: ProviderPickerProps) {
   const [open, setOpen] = useState(false);
   const selected = PROVIDERS.find(p => p.id === provider) || PROVIDERS[0];
-  const selectedModel = model ? MODEL_OPTIONS.find(m => m.id === model) : undefined;
-  const displayLabel = provider === 'council' ? selected.label : (selectedModel ? `${selected.label} ${selectedModel.label}` : selected.label);
+  const selectedModelOption = model ? MODEL_OPTIONS.find(m => m.id === model) : undefined;
+  const displayLabel = provider === 'council' ? selected.label : (selectedModelOption ? `${selected.label} ${selectedModelOption.label}` : selected.label);
+
+  const availableReasoning = selectedModelOption?.reasoning || ['none'];
+  const showReasoning = onReasoningChange && availableReasoning.length > 1;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -235,7 +244,7 @@ export function ChatProviderPicker({ provider, model, onProviderChange, disabled
           <ChevronDown className="h-3 w-3 opacity-50" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" side="top" className="w-[160px] p-1.5" sideOffset={10}>
+      <PopoverContent align="end" side="top" className="w-[170px] p-1.5" sideOffset={10}>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">
           Provider
         </div>
@@ -244,7 +253,7 @@ export function ChatProviderPicker({ provider, model, onProviderChange, disabled
             key={p.id}
             onClick={() => { onProviderChange(p.id); setOpen(false); }}
             className={cn(
-              'w-full text-left rounded-md px-2 py-2 transition-colors text-sm',
+              'w-full text-left rounded-md px-2 py-1.5 transition-colors text-sm',
               provider === p.id
                 ? 'bg-accent text-accent-foreground font-medium'
                 : 'hover:bg-muted/50'
@@ -253,6 +262,34 @@ export function ChatProviderPicker({ provider, model, onProviderChange, disabled
             {p.label}
           </button>
         ))}
+        {showReasoning && (
+          <>
+            <div className="border-t border-border my-1.5" />
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">
+              Reasoning
+            </div>
+            {availableReasoning.map(r => {
+              const meta = REASONING_META[r];
+              const label = selectedModelOption?.reasoningLabels?.[r] ?? meta.label;
+              const Icon = meta.icon;
+              return (
+                <button
+                  key={r}
+                  onClick={() => { onReasoningChange!(r); setOpen(false); }}
+                  className={cn(
+                    'w-full text-left rounded-md px-2 py-1.5 transition-colors flex items-center gap-2',
+                    reasoning === r
+                      ? 'bg-accent text-accent-foreground'
+                      : 'hover:bg-muted/50'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="text-sm">{label}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -315,6 +352,165 @@ export function ChatReasoningPicker({ model, reasoning, onReasoningChange, disab
             </button>
           );
         })}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/* ─── Unified Picker: Provider → Model → Reasoning in one popover ─── */
+
+type UnifiedPickerProps = {
+  provider: ModelProvider;
+  model: string;
+  reasoning: ReasoningEffort;
+  onProviderChange: (provider: ModelProvider) => void;
+  onModelChange: (model: string) => void;
+  onReasoningChange: (reasoning: ReasoningEffort) => void;
+  disabled?: boolean;
+};
+
+export function ChatUnifiedPicker({ provider, model, reasoning, onProviderChange, onModelChange, onReasoningChange, disabled }: UnifiedPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<ModelProvider>(provider);
+  const [hoveredModel, setHoveredModel] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selectedProviderLabel = PROVIDERS.find(p => p.id === provider)?.label || 'Model';
+  const selectedModelOption = MODEL_OPTIONS.find(m => m.id === model);
+  const reasoningLabel = reasoning !== 'none' && selectedModelOption?.reasoningLabels?.[reasoning]
+    ? ` · ${selectedModelOption.reasoningLabels[reasoning]}`
+    : '';
+  const displayLabel = provider === 'council'
+    ? 'Model Council'
+    : `${selectedProviderLabel} ${selectedModelOption?.label || ''}${reasoningLabel}`;
+
+  const handleProviderClick = (p: ModelProvider) => {
+    setActiveProvider(p);
+    if (p === 'council') {
+      onProviderChange(p);
+      onModelChange(VERSIONS.council[0].id);
+      setOpen(false);
+    }
+  };
+
+  const handleModelSelect = (modelId: string) => {
+    const newModel = VERSIONS[activeProvider].find(m => m.id === modelId);
+    if (activeProvider !== provider) onProviderChange(activeProvider);
+    onModelChange(modelId);
+    if (newModel && !newModel.reasoning.includes(reasoning)) {
+      onReasoningChange('none');
+    }
+    if (!newModel || newModel.reasoning.length <= 1) {
+      setOpen(false);
+      setHoveredModel(null);
+    }
+  };
+
+  const handleReasoningSelect = (r: ReasoningEffort) => {
+    if (activeProvider !== provider) onProviderChange(activeProvider);
+    onReasoningChange(r);
+    setOpen(false);
+    setHoveredModel(null);
+  };
+
+  const handleMouseEnter = (modelId: string) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setHoveredModel(modelId);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => setHoveredModel(null), 150);
+  };
+
+  // Reset active provider when opening
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) setActiveProvider(provider);
+  };
+
+  const versions = VERSIONS[activeProvider] || [];
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild disabled={disabled}>
+        <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1.5 py-0.5 rounded flex items-center gap-1">
+          {displayLabel}
+          <ChevronDown className="h-3 w-3 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" side="top" className="w-auto p-0" sideOffset={10}>
+        <div className="flex">
+          {/* Provider column */}
+          <div className="w-[120px] border-r border-border p-1.5">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">Provider</div>
+            {PROVIDERS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleProviderClick(p.id)}
+                onMouseEnter={() => setActiveProvider(p.id)}
+                className={cn(
+                  'w-full text-left rounded-md px-2 py-1.5 transition-colors text-sm',
+                  activeProvider === p.id
+                    ? 'bg-accent text-accent-foreground font-medium'
+                    : 'hover:bg-muted/50'
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Model column */}
+          {activeProvider !== 'council' && (
+            <div className="w-[200px] p-1.5">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">Model</div>
+              {versions.map(v => {
+                const hasReasoning = v.reasoning.length > 1;
+                const isSelected = provider === activeProvider && model === v.id;
+                return (
+                  <div
+                    key={v.id}
+                    className="relative"
+                    onMouseEnter={() => hasReasoning && handleMouseEnter(v.id)}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    <button
+                      onClick={() => !v.comingSoon && handleModelSelect(v.id)}
+                      disabled={v.comingSoon}
+                      className={cn(
+                        'w-full text-left rounded-md px-2 py-2 transition-colors flex items-start gap-2',
+                        v.comingSoon
+                          ? 'opacity-50 cursor-not-allowed'
+                          : isSelected
+                            ? 'bg-accent text-accent-foreground'
+                            : 'hover:bg-muted/50'
+                      )}
+                    >
+                      <span className={cn('h-2 w-2 rounded-full mt-1 shrink-0', TIER_DOT[v.tier])} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium leading-tight flex items-center gap-1.5">
+                          {v.label}
+                          {v.comingSoon && (
+                            <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{v.description}</div>
+                      </div>
+                      {hasReasoning && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />}
+                    </button>
+                    {hasReasoning && hoveredModel === v.id && (
+                      <ReasoningFlyout
+                        modelOption={v}
+                        currentReasoning={isSelected ? reasoning : 'none'}
+                        onSelect={handleReasoningSelect}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </PopoverContent>
     </Popover>
   );
