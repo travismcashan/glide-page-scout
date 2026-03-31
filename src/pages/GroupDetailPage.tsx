@@ -25,7 +25,7 @@ import { Plus, Globe, Clock, ArrowRight, Loader2, Trash2, Search, History, BarCh
 import { BrandLoader } from '@/components/BrandLoader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { buildSitePath } from '@/lib/sessionSlug';
+import { buildSitePath, isUuid, buildListPath, slugifyName } from '@/lib/sessionSlug';
 import { GroupScoreGrid } from '@/components/groups/GroupScoreGrid';
 import { GroupTechMatrix } from '@/components/groups/GroupTechMatrix';
 import { GroupPerformanceChart } from '@/components/groups/GroupPerformanceChart';
@@ -649,7 +649,7 @@ export default function GroupDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSharedView = searchParams.get('view') === 'shared';
-  const [group, setGroup] = useState<{ id: string; name: string; description: string | null } | null>(null);
+  const [group, setGroup] = useState<{ id: string; name: string; slug: string; description: string | null } | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [progress, setProgress] = useState<Map<string, IntegrationProgress>>(new Map());
   const [integrationRuns, setIntegrationRuns] = useState<Map<string, IntegrationRun[]>>(new Map());
@@ -707,11 +707,20 @@ export default function GroupDetailPage() {
 
   const fetchData = async () => {
     if (!groupId) return;
-    const [{ data: groupData }, { data: memberRows }] = await Promise.all([
-      supabase.from('site_groups').select('*').eq('id', groupId).single(),
-      supabase.from('site_group_members').select('*').eq('group_id', groupId).order('priority', { ascending: true }),
-    ]);
+    // Resolve by slug or UUID
+    const isUuidParam = isUuid(groupId);
+    const groupQuery = isUuidParam
+      ? supabase.from('site_groups').select('*').eq('id', groupId).single()
+      : supabase.from('site_groups').select('*').eq('slug', groupId).single();
+    const { data: groupData } = await groupQuery;
     if (!groupData) { setLoading(false); return; }
+    // Redirect UUID URLs to slug URL for canonical links
+    if (isUuidParam && groupData.slug) {
+      const search = window.location.search;
+      navigate(`/lists/${groupData.slug}${search}`, { replace: true });
+    }
+    const { data: memberRows } = await supabase
+      .from('site_group_members').select('*').eq('group_id', groupData.id).order('priority', { ascending: true });
     setGroup(groupData);
     if (!memberRows?.length) { setMembers([]); setLoading(false); return; }
 
@@ -879,7 +888,7 @@ export default function GroupDetailPage() {
       const { error } = await supabase.from('site_groups').delete().eq('id', groupId);
       if (error) throw error;
       toast.success('List deleted');
-      navigate('/sites');
+      navigate('/lists');
     } catch (err) {
       toast.error('Failed to delete list');
     } finally {
@@ -1022,8 +1031,10 @@ export default function GroupDetailPage() {
                   onBlur={async () => {
                     const trimmed = nameValue.trim();
                     if (trimmed && trimmed !== group.name) {
-                      await supabase.from('site_groups').update({ name: trimmed }).eq('id', groupId!);
-                      setGroup(g => g ? { ...g, name: trimmed } : g);
+                      const newSlug = slugifyName(trimmed);
+                      await supabase.from('site_groups').update({ name: trimmed, slug: newSlug }).eq('id', group.id);
+                      setGroup(g => g ? { ...g, name: trimmed, slug: newSlug } : g);
+                      navigate(`/lists/${newSlug}${window.location.search}`, { replace: true });
                       toast.success('List renamed');
                     }
                     setEditingName(false);
@@ -1071,13 +1082,12 @@ export default function GroupDetailPage() {
                   size="sm"
                   className="gap-1.5 text-muted-foreground"
                   onClick={async () => {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('view', 'shared');
+                    const shareUrl = `${window.location.origin}${buildListPath(group.slug)}?view=shared`;
                     try {
-                      await navigator.clipboard.writeText(url.toString());
+                      await navigator.clipboard.writeText(shareUrl);
                       toast.success('Shareable list link copied');
                     } catch {
-                      toast.success('Shareable list link', { description: url.toString() });
+                      toast.success('Shareable list link', { description: shareUrl });
                     }
                   }}
                 >
