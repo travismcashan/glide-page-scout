@@ -262,7 +262,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             Add services to the timeline to populate
           </p>
         ) : (
-          <ul className="space-y-2.5">
+          <ul className="space-y-2.5 pl-3">
             {option.scopeItems.map((si) => (
               <li key={si.sku} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
@@ -314,7 +314,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                     ))}
                     {(recurringItems.length > 0 || fixedItems.length > 1) && (
                       <tr className="border-t border-foreground/50">
-                        <td className="py-1.5 text-xs font-semibold uppercase text-foreground">Fixed Subtotal</td>
+                        <td className="py-1.5 text-xs font-semibold text-foreground">Fixed Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
                       </tr>
                     )}
@@ -335,7 +335,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                     ))}
                     {(fixedItems.length > 0 || recurringItems.length > 1) && (
                       <tr className="border-t border-foreground/50">
-                        <td className="py-1.5 text-xs font-semibold uppercase text-foreground">Recurring Subtotal</td>
+                        <td className="py-1.5 text-xs font-semibold text-foreground">Recurring Subtotal</td>
                         <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
                       </tr>
                     )}
@@ -356,13 +356,13 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                         <tbody>
                           {isMonthlyMode ? (
                             <tr>
-                              <td className="text-xs font-bold uppercase text-foreground">Monthly Investment</td>
+                              <td className="text-xs font-bold text-foreground">Monthly Investment</td>
                               <td className="text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
                             </tr>
                           ) : (
                             <>
                               <tr>
-                                <td className="text-xs font-bold uppercase text-foreground">Total Investment</td>
+                                <td className="text-xs font-bold text-foreground">Total Investment</td>
                                 <td className="text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
                               </tr>
                               {option.priceMode === "monthly-blended" && (
