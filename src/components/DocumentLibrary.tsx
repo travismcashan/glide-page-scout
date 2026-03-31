@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive, StickyNote, Wand2, Globe } from 'lucide-react';
+import { FileText, Upload, Loader2, Database, BookOpen, X, RefreshCw, LayoutGrid, List, Search, FolderOpen, ArrowDownAZ, ArrowUpAZ, Clock, Hash, Layers, HardDrive, StickyNote, Wand2, Globe, ExternalLink } from 'lucide-react';
 import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import { KnowledgeDocument, SortField, SortDir, sortDocuments, SOURCE_LABELS, ST
 
 const PARSE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-upload`;
 const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
+const NOTEBOOKLM_EXPORT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notebooklm-export`;
 
 const BINARY_MIME_TYPES: Record<string, string> = {
   'application/pdf': 'application/pdf',
@@ -100,6 +101,12 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   const [gridPreviewLoading, setGridPreviewLoading] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameProgress, setRenameProgress] = useState({ done: 0, total: 0 });
+  const [notebookExporting, setNotebookExporting] = useState(false);
+  const [notebookConfirmOpen, setNotebookConfirmOpen] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ sourcesSent: number; totalSources: number; message: string } | null>(null);
+  const [notebookUrl, setNotebookUrl] = useState<string | null>(() => {
+    try { return localStorage.getItem(`notebooklm_url_${sessionId}`) || null; } catch { return null; }
+  });
   const renameAbortRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -623,6 +630,76 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
     fetchDocuments();
   }, [documents, sessionId]);
 
+  const handleNotebookExport = useCallback(async () => {
+    setNotebookConfirmOpen(false);
+    setNotebookExporting(true);
+    setExportProgress({ sourcesSent: 0, totalSources: 0, message: 'Starting export...' });
+
+    try {
+      const resp = await fetch(NOTEBOOKLM_EXPORT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+
+      if (!resp.body) throw new Error('No response body');
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalResult: any = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+            if (event.type === 'progress') {
+              setExportProgress({
+                sourcesSent: event.sourcesSent || 0,
+                totalSources: event.totalSources || 0,
+                message: event.message || 'Processing...',
+              });
+            } else if (event.type === 'done') {
+              finalResult = event;
+            } else if (event.type === 'error') {
+              throw new Error(event.error);
+            }
+          } catch (e: any) {
+            if (e.message && !e.message.includes('JSON')) throw e;
+          }
+        }
+      }
+
+      if (!finalResult) throw new Error('Export completed without result');
+
+      const url = finalResult.notebookUrl;
+      setNotebookUrl(url);
+      try { localStorage.setItem(`notebooklm_url_${sessionId}`, url); } catch {}
+
+      toast.success(`NotebookLM created with ${finalResult.sourcesAdded} sources`, {
+        action: {
+          label: 'Open Notebook',
+          onClick: () => window.open(url, '_blank'),
+        },
+        duration: 15000,
+      });
+    } catch (err: any) {
+      console.error('NotebookLM export error:', err);
+      toast.error(err.message || 'Failed to export to NotebookLM');
+    } finally {
+      setNotebookExporting(false);
+      setExportProgress(null);
+    }
+  }, [sessionId]);
+
   const readyCount = documents.filter(d => d.status === 'ready').length;
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
   const totalChars = documents.reduce((sum, d) => sum + d.char_count, 0);
@@ -768,9 +845,74 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
             Stop ({renameProgress.done}/{renameProgress.total})
           </Button>
         )}
+        {documents.filter(d => d.status === 'ready').length > 0 && !notebookExporting && (
+          <Button variant="outline" size="sm" onClick={() => setNotebookConfirmOpen(true)} disabled={uploading || ingesting} title="Export all documents to a new Google NotebookLM notebook">
+            <BookOpen className="h-3.5 w-3.5 mr-1.5" />
+            NotebookLM
+          </Button>
+        )}
+        {notebookExporting && (
+          <Button variant="outline" size="sm" disabled className="min-w-[160px]">
+            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            {exportProgress ? `${exportProgress.sourcesSent}/${exportProgress.totalSources}` : 'Exporting...'}
+          </Button>
+        )}
+        {notebookUrl && !notebookExporting && (
+          <Button variant="outline" size="sm" onClick={() => window.open(notebookUrl, '_blank')} title="Open NotebookLM notebook">
+            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+            Open Notebook
+          </Button>
+        )}
       </div>
 
       <GoogleDrivePicker open={drivePickerOpen} onOpenChange={setDrivePickerOpen} onFilesSelected={handleDriveFilesSelected} />
+
+      {/* NotebookLM export confirmation */}
+      <Dialog open={notebookConfirmOpen || notebookExporting} onOpenChange={(open) => { if (!notebookExporting) setNotebookConfirmOpen(open); }}>
+        <DialogContent className="sm:max-w-md [&>button:last-child]:hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-violet-500" />
+              Export to NotebookLM
+            </DialogTitle>
+          </DialogHeader>
+          {!notebookExporting ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This will create a new NotebookLM notebook and upload <strong>{documents.filter(d => d.status === 'ready').length} documents</strong> as sources.
+                {documents.filter(d => d.status === 'ready').length > 20 && ' This may take a minute or two.'}
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setNotebookConfirmOpen(false)}>Cancel</Button>
+                <Button onClick={handleNotebookExport}>
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-violet-500 shrink-0" />
+                <span className="text-sm">{exportProgress?.message || 'Starting export...'}</span>
+              </div>
+              {exportProgress && exportProgress.totalSources > 0 && (
+                <div className="space-y-1.5">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.round((exportProgress.sourcesSent / exportProgress.totalSources) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-right">
+                    {exportProgress.sourcesSent} / {exportProgress.totalSources} sources
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Add Note modal */}
       <Dialog open={noteModalOpen} onOpenChange={(open) => { if (!noteSubmitting) setNoteModalOpen(open); }}>

@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
 
@@ -14,6 +14,7 @@ const GMAIL_SCOPE = `https://www.googleapis.com/auth/gmail.readonly ${EMAIL_SCOP
 const DRIVE_SCOPES = `https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file ${EMAIL_SCOPE}`;
 const GA4_SCOPE = `https://www.googleapis.com/auth/analytics.readonly ${EMAIL_SCOPE}`;
 const GSC_SCOPE = `https://www.googleapis.com/auth/webmasters.readonly ${EMAIL_SCOPE}`;
+const NOTEBOOKLM_SCOPE = `https://www.googleapis.com/auth/cloud-platform ${EMAIL_SCOPE}`;
 
 type Connection = {
   id: string;
@@ -384,6 +385,7 @@ export default function ConnectionsPage() {
 
   const gmailConnection = connections.find(c => c.provider === 'gmail');
   const driveConnection = connections.find(c => c.provider === 'google-drive');
+  const notebooklmConnection = connections.find(c => c.provider === 'google-notebooklm');
   const ga4Connection = connections.find(c => c.provider === 'google-analytics');
   const gscConnection = connections.find(c => c.provider === 'google-search-console');
 
@@ -410,6 +412,17 @@ export default function ConnectionsPage() {
       iconColor: 'text-primary',
       description: 'Import documents, spreadsheets, and files into the knowledge base',
       connection: driveConnection,
+      hasPropertyPicker: false,
+    },
+    {
+      id: 'google-notebooklm',
+      name: 'NotebookLM',
+      scope: NOTEBOOKLM_SCOPE,
+      icon: BookOpen,
+      iconBg: 'bg-violet-500/10',
+      iconColor: 'text-violet-600',
+      description: 'Export knowledge base documents to Google NotebookLM notebooks',
+      connection: notebooklmConnection,
       hasPropertyPicker: false,
     },
   ];
