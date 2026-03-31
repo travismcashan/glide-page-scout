@@ -1,11 +1,23 @@
 import { Loader2, Search } from 'lucide-react';
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 
+type AiSearchData = {
+  ai_visibility?: number;
+  mentions?: number;
+  cited_pages?: number;
+  platforms?: {
+    name: string;
+    mentions: number;
+    cited_pages: number;
+  }[];
+};
+
 type SemrushCardProps = {
   data: {
     overview?: Record<string, string>[];
     organicKeywords?: Record<string, string>[];
     backlinks?: Record<string, string> | null;
+    ai_search?: AiSearchData | null;
   } | null;
   isLoading: boolean;
 };
@@ -22,6 +34,7 @@ const overviewKeyMap: Record<string, string> = {
   Ac: 'Paid Cost', 'Adwords Cost': 'Paid Cost',
   Sh: 'Semrush Rank',
   Sv: 'Visibility',
+  As: 'Authority Score', 'Authority Score': 'Authority Score',
 };
 
 // Helper to find a value from a row using either short or full key
@@ -53,29 +66,105 @@ export function SemrushCard({ data, isLoading }: SemrushCardProps) {
   // Get US overview row (or first available)
   const usOverview = data.overview?.find(r => (r.Db || r.Database || '').toLowerCase() === 'us') || data.overview?.[0];
 
+  // Authority Score rating
+  const authorityScore = usOverview ? Number(getVal(usOverview, 'As', 'Authority Score')) : 0;
+  const asRating = authorityScore >= 60 ? 'Great' : authorityScore >= 40 ? 'Good' : authorityScore >= 20 ? 'Fair' : 'Low';
+  const asColor = authorityScore >= 60 ? 'text-green-400' : authorityScore >= 40 ? 'text-emerald-400' : authorityScore >= 20 ? 'text-yellow-400' : 'text-red-400';
+
   return (
     <div className="space-y-4">
-      {usOverview && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <MetaStat value={Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()} label="Organic Keywords" />
-          <MetaStatDivider />
-          <MetaStat value={Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()} label="Organic Traffic" />
-          <MetaStatDivider />
-          <MetaStat value={Number(getVal(usOverview, 'Ad', 'Adwords Keywords')).toLocaleString()} label="Paid Keywords" />
-          <MetaStatDivider />
-          <MetaStat value={Number(getVal(usOverview, 'Rk', 'Rank')).toLocaleString()} label="Rank" />
+      {/* SEO Overview */}
+      {(usOverview || data.backlinks) && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">SEO</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {usOverview && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">Authority Score</p>
+                <p className="text-lg font-bold tabular-nums">{authorityScore || '—'}</p>
+                <p className={`text-xs font-medium ${asColor}`}>{authorityScore ? asRating : ''}</p>
+              </div>
+            )}
+            {usOverview && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">Organic Traffic</p>
+                <p className="text-lg font-bold tabular-nums">{Number(getVal(usOverview, 'Ot', 'Organic Traffic')).toLocaleString()}</p>
+              </div>
+            )}
+            {usOverview && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">Organic Keywords</p>
+                <p className="text-lg font-bold tabular-nums">{Number(getVal(usOverview, 'Or', 'Organic Keywords')).toLocaleString()}</p>
+              </div>
+            )}
+            {data.backlinks && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">Ref. Domains</p>
+                <p className="text-lg font-bold tabular-nums">{Number(data.backlinks.domains_num || 0).toLocaleString()}</p>
+              </div>
+            )}
+            {usOverview && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">Paid Traffic</p>
+                <p className="text-lg font-bold tabular-nums">{Number(getVal(usOverview, 'At', 'Adwords Traffic')).toLocaleString()}</p>
+              </div>
+            )}
+            {usOverview && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">Paid Keywords</p>
+                <p className="text-lg font-bold tabular-nums">{Number(getVal(usOverview, 'Ad', 'Adwords Keywords')).toLocaleString()}</p>
+              </div>
+            )}
+            {data.backlinks && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground">Backlinks</p>
+                <p className="text-lg font-bold tabular-nums">{Number(data.backlinks.total || 0).toLocaleString()}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {data.backlinks && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <MetaStat value={Number(data.backlinks.total || 0).toLocaleString()} label="Backlinks" />
-          <MetaStatDivider />
-          <MetaStat value={Number(data.backlinks.domains_num || 0).toLocaleString()} label="Domains" />
-          <MetaStatDivider />
-          <MetaStat value={Number(data.backlinks.follows_num || 0).toLocaleString()} label="Follow" />
-          <MetaStatDivider />
-          <MetaStat value={Number(data.backlinks.nofollows_num || 0).toLocaleString()} label="Nofollow" />
+      {/* AI Search */}
+      {data.ai_search && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">AI Search</p>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+              <p className="text-xs text-muted-foreground">AI Visibility</p>
+              <p className="text-lg font-bold tabular-nums">{data.ai_search.ai_visibility ?? '—'}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+              <p className="text-xs text-muted-foreground">Mentions</p>
+              <p className="text-lg font-bold tabular-nums">{(data.ai_search.mentions ?? 0).toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+              <p className="text-xs text-muted-foreground">Cited Pages</p>
+              <p className="text-lg font-bold tabular-nums">{(data.ai_search.cited_pages ?? 0).toLocaleString()}</p>
+            </div>
+          </div>
+          {data.ai_search.platforms && data.ai_search.platforms.length > 0 && (
+            <div className="overflow-x-auto border border-border rounded-lg">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted">
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Platform</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Mentions</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Cited Pages</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.ai_search.platforms.map((p, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-2 font-medium">{p.name}</td>
+                      <td className="px-3 py-2 tabular-nums">{p.mentions.toLocaleString()}</td>
+                      <td className="px-3 py-2 tabular-nums">{p.cited_pages.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

@@ -96,17 +96,6 @@ function normalizeDiscoveredUrl(rawUrl: string): string {
   try {
     const parsed = new URL(rawUrl);
     parsed.hash = '';
-
-    const isFileLikePath = /\.[a-z0-9]+$/i.test(parsed.pathname);
-    const shouldKeepAsIs =
-      parsed.pathname === '/' ||
-      isFileLikePath ||
-      parsed.pathname.endsWith('/');
-
-    if (!shouldKeepAsIs) {
-      parsed.pathname = `${parsed.pathname}/`;
-    }
-
     return parsed.toString();
   } catch {
     return rawUrl;

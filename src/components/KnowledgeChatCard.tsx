@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, lazy, Suspense, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, lazy, Suspense, useMemo, memo } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
 import { ChatProviderPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
+import { BrandLoader } from '@/components/BrandLoader';
 import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
 import { MobileChatDrawer } from '@/components/chat/MobileChatDrawer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -345,25 +346,31 @@ function AnimatedThinkingText({ label = 'Thinking' }: { label?: string }) {
   return <span className="text-base text-foreground">{label}{'.'.repeat(dotCount || 0)}</span>;
 }
 
+const ThinkingHeader = memo(function ThinkingHeader({ isStreaming, expanded, onClick }: { isStreaming?: boolean; expanded: boolean; onClick: () => void }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer" onClick={onClick}>
+      {isStreaming ? (
+        <div className="flex-shrink-0" style={{ contain: 'strict', width: 32, height: 32 }}>
+          <BrandLoader size={32} />
+        </div>
+      ) : (
+        <Brain className="flex-shrink-0 text-muted-foreground" style={{ width: 28, height: 28 }} />
+      )}
+      <span className="text-base text-foreground">{isStreaming ? 'Show Thinking' : (expanded ? 'Hide Thinking' : 'Show Thinking')}</span>
+      {expanded ? <ChevronDown className="h-5 w-5 -ml-1" strokeWidth={3} /> : <ChevronRight className="h-5 w-5 -ml-1" strokeWidth={3} />}
+    </div>
+  );
+});
+
 function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const toggle = useCallback(() => setExpanded(e => !e), []);
 
   return (
     <div className="mb-8">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {isStreaming ? (
-          <Loader2 className="flex-shrink-0 animate-spin text-foreground" style={{ width: 28, height: 28 }} />
-        ) : (
-          <Brain className="flex-shrink-0 text-muted-foreground" style={{ width: 28, height: 28 }} />
-        )}
-        <span className="text-base text-foreground">Show Thinking</span>
-        {expanded ? <ChevronDown className="h-5 w-5 -ml-1" strokeWidth={3} /> : <ChevronRight className="h-5 w-5 -ml-1" strokeWidth={3} />}
-      </button>
+      <ThinkingHeader isStreaming={isStreaming} expanded={expanded} onClick={toggle} />
       {expanded && (
-        <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed" style={{ marginLeft: 13, paddingLeft: 22 }}>
+        <div className="mt-2 border-l-2 border-primary/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed" style={{ marginLeft: 13, paddingLeft: 22, contain: 'layout style' }}>
           {thinking}
         </div>
       )}
@@ -880,7 +887,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && !(councilModels && councilModels.length > 0) && (
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-foreground">
-            <Loader2 className="flex-shrink-0 animate-spin text-foreground" style={{ width: 28, height: 28 }} />
+            <BrandLoader size={32} className="flex-shrink-0" />
             <AnimatedThinkingText label={isDeepResearch ? 'Starting Deep Research' : (searchLabel || 'Thinking')} />
           </div>
         </div>

@@ -37,8 +37,23 @@ type Props = {
   credits?: Credits | null;
 };
 
+// Techs to hide entirely — plumbing/noise
+const HIDDEN_TECHS = new Set([
+  'php', 'mysql', 'apache', 'nginx', 'perl', 'python', 'ruby', 'java',
+  'utf-8', 'viewport meta', 'meta viewport',
+  'open graph', 'og meta tags', 'twitter cards', 'schema.org',
+  'rss', 'gravatar', 'emoji',
+  'http/2', 'http/3', 'http2', 'http3', 'spdy',
+  'ipv6', 'dns', 'x-powered-by',
+  'content-type-options', 'x-frame-options', 'x-xss-protection',
+  'strict-transport-security', 'hsts',
+  'doctype html5', 'html5',
+  'windows server', 'ubuntu', 'debian', 'centos', 'linux',
+]);
+
 // Priority-ordered super-groups for a web design / dev / marketing agency.
-const superGroups: { label: string; subcategories: string[] }[] = [
+// minor: true = hidden by default (infrastructure plumbing)
+const superGroups: { label: string; subcategories: string[]; minor?: boolean }[] = [
   {
     label: 'CMS & Platform',
     subcategories: [
@@ -71,21 +86,6 @@ const superGroups: { label: string; subcategories: string[] }[] = [
     ],
   },
   {
-    label: 'Hosting & Infrastructure',
-    subcategories: [
-      'Cloud Hosting', 'Cloud PaaS', 'Dedicated Hosting', 'Edge Delivery Network',
-      'Server Location', 'US hosting', 'Australian hosting', 'Indian hosting',
-      'Irish hosting', 'UK Agency', 'US Agency',
-    ],
-  },
-  {
-    label: 'Security & Compliance',
-    subcategories: [
-      'SSL Seals', 'Root Authority', 'CAPTCHA', 'Bot Detection',
-      'Privacy Compliance', 'Policy', 'DMARC', 'Login',
-    ],
-  },
-  {
     label: 'Communication & Support',
     subcategories: [
       'Live Chat', 'Ticketing System', 'Feedback Forms and Surveys',
@@ -100,6 +100,23 @@ const superGroups: { label: string; subcategories: string[] }[] = [
       'AI Bot',
     ],
   },
+  {
+    label: 'Hosting & Infrastructure',
+    minor: true,
+    subcategories: [
+      'Cloud Hosting', 'Cloud PaaS', 'Dedicated Hosting', 'Edge Delivery Network',
+      'Server Location', 'US hosting', 'Australian hosting', 'Indian hosting',
+      'Irish hosting', 'UK Agency', 'US Agency',
+    ],
+  },
+  {
+    label: 'Security & Compliance',
+    minor: true,
+    subcategories: [
+      'SSL Seals', 'Root Authority', 'CAPTCHA', 'Bot Detection',
+      'Privacy Compliance', 'Policy', 'DMARC', 'Login',
+    ],
+  },
 ];
 
 type SuperGroupData = {
@@ -108,35 +125,42 @@ type SuperGroupData = {
   totalTechs: number;
 };
 
-function buildSuperGroups(grouped: Record<string, Technology[]>): SuperGroupData[] {
+function buildSuperGroups(grouped: Record<string, Technology[]>): (SuperGroupData & { minor?: boolean })[] {
   const usedCategories = new Set<string>();
-  const result: SuperGroupData[] = [];
+  const result: (SuperGroupData & { minor?: boolean })[] = [];
+
+  // Filter hidden techs from all categories first
+  const filtered: Record<string, Technology[]> = {};
+  for (const [cat, techs] of Object.entries(grouped)) {
+    const clean = techs.filter(t => !HIDDEN_TECHS.has(t.name.toLowerCase()));
+    if (clean.length > 0) filtered[cat] = clean;
+  }
 
   for (const sg of superGroups) {
     const subs: { name: string; techs: Technology[] }[] = [];
     let total = 0;
     for (const sub of sg.subcategories) {
-      if (grouped[sub]?.length) {
-        subs.push({ name: sub, techs: grouped[sub] });
-        total += grouped[sub].length;
+      if (filtered[sub]?.length) {
+        subs.push({ name: sub, techs: filtered[sub] });
+        total += filtered[sub].length;
         usedCategories.add(sub);
       }
     }
     if (subs.length > 0) {
-      result.push({ label: sg.label, subcategories: subs, totalTechs: total });
+      result.push({ label: sg.label, subcategories: subs, totalTechs: total, minor: sg.minor });
     }
   }
 
   const otherSubs: { name: string; techs: Technology[] }[] = [];
   let otherTotal = 0;
-  for (const [cat, techs] of Object.entries(grouped)) {
+  for (const [cat, techs] of Object.entries(filtered)) {
     if (!usedCategories.has(cat) && techs.length > 0) {
       otherSubs.push({ name: cat, techs });
       otherTotal += techs.length;
     }
   }
   if (otherSubs.length > 0) {
-    result.push({ label: 'Other', subcategories: otherSubs, totalTechs: otherTotal });
+    result.push({ label: 'Other', subcategories: otherSubs, totalTechs: otherTotal, minor: true });
   }
 
   return result;
@@ -168,6 +192,8 @@ function ExpandableRow({ row }: { row: RowData }) {
 export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [hideOld, setHideOld] = useState(true);
+  const [showMinorGroups, setShowMinorGroups] = useState(false);
+  const [showSmallCategories, setShowSmallCategories] = useState(false);
 
   const toggleSection = (key: string) => {
     setCollapsedSections(prev => {
@@ -254,32 +280,78 @@ export function BuiltWithCard({ grouped, totalCount, isLoading, credits }: Props
           <span className="flex-1 text-xs font-medium text-muted-foreground min-w-0">Description</span>
         </div>
 
-        {superGroupData.map((group) => {
-          const isCollapsed = collapsedSections.has(group.label);
-          const rows = group.subcategories.flatMap(sub =>
-            sub.techs.map(tech => ({ ...tech, subcategory: sub.name }))
-          );
+        {superGroupData
+          .filter(group => showMinorGroups || !group.minor)
+          .map((group) => {
+            const isCollapsed = collapsedSections.has(group.label);
+            // Filter subcategories with only 1 tech unless toggled
+            const visibleSubs = showSmallCategories
+              ? group.subcategories
+              : group.subcategories.filter(sub => sub.techs.length >= 2);
+            if (visibleSubs.length === 0) return null;
 
+            const rows = visibleSubs.flatMap(sub =>
+              sub.techs.map(tech => ({ ...tech, subcategory: sub.name }))
+            );
+
+            return (
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleSection(group.label)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
+                >
+                  {isCollapsed
+                    ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  }
+                  <span className="text-xs font-semibold text-foreground">{group.label}</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{rows.length}</Badge>
+                </button>
+
+                {!isCollapsed && rows.map((row, idx) => (
+                  <ExpandableRow key={`${row.name}-${idx}`} row={row} />
+                ))}
+              </div>
+            );
+          })}
+      </div>
+
+      {/* Toggle buttons for hidden content */}
+      <div className="flex flex-wrap gap-2">
+        {(() => {
+          const smallCatCount = superGroupData
+            .filter(g => showMinorGroups || !g.minor)
+            .reduce((sum, g) => sum + g.subcategories.filter(s => s.techs.length < 2).length, 0);
+          const minorGroupCount = superGroupData.filter(g => g.minor).length;
           return (
-            <div key={group.label}>
-              <button
-                onClick={() => toggleSection(group.label)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-t border-border"
-              >
-                {isCollapsed
-                  ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                }
-                <span className="text-xs font-semibold text-foreground">{group.label}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">{group.totalTechs}</Badge>
-              </button>
-
-              {!isCollapsed && rows.map((row, idx) => (
-                <ExpandableRow key={`${row.name}-${idx}`} row={row} />
-              ))}
-            </div>
+            <>
+              {smallCatCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-muted-foreground"
+                  onClick={() => setShowSmallCategories(!showSmallCategories)}
+                >
+                  {showSmallCategories
+                    ? `Hide ${smallCatCount} categories with 1 technology`
+                    : `Show ${smallCatCount} more categories with 1 technology`}
+                </Button>
+              )}
+              {minorGroupCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-muted-foreground"
+                  onClick={() => setShowMinorGroups(!showMinorGroups)}
+                >
+                  {showMinorGroups
+                    ? `Hide ${minorGroupCount} infrastructure & compliance sections`
+                    : `Show ${minorGroupCount} more sections…`}
+                </Button>
+              )}
+            </>
           );
-        })}
+        })()}
       </div>
     </div>
   );

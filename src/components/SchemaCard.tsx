@@ -22,6 +22,9 @@ type SchemaData = {
 };
 
 export function SchemaCard({ data }: { data: SchemaData }) {
+  if (!data?.summary) {
+    return <p className="text-sm text-muted-foreground">Schema data unavailable.</p>;
+  }
   const { summary } = data;
   const hasSchemas = summary.totalSchemas > 0;
 

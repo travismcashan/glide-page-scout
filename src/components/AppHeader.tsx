@@ -13,7 +13,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogOut, Settings, Shield, ChevronDown, Check, Menu, Link2 } from 'lucide-react';
+import { LogOut, Settings, Shield, ChevronDown, Check, Menu, Link2, Heart, Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,6 @@ const NAV_ITEMS = [
   { label: 'Knowledge', to: '/knowledge' },
   { label: 'Sites', to: '/sites', matchPrefix: '/sites' },
   { label: 'Groups', to: '/groups' },
-  { label: 'Wishlist', to: '/wishlist' },
   { label: 'Integrations', to: '/integrations' },
 ];
 
@@ -55,10 +54,10 @@ export default function AppHeader() {
         <div className="flex items-center gap-1 min-w-0">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
+            className="flex items-center gap-2 min-w-0"
           >
-            <AnimatedLogo size={40} isAnimating={isCrawling} />
-            <span className="text-lg sm:text-base font-semibold tracking-tight truncate">
+            <AnimatedLogo size={34} isAnimating={isCrawling} />
+            <span className="text-xl sm:text-lg font-semibold tracking-tight truncate">
               {currentProduct.fullName}
             </span>
           </button>
@@ -85,8 +84,8 @@ export default function AppHeader() {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="ml-2 rounded-full">
-                  <Avatar className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="ml-2 rounded-full h-9 w-9">
+                  <Avatar className="h-9 w-9">
                     <AvatarImage src={profile?.avatar_url || undefined} />
                     <AvatarFallback className="text-xs">
                       {(profile?.display_name || user.email || '?')[0]?.toUpperCase()}
@@ -105,8 +104,14 @@ export default function AppHeader() {
                     <Shield className="h-4 w-4 mr-2" /> Admin Panel
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onClick={() => navigate('/wishlist')}>
+                  <Heart className="h-4 w-4 mr-2" /> Wishlist
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/connections')}>
                   <Link2 className="h-4 w-4 mr-2" /> Connections
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/usage')}>
+                  <Activity className="h-4 w-4 mr-2" /> Usage
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="h-4 w-4 mr-2" /> Settings
@@ -195,10 +200,22 @@ export default function AppHeader() {
                         </button>
                       )}
                       <button
+                        onClick={() => { navigate('/wishlist'); setMobileOpen(false); }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Heart className="h-4 w-4" /> Wishlist
+                      </button>
+                      <button
                         onClick={() => { navigate('/connections'); setMobileOpen(false); }}
                         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Link2 className="h-4 w-4" /> Connections
+                      </button>
+                      <button
+                        onClick={() => { navigate('/usage'); setMobileOpen(false); }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Activity className="h-4 w-4" /> Usage
                       </button>
                       <button
                         onClick={() => { navigate('/settings'); setMobileOpen(false); }}

@@ -1,3 +1,5 @@
+import { logUsage, extractOpenAIUsage, getUserIdFromRequest } from "../_shared/usage-logger.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -186,6 +188,11 @@ For each tier, list ONLY template names that need custom design. Everything not 
     }
 
     const aiData = await response.json();
+
+    const userId = getUserIdFromRequest(req);
+    const usage = extractOpenAIUsage(aiData);
+    logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-3-flash-preview', edge_function: 'recommend-templates' });
+
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
     let result = { S: [] as string[], M: [] as string[], L: [] as string[], complexity: {} as Record<string, string>, reasoning: '', reasoning_S: '', reasoning_M: '', reasoning_L: '' };

@@ -283,6 +283,13 @@ export default function ResultsPage() {
 
   // Guard: don't fire site-analysis integrations for synthetic sessions (e.g. global chat)
   const isRealSite = !!session?.domain && !session.domain.startsWith('__');
+  // page_tags can be a status stub like {"skipped":"already_tagged","success":true} from crawl-start;
+  // treat it as valid only when it contains at least one URL-keyed entry.
+  const hasRealPageTags = useMemo(() => {
+    const tags = (session as any)?.page_tags;
+    if (!tags || typeof tags !== 'object') return false;
+    return Object.keys(tags).some(k => k.startsWith('http'));
+  }, [(session as any)?.page_tags]);
   // Guard: don't re-trigger integrations if server-side crawl already completed
   const serverCompleted = session?.status === 'completed' || session?.status === 'completed_with_errors';
 
@@ -572,6 +579,8 @@ export default function ResultsPage() {
                 };
                 if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
               }
+              // Clear loading state for this integration
+              loadingSetters[row.integration_key]?.(false);
             }
           } else if (row.status === 'failed') {
             const col = INTEGRATION_COLUMN_MAP[row.integration_key];
@@ -584,6 +593,8 @@ export default function ResultsPage() {
                 detectzestack: detectzestackTriggeredRef,
               };
               if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
+              // Clear loading state on failure too
+              loadingSetters[row.integration_key]?.(false);
             }
           }
         }
@@ -608,6 +619,7 @@ export default function ResultsPage() {
      contentTypesTriggeredRef,
      oceanTriggeredRef, avomaTriggeredRef, hubspotTriggeredRef,
      yellowlabPollingRef, linkcheckRunningRef, formsAutoRunRef, autoTagTriedRef,
+     navAutoCrawlTriggeredRef,
     ].forEach(ref => { ref.current = true; });
     // Abort link checker if running
     if (linkcheckAbortRef.current) linkcheckAbortRef.current.abort();
@@ -629,6 +641,7 @@ export default function ResultsPage() {
   const schemaTriggeredRef = useRef(false);
   const readableTriggeredRef = useRef(false);
   const navTriggeredRef = useRef(false);
+  const navAutoCrawlTriggeredRef = useRef(false);
   const sitemapTriggeredRef = useRef(false);
   const contentTypesTriggeredRef = useRef(false);
 
@@ -1315,6 +1328,70 @@ export default function ResultsPage() {
       setNavLoading(false);
     }).catch((e) => { const msg = e?.message || 'Nav structure request failed'; setNavFailed(true); setError('nav-structure', msg); persistFailure('nav_structure', msg); setNavLoading(false); });
   }, [session, navLoading, navFailed, pauseVersion]);
+
+  // Auto-crawl primary nav pages for content + screenshots once nav_structure is available
+  useEffect(() => {
+    const nav = (session as any)?.nav_structure;
+    if (!session || !isRealSite || serverCompleted || !nav?.primary || isSharedView) return;
+    if (navAutoCrawlTriggeredRef.current) return;
+    if (isIntegrationPaused('content') && isIntegrationPaused('screenshots')) return;
+    navAutoCrawlTriggeredRef.current = true;
+
+    // Flatten all primary nav URLs (including children up to 3 levels)
+    const navUrls: string[] = [];
+    const extract = (items: any[]) => {
+      for (const item of items) {
+        if (item?.url) navUrls.push(item.url);
+        if (item?.children) extract(item.children);
+      }
+    };
+    extract(nav.primary);
+
+    // Deduplicate and normalize
+    const uniqueUrls = [...new Set(navUrls)].filter(u => {
+      try { new URL(u); return true; } catch { return false; }
+    });
+    if (uniqueUrls.length === 0) return;
+
+    const existingPageUrls = new Set(pages.map(p => p.url));
+
+    (async () => {
+      // Insert content pages (crawl_pages) for unqueued URLs
+      if (!isIntegrationPaused('content')) {
+        const contentUrls = uniqueUrls.filter(u => !existingPageUrls.has(u));
+        if (contentUrls.length > 0) {
+          const rows = contentUrls.map(url => ({ session_id: session.id, url, status: 'pending' }));
+          const { error } = await supabase.from('crawl_pages').insert(rows);
+          if (error) console.error('Auto-crawl content insert failed:', error);
+          else {
+            await supabase.from('crawl_sessions').update({ status: 'crawling' }).eq('id', session.id);
+            updateSession({ status: 'crawling' } as any);
+          }
+        }
+      }
+
+      // Insert screenshot pages (crawl_screenshots) for unqueued URLs
+      if (!isIntegrationPaused('screenshots')) {
+        // Fetch existing screenshot URLs to avoid duplicates
+        const { data: existingShots } = await supabase
+          .from('crawl_screenshots')
+          .select('url')
+          .eq('session_id', session.id);
+        const existingShotUrls = new Set((existingShots || []).map((s: any) => s.url));
+        const screenshotUrls = uniqueUrls.filter(u => !existingShotUrls.has(u));
+        if (screenshotUrls.length > 0) {
+          const rows = screenshotUrls.map(url => ({ session_id: session.id, url, status: 'pending' }));
+          const { error } = await supabase.from('crawl_screenshots').insert(rows);
+          if (error) console.error('Auto-crawl screenshot insert failed:', error);
+          else window.dispatchEvent(new Event('refetch-screenshots'));
+        }
+      }
+
+      // Refresh data so auto-processing loops pick up the new content pages
+      fetchData();
+    })();
+  }, [(session as any)?.nav_structure, pages.length]);
+
   // XML Sitemap parsing (runs early — feeds URLs into URL discovery)
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapFailed, setSitemapFailed] = useState(false);
@@ -1801,8 +1878,24 @@ export default function ResultsPage() {
     'page-tags': 'page-tag-orchestrate',
   };
 
+  const loadingSetters: Record<string, (v: boolean) => void> = {
+    builtwith: setBuiltwithLoading, semrush: setSemrushLoading, psi: setPsiLoading,
+    detectzestack: setDetectzestackLoading, carbon: setCarbonLoading, crux: setCruxLoading,
+    wave: setWaveLoading, observatory: setObservatoryLoading, ga4: setGa4Loading,
+    gsc: setGscLoading, httpstatus: setHttpstatusLoading, w3c: setW3cLoading,
+    schema: setSchemaLoading, readable: setReadableLoading, yellowlab: setYellowlabLoading,
+    ocean: setOceanLoading, hubspot: setHubspotLoading, apollo: setApolloLoading,
+    'apollo-team': setApolloTeamLoading, avoma: setAvomaLoading, sitemap: setSitemapLoading,
+    'nav-structure': setNavLoading, 'link-checker': setLinkcheckLoading,
+    forms: setFormsLoading, 'content-types': setContentTypesLoading,
+    'tech-analysis': setTechAnalysisLoading,
+  };
+
   const rerunIntegration = useCallback(async (key: string, dbColumn: string) => {
     if (!session) return;
+
+    // Set loading state so the card shows a spinner
+    loadingSetters[key]?.(true);
 
     // Snapshot scroll position
     const cardEl = document.querySelector(`[data-section-id="${key}"]`);
@@ -2520,7 +2613,7 @@ export default function ResultsPage() {
         {/* ══════ 📊 Content Analysis ══════ */}
         {(
           shouldShowIntegration('nav-structure', !!(session as any)?.nav_structure, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) ||
-          (session && (session as any)?.page_tags) ||
+          (session && hasRealPageTags) ||
           shouldShowIntegration('content-types', !!(session as any)?.content_types_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) ||
           shouldShowIntegration('content', pages.length > 0, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) ||
           shouldShowIntegration('readable', !!(session as any)?.readable_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) ||
@@ -2528,9 +2621,9 @@ export default function ResultsPage() {
         ) && (
           <CollapsibleSection title="Content Analysis" collapsed={isSectionCollapsed("section-content-analysis") ?? false} onToggle={(c) => toggleSection("section-content-analysis", c)} {...catGrade("section-content-analysis")}>
             <SortedIntegrationList className="space-y-6">
-              {session && (
-              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? <div className="flex items-center gap-1.5">{integrationTimestamps['page-tags'] && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps['page-tags']), 'MMM d, yyyy h:mm a')}`}>{format(new Date(integrationTimestamps['page-tags']), 'MMM d, h:mm a')}</span>)}{integrationDurations['page-tags'] != null && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations['page-tags']}s)</span>)}{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
-                {(session as any)?.page_tags ? (
+              {session && (hasRealPageTags || autoTagging || contentTypesLoading) && (
+              <SectionCard collapsed={allCollapsed} sectionId="content-audit" persistedCollapsed={isSectionCollapsed("content-audit")} onCollapseChange={toggleSection} title="Content Audit" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!hasRealPageTags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={hasRealPageTags ? <div className="flex items-center gap-1.5">{integrationTimestamps['page-tags'] && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(integrationTimestamps['page-tags']), 'MMM d, yyyy h:mm a')}`}>{format(new Date(integrationTimestamps['page-tags']), 'MMM d, h:mm a')}</span>)}{integrationDurations['page-tags'] != null && !autoTagging && (<span className="text-[10px] text-muted-foreground tabular-nums">({integrationDurations['page-tags']}s)</span>)}{innerExpandToggle(redesignInnerExpand, setRedesignInnerExpand)}</div> : undefined}>
+                {hasRealPageTags ? (
                   <RedesignEstimateCard pageTags={(session as any).page_tags} contentTypesData={(session as any).content_types_data} navStructure={(session as any).nav_structure || null} globalInnerExpand={redesignInnerExpand} />
                 ) : null}
               </SectionCard>
@@ -2597,9 +2690,9 @@ export default function ResultsPage() {
         {session && (
           <CollapsibleSection title="Design Analysis" collapsed={isSectionCollapsed("section-design-analysis") ?? false} onToggle={(c) => toggleSection("section-design-analysis", c)}>
             <SortedIntegrationList className="space-y-6">
-              {session && (
-              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!(session as any)?.page_tags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={(session as any)?.page_tags ? rerunButton('templates', 'template_tiers', templatesRerunning) : undefined}>
-                {(session as any)?.page_tags ? (
+              {session && (hasRealPageTags || autoTagging || contentTypesLoading) && (
+              <SectionCard collapsed={allCollapsed} sectionId="templates" persistedCollapsed={isSectionCollapsed("templates")} onCollapseChange={toggleSection} title="Template Analysis" icon={<Layers className="h-5 w-5 text-foreground" />} loading={!hasRealPageTags && (autoTagging || contentTypesLoading)} loadingText="Waiting for page tagging to complete…" headerExtra={hasRealPageTags ? rerunButton('templates', 'template_tiers', templatesRerunning) : undefined}>
+                {hasRealPageTags ? (
                   <TemplatesCard pageTags={(session as any).page_tags} navStructure={(session as any).nav_structure} domain={(session as any).domain} />
                 ) : null}
               </SectionCard>
@@ -2835,7 +2928,7 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('w3c', !!session?.w3c_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="w3c" {...intGrade("w3c")} persistedCollapsed={isSectionCollapsed("w3c")} onCollapseChange={toggleSection} title="W3C Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)} reportUrl={getReportUrl('w3c')} paused={isIntegrationPaused('w3c') && !session?.w3c_data} onTogglePause={() => handleTogglePause('w3c')}>
+              <SectionCard collapsed={allCollapsed} sectionId="w3c" {...intGrade("w3c")} persistedCollapsed={isSectionCollapsed("w3c") ?? true} onCollapseChange={toggleSection} title="W3C Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)} reportUrl={getReportUrl('w3c')} paused={isIntegrationPaused('w3c') && !session?.w3c_data} onTogglePause={() => handleTogglePause('w3c')}>
                 {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
               </SectionCard>
               )}
@@ -3115,8 +3208,8 @@ export default function ResultsPage() {
         </Tabs>
       </main>
 
-      {/* Back to top button */}
-      <BackToTopButton />
+      {/* Back to top button — hidden on Chat tab which has its own scroll-to-top */}
+      {activeTab !== 'chat' && <BackToTopButton />}
     </div>
   );
 }

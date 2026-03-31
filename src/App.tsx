@@ -23,6 +23,7 @@ import KnowledgePage from "./pages/KnowledgePage";
 import BrandGuidePage from "./pages/BrandGuidePage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
+import UsagePage from "./pages/UsagePage";
 import NotFound from "./pages/NotFound";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/chat" element={<ProtectedRoute><GlobalChatPage /></ProtectedRoute>} />
               <Route path="/knowledge" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/usage" element={<ProtectedRoute><UsagePage /></ProtectedRoute>} />
               <Route path="/brand" element={<ProtectedRoute><BrandGuidePage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

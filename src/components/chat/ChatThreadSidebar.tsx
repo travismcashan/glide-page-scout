@@ -26,17 +26,31 @@ type Props = {
   stickyTabVisible?: boolean;
 };
 
-const EXPANDED_WIDTH = 280;
+const DEFAULT_WIDTH = 280;
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 420;
 const COLLAPSED_WIDTH = 40;
+const SIDEBAR_WIDTH_KEY = 'chat-sidebar-width';
 
 export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey, onWidthChange, stickyTabVisible }: Props) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedWidth, setExpandedWidth] = useState(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+      if (stored) {
+        const w = parseInt(stored, 10);
+        if (w >= MIN_WIDTH && w <= MAX_WIDTH) return w;
+      }
+    } catch {}
+    return DEFAULT_WIDTH;
+  });
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
 
   const loadThreads = useCallback(async () => {
     const { data } = await supabase
@@ -53,8 +67,41 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
   }, [loadThreads, refreshKey]);
 
   useEffect(() => {
-    onWidthChange?.(collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH);
-  }, [collapsed, onWidthChange]);
+    onWidthChange?.(collapsed ? COLLAPSED_WIDTH : expandedWidth);
+  }, [collapsed, expandedWidth, onWidthChange]);
+
+  // Drag-to-resize handler
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startWidth = expandedWidth;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (ev.clientX - startX)));
+      setExpandedWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [expandedWidth]);
+
+  // Persist width changes to localStorage (covers drag updates)
+  useEffect(() => {
+    if (!collapsed) {
+      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(expandedWidth)); } catch {}
+    }
+  }, [expandedWidth, collapsed]);
 
   useEffect(() => {
     if (renamingId && renameInputRef.current) {
@@ -81,10 +128,12 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
     loadThreads();
   }, [loadThreads]);
 
+  const currentWidth = collapsed ? COLLAPSED_WIDTH : expandedWidth;
+
   return (
     <div
-      className="flex flex-col border-r border-border bg-muted/30 overflow-hidden transition-all duration-300 ease-in-out sticky self-start"
-      style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, height: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', maxHeight: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', top: stickyTabVisible ? 64 : 55 }}
+      className={cn("flex flex-col bg-muted/30 overflow-hidden sticky self-start relative", !isResizing && 'transition-all duration-300 ease-in-out')}
+      style={{ width: currentWidth, minWidth: currentWidth, height: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', maxHeight: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', top: stickyTabVisible ? 64 : 55 }}
     >
       {collapsed ? (
         <div
@@ -239,6 +288,17 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Resize handle — right edge */}
+      <div
+        className={cn(
+          "absolute top-0 right-0 h-full z-10 transition-colors",
+          collapsed
+            ? "w-px bg-border"
+            : "w-1 cursor-col-resize bg-border hover:bg-primary/40 active:bg-primary/60"
+        )}
+        onMouseDown={collapsed ? undefined : handleResizeStart}
+      />
     </div>
   );
 }

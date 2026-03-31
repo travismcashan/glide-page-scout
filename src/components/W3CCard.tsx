@@ -1,7 +1,6 @@
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertTriangle, Info, ChevronDown, ChevronUp, Code, Paintbrush } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Info, ChevronDown, ChevronUp, Code, Paintbrush } from 'lucide-react';
 import { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { CardTabs } from '@/components/CardTabs';
 
 type ValidationMessage = {
   type?: string;
@@ -40,144 +39,163 @@ type W3CData = {
   };
 };
 
-function MessageList({ messages, type }: { messages: ValidationMessage[]; type: 'error' | 'warning' | 'info' }) {
-  const [expanded, setExpanded] = useState(false);
-  if (messages.length === 0) return null;
-
-  const icon = type === 'error' ? <XCircle className="h-3.5 w-3.5 text-destructive" /> :
-    type === 'warning' ? <AlertTriangle className="h-3.5 w-3.5 text-yellow-600" /> :
-    <Info className="h-3.5 w-3.5 text-blue-500" />;
-
-  const shown = expanded ? messages : messages.slice(0, 5);
+function ScoreBox({ label, count, variant }: { label: string; count: number; variant: 'error' | 'warning' | 'info' | 'success' }) {
+  const colors = {
+    error: count > 0 ? 'border-destructive/40 bg-destructive/10' : 'border-border bg-muted/30',
+    warning: count > 0 ? 'border-yellow-500/30 bg-yellow-500/10' : 'border-border bg-muted/30',
+    info: 'border-border bg-muted/30',
+    success: 'border-green-500/30 bg-green-500/10',
+  };
+  const textColors = {
+    error: count > 0 ? 'text-destructive' : 'text-muted-foreground',
+    warning: count > 0 ? 'text-yellow-500' : 'text-muted-foreground',
+    info: 'text-blue-400',
+    success: 'text-green-400',
+  };
 
   return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap gap-2">
-        {shown.map((msg, i) => {
-          const line = msg.lastLine || msg.line;
-          return (
-            <div key={i} className="w-full flex items-start gap-2 py-1.5 border-b border-border/50 last:border-0">
-              <div className="pt-0.5 shrink-0">{icon}</div>
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="text-xs text-foreground">{msg.message}</p>
-                <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                  {line && <span>Line {line}{msg.lastColumn ? `:${msg.lastColumn}` : ''}</span>}
-                  {msg.context && <span className="font-mono truncate max-w-[200px]">{msg.context}</span>}
+    <div className={`rounded-lg border px-3 py-2.5 ${colors[variant]}`}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-lg font-bold tabular-nums ${textColors[variant]}`}>{count}</p>
+    </div>
+  );
+}
+
+function CollapsibleMessages({ messages, type, label }: { messages: ValidationMessage[]; type: 'error' | 'warning' | 'info'; label: string }) {
+  const [open, setOpen] = useState(false);
+  if (messages.length === 0) return null;
+
+  const icon = type === 'error' ? <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" /> :
+    type === 'warning' ? <AlertTriangle className="h-3.5 w-3.5 text-yellow-500 shrink-0" /> :
+    <Info className="h-3.5 w-3.5 text-blue-400 shrink-0" />;
+
+  const borderColor = type === 'error' ? 'border-destructive/20' :
+    type === 'warning' ? 'border-yellow-500/20' : 'border-blue-500/20';
+
+  const shown = open ? messages : messages.slice(0, 3);
+
+  return (
+    <div className={`rounded-lg border ${borderColor} overflow-hidden`}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+      >
+        {icon}
+        <span className="text-xs font-medium text-foreground">{label}</span>
+        <span className="text-[10px] text-muted-foreground ml-auto">{messages.length} issue{messages.length !== 1 ? 's' : ''}</span>
+        {open ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+      </button>
+
+      {open && (
+        <div className="divide-y divide-border/50">
+          {shown.map((msg, i) => {
+            const line = msg.lastLine || msg.line;
+            return (
+              <div key={i} className="px-3 py-2 space-y-1">
+                <p className="text-xs text-foreground leading-relaxed">{msg.message}</p>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                  {line != null && (
+                    <span className="font-mono">
+                      Line {line}{msg.lastColumn ? `:${msg.lastColumn}` : ''}
+                    </span>
+                  )}
                 </div>
                 {msg.extract && (
-                  <pre className="text-[10px] font-mono bg-muted/50 rounded px-1.5 py-0.5 overflow-x-auto max-w-full whitespace-pre-wrap break-all text-muted-foreground">
+                  <pre className="text-[10px] font-mono bg-muted/50 rounded px-2 py-1 overflow-x-auto max-w-full whitespace-pre-wrap break-all text-muted-foreground leading-relaxed">
                     {msg.extract}
                   </pre>
                 )}
               </div>
+            );
+          })}
+          {!open && messages.length > 3 && (
+            <div className="px-3 py-1.5 text-center">
+              <span className="text-[11px] text-muted-foreground">+{messages.length - 3} more</span>
             </div>
-          );
-        })}
-      </div>
-      {messages.length > 5 && (
-        <button onClick={() => setExpanded(!expanded)} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1">
-          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          {expanded ? 'Show less' : `Show all ${messages.length}`}
-        </button>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function ValidationSummary({ valid, errors, warnings, label }: { valid: boolean; errors: number; warnings: number; label: string }) {
+function ValidationPanel({ errors, warnings, info, valid, apiError }: {
+  errors: ValidationMessage[];
+  warnings: ValidationMessage[];
+  info?: ValidationMessage[];
+  valid: boolean;
+  apiError?: string | null;
+}) {
+  if (apiError) {
+    return <p className="text-xs text-destructive py-2">{apiError}</p>;
+  }
+
+  if (valid && warnings.length === 0 && (!info || info.length === 0)) {
+    return (
+      <div className="flex items-center gap-2 py-4 justify-center text-green-400">
+        <CheckCircle2 className="h-5 w-5" />
+        <span className="text-sm font-medium">No validation issues found</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {valid ? (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-500/30">
-          <CheckCircle className="h-3 w-3 mr-0.5" /> {label} Valid
-        </Badge>
-      ) : (
-        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-          <XCircle className="h-3 w-3 mr-0.5" /> {errors} error{errors !== 1 ? 's' : ''}
-        </Badge>
-      )}
-      {warnings > 0 && (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-yellow-600 border-yellow-500/30">
-          <AlertTriangle className="h-3 w-3 mr-0.5" /> {warnings} warning{warnings !== 1 ? 's' : ''}
-        </Badge>
-      )}
+    <div className="space-y-3">
+      {errors.length > 0 && <CollapsibleMessages messages={errors} type="error" label="Errors" />}
+      {warnings.length > 0 && <CollapsibleMessages messages={warnings} type="warning" label="Warnings" />}
+      {info && info.length > 0 && <CollapsibleMessages messages={info} type="info" label="Info" />}
     </div>
   );
 }
 
 export function W3CCard({ data }: { data: W3CData }) {
+  const totalErrors = data.html.errorCount + data.css.errorCount;
+  const totalWarnings = data.html.warningCount + data.css.warningCount;
+
   return (
     <div className="space-y-4">
-      {/* Overall summary */}
-      <div className="flex flex-wrap gap-4">
-        <div className="flex items-center gap-2">
-          <Code className="h-4 w-4 text-muted-foreground" />
-          <ValidationSummary valid={data.html.valid} errors={data.html.errorCount} warnings={data.html.warningCount} label="HTML" />
-        </div>
-        <div className="flex items-center gap-2">
-          <Paintbrush className="h-4 w-4 text-muted-foreground" />
-          <ValidationSummary valid={data.css.valid} errors={data.css.errorCount} warnings={data.css.warningCount} label="CSS" />
-        </div>
+      {/* Summary metric boxes */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <ScoreBox label="HTML Errors" count={data.html.errorCount} variant="error" />
+        <ScoreBox label="CSS Errors" count={data.css.errorCount} variant="error" />
+        <ScoreBox label="Warnings" count={totalWarnings} variant="warning" />
+        {data.html.infoCount != null && (
+          <ScoreBox label="Info" count={data.html.infoCount} variant="info" />
+        )}
       </div>
 
-      <Tabs defaultValue="html">
-        <TabsList>
-          <TabsTrigger value="html" className="text-xs">
-            HTML {data.html.errorCount > 0 && <Badge variant="destructive" className="ml-1 text-[9px] px-1 py-0">{data.html.errorCount}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="css" className="text-xs">
-            CSS {data.css.errorCount > 0 && <Badge variant="destructive" className="ml-1 text-[9px] px-1 py-0">{data.css.errorCount}</Badge>}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="html" className="mt-3 space-y-4">
-          {data.html.apiError && (
-            <p className="text-xs text-destructive">{data.html.apiError}</p>
-          )}
-          {data.html.errorCount > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Errors</p>
-              <MessageList messages={data.html.errors} type="error" />
-            </div>
-          )}
-          {data.html.warningCount > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Warnings</p>
-              <MessageList messages={data.html.warnings} type="warning" />
-            </div>
-          )}
-          {data.html.infoCount > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Info</p>
-              <MessageList messages={data.html.info} type="info" />
-            </div>
-          )}
-          {data.html.valid && data.html.warningCount === 0 && (
-            <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> No HTML validation issues found.</p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="css" className="mt-3 space-y-4">
-          {data.css.apiError && (
-            <p className="text-xs text-destructive">{data.css.apiError}</p>
-          )}
-          {data.css.errorCount > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Errors</p>
-              <MessageList messages={data.css.errors} type="error" />
-            </div>
-          )}
-          {data.css.warningCount > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Warnings</p>
-              <MessageList messages={data.css.warnings} type="warning" />
-            </div>
-          )}
-          {data.css.valid && data.css.warningCount === 0 && (
-            <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> No CSS validation issues found.</p>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Tabbed detail view */}
+      <CardTabs
+        tabs={[
+          {
+            value: 'html',
+            label: `HTML${data.html.errorCount > 0 ? ` (${data.html.errorCount})` : ''}`,
+            icon: <Code className="h-3.5 w-3.5" />,
+            content: (
+              <ValidationPanel
+                errors={data.html.errors}
+                warnings={data.html.warnings}
+                info={data.html.info}
+                valid={data.html.valid}
+                apiError={data.html.apiError}
+              />
+            ),
+          },
+          {
+            value: 'css',
+            label: `CSS${data.css.errorCount > 0 ? ` (${data.css.errorCount})` : ''}`,
+            icon: <Paintbrush className="h-3.5 w-3.5" />,
+            content: (
+              <ValidationPanel
+                errors={data.css.errors}
+                warnings={data.css.warnings}
+                valid={data.css.valid}
+                apiError={data.css.apiError}
+              />
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
