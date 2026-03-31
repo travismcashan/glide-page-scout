@@ -3,7 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const AI_GATEWAY_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
 function normalizeUrl(u: string): string {
   try {
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     const prompt = PROMPTS[mode] || PROMPTS.screenshots;
 
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
-    const aiKey = Deno.env.get('LOVABLE_API_KEY');
+    const aiKey = Deno.env.get('GEMINI_API_KEY');
 
     if (!firecrawlKey || !aiKey) {
       return new Response(
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: prompt.system },
           {

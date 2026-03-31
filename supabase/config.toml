@@ -1,4 +1,4 @@
-project_id = "zkxtrwqhmjsozauzaeqh"
+project_id = "afgwuqpsxnglxhosczoi"
 
 [functions.firecrawl-map]
 verify_jwt = false
@@ -73,4 +73,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.crawl-start]
+verify_jwt = false
+
+[functions.auto-index]
+verify_jwt = false
+
+[functions.crawl-worker]
 verify_jwt = false

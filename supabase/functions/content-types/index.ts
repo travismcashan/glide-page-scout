@@ -249,10 +249,10 @@ Deno.serve(async (req) => {
       const dirGroups: Record<string, string[]> = body.dirGroups || groupByDirectory(urls, baseUrl);
       const htmlSignals: Record<string, { type: string; confidence: 'high' | 'medium'; source: string; baseType: BaseType }> = body.htmlSignals || {};
 
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
       let aiGroups: Array<{ baseType: BaseType; cptName?: string; template: string; directoryPrefix: string; confidence: 'high' | 'medium' }> = [];
 
-      if (LOVABLE_API_KEY) {
+      if (GEMINI_API_KEY) {
         try {
           const htmlContext = Object.entries(htmlSignals)
             .map(([url, sig]) => `${url} → ${sig.type} [${sig.baseType}] (via ${sig.source})`)
@@ -344,14 +344,14 @@ ${sitemapContext ? `XML Sitemap groupings (STRONG signal — CMS organizes conte
 For each directory group, classify the group as a whole. Return the DIRECTORY PREFIX (e.g., "/testing-services/", "/industry-solutions/", "/blog/") — NOT every individual URL.
 ${sitemapContext ? 'Sitemap groupings are the strongest signal — use them.' : ''}`;
 
-          const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Authorization': `Bearer ${GEMINI_API_KEY}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
+              model: 'gemini-2.5-flash',
               tools: [{
                 type: 'function',
                 function: {

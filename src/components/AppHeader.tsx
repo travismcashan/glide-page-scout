@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,11 +17,13 @@ import { LogOut, Settings, Shield, ChevronDown, Check, Menu, Link2 } from 'lucid
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS } from '@/contexts/ProductContext';
 import { Badge } from '@/components/ui/badge';
+import { AnimatedLogo } from '@/components/AnimatedLogo';
+import { useActiveCrawl } from '@/hooks/use-active-crawl';
 
 const NAV_ITEMS = [
   { label: 'Chat', to: '/chat' },
   { label: 'Knowledge', to: '/knowledge' },
-  { label: 'Sites', to: '/history', matchPrefix: '/sites/' },
+  { label: 'Sites', to: '/sites', matchPrefix: '/sites' },
   { label: 'Groups', to: '/groups' },
   { label: 'Wishlist', to: '/wishlist' },
   { label: 'Integrations', to: '/integrations' },
@@ -30,9 +32,12 @@ const NAV_ITEMS = [
 export default function AppHeader() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isSharedView = searchParams.get('view') === 'shared';
   const { user, profile, isAdmin, signOut } = useAuth();
   const { currentProduct, setCurrentProduct } = useProduct();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isCrawling = useActiveCrawl();
 
   const linkBase =
     'text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md';
@@ -52,7 +57,7 @@ export default function AppHeader() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0"
           >
-            <ProductIcon className="h-8 w-8 sm:h-8 sm:w-8 text-primary shrink-0" />
+            <AnimatedLogo size={40} isAnimating={isCrawling} />
             <span className="text-lg sm:text-base font-semibold tracking-tight truncate">
               {currentProduct.fullName}
             </span>
@@ -60,8 +65,8 @@ export default function AppHeader() {
 
         </div>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* Desktop nav - hidden in shared view */}
+        {!isSharedView && <nav className="hidden md:flex items-center gap-1">
           {NAV_ITEMS.map((item) =>
             item.matchPrefix ? (
               <button
@@ -117,9 +122,10 @@ export default function AppHeader() {
               Sign In
             </Button>
           )}
-        </nav>
+        </nav>}
 
-        {/* Mobile: left hamburger */}
+        {/* Mobile: left hamburger - hidden in shared view */}
+        {isSharedView ? null :
         <div className="flex md:hidden items-center gap-2">
           {location.pathname === '/chat' ? (
             <button
@@ -222,7 +228,7 @@ export default function AppHeader() {
             </SheetContent>
           </Sheet>
           )}
-        </div>
+        </div>}
       </div>
     </header>
   );

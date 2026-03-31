@@ -1,7 +1,8 @@
 import { MetaStat, MetaStatDivider } from '@/components/MetaStat';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Search, Link2 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 type DailyTrendItem = {
@@ -44,9 +45,15 @@ type SearchConsoleData = {
 };
 
 type Props = {
-  data: SearchConsoleData;
+  data: SearchConsoleData | null;
   onSelectSite?: (siteUrl: string) => void;
   isSelecting?: boolean;
+  isConnected?: boolean;
+  onConnect?: () => void;
+  isConnecting?: boolean;
+  availableSites?: { url: string; permissionLevel: string }[];
+  onFetchSites?: () => void;
+  isFetchingSites?: boolean;
 };
 
 function formatNumber(n: number): string {
@@ -59,7 +66,7 @@ function formatPct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
 }
 
-export function SearchConsoleCard({ data, onSelectSite, isSelecting }: Props) {
+export function SearchConsoleCard({ data, onSelectSite, isSelecting, isConnected, onConnect, isConnecting, availableSites, onFetchSites, isFetchingSites }: Props) {
   const [showQueries, setShowQueries] = useState(true);
   const [showPages, setShowPages] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
@@ -67,14 +74,42 @@ export function SearchConsoleCard({ data, onSelectSite, isSelecting }: Props) {
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  if (!data.found) {
-    const count = data.availableSites?.length || 0;
+  // State 1: Not connected — show connect button
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 space-y-3">
+        <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+          <Search className="h-5 w-5 text-emerald-600" />
+        </div>
+        <p className="text-sm text-muted-foreground text-center max-w-xs">
+          Connect your Google Search Console to pull search queries, impressions, clicks, and indexing data for this site.
+        </p>
+        <Button
+          size="sm"
+          onClick={onConnect}
+          disabled={isConnecting}
+        >
+          {isConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Link2 className="h-3.5 w-3.5 mr-1.5" />}
+          Connect Search Console
+        </Button>
+      </div>
+    );
+  }
+
+  // State 2: Connected but no data — show site picker
+  if (!data || !data.found) {
+    const sites = data?.availableSites || availableSites || [];
+    const count = sites.length;
     return (
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          {data.message || 'No Search Console property found for this domain.'}
-        </p>
-        {count > 0 && onSelectSite && (
+        {data?.message ? (
+          <p className="text-sm text-muted-foreground">{data.message}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Google account connected. Select a Search Console property to pull data for this site.
+          </p>
+        )}
+        {count > 0 && onSelectSite ? (
           <div className="space-y-2">
             <button
               onClick={() => setPickerOpen(!pickerOpen)}
@@ -85,7 +120,7 @@ export function SearchConsoleCard({ data, onSelectSite, isSelecting }: Props) {
             </button>
             {pickerOpen && (
               <div className="space-y-1.5 max-h-[300px] overflow-y-auto pl-6">
-                {data.availableSites!.map((s, i) => (
+                {sites.map((s, i) => (
                   <button
                     key={i}
                     onClick={() => {
@@ -107,11 +142,22 @@ export function SearchConsoleCard({ data, onSelectSite, isSelecting }: Props) {
               </div>
             )}
           </div>
-        )}
+        ) : count === 0 && onFetchSites ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onFetchSites}
+            disabled={isFetchingSites}
+          >
+            {isFetchingSites ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Search className="h-3.5 w-3.5 mr-1.5" />}
+            Load available sites
+          </Button>
+        ) : null}
       </div>
     );
   }
 
+  // State 3: Has data — show search console analytics
   const summary = data.summary;
 
   return (

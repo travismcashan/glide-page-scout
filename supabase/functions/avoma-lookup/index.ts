@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { extractOrchestration } from "../_shared/orchestration.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -129,12 +130,15 @@ serve(async (req) => {
   try {
     const AVOMA_API_KEY = Deno.env.get('AVOMA_API_KEY');
     if (!AVOMA_API_KEY) {
+      if (orch) await orch.markFailed('AVOMA_API_KEY not configured');
       return new Response(JSON.stringify({ success: false, error: 'AVOMA_API_KEY not configured' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const body = await req.json();
+    const orch = extractOrchestration(body);
+    if (orch) await orch.markRunning();
     const { action, lookbackDays, stream } = body;
 
     // === On-demand full transcript fetch for a single meeting ===
@@ -170,6 +174,7 @@ serve(async (req) => {
     // === Default: meeting list lookup ===
     const { domain } = body;
     if (!domain) {
+      if (orch) await orch.markFailed('domain is required');
       return new Response(JSON.stringify({ success: false, error: 'domain is required' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -232,6 +237,7 @@ serve(async (req) => {
             controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
           };
 
+          try {
           // Send initial progress
           send('progress', {
             page: 1,
@@ -313,6 +319,16 @@ serve(async (req) => {
             meetings: enriched,
             matchBreakdown: { emailDomain: emailCount, attendeeName: nameCount, subject: subjectCount },
           });
+          } catch (streamErr) {
+            console.error('[avoma] Stream error:', streamErr);
+            send('result', {
+              success: false,
+              error: streamErr.message || 'Stream processing failed',
+              domain: domainLower,
+              totalMatches: 0,
+              meetings: [],
+            });
+          }
 
           controller.close();
         },
@@ -361,19 +377,25 @@ serve(async (req) => {
 
     const enriched = await enrichMeetings(matchedMeetings, matchReasons, AVOMA_API_KEY);
 
-    return new Response(JSON.stringify({
+    const result = {
       success: true,
       domain: domainLower,
       totalMatches: matchedMeetings.length,
       meetings: enriched,
       matchBreakdown: { emailDomain: emailCount, attendeeName: nameCount, subject: subjectCount },
-    }), {
+    };
+
+    if (orch) await orch.markDone(result);
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('[avoma] Error:', error);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    const errMsg = error.message || 'Avoma lookup failed';
+    if (orch) await orch.markFailed(errMsg);
+    return new Response(JSON.stringify({ success: false, error: errMsg }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

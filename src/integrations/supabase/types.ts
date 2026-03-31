@@ -1125,6 +1125,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          about_me: Json | null
+          created_at: string | null
+          custom_instructions: string | null
+          id: string
+          location_data: Json | null
+          my_role: string | null
+          personal_bio: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          about_me?: Json | null
+          created_at?: string | null
+          custom_instructions?: string | null
+          id?: string
+          location_data?: Json | null
+          my_role?: string | null
+          personal_bio?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          about_me?: Json | null
+          created_at?: string | null
+          custom_instructions?: string | null
+          id?: string
+          location_data?: Json | null
+          my_role?: string | null
+          personal_bio?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       wishlist_items: {
         Row: {
           category: string

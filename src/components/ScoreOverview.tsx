@@ -18,7 +18,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'url-analysis': <Link className="h-4 w-4" />,
 };
 
-function ScoreRing({ score, grade, size = 120, placeholder }: { score: number; grade: string; size?: number; placeholder?: boolean }) {
+function ScoreRing({ score, grade, size = 120, placeholder, progressPercent }: { score: number; grade: string; size?: number; placeholder?: boolean; progressPercent?: number }) {
   const strokeWidth = size > 80 ? 8 : 6;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -26,9 +26,12 @@ function ScoreRing({ score, grade, size = 120, placeholder }: { score: number; g
 
   const strokeColor = placeholder ? 'hsl(var(--muted))' : grade === 'A' ? '#10b981' : grade === 'B' ? '#3b82f6' : grade === 'C' ? '#eab308' : grade === 'D' ? '#f97316' : '#ef4444';
 
+  const hasProgress = placeholder && progressPercent !== undefined;
+  const progressArc = hasProgress ? (progressPercent / 100) * circumference : 0;
+
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className={placeholder ? 'animate-spin' : '-rotate-90'} style={placeholder ? { animationDuration: '2s' } : undefined}>
+      <svg width={size} height={size} className={placeholder && !hasProgress ? 'animate-spin' : '-rotate-90'} style={placeholder && !hasProgress ? { animationDuration: '2s' } : undefined}>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -38,16 +41,31 @@ function ScoreRing({ score, grade, size = 120, placeholder }: { score: number; g
           strokeWidth={strokeWidth}
         />
         {placeholder ? (
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="hsl(var(--primary) / 0.4)"
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${circumference * 0.3} ${circumference * 0.7}`}
-            strokeLinecap="round"
-          />
+          hasProgress ? (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="hsl(var(--primary) / 0.4)"
+              strokeWidth={strokeWidth}
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference - progressArc}
+              strokeLinecap="round"
+              className="transition-all duration-700 ease-out"
+            />
+          ) : (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="hsl(var(--primary) / 0.4)"
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${circumference * 0.3} ${circumference * 0.7}`}
+              strokeLinecap="round"
+            />
+          )
         ) : (
           <circle
             cx={size / 2}
@@ -65,7 +83,11 @@ function ScoreRing({ score, grade, size = 120, placeholder }: { score: number; g
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         {placeholder ? (
-          <span className="text-xs font-medium text-muted-foreground">Analyzing</span>
+          hasProgress ? (
+            <span className="text-3xl font-bold text-muted-foreground">{progressPercent}%</span>
+          ) : (
+            <span className="text-xs font-medium text-muted-foreground">Analyzing</span>
+          )
         ) : (
           <>
             <span className={`text-3xl font-bold ${gradeToColor(grade as any)}`}>{grade}</span>
@@ -109,15 +131,16 @@ function CategoryPillPlaceholder({ label, iconKey }: { label: string; iconKey: s
 type Props = {
   overallScore: OverallScore;
   analyzing?: boolean;
+  progressPercent?: number;
 };
 
-export function ScoreOverview({ overallScore, analyzing }: Props) {
+export function ScoreOverview({ overallScore, analyzing, progressPercent }: Props) {
   return (
     <Card className="p-6 mb-8">
       <div className="flex flex-col sm:flex-row items-center gap-6">
         {/* Overall ring */}
         <div className="flex flex-col items-center gap-1 shrink-0">
-          <ScoreRing score={overallScore.score} grade={overallScore.grade} placeholder={analyzing} />
+          <ScoreRing score={overallScore.score} grade={overallScore.grade} placeholder={analyzing} progressPercent={progressPercent} />
           <span className="text-xs text-muted-foreground font-medium mt-1">
             {analyzing ? 'Analyzing…' : 'Overall Score'}
           </span>

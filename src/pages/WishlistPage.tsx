@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X, Wand2, ChevronDown } from 'lucide-react';
+import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AppHeader from '@/components/AppHeader';
@@ -359,9 +360,8 @@ export default function WishlistPage() {
 
         {/* Existing items list */}
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Loading…</span>
+          <div className="flex items-center justify-center py-16">
+            <BrandLoader size={48} />
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">

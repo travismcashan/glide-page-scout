@@ -8,7 +8,6 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   psi_data: 'PageSpeed Insights',
   crux_data: 'Chrome UX Report (CrUX)',
   builtwith_data: 'BuiltWith Technology Profile',
-  wappalyzer_data: 'Wappalyzer Technology Detection',
   detectzestack_data: 'DetectZeStack Analysis',
   tech_analysis_data: 'Technology Analysis',
   wave_data: 'WAVE Accessibility Scan',
@@ -29,7 +28,6 @@ const INTEGRATION_DOC_NAMES: Record<string, string> = {
   sitemap_data: 'Sitemap Analysis',
   forms_data: 'Forms Detection',
   deep_research_data: 'Deep Research Report',
-  observations_data: 'Observations & Insights',
   ga4_data: 'Google Analytics (GA4)',
   search_console_data: 'Google Search Console',
 };

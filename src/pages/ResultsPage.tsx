@@ -2,25 +2,24 @@ import { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } fro
 import { recordView } from '@/lib/recentViews';
 import { useSectionCollapse } from '@/hooks/use-section-collapse';
 const ReactMarkdown = lazy(() => import('react-markdown'));
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { ArrowUp, Menu, Brain, Building2, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, DollarSign, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
+import { ArrowUp, Menu, Brain, Building2, ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, DollarSign, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, wappalyzerApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
 import { PromptLibrary, type PromptTemplate } from '@/components/PromptLibrary';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
 import { SemrushCard } from '@/components/SemrushCard';
 import { PageSpeedCard } from '@/components/PageSpeedCard';
-import { WappalyzerCard } from '@/components/WappalyzerCard';
 import { DetectZeStackCard } from '@/components/DetectZeStackCard';
 import { TechAnalysisCard } from '@/components/TechAnalysisCard';
 import { WebsiteCarbonCard } from '@/components/WebsiteCarbonCard';
@@ -91,7 +90,7 @@ import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
-import { autoIngestIntegrations, autoIngestPages } from '@/lib/ragIngest';
+import { autoIngestIntegrations, autoIngestPages, autoIngestScreenshots } from '@/lib/ragIngest';
 import { computeOverallScore, getIntegrationScore, getCategoryScore, SECTION_TO_CATEGORY, type OverallScore, scoreToGrade } from '@/lib/siteScore';
 import { buildSitePath, tabSlugToValue, TAB_SLUGS } from '@/lib/sessionSlug';
 import { ScoreOverview } from '@/components/ScoreOverview';
@@ -124,7 +123,6 @@ type CrawlSession = {
   builtwith_data: any | null;
   semrush_data: any | null;
   psi_data: any | null;
-  wappalyzer_data: any | null;
   carbon_data: any | null;
   crux_data: any | null;
   wave_data: any | null;
@@ -145,7 +143,6 @@ type CrawlSession = {
   gtmetrix_scores: any | null;
   gtmetrix_test_id: string | null;
   deep_research_data: any | null;
-  observations_data: any | null;
   content_types_data: any | null;
   page_tags: PageTagsMap | null;
   sitemap_data: any | null;
@@ -177,7 +174,27 @@ function BackToTopButton() {
 export default function ResultsPage() {
   const params = useParams<{ sessionId?: string; domain?: string; dateSlug?: string; tab?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromGroup = (location.state as any)?.fromGroup as { id: string; name: string } | undefined;
+  const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | undefined>(fromGroup);
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (fromGroup || !resolvedSessionId) return;
+    const lookup = async () => {
+      const { data } = await supabase
+        .from('site_group_members')
+        .select('group_id, site_groups(id, name)')
+        .eq('session_id', resolvedSessionId)
+        .limit(1)
+        .single();
+      if (data?.site_groups) {
+        const g = data.site_groups as any;
+        setGroupInfo({ id: g.id, name: g.name });
+      }
+    };
+    lookup();
+  }, [resolvedSessionId, fromGroup]);
 
   // Resolve friendly slug to session ID
   useEffect(() => {
@@ -221,6 +238,7 @@ export default function ResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isSharedView = searchParams.get('view') === 'shared';
   const [session, setSession] = useState<CrawlSession | null>(null);
+  const [integrationRunStatuses, setIntegrationRunStatuses] = useState<Record<string, string>>({});
   const [pages, setPages] = useState<CrawlPage[]>([]);
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const [processingPages, setProcessingPages] = useState<Set<string>>(new Set());
@@ -229,7 +247,6 @@ export default function ResultsPage() {
   const [builtwithLoading, setBuiltwithLoading] = useState(false);
   const [semrushLoading, setSemrushLoading] = useState(false);
   const [psiLoading, setPsiLoading] = useState(false);
-  const [wappalyzerLoading, setWappalyzerLoading] = useState(false);
   const [detectzestackLoading, setDetectzestackLoading] = useState(false);
   const [carbonLoading, setCarbonLoading] = useState(false);
   const [cruxLoading, setCruxLoading] = useState(false);
@@ -240,16 +257,34 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [discoveredUrls, setDiscoveredUrls] = useState<string[]>([]);
   const [sitemapHints, setSitemapHints] = useState<{ label: string; urls: string[] }[]>([]);
+  // Per-session "collapse all" state — defaults to false (all open) for new sessions
   const [allCollapsed, setAllCollapsed] = useState(() => {
-    try { return localStorage.getItem('all-cards-collapsed') === 'true'; } catch { return false; }
+    if (!sessionId) return false;
+    try {
+      const raw = localStorage.getItem('all-cards-collapsed-sessions');
+      if (!raw) return false;
+      const map = JSON.parse(raw);
+      return map[sessionId] === true;
+    } catch { return false; }
   });
   const handleSetAllCollapsed = (v: boolean) => {
     setAllCollapsed(v);
-    try { localStorage.setItem('all-cards-collapsed', String(v)); } catch {}
+    if (!sessionId) return;
+    try {
+      const raw = localStorage.getItem('all-cards-collapsed-sessions');
+      const map = raw ? JSON.parse(raw) : {};
+      map[sessionId] = v;
+      // Keep only last 20 sessions
+      const keys = Object.keys(map);
+      if (keys.length > 20) keys.slice(0, keys.length - 20).forEach(k => delete map[k]);
+      localStorage.setItem('all-cards-collapsed-sessions', JSON.stringify(map));
+    } catch {}
   };
 
   // Guard: don't fire site-analysis integrations for synthetic sessions (e.g. global chat)
   const isRealSite = !!session?.domain && !session.domain.startsWith('__');
+  // Guard: don't re-trigger integrations if server-side crawl already completed
+  const serverCompleted = session?.status === 'completed' || session?.status === 'completed_with_errors';
 
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
@@ -297,10 +332,11 @@ export default function ResultsPage() {
     });
   };
   const [showAllIntegrations, setShowAllIntegrations] = useState(false);
-  const freezeVisibilityForCompletedSession = session?.status === 'completed';
+  const freezeVisibilityForCompletedSession = serverCompleted;
   // Pending prompt from Prompts tab → passed to chat
   const [pendingPrompt, setPendingPrompt] = useState<{ text: string; deepResearch: boolean } | null>(null);
   const ragIngestTriggeredRef = useRef(false);
+  const autoIndexTriggered = useRef(false);
   // Tab from URL path param or query string fallback
   const urlTab = params.tab;
   const activeTab = urlTab && TAB_SLUGS.includes(urlTab as any) ? tabSlugToValue(urlTab) : (searchParams.get('tab') || 'raw-data');
@@ -407,10 +443,17 @@ export default function ResultsPage() {
   }, []);
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
-    const [sessionRes, pagesRes] = await Promise.all([
+    const [sessionRes, pagesRes, runsRes] = await Promise.all([
       supabase.from('crawl_sessions').select('*').eq('id', sessionId).single(),
       supabase.from('crawl_pages').select('*').eq('session_id', sessionId),
+      supabase.from('integration_runs').select('integration_key, status').eq('session_id', sessionId),
     ]);
+    // Store integration_runs statuses for server-completed sessions
+    if (runsRes.data) {
+      const map: Record<string, string> = {};
+      runsRes.data.forEach((r: any) => { map[r.integration_key] = r.status; });
+      setIntegrationRunStatuses(map);
+    }
     if (sessionRes.data) {
       const sessionData = sessionRes.data as any;
       setSession(sessionData as unknown as CrawlSession);
@@ -429,7 +472,6 @@ export default function ResultsPage() {
         ['builtwith_data', setBuiltwithFailed, 'builtwith'],
         ['semrush_data', setSemrushFailed, 'semrush'],
         ['psi_data', setPsiFailed, 'psi'],
-        ['wappalyzer_data', setWappalyzerFailed, 'wappalyzer'],
         ['detectzestack_data', setDetectzestackFailed, 'detectzestack'],
         ['carbon_data', setCarbonFailed, 'carbon'],
         ['crux_data', setCruxFailed, 'crux'],
@@ -483,7 +525,7 @@ export default function ResultsPage() {
   // When server-side orchestration completes an integration, re-fetch its data
   const INTEGRATION_COLUMN_MAP: Record<string, string> = {
     builtwith: 'builtwith_data', semrush: 'semrush_data', psi: 'psi_data',
-    wappalyzer: 'wappalyzer_data', detectzestack: 'detectzestack_data',
+    detectzestack: 'detectzestack_data',
     gtmetrix: 'gtmetrix_scores', carbon: 'carbon_data', crux: 'crux_data',
     wave: 'wave_data', observatory: 'observatory_data', ocean: 'ocean_data',
     ssllabs: 'ssllabs_data', httpstatus: 'httpstatus_data',
@@ -493,7 +535,7 @@ export default function ResultsPage() {
     'firecrawl-map': 'discovered_urls', 'tech-analysis': 'tech_analysis_data',
     avoma: 'avoma_data', apollo: 'apollo_data', hubspot: 'hubspot_data',
     'content-types': 'content_types_data', forms: 'forms_data',
-    'apollo-team': 'apollo_team_data', observations: 'observations_data',
+    'apollo-team': 'apollo_team_data',
     ga4: 'ga4_data', 'search-console': 'search_console_data',
   };
 
@@ -525,7 +567,7 @@ export default function ResultsPage() {
                 // Mark the triggered ref so client-side effect doesn't re-fire
                 const refMap: Record<string, any> = {
                   builtwith: builtwithTriggeredRef, semrush: semrushTriggeredRef,
-                  psi: psiTriggeredRef, wappalyzer: wappalyzerTriggeredRef,
+                  psi: psiTriggeredRef,
                   detectzestack: detectzestackTriggeredRef,
                 };
                 if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
@@ -538,7 +580,7 @@ export default function ResultsPage() {
               // Mark triggered ref
               const refMap: Record<string, any> = {
                 builtwith: builtwithTriggeredRef, semrush: semrushTriggeredRef,
-                psi: psiTriggeredRef, wappalyzer: wappalyzerTriggeredRef,
+                psi: psiTriggeredRef,
                 detectzestack: detectzestackTriggeredRef,
               };
               if (refMap[row.integration_key]) refMap[row.integration_key].current = true;
@@ -559,11 +601,11 @@ export default function ResultsPage() {
     analysisStoppedRef.current = true;
     setAnalysisStopped(true);
     // Set all trigger refs to prevent any new effects from firing
-    [builtwithTriggeredRef, semrushTriggeredRef, psiTriggeredRef, wappalyzerTriggeredRef,
+    [builtwithTriggeredRef, semrushTriggeredRef, psiTriggeredRef,
      detectzestackTriggeredRef, gtmetrixTriggeredRef, carbonTriggeredRef, cruxTriggeredRef,
      waveTriggeredRef, observatoryTriggeredRef, httpstatusTriggeredRef, w3cTriggeredRef,
      schemaTriggeredRef, readableTriggeredRef, navTriggeredRef, sitemapTriggeredRef,
-     contentTypesTriggeredRef, ga4TriggeredRef, gscTriggeredRef,
+     contentTypesTriggeredRef,
      oceanTriggeredRef, avomaTriggeredRef, hubspotTriggeredRef,
      yellowlabPollingRef, linkcheckRunningRef, formsAutoRunRef, autoTagTriedRef,
     ].forEach(ref => { ref.current = true; });
@@ -576,7 +618,6 @@ export default function ResultsPage() {
   const builtwithTriggeredRef = useRef(false);
   const semrushTriggeredRef = useRef(false);
   const psiTriggeredRef = useRef(false);
-  const wappalyzerTriggeredRef = useRef(false);
   const detectzestackTriggeredRef = useRef(false);
   const gtmetrixTriggeredRef = useRef(false);
   const carbonTriggeredRef = useRef(false);
@@ -590,14 +631,12 @@ export default function ResultsPage() {
   const navTriggeredRef = useRef(false);
   const sitemapTriggeredRef = useRef(false);
   const contentTypesTriggeredRef = useRef(false);
-  const ga4TriggeredRef = useRef(false);
-  const gscTriggeredRef = useRef(false);
 
   // BuiltWith
   const [builtwithFailed, setBuiltwithFailed] = useState(false);
   const [builtwithCredits, setBuiltwithCredits] = useState<{ available?: string | null; used?: string | null; remaining?: string | null } | null>(null);
   useEffect(() => {
-    if (!session || !isRealSite || session.builtwith_data || builtwithLoading || builtwithFailed || isIntegrationPaused('builtwith')) return;
+    if (!session || !isRealSite || serverCompleted || session.builtwith_data || builtwithLoading || builtwithFailed || isIntegrationPaused('builtwith')) return;
     if (builtwithTriggeredRef.current) return;
     builtwithTriggeredRef.current = true;
     setBuiltwithLoading(true);
@@ -620,7 +659,7 @@ export default function ResultsPage() {
   // SEMrush
   const [semrushFailed, setSemrushFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.semrush_data || semrushLoading || semrushFailed || isIntegrationPaused('semrush')) return;
+    if (!session || !isRealSite || serverCompleted || session.semrush_data || semrushLoading || semrushFailed || isIntegrationPaused('semrush')) return;
     if (semrushTriggeredRef.current) return;
     semrushTriggeredRef.current = true;
     setSemrushLoading(true);
@@ -642,7 +681,7 @@ export default function ResultsPage() {
   // PSI
   const [psiFailed, setPsiFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.psi_data || psiLoading || psiFailed || isIntegrationPaused('psi')) return;
+    if (!session || !isRealSite || serverCompleted || session.psi_data || psiLoading || psiFailed || isIntegrationPaused('psi')) return;
     if (psiTriggeredRef.current) return;
     psiTriggeredRef.current = true;
     setPsiLoading(true);
@@ -656,13 +695,10 @@ export default function ResultsPage() {
       setPsiLoading(false);
     }).catch((e) => { const msg = e?.message || 'PageSpeed request failed'; setPsiFailed(true); setError('psi', msg); persistFailure('psi_data', msg); setPsiLoading(false); });
   }, [session, psiLoading, psiFailed, pauseVersion]);
-  // Wappalyzer — disabled (no API key)
-  const [wappalyzerFailed, setWappalyzerFailed] = useState(true);
-  const wappalyzerDisabled = true;
   // DetectZeStack
   const [detectzestackFailed, setDetectzestackFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).detectzestack_data || detectzestackLoading || detectzestackFailed || isIntegrationPaused('detectzestack')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).detectzestack_data || detectzestackLoading || detectzestackFailed || isIntegrationPaused('detectzestack')) return;
     if (detectzestackTriggeredRef.current) return;
     detectzestackTriggeredRef.current = true;
     setDetectzestackLoading(true);
@@ -698,16 +734,14 @@ export default function ResultsPage() {
     if (session.tech_analysis_data) { techAnalysisTriggeredRef.current = true; return; }
     const bw = session.builtwith_data;
     const dz = (session as any).detectzestack_data;
-    const wp = session.wappalyzer_data;
-    if (!bw && !dz && !wp) return;
+    if (!bw && !dz) return;
     const bwReady = !!bw || isIntegrationPaused('builtwith') || builtwithFailed || (!builtwithLoading && !bw);
     const dzReady = !!dz || isIntegrationPaused('detectzestack') || detectzestackFailed || (!detectzestackLoading && !dz);
-    const wpReady = !!wp || isIntegrationPaused('wappalyzer') || wappalyzerFailed || (!wappalyzerLoading && !wp);
-    if (!bwReady || !dzReady || !wpReady) return;
+    if (!bwReady || !dzReady) return;
 
     techAnalysisTriggeredRef.current = true;
     setTechAnalysisLoading(true);
-    techAnalysisApi.analyze(bw, dz, wp, session.domain).then(async (result) => {
+    techAnalysisApi.analyze(bw, dz, session.domain).then(async (result) => {
       if (result.success) {
         const data = { analysis: result.analysis, techCount: result.techCount, sourceCount: result.sourceCount, sources: result.sources };
         setTechAnalysisData(data);
@@ -722,11 +756,11 @@ export default function ResultsPage() {
       }
       setTechAnalysisLoading(false);
     }).catch((e) => { const msg = e?.message || 'AI tech analysis failed'; setTechAnalysisFailed(true); setError('tech-analysis', msg); persistFailure('tech_analysis_data', msg); setTechAnalysisLoading(false); });
-  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, wappalyzerFailed, builtwithLoading, detectzestackLoading, wappalyzerLoading, pauseVersion]);
+  }, [session, techAnalysisData, techAnalysisLoading, techAnalysisFailed, builtwithFailed, detectzestackFailed, builtwithLoading, detectzestackLoading, pauseVersion]);
 
   const [gtmetrixFailed, setGtmetrixFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
+    if (!session || !isRealSite || serverCompleted || session.gtmetrix_grade || session.gtmetrix_test_id || runningGtmetrix || gtmetrixFailed || isIntegrationPaused('gtmetrix')) return;
     if (gtmetrixTriggeredRef.current) return;
     gtmetrixTriggeredRef.current = true;
     setRunningGtmetrix(true);
@@ -742,7 +776,7 @@ export default function ResultsPage() {
   // Carbon
   const [carbonFailed, setCarbonFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.carbon_data || carbonLoading || carbonFailed || isIntegrationPaused('carbon')) return;
+    if (!session || !isRealSite || serverCompleted || session.carbon_data || carbonLoading || carbonFailed || isIntegrationPaused('carbon')) return;
     if (carbonTriggeredRef.current) return;
     carbonTriggeredRef.current = true;
     setCarbonLoading(true);
@@ -760,7 +794,7 @@ export default function ResultsPage() {
   const [cruxFailed, setCruxFailed] = useState(false);
   const [cruxNoData, setCruxNoData] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.crux_data || cruxLoading || cruxFailed || cruxNoData || isIntegrationPaused('crux')) return;
+    if (!session || !isRealSite || serverCompleted || session.crux_data || cruxLoading || cruxFailed || cruxNoData || isIntegrationPaused('crux')) return;
     if (cruxTriggeredRef.current) return;
     cruxTriggeredRef.current = true;
     setCruxLoading(true);
@@ -780,7 +814,7 @@ export default function ResultsPage() {
   // WAVE
   const [waveFailed, setWaveFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.wave_data || waveLoading || waveFailed || isIntegrationPaused('wave')) return;
+    if (!session || !isRealSite || serverCompleted || session.wave_data || waveLoading || waveFailed || isIntegrationPaused('wave')) return;
     if (waveTriggeredRef.current) return;
     waveTriggeredRef.current = true;
     setWaveLoading(true);
@@ -797,7 +831,7 @@ export default function ResultsPage() {
   // Mozilla Observatory
   const [observatoryFailed, setObservatoryFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.observatory_data || observatoryLoading || observatoryFailed || isIntegrationPaused('observatory')) return;
+    if (!session || !isRealSite || serverCompleted || session.observatory_data || observatoryLoading || observatoryFailed || isIntegrationPaused('observatory')) return;
     if (observatoryTriggeredRef.current) return;
     observatoryTriggeredRef.current = true;
     setObservatoryLoading(true);
@@ -816,7 +850,7 @@ export default function ResultsPage() {
   const [oceanFailed, setOceanFailed] = useState(false);
   const oceanTriggeredRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
+    if (!session || !isRealSite || serverCompleted || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
     if (oceanTriggeredRef.current) return;
     oceanTriggeredRef.current = true;
     setOceanLoading(true);
@@ -835,7 +869,7 @@ export default function ResultsPage() {
   const [avomaProgress, setAvomaProgress] = useState<{ page: number; meetingsScanned: number; totalMeetings: number; matchesFound: number; phase: string } | null>(null);
   const avomaTriggeredRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
     if (avomaTriggeredRef.current) return;
     avomaTriggeredRef.current = true;
     setAvomaLoading(true);
@@ -862,7 +896,7 @@ export default function ResultsPage() {
   const [hubspotFailed, setHubspotFailed] = useState(false);
   const hubspotTriggeredRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).hubspot_data || hubspotLoading || hubspotFailed || isIntegrationPaused('hubspot')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).hubspot_data || hubspotLoading || hubspotFailed || isIntegrationPaused('hubspot')) return;
     if (hubspotTriggeredRef.current) return;
     hubspotTriggeredRef.current = true;
     setHubspotLoading(true);
@@ -935,7 +969,7 @@ export default function ResultsPage() {
 
   // Auto-enrich Apollo using primary HubSpot contact
   useEffect(() => {
-    if (apolloAutoTriggered.current) return;
+    if (serverCompleted || apolloAutoTriggered.current) return;
     if (apolloLoading || apolloData || session?.apollo_data) return;
     if (isIntegrationPaused('apollo')) return;
     const hubspot = (session as any)?.hubspot_data;
@@ -960,7 +994,7 @@ export default function ResultsPage() {
 
   // Auto-trigger team search once Apollo enrichment completes with org domain
   useEffect(() => {
-    if (apolloTeamAutoTriggered.current) return;
+    if (serverCompleted || apolloTeamAutoTriggered.current) return;
     if (apolloTeamLoading || apolloTeamData || (session as any)?.apollo_team_data) return;
     if (isIntegrationPaused('apollo')) return;
     const domain = apolloData?.organizationDomain || prospectingDomain;
@@ -982,7 +1016,7 @@ export default function ResultsPage() {
   const ssllabsPollingRef = useRef(false);
 
   const runSslLabsScan = useCallback(async () => {
-    if (!session || !isRealSite || ssllabsPollingRef.current) return;
+    if (!session || !isRealSite || serverCompleted || ssllabsPollingRef.current) return;
     ssllabsPollingRef.current = true;
     setSsllabsLoading(true);
     setSsllabsFailed(false);
@@ -1073,7 +1107,7 @@ export default function ResultsPage() {
   const [httpstatusLoading, setHttpstatusLoading] = useState(false);
   const [httpstatusFailed, setHttpstatusFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.httpstatus_data || httpstatusLoading || httpstatusFailed || isIntegrationPaused('httpstatus')) return;
+    if (!session || !isRealSite || serverCompleted || session.httpstatus_data || httpstatusLoading || httpstatusFailed || isIntegrationPaused('httpstatus')) return;
     if (httpstatusTriggeredRef.current) return;
     httpstatusTriggeredRef.current = true;
     setHttpstatusLoading(true);
@@ -1090,7 +1124,7 @@ export default function ResultsPage() {
   const [w3cLoading, setW3cLoading] = useState(false);
   const [w3cFailed, setW3cFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.w3c_data || w3cLoading || w3cFailed || isIntegrationPaused('w3c')) return;
+    if (!session || !isRealSite || serverCompleted || session.w3c_data || w3cLoading || w3cFailed || isIntegrationPaused('w3c')) return;
     if (w3cTriggeredRef.current) return;
     w3cTriggeredRef.current = true;
     setW3cLoading(true);
@@ -1107,7 +1141,7 @@ export default function ResultsPage() {
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaFailed, setSchemaFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.schema_data || schemaLoading || schemaFailed || isIntegrationPaused('schema')) return;
+    if (!session || !isRealSite || serverCompleted || session.schema_data || schemaLoading || schemaFailed || isIntegrationPaused('schema')) return;
     if (schemaTriggeredRef.current) return;
     schemaTriggeredRef.current = true;
     setSchemaLoading(true);
@@ -1124,7 +1158,7 @@ export default function ResultsPage() {
   const [readableLoading, setReadableLoading] = useState(false);
   const [readableFailed, setReadableFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).readable_data || readableLoading || readableFailed || isIntegrationPaused('readable')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).readable_data || readableLoading || readableFailed || isIntegrationPaused('readable')) return;
     if (readableTriggeredRef.current) return;
     readableTriggeredRef.current = true;
     setReadableLoading(true);
@@ -1142,7 +1176,7 @@ export default function ResultsPage() {
   const [yellowlabFailed, setYellowlabFailed] = useState(false);
   const yellowlabPollingRef = useRef(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).yellowlab_data || yellowlabLoading || yellowlabFailed || isIntegrationPaused('yellowlab') || yellowlabPollingRef.current) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).yellowlab_data || yellowlabLoading || yellowlabFailed || isIntegrationPaused('yellowlab') || yellowlabPollingRef.current) return;
     yellowlabPollingRef.current = true;
     setYellowlabLoading(true);
 
@@ -1210,7 +1244,13 @@ export default function ResultsPage() {
   const [linkcheckStreamingResults, setLinkcheckStreamingResults] = useState<{ url: string; statusCode: number }[] | null>(null);
   const linkcheckRunningRef = useRef(false);
   const linkcheckAbortRef = useRef<AbortController | null>(null);
-  const effectiveDiscoveredUrls = discoveredUrls.length > 0 ? discoveredUrls : (session?.discovered_urls || []);
+  const effectiveDiscoveredUrls = discoveredUrls.length > 0
+    ? discoveredUrls
+    : Array.isArray(session?.discovered_urls)
+      ? session.discovered_urls
+      : Array.isArray((session?.discovered_urls as any)?.urls)
+        ? (session.discovered_urls as any).urls
+        : [];
 
   // Unified scoring system
   const overallScore = useMemo(() => computeOverallScore(session), [session]);
@@ -1230,7 +1270,7 @@ export default function ResultsPage() {
   }, []);
 
   useEffect(() => {
-    if (!session || !isRealSite || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
+    if (!session || !isRealSite || serverCompleted || session.linkcheck_data || linkcheckLoading || linkcheckFailed || isIntegrationPaused('link-checker') || effectiveDiscoveredUrls.length === 0) return;
     if (linkcheckRunningRef.current) return;
     linkcheckRunningRef.current = true;
     // Snapshot URLs at start so mid-run URL changes don't cause issues
@@ -1262,7 +1302,7 @@ export default function ResultsPage() {
   const [navLoading, setNavLoading] = useState(false);
   const [navFailed, setNavFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).nav_structure || navLoading || navFailed || isIntegrationPaused('nav-structure')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).nav_structure || navLoading || navFailed || isIntegrationPaused('nav-structure')) return;
     if (navTriggeredRef.current) return;
     navTriggeredRef.current = true;
     setNavLoading(true);
@@ -1279,7 +1319,7 @@ export default function ResultsPage() {
   const [sitemapLoading, setSitemapLoading] = useState(false);
   const [sitemapFailed, setSitemapFailed] = useState(false);
   useEffect(() => {
-    if (!session || !isRealSite || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
+    if (!session || !isRealSite || serverCompleted || session.sitemap_data || sitemapLoading || sitemapFailed || isIntegrationPaused('sitemap')) return;
     if (sitemapTriggeredRef.current) return;
     sitemapTriggeredRef.current = true;
     setSitemapLoading(true);
@@ -1317,7 +1357,7 @@ export default function ResultsPage() {
   const visibleFormsData = (session as any)?.forms_data ?? (formsLoading ? lastFormsData : null);
 
   const runFormsDetection = useCallback(async () => {
-    if (!session || !isRealSite || formsLoading) return;
+    if (!session || !isRealSite || serverCompleted || formsLoading) return;
     setFormsLoading(true);
     setFormsFailed(false);
     clearError('forms');
@@ -1373,7 +1413,7 @@ export default function ResultsPage() {
   const [contentTypesFailed, setContentTypesFailed] = useState(false);
   const [contentTypesProgress, setContentTypesProgress] = useState('');
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).content_types_data || contentTypesLoading || contentTypesFailed || isIntegrationPaused('content-types')) return;
     if (!effectiveDiscoveredUrls.length) return;
     if (contentTypesTriggeredRef.current) return;
     contentTypesTriggeredRef.current = true;
@@ -1395,56 +1435,174 @@ export default function ResultsPage() {
     }).catch((e) => { const msg = e?.message || 'Content type classification request failed'; setContentTypesFailed(true); setError('content-types', msg); persistFailure('content_types_data', msg); setContentTypesLoading(false); setContentTypesProgress(''); });
   }, [session, contentTypesLoading, contentTypesFailed, effectiveDiscoveredUrls, pauseVersion]);
 
-  // GA4
+  // GA4 — no auto-trigger; user connects and picks property on the card
   const [ga4Failed, setGa4Failed] = useState(false);
   const [ga4Selecting, setGa4Selecting] = useState(false);
+  const [ga4Connected, setGa4Connected] = useState(false);
+  const [ga4Connecting, setGa4Connecting] = useState(false);
+  const [ga4AvailableProperties, setGa4AvailableProperties] = useState<{ name: string; id: string }[]>([]);
+  const [ga4FetchingProperties, setGa4FetchingProperties] = useState(false);
+
+  // Search Console — no auto-trigger; user connects and picks site on the card
+  const [gscFailed, setGscFailed] = useState(false);
+  const [gscSelecting, setGscSelecting] = useState(false);
+  const [gscConnected, setGscConnected] = useState(false);
+  const [gscConnecting, setGscConnecting] = useState(false);
+  const [gscAvailableSites, setGscAvailableSites] = useState<{ url: string; permissionLevel: string }[]>([]);
+  const [gscFetchingSites, setGscFetchingSites] = useState(false);
+
+  // Check GA4 & GSC connection status on mount
+  const oauthUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
+  const oauthHeaders = useMemo(() => ({
+    'Content-Type': 'application/json',
+    'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+  }), []);
+
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).ga4_data || ga4Loading || ga4Failed || isIntegrationPaused('ga4')) return;
-    if (ga4TriggeredRef.current) return;
-    ga4TriggeredRef.current = true;
-    setGa4Loading(true);
-    ga4Api.lookup(session.domain).then(async (result) => {
+    (async () => {
+      try {
+        const res = await fetch(oauthUrl, { method: 'POST', headers: oauthHeaders, body: JSON.stringify({ action: 'list' }) });
+        const data = await res.json();
+        const conns = data.connections || [];
+        setGa4Connected(conns.some((c: any) => c.provider === 'google-analytics'));
+        setGscConnected(conns.some((c: any) => c.provider === 'google-search-console'));
+      } catch {}
+    })();
+  }, []);
+
+  // If already has persisted data with found=true, mark as connected
+  useEffect(() => {
+    const ga4Data = (session as any)?.ga4_data;
+    if (ga4Data && ga4Data.found) setGa4Connected(true);
+    const gscData = (session as any)?.search_console_data;
+    if (gscData && gscData.found) setGscConnected(true);
+  }, [session]);
+
+  const loadGsiScript = useCallback(async () => {
+    if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) return;
+    await new Promise<void>((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.onload = () => resolve();
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }, []);
+
+  const connectGoogleOAuth = useCallback(async (provider: string, scope: string): Promise<boolean> => {
+    try {
+      const configRes = await fetch(oauthUrl, { method: 'POST', headers: oauthHeaders, body: JSON.stringify({ action: 'get-config' }) });
+      const { clientId } = await configRes.json();
+      if (!clientId) return false;
+      await loadGsiScript();
+      const code = await new Promise<string>((resolve, reject) => {
+        const client = (window as any).google.accounts.oauth2.initCodeClient({
+          client_id: clientId,
+          scope,
+          ux_mode: 'popup',
+          callback: (response: any) => {
+            if (response.error) reject(new Error(response.error));
+            else resolve(response.code);
+          },
+        });
+        client.requestCode();
+      });
+      const exchangeRes = await fetch(oauthUrl, {
+        method: 'POST', headers: oauthHeaders,
+        body: JSON.stringify({ action: 'exchange', code, redirectUri: window.location.origin, provider }),
+      });
+      if (!exchangeRes.ok) return false;
+      return true;
+    } catch { return false; }
+  }, [oauthUrl, oauthHeaders, loadGsiScript]);
+
+  const handleConnectGA4 = useCallback(async () => {
+    setGa4Connecting(true);
+    const ok = await connectGoogleOAuth('google-analytics', 'https://www.googleapis.com/auth/analytics.readonly email profile');
+    if (ok) {
+      setGa4Connected(true);
+      // Auto-fetch properties after connecting
+      if (session) {
+        setGa4Loading(true);
+        try {
+          const result = await ga4Api.lookup(session.domain);
+          if (result.success) {
+            const saved = result.data || result;
+            await supabase.from('crawl_sessions').update({ ga4_data: saved } as any).eq('id', session.id);
+            clearError('ga4');
+            updateSession({ ga4_data: saved } as any);
+          } else if (result.availableProperties?.length) {
+            setGa4AvailableProperties(result.availableProperties);
+          }
+        } catch {}
+        setGa4Loading(false);
+      }
+    }
+    setGa4Connecting(false);
+  }, [session, connectGoogleOAuth]);
+
+  const handleConnectGSC = useCallback(async () => {
+    setGscConnecting(true);
+    const ok = await connectGoogleOAuth('google-search-console', 'https://www.googleapis.com/auth/webmasters.readonly email profile');
+    if (ok) {
+      setGscConnected(true);
+      // Auto-fetch sites after connecting
+      if (session) {
+        setGscLoading(true);
+        try {
+          const result = await searchConsoleApi.lookup(session.domain);
+          if (result.success) {
+            const saved = result.data || result;
+            await supabase.from('crawl_sessions').update({ search_console_data: saved } as any).eq('id', session.id);
+            clearError('search-console');
+            updateSession({ search_console_data: saved } as any);
+          } else if (result.availableSites?.length) {
+            setGscAvailableSites(result.availableSites);
+          }
+        } catch {}
+        setGscLoading(false);
+      }
+    }
+    setGscConnecting(false);
+  }, [session, connectGoogleOAuth]);
+
+  const handleFetchGA4Properties = useCallback(async () => {
+    if (!session) return;
+    setGa4FetchingProperties(true);
+    try {
+      const result = await ga4Api.lookup(session.domain);
       if (result.success) {
         const saved = result.data || result;
         await supabase.from('crawl_sessions').update({ ga4_data: saved } as any).eq('id', session.id);
         clearError('ga4');
         updateSession({ ga4_data: saved } as any);
-      } else {
-        setGa4Failed(true);
-        const msg = result.error || 'GA4 lookup failed';
-        setError('ga4', msg);
-        persistFailure('ga4_data', msg);
+      } else if (result.availableProperties?.length) {
+        setGa4AvailableProperties(result.availableProperties);
       }
-      setGa4Loading(false);
-    }).catch((e) => { const msg = e?.message || 'GA4 request failed'; setGa4Failed(true); setError('ga4', msg); persistFailure('ga4_data', msg); setGa4Loading(false); });
-  }, [session, ga4Loading, ga4Failed, pauseVersion]);
+    } catch {}
+    setGa4FetchingProperties(false);
+  }, [session]);
 
-  // Search Console
-  const [gscFailed, setGscFailed] = useState(false);
-  const [gscSelecting, setGscSelecting] = useState(false);
-  useEffect(() => {
-    if (!session || !isRealSite || (session as any).search_console_data || gscLoading || gscFailed || isIntegrationPaused('search-console')) return;
-    if (gscTriggeredRef.current) return;
-    gscTriggeredRef.current = true;
-    setGscLoading(true);
-    searchConsoleApi.lookup(session.domain).then(async (result) => {
+  const handleFetchGSCSites = useCallback(async () => {
+    if (!session) return;
+    setGscFetchingSites(true);
+    try {
+      const result = await searchConsoleApi.lookup(session.domain);
       if (result.success) {
         const saved = result.data || result;
         await supabase.from('crawl_sessions').update({ search_console_data: saved } as any).eq('id', session.id);
         clearError('search-console');
         updateSession({ search_console_data: saved } as any);
-      } else {
-        setGscFailed(true);
-        const msg = result.error || 'Search Console lookup failed';
-        setError('search-console', msg);
-        persistFailure('search_console_data', msg);
+      } else if (result.availableSites?.length) {
+        setGscAvailableSites(result.availableSites);
       }
-      setGscLoading(false);
-    }).catch((e) => { const msg = e?.message || 'Search Console request failed'; setGscFailed(true); setError('search-console', msg); persistFailure('search_console_data', msg); setGscLoading(false); });
-  }, [session, gscLoading, gscFailed, pauseVersion]);
+    } catch {}
+    setGscFetchingSites(false);
+  }, [session]);
   // Auto-run forms detection after content types and nav structure are ready
   useEffect(() => {
-    if (!session || !isRealSite || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
+    if (!session || !isRealSite || serverCompleted || (session as any).forms_data || formsLoading || formsFailed || formsAutoRunRef.current || isIntegrationPaused('forms')) return;
     if (effectiveDiscoveredUrls.length === 0) return;
     if (!contentTypesFailed && !(session as any).content_types_data) return;
     if (!navFailed && !(session as any).nav_structure) return;
@@ -1462,7 +1620,7 @@ export default function ResultsPage() {
   const prerequisitesReady = contentTypesReady && navReady && effectiveDiscoveredUrls.length > 0;
 
   useEffect(() => {
-    if (!session || !isRealSite || !prerequisitesReady || autoTagging || autoTagTriedRef.current) return;
+    if (!session || !isRealSite || serverCompleted || !prerequisitesReady || autoTagging || autoTagTriedRef.current) return;
     // Only auto-seed if page_tags is empty/null
     if ((session as any).page_tags && Object.keys((session as any).page_tags).length > 0) return;
 
@@ -1621,7 +1779,7 @@ export default function ResultsPage() {
 
   // Mark session complete
   useEffect(() => {
-    if (!session || !isRealSite || session.status !== 'crawling') return;
+    if (!session || !isRealSite || serverCompleted || session.status !== 'crawling') return;
     const allDone = pages.length > 0 && pages.every(p => p.status !== 'pending');
     if (allDone) {
       supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => updateSession({ status: 'completed' } as any));
@@ -1629,59 +1787,75 @@ export default function ResultsPage() {
   }, [pages, session]);
 
   // ── Re-run helpers ──
+  // Integration key → edge function name mapping (must match crawl-start INTEGRATIONS)
+  const INTEGRATION_FN_MAP: Record<string, string> = {
+    builtwith: 'builtwith-lookup', semrush: 'semrush-domain', psi: 'pagespeed-insights',
+    detectzestack: 'detectzestack-lookup', gtmetrix: 'gtmetrix-test', carbon: 'website-carbon',
+    crux: 'crux-lookup', wave: 'wave-lookup', observatory: 'observatory-scan',
+    httpstatus: 'httpstatus-check', w3c: 'w3c-validate', schema: 'schema-validate',
+    readable: 'readable-score', yellowlab: 'yellowlab-scan', ocean: 'ocean-enrich',
+    hubspot: 'hubspot-lookup', sitemap: 'sitemap-parse', 'nav-structure': 'nav-extract',
+    'firecrawl-map': 'firecrawl-map', 'tech-analysis': 'tech-analysis',
+    avoma: 'avoma-lookup', apollo: 'apollo-enrich', 'content-types': 'content-types',
+    forms: 'forms-detect', 'link-checker': 'link-checker', 'apollo-team': 'apollo-team-search',
+    'page-tags': 'page-tag-orchestrate',
+  };
+
   const rerunIntegration = useCallback(async (key: string, dbColumn: string) => {
     if (!session) return;
-    // Clear stored data
+
+    // Snapshot scroll position
+    const cardEl = document.querySelector(`[data-section-id="${key}"]`);
+    const cardTop = cardEl?.getBoundingClientRect().top ?? null;
+
+    // 1. Clear data in DB
     await supabase.from('crawl_sessions').update({ [dbColumn]: null } as any).eq('id', session.id);
-    // Clear local error & failed state
+
+    // 2. Reset session status if it was completed
+    if (session.status === 'completed' || session.status === 'completed_with_errors') {
+      await supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', session.id);
+      updateSession({ status: 'analyzing' } as any);
+    }
+
+    // 3. Reset integration_run to pending
+    await supabase.from('integration_runs')
+      .update({ status: 'pending', error_message: null })
+      .eq('session_id', session.id)
+      .eq('integration_key', key);
+
+    // 4. Clear local UI state
     clearError(key);
-    // Reset failed flags & polling refs so useEffect re-triggers
-    const resetMap: Record<string, () => void> = {
-      builtwith: () => { setBuiltwithFailed(false); setBuiltwithLoading(false); builtwithTriggeredRef.current = false; },
-      semrush: () => { setSemrushFailed(false); setSemrushLoading(false); semrushTriggeredRef.current = false; },
-      psi: () => { setPsiFailed(false); setPsiLoading(false); psiTriggeredRef.current = false; },
-      wappalyzer: () => { setWappalyzerFailed(false); setWappalyzerLoading(false); wappalyzerTriggeredRef.current = false; },
-      detectzestack: () => { setDetectzestackFailed(false); setDetectzestackLoading(false); detectzestackTriggeredRef.current = false; },
-      gtmetrix: () => { setGtmetrixFailed(false); setRunningGtmetrix(false); gtmetrixTriggeredRef.current = false; },
-      carbon: () => { setCarbonFailed(false); setCarbonLoading(false); carbonTriggeredRef.current = false; },
-      crux: () => { setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); cruxTriggeredRef.current = false; },
-      wave: () => { setWaveFailed(false); setWaveLoading(false); waveTriggeredRef.current = false; },
-      observatory: () => { setObservatoryFailed(false); setObservatoryLoading(false); observatoryTriggeredRef.current = false; },
-      ocean: () => { setOceanFailed(false); setOceanLoading(false); oceanTriggeredRef.current = false; },
-      avoma: () => { setAvomaFailed(false); setAvomaLoading(false); avomaTriggeredRef.current = false; },
-      hubspot: () => { setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false; },
-      apollo: () => { setApolloData(null); setApolloTeamData(null); setApolloLoading(false); apolloAutoTriggered.current = false; apolloTeamAutoTriggered.current = false; supabase.from('crawl_sessions').update({ apollo_team_data: null } as any).eq('id', session!.id).then(); },
-      ssllabs: () => { setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false; },
-      httpstatus: () => { setHttpstatusFailed(false); setHttpstatusLoading(false); httpstatusTriggeredRef.current = false; },
-      w3c: () => { setW3cFailed(false); setW3cLoading(false); w3cTriggeredRef.current = false; },
-      schema: () => { setSchemaFailed(false); setSchemaLoading(false); schemaTriggeredRef.current = false; },
-      readable: () => { setReadableFailed(false); setReadableLoading(false); readableTriggeredRef.current = false; },
-      yellowlab: () => { setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false; },
-      'link-checker': () => { setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false; },
-      'nav-structure': () => { setNavFailed(false); setNavLoading(false); navTriggeredRef.current = false; },
-      'content-types': () => { setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false; },
-      'sitemap': () => { setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false; },
-      'templates': () => { setTemplatesRerunning(false); templatesRerunFnRef.current?.(); },
-      'page-tags': () => { setAutoTagging(false); autoTagTriedRef.current = false; },
-      'forms': () => {
-        setFormsFailed(false); formsAutoRunRef.current = false;
-        formsRerunFnRef.current?.();
-        void runFormsDetection();
-        // Also clear forms_tiers
-        supabase.from('crawl_sessions').update({ forms_tiers: null } as any).eq('id', session!.id).then();
-      },
-      'ga4': () => { setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false; },
-      'search-console': () => { setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false; },
-    };
-    resetMap[key]?.();
-    // Refresh session so useEffect picks up null data
     updateSession({ [dbColumn]: null } as any);
-  }, [session, runFormsDetection]);
+
+    // 5. Fire server-side rerun via crawl-worker (fire-and-forget)
+    const fnName = INTEGRATION_FN_MAP[key];
+    if (fnName) {
+      supabase.functions.invoke('crawl-worker', {
+        body: {
+          session_id: session.id,
+          integration_key: key,
+          db_column: dbColumn,
+          fn_name: fnName,
+          fn_body: {},  // crawl-worker will rebuild body from session data
+        },
+      }).catch(err => console.error(`Rerun ${key} failed:`, err));
+    }
+
+    // 6. Restore scroll position
+    if (cardEl && cardTop !== null) {
+      requestAnimationFrame(() => {
+        const newTop = cardEl.getBoundingClientRect().top;
+        const drift = newTop - cardTop;
+        if (Math.abs(drift) > 2) {
+          window.scrollBy({ top: drift, behavior: 'instant' as ScrollBehavior });
+        }
+      });
+    }
+  }, [session]);
 
   const integrationList: { key: string; dbColumn: string }[] = [
     { key: 'sitemap', dbColumn: 'sitemap_data' },
     { key: 'builtwith', dbColumn: 'builtwith_data' },
-    // { key: 'wappalyzer', dbColumn: 'wappalyzer_data' }, // disabled
     { key: 'detectzestack', dbColumn: 'detectzestack_data' },
     { key: 'gtmetrix', dbColumn: 'gtmetrix_grade' },
     { key: 'psi', dbColumn: 'psi_data' },
@@ -1726,7 +1900,6 @@ export default function ResultsPage() {
     setBuiltwithFailed(false); setBuiltwithLoading(false); builtwithTriggeredRef.current = false;
     setSemrushFailed(false); setSemrushLoading(false); semrushTriggeredRef.current = false;
     setPsiFailed(false); setPsiLoading(false); psiTriggeredRef.current = false;
-    setWappalyzerFailed(false); setWappalyzerLoading(false); wappalyzerTriggeredRef.current = false;
     setDetectzestackFailed(false); setDetectzestackLoading(false); detectzestackTriggeredRef.current = false;
     setGtmetrixFailed(false); setRunningGtmetrix(false); gtmetrixTriggeredRef.current = false;
     setCarbonFailed(false); setCarbonLoading(false); carbonTriggeredRef.current = false;
@@ -1747,8 +1920,8 @@ export default function ResultsPage() {
     setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false;
     setContentTypesFailed(false); setContentTypesLoading(false); contentTypesTriggeredRef.current = false;
     setTechAnalysisFailed(false); setTechAnalysisLoading(false); setTechAnalysisData(null); techAnalysisTriggeredRef.current = false;
-    setGa4Failed(false); setGa4Loading(false); ga4TriggeredRef.current = false;
-    setGscFailed(false); setGscLoading(false); gscTriggeredRef.current = false;
+    setGa4Failed(false); setGa4Loading(false);
+    setGscFailed(false); setGscLoading(false);
     formsAutoRunRef.current = false; autoTagTriedRef.current = false;
     await fetchData();
     setRerunningAll(false);
@@ -1770,7 +1943,7 @@ export default function ResultsPage() {
   const prevLoadingRef = useRef<Record<string, boolean>>({});
   const loadingMap: Record<string, boolean> = {
     builtwith: builtwithLoading, semrush: semrushLoading, psi: psiLoading,
-    wappalyzer: wappalyzerLoading, detectzestack: detectzestackLoading, carbon: carbonLoading, crux: cruxLoading,
+    detectzestack: detectzestackLoading, carbon: carbonLoading, crux: cruxLoading,
     wave: waveLoading, observatory: observatoryLoading, ocean: oceanLoading,
     ssllabs: ssllabsLoading, httpstatus: httpstatusLoading, w3c: w3cLoading,
     schema: schemaLoading, readable: readableLoading, yellowlab: yellowlabLoading,
@@ -1780,7 +1953,6 @@ export default function ResultsPage() {
     apollo: apolloLoading,
     forms: formsLoading, templates: templatesRerunning,
     'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
-    ga4: ga4Loading, 'search-console': gscLoading,
   };
 
   useEffect(() => {
@@ -1829,16 +2001,19 @@ export default function ResultsPage() {
   }, [(session as any)?.template_tiers]);
 
   // Build ordered integration steps for global progress bar
+  // NOTE: This list must match the 26 server-side integrations in crawl-start INTEGRATIONS
+  // plus client-side extras (page-tags, templates, ssllabs) which are excluded from progress %.
   const integrationSteps = session ? [
+    { key: 'firecrawl-map', label: 'URL Discovery', loading: false, failed: false, data: session.discovered_urls, paused: isIntegrationPaused('firecrawl-map') },
     { key: 'sitemap', label: 'Sitemaps', loading: sitemapLoading, failed: sitemapFailed, data: session.sitemap_data, paused: isIntegrationPaused('sitemap') },
+    { key: 'httpstatus', label: 'HTTP Status', loading: httpstatusLoading, failed: httpstatusFailed, data: session.httpstatus_data, paused: isIntegrationPaused('httpstatus') },
+    { key: 'nav-structure', label: 'Nav Structure', loading: navLoading, failed: navFailed, data: (session as any).nav_structure, paused: isIntegrationPaused('nav-structure') },
     { key: 'builtwith', label: 'BuiltWith', loading: builtwithLoading, failed: builtwithFailed, data: session.builtwith_data, paused: isIntegrationPaused('builtwith') },
-    // Wappalyzer disabled — no API key
     { key: 'detectzestack', label: 'DetectZeStack', loading: detectzestackLoading, failed: detectzestackFailed, data: (session as any).detectzestack_data, paused: isIntegrationPaused('detectzestack') },
     { key: 'tech-analysis', label: 'Tech Analysis', loading: techAnalysisLoading, failed: techAnalysisFailed, data: techAnalysisData, paused: isIntegrationPaused('tech-analysis') },
     { key: 'semrush', label: 'SEMrush', loading: semrushLoading, failed: semrushFailed, data: session.semrush_data, paused: isIntegrationPaused('semrush') },
-    { key: 'httpstatus', label: 'HTTP Status', loading: httpstatusLoading, failed: httpstatusFailed, data: session.httpstatus_data, paused: isIntegrationPaused('httpstatus') },
     { key: 'psi', label: 'PageSpeed', loading: psiLoading, failed: psiFailed, data: session.psi_data, paused: isIntegrationPaused('psi') },
-    { key: 'gtmetrix', label: 'GTmetrix', loading: runningGtmetrix, failed: gtmetrixFailed, data: session.gtmetrix_grade, paused: isIntegrationPaused('gtmetrix') },
+    { key: 'gtmetrix', label: 'GTmetrix', loading: runningGtmetrix, failed: gtmetrixFailed, data: (session as any).gtmetrix_scores, paused: isIntegrationPaused('gtmetrix') },
     { key: 'carbon', label: 'Carbon', loading: carbonLoading, failed: carbonFailed, data: session.carbon_data, paused: isIntegrationPaused('carbon') },
     { key: 'crux', label: 'CrUX', loading: cruxLoading, failed: cruxFailed || cruxNoData, data: session.crux_data, paused: isIntegrationPaused('crux') },
     { key: 'wave', label: 'WAVE', loading: waveLoading, failed: waveFailed, data: session.wave_data, paused: isIntegrationPaused('wave') },
@@ -1846,39 +2021,67 @@ export default function ResultsPage() {
     { key: 'schema', label: 'Schema', loading: schemaLoading, failed: schemaFailed, data: session.schema_data, paused: isIntegrationPaused('schema') },
     { key: 'readable', label: 'Readable', loading: readableLoading, failed: readableFailed, data: (session as any).readable_data, paused: isIntegrationPaused('readable') },
     { key: 'observatory', label: 'Observatory', loading: observatoryLoading, failed: observatoryFailed, data: session.observatory_data, paused: isIntegrationPaused('observatory') },
-    { key: 'ssllabs', label: 'SSL Labs', loading: ssllabsLoading, failed: ssllabsFailed, data: session.ssllabs_data, paused: isIntegrationPaused('ssllabs'), manual: true },
     { key: 'yellowlab', label: 'Yellow Lab', loading: yellowlabLoading, failed: yellowlabFailed, data: (session as any).yellowlab_data, paused: isIntegrationPaused('yellowlab') },
     { key: 'ocean', label: 'Ocean.io', loading: oceanLoading, failed: oceanFailed, data: session.ocean_data, paused: isIntegrationPaused('ocean') },
-    { key: 'nav-structure', label: 'Nav Structure', loading: navLoading, failed: navFailed, data: (session as any).nav_structure, paused: isIntegrationPaused('nav-structure') },
     { key: 'content-types', label: 'Content Types', loading: contentTypesLoading, failed: contentTypesFailed, data: (session as any).content_types_data, paused: isIntegrationPaused('content-types') },
-    
     { key: 'forms', label: 'Forms', loading: formsLoading, failed: formsFailed, data: (session as any).forms_data, paused: isIntegrationPaused('forms') },
-    { key: 'page-tags', label: autoTagProgress ? `Page Tagging (${autoTagProgress})` : 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false, cardId: 'content-audit' },
-    { key: 'templates', label: 'Templates', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
+    { key: 'link-checker', label: 'Link Checker', loading: linkcheckLoading, failed: linkcheckFailed, data: (session as any).linkcheck_data, paused: isIntegrationPaused('link-checker') },
+    { key: 'page-tags', label: 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
+    { key: 'apollo', label: 'Apollo.io', loading: apolloLoading, failed: false, data: apolloData || session.apollo_data, paused: isIntegrationPaused('apollo') },
+    { key: 'apollo-team', label: 'Apollo Team', loading: apolloTeamLoading, failed: false, data: apolloTeamData || (session as any).apollo_team_data, paused: isIntegrationPaused('apollo-team') },
     { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
     { key: 'hubspot', label: 'HubSpot', loading: hubspotLoading, failed: hubspotFailed, data: (session as any).hubspot_data, paused: isIntegrationPaused('hubspot') },
-    { key: 'ga4', label: 'Google Analytics', loading: ga4Loading, failed: ga4Failed, data: (session as any).ga4_data, paused: isIntegrationPaused('ga4') },
-    { key: 'search-console', label: 'Search Console', loading: gscLoading, failed: gscFailed, data: (session as any).search_console_data, paused: isIntegrationPaused('search-console') },
-  ].map(s => ({
-    key: s.key,
-    label: s.label,
-    cardId: (s as any).cardId as string | undefined,
-    status: s.paused ? 'paused' as const
-      : s.data ? 'done' as const
-      : s.failed ? 'failed' as const
-      : s.loading ? 'loading' as const
-      : (s as any).manual ? 'paused' as const
-      : 'pending' as const,
-  })) : [];
+  ].map(s => {
+    // When server-completed, use integration_runs status as source of truth
+    if (serverCompleted) {
+      const serverStatus = integrationRunStatuses[s.key];
+      return {
+        key: s.key,
+        label: s.label,
+        cardId: (s as any).cardId as string | undefined,
+        status: s.paused ? 'paused' as const
+          : s.data ? 'done' as const
+          : serverStatus === 'done' ? 'done' as const
+          : serverStatus === 'failed' ? 'failed' as const
+          : serverStatus === 'skipped' ? 'paused' as const
+          : 'done' as const, // server says completed, trust it
+      };
+    }
+    return {
+      key: s.key,
+      label: s.label,
+      cardId: (s as any).cardId as string | undefined,
+      status: s.paused ? 'paused' as const
+        : s.data ? 'done' as const
+        : s.failed ? 'failed' as const
+        : s.loading ? 'loading' as const
+        : (s as any).manual ? 'paused' as const
+        : 'pending' as const,
+    };
+  }) : [];
 
   // Mark session as completed when all integrations finish
   const integrationsAllDone = integrationSteps.length > 0 && integrationSteps.every(s => s.status === 'done' || s.status === 'failed' || s.status === 'paused');
   useEffect(() => {
-    if (!session || !isRealSite || !integrationsAllDone || session.status === 'completed') return;
+    if (!session || !isRealSite || serverCompleted || !integrationsAllDone || session.status === 'completed') return;
     supabase.from('crawl_sessions').update({ status: 'completed' }).eq('id', session.id).then(() => {
       updateSession({ status: 'completed' } as any);
     });
   }, [integrationsAllDone, session?.id, session?.status]);
+
+  // Auto-index knowledge base after all integrations complete
+  useEffect(() => {
+    if (!session || !integrationsAllDone || isSharedView) return;
+    if (autoIndexTriggered.current) return;
+    autoIndexTriggered.current = true;
+    const scrapedForIngest = pages.filter(p => p.status === 'scraped');
+    Promise.all([
+      autoIngestIntegrations(session.id, session),
+      scrapedForIngest.length > 0 ? autoIngestPages(session.id, scrapedForIngest) : Promise.resolve(0),
+    ]).then(() => {
+      autoIngestScreenshots(session.id).catch(console.error);
+    }).catch(console.error);
+  }, [integrationsAllDone, session?.id]);
 
   const rerunButton = (key: string, dbColumn: string, isLoading: boolean) => {
     if (isSharedView) return null;
@@ -1898,14 +2101,25 @@ export default function ResultsPage() {
           className="h-7 w-7"
           disabled={isLoading}
           onClick={async () => {
+            const cardEl = document.querySelector(`[data-section-id="${key}"]`);
+            const cardTop = cardEl?.getBoundingClientRect().top ?? null;
+            const restoreScroll = () => {
+              if (cardEl && cardTop !== null) {
+                requestAnimationFrame(() => {
+                  const drift = cardEl.getBoundingClientRect().top - cardTop;
+                  if (Math.abs(drift) > 2) window.scrollBy({ top: drift, behavior: 'instant' as ScrollBehavior });
+                });
+              }
+            };
             setIntegrationDurations(d => { const next = { ...d }; delete next[key]; return next; });
-            if (key === 'gtmetrix') { rerunGtmetrix(); }
+            if (key === 'gtmetrix') { rerunGtmetrix(); restoreScroll(); }
             else if (key === 'ssllabs') {
               await supabase.from('crawl_sessions').update({ ssllabs_data: null } as any).eq('id', session!.id);
               ssllabsPollingRef.current = false;
               setSsllabsFailed(false);
               updateSession({ ssllabs_data: null } as any);
               runSslLabsScan();
+              restoreScroll();
             }
             else { rerunIntegration(key, dbColumn); }
           }}
@@ -1934,7 +2148,6 @@ export default function ResultsPage() {
       case 'yellowlab': return (session as any).yellowlab_data?.runId ? `https://yellowlab.tools/result/${(session as any).yellowlab_data.runId}` : undefined;
       case 'w3c': return baseUrl ? `https://validator.w3.org/nu/?doc=${encodeURIComponent(baseUrl)}` : undefined;
       case 'carbon': return domain ? `https://www.websitecarbon.com/website/${domain}/` : undefined;
-      case 'wappalyzer': return domain ? `https://www.wappalyzer.com/lookup/${domain}/` : undefined;
       case 'schema': return baseUrl ? `https://search.google.com/test/rich-results?url=${encodeURIComponent(baseUrl)}` : undefined;
       case 'readable': return baseUrl ? `https://readable.com/text/?url=${encodeURIComponent(baseUrl)}` : undefined;
       default: return undefined;
@@ -2030,8 +2243,16 @@ export default function ResultsPage() {
       {/* Domain + crawl info — matches header height */}
       <div>
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
-          <h1 className="text-[1.5rem] font-semibold tracking-tight text-foreground leading-none">
-            {session?.domain?.replace(/^www\./i, '')}
+          <h1 className="text-[1.5rem] font-semibold tracking-tight leading-none flex items-center gap-1.5">
+            <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">Sites</button>
+            {groupInfo && (
+              <>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <button onClick={() => navigate(`/groups/${groupInfo.id}`)} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">{groupInfo.name}</button>
+              </>
+            )}
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            <span className="text-foreground">{session?.domain?.replace(/^www\./i, '')}</span>
           </h1>
           <div className="flex items-center gap-4 shrink-0">
             {session?.created_at && (
@@ -2040,12 +2261,6 @@ export default function ResultsPage() {
                   <Clock className="h-3 w-3" />
                   <span className="font-semibold">Created:</span> {format(new Date(session.created_at), 'M/d/yyyy')}
                 </span>
-                {session?.updated_at && session.updated_at !== session.created_at && (
-                  <span className="flex items-center gap-1">
-                    <RefreshCw className="h-3 w-3" />
-                    <span className="font-semibold">Updated:</span> {format(new Date(session.updated_at), 'M/d/yyyy')}
-                  </span>
-                )}
               </div>
             )}
             {/* Tab-specific actions dropdown */}
@@ -2093,12 +2308,6 @@ export default function ResultsPage() {
                       <DropdownMenuItem onClick={() => downloadReportPdf(session.deep_research_data.report, 'Deep Research Report', session.domain)}>
                         <Brain className="h-3.5 w-3.5 mr-1.5" />
                         Deep Research PDF
-                      </DropdownMenuItem>
-                    )}
-                    {session?.observations_data && (
-                      <DropdownMenuItem onClick={() => downloadReportPdf(session.observations_data, 'Observations & Insights', session.domain)}>
-                        <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-                        Observations PDF
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => exportAsPdf()}>
@@ -2231,7 +2440,18 @@ export default function ResultsPage() {
             {activeTab === 'raw-data' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'raw-data' ? null : <div className="animate-fade-in space-y-8">
 
         {/* Score Overview */}
-        {overallScore && <ScoreOverview overallScore={overallScore} analyzing={!integrationsAllDone && !analysisStopped && !isSharedView} />}
+        {overallScore && (() => {
+          const integrationProgressPercent = integrationSteps.length > 0
+            ? Math.round((integrationSteps.filter(s => s.status === 'done' || s.status === 'failed' || s.status === 'paused').length / integrationSteps.length) * 100)
+            : 0;
+          return (
+            <ScoreOverview
+              overallScore={overallScore}
+              analyzing={!integrationsAllDone && !analysisStopped && !isSharedView}
+              progressPercent={integrationsAllDone ? undefined : integrationProgressPercent}
+            />
+          );
+        })()}
 
         {/* ══════ 🔗 URL Analysis ══════ */}
         {(
@@ -2288,7 +2508,7 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('httpstatus', !!session?.httpstatus_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="httpstatus" {...intGrade("httpstatus")} persistedCollapsed={isSectionCollapsed("httpstatus")} onCollapseChange={toggleSection} title="httpstatus.io — Redirects & HTTP Status" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)} paused={isIntegrationPaused('httpstatus') && !session?.httpstatus_data} onTogglePause={() => handleTogglePause('httpstatus')}>
+              <SectionCard collapsed={allCollapsed} sectionId="httpstatus" {...intGrade("httpstatus")} persistedCollapsed={isSectionCollapsed("httpstatus")} onCollapseChange={toggleSection} title="HTTP Status & Redirects" icon={<Link className="h-5 w-5 text-foreground" />} loading={httpstatusLoading && !session?.httpstatus_data} loadingText="Checking HTTP redirect chain..." error={httpstatusFailed} errorText={integrationErrors.httpstatus} headerExtra={rerunButton('httpstatus', 'httpstatus_data', httpstatusLoading)} paused={isIntegrationPaused('httpstatus') && !session?.httpstatus_data} onTogglePause={() => handleTogglePause('httpstatus')}>
                 {session?.httpstatus_data ? <ErrorBoundary><HttpStatusCard data={session.httpstatus_data} /></ErrorBoundary> : null}
               </SectionCard>
               )}
@@ -2349,7 +2569,7 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('readable', !!(session as any)?.readable_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="readable" {...intGrade("readable")} persistedCollapsed={isSectionCollapsed("readable")} onCollapseChange={toggleSection} title="Readable.com — Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable} headerExtra={rerunButton('readable', 'readable_data', readableLoading)} reportUrl={getReportUrl('readable')} paused={isIntegrationPaused('readable') && !(session as any)?.readable_data} onTogglePause={() => handleTogglePause('readable')}>
+              <SectionCard collapsed={allCollapsed} sectionId="readable" {...intGrade("readable")} persistedCollapsed={isSectionCollapsed("readable")} onCollapseChange={toggleSection} title="Readability Analysis" icon={<FileText className="h-5 w-5 text-foreground" />} loading={readableLoading && !(session as any)?.readable_data} loadingText="Scoring content readability..." error={readableFailed} errorText={integrationErrors.readable} headerExtra={rerunButton('readable', 'readable_data', readableLoading)} reportUrl={getReportUrl('readable')} paused={isIntegrationPaused('readable') && !(session as any)?.readable_data} onTogglePause={() => handleTogglePause('readable')}>
                 {(session as any)?.readable_data ? <ReadableCard data={(session as any).readable_data} /> : null}
               </SectionCard>
               )}
@@ -2398,12 +2618,12 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔧 Technology Detection ══════ */}
-        {(shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('wappalyzer', !!session?.wappalyzer_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
+        {(shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
           <CollapsibleSection title="Technology Detection" collapsed={isSectionCollapsed("section-tech-detection") ?? false} onToggle={(c) => toggleSection("section-tech-detection", c)} {...catGrade("section-tech-detection")}>
             <SortedIntegrationList className="space-y-6">
               {/* AI Tech Analysis — merged card */}
               {(techAnalysisData || techAnalysisLoading || session?.tech_analysis_data) && (
-              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="AI Tech Analysis — Merged Stack Intelligence" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} paused={isIntegrationPaused('tech-analysis') && !(session as any)?.tech_analysis_data} onTogglePause={() => handleTogglePause('tech-analysis')} headerExtra={
+              <SectionCard collapsed={allCollapsed} sectionId="tech-analysis" persistedCollapsed={isSectionCollapsed("tech-analysis")} onCollapseChange={toggleSection} title="Tech Analysis" icon={<Brain className="h-5 w-5 text-foreground" />} loading={techAnalysisLoading} loadingText="AI is analyzing technologies across all sources..." error={techAnalysisFailed} errorText={integrationErrors['tech-analysis']} paused={isIntegrationPaused('tech-analysis') && !(session as any)?.tech_analysis_data} onTogglePause={() => handleTogglePause('tech-analysis')} headerExtra={
                 !isSharedView ? (
                   <div className="flex items-center gap-1">
                     {integrationTimestamps['tech-analysis'] && !techAnalysisLoading && (
@@ -2426,9 +2646,8 @@ export default function ResultsPage() {
                       const startTime = Date.now();
                       const bw = session.builtwith_data;
                       const dz = (session as any).detectzestack_data;
-                      const wp = session.wappalyzer_data;
                       try {
-                        const result = await techAnalysisApi.analyze(bw, dz, wp, session.domain);
+                        const result = await techAnalysisApi.analyze(bw, dz, session.domain);
                         const elapsed = Math.round((Date.now() - startTime) / 1000);
                         setIntegrationDurations(d => ({ ...d, 'tech-analysis': elapsed }));
                         if (result.success) {
@@ -2462,7 +2681,7 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('builtwith', !!session?.builtwith_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="builtwith" persistedCollapsed={isSectionCollapsed("builtwith")} onCollapseChange={toggleSection} title="BuiltWith — Technology Stack" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)} reportUrl={getReportUrl('builtwith')} paused={isIntegrationPaused('builtwith') && !session?.builtwith_data} onTogglePause={() => handleTogglePause('builtwith')}>
+              <SectionCard collapsed={allCollapsed} sectionId="builtwith" persistedCollapsed={isSectionCollapsed("builtwith")} onCollapseChange={toggleSection} title="BuiltWith" icon={<Code className="h-5 w-5 text-foreground" />} loading={builtwithLoading && !session?.builtwith_data} loadingText="Detecting technology stack..." error={builtwithFailed} errorText={integrationErrors.builtwith} headerExtra={rerunButton('builtwith', 'builtwith_data', builtwithLoading)} reportUrl={getReportUrl('builtwith')} paused={isIntegrationPaused('builtwith') && !session?.builtwith_data} onTogglePause={() => handleTogglePause('builtwith')}>
                 {session?.builtwith_data ? (
                   <BuiltWithCard grouped={session.builtwith_data.grouped} totalCount={session.builtwith_data.totalCount} isLoading={false} credits={builtwithCredits} />
                 ) : !builtwithLoading && !builtwithFailed ? (
@@ -2472,14 +2691,13 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('detectzestack', !!(session as any)?.detectzestack_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="detectzestack" persistedCollapsed={isSectionCollapsed("detectzestack")} onCollapseChange={toggleSection} title="DetectZeStack — Technology Profiling" icon={<Layers className="h-5 w-5 text-foreground" />} loading={detectzestackLoading && !(session as any)?.detectzestack_data} loadingText="Running DetectZeStack detection..." error={detectzestackFailed} errorText={integrationErrors.detectzestack} headerExtra={rerunButton('detectzestack', 'detectzestack_data', detectzestackLoading)} paused={isIntegrationPaused('detectzestack') && !(session as any)?.detectzestack_data} onTogglePause={() => handleTogglePause('detectzestack')}>
+              <SectionCard collapsed={allCollapsed} sectionId="detectzestack" persistedCollapsed={isSectionCollapsed("detectzestack")} onCollapseChange={toggleSection} title="DetectZeStack" icon={<Layers className="h-5 w-5 text-foreground" />} loading={detectzestackLoading && !(session as any)?.detectzestack_data} loadingText="Running DetectZeStack detection..." error={detectzestackFailed} errorText={integrationErrors.detectzestack} headerExtra={rerunButton('detectzestack', 'detectzestack_data', detectzestackLoading)} paused={isIntegrationPaused('detectzestack') && !(session as any)?.detectzestack_data} onTogglePause={() => handleTogglePause('detectzestack')}>
                 {(session as any)?.detectzestack_data ? (
                   <DetectZeStackCard data={(session as any).detectzestack_data} />
                 ) : null}
               </SectionCard>
               )}
 
-              {/* Wappalyzer — disabled, no API key */}
             </SortedIntegrationList>
           </CollapsibleSection>
         )}
@@ -2489,19 +2707,19 @@ export default function ResultsPage() {
           <CollapsibleSection title="Performance & Sustainability" collapsed={isSectionCollapsed("section-performance") ?? false} onToggle={(c) => toggleSection("section-performance", c)} {...catGrade("section-performance")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('gtmetrix', !!session?.gtmetrix_grade, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="gtmetrix" {...intGrade("gtmetrix")} persistedCollapsed={isSectionCollapsed("gtmetrix")} onCollapseChange={toggleSection} title="GTmetrix — Performance Audit" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)} reportUrl={getReportUrl('gtmetrix')} paused={isIntegrationPaused('gtmetrix') && !session?.gtmetrix_grade} onTogglePause={() => handleTogglePause('gtmetrix')}>
+              <SectionCard collapsed={allCollapsed} sectionId="gtmetrix" {...intGrade("gtmetrix")} persistedCollapsed={isSectionCollapsed("gtmetrix")} onCollapseChange={toggleSection} title="GTmetrix" icon={<Zap className="h-5 w-5 text-foreground" />} loading={runningGtmetrix} loadingText="Running GTmetrix performance test..." error={gtmetrixFailed} errorText={integrationErrors.gtmetrix} headerExtra={rerunButton('gtmetrix', 'gtmetrix_grade', runningGtmetrix)} reportUrl={getReportUrl('gtmetrix')} paused={isIntegrationPaused('gtmetrix') && !session?.gtmetrix_grade} onTogglePause={() => handleTogglePause('gtmetrix')}>
                 <GtmetrixCard grade={session?.gtmetrix_grade || null} scores={session?.gtmetrix_scores || null} testId={session?.gtmetrix_test_id || null} isRunning={false} />
               </SectionCard>
               )}
 
               {shouldShowIntegration('psi', !!session?.psi_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="psi" {...intGrade("psi-performance")} persistedCollapsed={isSectionCollapsed("psi")} onCollapseChange={toggleSection} title="PageSpeed Insights — Lighthouse" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} headerExtra={rerunButton('psi', 'psi_data', psiLoading)} reportUrl={getReportUrl('psi')} paused={isIntegrationPaused('psi') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi')}>
+              <SectionCard collapsed={allCollapsed} sectionId="psi" {...intGrade("psi-performance")} persistedCollapsed={isSectionCollapsed("psi")} onCollapseChange={toggleSection} title="PageSpeed Insights" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Running PageSpeed Insights (mobile + desktop)..." error={psiFailed} errorText={integrationErrors.psi} headerExtra={rerunButton('psi', 'psi_data', psiLoading)} reportUrl={getReportUrl('psi')} paused={isIntegrationPaused('psi') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi')}>
                 {session?.psi_data ? <PageSpeedCard data={session.psi_data} isLoading={false} /> : null}
               </SectionCard>
               )}
 
               {shouldShowIntegration('crux', !!session?.crux_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="crux" {...intGrade("crux")} persistedCollapsed={isSectionCollapsed("crux")} onCollapseChange={toggleSection} title="CrUX — Real-User Field Data" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} headerExtra={rerunButton('crux', 'crux_data', cruxLoading)} reportUrl={getReportUrl('crux')} paused={isIntegrationPaused('crux') && !session?.crux_data} onTogglePause={() => handleTogglePause('crux')}>
+              <SectionCard collapsed={allCollapsed} sectionId="crux" {...intGrade("crux")} persistedCollapsed={isSectionCollapsed("crux")} onCollapseChange={toggleSection} title="CrUX" icon={<Users className="h-5 w-5 text-foreground" />} loading={cruxLoading && !session?.crux_data} loadingText="Fetching Chrome UX Report field data..." error={cruxFailed} errorText={integrationErrors.crux} headerExtra={rerunButton('crux', 'crux_data', cruxLoading)} reportUrl={getReportUrl('crux')} paused={isIntegrationPaused('crux') && !session?.crux_data} onTogglePause={() => handleTogglePause('crux')}>
                 {session?.crux_data ? (
                   <CruxCard data={session.crux_data} isLoading={false} />
                 ) : null}
@@ -2509,13 +2727,13 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('yellowlab', !!(session as any)?.yellowlab_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="yellowlab" {...intGrade("yellowlab")} persistedCollapsed={isSectionCollapsed("yellowlab")} onCollapseChange={toggleSection} title="Yellow Lab Tools — Front-End Quality" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={yellowlabLoading && !(session as any)?.yellowlab_data} loadingText="Running Yellow Lab Tools audit (this may take 1-2 minutes)..." error={yellowlabFailed} errorText={integrationErrors.yellowlab} headerExtra={rerunButton('yellowlab', 'yellowlab_data', yellowlabLoading)} reportUrl={getReportUrl('yellowlab')} paused={isIntegrationPaused('yellowlab') && !(session as any)?.yellowlab_data} onTogglePause={() => handleTogglePause('yellowlab')}>
+              <SectionCard collapsed={allCollapsed} sectionId="yellowlab" {...intGrade("yellowlab")} persistedCollapsed={isSectionCollapsed("yellowlab")} onCollapseChange={toggleSection} title="Yellow Lab Tools" icon={<Gauge className="h-5 w-5 text-foreground" />} loading={yellowlabLoading && !(session as any)?.yellowlab_data} loadingText="Running Yellow Lab Tools audit (this may take 1-2 minutes)..." error={yellowlabFailed} errorText={integrationErrors.yellowlab} headerExtra={rerunButton('yellowlab', 'yellowlab_data', yellowlabLoading)} reportUrl={getReportUrl('yellowlab')} paused={isIntegrationPaused('yellowlab') && !(session as any)?.yellowlab_data} onTogglePause={() => handleTogglePause('yellowlab')}>
                 {(session as any)?.yellowlab_data ? <YellowLabCard data={(session as any).yellowlab_data} /> : null}
               </SectionCard>
               )}
 
               {shouldShowIntegration('carbon', !!session?.carbon_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="carbon" {...intGrade("carbon")} persistedCollapsed={isSectionCollapsed("carbon")} onCollapseChange={toggleSection} title="Website Carbon — Sustainability" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} headerExtra={rerunButton('carbon', 'carbon_data', carbonLoading)} reportUrl={getReportUrl('carbon')} paused={isIntegrationPaused('carbon') && !session?.carbon_data} onTogglePause={() => handleTogglePause('carbon')}>
+              <SectionCard collapsed={allCollapsed} sectionId="carbon" {...intGrade("carbon")} persistedCollapsed={isSectionCollapsed("carbon")} onCollapseChange={toggleSection} title="Website Carbon" icon={<Leaf className="h-5 w-5 text-foreground" />} loading={carbonLoading && !session?.carbon_data} loadingText="Measuring carbon footprint..." error={carbonFailed} errorText={integrationErrors.carbon} headerExtra={rerunButton('carbon', 'carbon_data', carbonLoading)} reportUrl={getReportUrl('carbon')} paused={isIntegrationPaused('carbon') && !session?.carbon_data} onTogglePause={() => handleTogglePause('carbon')}>
                 {session?.carbon_data ? <WebsiteCarbonCard data={session.carbon_data} isLoading={false} /> : null}
               </SectionCard>
               )}
@@ -2528,15 +2746,20 @@ export default function ResultsPage() {
           <CollapsibleSection title="SEO & Search" collapsed={isSectionCollapsed("section-seo") ?? false} onToggle={(c) => toggleSection("section-seo", c)} {...catGrade("section-seo")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="semrush" {...intGrade("semrush")} persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush — Domain Analysis" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)} reportUrl={getReportUrl('semrush')} paused={isIntegrationPaused('semrush') && !session?.semrush_data} onTogglePause={() => handleTogglePause('semrush')}>
+              <SectionCard collapsed={allCollapsed} sectionId="semrush" {...intGrade("semrush")} persistedCollapsed={isSectionCollapsed("semrush")} onCollapseChange={toggleSection} title="SEMrush" icon={<Search className="h-5 w-5 text-foreground" />} loading={semrushLoading && !session?.semrush_data} loadingText="Pulling SEMrush data..." error={semrushFailed} errorText={integrationErrors.semrush} headerExtra={rerunButton('semrush', 'semrush_data', semrushLoading)} reportUrl={getReportUrl('semrush')} paused={isIntegrationPaused('semrush') && !session?.semrush_data} onTogglePause={() => handleTogglePause('semrush')}>
                 {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
               </SectionCard>
               )}
 
-              {shouldShowIntegration('search-console', !!(session as any)?.search_console_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="search-console" {...intGrade("search-console")} persistedCollapsed={isSectionCollapsed("search-console")} onCollapseChange={toggleSection} title="Google Search Console" icon={<Search className="h-5 w-5 text-foreground" />} loading={gscLoading && !(session as any)?.search_console_data} loadingText="Fetching Search Console data..." error={gscFailed} errorText={integrationErrors['search-console']} headerExtra={rerunButton('search-console', 'search_console_data', gscLoading)} paused={isIntegrationPaused('search-console') && !(session as any)?.search_console_data} onTogglePause={() => handleTogglePause('search-console')}>
-                {(session as any)?.search_console_data ? <SearchConsoleCard
-                  data={(session as any).search_console_data}
+              <SectionCard collapsed={allCollapsed} sectionId="search-console" {...intGrade("search-console")} persistedCollapsed={isSectionCollapsed("search-console")} onCollapseChange={toggleSection} title="Google Search Console" icon={<Search className="h-5 w-5 text-foreground" />} loading={gscLoading && !(session as any)?.search_console_data} loadingText="Fetching Search Console data..." error={gscFailed} errorText={integrationErrors['search-console']} headerExtra={(session as any)?.search_console_data?.found ? rerunButton('search-console', 'search_console_data', gscLoading) : undefined}>
+                <SearchConsoleCard
+                  data={(session as any)?.search_console_data || null}
+                  isConnected={gscConnected}
+                  onConnect={handleConnectGSC}
+                  isConnecting={gscConnecting}
+                  availableSites={gscAvailableSites}
+                  onFetchSites={handleFetchGSCSites}
+                  isFetchingSites={gscFetchingSites}
                   isSelecting={gscSelecting}
                   onSelectSite={async (siteUrl) => {
                     setGscSelecting(true);
@@ -2551,14 +2774,18 @@ export default function ResultsPage() {
                     } catch {}
                     setGscSelecting(false);
                   }}
-                /> : null}
+                />
               </SectionCard>
-              )}
 
-              {shouldShowIntegration('ga4', !!(session as any)?.ga4_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="ga4" persistedCollapsed={isSectionCollapsed("ga4")} onCollapseChange={toggleSection} title="Google Analytics (GA4)" icon={<BarChart3 className="h-5 w-5 text-foreground" />} loading={ga4Loading && !(session as any)?.ga4_data} loadingText="Fetching GA4 analytics data..." error={ga4Failed} errorText={integrationErrors.ga4} headerExtra={rerunButton('ga4', 'ga4_data', ga4Loading)} paused={isIntegrationPaused('ga4') && !(session as any)?.ga4_data} onTogglePause={() => handleTogglePause('ga4')}>
-                {(session as any)?.ga4_data ? <GA4Card
-                  data={(session as any).ga4_data}
+              <SectionCard collapsed={allCollapsed} sectionId="ga4" persistedCollapsed={isSectionCollapsed("ga4")} onCollapseChange={toggleSection} title="Google Analytics (GA4)" icon={<BarChart3 className="h-5 w-5 text-foreground" />} loading={ga4Loading && !(session as any)?.ga4_data} loadingText="Fetching GA4 analytics data..." error={ga4Failed} errorText={integrationErrors.ga4} headerExtra={(session as any)?.ga4_data?.found ? rerunButton('ga4', 'ga4_data', ga4Loading) : undefined}>
+                <GA4Card
+                  data={(session as any)?.ga4_data || null}
+                  isConnected={ga4Connected}
+                  onConnect={handleConnectGA4}
+                  isConnecting={ga4Connecting}
+                  availableProperties={ga4AvailableProperties}
+                  onFetchProperties={handleFetchGA4Properties}
+                  isFetchingProperties={ga4FetchingProperties}
                   isSelecting={ga4Selecting}
                   onSelectProperty={async (propertyId) => {
                     setGa4Selecting(true);
@@ -2573,12 +2800,11 @@ export default function ResultsPage() {
                     } catch {}
                     setGa4Selecting(false);
                   }}
-                /> : null}
+                />
               </SectionCard>
-              )}
 
               {shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="schema" {...intGrade("schema")} persistedCollapsed={isSectionCollapsed("schema")} onCollapseChange={toggleSection} title="Schema.org — Structured Data & Rich Results" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)} reportUrl={getReportUrl('schema')} paused={isIntegrationPaused('schema') && !session?.schema_data} onTogglePause={() => handleTogglePause('schema')}>
+              <SectionCard collapsed={allCollapsed} sectionId="schema" {...intGrade("schema")} persistedCollapsed={isSectionCollapsed("schema")} onCollapseChange={toggleSection} title="Schema.org" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)} reportUrl={getReportUrl('schema')} paused={isIntegrationPaused('schema') && !session?.schema_data} onTogglePause={() => handleTogglePause('schema')}>
                 {session?.schema_data ? <SchemaCard data={session.schema_data} /> : null}
               </SectionCard>
               )}
@@ -2591,7 +2817,7 @@ export default function ResultsPage() {
           <CollapsibleSection title="UX & Accessibility" collapsed={isSectionCollapsed("section-ux-accessibility") ?? false} onToggle={(c) => toggleSection("section-ux-accessibility", c)} {...catGrade("section-ux-accessibility")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('psi-accessibility', !!session?.psi_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && shouldShowIntegration('psi', !!session?.psi_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="psi-accessibility" {...intGrade("psi-accessibility")} persistedCollapsed={isSectionCollapsed("psi-accessibility")} onCollapseChange={toggleSection} title="Lighthouse — Accessibility Audit" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi-accessibility')}>
+              <SectionCard collapsed={allCollapsed} sectionId="psi-accessibility" {...intGrade("psi-accessibility")} persistedCollapsed={isSectionCollapsed("psi-accessibility")} onCollapseChange={toggleSection} title="Lighthouse Accessibility" icon={<Accessibility className="h-5 w-5 text-foreground" />} loading={psiLoading && !session?.psi_data} loadingText="Extracting accessibility audits from Lighthouse..." paused={isIntegrationPaused('psi-accessibility') && !session?.psi_data} onTogglePause={() => handleTogglePause('psi-accessibility')}>
                 {session?.psi_data ? (
                   <LighthouseAccessibilityCard data={extractPsiAccessibility(session.psi_data)} isLoading={false} />
                 ) : !psiLoading && psiFailed ? (
@@ -2603,13 +2829,13 @@ export default function ResultsPage() {
               )}
 
               {shouldShowIntegration('wave', !!session?.wave_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="wave" {...intGrade("wave")} persistedCollapsed={isSectionCollapsed("wave")} onCollapseChange={toggleSection} title="WAVE — WCAG Accessibility Scan" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} headerExtra={rerunButton('wave', 'wave_data', waveLoading)} reportUrl={getReportUrl('wave')} paused={isIntegrationPaused('wave') && !session?.wave_data} onTogglePause={() => handleTogglePause('wave')}>
-                {session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}
+              <SectionCard collapsed={allCollapsed} sectionId="wave" {...intGrade("wave")} persistedCollapsed={isSectionCollapsed("wave")} onCollapseChange={toggleSection} title="WAVE Accessibility" icon={<Eye className="h-5 w-5 text-foreground" />} loading={waveLoading && !session?.wave_data} loadingText="Running WAVE accessibility scan..." error={waveFailed} errorText={integrationErrors.wave} headerExtra={rerunButton('wave', 'wave_data', waveLoading)} reportUrl={getReportUrl('wave')} paused={isIntegrationPaused('wave') && !session?.wave_data} onTogglePause={() => handleTogglePause('wave')}>
+                <ErrorBoundary>{session?.wave_data ? <WaveCard data={session.wave_data} isLoading={false} /> : null}</ErrorBoundary>
               </SectionCard>
               )}
 
               {shouldShowIntegration('w3c', !!session?.w3c_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="w3c" {...intGrade("w3c")} persistedCollapsed={isSectionCollapsed("w3c")} onCollapseChange={toggleSection} title="W3C — HTML & CSS Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)} reportUrl={getReportUrl('w3c')} paused={isIntegrationPaused('w3c') && !session?.w3c_data} onTogglePause={() => handleTogglePause('w3c')}>
+              <SectionCard collapsed={allCollapsed} sectionId="w3c" {...intGrade("w3c")} persistedCollapsed={isSectionCollapsed("w3c")} onCollapseChange={toggleSection} title="W3C Validation" icon={<Code className="h-5 w-5 text-foreground" />} loading={w3cLoading && !session?.w3c_data} loadingText="Running W3C HTML & CSS validation..." error={w3cFailed} errorText={integrationErrors.w3c} headerExtra={rerunButton('w3c', 'w3c_data', w3cLoading)} reportUrl={getReportUrl('w3c')} paused={isIntegrationPaused('w3c') && !session?.w3c_data} onTogglePause={() => handleTogglePause('w3c')}>
                 {session?.w3c_data ? <W3CCard data={session.w3c_data} /> : null}
               </SectionCard>
               )}
@@ -2622,13 +2848,13 @@ export default function ResultsPage() {
           <CollapsibleSection title="Security & Compliance" collapsed={isSectionCollapsed("section-security") ?? false} onToggle={(c) => toggleSection("section-security", c)} {...catGrade("section-security")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="observatory" {...intGrade("observatory")} persistedCollapsed={isSectionCollapsed("observatory")} onCollapseChange={toggleSection} title="Mozilla Observatory — Security Headers" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)} reportUrl={getReportUrl('observatory')} paused={isIntegrationPaused('observatory') && !session?.observatory_data} onTogglePause={() => handleTogglePause('observatory')}>
+              <SectionCard collapsed={allCollapsed} sectionId="observatory" {...intGrade("observatory")} persistedCollapsed={isSectionCollapsed("observatory")} onCollapseChange={toggleSection} title="Mozilla Observatory" icon={<Shield className="h-5 w-5 text-foreground" />} loading={observatoryLoading && !session?.observatory_data} loadingText="Running Mozilla Observatory security scan..." error={observatoryFailed} errorText={integrationErrors.observatory} headerExtra={rerunButton('observatory', 'observatory_data', observatoryLoading)} reportUrl={getReportUrl('observatory')} paused={isIntegrationPaused('observatory') && !session?.observatory_data} onTogglePause={() => handleTogglePause('observatory')}>
                 {session?.observatory_data ? <ObservatoryCard data={session.observatory_data} isLoading={false} /> : null}
               </SectionCard>
               )}
 
               {shouldShowIntegration('ssllabs', !!session?.ssllabs_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="ssllabs" {...intGrade("ssllabs")} persistedCollapsed={isSectionCollapsed("ssllabs")} onCollapseChange={toggleSection} title="SSL Labs — TLS/SSL Assessment" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={session?.ssllabs_data ? rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading) : undefined} reportUrl={getReportUrl('ssllabs')} paused={isIntegrationPaused('ssllabs') && !session?.ssllabs_data} onTogglePause={() => handleTogglePause('ssllabs')}>
+              <SectionCard collapsed={allCollapsed} sectionId="ssllabs" {...intGrade("ssllabs")} persistedCollapsed={isSectionCollapsed("ssllabs")} onCollapseChange={toggleSection} title="SSL Labs" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={session?.ssllabs_data ? rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading) : undefined} reportUrl={getReportUrl('ssllabs')} paused={isIntegrationPaused('ssllabs') && !session?.ssllabs_data} onTogglePause={() => handleTogglePause('ssllabs')}>
                 {session?.ssllabs_data ? (
                   <SslLabsCard data={session.ssllabs_data} />
                 ) : !ssllabsLoading && !ssllabsFailed ? (
@@ -2652,12 +2878,12 @@ export default function ResultsPage() {
             <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
               {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <ErrorBoundary><div className="animate-fade-in space-y-6">
               {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io — Firmographics" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
-                  {session?.ocean_data ? <OceanCard data={session.ocean_data} /> : null}
+                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
+                  {session?.ocean_data && !session.ocean_data._error ? <OceanCard data={session.ocean_data} /> : null}
                 </SectionCard></ErrorBoundary>
               )}
               {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io — Contact Enrichment" icon={<UserPlus className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('apollo', 'apollo_data', apolloLoading)} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
+                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io" icon={<UserPlus className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('apollo', 'apollo_data', apolloLoading)} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
                   <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
                 </SectionCard></ErrorBoundary>
               )}
@@ -2674,11 +2900,11 @@ export default function ResultsPage() {
                   paused={isIntegrationPaused('hubspot') && !(session as any)?.hubspot_data}
                   onTogglePause={() => handleTogglePause('hubspot')}
                 >
-                  {(session as any)?.hubspot_data ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={handleApolloSearch} /> : null}
+                  {(session as any)?.hubspot_data && (session as any).hubspot_data.success ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={handleApolloSearch} /> : null}
                 </SectionCard></ErrorBoundary>
               )}
               <ErrorBoundary><SectionCard
-                sectionId="gmail" persistedCollapsed={isSectionCollapsed("gmail")} onCollapseChange={toggleSection} title="Gmail — Email Threads"
+                sectionId="gmail" persistedCollapsed={isSectionCollapsed("gmail")} onCollapseChange={toggleSection} title="Gmail"
                 icon={<Mail className="h-5 w-5 text-foreground" />}
                 collapsed={allCollapsed}
                 headerExtra={
@@ -2731,7 +2957,7 @@ export default function ResultsPage() {
               </SectionCard></ErrorBoundary>
               {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
                 <ErrorBoundary><SectionCard
-                  sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma — Call Intelligence"
+                  sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma"
                   icon={<Phone className="h-5 w-5 text-foreground" />}
                   loading={avomaLoading && !(session as any)?.avoma_data}
                   loadingText={avomaProgress
@@ -2746,7 +2972,7 @@ export default function ResultsPage() {
                   paused={isIntegrationPaused('avoma') && !(session as any)?.avoma_data}
                   onTogglePause={() => handleTogglePause('avoma')}
                 >
-                  {(session as any)?.avoma_data ? <AvomaCard
+                  {(session as any)?.avoma_data && !(session as any).avoma_data._error ? <AvomaCard
                     data={(session as any).avoma_data}
                     apolloEmail={(session as any)?.apollo_data?.email || null}
                     onSearchDomain={async (domain) => {
@@ -2827,7 +3053,6 @@ export default function ResultsPage() {
                 pageTags={session.page_tags as any}
                 contentTypesData={session.content_types_data as any}
                 formsData={visibleFormsData}
-                wappalyzerData={session.wappalyzer_data}
                 templateTiers={(session as any).template_tiers}
                 formsTiers={(session as any).forms_tiers}
                 navStructure={(session as any).nav_structure || null}

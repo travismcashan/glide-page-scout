@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, Paperclip, Download, Database, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Mail, LogIn, LogOut, RefreshCw, ChevronDown, ChevronUp, Paperclip, Download, Database, Loader2, ArrowUp, ArrowDown, ArrowUpDown, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -190,6 +190,8 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   return dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
 }
 
+const ROW_LIMIT = 10;
+
 function SortableEmailTable({
   emails,
   selectedAttachments,
@@ -205,6 +207,7 @@ function SortableEmailTable({
 }) {
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [expanded, setExpanded] = useState(false);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -238,6 +241,9 @@ function SortableEmailTable({
     return arr;
   }, [emails, sortKey, sortDir]);
 
+  const hasMore = sorted.length > ROW_LIMIT;
+  const visible = expanded ? sorted : sorted.slice(0, ROW_LIMIT);
+
   const columns: { key: SortKey; label: string }[] = [
     { key: 'subject', label: 'Subject' },
     { key: 'from', label: 'From' },
@@ -246,39 +252,53 @@ function SortableEmailTable({
   ];
 
   return (
-    <div className="max-h-[600px] overflow-y-auto border border-border rounded-lg">
-      <table className="w-full text-left">
-        <thead className="sticky top-0 bg-muted/60 backdrop-blur-sm z-10">
-          <tr className="text-xs text-muted-foreground border-b border-border">
-            {columns.map(col => (
-              <th
-                key={col.key}
-                className="px-3 py-2 font-medium cursor-pointer select-none hover:text-foreground transition-colors"
-                onClick={() => toggleSort(col.key)}
-              >
-                <span className="inline-flex items-center gap-1">
-                  {col.label}
-                  <SortIcon active={sortKey === col.key} dir={sortDir} />
-                </span>
-              </th>
+    <div>
+      <div className={`${expanded ? 'max-h-[600px]' : 'max-h-[420px]'} overflow-y-auto border border-border rounded-lg relative`}>
+        <table className="w-full text-left">
+          <thead className="sticky top-0 bg-muted/60 backdrop-blur-sm z-10">
+            <tr className="text-xs text-muted-foreground border-b border-border">
+              {columns.map(col => (
+                <th
+                  key={col.key}
+                  className="px-3 py-2 font-medium cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => toggleSort(col.key)}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {col.label}
+                    <SortIcon active={sortKey === col.key} dir={sortDir} />
+                  </span>
+                </th>
+              ))}
+              <th className="px-3 py-2 font-medium">Time</th>
+              <th className="px-2 py-2 w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((email) => (
+              <EmailTableRow
+                key={email.id}
+                email={email}
+                selectedAttachments={selectedAttachments}
+                onToggleAttachment={onToggleAttachment}
+                onDownloadAttachment={onDownloadAttachment}
+                downloadingAttachments={downloadingAttachments}
+              />
             ))}
-            <th className="px-3 py-2 font-medium">Time</th>
-            <th className="px-2 py-2 w-8"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((email) => (
-            <EmailTableRow
-              key={email.id}
-              email={email}
-              selectedAttachments={selectedAttachments}
-              onToggleAttachment={onToggleAttachment}
-              onDownloadAttachment={onDownloadAttachment}
-              downloadingAttachments={downloadingAttachments}
-            />
-          ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+        {hasMore && !expanded && (
+          <div className="sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+        )}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1.5 mx-auto mt-2 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronsUpDown className="h-3.5 w-3.5" />
+          {expanded ? 'Show less' : `Show all ${sorted.length} emails`}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,13 +1,19 @@
+import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Zap } from 'lucide-react';
-import { lovable } from '@/integrations/lovable/index';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   // If already signed in, redirect to home
   if (!loading && user) {
@@ -15,13 +21,45 @@ export default function LoginPage() {
   }
 
   const handleGoogleSignIn = async () => {
-    const result = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
     });
-    if (result.error) {
+    if (error) {
       toast.error('Sign in failed. Please try again.');
-      console.error('OAuth error:', result.error);
+      console.error('OAuth error:', error);
     }
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    setIsSubmitting(true);
+
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        // Auto sign-in after sign up
+        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+        if (loginError) {
+          toast.error(loginError.message);
+        } else {
+          toast.success('Account created!');
+          navigate('/');
+        }
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        navigate('/');
+      }
+    }
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -53,6 +91,49 @@ export default function LoginPage() {
           </svg>
           Continue with Google
         </Button>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">or</span>
+          </div>
+        </div>
+
+        {/* Email/password form */}
+        <form onSubmit={handleEmailSubmit} className="space-y-3">
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-12"
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="h-12"
+          />
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full h-12 text-base"
+            disabled={isSubmitting || !email || !password}
+          >
+            {isSubmitting ? (isSignUp ? 'Creating account...' : 'Signing in...') : (isSignUp ? 'Create Account' : 'Sign in with Email')}
+          </Button>
+        </form>
+
+        <button
+          type="button"
+          onClick={() => setIsSignUp(!isSignUp)}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+        </button>
 
         <p className="text-xs text-muted-foreground">
           By continuing, you agree to our terms of service.

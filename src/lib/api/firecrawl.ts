@@ -127,23 +127,6 @@ export const pagespeedApi = {
   },
 };
 
-export const wappalyzerApi = {
-  async lookup(url: string): Promise<{
-    success: boolean;
-    technologies?: any[];
-    grouped?: Record<string, any[]>;
-    totalCount?: number;
-    social?: string[] | null;
-    error?: string;
-  }> {
-    const { data, error } = await supabase.functions.invoke('wappalyzer-lookup', {
-      body: { url },
-    });
-    if (error) return { success: false, error: error.message };
-    return data;
-  },
-};
-
 export const detectzestackApi = {
   async lookup(domain: string): Promise<{
     success: boolean;
@@ -539,6 +522,7 @@ export const avomaApi = {
     const decoder = new TextDecoder();
     let buffer = '';
     let finalResult: any = null;
+    let currentEventType = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -549,19 +533,21 @@ export const avomaApi = {
       const lines = buffer.split('\n');
       buffer = lines.pop() || ''; // keep incomplete line
 
-      let eventType = '';
       for (const line of lines) {
         if (line.startsWith('event: ')) {
-          eventType = line.slice(7).trim();
+          currentEventType = line.slice(7).trim();
         } else if (line.startsWith('data: ')) {
           try {
             const data = JSON.parse(line.slice(6));
-            if (eventType === 'progress') {
+            if (currentEventType === 'progress') {
               onProgress(data);
-            } else if (eventType === 'result') {
+            } else if (currentEventType === 'result') {
               finalResult = data;
             }
           } catch { /* skip malformed */ }
+        } else if (line.trim() === '') {
+          // Empty line = end of SSE event, reset event type
+          currentEventType = '';
         }
       }
     }
@@ -734,7 +720,7 @@ export const formsDetectApi = {
 };
 
 export const techAnalysisApi = {
-  async analyze(builtwithData: any, detectzestackData: any, wappalyzerData: any, domain: string): Promise<{
+  async analyze(builtwithData: any, detectzestackData: any, domain: string): Promise<{
     success: boolean;
     analysis?: any;
     techCount?: number;
@@ -743,7 +729,7 @@ export const techAnalysisApi = {
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('tech-analysis', {
-      body: { builtwithData, detectzestackData, wappalyzerData, domain },
+      body: { builtwithData, detectzestackData, domain },
     });
     if (error) return { success: false, error: error.message };
     return data;

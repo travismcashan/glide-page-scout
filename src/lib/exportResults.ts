@@ -10,7 +10,6 @@ type ExportSession = {
   builtwith_data: any | null;
   semrush_data: any | null;
   psi_data: any | null;
-  wappalyzer_data: any | null;
   carbon_data: any | null;
   crux_data: any | null;
   wave_data: any | null;
@@ -29,7 +28,6 @@ type ExportSession = {
   detectzestack_data?: any | null;
   tech_analysis_data?: any | null;
   deep_research_data?: any | null;
-  observations_data?: any | null;
   content_types_data?: any | null;
   nav_structure?: any | null;
   sitemap_data?: any | null;
@@ -54,7 +52,6 @@ type ExportPage = {
 function getIntegrationSections(session: ExportSession) {
   return [
     { key: 'builtwith', label: 'BuiltWith', data: session.builtwith_data },
-    { key: 'wappalyzer', label: 'Wappalyzer', data: session.wappalyzer_data },
     { key: 'detectzestack', label: 'DetectZeStack', data: session.detectzestack_data },
     { key: 'tech-analysis', label: 'AI Tech Analysis', data: session.tech_analysis_data },
     { key: 'gtmetrix', label: 'GTmetrix', data: session.gtmetrix_grade ? { grade: session.gtmetrix_grade, scores: session.gtmetrix_scores, testId: session.gtmetrix_test_id } : null },
@@ -73,7 +70,6 @@ function getIntegrationSections(session: ExportSession) {
     { key: 'carbon', label: 'Website Carbon', data: session.carbon_data },
     { key: 'ocean', label: 'Ocean.io', data: session.ocean_data },
     { key: 'deep-research', label: 'Deep Research', data: session.deep_research_data },
-    { key: 'observations', label: 'Observations & Insights', data: session.observations_data },
     { key: 'content-types', label: 'Content Types', data: session.content_types_data },
     { key: 'nav-structure', label: 'Navigation Structure', data: session.nav_structure },
     { key: 'sitemap', label: 'Sitemap', data: session.sitemap_data },

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, MessageSquare, MoreHorizontal, Trash2, Pencil, Pin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, MessageSquare, MoreHorizontal, Trash2, Pencil, Pin, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -84,27 +84,25 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
   return (
     <div
       className="flex flex-col border-r border-border bg-muted/30 overflow-hidden transition-all duration-300 ease-in-out sticky self-start"
-      style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, maxHeight: stickyTabVisible ? 'calc(100vh - 64px)' : '100vh', top: stickyTabVisible ? 64 : 0 }}
+      style={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, minWidth: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH, height: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', maxHeight: stickyTabVisible ? 'calc(100vh - 64px)' : 'calc(100vh - 55px)', top: stickyTabVisible ? 64 : 55 }}
     >
       {collapsed ? (
-        <div className="flex flex-col items-center gap-2 pt-3 px-1">
+        <div
+          className="flex flex-col items-center gap-2 pt-3 px-1 h-full cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => setCollapsed(false)}
+          title="Show chat history"
+        >
+          <div className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground">
+            <PanelLeftOpen className="h-5 w-5" />
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setCollapsed(false)}
-            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-            title="Show chat history"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onNewThread}
+            onClick={(e) => { e.stopPropagation(); onNewThread(); }}
             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
             title="New chat"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </Button>
         </div>
       ) : (
@@ -117,19 +115,19 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
                 variant="ghost"
                 size="icon"
                 onClick={onNewThread}
-                className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
                 title="New chat"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-5 w-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setCollapsed(true)}
-                className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
                 title="Collapse sidebar"
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
+                <PanelLeftClose className="h-5 w-5" />
               </Button>
             </div>
           </div>

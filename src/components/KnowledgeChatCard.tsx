@@ -3,7 +3,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X, Presentation, MoreHorizontal, Cpu } from 'lucide-react';
+import { ArrowUp, Loader2, BookOpen, MessageSquare, Sparkles, Plus, FileText, Globe, ChevronDown, ChevronRight, SlidersHorizontal, Copy, Check, Pencil, Brain, BookmarkPlus, Heart, ExternalLink, Search, Upload, Gauge, Download, Square, Telescope, BarChart3, X, Presentation, MoreHorizontal, Cpu } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +14,7 @@ import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
-import { ChatProviderPicker, ChatReasoningPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
+import { ChatProviderPicker, type ReasoningEffort, type ModelProvider, MODEL_OPTIONS, VERSIONS } from '@/components/chat/ChatModelSelector';
 
 import { ingestChatUploads, ingestChatConversation } from '@/lib/ragIngest';
 import { ChatThreadSidebar } from '@/components/chat/ChatThreadSidebar';
@@ -77,6 +77,10 @@ type Props = {
   /** Callback to attach a site by session ID + domain */
   onSelectSite?: (sessionId: string, domain: string) => void;
   onDetachSite?: (sessionId: string) => void;
+  /** Callback when active thread title changes (for breadcrumb display) */
+  onThreadTitleChange?: (title: string | null) => void;
+  /** Override crawl context (e.g. for group chat with combined multi-session context) */
+  crawlContextOverride?: string;
 };
 
 const DEEP_RESEARCH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deep-research`;
@@ -103,7 +107,7 @@ const GLOBAL_SUGGESTED_QUESTIONS = [
 
 const SOURCE_LABELS: Record<string, string> = {
   semrush: 'SEMrush', psi: 'PageSpeed', crux: 'CrUX', builtwith: 'BuiltWith',
-  wappalyzer: 'Wappalyzer', detectzestack: 'DetectZeStack', wave: 'WAVE',
+  detectzestack: 'DetectZeStack', wave: 'WAVE',
   observatory: 'Observatory', ssllabs: 'SSL Labs', httpstatus: 'HTTP Status',
   w3c: 'W3C', schema: 'Schema', readable: 'Readable',
   carbon: 'Carbon', yellowlab: 'Yellow Lab', gtmetrix: 'GTmetrix',
@@ -118,7 +122,6 @@ const SOURCE_TAB_MAP: Record<string, { tab: string; sectionId: string }> = {
   psi: { tab: 'raw-data', sectionId: 'pagespeed' },
   crux: { tab: 'raw-data', sectionId: 'crux' },
   builtwith: { tab: 'raw-data', sectionId: 'builtwith' },
-  wappalyzer: { tab: 'raw-data', sectionId: 'wappalyzer' },
   detectzestack: { tab: 'raw-data', sectionId: 'detectzestack' },
   wave: { tab: 'raw-data', sectionId: 'wave' },
   observatory: { tab: 'raw-data', sectionId: 'observatory' },
@@ -151,7 +154,6 @@ function detectSources(text: string): string[] {
     ['psi', ['pagespeed', 'psi', 'lighthouse']],
     ['crux', ['crux', 'chrome ux']],
     ['builtwith', ['builtwith']],
-    ['wappalyzer', ['wappalyzer']],
     ['detectzestack', ['detectzestack', 'zestack']],
     ['wave', ['wave accessibility', 'wave scan', 'wave found', 'wave report']],
     ['observatory', ['observatory', 'mozilla observatory']],
@@ -220,6 +222,32 @@ function UserBubbleContent({ content, attachmentNames }: { content: string; atta
   );
 }
 
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => {
+      // Fallback for when clipboard API fails (non-secure context, no focus, etc.)
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    });
+  }
+  // No clipboard API at all — use execCommand fallback
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return Promise.resolve();
+}
+
 function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { content: string; attachmentNames?: string[]; onEdit: (newText: string) => void; disabled?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -227,7 +255,7 @@ function UserBubbleWrapper({ content, attachmentNames, onEdit, disabled }: { con
   const editRef = useRef<HTMLTextAreaElement>(null);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
+    copyToClipboard(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -765,7 +793,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   const [exporting, setExporting] = useState<'pdf' | 'gdoc' | null>(null);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
+    copyToClipboard(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -941,7 +969,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   );
 }
 
-export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite }: Props) {
+export function KnowledgeChatCard({ session, pages, selectedModel, provider, reasoning, onProviderChange, onModelChange, onReasoningChange, onDocumentsChanged, stickyTabVisible, pendingPrompt, onPendingPromptConsumed, globalMode, attachedSessionIds, attachedSites, onSelectSite, onDetachSite, onThreadTitleChange, crawlContextOverride }: Props) {
   const isMobile = useIsMobile();
   const [, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1010,7 +1038,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   const threadInitRef = useRef<string | null>(null);
   const queuedPromptRef = useRef<{ text: string; deepResearch: boolean; threadId: string } | null>(null);
 
-  const crawlContext = globalMode ? '' : buildCrawlContext(session, pages);
+  // Notify parent when active thread title changes
+  useEffect(() => {
+    if (!onThreadTitleChange || !activeThreadId) { onThreadTitleChange?.(null); return; }
+    supabase.from('chat_threads').select('title').eq('id', activeThreadId).single()
+      .then(({ data }) => { if (data?.title) onThreadTitleChange(data.title); });
+  }, [activeThreadId, sidebarRefreshKey]); // sidebarRefreshKey changes when title is updated
+
+  const crawlContext = crawlContextOverride ?? (globalMode ? '' : buildCrawlContext(session, pages));
 
   // Load available sites for the site picker (global mode only)
   useEffect(() => {
@@ -1095,7 +1130,11 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         if (data && data.length > 2) {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              lastUserMsgRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' });
+              if (lastUserMsgRef.current) {
+                const el = lastUserMsgRef.current;
+                const top = el.getBoundingClientRect().top + window.scrollY - 75;
+                window.scrollTo({ top, behavior: 'instant' });
+              }
             });
           });
         }
@@ -1155,12 +1194,19 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, []);
 
   const scrollToLastUserMessage = useCallback(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        lastUserMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    });
-  }, []);
+    const doScroll = () => {
+      const el = lastUserMsgRef.current;
+      if (!el) return;
+      // Position prompt 20px below the sticky header (55px) + any tab bar
+      const headerOffset = stickyTabVisible ? 64 + 20 : 55 + 20;
+      const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    };
+    // Triple rAF to ensure DOM has updated after React render
+    requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(doScroll)));
+    // Fallback timeout
+    setTimeout(doScroll, 200);
+  }, [stickyTabVisible]);
 
   const saveMessage = async (role: string, content: string, sources: string[] = [], ragDocs?: RagDocument[], webCites?: string[]) => {
     if (!activeThreadId) return;
@@ -1590,6 +1636,14 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               continue;
             }
 
+            // Handle inline stream errors from the AI provider
+            if (parsed.error) {
+              console.error('[knowledge-chat] Stream error:', parsed.error);
+              assistantContent += `\n\nError from AI provider: ${typeof parsed.error === 'string' ? parsed.error : parsed.error.message || JSON.stringify(parsed.error)}`;
+              updateMessages();
+              continue;
+            }
+
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             const reasoningContent = (
               parsed.choices?.[0]?.delta?.reasoning_content ??
@@ -1651,8 +1705,17 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
       displayedThinkingContent = thinkingContent;
       commitMessages(assistantContent, thinkingContent);
 
-      // If assistant content is empty (e.g. MALFORMED_FUNCTION_CALL), show a helpful message
+      // If assistant content is empty but we have thinking content, promote thinking as the response
+      if (!assistantContent.trim() && thinkingContent.trim()) {
+        console.warn('[knowledge-chat] Assistant content empty but thinking content present — promoting thinking as response');
+        assistantContent = thinkingContent;
+        displayedAssistantContent = thinkingContent;
+        commitMessages(thinkingContent, '');
+      }
+
+      // If assistant content is still empty, show a helpful message
       if (!assistantContent.trim()) {
+        console.warn('[knowledge-chat] Empty response. Thinking:', thinkingContent.length, 'chars');
         const retryMsg = 'I encountered an issue processing that request. Please try again — sometimes rephrasing the question helps.';
         assistantContent = retryMsg;
         displayedAssistantContent = retryMsg;
@@ -1740,7 +1803,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
     saveMessage('user', text);
 
     try {
-      const crawlCtx = globalMode ? '' : buildCrawlContext(session, pages);
+      const crawlCtx = crawlContextOverride ?? (globalMode ? '' : buildCrawlContext(session, pages));
       const { loadDefaultDocs } = await import('@/lib/defaultResearchDocs');
       const defaultDocs = await loadDefaultDocs();
 
@@ -2346,29 +2409,33 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
   }, [activeThreadId, isStreaming]);
 
   const outerRef = useRef<HTMLDivElement>(null);
-  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollBtnLeft, setScrollBtnLeft] = useState<number | null>(null);
 
-  // Track whether user has scrolled away from bottom
+  // Track scroll position for top/bottom buttons + recalculate on sidebar toggle
   useEffect(() => {
-    const checkDistance = () => {
-      const distanceFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
+    const updatePosition = () => {
+      const distanceFromTop = window.scrollY;
       const hasAssistantReply = messages.some(m => m.role === 'assistant' && m.content);
-      setShowScrollBottom(distanceFromBottom > 200 && hasAssistantReply);
+      setShowScrollTop(distanceFromTop > 300 && hasAssistantReply);
       if (outerRef.current) {
         const rect = outerRef.current.getBoundingClientRect();
         setScrollBtnLeft(rect.left + rect.width / 2);
       }
     };
-    checkDistance();
-    window.addEventListener('scroll', checkDistance, { passive: true });
-    window.addEventListener('resize', checkDistance, { passive: true });
-    const observer = new MutationObserver(checkDistance);
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, { passive: true });
+    window.addEventListener('resize', updatePosition, { passive: true });
+    const observer = new MutationObserver(updatePosition);
     observer.observe(document.body, { childList: true, subtree: true });
+    // Also observe sidebar width changes (ResizeObserver on outer container)
+    const resizeObs = outerRef.current ? new ResizeObserver(updatePosition) : null;
+    if (outerRef.current && resizeObs) resizeObs.observe(outerRef.current);
     return () => {
-      window.removeEventListener('scroll', checkDistance);
-      window.removeEventListener('resize', checkDistance);
+      window.removeEventListener('scroll', updatePosition);
+      window.removeEventListener('resize', updatePosition);
       observer.disconnect();
+      resizeObs?.disconnect();
     };
   }, [messages]);
 
@@ -2488,7 +2555,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               <div
                 key={i}
                 ref={msg.role === 'user' && (i === messages.length - 1 || i === messages.length - 2) ? lastUserMsgRef : undefined}
-                style={msg.role === 'user' ? { scrollMarginTop: '24px' } : undefined}
               >
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'user' ? (
@@ -2544,16 +2610,20 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
         )}
       </div>
 
-      {/* Scroll to bottom button - centered on thread body */}
-      {showScrollBottom && scrollBtnLeft !== null && (
-        <button
-          onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-          className="fixed bottom-[180px] z-40 h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center transition-opacity"
+      {/* Scroll to top button */}
+      {showScrollTop && scrollBtnLeft !== null && (
+        <div
+          className="fixed bottom-[180px] z-40"
           style={{ left: scrollBtnLeft, transform: 'translateX(-50%)' }}
-          aria-label="Scroll to bottom"
         >
-          <ArrowDown className="h-5 w-5" />
-        </button>
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="h-9 w-9 rounded-full bg-muted text-foreground hover:bg-muted/80 shadow-lg flex items-center justify-center"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="h-5 w-5" />
+          </button>
+        </div>
       )}
 
       {/* Input area - sticky at bottom */}
@@ -2749,9 +2819,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
 
           {/* Provider picker (icon-only on mobile) */}
           <ChatProviderPicker provider={provider} model={selectedModel} onProviderChange={onProviderChange} disabled={isStreaming} />
-
-          {/* Reasoning picker (icon-only on mobile) */}
-          <ChatReasoningPicker model={selectedModel} reasoning={reasoning} onReasoningChange={onReasoningChange} disabled={isStreaming} />
 
           {/* Send / Stop */}
           <Button
@@ -2980,13 +3047,6 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
             onProviderChange={onProviderChange}
             disabled={isStreaming}
           />
-          <ChatReasoningPicker
-            model={selectedModel}
-            reasoning={reasoning}
-            onReasoningChange={onReasoningChange}
-            disabled={isStreaming}
-          />
-
           {/* Send / Stop button */}
             <Button
               variant="ghost"

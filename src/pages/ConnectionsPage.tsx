@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
+import { BrandLoader } from '@/components/BrandLoader';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const EMAIL_SCOPE = 'email profile';
@@ -386,30 +387,7 @@ export default function ConnectionsPage() {
   const ga4Connection = connections.find(c => c.provider === 'google-analytics');
   const gscConnection = connections.find(c => c.provider === 'google-search-console');
 
-  const liveSources = [
-    {
-      id: 'google-analytics',
-      name: 'Google Analytics',
-      scope: GA4_SCOPE,
-      icon: BarChart3,
-      iconBg: 'bg-amber-500/10',
-      iconColor: 'text-amber-600',
-      description: 'Read-only access to GA4 traffic, engagement, and conversion data. Property auto-detected per domain.',
-      connection: ga4Connection,
-      hasPropertyPicker: false,
-    },
-    {
-      id: 'google-search-console',
-      name: 'Search Console',
-      scope: GSC_SCOPE,
-      icon: Search,
-      iconBg: 'bg-emerald-500/10',
-      iconColor: 'text-emerald-600',
-      description: 'Read-only access to search queries, impressions, clicks, and indexing data. Site auto-detected per domain.',
-      connection: gscConnection,
-      hasPropertyPicker: false,
-    },
-  ];
+  const liveSources: ProviderDef[] = [];
 
   const accountAccess = [
     {
@@ -454,9 +432,8 @@ export default function ConnectionsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Loading connections…</span>
+          <div className="flex items-center justify-center py-16">
+            <BrandLoader size={48} />
           </div>
         ) : (<>
         {/* Live Sources */}
@@ -464,7 +441,7 @@ export default function ConnectionsPage() {
           <div className="mb-3">
             <h2 className="text-sm font-semibold text-foreground tracking-tight">Live Sources</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              The AI queries these in real-time during chat — no need to re-crawl.
+              The AI queries these in real-time during chat — no need to re-crawl. Google Analytics and Search Console connect per-site on the results page.
             </p>
           </div>
           <div className="space-y-3">

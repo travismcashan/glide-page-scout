@@ -20,7 +20,6 @@ type SessionData = {
   psi_data?: any;
   crux_data?: any;
   builtwith_data?: any;
-  wappalyzer_data?: any;
   wave_data?: any;
   observatory_data?: any;
   ssllabs_data?: any;
@@ -247,15 +246,6 @@ function extractBuiltWith(data: any): string | null {
   return parts.length ? parts.join('\n') : null;
 }
 
-function extractWappalyzer(data: any): string | null {
-  if (!data?.grouped) return null;
-  const parts: string[] = [];
-  for (const [cat, techs] of Object.entries(data.grouped) as [string, any[]][]) {
-    parts.push(`${cat}: ${techs.map((t: any) => t.name || t).join(', ')}`);
-  }
-  return parts.length ? parts.join('\n') : null;
-}
-
 function extractHttpStatus(data: any): string | null {
   if (!data) return null;
   const parts: string[] = [];
@@ -352,7 +342,6 @@ export function buildCrawlContext(session: SessionData, pages?: PageData[]): str
 
   // ── 🔧 Technology Detection ──
   addSection('BuiltWith Technology Stack', extractBuiltWith(session.builtwith_data));
-  addSection('Wappalyzer Technology Profiling', extractWappalyzer(session.wappalyzer_data));
 
   // ── ⚡ Performance & Sustainability ──
   addSection('GTmetrix Performance Report', extractGtmetrix(session.gtmetrix_grade, session.gtmetrix_scores));

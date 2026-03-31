@@ -46,7 +46,6 @@ const integrations: Integration[] = [
 
   // ── 🔧 Technology Detection ──
   { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', secretKey: 'BUILTWITH_API_KEY', configured: true, category: 'technology', status: 'active', hasCredits: true, tier: 'premium' },
-  { name: 'Wappalyzer', id: 'wappalyzer', description: 'Real-time technology profiling with version detection', secretKey: 'WAPPALYZER_API_KEY', configured: true, category: 'technology', status: 'active', tier: 'premium' },
   { name: 'DetectZeStack', id: 'detectzestack', description: 'Technology detection via RapidAPI — 100 free lookups/month', secretKey: 'RAPIDAPI_KEY', configured: true, category: 'technology', status: 'active', tier: 'premium' },
   { name: 'AI Tech Analysis', id: 'tech-analysis', description: 'AI-powered merged analysis of all tech sources — identifies platform, risks, and redesign recommendations', secretKey: '', configured: true, category: 'technology', status: 'active', tier: 'free' },
 
@@ -76,7 +75,6 @@ const integrations: Integration[] = [
   { name: 'URLScan.io', id: 'urlscan', description: 'Sandbox every outbound request a site makes to expose 3rd-party tracker bloat and data leakage to questionable domains', secretKey: '', configured: false, category: 'security', status: 'coming-soon', tier: 'premium' },
 
   // ── 📊 Competitive Intelligence ──
-  { name: 'Observations & Insights', id: 'observations', description: 'AI-generated analysis of key findings — patterns, opportunities, and recommendations synthesized from all collected data', secretKey: '', configured: true, category: 'intelligence', status: 'active', tier: 'free' },
   { name: 'Gemini Deep Research', id: 'deep-research', description: 'Autonomous multi-step research agent — competitive analysis, market research, and detailed reports powered by Gemini 3.1 Pro (~$2-5/task)', secretKey: 'GEMINI_API_KEY', configured: true, category: 'intelligence', status: 'active', tier: 'premium' },
   { name: 'Avoma', id: 'avoma', description: 'Call intelligence — match meetings and transcripts where attendee email matches the crawled domain', secretKey: 'AVOMA_API_KEY', configured: true, category: 'intelligence', status: 'active', tier: 'premium' },
   { name: 'HubSpot', id: 'hubspot', description: 'CRM data — pull contacts, companies, and deals associated with the crawled domain', secretKey: 'HUBSPOT_ACCESS_TOKEN', configured: true, category: 'enrichment', status: 'active', tier: 'premium' },
@@ -198,9 +196,27 @@ export default function IntegrationsPage() {
   const navigate = useNavigate();
   const [pausedSet, setPausedSet] = useState(() => getPausedIntegrations());
   const [bulkLoading, setBulkLoading] = useState<string | null>(null);
+  const [usageCounts, setUsageCounts] = useState<Map<string, { done: number; failed: number; total: number }>>(new Map());
 
   useEffect(() => {
     loadPausedIntegrations().then(setPausedSet);
+  }, []);
+
+  useEffect(() => {
+    const fetchUsage = async () => {
+      const { data } = await supabase.from('integration_runs').select('integration_key, status');
+      if (!data) return;
+      const counts = new Map<string, { done: number; failed: number; total: number }>();
+      data.forEach(r => {
+        const c = counts.get(r.integration_key) ?? { done: 0, failed: 0, total: 0 };
+        c.total++;
+        if (r.status === 'done') c.done++;
+        if (r.status === 'failed') c.failed++;
+        counts.set(r.integration_key, c);
+      });
+      setUsageCounts(counts);
+    };
+    fetchUsage();
   }, []);
 
   const handleToggle = async (id: string) => {
@@ -299,6 +315,17 @@ export default function IntegrationsPage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
+                      {(() => {
+                        const usage = usageCounts.get(integration.id);
+                        if (!usage) return null;
+                        return (
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1.5">
+                            <CreditCard className="h-3 w-3 shrink-0" />
+                            <span><strong className="text-foreground">{usage.done}</strong> successful run{usage.done !== 1 ? 's' : ''}</span>
+                            {usage.failed > 0 && <span className="text-destructive/70">{usage.failed} failed</span>}
+                          </div>
+                        );
+                      })()}
                       {integration.hasCredits && !isPaused && (
                         <CreditsDisplay integrationId={integration.id} />
                       )}

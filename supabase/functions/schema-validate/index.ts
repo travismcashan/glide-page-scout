@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { extractOrchestration } from "../_shared/orchestration.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
@@ -11,9 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    const { url } = await req.json();
+    const body = await req.json();
+    const { url } = body;
+    const orch = extractOrchestration(body);
+    if (orch) await orch.markRunning();
+
     if (!url) {
-      return new Response(JSON.stringify({ success: false, error: 'URL is required' }), {
+      const msg = 'URL is required';
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -32,7 +39,9 @@ serve(async (req) => {
         });
         clearTimeout(timeout);
         if (!res.ok) {
-          return new Response(JSON.stringify({ success: false, error: `Failed to fetch page: HTTP ${res.status}` }), {
+          const msg = `Failed to fetch page: HTTP ${res.status}`;
+          if (orch) await orch.markFailed(msg);
+          return new Response(JSON.stringify({ success: false, error: msg }), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
@@ -46,7 +55,9 @@ serve(async (req) => {
       }
     }
     if (lastErr) {
-      return new Response(JSON.stringify({ success: false, error: `Could not reach site after 3 attempts: ${lastErr}` }), {
+      const msg = `Could not reach site after 3 attempts: ${lastErr}`;
+      if (orch) await orch.markFailed(msg);
+      return new Response(JSON.stringify({ success: false, error: msg }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -85,7 +96,7 @@ serve(async (req) => {
     ];
     const uniqueTypes = [...new Set(allTypes)];
 
-    return new Response(JSON.stringify({
+    const result = {
       success: true,
       summary: {
         totalSchemas: jsonLdBlocks.length + microdata.count + rdfa.count,
@@ -102,12 +113,18 @@ serve(async (req) => {
       rdfa: rdfa.items.slice(0, 30),
       errors,
       warnings,
-    }), {
+    };
+
+    if (orch) await orch.markDone(result);
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('schema-validate error:', error);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    const errMsg = error.message || 'Schema validation failed';
+    if (orch) await orch.markFailed(errMsg);
+    return new Response(JSON.stringify({ success: false, error: errMsg }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

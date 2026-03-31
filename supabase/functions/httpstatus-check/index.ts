@@ -17,7 +17,7 @@ interface HopResult {
   responseHeaders: Record<string, string> | null;
 }
 
-async function checkUrl(apiKey: string, url: string): Promise<{
+async function checkUrl(_apiKey: string, url: string): Promise<{
   url: string;
   finalUrl: string;
   finalStatusCode: number;
@@ -28,55 +28,62 @@ async function checkUrl(apiKey: string, url: string): Promise<{
   error?: string;
 }> {
   try {
-    const response = await fetch('https://api.httpstatus.io/v1/status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Billing-Token': apiKey,
-      },
-      body: JSON.stringify({
-        requestUrl: url,
-        followRedirect: true,
-        maxRedirects: 10,
-        userAgent: 'googlebot-desktop',
-        responseHeaders: true,
-        timings: true,
-      }),
-    });
+    // Direct fetch — follow redirects manually to capture each hop
+    const hops: HopResult[] = [];
+    let currentUrl = url;
+    const maxRedirects = 10;
+    const overallStart = Date.now();
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`httpstatus.io error for ${url}:`, response.status, text);
-      return { url, finalUrl: url, finalStatusCode: 0, redirectCount: 0, hops: [], timings: null, responseHeaders: null, error: `API error: ${response.status}` };
+    for (let i = 0; i <= maxRedirects; i++) {
+      const hopStart = Date.now();
+      const response = await fetch(currentUrl, {
+        method: 'GET',
+        redirect: 'manual', // Don't auto-follow — we track each hop
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        },
+      });
+      const hopLatency = Date.now() - hopStart;
+
+      const isRedirect = response.status >= 300 && response.status < 400;
+      const location = response.headers.get('location');
+      const redirectTo = isRedirect && location
+        ? (location.startsWith('/') ? new URL(location, currentUrl).href : location)
+        : null;
+
+      // Capture response headers
+      const respHeaders: Record<string, string> = {};
+      response.headers.forEach((v, k) => { respHeaders[k] = v; });
+
+      hops.push({
+        step: i + 1,
+        url: currentUrl,
+        statusCode: response.status,
+        statusMessage: response.statusText || '',
+        redirectTo,
+        redirectType: isRedirect ? (response.status === 301 ? '301 Permanent' : response.status === 302 ? '302 Temporary' : `${response.status}`) : null,
+        latency: hopLatency,
+        timings: i === 0 ? { ttfb: hopLatency } : null,
+        responseHeaders: respHeaders,
+      });
+
+      if (!isRedirect || !redirectTo) break;
+      currentUrl = redirectTo;
     }
 
-    const data = await response.json();
-    const chain = data.response?.chain || [];
-
-    const hops: HopResult[] = chain.map((hop: any, i: number) => ({
-      step: i + 1,
-      url: hop.url || '',
-      statusCode: hop.statusCode || 0,
-      statusMessage: hop.statusMessage || hop.statusText || '',
-      redirectTo: hop.redirectTo || null,
-      redirectType: hop.redirectType || null,
-      latency: hop.latency || null,
-      timings: hop.timings?.phases || null,
-      responseHeaders: hop.responseHeaders || null,
-    }));
-
     const finalHop = hops.length > 0 ? hops[hops.length - 1] : null;
+    const totalTime = Date.now() - overallStart;
 
     return {
       url,
       finalUrl: finalHop?.url || url,
       finalStatusCode: finalHop?.statusCode || 0,
-      redirectCount: data.response?.numberOfRedirects ?? Math.max(0, hops.length - 1),
+      redirectCount: Math.max(0, hops.length - 1),
       hops,
-      timings: finalHop?.timings || null,
+      timings: { total: totalTime, ttfb: hops[0]?.latency || 0 },
       responseHeaders: finalHop?.responseHeaders || null,
     };
-  } catch (err) {
+  } catch (err: any) {
     console.error(`httpstatus-check error for ${url}:`, err);
     return { url, finalUrl: url, finalStatusCode: 0, redirectCount: 0, hops: [], timings: null, responseHeaders: null, error: err.message };
   }
@@ -110,17 +117,10 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get('HTTPSTATUS_API_KEY');
-    if (!apiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'HTTPSTATUS_API_KEY not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const variants = getDomainVariants(url);
 
-    // Check all 4 variants in parallel
-    const results = await Promise.all(variants.map(v => checkUrl(apiKey, v)));
+    // Check all 4 variants in parallel (direct fetch, no API key needed)
+    const results = await Promise.all(variants.map(v => checkUrl('', v)));
 
     // Build canonical analysis
     const canonicalVariants = results.map(r => ({

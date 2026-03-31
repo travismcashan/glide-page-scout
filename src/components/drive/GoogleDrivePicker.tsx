@@ -111,6 +111,8 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   const focusedFileIdRef = useRef(focusedFileId);
   const filesRef = useRef(files);
   const isHandlingSpaceRef = useRef(false);
+  const lastClickedIndexRef = useRef<number | null>(null);
+  const filteredAndSortedFilesRef = useRef<typeof filteredAndSortedFiles>([]);
 
   useEffect(() => { previewFileRef.current = previewFile; }, [previewFile]);
   useEffect(() => { focusedFileIdRef.current = focusedFileId; }, [focusedFileId]);
@@ -129,11 +131,30 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
     });
   }, []);
 
-  const handleFileClick = useCallback((file: DriveFile) => {
+  const handleFileClick = useCallback((file: DriveFile, e: React.MouseEvent) => {
     if (isFolder(file.mimeType)) {
       navigateToFolder(file.id, file.name);
     } else if (isFileSupported(file.mimeType)) {
-      toggleFileSelection(file.id);
+      const files = filteredAndSortedFilesRef.current;
+      const currentIndex = files.findIndex(f => f.id === file.id);
+
+      if (e.shiftKey && lastClickedIndexRef.current !== null) {
+        const start = Math.min(lastClickedIndexRef.current, currentIndex);
+        const end = Math.max(lastClickedIndexRef.current, currentIndex);
+        const rangeFiles = files.slice(start, end + 1);
+        setSelectedFiles(prev => {
+          const newSelected = new Set(prev);
+          rangeFiles.forEach(f => {
+            if (isFileSupported(f.mimeType)) {
+              newSelected.add(f.id);
+            }
+          });
+          return newSelected;
+        });
+      } else {
+        toggleFileSelection(file.id);
+        lastClickedIndexRef.current = currentIndex;
+      }
       setFocusedFileId(file.id);
     }
   }, [navigateToFolder, toggleFileSelection]);
@@ -354,6 +375,7 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
       }
       return sortDirection === 'desc' ? -cmp : cmp;
     });
+  filteredAndSortedFilesRef.current = filteredAndSortedFiles;
 
   const getFilterLabel = () => {
     switch (filterBy) {
@@ -592,7 +614,7 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
                   return (
                     <div
                       key={file.id}
-                      onClick={() => handleFileClick(file)}
+                      onClick={(e) => handleFileClick(file, e)}
                       onFocus={() => !isFolderItem && setFocusedFileId(file.id)}
                       tabIndex={!isFolderItem && isSupported ? 0 : -1}
                       className={cn(

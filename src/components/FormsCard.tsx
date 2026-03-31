@@ -90,7 +90,9 @@ const LOADING_MESSAGES = [
   'Rating form aesthetics…',
 ];
 
-export function FormsCard({ data, domain, savedTiers, savedActiveTier, onTiersChange, onActiveTierChange, onRerunRequest, onFormTierChange, mode = 'analysis' }: Props) {
+export function FormsCard({ data: rawData, domain, savedTiers, savedActiveTier, onTiersChange, onActiveTierChange, onRerunRequest, onFormTierChange, mode = 'analysis' }: Props) {
+  // Normalize data — server may return different shapes
+  const data = rawData && Array.isArray(rawData.forms) ? rawData : { forms: [], summary: { uniqueForms: 0, totalInstances: 0, globalForms: 0, pageSpecificForms: 0 } };
   const [expandedForms, setExpandedForms] = useState<Set<number>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
@@ -420,7 +422,7 @@ export function FormsCard({ data, domain, savedTiers, savedActiveTier, onTiersCh
       })()}
 
       {/* Platform breakdown */}
-      {Object.keys(summary.platforms).length > 0 && (
+      {summary.platforms && Object.keys(summary.platforms).length > 0 && (
         <p className="text-[11px] text-muted-foreground">
           Platforms detected: {Object.entries(summary.platforms)
             .sort(([, a], [, b]) => b - a)

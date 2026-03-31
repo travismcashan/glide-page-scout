@@ -18,6 +18,14 @@ type Props = {
 };
 
 export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
+  // Elapsed time counter
+  const [elapsed, setElapsed] = useState(0);
+  const elapsedRef = useRef<ReturnType<typeof setInterval>>();
+  useEffect(() => {
+    elapsedRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
+  }, []);
+
   const activeSteps = steps.filter(s => s.status !== 'paused');
   const sortedSteps = [...activeSteps].sort((a, b) => {
     const order = { done: 0, failed: 1, loading: 2, pending: 3, paused: 4 };
@@ -133,6 +141,9 @@ export function GlobalProgressBar({ steps, onStop, stopped }: Props) {
               <Square className="h-3 w-3 fill-current" />
               Stopped
             </span>
+          )}
+          {!allDone && (
+            <span className="text-xs text-muted-foreground/50 tabular-nums shrink-0">{elapsed}s</span>
           )}
         </div>
       </div>

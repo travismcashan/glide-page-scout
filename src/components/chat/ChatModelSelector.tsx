@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Zap, Brain, Sparkles, ChevronDown } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Zap, Brain, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -78,30 +78,89 @@ const TIER_DOT: Record<string, string> = {
   powerful: 'bg-amber-500',
 };
 
-/* ─── Model Version Picker (filtered by current provider) ─── */
+/* ─── Model Version Picker with Reasoning Flyout ─── */
 
 type ModelPickerProps = {
   model: string;
   provider: ModelProvider;
+  reasoning: ReasoningEffort;
   onModelChange: (model: string) => void;
+  onReasoningChange: (reasoning: ReasoningEffort) => void;
   disabled?: boolean;
 };
 
-export function ChatModelPicker({ model, provider, onModelChange, disabled }: ModelPickerProps) {
+function ReasoningFlyout({ modelOption, currentReasoning, onSelect }: { modelOption: ModelOption; currentReasoning: ReasoningEffort; onSelect: (r: ReasoningEffort) => void }) {
+  if (modelOption.reasoning.length <= 1) return null;
+
+  return (
+    <div className="absolute left-full top-0 ml-1 w-[150px] p-1 rounded-lg border border-border bg-popover shadow-lg z-50">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1 font-medium">Reasoning</div>
+      {modelOption.reasoning.map(r => {
+        const meta = REASONING_META[r];
+        const label = modelOption.reasoningLabels?.[r] ?? meta.label;
+        const Icon = meta.icon;
+        return (
+          <button
+            key={r}
+            onClick={(e) => { e.stopPropagation(); onSelect(r); }}
+            className={cn(
+              'w-full text-left rounded-md px-2 py-1.5 transition-colors flex items-center gap-2',
+              currentReasoning === r ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/50'
+            )}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-xs">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ChatModelPicker({ model, provider, reasoning, onModelChange, onReasoningChange, disabled }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
+  const [hoveredModel, setHoveredModel] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const versions = VERSIONS[provider] || [];
   const selectedModel = versions.find(m => m.id === model) || versions[0];
 
   const handleSelect = (modelId: string) => {
+    const newModel = versions.find(m => m.id === modelId);
     onModelChange(modelId);
-    setOpen(false);
+    // Reset reasoning if new model doesn't support current reasoning
+    if (newModel && !newModel.reasoning.includes(reasoning)) {
+      onReasoningChange('none');
+    }
+    if (!newModel || newModel.reasoning.length <= 1) {
+      setOpen(false);
+    }
   };
+
+  const handleReasoningSelect = (r: ReasoningEffort) => {
+    onReasoningChange(r);
+    setOpen(false);
+    setHoveredModel(null);
+  };
+
+  const handleMouseEnter = (modelId: string) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setHoveredModel(modelId);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => setHoveredModel(null), 150);
+  };
+
+  // Display label includes reasoning if not 'none'
+  const reasoningLabel = reasoning !== 'none' && selectedModel?.reasoningLabels?.[reasoning]
+    ? ` · ${selectedModel.reasoningLabels[reasoning]}`
+    : '';
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild disabled={disabled}>
         <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 outline-none px-1.5 py-0.5 rounded flex items-center gap-1">
-          {selectedModel?.label || 'Model'}
+          {selectedModel?.label || 'Model'}{reasoningLabel}
           <ChevronDown className="h-3 w-3 opacity-50" />
         </button>
       </PopoverTrigger>
@@ -109,32 +168,45 @@ export function ChatModelPicker({ model, provider, onModelChange, disabled }: Mo
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 font-medium">
           Model
         </div>
-        {versions.map(v => (
-          <button
-            key={v.id}
-            onClick={() => !v.comingSoon && handleSelect(v.id)}
-            disabled={v.comingSoon}
-            className={cn(
-              'w-full text-left rounded-md px-2 py-2 transition-colors flex items-start gap-2',
-              v.comingSoon
-                ? 'opacity-50 cursor-not-allowed'
-                : selectedModel?.id === v.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-muted/50'
-            )}
-          >
-            <span className={cn('h-2 w-2 rounded-full mt-1 shrink-0', TIER_DOT[v.tier])} />
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium leading-tight flex items-center gap-1.5">
-                {v.label}
-                {v.comingSoon && (
-                  <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
+        {versions.map(v => {
+          const hasReasoning = v.reasoning.length > 1;
+          return (
+            <div
+              key={v.id}
+              className="relative"
+              onMouseEnter={() => hasReasoning && handleMouseEnter(v.id)}
+              onMouseLeave={handleMouseLeave}
+            >
+              <button
+                onClick={() => !v.comingSoon && handleSelect(v.id)}
+                disabled={v.comingSoon}
+                className={cn(
+                  'w-full text-left rounded-md px-2 py-2 transition-colors flex items-start gap-2',
+                  v.comingSoon
+                    ? 'opacity-50 cursor-not-allowed'
+                    : selectedModel?.id === v.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'hover:bg-muted/50'
                 )}
-              </div>
-              <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{v.description}</div>
+              >
+                <span className={cn('h-2 w-2 rounded-full mt-1 shrink-0', TIER_DOT[v.tier])} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium leading-tight flex items-center gap-1.5">
+                    {v.label}
+                    {v.comingSoon && (
+                      <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">Soon</span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{v.description}</div>
+                </div>
+                {hasReasoning && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />}
+              </button>
+              {hasReasoning && hoveredModel === v.id && (
+                <ReasoningFlyout modelOption={v} currentReasoning={selectedModel?.id === v.id ? reasoning : 'none'} onSelect={handleReasoningSelect} />
+              )}
             </div>
-          </button>
-        ))}
+          );
+        })}
       </PopoverContent>
     </Popover>
   );
@@ -263,15 +335,13 @@ export function ChatModelSelector({ model, reasoning, onModelChange, onReasoning
   const provider = selectedModel.provider;
 
   return (
-    <div className="flex items-center gap-0.5">
-      <ChatModelPicker model={model} provider={provider} onModelChange={(id) => {
-        const newModel = MODEL_OPTIONS.find(m => m.id === id);
-        onModelChange(id);
-        if (newModel && !newModel.reasoning.includes(reasoning)) {
-          onReasoningChange('none');
-        }
-      }} disabled={disabled} />
-      <ChatReasoningPicker model={model} reasoning={reasoning} onReasoningChange={onReasoningChange} disabled={disabled} />
-    </div>
+    <ChatModelPicker
+      model={model}
+      provider={provider}
+      reasoning={reasoning}
+      onModelChange={onModelChange}
+      onReasoningChange={onReasoningChange}
+      disabled={disabled}
+    />
   );
 }

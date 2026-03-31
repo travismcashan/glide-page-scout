@@ -1163,10 +1163,13 @@ async function handleGatewayRequest(
       ],
       stream: true,
     };
-    if (selectedReasoning) {
+    const hasTools = includeTools && filteredTools.length > 0;
+    // Gemini's OpenAI-compat endpoint does not support the `reasoning` field at all.
+    // Only send it for non-Gemini providers (e.g. OpenAI).
+    if (selectedReasoning && !selectedModel.startsWith('google/')) {
       body.reasoning = { effort: selectedReasoning };
     }
-    if (includeTools && filteredTools.length > 0) {
+    if (hasTools) {
       body.tools = filteredTools;
     }
     return body;
