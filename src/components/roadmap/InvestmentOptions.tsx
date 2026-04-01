@@ -298,6 +298,34 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             </li>
             <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Priority Onboarding</span>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs">Skip the queue. Bundle clients get priority scheduling for kickoff, discovery, and first deliverables.</p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Dedicated Slack Channel</span>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs">Real-time access to your entire team in a shared Slack channel. No tickets, no wait times.</p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
               <span className="text-sm font-medium text-foreground whitespace-nowrap">Quarterly Strategic Review</span>
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
@@ -307,6 +335,20 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[240px]">
                   <p className="text-xs">Your dedicated senior team (strategist + service leads for your active services) meets quarterly to review performance, adjust priorities, and align your roadmap with business goals. <span className="font-medium">$1,800/yr value, included.</span></p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Monthly Performance Snapshot</span>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs">A concise monthly report covering KPIs, progress against goals, and recommended next steps across all active services.</p>
                 </TooltipContent>
               </Tooltip>
             </li>

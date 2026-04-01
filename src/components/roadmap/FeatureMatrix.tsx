@@ -157,21 +157,25 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
           <div key={optIdx} className="flex items-center justify-center px-2 py-3" />
         ))}
       </div>
-      <div className="grid grid-cols-[1fr_100px_100px_100px] border-b border-border last:border-b-0">
-        <div className="flex items-center gap-2 px-6 py-3 pl-8">
-          <span className="text-sm font-medium text-foreground">Quarterly Strategic Review</span>
-          <span className="text-xs text-muted-foreground">($1,800/yr value)</span>
-        </div>
-        {[0, 1, 2].map((optIdx) => (
-          <div key={optIdx} className="flex items-center justify-center px-2 py-3">
-            {optIdx === 2 ? (
-              <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
-            ) : (
-              <span className="text-muted-foreground/30">—</span>
+      {["Priority Onboarding", "Dedicated Slack Channel", "Quarterly Strategic Review", "Monthly Performance Snapshot"].map((perk) => (
+        <div key={perk} className="grid grid-cols-[1fr_100px_100px_100px] border-b border-border last:border-b-0">
+          <div className="flex items-center gap-2 px-6 py-3 pl-8">
+            <span className="text-sm font-medium text-foreground">{perk}</span>
+            {perk === "Quarterly Strategic Review" && (
+              <span className="text-xs text-muted-foreground">($1,800/yr value)</span>
             )}
           </div>
-        ))}
-      </div>
+          {[0, 1, 2].map((optIdx) => (
+            <div key={optIdx} className="flex items-center justify-center px-2 py-3">
+              {optIdx === 2 ? (
+                <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
+              ) : (
+                <span className="text-muted-foreground/30">—</span>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
