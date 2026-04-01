@@ -10,13 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 interface FeedbackPanelProps {
-  type: "bug" | "feature" | null;
+  open: boolean;
   onClose: () => void;
 }
 
@@ -27,7 +26,7 @@ type ProcessedResult = {
   category: string;
 };
 
-export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
+export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
   const { user } = useAuth();
   const [rawInput, setRawInput] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -49,7 +48,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
 
   // Reset when panel opens
   useEffect(() => {
-    if (type) {
+    if (open) {
       setPageUrl(window.location.href);
       setRawInput("");
       setProcessed(null);
@@ -58,7 +57,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
       setInspecting(false);
       setRecording(false);
     }
-  }, [type]);
+  }, [open]);
 
   // ---- Voice Recording ----
   const startRecording = useCallback(async () => {
@@ -142,7 +141,6 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
   const startInspecting = useCallback(() => setInspecting(true), []);
 
   const describeElement = (el: HTMLElement): string => {
-    // Try to build a human-readable description
     const text = el.innerText?.trim().slice(0, 60);
     const ariaLabel = el.getAttribute("aria-label");
     const placeholder = el.getAttribute("placeholder");
@@ -151,7 +149,6 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
     const tag = el.tagName.toLowerCase();
     const role = el.getAttribute("role");
 
-    // Priority: aria-label > alt > title > placeholder > visible text
     const label = ariaLabel || alt || title || placeholder || text;
 
     if (label) {
@@ -170,7 +167,6 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
       return `${friendly}: "${label.length > 50 ? label.slice(0, 50) + "..." : label}"`;
     }
 
-    // Fallback: describe by tag and position
     return `<${tag}> element`;
   };
 
@@ -187,7 +183,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
         lastHighlighted.style.outline = originalOutline.pop() || "";
       }
       originalOutline.push(el.style.outline);
-      el.style.outline = "2px solid #ef4444";
+      el.style.outline = "2px solid hsl(256 72% 54%)";
       el.style.outlineOffset = "2px";
       lastHighlighted = el;
     };
@@ -265,24 +261,22 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
           title: first.title || rawInput.trim().slice(0, 120),
           description: first.description || rawInput.trim(),
           priority: first.priority || "medium",
-          category: first.category || (type === "bug" ? "bug" : "feature"),
+          category: first.category || "feature",
         });
       } else {
-        // Fallback if AI returns nothing
         setProcessed({
           title: rawInput.trim().slice(0, 120),
           description: rawInput.trim(),
           priority: "medium",
-          category: type === "bug" ? "bug" : "feature",
+          category: "feature",
         });
       }
     } catch {
-      // AI failed, use raw input
       setProcessed({
         title: rawInput.trim().slice(0, 120),
         description: rawInput.trim(),
         priority: "medium",
-        category: type === "bug" ? "bug" : "feature",
+        category: "feature",
       });
     }
     setProcessing(false);
@@ -306,10 +300,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
 
       if (error) throw error;
 
-      toast.success(
-        type === "bug" ? "Bug logged" : "Feature requested",
-        { description: "Added to the backlog" }
-      );
+      toast.success("Feedback submitted", { description: "Added to the backlog" });
       onClose();
     } catch (err: any) {
       toast.error("Failed to submit", { description: err.message });
@@ -317,30 +308,19 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
     setSubmitting(false);
   };
 
-  const isBug = type === "bug";
-
   return (
-    <Sheet open={!!type && !inspecting} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={open && !inspecting} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="left" className="sm:max-w-sm p-0 flex flex-col" data-feedback-panel>
         {/* Header */}
         <div className="px-8 pt-10 pb-6">
           <SheetTitle className="text-4xl tracking-tight">
-            {isBug ? (
-              <>
-                <span className="font-light">Report a</span>{" "}
-                <span className="font-black">Bug</span>
-              </>
-            ) : (
-              <>
-                <span className="font-light">Request a</span>{" "}
-                <span className="font-black">Feature</span>
-              </>
-            )}
+            <span className="font-light">Share</span>{" "}
+            <span className="font-black">Feedback</span>
           </SheetTitle>
           <SheetDescription className="mt-2 text-sm">
             {processed
               ? "Review what AI captured. Edit anything, then submit."
-              : "Just say what's on your mind. Type it, or hit the mic and talk."}
+              : "Bug, idea, wish... just say what's on your mind."}
           </SheetDescription>
         </div>
 
@@ -353,11 +333,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
               {/* ---- STEP 1: Raw input ---- */}
               <div className="relative">
                 <Textarea
-                  placeholder={
-                    isBug
-                      ? "Something's off... just describe what happened in your own words."
-                      : "I wish this thing could... just describe what you're imagining."
-                  }
+                  placeholder="What's on your mind? A bug, an idea, a wish... just describe it."
                   value={rawInput}
                   onChange={(e) => setRawInput(e.target.value)}
                   rows={6}
