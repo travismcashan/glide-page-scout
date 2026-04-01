@@ -9,7 +9,7 @@ const corsHeaders = {
 const CHUNK_SIZE = 1500;    // ~375 tokens per chunk
 const CHUNK_OVERLAP = 200;  // overlap for context continuity
 const EMBEDDING_MODEL = 'google/gemini-2.5-flash-lite';
-const BATCH_SIZE = 20;      // embeddings per batch
+const BATCH_SIZE = 100;     // embeddings per batch (Gemini batchEmbedContents limit)
 
 function chunkText(text: string): string[] {
   const chunks: string[] = [];
@@ -45,56 +45,55 @@ function chunkText(text: string): string[] {
   return chunks.filter(c => c.length > 30);
 }
 
-async function getEmbeddings(texts: string[], apiKey: string): Promise<(number[] | null)[]> {
-  // Use Lovable AI gateway for embeddings via chat completion trick:
-  // We'll use Google's text-embedding model via the gateway
+async function getEmbeddings(texts: string[]): Promise<(number[] | null)[]> {
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY not configured');
+    return texts.map(() => null);
+  }
+
   const results: (number[] | null)[] = [];
 
+  // Use batchEmbedContents to embed up to 100 texts per API call (vs 1 per call before)
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE);
 
-    for (const text of batch) {
-      try {
-        // Use Gemini to generate embeddings via the embedding endpoint
-        const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-        if (!GEMINI_API_KEY) {
-          console.error('GEMINI_API_KEY not configured');
-          results.push(null);
-          continue;
-        }
-
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requests: batch.map(text => ({
               model: 'models/gemini-embedding-001',
               content: { parts: [{ text: text.slice(0, 8000) }] },
               outputDimensionality: 768,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const err = await response.text();
-          console.error(`Embedding error: ${response.status} ${err}`);
-          results.push(null);
-          continue;
+            })),
+          }),
         }
+      );
 
-        const data = await response.json();
-        const embedding = data.embedding?.values;
-        results.push(embedding || null);
-      } catch (e) {
-        console.error('Embedding request failed:', e);
-        results.push(null);
+      if (!response.ok) {
+        const err = await response.text();
+        console.error(`Batch embedding error: ${response.status} ${err}`);
+        results.push(...batch.map(() => null));
+        continue;
       }
+
+      const data = await response.json();
+      const embeddings = data.embeddings || [];
+      for (let j = 0; j < batch.length; j++) {
+        results.push(embeddings[j]?.values || null);
+      }
+    } catch (e) {
+      console.error('Batch embedding request failed:', e);
+      results.push(...batch.map(() => null));
     }
 
     // Small delay between batches to avoid rate limits
     if (i + BATCH_SIZE < texts.length) {
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 100));
     }
   }
 
@@ -255,7 +254,7 @@ serve(async (req) => {
       }
 
       // Generate embeddings
-      const embeddings = await getEmbeddings(chunks, '');
+      const embeddings = await getEmbeddings(chunks);
 
       // Insert chunks with embeddings
       const chunkRows = chunks.map((chunk_text, idx) => ({
