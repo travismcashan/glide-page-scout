@@ -134,8 +134,8 @@ serve(async (req) => {
       const sourceLabels = ["Goals & Requirements", "Website & UX Issues", "Marketing & Growth", "Technology & Platform"];
 
       ragResults.forEach((result, idx) => {
-        if (result.status === "fulfilled" && result.value?.data?.chunks) {
-          for (const c of result.value.data.chunks) {
+        if (result.status === "fulfilled" && result.value?.data?.matches) {
+          for (const c of result.value.data.matches) {
             const text = c.chunk_text || c.text;
             if (!text || seen.has(text)) continue;
             seen.add(text);
