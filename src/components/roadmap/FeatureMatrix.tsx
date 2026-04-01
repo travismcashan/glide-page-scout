@@ -201,16 +201,13 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
 
             return (
               <div key={service.sku}>
-                <div
-                  className={`grid ${COL} border-b border-border ${hasSteps ? "cursor-pointer hover:bg-muted/30" : ""} transition-colors`}
-                  onClick={() => hasSteps && toggleService(service.sku)}
-                >
-                  <div className="flex items-center gap-2 px-6 py-3">
-                    {hasSteps && (
-                      isExpanded
-                        ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    )}
+                {isExpanded ? (
+                  /* Expanded: full-width header, no checkmark columns */
+                  <div
+                    className="flex items-center gap-2 px-6 py-3 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => toggleService(service.sku)}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="text-sm font-medium text-foreground">{service.name}</span>
                     {description && (
                       <Tooltip delayDuration={0}>
@@ -225,16 +222,41 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
                       </Tooltip>
                     )}
                   </div>
-                  {[0, 1, 2].map((optIdx) => (
-                    <div key={optIdx} className="flex items-center justify-center border-l border-border px-4 py-3">
-                      {isInOption(service.pillar, optIdx) ? (
-                        <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
-                      ) : (
-                        <span className="text-sm text-muted-foreground/30">—</span>
+                ) : (
+                  /* Collapsed: grid with checkmark columns */
+                  <div
+                    className={`grid ${COL} border-b border-border ${hasSteps ? "cursor-pointer hover:bg-muted/30" : ""} transition-colors`}
+                    onClick={() => hasSteps && toggleService(service.sku)}
+                  >
+                    <div className="flex items-center gap-2 px-6 py-3">
+                      {hasSteps && (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="text-sm font-medium text-foreground">{service.name}</span>
+                      {description && (
+                        <Tooltip delayDuration={0}>
+                          <TooltipTrigger asChild>
+                            <button className="shrink-0 p-0.5" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                              <Info className="h-3 w-3 text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-help" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[240px]">
+                            <p className="text-xs">{description}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
-                  ))}
-                </div>
+                    {[0, 1, 2].map((optIdx) => (
+                      <div key={optIdx} className="flex items-center justify-center border-l border-border px-4 py-3">
+                        {isInOption(service.pillar, optIdx) ? (
+                          <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
+                        ) : (
+                          <span className="text-sm text-muted-foreground/30">—</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Expanded phases + cycles */}
                 {isExpanded && (
