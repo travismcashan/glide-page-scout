@@ -135,8 +135,8 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
       onClick={onClick}
     >
       <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
-        option.label === "Option 1" ? "bg-pillar-fb text-foreground" :
-        option.label === "Option 2" ? "bg-pillar-go text-foreground" :
+        option.label === "Option 1" ? "bg-pillar-fb text-black" :
+        option.label === "Option 2" ? "bg-pillar-go text-black" :
         "border border-foreground/30 text-foreground"
       }`}>
         {option.label.split(" ")[1]}
@@ -148,7 +148,7 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
   );
 }
 
-function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle }: {
+function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle, pricingExpanded }: {
   option: OptionDef;
   offerings: Offering[];
   outcomes: string[];
@@ -156,10 +156,10 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   discount?: { percent: number } | null;
   onDiscountChange?: (discount: { percent: number } | null) => void;
   isBundle?: boolean;
+  pricingExpanded?: boolean;
 }) {
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
-  const [pricingExpanded, setPricingExpanded] = useState(false);
 
   const rawPrice = computePriceRaw(option.scopeItems, offerings, option.priceMode);
   const isMonthly = option.priceMode === "monthly" || option.priceMode === "monthly-blended";
@@ -172,8 +172,8 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
     <div className="flex h-full flex-col rounded-xl border border-border bg-background">
       <div className="px-6 py-6">
         <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold tracking-wide ${
-          option.label === "Option 1" ? "bg-pillar-fb text-foreground" :
-          option.label === "Option 2" ? "bg-pillar-go text-foreground" :
+          option.label === "Option 1" ? "bg-pillar-fb text-black" :
+          option.label === "Option 2" ? "bg-pillar-go text-black" :
           "border border-foreground/30 text-foreground"
         }`}>
           {option.label}
@@ -288,12 +288,12 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
               <span className="text-sm font-medium text-foreground">Everything in</span>
-              <span className="inline-block rounded-full bg-pillar-fb px-2.5 py-0.5 text-xs font-bold tracking-wide text-foreground">Option 1</span>
+              <span className="inline-block rounded-full bg-pillar-fb px-2.5 py-0.5 text-xs font-bold tracking-wide text-black">Option 1</span>
             </li>
             <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
               <span className="text-sm font-medium text-foreground">Everything in</span>
-              <span className="inline-block rounded-full bg-pillar-go px-2.5 py-0.5 text-xs font-bold tracking-wide text-foreground">Option 2</span>
+              <span className="inline-block rounded-full bg-pillar-go px-2.5 py-0.5 text-xs font-bold tracking-wide text-black">Option 2</span>
             </li>
             <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
@@ -353,16 +353,8 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         if (fixedItems.length === 0 && recurringItems.length === 0 && tmItems.length === 0) return null;
 
         return (
-          <div className="border-t border-border">
-            <button
-              className="flex w-full items-center justify-center gap-1.5 px-6 py-3 text-xs font-semibold tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-              onClick={(e) => { e.stopPropagation(); setPricingExpanded(!pricingExpanded); }}
-            >
-              {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
-            </button>
-            {pricingExpanded && (
-              <div className="px-6 pb-4">
+          {pricingExpanded && (
+          <div className="border-t border-border px-6 py-4">
               <table className="w-full text-sm">
                 <tbody>
                   {fixedItems.length > 0 && (
@@ -502,9 +494,8 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   </span>
                 </div>
               )}
-              </div>
-            )}
           </div>
+          )}
         );
       })()}
     </div>
@@ -514,6 +505,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
 export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef, savedOutcomes, onOutcomesChange }: InvestmentOptionsProps) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [option3Discount, setOption3Discount] = useState<{ percent: number } | null>(null);
+  const [pricingExpanded, setPricingExpanded] = useState(false);
 
   const sortByTimeline = (a: TimelineItem, b: TimelineItem) =>
     a.startMonth - b.startMonth || a.sortOrder - b.sortOrder;
@@ -620,26 +612,40 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
     if (onGenerateRef) onGenerateRef(generateAllOutcomes);
   }, [onGenerateRef, generateAllOutcomes]);
 
+  const hasAnyScope = options.some((o) => o.scopeItems.length > 0);
+
   if (expandedIdx === null) {
     return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {options.map((option, idx) => (
-          <div
-            key={option.label}
-            className="cursor-pointer"
-            onClick={() => setExpandedIdx(idx)}
+      <div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {options.map((option, idx) => (
+            <div
+              key={option.label}
+              className="cursor-pointer"
+              onClick={() => setExpandedIdx(idx)}
+            >
+              <ExpandedCard
+                option={option}
+                offerings={offerings}
+                outcomes={outcomesByIdx[idx] || []}
+                outcomesLoading={!!loadingByIdx[idx]}
+                discount={idx === 2 ? option3Discount : undefined}
+                onDiscountChange={idx === 2 ? setOption3Discount : undefined}
+                isBundle={idx === 2}
+                pricingExpanded={pricingExpanded}
+              />
+            </div>
+          ))}
+        </div>
+        {hasAnyScope && (
+          <button
+            className="mx-auto mt-4 flex items-center gap-1.5 rounded-lg border border-border bg-background px-5 py-2.5 text-xs font-semibold tracking-widest text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground"
+            onClick={() => setPricingExpanded(!pricingExpanded)}
           >
-            <ExpandedCard
-              option={option}
-              offerings={offerings}
-              outcomes={outcomesByIdx[idx] || []}
-              outcomesLoading={!!loadingByIdx[idx]}
-              discount={idx === 2 ? option3Discount : undefined}
-              onDiscountChange={idx === 2 ? setOption3Discount : undefined}
-              isBundle={idx === 2}
-            />
-          </div>
-        ))}
+            {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
+          </button>
+        )}
       </div>
     );
   }
@@ -668,6 +674,7 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
           discount={expandedIdx === 2 ? option3Discount : undefined}
           onDiscountChange={expandedIdx === 2 ? setOption3Discount : undefined}
           isBundle={expandedIdx === 2}
+          pricingExpanded={pricingExpanded}
         />
       </div>
     </div>
