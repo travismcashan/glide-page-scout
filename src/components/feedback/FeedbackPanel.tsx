@@ -228,15 +228,24 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
     if (!inspecting) return;
 
     let lastHighlighted: HTMLElement | null = null;
-    const originalOutline: string[] = [];
+    let lastOriginalOutline = "";
+    let lastOriginalOutlineOffset = "";
+
+    const clearHighlight = () => {
+      if (lastHighlighted) {
+        lastHighlighted.style.outline = lastOriginalOutline;
+        lastHighlighted.style.outlineOffset = lastOriginalOutlineOffset;
+        lastHighlighted = null;
+      }
+    };
 
     const handleMouseMove = (e: MouseEvent) => {
       const el = e.target as HTMLElement;
       if (el.closest("[data-feedback-panel]") || el.closest("[data-feedback-tabs]")) return;
-      if (lastHighlighted && lastHighlighted !== el) {
-        lastHighlighted.style.outline = originalOutline.pop() || "";
-      }
-      originalOutline.push(el.style.outline);
+      if (lastHighlighted === el) return;
+      clearHighlight();
+      lastOriginalOutline = el.style.outline;
+      lastOriginalOutlineOffset = el.style.outlineOffset;
       el.style.outline = "2px solid hsl(256 72% 54%)";
       el.style.outlineOffset = "2px";
       lastHighlighted = el;
@@ -247,15 +256,15 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
       e.stopPropagation();
       const el = e.target as HTMLElement;
       if (el.closest("[data-feedback-panel]") || el.closest("[data-feedback-tabs]")) return;
+      clearHighlight();
       setElementSelector(buildSelector(el));
       setElementDescription(describeElement(el));
-      if (lastHighlighted) lastHighlighted.style.outline = originalOutline.pop() || "";
       setInspecting(false);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (lastHighlighted) lastHighlighted.style.outline = originalOutline.pop() || "";
+        clearHighlight();
         setInspecting(false);
       }
     };
@@ -270,7 +279,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
       document.removeEventListener("click", handleClick, true);
       document.removeEventListener("keydown", handleKeyDown, true);
       document.body.style.cursor = "";
-      if (lastHighlighted) lastHighlighted.style.outline = originalOutline.pop() || "";
+      clearHighlight();
     };
   }, [inspecting]);
 
@@ -324,7 +333,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
 
   return (
     <Sheet open={open && !inspecting} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="left" className="sm:max-w-sm p-0 flex flex-col" data-feedback-panel>
+      <SheetContent side="right" className="sm:max-w-sm p-0 flex flex-col" data-feedback-panel>
         {/* Header */}
         <div className="px-8 pt-10 pb-2">
           <SheetTitle className="text-4xl tracking-tight">

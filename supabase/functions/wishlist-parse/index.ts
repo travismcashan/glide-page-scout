@@ -18,56 +18,48 @@ serve(async (req) => {
       });
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `You are a product manager assistant. The user will describe ideas, feature requests, bugs, or thoughts in a stream-of-consciousness style. Your job is to break them down into distinct, actionable wishlist items. Each item should have a clear title, a brief description, a category (feature, bug, or idea), a priority (low, medium, or high), and an effort estimate (small, medium, or large). Extract as many distinct items as make sense — don't merge unrelated concepts. Be concise but specific in titles and descriptions.`,
-          },
-          { role: "user", content: rawInput },
-        ],
+        model: "claude-haiku-4-20250414",
+        max_tokens: 1024,
+        system: "You are a product manager assistant. The user will describe ideas, feature requests, bugs, or thoughts in plain language. Break them into distinct, actionable items. Be concise but specific. For feedback from the app, context like [Element: ...] and [Page: ...] may be included — use these to make descriptions more specific.",
+        messages: [{ role: "user", content: rawInput }],
         tools: [
           {
-            type: "function",
-            function: {
-              name: "create_wishlist_items",
-              description: "Create structured wishlist items from the user's brain dump.",
-              parameters: {
-                type: "object",
-                properties: {
+            name: "create_wishlist_items",
+            description: "Create structured wishlist items from the user input.",
+            input_schema: {
+              type: "object",
+              properties: {
+                items: {
+                  type: "array",
                   items: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        title: { type: "string", description: "Short, actionable title" },
-                        description: { type: "string", description: "Brief description of what this entails" },
-                        category: { type: "string", enum: ["feature", "bug", "idea"] },
-                        priority: { type: "string", enum: ["low", "medium", "high"] },
-                        effort_estimate: { type: "string", enum: ["small", "medium", "large"] },
-                      },
-                      required: ["title", "description", "category", "priority", "effort_estimate"],
-                      additionalProperties: false,
+                    type: "object",
+                    properties: {
+                      title: { type: "string", description: "Short, actionable title (under 80 chars)" },
+                      description: { type: "string", description: "Brief description of what this entails" },
+                      category: { type: "string", enum: ["feature", "bug", "idea"] },
+                      priority: { type: "string", enum: ["low", "medium", "high"] },
+                      effort_estimate: { type: "string", enum: ["small", "medium", "large"] },
                     },
+                    required: ["title", "description", "category", "priority", "effort_estimate"],
                   },
                 },
-                required: ["items"],
-                additionalProperties: false,
               },
+              required: ["items"],
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "create_wishlist_items" } },
+        tool_choice: { type: "tool", name: "create_wishlist_items" },
       }),
     });
 
@@ -80,13 +72,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.error("AI gateway error:", status, text);
+      console.error("Anthropic API error:", status, text);
       return new Response(JSON.stringify({ error: "AI processing failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -94,16 +80,17 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
+
+    // Anthropic tool use: find the tool_use content block
+    const toolUse = data.content?.find((b: any) => b.type === "tool_use");
+    if (!toolUse?.input) {
       return new Response(JSON.stringify({ error: "AI did not return structured items" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
-    return new Response(JSON.stringify(parsed), {
+    return new Response(JSON.stringify(toolUse.input), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

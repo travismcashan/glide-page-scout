@@ -11,10 +11,10 @@ export default function FeedbackSideTabs() {
 
   return (
     <>
-      <div className="fixed left-0 top-1/2 -translate-y-1/2 z-40" data-feedback-tabs>
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40" data-feedback-tabs>
         <button
           onClick={() => setOpen(true)}
-          className="group flex items-center gap-0 overflow-hidden rounded-r-lg bg-primary pl-3 pr-3 py-3.5 shadow-md transition-all duration-200 hover:pr-4 hover:gap-2 hover:shadow-lg hover:bg-primary/90"
+          className="group flex items-center flex-row-reverse gap-0 overflow-hidden rounded-l-lg bg-primary pl-3 pr-3 py-3.5 shadow-md transition-all duration-200 hover:pl-4 hover:gap-2 hover:shadow-lg hover:bg-primary/90"
         >
           <MessageSquarePlus className="h-5 w-5 text-primary-foreground shrink-0" />
           <span className="text-[11px] font-bold tracking-wider uppercase text-primary-foreground max-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 group-hover:max-w-[90px] relative -top-[2px]">
