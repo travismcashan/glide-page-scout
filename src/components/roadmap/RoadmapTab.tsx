@@ -450,7 +450,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       </div>
 
       {/* Investment Options */}
-      <div>
+      <div className="-mx-6 rounded-2xl bg-muted/40 px-6 py-8 ring-1 ring-border/50">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-4xl font-bold tracking-tight text-foreground">Investment Options</h2>
           {items.length > 0 && (
@@ -489,7 +489,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
 
       {/* GLIDE Guarantee */}
       {items.length > 0 && (
-        <div className="flex items-center justify-center gap-3 rounded-lg border border-border bg-muted/30 px-6 py-4 text-center">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-6 py-4">
           <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">The GLIDE Guarantee</span>

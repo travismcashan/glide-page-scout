@@ -137,7 +137,7 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
       <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
         option.label === "Option 1" ? "bg-pillar-fb text-black" :
         option.label === "Option 2" ? "bg-pillar-go text-black" :
-        "border border-foreground/30 text-foreground"
+        "text-white animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
       }`}>
         {option.label.split(" ")[1]}
       </span>
@@ -175,7 +175,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold tracking-wide ${
           option.label === "Option 1" ? "bg-pillar-fb text-black" :
           option.label === "Option 2" ? "bg-pillar-go text-black" :
-          "border border-foreground/30 text-foreground"
+          "text-white animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
         }`}>
           {option.label}
         </span>
