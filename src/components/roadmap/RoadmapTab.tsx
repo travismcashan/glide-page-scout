@@ -418,10 +418,14 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
 
         {/* AI Reasoning / Loading State */}
         {isGeneratingPlan && (
-          <div className="my-4 rounded-xl border border-amber-200/50 bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 dark:from-amber-950/20 dark:via-orange-950/10 dark:to-amber-950/20 dark:border-amber-800/30 p-5">
+          <div className="my-4 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/[0.04] via-primary/[0.02] to-transparent p-5">
             <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
-                <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-pulse" />
+              <div className="flex h-10 w-10 items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 104 104" fill="none" className="h-10 w-10 animate-spin [animation-duration:3s]">
+                  <circle cx="50" cy="49" r="46" stroke="hsl(var(--pillar-is))" strokeWidth="8" strokeDasharray="120 170" opacity="0.9" />
+                  <circle cx="50" cy="67" r="28" stroke="hsl(var(--pillar-go))" strokeWidth="8" strokeDasharray="80 100" opacity="0.9" />
+                  <circle cx="50" cy="77" r="18" stroke="hsl(var(--pillar-fb))" strokeWidth="8" strokeDasharray="50 65" opacity="0.9" />
+                </svg>
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Generating Growth Plan</p>
@@ -430,11 +434,11 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
                 </p>
               </div>
             </div>
-            <div className="space-y-2.5 pl-11">
-              <div className="h-3 w-3/4 rounded-full bg-amber-200/60 dark:bg-amber-800/30 animate-pulse" />
-              <div className="h-3 w-full rounded-full bg-amber-200/40 dark:bg-amber-800/20 animate-pulse [animation-delay:150ms]" />
-              <div className="h-3 w-5/6 rounded-full bg-amber-200/40 dark:bg-amber-800/20 animate-pulse [animation-delay:300ms]" />
-              <div className="h-3 w-2/3 rounded-full bg-amber-200/30 dark:bg-amber-800/15 animate-pulse [animation-delay:450ms]" />
+            <div className="space-y-2.5 pl-[52px]">
+              <div className="h-3 w-3/4 rounded-full bg-primary/10 animate-pulse" />
+              <div className="h-3 w-full rounded-full bg-primary/[0.07] animate-pulse [animation-delay:150ms]" />
+              <div className="h-3 w-5/6 rounded-full bg-primary/[0.07] animate-pulse [animation-delay:300ms]" />
+              <div className="h-3 w-2/3 rounded-full bg-primary/[0.05] animate-pulse [animation-delay:450ms]" />
             </div>
           </div>
         )}
