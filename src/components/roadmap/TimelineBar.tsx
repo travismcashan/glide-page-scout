@@ -368,7 +368,7 @@ export default function TimelineBar({
                   ? nearRightEdge
                     ? "absolute right-full z-10 mr-2 border-b border-primary bg-transparent text-sm font-medium text-foreground outline-none"
                     : "absolute left-full z-10 ml-2 border-b border-primary bg-transparent text-sm font-medium text-foreground outline-none"
-                  : "flex-1 bg-transparent px-2.5 text-center text-sm font-medium outline-none"
+                  : "flex-1 bg-transparent px-2.5 text-center text-sm font-medium text-black outline-none"
               }
             />
           ) : (
@@ -379,7 +379,7 @@ export default function TimelineBar({
                   ? nearRightEdge
                     ? "pointer-events-none absolute right-full z-10 mr-2 whitespace-nowrap text-sm font-medium text-foreground"
                     : "pointer-events-none absolute left-full z-10 ml-2 whitespace-nowrap text-sm font-medium text-foreground"
-                  : "flex-1 truncate px-2.5 text-center text-sm font-medium"
+                  : "flex-1 truncate px-2.5 text-center text-sm font-medium text-black"
               }
             >
               {labelText}

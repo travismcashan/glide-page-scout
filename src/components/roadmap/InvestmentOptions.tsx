@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Info, ShieldCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -135,7 +135,7 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
       className="flex h-full cursor-pointer flex-col items-center justify-start rounded-xl border border-border bg-background px-1 pt-6 pb-4 transition-colors hover:bg-muted/50"
       onClick={onClick}
     >
-      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
+      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wide ${
         option.label === "Option 1" ? "bg-pillar-fb text-black" :
         option.label === "Option 2" ? "bg-pillar-go text-black" :
         "text-black animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
@@ -170,6 +170,16 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   const displayPrice = hasDiscount
     ? `${formatCurrency(roundHeadline(rawPrice * (1 - discount.percent / 100), option.priceMode))}${isMonthly ? "/mo" : ""}`
     : computePrice(option.scopeItems, offerings, option.priceMode);
+  const roundedDisplayNum = rawPrice != null
+    ? hasDiscount
+      ? roundHeadline(rawPrice * (1 - discount.percent / 100), option.priceMode)
+      : roundHeadline(rawPrice, option.priceMode)
+    : null;
+  const savingsNum = rawPrice != null && roundedDisplayNum != null && rawPrice > roundedDisplayNum
+    ? option.priceMode === "monthly-blended"
+      ? Math.round((rawPrice - roundedDisplayNum) * 12)
+      : Math.round(rawPrice - roundedDisplayNum)
+    : 0;
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-background">
@@ -199,9 +209,9 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
               >
                 <p className="text-3xl font-bold text-foreground cursor-pointer hover:text-foreground/70 transition-colors">
                   {displayPrice}
-                  {hasDiscount && (
-                    <span className="ml-2 text-lg font-medium text-muted-foreground">
-                      ({discount.percent}% discount)
+                  {savingsNum > 0 && (
+                    <span className="ml-2 text-base font-normal text-muted-foreground">
+                      (save {formatCurrency(savingsNum)})
                     </span>
                   )}
                 </p>
@@ -251,6 +261,11 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         ) : (
           <p className="text-3xl font-bold text-foreground">
             {displayPrice}
+            {savingsNum > 0 && (
+              <span className="ml-2 text-base font-normal text-muted-foreground">
+                (save {formatCurrency(savingsNum)})
+              </span>
+            )}
           </p>
         )}
         <p className="mt-1 text-sm text-muted-foreground">
@@ -259,7 +274,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
       </div>
 
       <div className="border-b border-border px-6 py-5">
-        <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
+        <p className="mb-3 text-[13px] font-semibold tracking-widest text-muted-foreground">
           {isBundle ? "WHY BUNDLE?" : "BENEFITS"}
         </p>
         {outcomesLoading ? (
@@ -279,7 +294,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
       </div>
 
       <div className="flex-1 px-6 py-5">
-        <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
+        <p className="mb-3 text-[13px] font-semibold tracking-widest text-muted-foreground">
           SCOPE OF WORK
         </p>
         {option.scopeItems.length === 0 ? (
@@ -297,6 +312,9 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
               <span className="text-sm font-medium text-foreground">Everything in</span>
               <span className="inline-block rounded-full bg-pillar-go px-2.5 py-0.5 text-xs font-bold tracking-wide text-black">Option 2</span>
+            </li>
+            <li className="mt-3">
+              <p className="text-[13px] font-semibold tracking-widest text-muted-foreground mb-2.5">ADDED VALUE</p>
             </li>
             <li className="flex items-center gap-1.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
@@ -340,54 +358,35 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                 </TooltipContent>
               </Tooltip>
             </li>
-            <li className="flex items-center gap-1.5">
-              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-              <span className="text-sm font-medium text-foreground whitespace-nowrap">Monthly Performance Snapshot</span>
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[220px]">
-                  <p className="text-xs">A concise monthly report covering KPIs, progress against goals, and recommended next steps across all active services.</p>
-                </TooltipContent>
-              </Tooltip>
-            </li>
           </ul>
         ) : (
           <ul className="space-y-2.5">
             {option.scopeItems.map((si) => (
-              <li key={si.sku} className="flex items-start gap-2.5">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
-                <span className="text-sm font-medium text-foreground">
+              <li
+                key={si.sku}
+                className="flex items-start gap-2.5 cursor-pointer group"
+                onClick={() => {
+                  const el = document.getElementById(`feature-row-${si.sku}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.classList.add("bg-primary/10");
+                    setTimeout(() => el.classList.remove("bg-primary/10"), 1500);
+                  }
+                }}
+              >
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50 group-hover:bg-primary transition-colors" />
+                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                   {si.name}
                 </span>
               </li>
             ))}
-            {option.priceMode === "monthly" && (
-              <li className="flex items-center gap-1.5 pt-1 border-t border-border/50 mt-1">
-                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-                <span className="text-sm font-medium text-foreground whitespace-nowrap">Monthly Performance Snapshot</span>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[220px]">
-                    <p className="text-xs">A concise monthly report covering KPIs, progress against goals, and recommended next steps across all active services.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </li>
-            )}
           </ul>
         )}
 
         {/* Triple Guarantee — Foundation & Build only */}
         {option.priceMode === "total" && option.scopeItems.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-border/50">
-            <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
+          <div className="mt-3">
+            <p className="mb-2.5 text-[13px] font-semibold tracking-widest text-muted-foreground">
               THE TRIPLE GUARANTEE
             </p>
             <ul className="space-y-2.5">
@@ -491,8 +490,8 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                     <>
                       {fixedItems.map((fi) => (
                         <tr key={fi.name}>
-                          <td className="py-1.5 text-foreground">{fi.name}</td>
-                          <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(fi.price)}</td>
+                          <td className="py-1.5 text-muted-foreground">{fi.name}</td>
+                          <td className="py-1.5 text-right font-medium text-muted-foreground tabular-nums">{formatCurrency(fi.price)}</td>
                         </tr>
                       ))}
                       {(recurringItems.length > 0 || fixedItems.length > 1) && (
@@ -508,12 +507,12 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                       {recurringItems.map((ri) => (
                         <tr key={ri.name}>
                           <td className="py-1.5">
-                            <span className="text-foreground">{ri.name}</span>
+                            <span className="text-muted-foreground">{ri.name}</span>
                             <span className="ml-1.5 text-muted-foreground/50">
                               ({formatCurrency(ri.price)}/mo x {ri.months} mo)
                             </span>
                           </td>
-                          <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(ri.total)}</td>
+                          <td className="py-1.5 text-right font-medium text-muted-foreground tabular-nums">{formatCurrency(ri.total)}</td>
                         </tr>
                       ))}
                       {(fixedItems.length > 0 || recurringItems.length > 1) && (
@@ -526,14 +525,14 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   )}
                   {tmItems.length > 0 && tmItems.map((ti) => (
                     <tr key={ti.name}>
-                      <td className="py-1.5 text-foreground">{ti.name}</td>
-                      <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">T&M</td>
+                      <td className="py-1.5 text-muted-foreground">{ti.name}</td>
+                      <td className="py-1.5 text-right font-medium text-muted-foreground tabular-nums">T&M</td>
                     </tr>
                   ))}
                   {/* Quarterly Strategic Review for bundle */}
                   {isBundle && (
                     <tr>
-                      <td className="py-1.5 text-foreground">Quarterly Strategic Review</td>
+                      <td className="py-1.5 text-muted-foreground">Quarterly Strategic Review</td>
                       <td className="py-1.5 text-right text-emerald-600 font-medium tabular-nums italic">Included</td>
                     </tr>
                   )}
@@ -645,7 +644,7 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
 
   const option1Items = items.filter((i) => i.pillar === "IS" || i.pillar === "FB").sort(sortByTimeline);
   const option2Items = items.filter((i) => i.pillar === "GO" || i.pillar === "TS").sort(sortByTimeline);
-  const option3Items = [...items].sort(sortByTimeline);
+  const option3Items = [...items].filter((i) => i.sku !== 405).sort(sortByTimeline);
 
   const option1Months = option1Items.length > 0
     ? Math.max(...option1Items.map((i) => i.startMonth + i.duration)) - Math.min(...option1Items.map((i) => i.startMonth))
@@ -756,6 +755,30 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
   if (expandedIdx === null) {
     return (
       <div>
+        {/* Sticky pricing bar — appears when cards scroll out of view */}
+        {hasAnyScope && (
+          <div className="sticky top-[var(--investment-sticky-top)] z-10 hidden md:grid grid-cols-3 rounded-xl border border-border bg-muted/95 backdrop-blur-sm shadow-sm mb-4">
+            {options.map((option, idx) => {
+              const price = computePrice(option.scopeItems, offerings, option.priceMode);
+              const discount = idx === 2 ? option3Discount : undefined;
+              const rawPrice = computePriceRaw(option.scopeItems, offerings, option.priceMode);
+              const displayPrice = discount && discount.percent > 0 && rawPrice != null
+                ? `${formatCurrency(roundHeadline(rawPrice * (1 - discount.percent / 100), option.priceMode))}${option.priceMode !== "total" ? "/mo" : ""}`
+                : price;
+              return (
+                <div key={option.label} className={`flex items-center gap-3 px-5 py-3 ${idx > 0 ? "border-l border-border" : ""}`}>
+                  <span className={`inline-block shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wide ${
+                    option.label === "Option 1" ? "bg-pillar-fb text-black" :
+                    option.label === "Option 2" ? "bg-pillar-go text-black" :
+                    "text-black animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
+                  }`}>{option.label}</span>
+                  <span className="text-lg font-bold text-foreground">{displayPrice}</span>
+                  <span className="text-sm text-muted-foreground truncate">{option.name}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {options.map((option, idx) => (
             <div
@@ -779,12 +802,21 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
         </div>
         {hasAnyScope && (
           <button
-            className="mx-auto mt-4 flex items-center gap-1.5 rounded-lg border border-border bg-background px-5 py-2.5 text-xs font-semibold tracking-widest text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground"
+            className="mx-auto mt-4 flex items-center gap-1.5 rounded-lg border border-border bg-background px-5 py-2.5 text-[13px] font-semibold tracking-widest text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground"
             onClick={() => setPricingExpanded(!pricingExpanded)}
           >
             {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
           </button>
+        )}
+        {items.length > 0 && (
+          <div className="mt-8 flex items-center gap-4">
+            <ShieldCheck className="h-10 w-10 shrink-0 text-emerald-600" />
+            <p className="text-2xl text-muted-foreground">
+              <span className="font-semibold text-foreground">The GLIDE Guarantee</span>
+              {" — "}If you're unhappy for any reason within 90 days, we'll make it right or give you your money back.
+            </p>
+          </div>
         )}
       </div>
     );

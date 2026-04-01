@@ -78,6 +78,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       setRoadmapId(roadmap.id);
       setStartMonthIndex(roadmap.start_month ?? new Date().getMonth());
       setTotalMonths(roadmap.total_months ?? 12);
+      setShowCTAs(roadmap.show_ctas ?? true);
+      setCatalogVisible(roadmap.catalog_visible ?? true);
       if (roadmap.outcomes_data && typeof roadmap.outcomes_data === "object") {
         setOutcomesData(roadmap.outcomes_data as Record<number, string[]>);
       }
@@ -118,7 +120,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     saveTimeoutRef.current = setTimeout(async () => {
       await supabase
         .from("roadmaps" as any)
-        .update({ start_month: startMonthIndex, total_months: totalMonths })
+        .update({ start_month: startMonthIndex, total_months: totalMonths, show_ctas: showCTAs, catalog_visible: catalogVisible })
         .eq("id", roadmapId);
 
       await supabase.from("roadmap_items" as any).delete().eq("roadmap_id", roadmapId);
@@ -145,7 +147,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
         );
       }
     }, 800);
-  }, [roadmapId, loaded, startMonthIndex, totalMonths, items, offerings]);
+  }, [roadmapId, loaded, startMonthIndex, totalMonths, items, offerings, showCTAs, catalogVisible]);
 
   useEffect(() => {
     save();
@@ -334,7 +336,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           <h2 className="text-4xl font-bold tracking-tight text-foreground">12-Month Digital Growth Plan</h2>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-foreground">Start</label>
+              <label className="text-sm font-bold text-foreground">Start</label>
               <Select
                 value={String(startMonthIndex)}
                 onValueChange={(v) => { setStartMonthIndex(Number(v)); setViewOffset(0); }}
@@ -350,7 +352,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-foreground">Duration</label>
+              <label className="text-sm font-bold text-foreground">Duration</label>
               <Select
                 value={String(totalMonths)}
                 onValueChange={(v) => { setTotalMonths(Number(v)); setViewOffset(0); }}
@@ -392,7 +394,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
             </Button>
           </div>
         </div>
-        <div className="flex overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <div className="flex [overflow:clip] rounded-xl border border-border bg-background shadow-sm">
           {catalogVisible && (
             <div className="w-[300px] shrink-0 max-h-[calc(100vh-200px)]">
               <ServiceCatalog
@@ -451,7 +453,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               <span
                 className={`inline-block h-2.5 w-2.5 rounded-full ${{ IS: "bg-pillar-is", FB: "bg-pillar-fb", GO: "bg-pillar-go", TS: "bg-pillar-ts" }[p.code]}`}
               />
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-base font-medium text-muted-foreground">
                 {p.name} ({p.code})
               </span>
             </div>
@@ -460,7 +462,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       </div>
 
       {/* Investment Options */}
-      <div className="-mx-6 rounded-2xl bg-muted/40 px-6 py-8 ring-1 ring-border/50">
+      <div>
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-4xl font-bold tracking-tight text-foreground">Investment Options</h2>
           {items.length > 0 && (
@@ -497,17 +499,6 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           showCTAs={showCTAs}
         />
       </div>
-
-      {/* GLIDE Guarantee */}
-      {items.length > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-6 py-4">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
-          <p className="text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">The GLIDE Guarantee</span>
-            {" — "}If you're unhappy for any reason within 90 days, we'll make it right or give you your money back.
-          </p>
-        </div>
-      )}
 
       {/* Feature Comparison Matrix */}
       {items.length > 0 && (

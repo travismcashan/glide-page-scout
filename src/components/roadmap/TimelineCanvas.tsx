@@ -153,7 +153,7 @@ export default function TimelineCanvas({
       {/* Month headers — drag left/right to shift timeline */}
       <div
         ref={containerRef}
-        className={`flex h-16 border-b border-border bg-foreground ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`sticky top-[var(--month-bar-top)] z-10 flex h-16 border-b border-border bg-muted ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
         onMouseDown={onViewOffsetChange ? (e) => {
           e.preventDefault();
           const startX = e.clientX;
@@ -179,11 +179,11 @@ export default function TimelineCanvas({
             <div
               key={i}
               className={`flex-1 flex flex-col items-center justify-center border-r transition-colors last:border-r-0 ${
-                isYearEnd ? "border-background/40" : "border-foreground/20"
+                isYearEnd ? "border-foreground/40" : "border-foreground/10"
               } ${dropMonth === i ? "bg-accent" : ""}`}
             >
-              <span className="text-base font-bold text-background select-none">{my.month}</span>
-              <span className="text-xs font-normal text-background/60 select-none">{my.year}</span>
+              <span className="text-base font-bold text-foreground select-none">{my.month}</span>
+              <span className="text-sm font-normal text-muted-foreground select-none">{my.year}</span>
             </div>
           );
         })}
@@ -217,7 +217,7 @@ export default function TimelineCanvas({
           const barHeight = 40;
           const topPad = 6;
           const bottomPad = 9;
-          const gutter = 9;
+          const gutter = 18;
           const laneHeight = topPad + pillarItems.length * barHeight + (pillarItems.length - 1) * gutter + bottomPad;
           const isLastPillar = pillarIdx === activePillars.length - 1;
           const showBorder = !isLastPillar || showLastBorder;

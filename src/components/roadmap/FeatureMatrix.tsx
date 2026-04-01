@@ -199,9 +199,9 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
   const COL = "grid-cols-[1.5fr_1fr_1fr_1fr]";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-background">
+    <div className="[overflow:clip] rounded-xl border border-border bg-background">
       {/* Sticky header */}
-      <div className={`sticky top-0 z-10 grid ${COL} border-b-2 border-border bg-muted/95 backdrop-blur-sm`}>
+      <div className={`sticky top-[var(--app-header-h)] z-10 grid ${COL} border-b-2 border-border bg-muted/95 backdrop-blur-sm`}>
         <div className="px-6 py-5" />
         {OPTION_LABELS.map((label, i) => (
           <div key={label} className="flex flex-col items-start justify-center gap-1.5 border-l border-border px-4 py-4">
@@ -217,9 +217,9 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
       {groupedByPillar.map((group) => (
         <div key={group.pillar.code}>
           {/* Pillar section header */}
-          <div className={`sticky top-[88px] z-[5] flex items-center gap-2.5 px-6 py-3 border-b border-border backdrop-blur-sm ${PILLAR_BG[group.pillar.code]}`}>
+          <div className={`sticky top-[calc(var(--app-header-h)+var(--feature-table-header-h))] z-[5] flex items-center gap-2.5 px-6 py-3 border-b border-border backdrop-blur-sm ${PILLAR_BG[group.pillar.code]}`}>
             <span className={`inline-block h-2.5 w-2.5 rounded-full ${PILLAR_DOT[group.pillar.code]}`} />
-            <span className="text-xs font-bold tracking-wider text-foreground/80 uppercase">
+            <span className="text-[13px] font-bold tracking-wider text-foreground/80 uppercase">
               {group.pillar.name}
             </span>
           </div>
@@ -233,7 +233,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
             const hasSteps = steps.length > 0;
 
             return (
-              <div key={service.sku}>
+              <div key={service.sku} id={`feature-row-${service.sku}`}>
                 {isExpanded ? (
                   /* Expanded: full-width header, no checkmark columns */
                   <div
@@ -287,7 +287,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
       {/* Included Extras section */}
       <div className="flex items-center gap-2.5 px-6 py-3 border-b border-border bg-primary/5">
         <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" />
-        <span className="text-xs font-bold tracking-wider text-foreground/80 uppercase">
+        <span className="text-[13px] font-bold tracking-wider text-foreground/80 uppercase">
           Included Extras
         </span>
       </div>
@@ -329,7 +329,7 @@ function StepRow({ step, pillar, col }: { step: ServiceStep; pillar: string; col
   return (
     <div className={`grid ${col} border-b border-border/40 bg-muted/5`}>
       <div className="flex items-center gap-2 px-6 py-3">
-        <span className="text-xs text-muted-foreground">{step.name}</span>
+        <span className="text-sm text-muted-foreground">{step.name}</span>
         {description && (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>

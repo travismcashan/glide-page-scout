@@ -81,7 +81,7 @@ export default function ServiceCatalog({
               <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-1 py-2 text-left hover:bg-accent/50">
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform [[data-state=closed]>&]:rotate-[-90deg]" />
                 <span className={`inline-block h-2.5 w-2.5 rounded-full ${DOT_COLORS[p.code]}`} />
-                <span className="flex-1 text-xs font-semibold text-foreground">
+                <span className="flex-1 text-sm font-semibold text-foreground">
                   {p.name} ({p.code})
                 </span>
               </CollapsibleTrigger>
@@ -103,13 +103,13 @@ export default function ServiceCatalog({
                           selected ? styles.chipSelected : `${styles.chip} cursor-grab active:cursor-grabbing`
                         }`}
                       >
-                        <span className="font-mono text-xs text-muted-foreground">
+                        <span className="font-mono text-sm text-muted-foreground">
                           {o.sku}
                         </span>
                         <span className="flex-1 truncate font-medium">{o.name}</span>
                         {selected && <Check className="h-3.5 w-3.5 shrink-0" />}
                         {!o.roadmapGrade && (
-                          <span className="shrink-0 text-[10px] text-muted-foreground">
+                          <span className="shrink-0 text-xs text-muted-foreground">
                             catalog
                           </span>
                         )}
@@ -117,7 +117,7 @@ export default function ServiceCatalog({
                     );
                   })}
                   {pillarOfferings.length === 0 && (
-                    <p className="py-2 text-xs text-muted-foreground">
+                    <p className="py-2 text-sm text-muted-foreground">
                       No offerings in this category
                     </p>
                   )}
@@ -129,7 +129,7 @@ export default function ServiceCatalog({
       </div>
 
       <div className="flex items-center justify-between border-t border-border px-5 py-3">
-        <span className="text-xs text-muted-foreground">Show all offerings</span>
+        <span className="text-sm text-muted-foreground">Show all offerings</span>
         <Switch checked={showAll} onCheckedChange={onShowAllChange} />
       </div>
     </aside>
