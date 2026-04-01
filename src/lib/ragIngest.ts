@@ -307,16 +307,16 @@ export async function autoIngestIntegrations(
   sessionId: string,
   sessionData: Record<string, any>
 ): Promise<{ ingested: number; skipped: number }> {
-  // Get already-ingested source keys with their creation timestamps
+  // Get already-ingested source keys with their creation timestamps and status
   const { data: existing } = await supabase
     .from('knowledge_documents')
-    .select('source_key, created_at')
+    .select('source_key, created_at, status')
     .eq('session_id', sessionId)
     .eq('source_type', 'integration');
 
-  const existingMap = new Map<string, string>();
+  const existingMap = new Map<string, { created_at: string; status: string }>();
   for (const d of (existing || []) as any[]) {
-    if (d.source_key) existingMap.set(d.source_key, d.created_at);
+    if (d.source_key) existingMap.set(d.source_key, { created_at: d.created_at, status: d.status });
   }
 
   // Integration timestamps tell us when each integration last ran
@@ -338,10 +338,13 @@ export async function autoIngestIntegrations(
       content = content.slice(0, 30_000);
     }
 
-    const existingCreatedAt = existingMap.get(key);
-    if (existingCreatedAt) {
+    const existingEntry = existingMap.get(key);
+    if (existingEntry) {
+      const isStuck = existingEntry.status === 'pending' || existingEntry.status === 'processing';
       const integrationRanAt = integrationTimestamps[key];
-      if (!integrationRanAt || new Date(integrationRanAt) <= new Date(existingCreatedAt)) {
+      const isStale = integrationRanAt && new Date(integrationRanAt) > new Date(existingEntry.created_at);
+      // Re-ingest if: stuck in pending/processing, or integration data is newer
+      if (!isStuck && !isStale) {
         continue;
       }
       await supabase
@@ -364,8 +367,9 @@ export async function autoIngestIntegrations(
   const hubspotData = sessionData.hubspot_data;
   if (hubspotData && typeof hubspotData === 'object' && !hubspotData._error) {
     const hubspotTimestamp = integrationTimestamps.hubspot_data;
-    const hubspotExisting = existingMap.get('hubspot_data:summary');
-    const needsReIngest = !hubspotExisting || (hubspotTimestamp && new Date(hubspotTimestamp) > new Date(hubspotExisting));
+    const hubspotEntry = existingMap.get('hubspot_data:summary');
+    const hubspotStuck = hubspotEntry && (hubspotEntry.status === 'pending' || hubspotEntry.status === 'processing');
+    const needsReIngest = !hubspotEntry || hubspotStuck || (hubspotTimestamp && new Date(hubspotTimestamp) > new Date(hubspotEntry.created_at));
 
     if (needsReIngest) {
       await supabase
@@ -400,7 +404,9 @@ export async function autoIngestIntegrations(
     const avomaTimestamp = integrationTimestamps.avoma_data;
     const hasExpandedDocs = Array.from(existingMap.keys()).some(k => k.startsWith('avoma_data:'));
     const avomaLegacy = existingMap.get('avoma_data');
-    const needsReIngest = !hasExpandedDocs || (avomaLegacy && !hasExpandedDocs) || (avomaTimestamp && hasExpandedDocs && new Date(avomaTimestamp) > new Date(existingMap.get('avoma_data:meeting:0') || '0'));
+    const avomaFirstMeeting = existingMap.get('avoma_data:meeting:0');
+    const avomaStuck = Array.from(existingMap.entries()).some(([k, v]) => k.startsWith('avoma_data:') && (v.status === 'pending' || v.status === 'processing'));
+    const needsReIngest = !hasExpandedDocs || avomaStuck || (avomaLegacy && !hasExpandedDocs) || (avomaTimestamp && hasExpandedDocs && new Date(avomaTimestamp) > new Date(avomaFirstMeeting?.created_at || '0'));
 
     if (needsReIngest) {
       await supabase
@@ -439,40 +445,48 @@ export async function autoIngestIntegrations(
     return { ingested: 0, skipped: existingMap.size };
   }
 
-  // Phase 2: Send to rag-ingest with document_ids for background indexing
-  try {
-    const response = await fetch(INGEST_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        documents: registered.map(d => ({
-          document_id: d.document_id,
-          name: d.name,
-          content: d.content,
-          source_type: d.source_type,
-          source_key: d.source_key,
-        })),
-      }),
-    });
+  // Phase 2: Send to rag-ingest in batches of 5 to avoid edge function timeouts
+  const BATCH_SIZE = 5;
+  let totalReady = 0;
 
-    if (!response.ok) {
-      console.error('Auto-ingest failed:', await response.text());
-      return { ingested: 0, skipped: existingMap.size };
+  for (let i = 0; i < registered.length; i += BATCH_SIZE) {
+    const batch = registered.slice(i, i + BATCH_SIZE);
+    try {
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          documents: batch.map(d => ({
+            document_id: d.document_id,
+            name: d.name,
+            content: d.content,
+            source_type: d.source_type,
+            source_key: d.source_key,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`[auto-ingest] Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, await response.text());
+        continue;
+      }
+
+      const result = await response.json();
+      const readyCount = result.results?.filter((r: any) => r.status === 'ready').length || 0;
+      totalReady += readyCount;
+      console.log(`[auto-ingest] Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${readyCount}/${batch.length} ready`);
+    } catch (err) {
+      console.error(`[auto-ingest] Batch ${Math.floor(i / BATCH_SIZE) + 1} error:`, err);
     }
-
-    const result = await response.json();
-    const readyCount = result.results?.filter((r: any) => r.status === 'ready').length || 0;
-    console.log(`[auto-ingest] Ingested ${readyCount} integration documents for session ${sessionId}`);
-    return { ingested: readyCount, skipped: existingMap.size };
-  } catch (err) {
-    console.error('Auto-ingest error:', err);
-    return { ingested: 0, skipped: existingMap.size };
   }
+
+  console.log(`[auto-ingest] Ingested ${totalReady}/${registered.length} integration documents for session ${sessionId}`);
+  return { ingested: totalReady, skipped: existingMap.size };
 }
 
 /**
@@ -483,23 +497,32 @@ export async function autoIngestPages(
   sessionId: string,
   pages: { url: string; title: string | null; ai_outline: string | null; raw_content: string | null }[]
 ): Promise<number> {
-  // Get already-ingested scrape docs
+  // Get already-ingested scrape docs (include status to detect stuck items)
   const { data: existing } = await supabase
     .from('knowledge_documents')
-    .select('name')
+    .select('name, status')
     .eq('session_id', sessionId)
     .eq('source_type', 'scrape');
 
-  const existingNames = new Set((existing || []).map((d: any) => d.name));
+  const existingByName = new Map<string, string>();
+  for (const d of (existing || []) as any[]) {
+    if (d.name) existingByName.set(d.name, d.status);
+  }
 
   const docsToIngest: { name: string; content: string; source_type: string; source_key: string }[] = [];
+  const stuckNames: string[] = [];
 
   for (const page of pages) {
     const content = page.ai_outline || page.raw_content;
     if (!content || content.length < 50) continue;
 
     const docName = `Page: ${page.title || page.url}`;
-    if (existingNames.has(docName)) continue;
+    const existingStatus = existingByName.get(docName);
+    if (existingStatus === 'ready' || existingStatus === 'error') continue;
+    // Delete stuck pending/processing docs so they get re-created
+    if (existingStatus === 'pending' || existingStatus === 'processing') {
+      stuckNames.push(docName);
+    }
 
     docsToIngest.push({
       name: docName,
@@ -511,37 +534,61 @@ export async function autoIngestPages(
 
   if (docsToIngest.length === 0) return 0;
 
+  // Delete stuck pending/processing docs before re-registering
+  if (stuckNames.length > 0) {
+    for (const name of stuckNames) {
+      await supabase
+        .from('knowledge_documents')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('name', name)
+        .eq('source_type', 'scrape');
+    }
+    console.log(`[auto-ingest-pages] Cleaned up ${stuckNames.length} stuck documents`);
+  }
+
   // Phase 1: Register all documents as 'pending' (visible immediately)
   const registered = await registerDocuments(sessionId, docsToIngest);
   if (registered.length === 0) return 0;
 
-  // Phase 2: Index via rag-ingest
-  try {
-    const response = await fetch(INGEST_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        documents: registered.map(d => ({
-          document_id: d.document_id,
-          name: d.name,
-          content: d.content,
-          source_type: d.source_type,
-          source_key: d.source_key,
-        })),
-      }),
-    });
+  // Phase 2: Index via rag-ingest in batches of 5 to avoid edge function timeouts
+  const BATCH_SIZE = 5;
+  let totalReady = 0;
 
-    if (!response.ok) return 0;
-    const result = await response.json();
-    return result.results?.filter((r: any) => r.status === 'ready').length || 0;
-  } catch {
-    return 0;
+  for (let i = 0; i < registered.length; i += BATCH_SIZE) {
+    const batch = registered.slice(i, i + BATCH_SIZE);
+    try {
+      const response = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          documents: batch.map(d => ({
+            document_id: d.document_id,
+            name: d.name,
+            content: d.content,
+            source_type: d.source_type,
+            source_key: d.source_key,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`[auto-ingest-pages] Batch ${Math.floor(i / BATCH_SIZE) + 1} failed`);
+        continue;
+      }
+      const result = await response.json();
+      totalReady += result.results?.filter((r: any) => r.status === 'ready').length || 0;
+    } catch (err) {
+      console.error(`[auto-ingest-pages] Batch ${Math.floor(i / BATCH_SIZE) + 1} error:`, err);
+    }
   }
+
+  return totalReady;
 }
 
 /**

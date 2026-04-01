@@ -701,6 +701,11 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
   }, [sessionId]);
 
   const readyCount = documents.filter(d => d.status === 'ready').length;
+  const errorCount = documents.filter(d => d.status === 'error').length;
+  const pendingCount = documents.filter(d => d.status === 'pending' || d.status === 'processing' || d.status === 'uploading').length;
+  const totalDocs = documents.length;
+  const completedCount = readyCount + errorCount;
+  const indexingPercent = totalDocs > 0 && pendingCount > 0 ? Math.round((completedCount / totalDocs) * 100) : null;
   const totalChunks = documents.reduce((sum, d) => sum + d.chunk_count, 0);
   const totalChars = documents.reduce((sum, d) => sum + d.char_count, 0);
   const formattedChars = totalChars >= 1000000 ? `${(totalChars / 1000000).toFixed(1)}M` : totalChars >= 1000 ? `${(totalChars / 1000).toFixed(1)}K` : String(totalChars);
@@ -799,6 +804,22 @@ export function DocumentLibrary({ sessionId, onDocumentCountChange, refreshKey, 
           <span><strong className="text-foreground">{formattedChars}</strong> chars</span>
         </div>
       </div>
+
+      {/* Indexing progress bar */}
+      {indexingPercent !== null && (
+        <div className="px-1 mb-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <Loader2 className="h-3 w-3 animate-spin text-amber-500" />
+            <span>Indexing: <strong className="text-foreground">{completedCount}</strong> of <strong className="text-foreground">{totalDocs}</strong> documents ({indexingPercent}%)</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-amber-500 transition-all duration-500 ease-out"
+              style={{ width: `${indexingPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Upload + Drive + Sync row */}
       <div className="flex items-center gap-2 px-1 mb-3">
