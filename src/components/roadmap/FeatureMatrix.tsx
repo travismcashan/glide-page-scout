@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { PILLARS } from "@/data/offerings";
 import type { TimelineItem } from "@/types/roadmap";
 import type { Offering } from "@/hooks/useServiceOfferings";
@@ -9,6 +10,24 @@ import type { ServiceStep } from "@/types/roadmap";
 interface FeatureMatrixProps {
   items: TimelineItem[];
   offerings: Offering[];
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function isRecurringOffering(offering: Offering): boolean {
+  return (
+    offering.billingType === "Retainer" ||
+    (offering.billingType === "T&M" &&
+      offering.minRetainer == null &&
+      offering.maxRetainer == null &&
+      (offering.minHourly != null || offering.maxHourly != null))
+  );
 }
 
 const PILLAR_BG: Record<string, string> = {
@@ -23,13 +42,6 @@ const PILLAR_DOT: Record<string, string> = {
   FB: "bg-pillar-fb",
   GO: "bg-pillar-go",
   TS: "bg-pillar-ts",
-};
-
-const PILLAR_BORDER: Record<string, string> = {
-  IS: "border-l-pillar-is",
-  FB: "border-l-pillar-fb",
-  GO: "border-l-pillar-go",
-  TS: "border-l-pillar-ts",
 };
 
 const OPTION_LABELS = ["Option 1", "Option 2", "Option 3"];
@@ -47,6 +59,18 @@ function isInOption(pillar: string, optionIdx: number): boolean {
   return false;
 }
 
+/** Short descriptions for services — used in info tooltips */
+const SERVICE_DESCRIPTIONS: Record<string, string> = {
+  "Technical Discovery": "Audit of your current tech stack, integrations, and infrastructure to identify risks and opportunities.",
+  "Website Design": "Custom UI/UX design for your website, focused on brand alignment and conversion optimization.",
+  "Website Development": "Full-stack development, CMS integration, and launch of your new or redesigned website.",
+  "Search Engine Optimization": "On-page and technical SEO to improve organic rankings, traffic, and search visibility.",
+  "PPC Management": "Paid search campaign strategy, setup, optimization, and performance reporting.",
+  "Continuous Improvement": "Ongoing UX enhancements, A/B testing, and iterative improvements based on data.",
+  "Quarterly Maintenance": "Quarterly CMS updates, security patches, backups, and performance checks.",
+  "On-Demand Support": "Ad-hoc development and design support on a time-and-materials basis.",
+};
+
 const BUNDLE_PERKS: Array<{ name: string; tip: string; value?: string; options: number[] }> = [
   { name: "Priority Onboarding", tip: "Skip the queue. Bundle clients get priority scheduling for kickoff, discovery, and first deliverables.", options: [2] },
   { name: "Dedicated Slack Channel", tip: "Real-time access to your entire team in a shared Slack channel. No tickets, no wait times.", options: [2] },
@@ -55,10 +79,15 @@ const BUNDLE_PERKS: Array<{ name: string; tip: string; value?: string; options: 
 ];
 
 export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) {
-  const [expandedServices, setExpandedServices] = useState<Set<number>>(new Set());
-
   const activeSkus = new Set(items.map((i) => i.sku));
   const activeOfferings = offerings.filter((o) => activeSkus.has(o.sku));
+
+  // Default all services expanded
+  const [expandedServices, setExpandedServices] = useState<Set<number>>(() => {
+    const allSkus = new Set<number>();
+    activeOfferings.forEach((o) => allSkus.add(o.sku));
+    return allSkus;
+  });
 
   const pillarOrder = ["IS", "FB", "GO", "TS"];
   const groupedByPillar = pillarOrder
@@ -79,21 +108,68 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
     });
   };
 
+  // Compute option prices for header
+  const option1Items = items.filter((i) => i.pillar === "IS" || i.pillar === "FB");
+  const option2Items = items.filter((i) => i.pillar === "GO" || i.pillar === "TS");
+
+  const computeOptionPrice = (scopeItems: TimelineItem[], mode: "total" | "monthly" | "monthly-blended"): string => {
+    let totalFixed = 0;
+    let totalMonthly = 0;
+    let totalRecurringCost = 0;
+    let hasData = false;
+
+    for (const item of scopeItems) {
+      if (item.unitPrice == null) continue;
+      const offering = offerings.find((o) => o.sku === item.sku);
+      hasData = true;
+      if (offering && isRecurringOffering(offering)) {
+        if (mode === "total") totalFixed += item.unitPrice * item.duration;
+        else if (mode === "monthly") totalMonthly += item.unitPrice;
+        else totalRecurringCost += item.unitPrice * item.duration;
+      } else {
+        totalFixed += item.unitPrice;
+      }
+    }
+
+    if (!hasData) return "—";
+    let raw: number;
+    if (mode === "monthly") raw = totalMonthly;
+    else if (mode === "monthly-blended") raw = (totalFixed + totalRecurringCost) / 12;
+    else raw = totalFixed + totalMonthly;
+
+    // Round
+    if (mode === "monthly-blended") raw = Math.floor(raw / 500) * 500;
+    else if (mode === "monthly") raw = Math.round(raw / 250) * 250;
+    else raw = Math.round(raw / 1000) * 1000;
+
+    const suffix = mode === "monthly" || mode === "monthly-blended" ? "/mo" : "";
+    return `${formatCurrency(raw)}${suffix}`;
+  };
+
+  const optionPrices = [
+    computeOptionPrice(option1Items, "total"),
+    computeOptionPrice(option2Items, "monthly"),
+    computeOptionPrice(items, "monthly-blended"),
+  ];
+
   const COL = "grid-cols-[1fr_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)]";
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-background">
       {/* Sticky header */}
-      <div className={`grid ${COL} border-b-2 border-border bg-muted/30`}>
+      <div className={`sticky top-0 z-10 grid ${COL} border-b-2 border-border bg-muted/95 backdrop-blur-sm`}>
         <div className="px-6 py-5">
           <p className="text-sm font-bold text-foreground">What's Included</p>
         </div>
         {OPTION_LABELS.map((label, i) => (
-          <div key={label} className="flex flex-col items-center justify-center gap-1 border-l border-border px-4 py-5">
+          <div key={label} className="flex flex-col items-center justify-center gap-1.5 border-l border-border px-4 py-4">
             <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${OPTION_HEADER_STYLES[i]}`}>
               {label}
             </span>
-            <span className="text-xs font-medium text-muted-foreground">{OPTION_NAMES[i]}</span>
+            <span className="text-lg font-bold text-foreground">{optionPrices[i]}</span>
+            <Button size="sm" variant="outline" className="mt-1 text-xs h-7 px-3">
+              Get Started
+            </Button>
           </div>
         ))}
       </div>
@@ -122,6 +198,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
             const cycles = steps.filter((s) => s.stepType === "cycle").sort((a, b) => a.sortOrder - b.sortOrder);
             const hasSteps = steps.length > 0;
             const item = items.find((i) => i.sku === service.sku);
+            const description = SERVICE_DESCRIPTIONS[service.name];
 
             return (
               <div key={service.sku}>
@@ -129,13 +206,25 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
                   className={`grid ${COL} border-b border-border ${hasSteps ? "cursor-pointer hover:bg-muted/30" : ""} transition-colors`}
                   onClick={() => hasSteps && toggleService(service.sku)}
                 >
-                  <div className={`flex items-center gap-2 px-6 py-3.5 border-l-2 ${PILLAR_BORDER[service.pillar]}`}>
+                  <div className="flex items-center gap-2 px-6 py-3.5">
                     {hasSteps && (
                       isExpanded
                         ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     )}
                     <span className="text-sm font-medium text-foreground">{service.name}</span>
+                    {description && (
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button className="shrink-0 p-0.5" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                            <Info className="h-3 w-3 text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-help" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                          <p className="text-xs">{description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     {item && item.duration > 0 && (
                       <span className="ml-auto shrink-0 text-[11px] text-muted-foreground/60">
                         {item.duration} mo
@@ -170,7 +259,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
         </div>
       ))}
 
-      {/* Bundle Exclusive section */}
+      {/* Included Extras section */}
       <div className={`grid ${COL} border-b border-border bg-primary/5`}>
         <div className="flex items-center gap-2.5 px-6 py-3">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" />
@@ -184,7 +273,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
       </div>
       {BUNDLE_PERKS.map((perk, i) => (
         <div key={perk.name} className={`grid ${COL} border-b border-border ${i === BUNDLE_PERKS.length - 1 ? "border-b-0" : ""}`}>
-          <div className="flex items-center gap-2 px-6 py-3.5 pl-8 border-l-2 border-l-primary">
+          <div className="flex items-center gap-2 px-6 py-3.5 pl-8">
             <span className="text-sm font-medium text-foreground">{perk.name}</span>
             {perk.value && (
               <span className="text-[11px] text-muted-foreground/60">{perk.value}</span>
@@ -218,7 +307,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
 function StepRow({ step, pillar, label, col }: { step: ServiceStep; pillar: string; label: string; col: string }) {
   return (
     <div className={`grid ${col} border-b border-border/40 bg-muted/5`}>
-      <div className={`flex items-center gap-2 px-6 py-2.5 pl-14 border-l-2 ${PILLAR_BORDER[pillar]}`}>
+      <div className="flex items-center gap-2 px-6 py-2.5 pl-14">
         <span className="text-[13px] text-muted-foreground">{step.name}</span>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60">{label}</span>
       </div>
