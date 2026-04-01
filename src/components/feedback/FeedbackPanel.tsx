@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mic, MicOff, Loader2, Send, Crosshair, X, Sparkles } from "lucide-react";
+import { Mic, Square, Loader2, Send, Crosshair, X, Sparkles } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -270,7 +270,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
 
   return (
     <Sheet open={!!type && !inspecting} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="left" className="sm:max-w-lg p-0 flex flex-col" data-feedback-panel>
+      <SheetContent side="left" className="sm:max-w-sm p-0 flex flex-col" data-feedback-panel>
         {/* Header with large typography */}
         <div className="px-8 pt-10 pb-6">
           <SheetTitle className="text-4xl tracking-tight">
@@ -309,13 +309,13 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
               className="resize-none pr-14 text-[15px] leading-relaxed"
               autoFocus
             />
-            {/* Mic button overlaid in textarea */}
+            {/* Mic / Stop button overlaid in textarea */}
             <button
               onClick={recording ? stopRecording : startRecording}
               disabled={transcribing}
               className={`absolute right-3 bottom-3 h-10 w-10 rounded-full flex items-center justify-center transition-all ${
                 recording
-                  ? "bg-destructive text-white animate-pulse shadow-lg shadow-destructive/30"
+                  ? "border-2 border-red-500 bg-white dark:bg-background shadow-lg shadow-red-500/20"
                   : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
               }`}
               title={recording ? "Stop recording" : "Record voice"}
@@ -323,7 +323,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
               {transcribing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : recording ? (
-                <MicOff className="h-4 w-4" />
+                <Square className="h-3.5 w-3.5 fill-red-500 text-red-500" />
               ) : (
                 <Mic className="h-4 w-4" />
               )}
@@ -331,9 +331,12 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
           </div>
 
           {recording && (
-            <div className="flex items-center gap-2 text-sm text-destructive animate-pulse">
-              <div className="h-2 w-2 rounded-full bg-destructive" />
-              Listening... just talk naturally
+            <div className="flex items-center gap-2 text-sm animate-pulse">
+              <div className="h-3 w-3 rounded-full border-2 border-red-500 flex items-center justify-center">
+                <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              </div>
+              <span className="text-red-600 dark:text-red-400 font-medium">Recording</span>
+              <span className="text-muted-foreground">just talk naturally</span>
             </div>
           )}
 
