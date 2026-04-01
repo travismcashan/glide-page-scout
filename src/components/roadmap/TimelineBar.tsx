@@ -11,8 +11,15 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { getMonthLabels } from "@/data/offerings";
-import { X, Scissors, DollarSign, Search } from "lucide-react";
+import { X, Scissors, DollarSign, Search, MoreHorizontal, Trash2 } from "lucide-react";
 import { isPpcOffering, calcPpcManagementFee, getPpcTierLabel, PPC_FLAT_THRESHOLD } from "@/lib/ppcPricing";
 
 interface TimelineBarProps {
@@ -21,6 +28,7 @@ interface TimelineBarProps {
   columnWidth: number;
   totalMonths: number;
   startMonthIndex: number;
+  viewOffset?: number;
   onMove: (sku: number, newStart: number) => void;
   onResize: (sku: number, newStart: number, newDuration: number) => void;
   onRemove: (sku: number) => void;
@@ -126,6 +134,7 @@ export default function TimelineBar({
   onFocus,
   rowIndex,
   rowCount,
+  viewOffset = 0,
 }: TimelineBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
@@ -303,7 +312,7 @@ export default function TimelineBar({
 
   const PAD = 6;
   const visibleDuration = Math.min(item.duration, totalMonths - item.startMonth);
-  const barLeft = item.startMonth * columnWidth + PAD;
+  const barLeft = (item.startMonth - viewOffset) * columnWidth + PAD;
   const barWidth = visibleDuration * columnWidth - PAD * 2;
   const labelText = `${item.name} (${visibleDuration} mo)`;
   const barEnd = item.startMonth + visibleDuration;
@@ -380,19 +389,7 @@ export default function TimelineBar({
           {onSetPrice && (priceRange || isPpc) && (
             <Popover open={priceOpen} onOpenChange={setPriceOpen}>
               <PopoverTrigger asChild>
-                <button
-                  className="absolute -bottom-2 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPriceOpen(true);
-                  }}
-                >
-                  <DollarSign className="h-3 w-3" />
-                </button>
+                <span className="absolute -bottom-1 left-1/2 h-0 w-0 -translate-x-1/2" />
               </PopoverTrigger>
               <PopoverContent
                 className="w-72 p-3"
@@ -517,33 +514,71 @@ export default function TimelineBar({
             </Popover>
           )}
 
-          {canSplit && onSplit && (
-            <button
-              className="absolute -left-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onSplit(item.sku);
-              }}
-            >
-              <Scissors className="h-3 w-3" />
-            </button>
+          {/* Action menu — dropdown for non-destructive actions */}
+          {(canSplit || (onFocus && offering?.steps && offering.steps.length > 0) || (onSetPrice && (priceRange || isPpc))) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="absolute -left-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="bottom" onMouseDown={(e) => e.stopPropagation()}>
+                {onSetPrice && (priceRange || isPpc) && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPriceOpen(true);
+                    }}
+                  >
+                    <DollarSign className="mr-2 h-3.5 w-3.5" />
+                    {isPpc ? "Set Ad Spend & Fee" : "Set Price"}
+                  </DropdownMenuItem>
+                )}
+                {canSplit && onSplit && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSplit(item.sku);
+                    }}
+                  >
+                    <Scissors className="mr-2 h-3.5 w-3.5" />
+                    Split into Phases
+                  </DropdownMenuItem>
+                )}
+                {onFocus && offering?.steps && offering.steps.length > 0 && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFocus(item.sku);
+                    }}
+                  >
+                    <Search className="mr-2 h-3.5 w-3.5" />
+                    View Phases & Cycles
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(item.sku);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                  Remove
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
-          {onFocus && offering?.steps && offering.steps.length > 0 && (
-            <button
-              className="absolute -left-2 bottom-0 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onFocus(item.sku);
-              }}
-              title="Zoom into phases & cycles"
-            >
-              <Search className="h-3 w-3" />
-            </button>
-          )}
-
+          {/* Delete button — always visible on hover */}
           <button
             className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-destructive group-hover:opacity-100"
             onMouseDown={(e) => {

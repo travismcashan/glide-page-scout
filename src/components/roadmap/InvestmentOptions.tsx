@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Check } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { TimelineItem } from "@/types/roadmap";
 import type { Offering } from "@/hooks/useServiceOfferings";
+import { PPC_TIERS, PPC_FLAT_FEE, PPC_FLAT_THRESHOLD, isPpcOffering } from "@/lib/ppcPricing";
 
 interface InvestmentOptionsProps {
   items: TimelineItem[];
@@ -14,6 +16,7 @@ interface InvestmentOptionsProps {
   onGenerateRef?: (fn: () => Promise<void>) => void;
   savedOutcomes?: Record<number, string[]>;
   onOutcomesChange?: (outcomes: Record<number, string[]>) => void;
+  showCTAs?: boolean;
 }
 
 function formatCurrency(value: number): string {
@@ -44,6 +47,15 @@ const SHORT_NAMES: Record<string, string> = {
 
 function shortName(name: string): string {
   return SHORT_NAMES[name] || name;
+}
+
+/** Render markdown **bold** as <strong> elements */
+function renderBold(text: string): React.ReactNode {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
+  );
 }
 
 type PriceMode = "total" | "monthly" | "monthly-blended";
@@ -124,9 +136,9 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
       onClick={onClick}
     >
       <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
-        option.label === "Option 1" ? "bg-pillar-fb text-foreground" :
-        option.label === "Option 2" ? "bg-pillar-go text-foreground" :
-        "border border-foreground/30 text-foreground"
+        option.label === "Option 1" ? "bg-pillar-fb text-black" :
+        option.label === "Option 2" ? "bg-pillar-go text-black" :
+        "text-black animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
       }`}>
         {option.label.split(" ")[1]}
       </span>
@@ -137,13 +149,17 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
   );
 }
 
-function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange }: {
+function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle, pricingExpanded, onGetStarted, showCTAs = true }: {
   option: OptionDef;
   offerings: Offering[];
   outcomes: string[];
   outcomesLoading: boolean;
   discount?: { percent: number } | null;
   onDiscountChange?: (discount: { percent: number } | null) => void;
+  isBundle?: boolean;
+  pricingExpanded?: boolean;
+  onGetStarted?: () => void;
+  showCTAs?: boolean;
 }) {
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
@@ -156,12 +172,12 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
     : computePrice(option.scopeItems, offerings, option.priceMode);
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-background">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-background">
       <div className="px-6 py-6">
         <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold tracking-wide ${
-          option.label === "Option 1" ? "bg-pillar-fb-light text-pillar-fb-foreground" :
-          option.label === "Option 2" ? "bg-pillar-go-light text-pillar-go-foreground" :
-          "border border-foreground/30 text-foreground"
+          option.label === "Option 1" ? "bg-pillar-fb text-black" :
+          option.label === "Option 2" ? "bg-pillar-go text-black" :
+          "text-black animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
         }`}>
           {option.label}
         </span>
@@ -169,7 +185,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           {option.name}
         </h3>
       </div>
-      <div className="bg-foreground px-6 py-5">
+      <div className="bg-muted/60 px-6 py-5">
         {onDiscountChange ? (
           <Popover open={discountOpen} onOpenChange={setDiscountOpen}>
             <PopoverTrigger asChild>
@@ -181,10 +197,10 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   setDiscountOpen(true);
                 }}
               >
-                <p className="text-3xl font-bold text-background cursor-pointer hover:text-background/80 transition-colors">
+                <p className="text-3xl font-bold text-foreground cursor-pointer hover:text-foreground/70 transition-colors">
                   {displayPrice}
                   {hasDiscount && (
-                    <span className="ml-2 text-lg font-medium text-background/60">
+                    <span className="ml-2 text-lg font-medium text-muted-foreground">
                       ({discount.percent}% discount)
                     </span>
                   )}
@@ -233,36 +249,36 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             </PopoverContent>
           </Popover>
         ) : (
-          <p className="text-3xl font-bold text-background">
+          <p className="text-3xl font-bold text-foreground">
             {displayPrice}
           </p>
         )}
-        <p className="mt-1 text-sm text-background/60">
+        <p className="mt-1 text-sm text-muted-foreground">
           {option.terms.join(" | ")}
         </p>
       </div>
 
       <div className="border-b border-border px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
-          {option.priceMode === "monthly-blended" ? "WHY BUNDLE?" : "OUTCOMES"}
+          {isBundle ? "WHY BUNDLE?" : "BENEFITS"}
         </p>
         {outcomesLoading ? (
           <p className="text-sm italic text-muted-foreground">Generating outcomes…</p>
         ) : outcomes.length === 0 ? (
           <p className="text-sm italic text-muted-foreground">Add services to generate outcomes</p>
         ) : (
-          <ul className="space-y-2.5">
-            {outcomes.map((outcome, i) => (
-              <li key={i} className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-                <span className="text-sm text-foreground">{outcome}</span>
+          <ul className="space-y-2">
+            {outcomes.slice(0, 5).map((outcome, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm text-foreground truncate">{renderBold(outcome)}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <div className="px-6 py-5">
+      <div className="flex-1 px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
           SCOPE OF WORK
         </p>
@@ -270,8 +286,77 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           <p className="text-sm italic text-muted-foreground">
             Add services to the timeline to populate
           </p>
+        ) : isBundle ? (
+          <ul className="space-y-3">
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground">Everything in</span>
+              <span className="inline-block rounded-full bg-pillar-fb px-2.5 py-0.5 text-xs font-bold tracking-wide text-black">Option 1</span>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground">Everything in</span>
+              <span className="inline-block rounded-full bg-pillar-go px-2.5 py-0.5 text-xs font-bold tracking-wide text-black">Option 2</span>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Priority Onboarding</span>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs">Skip the queue. Bundle clients get priority scheduling for kickoff, discovery, and first deliverables.</p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Dedicated Slack Channel</span>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs">Real-time access to your entire team in a shared Slack channel. No tickets, no wait times.</p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Quarterly Strategic Review</span>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[240px]">
+                  <p className="text-xs">Your dedicated senior team (strategist + service leads for your active services) meets quarterly to review performance, adjust priorities, and align your roadmap with business goals. <span className="font-medium">$1,800/yr value, included.</span></p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Monthly Performance Snapshot</span>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs">A concise monthly report covering KPIs, progress against goals, and recommended next steps across all active services.</p>
+                </TooltipContent>
+              </Tooltip>
+            </li>
+          </ul>
         ) : (
-          <ul className="space-y-2.5 pl-3">
+          <ul className="space-y-2.5">
             {option.scopeItems.map((si) => (
               <li key={si.sku} className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
@@ -280,11 +365,96 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                 </span>
               </li>
             ))}
+            {option.priceMode === "monthly" && (
+              <li className="flex items-center gap-1.5 pt-1 border-t border-border/50 mt-1">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Monthly Performance Snapshot</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[220px]">
+                    <p className="text-xs">A concise monthly report covering KPIs, progress against goals, and recommended next steps across all active services.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+            )}
           </ul>
+        )}
+
+        {/* Triple Guarantee — Foundation & Build only */}
+        {option.priceMode === "total" && option.scopeItems.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
+              THE TRIPLE GUARANTEE
+            </p>
+            <ul className="space-y-2.5">
+              <li className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Design Guarantee</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px]">
+                    <p className="text-xs">We don't cap the number of design revisions. We'll design until you're 100% satisfied, or you get a full refund.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Satisfaction Guarantee</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px]">
+                    <p className="text-xs">After design approval, we'll work until you're completely satisfied with the build. If it's in scope, we'll make it right.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Post-Launch Guarantee</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px]">
+                    <p className="text-xs">For 30 days after launch, any in-scope items that were missed or need adjustment will be fixed at no additional cost.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+            </ul>
+          </div>
         )}
       </div>
 
-      {/* Pricing math breakdown table */}
+      {/* Get Started CTA */}
+      {showCTAs && option.scopeItems.length > 0 && (
+        <div className="px-6 pb-5">
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onGetStarted?.();
+            }}
+          >
+            Get Started
+          </Button>
+        </div>
+      )}
+
+      {/* Collapsible pricing breakdown */}
       {option.scopeItems.length > 0 && (() => {
         const fixedItems: Array<{ name: string; price: number }> = [];
         const recurringItems: Array<{ name: string; price: number; months: number; total: number }> = [];
@@ -311,100 +481,153 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         const grandTotal = fixedTotal + recurringTotal;
 
         if (fixedItems.length === 0 && recurringItems.length === 0 && tmItems.length === 0) return null;
+        if (!pricingExpanded) return null;
 
         return (
-          <div className="border-t border-border px-6 py-5">
-            <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
-              PRICING BREAKDOWN
-            </p>
-            <table className="w-full text-sm">
-              <tbody>
-                {fixedItems.length > 0 && (
-                  <>
-                    {fixedItems.map((fi) => (
-                      <tr key={fi.name}>
-                        <td className="py-1.5 text-foreground">{fi.name}</td>
-                        <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(fi.price)}</td>
-                      </tr>
-                    ))}
-                    {(recurringItems.length > 0 || fixedItems.length > 1) && (
-                      <tr className="border-t border-foreground/20">
-                        <td className="py-1.5 font-semibold text-foreground">Fixed Subtotal</td>
-                        <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
-                      </tr>
-                    )}
-                  </>
-                )}
-                {recurringItems.length > 0 && (
-                  <>
-                    {recurringItems.map((ri) => (
-                      <tr key={ri.name}>
-                        <td className="py-1.5">
-                          <span className="text-foreground">{ri.name}</span>
-                          <span className="ml-1.5 text-muted-foreground/50">
-                            ({formatCurrency(ri.price)}/mo x {ri.months} mo)
-                          </span>
-                        </td>
-                        <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(ri.total)}</td>
-                      </tr>
-                    ))}
-                    {(fixedItems.length > 0 || recurringItems.length > 1) && (
-                      <tr className="border-t border-foreground/20">
-                        <td className="py-1.5 font-semibold text-foreground">Recurring Subtotal</td>
-                        <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
-                      </tr>
-                    )}
-                  </>
-                )}
-                {tmItems.length > 0 && tmItems.map((ti) => (
-                  <tr key={ti.name}>
-                    <td className="py-1.5 text-foreground">{ti.name}</td>
-                    <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">T&M</td>
-                  </tr>
-                ))}
-                {/* Grand total row — clean math, no box */}
-                {(() => {
-                  const monthlyTotal = recurringItems.reduce((s, ri) => s + ri.price, 0);
-                  const isMonthlyMode = option.priceMode === "monthly";
-
-                  if (isMonthlyMode && recurringItems.length > 1) {
-                    return (
-                      <>
-                        <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
-                        <tr>
-                          <td className="py-1.5 font-bold text-foreground">Monthly Total</td>
-                          <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
+          <div className="border-t border-border px-6 py-4">
+              <table className="w-full text-sm">
+                <tbody>
+                  {fixedItems.length > 0 && (
+                    <>
+                      {fixedItems.map((fi) => (
+                        <tr key={fi.name}>
+                          <td className="py-1.5 text-foreground">{fi.name}</td>
+                          <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(fi.price)}</td>
                         </tr>
-                      </>
-                    );
-                  }
-
-                  if (fixedItems.length > 0 && recurringItems.length > 0) {
-                    return (
-                      <>
-                        <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
-                        <tr>
-                          <td className="py-1.5 font-bold text-foreground">Grand Total</td>
-                          <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
+                      ))}
+                      {(recurringItems.length > 0 || fixedItems.length > 1) && (
+                        <tr className="border-t border-foreground/20">
+                          <td className="py-1.5 font-semibold text-foreground">Fixed Subtotal</td>
+                          <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(fixedTotal)}</td>
                         </tr>
-                        {option.priceMode === "monthly-blended" && (
+                      )}
+                    </>
+                  )}
+                  {recurringItems.length > 0 && (
+                    <>
+                      {recurringItems.map((ri) => (
+                        <tr key={ri.name}>
+                          <td className="py-1.5">
+                            <span className="text-foreground">{ri.name}</span>
+                            <span className="ml-1.5 text-muted-foreground/50">
+                              ({formatCurrency(ri.price)}/mo x {ri.months} mo)
+                            </span>
+                          </td>
+                          <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">{formatCurrency(ri.total)}</td>
+                        </tr>
+                      ))}
+                      {(fixedItems.length > 0 || recurringItems.length > 1) && (
+                        <tr className="border-t border-foreground/20">
+                          <td className="py-1.5 font-semibold text-foreground">Recurring Subtotal</td>
+                          <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">{formatCurrency(recurringTotal)}</td>
+                        </tr>
+                      )}
+                    </>
+                  )}
+                  {tmItems.length > 0 && tmItems.map((ti) => (
+                    <tr key={ti.name}>
+                      <td className="py-1.5 text-foreground">{ti.name}</td>
+                      <td className="py-1.5 text-right font-medium text-muted-foreground/70 tabular-nums">T&M</td>
+                    </tr>
+                  ))}
+                  {/* Quarterly Strategic Review for bundle */}
+                  {isBundle && (
+                    <tr>
+                      <td className="py-1.5 text-foreground">Quarterly Strategic Review</td>
+                      <td className="py-1.5 text-right text-emerald-600 font-medium tabular-nums italic">Included</td>
+                    </tr>
+                  )}
+                  {/* Grand total row */}
+                  {(() => {
+                    const monthlyTotal = recurringItems.reduce((s, ri) => s + ri.price, 0);
+                    const isMonthlyMode = option.priceMode === "monthly";
+
+                    if (isMonthlyMode && recurringItems.length > 1) {
+                      return (
+                        <>
+                          <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
                           <tr>
-                            <td className="py-1.5 text-muted-foreground">
-                              {formatCurrency(grandTotal)} / 12 months
-                            </td>
-                            <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">
-                              {formatCurrency(grandTotal / 12)}/mo
-                            </td>
+                            <td className="py-1.5 font-bold text-foreground">Monthly Total</td>
+                            <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(monthlyTotal)}/mo</td>
                           </tr>
-                        )}
-                      </>
-                    );
-                  }
+                        </>
+                      );
+                    }
 
-                  return null;
-                })()}
-              </tbody>
-            </table>
+                    if (fixedItems.length > 0 && recurringItems.length > 0) {
+                      return (
+                        <>
+                          <tr><td colSpan={2} className="pt-1 pb-0.5"><div className="border-t border-foreground/40 border-b border-b-foreground/40 h-[3px]" /></td></tr>
+                          <tr>
+                            <td className="py-1.5 font-bold text-foreground">Grand Total</td>
+                            <td className="py-1.5 text-right font-bold text-foreground tabular-nums">{formatCurrency(grandTotal)}</td>
+                          </tr>
+                          {option.priceMode === "monthly-blended" && (
+                            <tr>
+                              <td className="py-1.5 text-muted-foreground">
+                                {formatCurrency(grandTotal)} / 12 months
+                              </td>
+                              <td className="py-1.5 text-right font-semibold text-foreground tabular-nums">
+                                {formatCurrency(grandTotal / 12)}/mo
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    }
+
+                    return null;
+                  })()}
+                </tbody>
+              </table>
+              {/* Ad spend disclaimer for PPC */}
+              {option.scopeItems.some((si) => isPpcOffering(si.name)) && (
+                <div className="mt-3 flex items-start gap-1.5">
+                  <span className="text-xs text-muted-foreground/70">*</span>
+                  <span className="text-xs text-muted-foreground/70">
+                    Does not include the cost of ad spend.{" "}
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <button
+                          className="inline-flex items-center gap-0.5 text-xs text-primary/70 hover:text-primary underline decoration-dotted underline-offset-2 transition-colors cursor-help"
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          View PPC pricing tiers
+                          <Info className="h-3 w-3" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="w-72 p-0">
+                        <div className="p-3">
+                          <p className="mb-2 text-xs font-semibold">PPC Management Fee Tiers</p>
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="py-1 text-left font-medium text-muted-foreground">Monthly Ad Spend</th>
+                                <th className="py-1 text-right font-medium text-muted-foreground">Management Fee</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="border-b border-border/50">
+                                <td className="py-1">Under ${(PPC_FLAT_THRESHOLD / 1000).toFixed(0)}k</td>
+                                <td className="py-1 text-right">Flat ${PPC_FLAT_FEE.toLocaleString()}/mo</td>
+                              </tr>
+                              {PPC_TIERS.map((tier, i) => (
+                                <tr key={i} className="border-b border-border/50 last:border-b-0">
+                                  <td className="py-1">
+                                    ${(tier.min / 1000).toFixed(0)}k{tier.max === Infinity ? "+" : `–$${(tier.max / 1000).toFixed(0)}k`}
+                                  </td>
+                                  <td className="py-1 text-right">{tier.pct}% of ad spend</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </span>
+                </div>
+              )}
           </div>
         );
       })()}
@@ -412,9 +635,10 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   );
 }
 
-export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef, savedOutcomes, onOutcomesChange }: InvestmentOptionsProps) {
+export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef, savedOutcomes, onOutcomesChange, showCTAs = true }: InvestmentOptionsProps) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [option3Discount, setOption3Discount] = useState<{ percent: number } | null>(null);
+  const [pricingExpanded, setPricingExpanded] = useState(false);
 
   const sortByTimeline = (a: TimelineItem, b: TimelineItem) =>
     a.startMonth - b.startMonth || a.sortOrder - b.sortOrder;
@@ -479,7 +703,13 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
     })(),
   ];
 
-  const [outcomesByIdx, setOutcomesByIdx] = useState<Record<number, string[]>>(savedOutcomes || {});
+  // If saved outcomes have fewer than 5 items (old format), treat as empty so they regenerate
+  const cleanedSavedOutcomes = savedOutcomes
+    ? Object.fromEntries(
+        Object.entries(savedOutcomes).map(([k, v]) => [k, Array.isArray(v) && v.length >= 5 ? v : []])
+      )
+    : {};
+  const [outcomesByIdx, setOutcomesByIdx] = useState<Record<number, string[]>>(cleanedSavedOutcomes);
   const [loadingByIdx, setLoadingByIdx] = useState<Record<number, boolean>>({});
   const [outcomesGenerated, setOutcomesGenerated] = useState(false);
 
@@ -521,25 +751,41 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
     if (onGenerateRef) onGenerateRef(generateAllOutcomes);
   }, [onGenerateRef, generateAllOutcomes]);
 
+  const hasAnyScope = options.some((o) => o.scopeItems.length > 0);
+
   if (expandedIdx === null) {
     return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {options.map((option, idx) => (
-          <div
-            key={option.label}
-            className="cursor-pointer"
-            onClick={() => setExpandedIdx(idx)}
+      <div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {options.map((option, idx) => (
+            <div
+              key={option.label}
+              className="cursor-pointer"
+              onClick={() => setExpandedIdx(idx)}
+            >
+              <ExpandedCard
+                option={option}
+                offerings={offerings}
+                outcomes={outcomesByIdx[idx] || []}
+                outcomesLoading={!!loadingByIdx[idx]}
+                discount={idx === 2 ? option3Discount : undefined}
+                onDiscountChange={idx === 2 ? setOption3Discount : undefined}
+                isBundle={idx === 2}
+                pricingExpanded={pricingExpanded}
+                showCTAs={showCTAs}
+              />
+            </div>
+          ))}
+        </div>
+        {hasAnyScope && (
+          <button
+            className="mx-auto mt-4 flex items-center gap-1.5 rounded-lg border border-border bg-background px-5 py-2.5 text-xs font-semibold tracking-widest text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground"
+            onClick={() => setPricingExpanded(!pricingExpanded)}
           >
-            <ExpandedCard
-              option={option}
-              offerings={offerings}
-              outcomes={outcomesByIdx[idx] || []}
-              outcomesLoading={!!loadingByIdx[idx]}
-              discount={idx === 2 ? option3Discount : undefined}
-              onDiscountChange={idx === 2 ? setOption3Discount : undefined}
-            />
-          </div>
-        ))}
+            {pricingExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {pricingExpanded ? "HIDE PRICING BREAKDOWN" : "SHOW PRICING BREAKDOWN"}
+          </button>
+        )}
       </div>
     );
   }
@@ -567,6 +813,8 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
           outcomesLoading={!!loadingByIdx[expandedIdx]}
           discount={expandedIdx === 2 ? option3Discount : undefined}
           onDiscountChange={expandedIdx === 2 ? setOption3Discount : undefined}
+          isBundle={expandedIdx === 2}
+          pricingExpanded={pricingExpanded}
         />
       </div>
     </div>

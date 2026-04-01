@@ -7,7 +7,9 @@ import type { TimelineItem } from "@/types/roadmap";
 import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
-import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar } from "lucide-react";
+import FeatureMatrix from "@/components/roadmap/FeatureMatrix";
+import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MONTH_NAMES } from "@/data/offerings";
@@ -35,6 +37,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [startMonthIndex, setStartMonthIndex] = useState(new Date().getMonth());
   const [totalMonths, setTotalMonths] = useState(12);
   const [loaded, setLoaded] = useState(false);
+  const [viewOffset, setViewOffset] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const [catalogVisible, setCatalogVisible] = useState(true);
   const [outcomesData, setOutcomesData] = useState<Record<number, string[]>>({});
@@ -42,6 +45,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const outcomesTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const generateOutcomesRef = useRef<(() => Promise<void>) | null>(null);
   const [generatingOutcomes, setGeneratingOutcomes] = useState(false);
+  const [showCTAs, setShowCTAs] = useState(true);
 
   // Load or create roadmap for this session
   useEffect(() => {
@@ -327,15 +331,15 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       {/* Timeline editor */}
       <div>
         <div className="mb-5 flex items-end justify-between">
-          <h2 className="text-4xl font-light tracking-tight text-foreground">12-Month Growth Plan</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-foreground">12-Month Digital Growth Plan</h2>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-muted-foreground">Start</label>
+              <label className="text-xs font-bold text-foreground">Start</label>
               <Select
                 value={String(startMonthIndex)}
-                onValueChange={(v) => setStartMonthIndex(Number(v))}
+                onValueChange={(v) => { setStartMonthIndex(Number(v)); setViewOffset(0); }}
               >
-                <SelectTrigger className="h-8 w-[100px] text-xs">
+                <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -346,12 +350,12 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-muted-foreground">Duration</label>
+              <label className="text-xs font-bold text-foreground">Duration</label>
               <Select
                 value={String(totalMonths)}
-                onValueChange={(v) => setTotalMonths(Number(v))}
+                onValueChange={(v) => { setTotalMonths(Number(v)); setViewOffset(0); }}
               >
-                <SelectTrigger className="h-8 w-[100px] text-xs">
+                <SelectTrigger className="h-8 w-auto min-w-[110px] text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -365,13 +369,26 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               variant="outline"
               size="sm"
               className="h-8 gap-1.5 text-xs"
-              onClick={() => {
-                const url = window.location.href;
-                navigator.clipboard.writeText(url);
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(window.location.href);
+                  toast.success("Link copied to clipboard");
+                } catch {
+                  toast.error("Failed to copy link");
+                }
               }}
             >
               <Share2 className="h-3.5 w-3.5" />
               Share
+            </Button>
+            <Button
+              variant={showCTAs ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => setShowCTAs(!showCTAs)}
+            >
+              {showCTAs ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {showCTAs ? "CTAs On" : "CTAs Off"}
             </Button>
           </div>
         </div>
@@ -399,7 +416,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
                   onClick={() => setCatalogVisible(true)}
                 >
                   <PanelLeftOpen className="h-3.5 w-3.5" />
-                  Show Catalog
+                  Show Services Catalog
                 </Button>
               </div>
             )}
@@ -408,6 +425,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               offerings={offerings}
               startMonthIndex={startMonthIndex}
               totalMonths={totalMonths}
+              viewOffset={viewOffset}
               onMove={moveItem}
               onResize={resizeItem}
               onRemove={removeItem}
@@ -419,8 +437,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               onSetAdSpend={setItemAdSpend}
               onSetDiscount={setItemDiscount}
               showLastBorder={catalogVisible}
-              onStartMonthChange={(delta) => {
-                setStartMonthIndex((prev) => Math.max(0, Math.min(11, prev + delta)));
+              onViewOffsetChange={(delta) => {
+                setViewOffset((prev) => Math.max(0, prev + delta));
               }}
             />
           </div>
@@ -442,9 +460,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       </div>
 
       {/* Investment Options */}
-      <div>
+      <div className="-mx-6 rounded-2xl bg-muted/40 px-6 py-8 ring-1 ring-border/50">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-4xl font-light tracking-tight text-foreground">Investment Options</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-foreground">Investment Options</h2>
           {items.length > 0 && (
             <Button
               size="sm"
@@ -476,8 +494,28 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           onGenerateRef={(fn) => { generateOutcomesRef.current = fn; }}
           savedOutcomes={outcomesData}
           onOutcomesChange={handleOutcomesChange}
+          showCTAs={showCTAs}
         />
       </div>
+
+      {/* GLIDE Guarantee */}
+      {items.length > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-6 py-4">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">The GLIDE Guarantee</span>
+            {" — "}If you're unhappy for any reason within 90 days, we'll make it right or give you your money back.
+          </p>
+        </div>
+      )}
+
+      {/* Feature Comparison Matrix */}
+      {items.length > 0 && (
+        <div>
+          <h2 className="mb-5 text-4xl font-bold tracking-tight text-foreground">What's Included</h2>
+          <FeatureMatrix items={items} offerings={offerings} />
+        </div>
+      )}
     </div>
   );
 }
