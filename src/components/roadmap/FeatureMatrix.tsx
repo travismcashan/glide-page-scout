@@ -48,7 +48,7 @@ const OPTION_NAMES = ["Foundation & Build", "Growth & Optimization", "12-Month G
 const OPTION_HEADER_STYLES = [
   "bg-pillar-fb text-black",
   "bg-pillar-go text-black",
-  "text-white animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is",
+  "text-black animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is",
 ];
 
 function isInOption(pillar: string, optionIdx: number): boolean {
@@ -102,6 +102,17 @@ const STEP_DESCRIPTIONS: Record<string, string> = {
   // On-Demand Support
   "Development Support": "Ad-hoc feature development, bug fixes, and technical troubleshooting.",
   "Design Support": "On-demand design updates, asset creation, and UI refinements.",
+  "Support SLA": "Guaranteed response times and priority support for critical issues.",
+
+  // Quarterly Maintenance
+  "CMS Updates": "Core platform updates, plugin patches, and compatibility testing.",
+  "Uptime Monitoring": "24/7 monitoring with automated alerts for downtime or performance issues.",
+
+  // Generic
+  "Project Initiation": "Kickoff meeting, timeline alignment, access setup, and team introductions.",
+  "Research & Analysis": "Market research, competitor analysis, and data-driven insights to guide strategy.",
+  "Strategy & Recommendations": "Actionable strategic recommendations based on research findings.",
+  "Reporting & Insights": "Clear, visual reporting with key metrics and next-step recommendations.",
 };
 
 const BUNDLE_PERKS: Array<{ name: string; tip: string; value?: string; options: number[] }> = [
@@ -206,16 +217,11 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
       {groupedByPillar.map((group) => (
         <div key={group.pillar.code}>
           {/* Pillar section header */}
-          <div className={`grid ${COL} border-b border-border ${PILLAR_BG[group.pillar.code]}`}>
-            <div className="flex items-center gap-2.5 px-6 py-3">
-              <span className={`inline-block h-2.5 w-2.5 rounded-full ${PILLAR_DOT[group.pillar.code]}`} />
-              <span className="text-xs font-bold tracking-wider text-foreground/80 uppercase">
-                {group.pillar.name}
-              </span>
-            </div>
-            {[0, 1, 2].map((optIdx) => (
-              <div key={optIdx} className="border-l border-border" />
-            ))}
+          <div className={`sticky top-[88px] z-[5] flex items-center gap-2.5 px-6 py-3 border-b border-border backdrop-blur-sm ${PILLAR_BG[group.pillar.code]}`}>
+            <span className={`inline-block h-2.5 w-2.5 rounded-full ${PILLAR_DOT[group.pillar.code]}`} />
+            <span className="text-xs font-bold tracking-wider text-foreground/80 uppercase">
+              {group.pillar.name}
+            </span>
           </div>
 
           {/* Service rows */}
@@ -279,16 +285,11 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
       ))}
 
       {/* Included Extras section */}
-      <div className={`grid ${COL} border-b border-border bg-primary/5`}>
-        <div className="flex items-center gap-2.5 px-6 py-3">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" />
-          <span className="text-xs font-bold tracking-wider text-foreground/80 uppercase">
-            Included Extras
-          </span>
-        </div>
-        {[0, 1, 2].map((optIdx) => (
-          <div key={optIdx} className="border-l border-border" />
-        ))}
+      <div className="flex items-center gap-2.5 px-6 py-3 border-b border-border bg-primary/5">
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" />
+        <span className="text-xs font-bold tracking-wider text-foreground/80 uppercase">
+          Included Extras
+        </span>
       </div>
       {BUNDLE_PERKS.map((perk, i) => (
         <div key={perk.name} className={`grid ${COL} border-b border-border ${i === BUNDLE_PERKS.length - 1 ? "border-b-0" : ""}`}>
@@ -327,8 +328,8 @@ function StepRow({ step, pillar, col }: { step: ServiceStep; pillar: string; col
   const description = STEP_DESCRIPTIONS[step.name];
   return (
     <div className={`grid ${col} border-b border-border/40 bg-muted/5`}>
-      <div className="flex items-center gap-2 px-6 py-5">
-        <span className="text-sm text-muted-foreground">{step.name}</span>
+      <div className="flex items-center gap-2 px-6 py-3">
+        <span className="text-xs text-muted-foreground">{step.name}</span>
         {description && (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -343,7 +344,7 @@ function StepRow({ step, pillar, col }: { step: ServiceStep; pillar: string; col
         )}
       </div>
       {[0, 1, 2].map((optIdx) => (
-        <div key={optIdx} className="flex items-center border-l border-border/40 px-4 py-5">
+        <div key={optIdx} className="flex items-center border-l border-border/40 px-4 py-3">
           {isInOption(pillar, optIdx) ? (
             <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
           ) : (

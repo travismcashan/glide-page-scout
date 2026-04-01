@@ -16,6 +16,7 @@ interface InvestmentOptionsProps {
   onGenerateRef?: (fn: () => Promise<void>) => void;
   savedOutcomes?: Record<number, string[]>;
   onOutcomesChange?: (outcomes: Record<number, string[]>) => void;
+  showCTAs?: boolean;
 }
 
 function formatCurrency(value: number): string {
@@ -137,7 +138,7 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
       <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
         option.label === "Option 1" ? "bg-pillar-fb text-black" :
         option.label === "Option 2" ? "bg-pillar-go text-black" :
-        "text-white animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
+        "text-black animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
       }`}>
         {option.label.split(" ")[1]}
       </span>
@@ -148,7 +149,7 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
   );
 }
 
-function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle, pricingExpanded, onGetStarted }: {
+function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle, pricingExpanded, onGetStarted, showCTAs = true }: {
   option: OptionDef;
   offerings: Offering[];
   outcomes: string[];
@@ -158,6 +159,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   isBundle?: boolean;
   pricingExpanded?: boolean;
   onGetStarted?: () => void;
+  showCTAs?: boolean;
 }) {
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
@@ -175,7 +177,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold tracking-wide ${
           option.label === "Option 1" ? "bg-pillar-fb text-black" :
           option.label === "Option 2" ? "bg-pillar-go text-black" :
-          "text-white animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
+          "text-black animate-gradient-shift bg-[length:200%_200%] bg-gradient-to-r from-pillar-fb via-pillar-go to-pillar-is"
         }`}>
           {option.label}
         </span>
@@ -381,10 +383,63 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
             )}
           </ul>
         )}
+
+        {/* Triple Guarantee — Foundation & Build only */}
+        {option.priceMode === "total" && option.scopeItems.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
+              THE TRIPLE GUARANTEE
+            </p>
+            <ul className="space-y-2.5">
+              <li className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Design Guarantee</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px]">
+                    <p className="text-xs">We don't cap the number of design revisions. We'll design until you're 100% satisfied, or you get a full refund.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Satisfaction Guarantee</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px]">
+                    <p className="text-xs">After design approval, we'll work until you're completely satisfied with the build. If it's in scope, we'll make it right.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Post-Launch Guarantee</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px]">
+                    <p className="text-xs">For 30 days after launch, any in-scope items that were missed or need adjustment will be fixed at no additional cost.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Get Started CTA */}
-      {option.scopeItems.length > 0 && (
+      {showCTAs && option.scopeItems.length > 0 && (
         <div className="px-6 pb-5">
           <Button
             className="w-full"
@@ -580,7 +635,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   );
 }
 
-export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef, savedOutcomes, onOutcomesChange }: InvestmentOptionsProps) {
+export default function InvestmentOptions({ items, offerings, sessionId, onGenerateRef, savedOutcomes, onOutcomesChange, showCTAs = true }: InvestmentOptionsProps) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [option3Discount, setOption3Discount] = useState<{ percent: number } | null>(null);
   const [pricingExpanded, setPricingExpanded] = useState(false);
@@ -717,6 +772,7 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
                 onDiscountChange={idx === 2 ? setOption3Discount : undefined}
                 isBundle={idx === 2}
                 pricingExpanded={pricingExpanded}
+                showCTAs={showCTAs}
               />
             </div>
           ))}

@@ -8,7 +8,7 @@ import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
 import FeatureMatrix from "@/components/roadmap/FeatureMatrix";
-import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar, ShieldCheck } from "lucide-react";
+import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,6 +45,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const outcomesTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const generateOutcomesRef = useRef<(() => Promise<void>) | null>(null);
   const [generatingOutcomes, setGeneratingOutcomes] = useState(false);
+  const [showCTAs, setShowCTAs] = useState(true);
 
   // Load or create roadmap for this session
   useEffect(() => {
@@ -338,7 +339,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
                 value={String(startMonthIndex)}
                 onValueChange={(v) => { setStartMonthIndex(Number(v)); setViewOffset(0); }}
               >
-                <SelectTrigger className="h-8 w-[100px] text-xs font-semibold">
+                <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -354,7 +355,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
                 value={String(totalMonths)}
                 onValueChange={(v) => { setTotalMonths(Number(v)); setViewOffset(0); }}
               >
-                <SelectTrigger className="h-8 w-[100px] text-xs font-semibold">
+                <SelectTrigger className="h-8 w-auto min-w-[110px] text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -379,6 +380,15 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
             >
               <Share2 className="h-3.5 w-3.5" />
               Share
+            </Button>
+            <Button
+              variant={showCTAs ? "default" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => setShowCTAs(!showCTAs)}
+            >
+              {showCTAs ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {showCTAs ? "CTAs On" : "CTAs Off"}
             </Button>
           </div>
         </div>
@@ -484,6 +494,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           onGenerateRef={(fn) => { generateOutcomesRef.current = fn; }}
           savedOutcomes={outcomesData}
           onOutcomesChange={handleOutcomesChange}
+          showCTAs={showCTAs}
         />
       </div>
 
