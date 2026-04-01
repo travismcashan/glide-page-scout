@@ -186,12 +186,14 @@ ${catalogText}
 9. Each service's startMonth + duration must not exceed ${totalMonths}.
 
 ## Selection Guidance
-- Only recommend services the client actually needs based on the evidence.
+- LESS IS MORE. Only recommend services with strong evidence from the client context.
+- A typical plan has 5-8 services. Exceeding 8 requires exceptional justification.
+- Do NOT add services "just in case" or to round out the plan. Every service must solve a specific, evidenced client need.
 - If the client needs a new website or redesign, include the appropriate FB service.
-- If SEO is mentioned or organic traffic is low, include SEO services.
+- If SEO is explicitly mentioned or organic traffic is clearly low, include SEO.
 - If PPC/advertising is discussed, include PPC management.
-- If the site has performance issues, consider TS services.
-- Typically recommend 5-12 services for a 12-month plan. Don't over-recommend.
+- If the site has clear performance issues, consider TS services.
+- Do NOT stack multiple similar services (e.g., don't add both SEO + Continuous Improvement + Analytics Maintenance unless each solves a distinct problem).
 - Use the sortOrder field to control vertical ordering within each pillar lane (0 = top).
 
 ## Output

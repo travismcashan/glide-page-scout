@@ -50,6 +50,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [showCTAs, setShowCTAs] = useState(true);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [planReasoning, setPlanReasoning] = useState<string | null>(null);
 
   // Load or create roadmap for this session
   useEffect(() => {
@@ -170,6 +171,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const executeGenerateGrowthPlan = useCallback(async () => {
     setIsGeneratingPlan(true);
     setShowOverwriteConfirm(false);
+    setPlanReasoning(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-growth-plan", {
         body: { sessionId, totalMonths, startMonthIndex },
@@ -188,10 +190,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       });
       setItems(itemsWithPricing);
       if (data.reasoning) {
-        toast.success(data.reasoning, { duration: 8000 });
-      } else {
-        toast.success(`Growth plan generated with ${data.items.length} services`);
+        setPlanReasoning(data.reasoning);
       }
+      toast.success(`Growth plan generated with ${data.items.length} services`);
     } catch (e: any) {
       console.error("Generate growth plan error:", e);
       toast.error(e?.message || "Failed to generate growth plan");
@@ -389,6 +390,50 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           onGenerate={handleGenerateGrowthPlan}
           hasItems={items.length > 0}
         />
+
+        {/* AI Reasoning / Loading State */}
+        {isGeneratingPlan && (
+          <div className="my-4 rounded-xl border border-amber-200/50 bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 dark:from-amber-950/20 dark:via-orange-950/10 dark:to-amber-950/20 dark:border-amber-800/30 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Generating Growth Plan</p>
+                <p className="text-xs text-muted-foreground">Analyzing client context and selecting optimal services...</p>
+              </div>
+            </div>
+            <div className="space-y-2.5 pl-11">
+              <div className="h-3 w-3/4 rounded-full bg-amber-200/60 dark:bg-amber-800/30 animate-pulse" />
+              <div className="h-3 w-full rounded-full bg-amber-200/40 dark:bg-amber-800/20 animate-pulse [animation-delay:150ms]" />
+              <div className="h-3 w-5/6 rounded-full bg-amber-200/40 dark:bg-amber-800/20 animate-pulse [animation-delay:300ms]" />
+              <div className="h-3 w-2/3 rounded-full bg-amber-200/30 dark:bg-amber-800/15 animate-pulse [animation-delay:450ms]" />
+            </div>
+          </div>
+        )}
+
+        {planReasoning && !isGeneratingPlan && (
+          <div className="my-4 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/[0.04] via-primary/[0.02] to-transparent p-5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary/60 via-primary/30 to-transparent" />
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground mb-1.5">AI Strategy Reasoning</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{planReasoning}</p>
+              </div>
+              <button
+                onClick={() => setPlanReasoning(null)}
+                className="ml-auto shrink-0 rounded-md p-1 text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50 transition-colors"
+                aria-label="Dismiss"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex [overflow:clip] rounded-xl border border-border bg-background shadow-sm">
           {catalogVisible && (
             <div className="w-[300px] shrink-0 max-h-[calc(100vh-200px)]">
