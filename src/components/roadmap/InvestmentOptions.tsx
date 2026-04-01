@@ -351,9 +351,9 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
         const grandTotal = fixedTotal + recurringTotal;
 
         if (fixedItems.length === 0 && recurringItems.length === 0 && tmItems.length === 0) return null;
+        if (!pricingExpanded) return null;
 
         return (
-          {pricingExpanded && (
           <div className="border-t border-border px-6 py-4">
               <table className="w-full text-sm">
                 <tbody>
@@ -495,7 +495,6 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                 </div>
               )}
           </div>
-          )}
         );
       })()}
     </div>
