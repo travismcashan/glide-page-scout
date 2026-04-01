@@ -68,7 +68,7 @@ function loadPrefs(): { viewMode: ViewMode; filterSource: string; sortField: Sor
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch { /* ignore */ }
-  return { viewMode: 'table', filterSource: 'all', sortField: 'created_at', sortDir: 'desc', groupBy: 'none' };
+  return { viewMode: 'table', filterSource: 'all', sortField: 'created_at', sortDir: 'desc', groupBy: 'source' };
 }
 
 function savePrefs(prefs: Record<string, string>) {
