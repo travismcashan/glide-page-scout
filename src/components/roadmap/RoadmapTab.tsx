@@ -8,10 +8,12 @@ import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
 import FeatureMatrix from "@/components/roadmap/FeatureMatrix";
+import RoadmapToolbar from "@/components/roadmap/RoadmapToolbar";
 import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MONTH_NAMES } from "@/data/offerings";
 
 interface RoadmapTabProps {
@@ -46,6 +48,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const generateOutcomesRef = useRef<(() => Promise<void>) | null>(null);
   const [generatingOutcomes, setGeneratingOutcomes] = useState(false);
   const [showCTAs, setShowCTAs] = useState(true);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
 
   // Load or create roadmap for this session
   useEffect(() => {
@@ -162,6 +166,47 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     }
     return null;
   }, []);
+
+  const executeGenerateGrowthPlan = useCallback(async () => {
+    setIsGeneratingPlan(true);
+    setShowOverwriteConfirm(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-growth-plan", {
+        body: { sessionId, totalMonths, startMonthIndex },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.items?.length) {
+        toast.error("AI returned an empty plan. Try adding more client context first.");
+        return;
+      }
+      // Apply default pricing from offerings catalog
+      const itemsWithPricing = data.items.map((item: any) => {
+        const offering = offerings.find((o) => o.sku === item.sku);
+        const defaultPrice = offering ? getMinPrice(offering) : null;
+        return { ...item, unitPrice: defaultPrice };
+      });
+      setItems(itemsWithPricing);
+      if (data.reasoning) {
+        toast.success(data.reasoning, { duration: 8000 });
+      } else {
+        toast.success(`Growth plan generated with ${data.items.length} services`);
+      }
+    } catch (e: any) {
+      console.error("Generate growth plan error:", e);
+      toast.error(e?.message || "Failed to generate growth plan");
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  }, [sessionId, totalMonths, startMonthIndex, offerings, getMinPrice]);
+
+  const handleGenerateGrowthPlan = useCallback(() => {
+    if (items.length > 0) {
+      setShowOverwriteConfirm(true);
+    } else {
+      executeGenerateGrowthPlan();
+    }
+  }, [items.length, executeGenerateGrowthPlan]);
 
   const getPillarPrecedence = useCallback((code: string): string[] => {
     switch (code) {
@@ -332,68 +377,18 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     <div className="space-y-8">
       {/* Timeline editor */}
       <div>
-        <div className="mb-5 flex items-end justify-between">
-          <h2 className="text-4xl font-bold tracking-tight text-foreground">12-Month Digital Growth Plan</h2>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-bold text-foreground">Start</label>
-              <Select
-                value={String(startMonthIndex)}
-                onValueChange={(v) => { setStartMonthIndex(Number(v)); setViewOffset(0); }}
-              >
-                <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs font-semibold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTH_NAMES.map((m, i) => (
-                    <SelectItem key={i} value={String(i)}>{m} {new Date().getFullYear() + (i < new Date().getMonth() ? 1 : 0)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-bold text-foreground">Duration</label>
-              <Select
-                value={String(totalMonths)}
-                onValueChange={(v) => { setTotalMonths(Number(v)); setViewOffset(0); }}
-              >
-                <SelectTrigger className="h-8 w-auto min-w-[110px] text-xs font-semibold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[6, 9, 12, 18, 24].map((m) => (
-                    <SelectItem key={m} value={String(m)}>{m} months</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(window.location.href);
-                  toast.success("Link copied to clipboard");
-                } catch {
-                  toast.error("Failed to copy link");
-                }
-              }}
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              Share
-            </Button>
-            <Button
-              variant={showCTAs ? "default" : "outline"}
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              onClick={() => setShowCTAs(!showCTAs)}
-            >
-              {showCTAs ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-              {showCTAs ? "CTAs On" : "CTAs Off"}
-            </Button>
-          </div>
-        </div>
+        <h2 className="mb-3 text-4xl font-bold tracking-tight text-foreground">12-Month Digital Growth Plan</h2>
+        <RoadmapToolbar
+          startMonthIndex={startMonthIndex}
+          onStartMonthChange={(v) => { setStartMonthIndex(v); setViewOffset(0); }}
+          totalMonths={totalMonths}
+          onTotalMonthsChange={(v) => { setTotalMonths(v); setViewOffset(0); }}
+          showCTAs={showCTAs}
+          onShowCTAsChange={setShowCTAs}
+          isGenerating={isGeneratingPlan}
+          onGenerate={handleGenerateGrowthPlan}
+          hasItems={items.length > 0}
+        />
         <div className="flex [overflow:clip] rounded-xl border border-border bg-background shadow-sm">
           {catalogVisible && (
             <div className="w-[300px] shrink-0 max-h-[calc(100vh-200px)]">
@@ -507,6 +502,24 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           <FeatureMatrix items={items} offerings={offerings} />
         </div>
       )}
+
+      {/* Overwrite confirmation dialog */}
+      <AlertDialog open={showOverwriteConfirm} onOpenChange={setShowOverwriteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace existing growth plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have {items.length} service{items.length === 1 ? "" : "s"} on the timeline. Generating a new plan will replace all existing items. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeGenerateGrowthPlan}>
+              Replace & Generate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
