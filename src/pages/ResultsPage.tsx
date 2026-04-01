@@ -89,6 +89,7 @@ import { KnowledgeTabContent } from '@/components/KnowledgeTabContent';
 import { ChatModelSelector, type ReasoningEffort, type ModelProvider, PROVIDERS, VERSIONS } from '@/components/chat/ChatModelSelector';
 import { exportAsJson, exportAsMarkdown, exportAsPdf, exportAsZip } from '@/lib/exportResults';
 import RoadmapTab from '@/components/roadmap/RoadmapTab';
+import ProposalTab from '@/components/proposal/ProposalTab';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { autoSeedPageTags, setPageTemplate, setPageTag, getPageTag, type PageTagsMap, type PageTag, getPageTagsSummary } from '@/lib/pageTags';
@@ -3201,15 +3202,9 @@ export default function ResultsPage() {
 
           <TabsContent value="proposal" className="mt-8 space-y-6" forceMount={activeTab === 'proposal' ? true : undefined}>
             {activeTab === 'proposal' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'proposal' ? null : <div className="animate-fade-in">
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold">Proposal</h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Generate client-ready proposals from your estimates, roadmap, and research. Coming soon.
-                </p>
-              </div>
+              {sessionId ? (
+                <ProposalTab sessionId={sessionId} domain={session?.domain} />
+              ) : null}
             </div>}
           </TabsContent>
         </Tabs>
