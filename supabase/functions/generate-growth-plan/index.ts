@@ -123,7 +123,7 @@ serve(async (req) => {
       const ragResults = await Promise.allSettled(
         ragQueries.map((query) =>
           supabase.functions.invoke("rag-search", {
-            body: { sessionId, query, limit: 8 },
+            body: { session_id: sessionId, query, match_count: 8 },
           })
         )
       );
@@ -206,7 +206,7 @@ ${ragContext ? `## Client Context (from meetings, emails, documents, HubSpot)\n$
 Select the right services, assign start months and durations, and return the plan.`;
 
     // ── Step 5: Call Claude ─────────────────────────────────────────
-    const model = "claude-sonnet-4-6-20250514";
+    const model = "claude-sonnet-4-6";
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
