@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { MessageCircleQuestion } from "lucide-react";
 import { MONTH_NAMES } from "@/data/offerings";
 
 interface RoadmapTabProps {
@@ -54,6 +53,19 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
   const [planReasoning, setPlanReasoning] = useState<string | null>(null);
   const [planFaqs, setPlanFaqs] = useState<{ question: string; answer: string }[]>([]);
+  const [genStatusIdx, setGenStatusIdx] = useState(0);
+  const genStatusRef = useRef<ReturnType<typeof setInterval>>();
+
+  const GEN_STEPS = [
+    "Analyzing client context and discovery notes...",
+    "Reviewing website performance and SEO data...",
+    "Matching pain points to service solutions...",
+    "Evaluating pillar sequencing and dependencies...",
+    "Selecting optimal services for this engagement...",
+    "Building timeline and phasing strategy...",
+    "Anticipating client objections and FAQs...",
+    "Finalizing growth plan recommendations...",
+  ];
 
   // Load or create roadmap for this session
   useEffect(() => {
@@ -176,6 +188,11 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     setShowOverwriteConfirm(false);
     setPlanReasoning(null);
     setPlanFaqs([]);
+    setGenStatusIdx(0);
+    clearInterval(genStatusRef.current);
+    genStatusRef.current = setInterval(() => {
+      setGenStatusIdx((prev) => (prev + 1) % GEN_STEPS.length);
+    }, 3000);
     try {
       const { data, error } = await supabase.functions.invoke("generate-growth-plan", {
         body: { sessionId, totalMonths, startMonthIndex },
@@ -204,6 +221,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       console.error("Generate growth plan error:", e);
       toast.error(e?.message || "Failed to generate growth plan");
     } finally {
+      clearInterval(genStatusRef.current);
       setIsGeneratingPlan(false);
     }
   }, [sessionId, totalMonths, startMonthIndex, offerings, getMinPrice]);
@@ -407,7 +425,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Generating Growth Plan</p>
-                <p className="text-xs text-muted-foreground">Analyzing client context and selecting optimal services...</p>
+                <p key={genStatusIdx} className="text-xs text-muted-foreground animate-in fade-in slide-in-from-bottom-1 duration-300">
+                  {GEN_STEPS[genStatusIdx]}
+                </p>
               </div>
             </div>
             <div className="space-y-2.5 pl-11">
@@ -558,26 +578,20 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       {/* Frequently Asked Questions */}
       {planFaqs.length > 0 && (
         <div>
-          <div className="mb-5 flex items-center gap-3">
-            <h2 className="text-4xl font-bold tracking-tight text-foreground">Frequently Asked Questions</h2>
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">AI-Generated</span>
-          </div>
-          <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
+          <h2 className="mb-6 text-center text-4xl font-bold tracking-tight text-foreground">Frequently Asked Questions</h2>
+          <div className="mx-auto max-w-3xl">
             <Accordion type="single" collapsible className="w-full">
               {planFaqs.map((faq, idx) => (
                 <AccordionItem
                   key={idx}
                   value={`faq-${idx}`}
-                  className="border-b border-border/50 last:border-b-0"
+                  className="border-b border-border/40 py-1"
                 >
-                  <AccordionTrigger className="px-6 py-5 text-left text-[15px] font-semibold text-foreground hover:no-underline hover:bg-muted/30 transition-colors gap-4 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-muted-foreground">
-                    <div className="flex items-center gap-3">
-                      <MessageCircleQuestion className="h-5 w-5 shrink-0 text-primary/60" />
-                      <span>{faq.question}</span>
-                    </div>
+                  <AccordionTrigger className="py-5 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-muted-foreground/50">
+                    {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="px-6 pb-5 pt-0 pl-14">
-                    <p className="text-sm leading-relaxed text-muted-foreground">{faq.answer}</p>
+                  <AccordionContent className="pb-5">
+                    <p className="text-[15px] leading-relaxed text-muted-foreground">{faq.answer}</p>
                   </AccordionContent>
                 </AccordionItem>
               ))}
