@@ -10,6 +10,7 @@ import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
 import FeatureMatrix from "@/components/roadmap/FeatureMatrix";
 import RoadmapToolbar from "@/components/roadmap/RoadmapToolbar";
 import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -420,13 +421,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
         {isGeneratingPlan && (
           <div className="my-4 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/[0.04] via-primary/[0.02] to-transparent p-5">
             <div className="flex items-center gap-3 mb-3">
-              <div className="flex h-10 w-10 items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 104 104" fill="none" className="h-10 w-10 animate-spin [animation-duration:3s]">
-                  <circle cx="50" cy="49" r="46" stroke="hsl(var(--pillar-is))" strokeWidth="8" strokeDasharray="120 170" opacity="0.9" />
-                  <circle cx="50" cy="67" r="28" stroke="hsl(var(--pillar-go))" strokeWidth="8" strokeDasharray="80 100" opacity="0.9" />
-                  <circle cx="50" cy="77" r="18" stroke="hsl(var(--pillar-fb))" strokeWidth="8" strokeDasharray="50 65" opacity="0.9" />
-                </svg>
-              </div>
+              <AnimatedLogo size={36} isAnimating />
               <div>
                 <p className="text-sm font-semibold text-foreground">Generating Growth Plan</p>
                 <p key={genStatusIdx} className="text-xs text-muted-foreground animate-in fade-in slide-in-from-bottom-1 duration-300">
