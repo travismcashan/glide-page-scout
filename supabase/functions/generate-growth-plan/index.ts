@@ -52,7 +52,7 @@ serve(async (req) => {
     // ── Step 1: Fetch services catalog ──────────────────────────────
     const { data: services } = await supabase
       .from("services")
-      .select("sku, name, pillar, default_duration_months, billing_type, roadmap_grade, min_fixed, max_fixed, min_retainer, max_retainer, min_hourly, max_hourly")
+      .select("sku, name, pillar, priority, default_duration_months, billing_type, roadmap_grade, min_fixed, max_fixed, min_retainer, max_retainer, min_hourly, max_hourly")
       .eq("roadmap_grade", true)
       .not("sku", "is", null)
       .order("sort_order", { ascending: true });
@@ -66,7 +66,7 @@ serve(async (req) => {
       if (s.min_retainer != null) pricing.push(`$${s.min_retainer}-${s.max_retainer}/mo retainer`);
       if (s.min_fixed != null) pricing.push(`$${s.min_fixed}-${s.max_fixed} fixed`);
       if (s.min_hourly != null) pricing.push(`$${s.min_hourly}-${s.max_hourly}/hr`);
-      return `- SKU ${s.sku}: "${s.name}" | Pillar: ${s.pillar} | Default: ${s.default_duration_months}mo | Billing: ${s.billing_type || "N/A"} | Pricing: ${pricing.join(", ") || "TBD"}`;
+      return `- SKU ${s.sku}: "${s.name}" | Pillar: ${s.pillar} | Priority: ${s.priority || "N/A"} | Default: ${s.default_duration_months}mo | Billing: ${s.billing_type || "N/A"} | Pricing: ${pricing.join(", ") || "TBD"}`;
     }).join("\n");
 
     const validSkus = new Set(services.map((s: any) => s.sku));
@@ -185,9 +185,18 @@ ${catalogText}
 8. Don't exceed ${totalMonths} total months. startMonth is 0-indexed (0 = first month).
 9. Each service's startMonth + duration must not exceed ${totalMonths}.
 
+## Service Priority Weighting
+Each service has a Priority level. Use this to weight your recommendations:
+- **Core**: These are GLIDE's bread-and-butter recurring services (SEO, PPC, Continuous Improvement, Quarterly Maintenance). Strongly favor including Core services — they should form the backbone of most plans.
+- **NEW**: New service offerings GLIDE is actively pushing (Website Redesign, New Website, Analytics Maintenance). Include when the context supports it.
+- **Add-On**: Supporting services that complement Core work (Discovery, Audits). Include as needed to set up Core services.
+- **One-Off**: Single-engagement services (Strategy Sprint, Landing Page). Only include with clear evidence of need.
+- **Base**: Baseline support services (On-Demand Support). Include only if explicitly needed.
+
 ## Selection Guidance
 - LESS IS MORE. Only recommend services with strong evidence from the client context.
 - A typical plan has 5-8 services. Exceeding 8 requires exceptional justification.
+- Start with Core services as the foundation, then layer in Add-Ons and One-Offs only as the client context demands.
 - Do NOT add services "just in case" or to round out the plan. Every service must solve a specific, evidenced client need.
 - If the client needs a new website or redesign, include the appropriate FB service.
 - If SEO is explicitly mentioned or organic traffic is clearly low, include SEO.
