@@ -152,7 +152,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
     computeOptionPrice(items, "monthly-blended"),
   ];
 
-  const COL = "grid-cols-[1fr_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)]";
+  const COL = "grid-cols-[2fr_1fr_1fr_1fr]";
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-background">
@@ -206,7 +206,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
                   className={`grid ${COL} border-b border-border ${hasSteps ? "cursor-pointer hover:bg-muted/30" : ""} transition-colors`}
                   onClick={() => hasSteps && toggleService(service.sku)}
                 >
-                  <div className="flex items-center gap-2 px-6 py-3.5">
+                  <div className="flex items-center gap-2 px-6 py-3">
                     {hasSteps && (
                       isExpanded
                         ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -232,7 +232,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
                     )}
                   </div>
                   {[0, 1, 2].map((optIdx) => (
-                    <div key={optIdx} className="flex items-center justify-center border-l border-border px-4 py-3.5">
+                    <div key={optIdx} className="flex items-center justify-center border-l border-border px-4 py-3">
                       {isInOption(service.pillar, optIdx) ? (
                         <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
                       ) : (
@@ -273,7 +273,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
       </div>
       {BUNDLE_PERKS.map((perk, i) => (
         <div key={perk.name} className={`grid ${COL} border-b border-border ${i === BUNDLE_PERKS.length - 1 ? "border-b-0" : ""}`}>
-          <div className="flex items-center gap-2 px-6 py-3.5 pl-8">
+          <div className="flex items-center gap-2 px-6 py-3 pl-8">
             <span className="text-sm font-medium text-foreground">{perk.name}</span>
             {perk.value && (
               <span className="text-[11px] text-muted-foreground/60">{perk.value}</span>
@@ -290,7 +290,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
             </Tooltip>
           </div>
           {[0, 1, 2].map((optIdx) => (
-            <div key={optIdx} className="flex items-center justify-center border-l border-border px-4 py-3.5">
+            <div key={optIdx} className="flex items-center justify-center border-l border-border px-4 py-3">
               {perk.options.includes(optIdx) ? (
                 <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
               ) : (
@@ -307,14 +307,14 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
 function StepRow({ step, pillar, label, col }: { step: ServiceStep; pillar: string; label: string; col: string }) {
   return (
     <div className={`grid ${col} border-b border-border/40 bg-muted/5`}>
-      <div className="flex items-center gap-2 px-6 py-2.5 pl-14">
-        <span className="text-[13px] text-muted-foreground">{step.name}</span>
+      <div className="flex items-center gap-2 px-6 py-3 pl-14">
+        <span className="text-sm text-muted-foreground">{step.name}</span>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60">{label}</span>
       </div>
       {[0, 1, 2].map((optIdx) => (
-        <div key={optIdx} className="flex items-center justify-center border-l border-border/40 px-4 py-2.5">
+        <div key={optIdx} className="flex items-center justify-center border-l border-border/40 px-4 py-3">
           {isInOption(pillar, optIdx) ? (
-            <Check className="h-3.5 w-3.5 text-emerald-500/60" strokeWidth={2.5} />
+            <Check className="h-4 w-4 text-emerald-500/60" strokeWidth={2.5} />
           ) : (
             <span className="text-sm text-muted-foreground/20">—</span>
           )}
