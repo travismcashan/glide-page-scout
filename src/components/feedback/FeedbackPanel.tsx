@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mic, Square, Loader2, Send, Crosshair, X, Sparkles } from "lucide-react";
+import { Mic, Square, Loader2, Crosshair, X, Sparkles, Send, ChevronLeft } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -8,6 +8,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,12 +20,24 @@ interface FeedbackPanelProps {
   onClose: () => void;
 }
 
+type ProcessedResult = {
+  title: string;
+  description: string;
+  priority: string;
+  category: string;
+};
+
 export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
   const { user } = useAuth();
   const [rawInput, setRawInput] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [processed, setProcessed] = useState<ProcessedResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pageUrl, setPageUrl] = useState("");
+
+  // Element inspector
   const [elementSelector, setElementSelector] = useState<string | null>(null);
+  const [elementDescription, setElementDescription] = useState<string | null>(null);
   const [inspecting, setInspecting] = useState(false);
 
   // Voice recording
@@ -34,20 +47,21 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // Capture page URL when panel opens
+  // Reset when panel opens
   useEffect(() => {
     if (type) {
       setPageUrl(window.location.href);
       setRawInput("");
+      setProcessed(null);
       setElementSelector(null);
+      setElementDescription(null);
       setInspecting(false);
       setRecording(false);
     }
   }, [type]);
 
-  // ---- Voice Recording (Web Speech API with MediaRecorder fallback) ----
+  // ---- Voice Recording ----
   const startRecording = useCallback(async () => {
-    // Try Web Speech API first (real-time transcription)
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -70,7 +84,6 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
             interim = transcript;
           }
         }
-        // Show interim results appended
         if (interim) {
           setRawInput(finalTranscript + (finalTranscript ? " " : "") + interim);
         }
@@ -90,59 +103,76 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
         }
       };
 
-      recognition.onend = () => {
-        setRecording(false);
-      };
-
+      recognition.onend = () => setRecording(false);
       recognitionRef.current = recognition;
       recognition.start();
       setRecording(true);
     } else {
-      // Fallback: record audio blob (would need server transcription)
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mediaRecorder = new MediaRecorder(stream);
         chunksRef.current = [];
-
         mediaRecorder.ondataavailable = (e) => {
           if (e.data.size > 0) chunksRef.current.push(e.data);
         };
-
         mediaRecorder.onstop = async () => {
           stream.getTracks().forEach((t) => t.stop());
           setTranscribing(true);
-          // For now, just notify - would integrate Whisper API later
-          toast.info("Voice recording saved", {
-            description: "Type your feedback below for now - voice transcription coming soon",
-          });
+          toast.info("Voice recorded", { description: "Type your feedback for now. Full transcription coming soon." });
           setTranscribing(false);
         };
-
         mediaRecorderRef.current = mediaRecorder;
         mediaRecorder.start();
         setRecording(true);
-      } catch (err) {
+      } catch {
         toast.error("Couldn't access microphone");
       }
     }
   }, [rawInput]);
 
   const stopRecording = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
+    if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null; }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
+      mediaRecorderRef.current.stop(); mediaRecorderRef.current = null;
     }
     setRecording(false);
   }, []);
 
   // ---- Element Inspector ----
-  const startInspecting = useCallback(() => {
-    setInspecting(true);
-  }, []);
+  const startInspecting = useCallback(() => setInspecting(true), []);
+
+  const describeElement = (el: HTMLElement): string => {
+    // Try to build a human-readable description
+    const text = el.innerText?.trim().slice(0, 60);
+    const ariaLabel = el.getAttribute("aria-label");
+    const placeholder = el.getAttribute("placeholder");
+    const alt = el.getAttribute("alt");
+    const title = el.getAttribute("title");
+    const tag = el.tagName.toLowerCase();
+    const role = el.getAttribute("role");
+
+    // Priority: aria-label > alt > title > placeholder > visible text
+    const label = ariaLabel || alt || title || placeholder || text;
+
+    if (label) {
+      const typeHint = role || tag;
+      const friendly = typeHint === "button" ? "Button" :
+                       typeHint === "a" ? "Link" :
+                       typeHint === "input" ? "Input field" :
+                       typeHint === "img" ? "Image" :
+                       typeHint === "svg" ? "Icon" :
+                       typeHint === "h1" || typeHint === "h2" || typeHint === "h3" ? "Heading" :
+                       typeHint === "p" ? "Text" :
+                       typeHint === "nav" ? "Navigation" :
+                       typeHint === "section" ? "Section" :
+                       typeHint === "div" ? "Container" :
+                       tag;
+      return `${friendly}: "${label.length > 50 ? label.slice(0, 50) + "..." : label}"`;
+    }
+
+    // Fallback: describe by tag and position
+    return `<${tag}> element`;
+  };
 
   useEffect(() => {
     if (!inspecting) return;
@@ -168,6 +198,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
       const el = e.target as HTMLElement;
       if (el.closest("[data-feedback-panel]") || el.closest("[data-feedback-tabs]")) return;
       setElementSelector(buildSelector(el));
+      setElementDescription(describeElement(el));
       if (lastHighlighted) lastHighlighted.style.outline = originalOutline.pop() || "";
       setInspecting(false);
     };
@@ -199,13 +230,9 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
     let depth = 0;
     while (current && current !== document.body && depth < 4) {
       let part = current.tagName.toLowerCase();
-      if (current.id) {
-        parts.unshift(`#${current.id}`);
-        break;
-      }
+      if (current.id) { parts.unshift(`#${current.id}`); break; }
       if (current.className && typeof current.className === "string") {
-        const classes = current.className
-          .split(/\s+/)
+        const classes = current.className.split(/\s+/)
           .filter((c) => c && !c.startsWith("hover:") && !c.startsWith("focus:") && c.length < 30)
           .slice(0, 2);
         if (classes.length) part += "." + classes.join(".");
@@ -217,36 +244,60 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
     return parts.join(" > ");
   };
 
-  // ---- Submit with AI processing ----
-  const handleSubmit = async () => {
+  // ---- Step 1: Process with AI ----
+  const handleProcess = async () => {
     if (!rawInput.trim()) return;
-    setSubmitting(true);
-
+    setProcessing(true);
     try {
-      // Try AI parsing via existing wishlist-parse function
-      let title = rawInput.trim().slice(0, 120);
-      let description = rawInput.trim();
-      let priority = "medium";
+      const context = [
+        rawInput.trim(),
+        elementDescription ? `[Element: ${elementDescription}]` : null,
+        pageUrl ? `[Page: ${pageUrl.replace(/^https?:\/\/[^/]+/, "")}]` : null,
+      ].filter(Boolean).join("\n");
 
-      try {
-        const { data } = await supabase.functions.invoke("wishlist-parse", {
-          body: { rawInput: rawInput.trim() },
+      const { data } = await supabase.functions.invoke("wishlist-parse", {
+        body: { rawInput: context },
+      });
+
+      if (data?.items?.length) {
+        const first = data.items[0];
+        setProcessed({
+          title: first.title || rawInput.trim().slice(0, 120),
+          description: first.description || rawInput.trim(),
+          priority: first.priority || "medium",
+          category: first.category || (type === "bug" ? "bug" : "feature"),
         });
-        if (data?.items?.length) {
-          const first = data.items[0];
-          title = first.title || title;
-          description = first.description || description;
-          priority = first.priority || priority;
-        }
-      } catch {
-        // AI parsing failed - fall back to raw input as title/description
+      } else {
+        // Fallback if AI returns nothing
+        setProcessed({
+          title: rawInput.trim().slice(0, 120),
+          description: rawInput.trim(),
+          priority: "medium",
+          category: type === "bug" ? "bug" : "feature",
+        });
       }
-
-      const { error } = await supabase.from("wishlist_items").insert({
-        title,
-        description,
+    } catch {
+      // AI failed, use raw input
+      setProcessed({
+        title: rawInput.trim().slice(0, 120),
+        description: rawInput.trim(),
+        priority: "medium",
         category: type === "bug" ? "bug" : "feature",
-        priority,
+      });
+    }
+    setProcessing(false);
+  };
+
+  // ---- Step 2: Submit the processed result ----
+  const handleSubmit = async () => {
+    if (!processed) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("wishlist_items").insert({
+        title: processed.title,
+        description: processed.description,
+        category: processed.category,
+        priority: processed.priority,
         status: "wishlist",
         submitted_by: user?.id || null,
         page_url: pageUrl || null,
@@ -257,7 +308,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
 
       toast.success(
         type === "bug" ? "Bug logged" : "Feature requested",
-        { description: "AI processed and added to the backlog" }
+        { description: "Added to the backlog" }
       );
       onClose();
     } catch (err: any) {
@@ -271,7 +322,7 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
   return (
     <Sheet open={!!type && !inspecting} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="left" className="sm:max-w-sm p-0 flex flex-col" data-feedback-panel>
-        {/* Header with large typography */}
+        {/* Header */}
         <div className="px-8 pt-10 pb-6">
           <SheetTitle className="text-4xl tracking-tight">
             {isBug ? (
@@ -287,7 +338,9 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
             )}
           </SheetTitle>
           <SheetDescription className="mt-2 text-sm">
-            Just say what's on your mind. Type it, or hit the mic and talk. We'll figure out the rest.
+            {processed
+              ? "Review what AI captured. Edit anything, then submit."
+              : "Just say what's on your mind. Type it, or hit the mic and talk."}
           </SheetDescription>
         </div>
 
@@ -295,104 +348,234 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-5">
-          {/* Single brain-dump textarea with mic */}
-          <div className="relative">
-            <Textarea
-              placeholder={
-                isBug
-                  ? "Something's off... just describe what happened in your own words."
-                  : "I wish this thing could... just describe what you're imagining."
-              }
-              value={rawInput}
-              onChange={(e) => setRawInput(e.target.value)}
-              rows={6}
-              className="resize-none pr-14 text-[15px] leading-relaxed"
-              autoFocus
-            />
-            {/* Mic / Stop button overlaid in textarea */}
-            <button
-              onClick={recording ? stopRecording : startRecording}
-              disabled={transcribing}
-              className={`absolute right-3 bottom-3 h-10 w-10 rounded-full flex items-center justify-center transition-all ${
-                recording
-                  ? "border-2 border-red-500 bg-white dark:bg-background shadow-lg shadow-red-500/20"
-                  : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-              }`}
-              title={recording ? "Stop recording" : "Record voice"}
-            >
-              {transcribing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : recording ? (
-                <Square className="h-3.5 w-3.5 fill-red-500 text-red-500" />
-              ) : (
-                <Mic className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-
-          {recording && (
-            <div className="flex items-center gap-2 text-sm animate-pulse">
-              <div className="h-3 w-3 rounded-full border-2 border-red-500 flex items-center justify-center">
-                <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-              </div>
-              <span className="text-red-600 dark:text-red-400 font-medium">Recording</span>
-              <span className="text-muted-foreground">just talk naturally</span>
-            </div>
-          )}
-
-          {/* Element selector (bugs only) */}
-          {isBug && (
-            <div>
-              {elementSelector ? (
-                <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30">
-                  <Crosshair className="h-3.5 w-3.5 text-foreground shrink-0" />
-                  <code className="text-xs text-muted-foreground truncate flex-1">
-                    {elementSelector}
-                  </code>
-                  <button
-                    className="h-5 w-5 rounded-full flex items-center justify-center hover:bg-muted shrink-0"
-                    onClick={() => setElementSelector(null)}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
+          {!processed ? (
+            <>
+              {/* ---- STEP 1: Raw input ---- */}
+              <div className="relative">
+                <Textarea
+                  placeholder={
+                    isBug
+                      ? "Something's off... just describe what happened in your own words."
+                      : "I wish this thing could... just describe what you're imagining."
+                  }
+                  value={rawInput}
+                  onChange={(e) => setRawInput(e.target.value)}
+                  rows={6}
+                  className="resize-none pr-14 text-[15px] leading-relaxed"
+                  autoFocus
+                />
                 <button
-                  onClick={startInspecting}
-                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={recording ? stopRecording : startRecording}
+                  disabled={transcribing}
+                  className={`absolute right-3 bottom-3 h-10 w-10 rounded-full flex items-center justify-center transition-all ${
+                    recording
+                      ? "border-2 border-red-500 bg-white dark:bg-background shadow-lg shadow-red-500/20"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                  }`}
+                  title={recording ? "Stop recording" : "Record voice"}
                 >
-                  <Crosshair className="h-3.5 w-3.5" />
-                  Point to the element
+                  {transcribing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : recording ? (
+                    <Square className="h-3.5 w-3.5 fill-red-500 text-red-500" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
                 </button>
-              )}
-            </div>
-          )}
+              </div>
 
-          {/* Page context */}
-          <div className="text-[11px] text-muted-foreground/60 truncate">
-            {pageUrl.replace(/^https?:\/\//, "")}
-          </div>
+              {recording && (
+                <div className="flex items-center gap-2 text-sm animate-pulse">
+                  <div className="h-3 w-3 rounded-full border-2 border-red-500 flex items-center justify-center">
+                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                  </div>
+                  <span className="text-red-600 dark:text-red-400 font-medium">Recording</span>
+                  <span className="text-muted-foreground">just talk naturally</span>
+                </div>
+              )}
+
+              {/* Element selector */}
+              <div>
+                {elementSelector ? (
+                  <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Crosshair className="h-3.5 w-3.5 text-foreground shrink-0" />
+                      <span className="text-sm font-medium text-foreground truncate flex-1">
+                        {elementDescription || "Selected element"}
+                      </span>
+                      <button
+                        className="h-5 w-5 rounded-full flex items-center justify-center hover:bg-muted shrink-0"
+                        onClick={() => { setElementSelector(null); setElementDescription(null); }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <code className="text-[10px] text-muted-foreground/60 block truncate">
+                      {elementSelector}
+                    </code>
+                  </div>
+                ) : (
+                  <button
+                    onClick={startInspecting}
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Crosshair className="h-3.5 w-3.5" />
+                    Point to an element
+                  </button>
+                )}
+              </div>
+
+              {/* Page context */}
+              <div className="text-[11px] text-muted-foreground/60 truncate">
+                {pageUrl.replace(/^https?:\/\//, "")}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* ---- STEP 2: AI-processed preview ---- */}
+              <div className="space-y-4">
+                {/* Back button */}
+                <button
+                  onClick={() => setProcessed(null)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  Back to editing
+                </button>
+
+                {/* Raw transcript */}
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                  <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground mb-1">
+                    Your words
+                  </p>
+                  <p className="text-sm text-muted-foreground italic leading-relaxed">
+                    "{rawInput}"
+                  </p>
+                </div>
+
+                {/* AI-structured output */}
+                <div className="space-y-3 p-4 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-[10px] font-semibold tracking-widest uppercase text-primary">
+                      AI processed
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Title</label>
+                    <Input
+                      value={processed.title}
+                      onChange={(e) => setProcessed({ ...processed, title: e.target.value })}
+                      className="mt-1 h-9 text-sm font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Description</label>
+                    <Textarea
+                      value={processed.description}
+                      onChange={(e) => setProcessed({ ...processed, description: e.target.value })}
+                      rows={3}
+                      className="mt-1 text-sm resize-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Priority</label>
+                      <div className="flex gap-1 mt-1">
+                        {["low", "medium", "high"].map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => setProcessed({ ...processed, priority: p })}
+                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                              processed.priority === p
+                                ? p === "high"
+                                  ? "bg-red-500/10 text-red-600 border border-red-500/20"
+                                  : p === "medium"
+                                  ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                                  : "bg-green-500/10 text-green-600 border border-green-500/20"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            }`}
+                          >
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Type</label>
+                      <div className="flex gap-1 mt-1">
+                        {["bug", "feature", "idea"].map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => setProcessed({ ...processed, category: c })}
+                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                              processed.category === c
+                                ? "bg-primary/10 text-primary border border-primary/20"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            }`}
+                          >
+                            {c.charAt(0).toUpperCase() + c.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Element context in preview */}
+                {elementDescription && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Crosshair className="h-3 w-3 shrink-0" />
+                    {elementDescription}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Submit bar */}
+        {/* Bottom action bar */}
         <div className="px-8 py-5 border-t border-border bg-muted/20">
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting || !rawInput.trim()}
-            className="w-full gap-2 h-11 text-sm font-semibold"
-          >
-            {submitting ? (
-              <>
-                <Sparkles className="h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Process &amp; Submit
-              </>
-            )}
-          </Button>
+          {!processed ? (
+            <Button
+              onClick={handleProcess}
+              disabled={processing || !rawInput.trim()}
+              className="w-full gap-2 h-11 text-sm font-semibold"
+            >
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Process with AI
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting || !processed.title.trim()}
+              className="w-full gap-2 h-11 text-sm font-semibold"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Submit to Backlog
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </SheetContent>
     </Sheet>
