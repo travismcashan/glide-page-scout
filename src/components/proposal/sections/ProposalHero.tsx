@@ -13,7 +13,7 @@ export default function ProposalHero({ domain, companyName, contactName, contact
   const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   return (
-    <section className="px-8 py-20 lg:px-16 bg-white dark:bg-background">
+    <section className="px-8 py-20 lg:px-16">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Metadata row */}

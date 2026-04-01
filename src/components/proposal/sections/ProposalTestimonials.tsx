@@ -23,7 +23,7 @@ const TESTIMONIALS = [
 
 export default function ProposalTestimonials() {
   return (
-    <section className="py-20 px-8 lg:px-16 bg-muted/30 dark:bg-muted/10">
+    <section className="py-20 px-8 lg:px-16">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-3">

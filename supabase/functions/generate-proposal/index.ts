@@ -193,12 +193,12 @@ Generate all proposal sections based on this context.`;
               },
               northStar: {
                 type: "object",
-                description: "The positioning and project mission",
+                description: "The positioning and project mission. Be CONCISE. Each statement should be 1 punchy sentence max. Detail should be 1-2 sentences max, not a full paragraph.",
                 properties: {
-                  position: { type: "string", description: "1-2 sentence bold positioning statement for the client" },
-                  positionDetail: { type: "string", description: "1 paragraph expanding on why this position matters" },
-                  project: { type: "string", description: "1-2 sentence bold project mission statement" },
-                  projectDetail: { type: "string", description: "1 paragraph explaining what the project builds" },
+                  position: { type: "string", description: "1 bold sentence positioning the client (max 20 words)" },
+                  positionDetail: { type: "string", description: "1-2 sentences max expanding on why this position matters" },
+                  project: { type: "string", description: "1 bold sentence defining the project mission (max 20 words)" },
+                  projectDetail: { type: "string", description: "1-2 sentences max explaining what the project delivers" },
                 },
                 required: ["position", "positionDetail", "project", "projectDetail"],
               },
@@ -218,12 +218,12 @@ Generate all proposal sections based on this context.`;
               },
               strategicFoundation: {
                 type: "array",
-                description: "5C diagnostic: Climate, Competition, Customers, Company, Culture. Each has 4-6 bullet points.",
+                description: "5C diagnostic: Climate, Competition, Customers, Company, Culture. Each has exactly 5 SHORT bullet points (one line each, max 12 words per bullet). No fluff.",
                 items: {
                   type: "object",
                   properties: {
                     category: { type: "string", enum: ["Climate", "Competition", "Customers", "Company", "Culture"] },
-                    points: { type: "array", items: { type: "string" }, description: "4-6 strategic insights for this category" },
+                    points: { type: "array", items: { type: "string" }, description: "Exactly 5 short one-line insights (max 12 words each)" },
                   },
                   required: ["category", "points"],
                 },

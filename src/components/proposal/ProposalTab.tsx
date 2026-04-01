@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServiceOfferings, type Offering } from "@/hooks/useServiceOfferings";
 import type { TimelineItem } from "@/types/roadmap";
-import { Sparkles, Loader2, FileDown, RefreshCw } from "lucide-react";
+import { Sparkles, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -32,7 +32,6 @@ export interface ProposalData {
   strategicFoundation: { category: string; points: string[] }[];
   whyGlide: { number: string; title: string; subtitle: string; items: { label: string; text: string }[] }[];
   faqs: { question: string; answer: string }[];
-  stakeholders?: { role: string; jobToBeDone: string; fears: string; metrics: string }[];
 }
 
 const EMPTY_PROPOSAL: ProposalData = {
@@ -44,12 +43,20 @@ const EMPTY_PROPOSAL: ProposalData = {
   faqs: [],
 };
 
+function isRecurringOffering(offering: Offering): boolean {
+  return (
+    offering.billingType === "Retainer" ||
+    (offering.billingType === "T&M" &&
+      offering.minRetainer == null &&
+      offering.maxRetainer == null &&
+      (offering.minHourly != null || offering.maxHourly != null))
+  );
+}
+
 export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
   const { user } = useAuth();
-  const { offerings } = useServiceOfferings();
+  const { offerings, loading: offeringsLoading } = useServiceOfferings();
   const [proposalData, setProposalData] = useState<ProposalData>(EMPTY_PROPOSAL);
-  const [roadmapItems, setRoadmapItems] = useState<TimelineItem[]>([]);
-  const [roadmapMeta, setRoadmapMeta] = useState<{ startMonth: number; totalMonths: number }>({ startMonth: new Date().getMonth(), totalMonths: 12 });
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [genStep, setGenStep] = useState(0);
@@ -57,6 +64,15 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
   const [contactTitle, setContactTitle] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [companyName, setCompanyName] = useState(domain?.replace(/^https?:\/\//, "").replace(/\/$/, "") || "");
+
+  // ── Roadmap state (interactive, same as RoadmapTab) ─────────
+  const [roadmapId, setRoadmapId] = useState<string | null>(null);
+  const [items, setItems] = useState<TimelineItem[]>([]);
+  const [startMonthIndex, setStartMonthIndex] = useState(new Date().getMonth());
+  const [totalMonths, setTotalMonths] = useState(12);
+  const [outcomesData, setOutcomesData] = useState<Record<number, string[]>>({});
+  const [roadmapLoaded, setRoadmapLoaded] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   const GEN_STEPS = [
     "Analyzing discovery notes and client context...",
@@ -69,25 +85,34 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     "Assembling final proposal...",
   ];
 
-  // Load roadmap data
+  // ── Load roadmap (same logic as RoadmapTab) ─────────────────
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || offeringsLoading) return;
     (async () => {
-      const { data: roadmap } = await supabase
+      const { data: existing } = await supabase
         .from("roadmaps" as any)
         .select("*")
         .eq("session_id", sessionId)
         .maybeSingle();
-      if (!roadmap) return;
-      const rm = roadmap as any;
-      setRoadmapMeta({ startMonth: rm.start_month ?? new Date().getMonth(), totalMonths: rm.total_months ?? 12 });
-      const { data: items } = await supabase
+
+      const roadmap = existing as any;
+      if (!roadmap) { setRoadmapLoaded(true); return; }
+
+      setRoadmapId(roadmap.id);
+      setStartMonthIndex(roadmap.start_month ?? new Date().getMonth());
+      setTotalMonths(roadmap.total_months ?? 12);
+      if (roadmap.outcomes_data && typeof roadmap.outcomes_data === "object") {
+        setOutcomesData(roadmap.outcomes_data as Record<number, string[]>);
+      }
+
+      const { data: dbItems } = await supabase
         .from("roadmap_items" as any)
         .select("*")
-        .eq("roadmap_id", rm.id);
-      if (items) {
-        setRoadmapItems(
-          (items as any[]).map((di) => {
+        .eq("roadmap_id", roadmap.id);
+
+      if (dbItems) {
+        setItems(
+          (dbItems as any[]).map((di) => {
             const offering = offerings.find((o) => o.sku === di.sku);
             return {
               sku: di.sku,
@@ -98,15 +123,148 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
               sortOrder: di.sort_order ?? 0,
               unitPrice: di.unit_price ?? null,
               estimatedAdSpend: di.estimated_ad_spend ?? null,
-              discountPercent: di.discount_percent ?? null,
+              discountType: di.discount_type ?? null,
+              discountValue: di.discount_value ?? null,
             };
           })
         );
       }
+      setRoadmapLoaded(true);
     })();
-  }, [sessionId, offerings]);
+  }, [sessionId, offeringsLoading, offerings]);
 
-  // Load saved proposal data
+  // ── Auto-save roadmap items on change ───────────────────────
+  const saveRoadmap = useCallback(() => {
+    if (!roadmapId || !roadmapLoaded) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      await supabase.from("roadmap_items" as any).delete().eq("roadmap_id", roadmapId);
+      if (items.length > 0) {
+        await supabase.from("roadmap_items" as any).insert(
+          items.map((i) => {
+            const offering = offerings.find((o) => o.sku === i.sku);
+            const recurring = offering ? isRecurringOffering(offering) : false;
+            return {
+              roadmap_id: roadmapId,
+              sku: i.sku,
+              start_month: i.startMonth,
+              duration: i.duration,
+              custom_name: i.name,
+              sort_order: i.sortOrder,
+              unit_price: i.unitPrice ?? null,
+              billing_type: offering?.billingType ?? null,
+              is_recurring: recurring,
+              estimated_ad_spend: i.estimatedAdSpend ?? null,
+              discount_type: i.discountType ?? null,
+              discount_value: i.discountValue ?? null,
+            };
+          })
+        );
+      }
+    }, 800);
+  }, [roadmapId, roadmapLoaded, items, offerings]);
+
+  useEffect(() => { saveRoadmap(); }, [saveRoadmap]);
+
+  // ── Item handlers (identical to RoadmapTab) ─────────────────
+  const moveItem = useCallback((sku: number, newStart: number) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.sku !== sku) return item;
+        const snapped = Math.round(newStart * 2) / 2;
+        return { ...item, startMonth: Math.max(0, Math.min(snapped, totalMonths - item.duration)) };
+      })
+    );
+  }, [totalMonths]);
+
+  const resizeItem = useCallback((sku: number, newStart: number, newDuration: number) => {
+    setItems((prev) => {
+      const resized = prev.find((i) => i.sku === sku);
+      if (!resized) return prev;
+      const duration = Math.max(0.5, newDuration);
+      const start = Math.max(0, newStart);
+      const clampedDuration = Math.min(duration, totalMonths - start);
+      const newEnd = start + clampedDuration;
+      const oldEnd = resized.startMonth + resized.duration;
+      const delta = newEnd - oldEnd;
+      const isFB = resized.pillar === "IS" || resized.pillar === "FB";
+      return prev.map((item) => {
+        if (item.sku === sku) return { ...item, startMonth: start, duration: clampedDuration };
+        if (isFB && delta > 0 && (item.pillar === "GO" || item.pillar === "TS") && newEnd > item.startMonth) {
+          const pushed = newEnd;
+          const newItemDuration = Math.min(item.duration, totalMonths - pushed);
+          if (pushed < totalMonths) return { ...item, startMonth: pushed, duration: Math.max(0.5, newItemDuration) };
+        }
+        return item;
+      });
+    });
+  }, [totalMonths]);
+
+  const removeItem = useCallback((sku: number) => {
+    setItems((prev) => prev.filter((i) => i.sku !== sku));
+  }, []);
+
+  const renameItem = useCallback((sku: number, newName: string) => {
+    setItems((prev) => prev.map((item) => (item.sku === sku ? { ...item, name: newName } : item)));
+  }, []);
+
+  const reorderItem = useCallback((sku: number, direction: "up" | "down") => {
+    setItems((prev) => {
+      const item = prev.find((i) => i.sku === sku);
+      if (!item) return prev;
+      const pillarItems = prev.filter((i) => i.pillar === item.pillar).sort((a, b) => a.sortOrder - b.sortOrder);
+      const idx = pillarItems.findIndex((i) => i.sku === sku);
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= pillarItems.length) return prev;
+      const swapItem = pillarItems[swapIdx];
+      return prev.map((i) => {
+        if (i.sku === sku) return { ...i, sortOrder: swapItem.sortOrder };
+        if (i.sku === swapItem.sku) return { ...i, sortOrder: item.sortOrder };
+        return i;
+      });
+    });
+  }, []);
+
+  const setItemPrice = useCallback((sku: number, price: number) => {
+    setItems((prev) => prev.map((item) => (item.sku === sku ? { ...item, unitPrice: price } : item)));
+  }, []);
+
+  const setItemAdSpend = useCallback((sku: number, adSpend: number) => {
+    setItems((prev) => prev.map((item) => (item.sku === sku ? { ...item, estimatedAdSpend: adSpend } : item)));
+  }, []);
+
+  const setItemDiscount = useCallback((sku: number, type: "percent" | "fixed" | null, value: number | null) => {
+    setItems((prev) => prev.map((item) => (item.sku === sku ? { ...item, discountType: type, discountValue: value } : item)));
+  }, []);
+
+  const getMinPrice = useCallback((offering: Offering): number | null => {
+    if (offering.minRetainer != null) return Number(offering.minRetainer);
+    if (offering.minFixed != null) return Number(offering.minFixed);
+    if (offering.minHourly != null) {
+      const rate = Number(offering.hourlyRateExternal ?? 150);
+      return Number(offering.minHourly) * rate;
+    }
+    return null;
+  }, []);
+
+  const dropOffering = useCallback((sku: number, startMonth: number) => {
+    setItems((prev) => {
+      if (prev.some((i) => i.sku === sku)) return prev;
+      const offering = offerings.find((o) => o.sku === sku);
+      if (!offering) return prev;
+      const clamped = Math.max(0, Math.min(startMonth, totalMonths - 1));
+      const duration = Math.min(offering.defaultDuration, totalMonths - clamped);
+      const pillarCount = prev.filter((i) => i.pillar === offering.pillar).length;
+      const defaultPrice = getMinPrice(offering);
+      return [...prev, { sku: offering.sku, name: offering.name, pillar: offering.pillar, startMonth: clamped, duration, sortOrder: pillarCount, unitPrice: defaultPrice }];
+    });
+  }, [totalMonths, offerings, getMinPrice]);
+
+  const handleOutcomesChange = useCallback((outcomes: Record<number, string[]>) => {
+    setOutcomesData(outcomes);
+  }, []);
+
+  // ── Load proposal + HubSpot contact ─────────────────────────
   useEffect(() => {
     if (!sessionId) return;
     (async () => {
@@ -125,11 +283,33 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
         if (d.contact_title) setContactTitle(d.contact_title);
         if (d.contact_email) setContactEmail(d.contact_email);
         if (d.company_name) setCompanyName(d.company_name);
+        return;
+      }
+
+      // No saved proposal — pull primary contact from HubSpot
+      const { data: session } = await supabase
+        .from("crawl_sessions" as any)
+        .select("hubspot_data")
+        .eq("id", sessionId)
+        .maybeSingle();
+      if (session) {
+        const hs = (session as any).hubspot_data;
+        if (hs?.contacts?.length) {
+          const primary = hs.contacts[0];
+          const name = [primary.firstname, primary.lastname].filter(Boolean).join(" ");
+          if (name) setContactName(name);
+          if (primary.jobtitle) setContactTitle(primary.jobtitle);
+          if (primary.email) setContactEmail(primary.email);
+        }
+        if (hs?.companies?.length) {
+          const co = hs.companies[0];
+          if (co.name) setCompanyName(co.name);
+        }
       }
     })();
   }, [sessionId]);
 
-  // Save proposal data
+  // ── Save proposal ───────────────────────────────────────────
   const saveProposal = useCallback(async (data: ProposalData) => {
     await supabase
       .from("proposals" as any)
@@ -149,7 +329,6 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     setIsGenerating(true);
     setGenStep(0);
     const interval = setInterval(() => setGenStep((p) => (p + 1) % GEN_STEPS.length), 3500);
-
     try {
       const { data, error } = await supabase.functions.invoke("generate-proposal", {
         body: { sessionId, domain, companyName },
@@ -171,7 +350,7 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     }
   }, [sessionId, domain, companyName, saveProposal]);
 
-  // Empty state - no proposal generated yet
+  // ── Empty state ─────────────────────────────────────────────
   if (!hasGenerated && !isGenerating) {
     return (
       <div className="space-y-8">
@@ -188,47 +367,23 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
             <div className="grid grid-cols-2 gap-4 text-left max-w-lg mx-auto">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contact Name</label>
-                <input
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="e.g. Jane Smith"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                />
+                <input className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. Jane Smith" value={contactName} onChange={(e) => setContactName(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Title</label>
-                <input
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="e.g. Marketing Director"
-                  value={contactTitle}
-                  onChange={(e) => setContactTitle(e.target.value)}
-                />
+                <input className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. Marketing Director" value={contactTitle} onChange={(e) => setContactTitle(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</label>
-                <input
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="e.g. jane@company.com"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                />
+                <input className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. jane@company.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Company</label>
-                <input
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="e.g. Acme Corp"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                />
+                <input className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. Acme Corp" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
               </div>
             </div>
 
-            <Button
-              size="lg"
-              className="gap-2"
-              onClick={generateProposal}
-            >
+            <Button size="lg" className="gap-2" onClick={generateProposal}>
               <Sparkles className="h-4 w-4" />
               Generate Proposal
             </Button>
@@ -238,7 +393,7 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     );
   }
 
-  // Loading state
+  // ── Loading state ───────────────────────────────────────────
   if (isGenerating) {
     return (
       <div className="space-y-8">
@@ -266,7 +421,7 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     );
   }
 
-  // Full proposal render
+  // ── Full proposal ───────────────────────────────────────────
   return (
     <div className="space-y-0">
       {/* Toolbar */}
@@ -283,35 +438,45 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
         </div>
       </div>
 
-      {/* Proposal sections - presentation mode */}
-      <div className="rounded-xl border border-border bg-white dark:bg-background overflow-hidden shadow-sm">
-        <ProposalHero
-          domain={domain}
-          companyName={companyName}
-          contactName={contactName}
-          contactTitle={contactTitle}
-          contactEmail={contactEmail}
-        />
-        <WhatWeHeard insights={proposalData.whatWeHeard} />
-        <NorthStar data={proposalData.northStar} />
-        <MeasurementPlan kpis={proposalData.measurementPlan} />
-        <StrategicFoundation categories={proposalData.strategicFoundation} />
-        <ProposalGrowthPlan
-          items={roadmapItems}
-          offerings={offerings}
-          startMonthIndex={roadmapMeta.startMonth}
-          totalMonths={roadmapMeta.totalMonths}
-        />
-        <ProposalCaseStudies />
-        <ProposalTestimonials />
-        <ProposalInvestment
-          items={roadmapItems}
-          offerings={offerings}
-        />
-        <WhyGlide pillars={proposalData.whyGlide} companyName={companyName} />
-        <ProposalFAQ faqs={proposalData.faqs} />
-        <NextSteps contactEmail={contactEmail} />
-      </div>
+      {/* Proposal sections */}
+      <ProposalHero
+        domain={domain}
+        companyName={companyName}
+        contactName={contactName}
+        contactTitle={contactTitle}
+        contactEmail={contactEmail}
+      />
+      <WhatWeHeard insights={proposalData.whatWeHeard} />
+      <NorthStar data={proposalData.northStar} />
+      <MeasurementPlan kpis={proposalData.measurementPlan} />
+      <StrategicFoundation categories={proposalData.strategicFoundation} />
+      <ProposalGrowthPlan
+        items={items}
+        offerings={offerings}
+        startMonthIndex={startMonthIndex}
+        totalMonths={totalMonths}
+        onMove={moveItem}
+        onResize={resizeItem}
+        onRemove={removeItem}
+        onDropOffering={dropOffering}
+        onRename={renameItem}
+        onReorder={reorderItem}
+        onSetPrice={setItemPrice}
+        onSetAdSpend={setItemAdSpend}
+        onSetDiscount={setItemDiscount}
+      />
+      <ProposalCaseStudies />
+      <ProposalTestimonials />
+      <ProposalInvestment
+        items={items}
+        offerings={offerings}
+        sessionId={sessionId}
+        savedOutcomes={outcomesData}
+        onOutcomesChange={handleOutcomesChange}
+      />
+      <WhyGlide pillars={proposalData.whyGlide} companyName={companyName} />
+      <ProposalFAQ faqs={proposalData.faqs} />
+      <NextSteps contactEmail={contactEmail} />
     </div>
   );
 }
