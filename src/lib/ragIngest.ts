@@ -330,8 +330,13 @@ export async function autoIngestIntegrations(
     if (!data) continue;
     if (typeof data === 'object' && data._error) continue;
 
-    const content = key === 'apollo_team_data' ? formatApolloTeamDoc(data) : (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+    let content = key === 'apollo_team_data' ? formatApolloTeamDoc(data) : (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
     if (content.length < 50) continue;
+    // Cap oversized integration payloads (e.g. PageSpeed at 667K) to 30K max
+    if (content.length > 30_000) {
+      console.warn(`[rag-ingest] Truncating ${key} from ${(content.length / 1024).toFixed(0)}K to 30K`);
+      content = content.slice(0, 30_000);
+    }
 
     const existingCreatedAt = existingMap.get(key);
     if (existingCreatedAt) {
