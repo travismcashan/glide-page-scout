@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Mic, Square, Loader2, Crosshair, X, Sparkles, Send, ChevronLeft } from "lucide-react";
+import { Mic, Square, Loader2, Crosshair, X, Sparkles, Send, ChevronLeft, ExternalLink } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -45,6 +45,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const pendingAutoProcessRef = useRef(false);
 
   // Reset when panel opens
   useEffect(() => {
@@ -56,8 +57,59 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
       setElementDescription(null);
       setInspecting(false);
       setRecording(false);
+      pendingAutoProcessRef.current = false;
     }
   }, [open]);
+
+  // Auto-process after recording stops
+  useEffect(() => {
+    if (!recording && pendingAutoProcessRef.current && rawInput.trim()) {
+      pendingAutoProcessRef.current = false;
+      handleProcess();
+    }
+  }, [recording]);
+
+  // ---- AI Processing ----
+  const handleProcess = async () => {
+    if (!rawInput.trim()) return;
+    setProcessing(true);
+    try {
+      const context = [
+        rawInput.trim(),
+        elementDescription ? `[Element: ${elementDescription}]` : null,
+        pageUrl ? `[Page: ${pageUrl.replace(/^https?:\/\/[^/]+/, "")}]` : null,
+      ].filter(Boolean).join("\n");
+
+      const { data } = await supabase.functions.invoke("wishlist-parse", {
+        body: { rawInput: context },
+      });
+
+      if (data?.items?.length) {
+        const first = data.items[0];
+        setProcessed({
+          title: first.title || rawInput.trim().slice(0, 120),
+          description: first.description || rawInput.trim(),
+          priority: first.priority || "medium",
+          category: first.category || "feature",
+        });
+      } else {
+        setProcessed({
+          title: rawInput.trim().slice(0, 120),
+          description: rawInput.trim(),
+          priority: "medium",
+          category: "feature",
+        });
+      }
+    } catch {
+      setProcessed({
+        title: rawInput.trim().slice(0, 120),
+        description: rawInput.trim(),
+        priority: "medium",
+        category: "feature",
+      });
+    }
+    setProcessing(false);
+  };
 
   // ---- Voice Recording ----
   const startRecording = useCallback(async () => {
@@ -91,6 +143,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
         setRecording(false);
+        pendingAutoProcessRef.current = false;
         if (event.error === "not-allowed") {
           toast.error("Microphone access needed", {
             description: "Click the lock icon in your browser's address bar to allow microphone access, then try again.",
@@ -104,6 +157,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
 
       recognition.onend = () => setRecording(false);
       recognitionRef.current = recognition;
+      pendingAutoProcessRef.current = true;
       recognition.start();
       setRecording(true);
     } else {
@@ -240,49 +294,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
     return parts.join(" > ");
   };
 
-  // ---- Step 1: Process with AI ----
-  const handleProcess = async () => {
-    if (!rawInput.trim()) return;
-    setProcessing(true);
-    try {
-      const context = [
-        rawInput.trim(),
-        elementDescription ? `[Element: ${elementDescription}]` : null,
-        pageUrl ? `[Page: ${pageUrl.replace(/^https?:\/\/[^/]+/, "")}]` : null,
-      ].filter(Boolean).join("\n");
-
-      const { data } = await supabase.functions.invoke("wishlist-parse", {
-        body: { rawInput: context },
-      });
-
-      if (data?.items?.length) {
-        const first = data.items[0];
-        setProcessed({
-          title: first.title || rawInput.trim().slice(0, 120),
-          description: first.description || rawInput.trim(),
-          priority: first.priority || "medium",
-          category: first.category || "feature",
-        });
-      } else {
-        setProcessed({
-          title: rawInput.trim().slice(0, 120),
-          description: rawInput.trim(),
-          priority: "medium",
-          category: "feature",
-        });
-      }
-    } catch {
-      setProcessed({
-        title: rawInput.trim().slice(0, 120),
-        description: rawInput.trim(),
-        priority: "medium",
-        category: "feature",
-      });
-    }
-    setProcessing(false);
-  };
-
-  // ---- Step 2: Submit the processed result ----
+  // ---- Submit the processed result ----
   const handleSubmit = async () => {
     if (!processed) return;
     setSubmitting(true);
@@ -308,11 +320,13 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
     setSubmitting(false);
   };
 
+  const pagePath = pageUrl.replace(/^https?:\/\/[^/]+/, "") || "/";
+
   return (
     <Sheet open={open && !inspecting} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="left" className="sm:max-w-sm p-0 flex flex-col" data-feedback-panel>
         {/* Header */}
-        <div className="px-8 pt-10 pb-6">
+        <div className="px-8 pt-10 pb-2">
           <SheetTitle className="text-4xl tracking-tight">
             <span className="font-light">Share</span>{" "}
             <span className="font-black">Feedback</span>
@@ -324,11 +338,9 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
           </SheetDescription>
         </div>
 
-        <hr className="border-t border-border mx-8" />
-
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-5">
-          {!processed ? (
+        <div className="flex-1 overflow-y-auto px-8 py-4 space-y-5">
+          {!processed && !processing ? (
             <>
               {/* ---- STEP 1: Raw input ---- */}
               <div className="relative">
@@ -406,16 +418,22 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
                 {pageUrl.replace(/^https?:\/\//, "")}
               </div>
             </>
-          ) : (
+          ) : processing ? (
+            /* ---- PROCESSING STATE ---- */
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Processing your feedback...</p>
+            </div>
+          ) : processed ? (
             <>
               {/* ---- STEP 2: AI-processed preview ---- */}
               <div className="space-y-4">
                 {/* Back button */}
                 <button
                   onClick={() => setProcessed(null)}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <ChevronLeft className="h-3 w-3" />
+                  <ChevronLeft className="h-4 w-4" />
                   Back to editing
                 </button>
 
@@ -457,86 +475,95 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
                     />
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Priority</label>
-                      <div className="flex gap-1 mt-1">
-                        {["low", "medium", "high"].map((p) => (
-                          <button
-                            key={p}
-                            onClick={() => setProcessed({ ...processed, priority: p })}
-                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                              processed.priority === p
-                                ? p === "high"
-                                  ? "bg-red-500/10 text-red-600 border border-red-500/20"
-                                  : p === "medium"
-                                  ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                                  : "bg-green-500/10 text-green-600 border border-green-500/20"
-                                : "bg-muted text-muted-foreground hover:bg-muted/80"
-                            }`}
-                          >
-                            {p.charAt(0).toUpperCase() + p.slice(1)}
-                          </button>
-                        ))}
-                      </div>
+                  <div>
+                    <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Priority</label>
+                    <div className="flex gap-1 mt-1">
+                      {["low", "medium", "high"].map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setProcessed({ ...processed, priority: p })}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                            processed.priority === p
+                              ? p === "high"
+                                ? "bg-red-500/10 text-red-600 border border-red-500/20"
+                                : p === "medium"
+                                ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                                : "bg-green-500/10 text-green-600 border border-green-500/20"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          {p.charAt(0).toUpperCase() + p.slice(1)}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Type</label>
-                      <div className="flex gap-1 mt-1">
-                        {["bug", "feature", "idea"].map((c) => (
-                          <button
-                            key={c}
-                            onClick={() => setProcessed({ ...processed, category: c })}
-                            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                              processed.category === c
-                                ? "bg-primary/10 text-primary border border-primary/20"
-                                : "bg-muted text-muted-foreground hover:bg-muted/80"
-                            }`}
-                          >
-                            {c.charAt(0).toUpperCase() + c.slice(1)}
-                          </button>
-                        ))}
-                      </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Type</label>
+                    <div className="flex gap-1 mt-1">
+                      {["bug", "feature", "idea"].map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setProcessed({ ...processed, category: c })}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                            processed.category === c
+                              ? "bg-primary/10 text-primary border border-primary/20"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          {c.charAt(0).toUpperCase() + c.slice(1)}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
-                {/* Element context in preview */}
-                {elementDescription && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Crosshair className="h-3 w-3 shrink-0" />
-                    {elementDescription}
+                {/* Context: element + page URL */}
+                <div className="space-y-2">
+                  {elementSelector && (
+                    <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Crosshair className="h-3.5 w-3.5 text-foreground shrink-0" />
+                        <span className="text-sm font-medium text-foreground truncate flex-1">
+                          {elementDescription || "Selected element"}
+                        </span>
+                      </div>
+                      <code className="text-[10px] text-muted-foreground/60 block truncate">
+                        {elementSelector}
+                      </code>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{pagePath}</span>
                   </div>
-                )}
+                </div>
               </div>
             </>
-          )}
+          ) : null}
         </div>
 
         {/* Bottom action bar */}
         <div className="px-8 py-5 border-t border-border bg-muted/20">
-          {!processed ? (
+          {!processed && !processing ? (
             <Button
               onClick={handleProcess}
-              disabled={processing || !rawInput.trim()}
+              disabled={!rawInput.trim()}
               className="w-full gap-2 h-11 text-sm font-semibold"
             >
-              {processing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Process with AI
-                </>
-              )}
+              <Sparkles className="h-4 w-4" />
+              Process with AI
+            </Button>
+          ) : processing ? (
+            <Button disabled className="w-full gap-2 h-11 text-sm font-semibold">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Processing...
             </Button>
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={submitting || !processed.title.trim()}
+              disabled={submitting || !processed?.title.trim()}
               className="w-full gap-2 h-11 text-sm font-semibold"
             >
               {submitting ? (
