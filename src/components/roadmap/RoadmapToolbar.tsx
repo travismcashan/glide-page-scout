@@ -1,4 +1,4 @@
-import { Sparkles, Loader2, Share2, Eye, EyeOff } from "lucide-react";
+import { Sparkles, Share2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -102,7 +102,11 @@ export default function RoadmapToolbar({
           onClick={onGenerate}
         >
           {isGenerating ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 104 104" fill="none" className="h-4 w-4 animate-spin">
+              <circle cx="50" cy="49" r="46" stroke="currentColor" strokeWidth="9" strokeDasharray="120 170" />
+              <circle cx="50" cy="67" r="28" stroke="currentColor" strokeWidth="9" strokeDasharray="80 100" />
+              <circle cx="50" cy="77" r="18" stroke="currentColor" strokeWidth="9" strokeDasharray="50 65" />
+            </svg>
           ) : (
             <Sparkles className="h-3.5 w-3.5" />
           )}
