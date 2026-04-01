@@ -196,8 +196,17 @@ ${catalogText}
 - Do NOT stack multiple similar services (e.g., don't add both SEO + Continuous Improvement + Analytics Maintenance unless each solves a distinct problem).
 - Use the sortOrder field to control vertical ordering within each pillar lane (0 = top).
 
+## FAQs / Objection Handling
+Generate 4-6 FAQs that address specific objections THIS client would likely raise based on their context. Examples:
+- If they're cost-conscious: "Why can't we just do SEO without a new website?"
+- If they have a tight timeline: "Why does discovery take a full month?"
+- If they're skeptical of agencies: "How is GLIDE different from our last agency?"
+- Industry-specific concerns based on their business
+Each FAQ should have a direct, confident answer (2-3 sentences) that references their specific situation.
+Do NOT use generic questions. Every FAQ must be tailored to this client's context, industry, and likely objections.
+
 ## Output
-Use the return_growth_plan tool. Provide brief reasoning explaining your strategy, then the items array with services from the catalog ONLY (use exact SKU numbers).`;
+Use the return_growth_plan tool. Provide brief reasoning explaining your strategy, the items array with services from the catalog ONLY (use exact SKU numbers), and tailored FAQs.`;
 
     const userPrompt = `Analyze this client's context and build a ${totalMonths}-month digital growth plan.
 
@@ -224,6 +233,18 @@ Select the right services, assign start months and durations, and return the pla
             type: "object",
             properties: {
               reasoning: { type: "string", description: "Brief 2-3 sentence explanation of the growth plan strategy and why these services were selected" },
+              faqs: {
+                type: "array",
+                description: "4-6 client-specific FAQs addressing likely objections to this plan",
+                items: {
+                  type: "object",
+                  properties: {
+                    question: { type: "string", description: "A specific objection this client would raise" },
+                    answer: { type: "string", description: "Direct, confident 2-3 sentence answer referencing their situation" },
+                  },
+                  required: ["question", "answer"],
+                },
+              },
               items: {
                 type: "array",
                 items: {
@@ -240,7 +261,7 @@ Select the right services, assign start months and durations, and return the pla
                 },
               },
             },
-            required: ["reasoning", "items"],
+            required: ["reasoning", "items", "faqs"],
           },
         }],
         tool_choice: { type: "tool", name: "return_growth_plan" },
@@ -282,6 +303,7 @@ Select the right services, assign start months and durations, and return the pla
     return new Response(JSON.stringify({
       items: validatedItems,
       reasoning: toolUse.input.reasoning || "",
+      faqs: toolUse.input.faqs || [],
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (e) {

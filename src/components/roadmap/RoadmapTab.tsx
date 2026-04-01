@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { MessageCircleQuestion } from "lucide-react";
 import { MONTH_NAMES } from "@/data/offerings";
 
 interface RoadmapTabProps {
@@ -51,6 +53,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
   const [planReasoning, setPlanReasoning] = useState<string | null>(null);
+  const [planFaqs, setPlanFaqs] = useState<{ question: string; answer: string }[]>([]);
 
   // Load or create roadmap for this session
   useEffect(() => {
@@ -172,6 +175,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
     setIsGeneratingPlan(true);
     setShowOverwriteConfirm(false);
     setPlanReasoning(null);
+    setPlanFaqs([]);
     try {
       const { data, error } = await supabase.functions.invoke("generate-growth-plan", {
         body: { sessionId, totalMonths, startMonthIndex },
@@ -191,6 +195,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       setItems(itemsWithPricing);
       if (data.reasoning) {
         setPlanReasoning(data.reasoning);
+      }
+      if (data.faqs?.length) {
+        setPlanFaqs(data.faqs);
       }
       toast.success(`Growth plan generated with ${data.items.length} services`);
     } catch (e: any) {
@@ -545,6 +552,37 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
         <div>
           <h2 className="mb-5 text-4xl font-bold tracking-tight text-foreground">What's Included</h2>
           <FeatureMatrix items={items} offerings={offerings} />
+        </div>
+      )}
+
+      {/* Frequently Asked Questions */}
+      {planFaqs.length > 0 && (
+        <div>
+          <div className="mb-5 flex items-center gap-3">
+            <h2 className="text-4xl font-bold tracking-tight text-foreground">Frequently Asked Questions</h2>
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">AI-Generated</span>
+          </div>
+          <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
+            <Accordion type="single" collapsible className="w-full">
+              {planFaqs.map((faq, idx) => (
+                <AccordionItem
+                  key={idx}
+                  value={`faq-${idx}`}
+                  className="border-b border-border/50 last:border-b-0"
+                >
+                  <AccordionTrigger className="px-6 py-5 text-left text-[15px] font-semibold text-foreground hover:no-underline hover:bg-muted/30 transition-colors gap-4 [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-muted-foreground">
+                    <div className="flex items-center gap-3">
+                      <MessageCircleQuestion className="h-5 w-5 shrink-0 text-primary/60" />
+                      <span>{faq.question}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-5 pt-0 pl-14">
+                    <p className="text-sm leading-relaxed text-muted-foreground">{faq.answer}</p>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </div>
       )}
 
