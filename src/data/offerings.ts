@@ -55,6 +55,7 @@ export const OFFERINGS: Offering[] = [
   { sku: 402, name: "PPC Management", defaultDuration: 9, pillar: "GO", roadmapGrade: true },
   { sku: 403, name: "Continuous Improvement", defaultDuration: 8, pillar: "GO", roadmapGrade: true },
   { sku: 404, name: "Analytics Maintenance", defaultDuration: 9, pillar: "GO", roadmapGrade: true },
+  { sku: 405, name: "Monthly Performance Report", defaultDuration: 9, pillar: "GO", roadmapGrade: true },
 
   // Technical & Support
   { sku: 501, name: "On-Demand Support", defaultDuration: 8, pillar: "TS", roadmapGrade: true },

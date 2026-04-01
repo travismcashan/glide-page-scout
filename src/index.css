@@ -109,6 +109,13 @@ body[data-scroll-locked] {
 
 @layer base {
   :root {
+    /* Layout measurements — update here if header height changes */
+    --app-header-h: 61px;
+    --feature-table-header-h: 96px;
+    /* Elements inside bordered containers; subtract 1px to account for container top border */
+    --month-bar-top: calc(var(--app-header-h) - 1px);
+    --investment-sticky-top: calc(var(--app-header-h) - 1px);
+
     --background: 240 15% 96%;
     --foreground: 240 20% 8%;
 

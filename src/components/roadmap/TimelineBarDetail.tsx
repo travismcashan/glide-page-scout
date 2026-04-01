@@ -341,7 +341,7 @@ export default function TimelineBarDetail({
         <div className="flex items-center gap-2">
           <span className={`inline-block h-3 w-3 rounded-full ${PILLAR_DOT[pillar]}`} />
           <span className="text-sm font-bold text-foreground">{item.name}</span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             ({item.duration} month{item.duration !== 1 ? "s" : ""} · {totalWeeks} week{totalWeeks !== 1 ? "s" : ""})
           </span>
         </div>

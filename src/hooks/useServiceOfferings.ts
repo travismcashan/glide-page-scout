@@ -44,6 +44,8 @@ const PHASE_VARIANTS: Offering[] = [
 export function useServiceOfferings() {
   const [offerings, setOfferings] = useState<Offering[]>(PHASE_VARIANTS);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+  const refetch = () => setTick((t) => t + 1);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -108,7 +110,7 @@ export function useServiceOfferings() {
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [tick]);
 
-  return { offerings, loading };
+  return { offerings, loading, refetch };
 }
