@@ -197,7 +197,6 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
             const phases = steps.filter((s) => s.stepType === "phase").sort((a, b) => a.sortOrder - b.sortOrder);
             const cycles = steps.filter((s) => s.stepType === "cycle").sort((a, b) => a.sortOrder - b.sortOrder);
             const hasSteps = steps.length > 0;
-            const item = items.find((i) => i.sku === service.sku);
             const description = SERVICE_DESCRIPTIONS[service.name];
 
             return (
@@ -224,11 +223,6 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
                           <p className="text-xs">{description}</p>
                         </TooltipContent>
                       </Tooltip>
-                    )}
-                    {item && item.duration > 0 && (
-                      <span className="ml-auto shrink-0 text-[11px] text-muted-foreground/60">
-                        {item.duration} mo
-                      </span>
                     )}
                   </div>
                   {[0, 1, 2].map((optIdx) => (
