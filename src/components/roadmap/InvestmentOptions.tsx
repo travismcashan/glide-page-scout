@@ -363,6 +363,22 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                 </span>
               </li>
             ))}
+            {option.priceMode === "monthly" && (
+              <li className="flex items-center gap-1.5 pt-1 border-t border-border/50 mt-1">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">Monthly Performance Snapshot</span>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button className="shrink-0 p-0.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[220px]">
+                    <p className="text-xs">A concise monthly report covering KPIs, progress against goals, and recommended next steps across all active services.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </li>
+            )}
           </ul>
         )}
       </div>
