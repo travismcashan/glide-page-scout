@@ -80,8 +80,12 @@ export default function FeedbackPanel({ type, onClose }: FeedbackPanelProps) {
         console.error("Speech recognition error:", event.error);
         setRecording(false);
         if (event.error === "not-allowed") {
-          toast.error("Microphone access denied", {
-            description: "Enable microphone permissions and try again",
+          toast.error("Microphone access needed", {
+            description: "Click the lock icon in your browser's address bar to allow microphone access, then try again.",
+          });
+        } else if (event.error !== "aborted") {
+          toast.error("Voice recording issue", {
+            description: "Try typing your feedback instead.",
           });
         }
       };

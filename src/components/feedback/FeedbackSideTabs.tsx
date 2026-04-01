@@ -11,23 +11,25 @@ export default function FeedbackSideTabs() {
 
   return (
     <>
-      {/* Fixed side tabs - left edge */}
-      <div className="fixed left-0 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-px" data-feedback-tabs>
+      {/* Fixed side tabs - left edge, icon-only with label on hover */}
+      <div className="fixed left-0 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-3" data-feedback-tabs>
         <button
           onClick={() => setOpenType("bug")}
-          className="group flex items-center gap-2 rounded-r-md border border-l-0 border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 px-2 py-4 shadow-sm transition-all hover:px-3 hover:shadow-md hover:bg-red-100 dark:hover:bg-red-950/60"
-          style={{ writingMode: "vertical-lr" }}
+          className="group flex items-center gap-0 overflow-hidden rounded-r-lg bg-red-50 dark:bg-red-950/40 pl-2 pr-2 py-2.5 shadow-sm transition-all duration-200 hover:pr-3 hover:gap-2 hover:shadow-md hover:bg-red-100 dark:hover:bg-red-950/60"
         >
-          <AlertTriangle className="h-3.5 w-3.5 text-red-500 rotate-90" />
-          <span className="text-[11px] font-semibold tracking-widest uppercase text-red-600 dark:text-red-400">BUG</span>
+          <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+          <span className="text-[11px] font-semibold tracking-wider uppercase text-red-600 dark:text-red-400 max-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 group-hover:max-w-[60px]">
+            BUG
+          </span>
         </button>
         <button
           onClick={() => setOpenType("feature")}
-          className="group flex items-center gap-2 rounded-r-md border border-l-0 border-border bg-muted/50 px-2 py-4 shadow-sm transition-all hover:px-3 hover:shadow-md hover:bg-muted"
-          style={{ writingMode: "vertical-lr" }}
+          className="group flex items-center gap-0 overflow-hidden rounded-r-lg bg-muted/60 pl-2 pr-2 py-2.5 shadow-sm transition-all duration-200 hover:pr-3 hover:gap-2 hover:shadow-md hover:bg-muted"
         >
-          <Lightbulb className="h-3.5 w-3.5 text-muted-foreground rotate-90" />
-          <span className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">FEATURE</span>
+          <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground max-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 group-hover:max-w-[80px]">
+            FEATURE
+          </span>
         </button>
       </div>
 
