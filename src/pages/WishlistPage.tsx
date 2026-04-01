@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X, Wand2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X, Wand2, ChevronDown, ExternalLink, Crosshair } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +23,9 @@ type WishlistItem = {
   priority: string;
   effort_estimate: string | null;
   created_at: string;
+  submitted_by: string | null;
+  page_url: string | null;
+  element_selector: string | null;
 };
 
 type ParsedItem = {
@@ -398,7 +401,7 @@ export default function WishlistPage() {
                                 {item.description && (
                                   <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
                                 )}
-                                <div className="flex items-center gap-2 mt-1.5">
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                     {item.priority}
                                   </Badge>
@@ -406,6 +409,18 @@ export default function WishlistPage() {
                                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${effort.color}`}>
                                       {effort.label}
                                     </Badge>
+                                  )}
+                                  {item.page_url && (
+                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      <ExternalLink className="h-2.5 w-2.5" />
+                                      {item.page_url.replace(/^https?:\/\/[^/]+/, '').slice(0, 40)}
+                                    </span>
+                                  )}
+                                  {item.element_selector && (
+                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      <Crosshair className="h-2.5 w-2.5" />
+                                      <code className="max-w-[120px] truncate">{item.element_selector}</code>
+                                    </span>
                                   )}
                                 </div>
                               </div>

@@ -28,6 +28,7 @@ import UsagePage from "./pages/UsagePage";
 import ServicesPage from "./pages/ServicesPage";
 import ServiceDetailPage from "./pages/ServiceDetailPage";
 import NotFound from "./pages/NotFound";
+import FeedbackSideTabs from "./components/feedback/FeedbackSideTabs";
 
 function RedirectGroups() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="/services/:id" element={<ProtectedRoute><ServiceDetailPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <FeedbackSideTabs />
             <Analytics />
             </ErrorBoundary>
           </BrowserRouter>
