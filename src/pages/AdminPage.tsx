@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Shield, Users, Crown, Loader2, UserPlus, Trash2, KeyRound, Mail, Activity } from 'lucide-react';
+import { Shield, Users, Crown, Loader2, UserPlus, Trash2, KeyRound, Mail, Activity, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import AppHeader from '@/components/AppHeader';
@@ -23,6 +23,9 @@ type UserRow = {
   email: string | null;
   created_at: string;
   roles: string[];
+  email_confirmed_at: string | null;
+  last_sign_in_at: string | null;
+  invited_at: string | null;
 };
 
 type UsageByUser = {
@@ -91,8 +94,16 @@ export default function AdminPage() {
     }).catch(() => ({ data: null }));
 
     const emailMap = new Map<string, string>();
+    const authMetaMap = new Map<string, { email_confirmed_at: string | null; last_sign_in_at: string | null; invited_at: string | null }>();
     if (authUsers?.users) {
-      authUsers.users.forEach((u: any) => emailMap.set(u.id, u.email));
+      authUsers.users.forEach((u: any) => {
+        emailMap.set(u.id, u.email);
+        authMetaMap.set(u.id, {
+          email_confirmed_at: u.email_confirmed_at ?? null,
+          last_sign_in_at: u.last_sign_in_at ?? null,
+          invited_at: u.invited_at ?? null,
+        });
+      });
     }
 
     const roleMap = new Map<string, string[]>();
@@ -102,11 +113,17 @@ export default function AdminPage() {
       roleMap.set(r.user_id, existing);
     });
 
-    setUsers((profiles || []).map(p => ({
-      ...p,
-      email: emailMap.get(p.id) ?? null,
-      roles: roleMap.get(p.id) || [],
-    })));
+    setUsers((profiles || []).map(p => {
+      const meta = authMetaMap.get(p.id);
+      return {
+        ...p,
+        email: emailMap.get(p.id) ?? null,
+        roles: roleMap.get(p.id) || [],
+        email_confirmed_at: meta?.email_confirmed_at ?? null,
+        last_sign_in_at: meta?.last_sign_in_at ?? null,
+        invited_at: meta?.invited_at ?? null,
+      };
+    }));
     setLoading(false);
   };
 
@@ -317,9 +334,18 @@ export default function AdminPage() {
                           <Crown className="h-2.5 w-2.5" /> Admin
                         </Badge>
                       )}
+                      {user.invited_at && !user.email_confirmed_at && (
+                        <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:bg-amber-950">
+                          <Clock className="h-2.5 w-2.5" /> Pending
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{user.email ?? '—'}</p>
-                    <p className="text-xs text-muted-foreground">Joined {format(new Date(user.created_at), 'MMM d, yyyy')}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.invited_at && !user.email_confirmed_at
+                        ? `Invited ${format(new Date(user.invited_at), 'MMM d, yyyy')}`
+                        : `Joined ${format(new Date(user.created_at), 'MMM d, yyyy')}`}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Button
