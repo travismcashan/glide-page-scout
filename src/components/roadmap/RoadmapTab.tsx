@@ -8,7 +8,7 @@ import ServiceCatalog from "@/components/roadmap/ServiceCatalog";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 import InvestmentOptions from "@/components/roadmap/InvestmentOptions";
 import FeatureMatrix from "@/components/roadmap/FeatureMatrix";
-import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar } from "lucide-react";
+import { PanelLeftOpen, Sparkles, Loader2, Share2, Calendar, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -486,6 +486,17 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           onOutcomesChange={handleOutcomesChange}
         />
       </div>
+
+      {/* GLIDE Guarantee */}
+      {items.length > 0 && (
+        <div className="flex items-center justify-center gap-3 rounded-lg border border-border bg-muted/30 px-6 py-4 text-center">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">The GLIDE Guarantee</span>
+            {" — "}If you're unhappy for any reason within 90 days, we'll make it right or give you your money back.
+          </p>
+        </div>
+      )}
 
       {/* Feature Comparison Matrix */}
       {items.length > 0 && (
