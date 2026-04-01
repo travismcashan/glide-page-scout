@@ -314,7 +314,7 @@ function StepRow({ step, pillar, label, col }: { step: ServiceStep; pillar: stri
       {[0, 1, 2].map((optIdx) => (
         <div key={optIdx} className="flex items-center justify-center border-l border-border/40 px-4 py-3">
           {isInOption(pillar, optIdx) ? (
-            <Check className="h-4 w-4 text-emerald-500/60" strokeWidth={2.5} />
+            <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
           ) : (
             <span className="text-sm text-muted-foreground/20">—</span>
           )}
