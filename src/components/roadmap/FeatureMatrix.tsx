@@ -152,7 +152,7 @@ export default function FeatureMatrix({ items, offerings }: FeatureMatrixProps) 
     computeOptionPrice(items, "monthly-blended"),
   ];
 
-  const COL = "grid-cols-[2fr_1fr_1fr_1fr]";
+  const COL = "grid-cols-[1.5fr_1fr_1fr_1fr]";
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-background">
