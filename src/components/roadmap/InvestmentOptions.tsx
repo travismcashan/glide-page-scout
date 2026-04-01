@@ -148,7 +148,7 @@ function CollapsedCard({ option, onClick }: { option: OptionDef; onClick: () => 
   );
 }
 
-function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle, pricingExpanded }: {
+function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, onDiscountChange, isBundle, pricingExpanded, onGetStarted }: {
   option: OptionDef;
   offerings: Offering[];
   outcomes: string[];
@@ -157,6 +157,7 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
   onDiscountChange?: (discount: { percent: number } | null) => void;
   isBundle?: boolean;
   pricingExpanded?: boolean;
+  onGetStarted?: () => void;
 }) {
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
@@ -257,18 +258,18 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
 
       <div className="border-b border-border px-6 py-5">
         <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground">
-          {isBundle ? "WHY BUNDLE?" : "OUTCOMES"}
+          {isBundle ? "WHY BUNDLE?" : "BENEFITS"}
         </p>
         {outcomesLoading ? (
           <p className="text-sm italic text-muted-foreground">Generating outcomes…</p>
         ) : outcomes.length === 0 ? (
           <p className="text-sm italic text-muted-foreground">Add services to generate outcomes</p>
         ) : (
-          <ul className="space-y-2.5">
-            {outcomes.slice(0, 3).map((outcome, i) => (
-              <li key={i} className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
-                <span className="text-sm text-foreground line-clamp-2">{renderBold(outcome)}</span>
+          <ul className="space-y-2">
+            {outcomes.slice(0, 5).map((outcome, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={3} />
+                <span className="text-sm text-foreground truncate">{renderBold(outcome)}</span>
               </li>
             ))}
           </ul>
@@ -323,6 +324,22 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
           </ul>
         )}
       </div>
+
+      {/* Get Started CTA */}
+      {option.scopeItems.length > 0 && (
+        <div className="px-6 pb-5">
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onGetStarted?.();
+            }}
+          >
+            Get Started
+          </Button>
+        </div>
+      )}
 
       {/* Collapsible pricing breakdown */}
       {option.scopeItems.length > 0 && (() => {
@@ -456,9 +473,13 @@ function ExpandedCard({ option, offerings, outcomes, outcomesLoading, discount, 
                   <span className="text-xs text-muted-foreground/70">*</span>
                   <span className="text-xs text-muted-foreground/70">
                     Does not include the cost of ad spend.{" "}
-                    <Tooltip>
+                    <Tooltip delayDuration={0}>
                       <TooltipTrigger asChild>
-                        <button className="inline-flex items-center gap-0.5 text-xs text-primary/70 hover:text-primary underline decoration-dotted underline-offset-2 transition-colors">
+                        <button
+                          className="inline-flex items-center gap-0.5 text-xs text-primary/70 hover:text-primary underline decoration-dotted underline-offset-2 transition-colors cursor-help"
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
                           View PPC pricing tiers
                           <Info className="h-3 w-3" />
                         </button>

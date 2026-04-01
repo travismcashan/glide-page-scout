@@ -112,33 +112,33 @@ serve(async (req) => {
     let systemMsg: string;
     let outcomeCount: number;
 
-    outcomeCount = 3;
+    outcomeCount = 5;
 
     if (whyBundle) {
       prompt = `You are a senior digital agency strategist. The client is considering a 12-month bundled growth plan that includes ALL of the following services: ${serviceNames.join(", ")}.
 
-Generate exactly 3 compelling reasons to bundle these services together instead of buying them separately. Focus on the compounding effect, cost savings, and strategic alignment.
+Generate exactly 5 short benefit bullets for why bundling these services is the smart move. Think SaaS pricing page style.
 
-Each reason should:
-- Be one punchy sentence (8-10 words, no filler)
-- Emphasize synergy between services, not individual service benefits
-- Reference the client context to make it specific and empathetic
-- Bold exactly ONE key word or short phrase using **markdown bold** — the action verb or the most compelling metric (e.g. "**Compound** growth across every digital channel" or "Save **$12K+** through unified strategy")${fullContext}`;
-      systemMsg = `You return exactly 3 reasons to bundle. Each must use **bold** on exactly one key word/phrase. Use the return_outcomes tool. No other text.`;
+Each bullet should:
+- Be a short phrase, 2-5 words MAX (e.g. "Unified growth strategy", "Cross-channel compounding", "Single dedicated team")
+- Bold exactly ONE key word using **markdown bold** (e.g. "**Unified** growth strategy")
+- Focus on synergy, savings, or strategic advantage
+- NO full sentences, NO periods, NO filler words${fullContext}`;
+      systemMsg = `You return exactly 5 benefit bullets. Each must be 2-5 words, phrase-style (not a sentence), with **bold** on one key word. Use the return_outcomes tool. No other text.`;
     } else {
-      prompt = `You are a senior digital agency strategist presenting to a prospective client. Given the following ${count} services included in an investment option called "${optionName}", generate exactly 3 highly specific, compelling business outcomes that represent the combined impact of these services together.
+      prompt = `You are a senior digital agency strategist presenting to a prospective client. Given the following ${count} services included in an investment option called "${optionName}", generate exactly 5 short benefit bullets representing the combined value of these services. Think SaaS pricing page style.
 
-Each outcome should:
-- Be one punchy sentence (8-10 words, no filler words)
+Each bullet should:
+- Be a short phrase, 2-5 words MAX (e.g. "**2x** organic traffic", "Faster page loads", "Higher conversion rates")
+- Bold exactly ONE key word or metric using **markdown bold**
 - Reference specific, measurable results when possible
-- Connect the services directly to client business impact
-- Sound like a confident promise, not generic marketing speak
-- Use the client context below to make each outcome deeply relevant to THIS specific client
-- Bold exactly ONE key word or short phrase using **markdown bold** — the action verb or the most compelling metric (e.g. "**Double** organic traffic within six months" or "Cut bounce rate by **40%** in 90 days")${fullContext}
+- Connect directly to business impact
+- NO full sentences, NO periods, NO filler words
+- Use the client context below to make bullets relevant to THIS client${fullContext}
 
 Services:
 ${serviceNames.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`;
-      systemMsg = `You return exactly 3 business outcomes representing the combined impact of these services. Each must be 8-10 words and use **bold** on exactly one key word/phrase. Use the return_outcomes tool. No other text.`;
+      systemMsg = `You return exactly 5 benefit bullets. Each must be 2-5 words, phrase-style (not a sentence), with **bold** on one key word. Use the return_outcomes tool. No other text.`;
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -149,7 +149,7 @@ ${serviceNames.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}`;
         max_tokens: 1024,
         system: systemMsg,
         messages: [{ role: "user", content: prompt }],
-        tools: [{ name: "return_outcomes", description: `Return exactly ${outcomeCount} outcomes`, input_schema: { type: "object", properties: { outcomes: { type: "array", items: { type: "string" }, description: `Exactly ${outcomeCount} outcomes, 8-10 words each` } }, required: ["outcomes"] } }],
+        tools: [{ name: "return_outcomes", description: `Return exactly ${outcomeCount} benefit phrases`, input_schema: { type: "object", properties: { outcomes: { type: "array", items: { type: "string" }, description: `Exactly ${outcomeCount} short benefit phrases, 2-5 words each` } }, required: ["outcomes"] } }],
         tool_choice: { type: "tool", name: "return_outcomes" },
       }),
     });
