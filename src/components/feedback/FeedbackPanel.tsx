@@ -46,6 +46,14 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const pendingAutoProcessRef = useRef(false);
+  const rawInputRef = useRef(rawInput);
+  const elementDescriptionRef = useRef(elementDescription);
+  const pageUrlRef = useRef(pageUrl);
+
+  // Keep refs in sync
+  useEffect(() => { rawInputRef.current = rawInput; }, [rawInput]);
+  useEffect(() => { elementDescriptionRef.current = elementDescription; }, [elementDescription]);
+  useEffect(() => { pageUrlRef.current = pageUrl; }, [pageUrl]);
 
   // Reset when panel opens
   useEffect(() => {
@@ -61,23 +69,28 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
     }
   }, [open]);
 
-  // Auto-process after recording stops
+  // Auto-process after recording stops (with small delay to let final transcript settle)
   useEffect(() => {
-    if (!recording && pendingAutoProcessRef.current && rawInput.trim()) {
+    if (!recording && pendingAutoProcessRef.current) {
       pendingAutoProcessRef.current = false;
-      handleProcess();
+      const timer = setTimeout(() => {
+        if (rawInputRef.current.trim()) {
+          runProcess(rawInputRef.current, elementDescriptionRef.current, pageUrlRef.current);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [recording]);
 
   // ---- AI Processing ----
-  const handleProcess = async () => {
-    if (!rawInput.trim()) return;
+  const runProcess = async (input: string, elDesc: string | null, url: string) => {
+    if (!input.trim()) return;
     setProcessing(true);
     try {
       const context = [
-        rawInput.trim(),
-        elementDescription ? `[Element: ${elementDescription}]` : null,
-        pageUrl ? `[Page: ${pageUrl.replace(/^https?:\/\/[^/]+/, "")}]` : null,
+        input.trim(),
+        elDesc ? `[Element: ${elDesc}]` : null,
+        url ? `[Page: ${url.replace(/^https?:\/\/[^/]+/, "")}]` : null,
       ].filter(Boolean).join("\n");
 
       const { data } = await supabase.functions.invoke("wishlist-parse", {
@@ -87,28 +100,32 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
       if (data?.items?.length) {
         const first = data.items[0];
         setProcessed({
-          title: first.title || rawInput.trim().slice(0, 120),
-          description: first.description || rawInput.trim(),
+          title: first.title || input.trim().slice(0, 120),
+          description: first.description || input.trim(),
           priority: first.priority || "medium",
           category: first.category || "feature",
         });
       } else {
         setProcessed({
-          title: rawInput.trim().slice(0, 120),
-          description: rawInput.trim(),
+          title: input.trim().slice(0, 120),
+          description: input.trim(),
           priority: "medium",
           category: "feature",
         });
       }
     } catch {
       setProcessed({
-        title: rawInput.trim().slice(0, 120),
-        description: rawInput.trim(),
+        title: input.trim().slice(0, 120),
+        description: input.trim(),
         priority: "medium",
         category: "feature",
       });
     }
     setProcessing(false);
+  };
+
+  const handleProcess = () => {
+    runProcess(rawInput, elementDescription, pageUrl);
   };
 
   // ---- Voice Recording ----
@@ -122,7 +139,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
       recognition.interimResults = true;
       recognition.lang = "en-US";
 
-      let finalTranscript = rawInput;
+      let finalTranscript = rawInputRef.current;
 
       recognition.onresult = (event: any) => {
         let interim = "";
@@ -142,8 +159,8 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
 
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
-        setRecording(false);
         pendingAutoProcessRef.current = false;
+        setRecording(false);
         if (event.error === "not-allowed") {
           toast.error("Microphone access needed", {
             description: "Click the lock icon in your browser's address bar to allow microphone access, then try again.",
@@ -181,7 +198,7 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
         toast.error("Couldn't access microphone");
       }
     }
-  }, [rawInput]);
+  }, []);
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null; }
@@ -556,37 +573,55 @@ export default function FeedbackPanel({ open, onClose }: FeedbackPanelProps) {
         {/* Bottom action bar */}
         <div className="px-8 py-5 border-t border-border bg-muted/20">
           {!processed && !processing ? (
-            <Button
-              onClick={handleProcess}
-              disabled={!rawInput.trim()}
-              className="w-full gap-2 h-11 text-sm font-semibold"
-            >
-              <Sparkles className="h-4 w-4" />
-              Process with AI
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="flex-1 h-11 text-sm font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProcess}
+                disabled={!rawInput.trim()}
+                className="flex-1 gap-2 h-11 text-sm font-semibold"
+              >
+                <Sparkles className="h-4 w-4" />
+                Process with AI
+              </Button>
+            </div>
           ) : processing ? (
             <Button disabled className="w-full gap-2 h-11 text-sm font-semibold">
               <Loader2 className="h-4 w-4 animate-spin" />
               Processing...
             </Button>
           ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting || !processed?.title.trim()}
-              className="w-full gap-2 h-11 text-sm font-semibold"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Submit to Backlog
-                </>
-              )}
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="flex-1 h-11 text-sm font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || !processed?.title.trim()}
+                className="flex-1 gap-2 h-11 text-sm font-semibold"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Submit
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </SheetContent>
