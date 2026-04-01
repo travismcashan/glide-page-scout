@@ -632,7 +632,13 @@ export default function InvestmentOptions({ items, offerings, sessionId, onGener
     })(),
   ];
 
-  const [outcomesByIdx, setOutcomesByIdx] = useState<Record<number, string[]>>(savedOutcomes || {});
+  // If saved outcomes have fewer than 5 items (old format), treat as empty so they regenerate
+  const cleanedSavedOutcomes = savedOutcomes
+    ? Object.fromEntries(
+        Object.entries(savedOutcomes).map(([k, v]) => [k, v.length >= 5 ? v : []])
+      )
+    : {};
+  const [outcomesByIdx, setOutcomesByIdx] = useState<Record<number, string[]>>(cleanedSavedOutcomes);
   const [loadingByIdx, setLoadingByIdx] = useState<Record<number, boolean>>({});
   const [outcomesGenerated, setOutcomesGenerated] = useState(false);
 
