@@ -10,9 +10,22 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { items } = await req.json();
+    let body: any;
+    try {
+      body = await req.json();
+    } catch (parseErr) {
+      console.error("JSON parse error:", parseErr);
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const items = body?.items;
+    console.log("Received items count:", items?.length, "type:", typeof items, "isArray:", Array.isArray(items));
+
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return new Response(JSON.stringify({ error: "items array is required" }), {
+      return new Response(JSON.stringify({ error: "items array is required", received: typeof items }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -33,7 +46,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-20250414",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         system: `You are a scrum master analyzing a product backlog. Given a list of wishlist items, recommend which item to work on next, suggest priority adjustments, and assess effort estimates.
 
