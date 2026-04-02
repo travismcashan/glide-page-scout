@@ -26,6 +26,7 @@ type WishlistItem = {
   submitted_by: string | null;
   page_url: string | null;
   element_selector: string | null;
+  source: string | null;
 };
 
 type ParsedItem = {
@@ -408,6 +409,11 @@ export default function WishlistPage() {
                                   {effort && (
                                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${effort.color}`}>
                                       {effort.label}
+                                    </Badge>
+                                  )}
+                                  {item.source === 'claude' && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
+                                      Claude
                                     </Badge>
                                   )}
                                   {item.page_url && (
