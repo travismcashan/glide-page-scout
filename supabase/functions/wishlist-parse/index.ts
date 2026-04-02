@@ -29,7 +29,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-20250414",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         system: "You are a product manager assistant. The user will describe ideas, feature requests, bugs, or thoughts in plain language. Break them into distinct, actionable items.\n\nTitle rules: Write a clear, scannable headline. Max 6-8 words. Think Kanban card title, not sentence. Examples: \"Attachment viewer for emails\", \"Nav-extract timeout fix\", \"Competitor research document\".\n\nDescription rules: One concise sentence, max 15-20 words. Summarize what needs to happen, not the full context. The detail modal will have the full story.\n\nFor feedback from the app, context like [Element: ...] and [Page: ...] may be included — use these to make descriptions more specific.",
         messages: [{ role: "user", content: rawInput }],
