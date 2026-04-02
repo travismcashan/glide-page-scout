@@ -22,14 +22,19 @@ export default function MeasurementPlan({ kpis }: MeasurementPlanProps) {
   return (
     <section className="py-20 px-8 lg:px-16">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-4xl md:text-5xl text-foreground tracking-tight mb-4">
-          <span className="font-bold">What Success</span>{" "}
-          <span className="font-light">Looks Like</span>
-        </h2>
-        <p className="text-base text-muted-foreground max-w-3xl mb-8">
-          The measurable outcomes that define whether this engagement is delivering real value.
-        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-3">
+            <h2 className="text-4xl md:text-5xl text-foreground tracking-tight mb-4">
+              <span className="font-bold">What Success</span>{" "}
+              <span className="font-light">Looks Like</span>
+            </h2>
+            <p className="text-base text-muted-foreground max-w-3xl">
+              The measurable outcomes that define whether this engagement is delivering real value.
+            </p>
+            <hr className="border-t-2 border-foreground mt-8" />
+          </div>
 
+          <div className="lg:col-span-3">
         {/* Table header */}
         <div className="rounded-t-lg bg-foreground text-background grid grid-cols-12 px-6 py-3.5">
           <div className="col-span-3 text-xs font-bold uppercase tracking-wider">What We're Measuring</div>
@@ -74,6 +79,8 @@ export default function MeasurementPlan({ kpis }: MeasurementPlanProps) {
             </div>
           );
         })}
+          </div>
+        </div>
       </div>
     </section>
   );

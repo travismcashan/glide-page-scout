@@ -32,16 +32,20 @@ export default function StrategicFoundation({ categories }: StrategicFoundationP
   return (
     <section className="py-20 px-8 lg:px-16">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-4xl md:text-5xl text-foreground tracking-tight">
-          <span className="font-bold">The</span>{" "}
-          <span className="font-light">Playing Field</span>
-        </h2>
-        <p className="text-base text-muted-foreground max-w-3xl mt-4">
-          A 360-degree diagnostic of the market atmosphere and competitive landscape.
-        </p>
-        <hr className="border-t-2 border-foreground mt-8 mb-12" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-3">
+            <h2 className="text-4xl md:text-5xl text-foreground tracking-tight">
+              <span className="font-bold">The</span>{" "}
+              <span className="font-light">Playing Field</span>
+            </h2>
+            <p className="text-base text-muted-foreground max-w-3xl mt-4">
+              A 360-degree diagnostic of the market atmosphere and competitive landscape.
+            </p>
+            <hr className="border-t-2 border-foreground mt-8" />
+          </div>
 
-        <div className="max-w-3xl mx-auto space-y-10">
+          <div className="hidden lg:block lg:col-span-1" />
+          <div className="lg:col-span-2 space-y-10">
           {categories.map((cat, idx) => {
             const { label, subtitle } = parseCategory(cat.category);
             return (
@@ -60,6 +64,7 @@ export default function StrategicFoundation({ categories }: StrategicFoundationP
               </div>
             );
           })}
+          </div>
         </div>
       </div>
     </section>
