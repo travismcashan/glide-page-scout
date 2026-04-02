@@ -66,7 +66,10 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: matches, error } = await supabase.rpc('match_knowledge_chunks_hybrid', {
+    let matches: any[] = [];
+    let searchType = 'hybrid';
+
+    const { data: hybridMatches, error } = await supabase.rpc('match_knowledge_chunks_hybrid', {
       p_session_id: session_id,
       p_embedding: `[${queryEmbedding.join(',')}]`,
       p_query: query,
@@ -76,7 +79,7 @@ serve(async (req) => {
 
     if (error) {
       console.error('Hybrid search error:', error);
-      // Fallback to vector-only search if hybrid fails
+      // Fallback to vector-only search
       console.log('[rag-search] Falling back to vector-only search');
       const { data: fallbackMatches, error: fallbackError } = await supabase.rpc('match_knowledge_chunks', {
         p_session_id: session_id,
@@ -92,17 +95,68 @@ serve(async (req) => {
         );
       }
 
-      console.log(`[rag-search] Fallback query "${query.slice(0, 50)}..." returned ${fallbackMatches?.length || 0} chunks`);
-      return new Response(
-        JSON.stringify({ success: true, matches: fallbackMatches || [], search_type: 'vector_fallback' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      matches = fallbackMatches || [];
+      searchType = 'vector_fallback';
+      console.log(`[rag-search] Fallback query "${query.slice(0, 50)}..." returned ${matches.length} chunks`);
+    } else {
+      matches = hybridMatches || [];
+      console.log(`[rag-search] Hybrid query "${query.slice(0, 50)}..." returned ${matches.length} chunks`);
     }
 
-    console.log(`[rag-search] Hybrid query "${query.slice(0, 50)}..." returned ${matches?.length || 0} chunks`);
+    // ── Always-include: fetch Avoma call transcript chunks ──────────────
+    // Call transcripts contain the client's own words about their fears,
+    // hopes, goals, and requirements — always relevant context.
+    try {
+      const existingIds = new Set(matches.map((m: any) => m.id));
+
+      // Step 1: Find Avoma document IDs for this session
+      const { data: avomaDocs } = await supabase
+        .from('knowledge_documents')
+        .select('id, name')
+        .eq('session_id', session_id)
+        .ilike('name', '%Avoma Meeting:%');
+
+      if (avomaDocs?.length) {
+        const docIds = avomaDocs.map(d => d.id);
+        const docNameMap = new Map(avomaDocs.map(d => [d.id, d.name]));
+
+        // Step 2: Fetch chunks for those documents
+        const { data: avomaChunks } = await supabase
+          .from('knowledge_chunks')
+          .select('id, document_id, chunk_index, chunk_text')
+          .eq('session_id', session_id)
+          .in('document_id', docIds)
+          .order('chunk_index')
+          .limit(16);
+
+        if (avomaChunks?.length) {
+          let boostCount = 0;
+          for (const chunk of avomaChunks) {
+            if (!existingIds.has(chunk.id)) {
+              matches.push({
+                id: chunk.id,
+                document_id: chunk.document_id,
+                chunk_index: chunk.chunk_index,
+                chunk_text: chunk.chunk_text,
+                document_name: docNameMap.get(chunk.document_id) || 'Avoma Call Transcript',
+                source_type: 'integration',
+                similarity: 0.5,
+              });
+              existingIds.add(chunk.id);
+              boostCount++;
+            }
+          }
+          if (boostCount > 0) {
+            console.log(`[rag-search] Boosted ${boostCount} Avoma call transcript chunks from ${avomaDocs.length} meetings`);
+          }
+        }
+      }
+    } catch (boostError) {
+      console.warn('[rag-search] Avoma boost failed (non-blocking):', boostError);
+    }
 
     return new Response(
-      JSON.stringify({ success: true, matches: matches || [], search_type: 'hybrid' }),
+      JSON.stringify({ success: true, matches, search_type: searchType }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e) {
