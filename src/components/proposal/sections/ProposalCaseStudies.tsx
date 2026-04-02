@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, X, ImagePlus, FileText, Trash2, GripVertical } from "lucide-react";
+import { Loader2, Upload, X, ImagePlus, FileText, Trash2, GripVertical, HardDrive, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import { GoogleDrivePicker } from "@/components/drive/GoogleDrivePicker";
 
 export interface CaseStudy {
   id?: string;
@@ -40,6 +41,9 @@ export default function ProposalCaseStudies({
   const [dragOver, setDragOver] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [showTextInput, setShowTextInput] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [driveOpen, setDriveOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState<string | null>(null); // case study id
@@ -166,6 +170,68 @@ export default function ProposalCaseStudies({
       await saveCaseStudies(updated);
       setTextInput("");
       setShowTextInput(false);
+      toast.success(`Case study for ${newStudy.company} created`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to create case study");
+    }
+    setIsProcessing(false);
+    setProcessingLabel("");
+  };
+
+  // ── Handle URL submission (scrape + screenshot) ──────────────
+  const handleUrlSubmit = async () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    setIsProcessing(true);
+    try {
+      // Scrape content
+      setProcessingLabel("Scraping website content...");
+      const { data: scrapeData, error: scrapeErr } = await supabase.functions.invoke("firecrawl-scrape", {
+        body: { url, formats: ["markdown"], onlyMainContent: true },
+      });
+      if (scrapeErr) throw scrapeErr;
+      const rawContent = scrapeData?.markdown || scrapeData?.text || scrapeData?.content || url;
+
+      // Take screenshot
+      setProcessingLabel("Taking screenshot...");
+      let screenshotUrl = "";
+      try {
+        const { data: ssData } = await supabase.functions.invoke("thum-screenshot", {
+          body: { url },
+        });
+        if (ssData?.screenshot_url) screenshotUrl = ssData.screenshot_url;
+      } catch { /* screenshot is optional */ }
+
+      // Generate case study
+      setProcessingLabel("AI is structuring the case study...");
+      const newStudy = await generateCaseStudy(rawContent);
+      if (screenshotUrl) newStudy.screenshot_url = screenshotUrl;
+      const updated = [...caseStudies, newStudy];
+      onCaseStudiesChange(updated);
+      await saveCaseStudies(updated);
+      setUrlInput("");
+      setShowUrlInput(false);
+      toast.success(`Case study for ${newStudy.company} created`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to create case study from URL");
+    }
+    setIsProcessing(false);
+    setProcessingLabel("");
+  };
+
+  // ── Handle Google Drive files ────────────────────────────────
+  const handleDriveFiles = async (files: { name: string; content?: string; mimeType: string; isText: boolean }[]) => {
+    setDriveOpen(false);
+    const textFiles = files.filter(f => f.isText && f.content);
+    if (!textFiles.length) { toast.error("No text content found in selected files"); return; }
+    setIsProcessing(true);
+    try {
+      const rawContent = textFiles.map(f => f.content).join("\n\n---\n\n");
+      setProcessingLabel("AI is structuring the case study...");
+      const newStudy = await generateCaseStudy(rawContent);
+      const updated = [...caseStudies, newStudy];
+      onCaseStudiesChange(updated);
+      await saveCaseStudies(updated);
       toast.success(`Case study for ${newStudy.company} created`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to create case study");
@@ -331,22 +397,20 @@ export default function ProposalCaseStudies({
                   <p className="text-sm text-muted-foreground mb-4">
                     Drop files here, or use the buttons below. Upload docs, images, or paste text about a client project.
                   </p>
-                  <div className="flex items-center justify-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()}>
                       <FileText className="h-4 w-4" />
                       Upload Files
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => setShowTextInput(!showTextInput)}
-                    >
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDriveOpen(true)}>
+                      <HardDrive className="h-4 w-4" />
+                      Google Drive
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setShowUrlInput(!showUrlInput); setShowTextInput(false); }}>
+                      <Link2 className="h-4 w-4" />
+                      From URL
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setShowTextInput(!showTextInput); setShowUrlInput(false); }}>
                       <FileText className="h-4 w-4" />
                       Paste Text
                     </Button>
@@ -362,7 +426,25 @@ export default function ProposalCaseStudies({
                       e.target.value = "";
                     }}
                   />
+                  <GoogleDrivePicker open={driveOpen} onOpenChange={setDriveOpen} onFilesSelected={handleDriveFiles} />
                 </div>
+
+                {showUrlInput && (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="https://example.com — we'll screenshot it and scrape the content"
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleUrlSubmit(); }}
+                      />
+                      <Button size="sm" onClick={handleUrlSubmit} disabled={!urlInput.trim()}>
+                        Go
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {showTextInput && (
                   <div className="mt-4 space-y-3">
