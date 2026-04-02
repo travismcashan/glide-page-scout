@@ -1030,20 +1030,12 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   // Markdown treats [text][ref] as a reference link, so adjacent [doc:1][doc:3] gets swallowed.
   const processedContent = content.replace(/\[doc:(\d+)\]/g, '%%DOCREF_$1%%');
 
-  // Parse GLIDE_DOC blocks for branded document downloads (handles raw or backtick-wrapped)
-  const glideDocMatch = processedContent.match(/`?<!--GLIDE_DOC:([\s\S]*?)-->`?/);
-  let glideDocMeta: { title: string; subtitle?: string; clientDomain?: string; companyName?: string } | null = null;
-  let glideDocContent = '';
-  let contentWithoutDocBlock = processedContent;
-  if (glideDocMatch) {
-    try {
-      glideDocMeta = JSON.parse(glideDocMatch[1]);
-      // Everything after the GLIDE_DOC block is the document content
-      const blockEnd = processedContent.indexOf(glideDocMatch[0]) + glideDocMatch[0].length;
-      glideDocContent = processedContent.slice(blockEnd).trim();
-      contentWithoutDocBlock = processedContent.slice(0, processedContent.indexOf(glideDocMatch[0])).trim();
-    } catch { /* ignore parse errors */ }
-  }
+  // Track glide-doc metadata extracted from code fences for document download
+  const glideDocRef = React.useRef<{ title: string; subtitle?: string; clientDomain?: string; companyName?: string } | null>(null);
+  // Extract the full markdown content (minus the glide-doc fence) for PDF export
+  const docContentForPdf = React.useMemo(() => {
+    return processedContent.replace(/```glide-doc\s*\n[\s\S]*?\n```/g, '').trim();
+  }, [processedContent]);
 
   // react-markdown v10 has no `text` component — process citations via block-level components
   const withCitations = (Tag: string) => ({ children, ...props }: any) => {
@@ -1059,6 +1051,21 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
     img: ({ src, alt, ...props }: any) => (
       <img src={src} alt={alt || ''} className="max-w-full rounded-lg my-2" style={{ maxHeight: 300 }} loading="lazy" {...props} />
     ),
+    code: ({ className, children, ...props }: any) => {
+      // Intercept glide-doc fenced code blocks → render DocumentDownloadBlock
+      if (className === 'language-glide-doc') {
+        try {
+          const meta = JSON.parse(String(children).trim());
+          glideDocRef.current = meta;
+          return <DocumentDownloadBlock docMeta={meta} markdownContent={docContentForPdf} />;
+        } catch { /* fall through to normal code rendering */ }
+      }
+      // Default code rendering
+      if (className) {
+        return <pre className={`${className} rounded-lg p-3 overflow-x-auto`}><code {...props}>{children}</code></pre>;
+      }
+      return <code className="bg-muted px-1 py-0.5 rounded text-sm" {...props}>{children}</code>;
+    },
   };
 
   return (
@@ -1076,15 +1083,7 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       )}
       <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{processedContent}</div>}>
         <div className="chat-prose max-w-none">
-          {glideDocMeta ? (
-            <>
-              {contentWithoutDocBlock && <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{contentWithoutDocBlock}</ReactMarkdown>}
-              <DocumentDownloadBlock docMeta={glideDocMeta} markdownContent={glideDocContent} />
-              {glideDocContent && <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{glideDocContent}</ReactMarkdown>}
-            </>
-          ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{processedContent}</ReactMarkdown>
-          )}
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{processedContent}</ReactMarkdown>
         </div>
       </Suspense>
       {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && !(councilModels && councilModels.length > 0) && (
