@@ -14,12 +14,15 @@ type KanbanColumnProps = {
   onDelete: (id: string) => void;
   onCardClick?: (item: WishlistItem) => void;
   deleting: string | null;
+  activeId: string | null;
 };
 
-export function KanbanColumn({ status, items, onDelete, onCardClick, deleting }: KanbanColumnProps) {
+export function KanbanColumn({ status, items, onDelete, onCardClick, deleting, activeId }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.wishlist;
   const isWip = status === 'in-progress' && items.length > 3;
+  const isDragging = activeId !== null;
+  const isDraggingFromHere = isDragging && items.some((i) => i.id === activeId);
 
   return (
     <div
@@ -27,7 +30,7 @@ export function KanbanColumn({ status, items, onDelete, onCardClick, deleting }:
       className={`
         flex flex-col rounded-xl transition-colors duration-200
         ${config.bg}
-        ${isOver ? 'ring-2 ring-primary/20 bg-primary/[0.04]' : ''}
+        ${isOver ? 'ring-2 ring-primary/30 bg-primary/[0.04]' : ''}
       `}
     >
       {/* Sticky column header */}
@@ -54,14 +57,19 @@ export function KanbanColumn({ status, items, onDelete, onCardClick, deleting }:
           <KanbanCard key={item.id} item={item} onDelete={onDelete} onCardClick={onCardClick} deleting={deleting} />
         ))}
 
-        {/* Empty / drop target */}
-        {items.length === 0 && (
+        {/* Drop placeholder — shows when dragging over this column from another column */}
+        {isOver && !isDraggingFromHere && (
+          <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/[0.02] p-4 min-h-[80px] transition-all duration-200" />
+        )}
+
+        {/* Empty state — only when column is truly empty and not dragging */}
+        {items.length === 0 && !isOver && (
           <div className={`
-            h-16 rounded-lg border border-dashed
+            rounded-xl border-2 border-dashed min-h-[80px]
             transition-colors duration-200
-            ${isOver
-              ? 'border-primary/30 bg-primary/[0.02]'
-              : 'border-border/30'
+            ${isDragging
+              ? 'border-border/50'
+              : 'border-border/20'
             }
           `} />
         )}

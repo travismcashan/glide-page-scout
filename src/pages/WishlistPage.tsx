@@ -31,6 +31,7 @@ export default function WishlistPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sort, setSort] = useState<SortMode>('newest');
+  const [prioritizing, setPrioritizing] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -47,6 +48,9 @@ export default function WishlistPage() {
       if (error) throw error;
 
       const items = (data as any[]) || [];
+      const itemIds = items.map(i => i.id);
+
+      // Enrich with profile data
       const userIds = [...new Set(items.map(i => i.submitted_by).filter(Boolean))];
       if (userIds.length) {
         const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
@@ -55,6 +59,22 @@ export default function WishlistPage() {
           for (const item of items) {
             if (item.submitted_by) item.profiles = profileMap.get(item.submitted_by) || null;
           }
+        }
+      }
+
+      // Enrich with attachment + comment counts
+      if (itemIds.length) {
+        const [{ data: attCounts }, { data: cmtCounts }] = await Promise.all([
+          supabase.from('wishlist_attachments').select('wishlist_item_id').in('wishlist_item_id', itemIds),
+          supabase.from('wishlist_comments').select('wishlist_item_id').in('wishlist_item_id', itemIds),
+        ]);
+        const attMap = new Map<string, number>();
+        const cmtMap = new Map<string, number>();
+        for (const a of attCounts || []) attMap.set(a.wishlist_item_id, (attMap.get(a.wishlist_item_id) || 0) + 1);
+        for (const c of cmtCounts || []) cmtMap.set(c.wishlist_item_id, (cmtMap.get(c.wishlist_item_id) || 0) + 1);
+        for (const item of items) {
+          item.attachment_count = attMap.get(item.id) || 0;
+          item.comment_count = cmtMap.get(item.id) || 0;
         }
       }
 
@@ -122,6 +142,61 @@ export default function WishlistPage() {
     fetchItems();
   };
 
+  const handlePrioritize = async () => {
+    setPrioritizing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('wishlist-prioritize', {
+        body: { items: items.map(({ id, title, category, priority, effort_estimate, status, created_at }) => ({ id, title, category, priority, effort_estimate, status, created_at })) },
+      });
+      if (error) throw error;
+      if (data?.error) { toast({ title: 'AI Error', description: data.error, variant: 'destructive' }); return; }
+
+      let changeCount = 0;
+      const updates: Record<string, any> = {};
+
+      // Apply priority changes
+      for (const ch of data.priority_changes || []) {
+        if (!updates[ch.id]) updates[ch.id] = {};
+        updates[ch.id].priority = ch.new_priority;
+        changeCount++;
+      }
+      // Apply effort changes
+      for (const ch of data.effort_changes || []) {
+        if (!updates[ch.id]) updates[ch.id] = {};
+        updates[ch.id].effort_estimate = ch.new_effort;
+        changeCount++;
+      }
+      // Apply category changes
+      for (const ch of data.category_changes || []) {
+        if (!updates[ch.id]) updates[ch.id] = {};
+        updates[ch.id].category = ch.new_category;
+        changeCount++;
+      }
+
+      // Persist all changes to DB
+      for (const [id, fields] of Object.entries(updates)) {
+        await supabase.from('wishlist_items').update(fields as any).eq('id', id);
+      }
+
+      // Update local state
+      setItems((prev) => prev.map((item) => {
+        const u = updates[item.id];
+        return u ? { ...item, ...u } : item;
+      }));
+
+      // Find the recommended next item
+      const nextItem = items.find((i) => i.id === data.next_item_id);
+      toast({
+        title: nextItem ? `Work on: ${nextItem.title}` : 'Backlog analyzed',
+        description: data.next_item_reason + (changeCount ? ` (${changeCount} fields updated)` : ''),
+      });
+    } catch (e: any) {
+      toast({ title: 'Prioritize failed', description: e.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setPrioritizing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -162,6 +237,8 @@ export default function WishlistPage() {
             totalCount={items.length}
             filteredCount={filteredItems.length}
             onAddClick={() => setInputOpen(!inputOpen)}
+            onPrioritize={handlePrioritize}
+            prioritizing={prioritizing}
           />
         )}
 

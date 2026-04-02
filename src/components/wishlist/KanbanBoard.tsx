@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCardOverlay, type WishlistItem } from './KanbanCard';
+import { useToast } from '@/hooks/use-toast';
 
 const STATUSES = ['wishlist', 'planned', 'in-progress', 'done'] as const;
 
@@ -13,8 +14,11 @@ type KanbanBoardProps = {
   deleting: string | null;
 };
 
+const WIP_LIMIT = 3;
+
 export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, deleting }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -40,6 +44,13 @@ export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, dele
     const currentStatus = (active.data.current as any)?.status;
 
     if (currentStatus !== newStatus && STATUSES.includes(newStatus as any)) {
+      if (newStatus === 'in-progress') {
+        const inProgressCount = items.filter((i) => i.status === 'in-progress').length;
+        if (inProgressCount >= WIP_LIMIT) {
+          toast({ title: `WIP limit reached (${WIP_LIMIT})`, description: 'Finish something in progress before starting new work.', variant: 'destructive' });
+          return;
+        }
+      }
       onStatusChange(itemId, newStatus);
     }
   }
@@ -64,11 +75,12 @@ export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, dele
             onDelete={onDelete}
             onCardClick={onCardClick}
             deleting={deleting}
+            activeId={activeId}
           />
         ))}
       </div>
 
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
         {activeItem ? (
           <KanbanCardOverlay item={activeItem} onDelete={onDelete} deleting={deleting} />
         ) : null}

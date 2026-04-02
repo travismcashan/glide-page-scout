@@ -1,5 +1,6 @@
-import { Search, X, ArrowUpDown, Filter, Layers, Plus } from 'lucide-react';
+import { Search, X, ArrowUpDown, Filter, Layers, Plus, Wand2, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const SORT_OPTIONS = [
@@ -22,6 +23,8 @@ type KanbanToolbarProps = {
   totalCount: number;
   filteredCount: number;
   onAddClick: () => void;
+  onPrioritize: () => void;
+  prioritizing: boolean;
 };
 
 export function KanbanToolbar({
@@ -31,6 +34,7 @@ export function KanbanToolbar({
   sort, onSortChange,
   totalCount, filteredCount,
   onAddClick,
+  onPrioritize, prioritizing,
 }: KanbanToolbarProps) {
   const isFiltered = search || category !== 'all' || priority !== 'all';
 
@@ -44,6 +48,18 @@ export function KanbanToolbar({
         <Plus className="h-3.5 w-3.5" />
         Add idea
       </button>
+
+      {/* AI Prioritize */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onPrioritize}
+        disabled={prioritizing || totalCount === 0}
+        className="shrink-0"
+      >
+        {prioritizing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+        {prioritizing ? 'Analyzing...' : 'AI Prioritize'}
+      </Button>
 
       {/* Spacer */}
       <div className="flex-1" />
