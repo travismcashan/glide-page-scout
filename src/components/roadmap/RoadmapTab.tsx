@@ -508,7 +508,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               <span
                 className={`inline-block h-2.5 w-2.5 rounded-full ${{ IS: "bg-pillar-is", FB: "bg-pillar-fb", GO: "bg-pillar-go", TS: "bg-pillar-ts" }[p.code]}`}
               />
-              <span className="text-sm font-medium text-muted-foreground">
+              <span className="text-sm font-normal text-muted-foreground">
                 {p.name} ({p.code})
               </span>
             </div>
