@@ -314,7 +314,7 @@ export default function TimelineBar({
   const visibleDuration = Math.min(item.duration, totalMonths - item.startMonth);
   const barLeft = (item.startMonth - viewOffset) * columnWidth + PAD;
   const barWidth = visibleDuration * columnWidth - PAD * 2;
-  const labelText = `${item.name} (${visibleDuration} mo)`;
+  const labelText = `${item.name} (${startLabel}–${endLabel}, ${visibleDuration} mo)`;
   const barEnd = item.startMonth + visibleDuration;
   const nearRightEdge = barEnd >= totalMonths - 1;
 
