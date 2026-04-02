@@ -93,7 +93,7 @@ serve(async (req) => {
     const TOKEN = Deno.env.get("HUBSPOT_ACCESS_TOKEN");
     if (!TOKEN) throw new Error("HUBSPOT_ACCESS_TOKEN not configured");
 
-    const { action, pipeline, includeClosedStages } = await req.json();
+    const { action, pipeline } = await req.json();
 
     // ---- Fetch owners (shared by both actions) ----
     const ownersRes = await hubspotFetch("/crm/v3/owners?limit=100", TOKEN);
@@ -105,11 +105,9 @@ serve(async (req) => {
 
     if (action === "leads") {
       // ---- LEADS: contacts by lead status ----
-      const statusValues = LEAD_STATUSES.map((s) => s.id);
       const allContacts: any[] = [];
 
-      // Fetch contacts for each lead status
-      for (const status of statusValues) {
+      for (const status of LEAD_STATUSES.map((s) => s.id)) {
         let after: string | undefined;
         let page = 0;
         do {
@@ -152,12 +150,7 @@ serve(async (req) => {
       const pipelineDef = PIPELINES[pipelineId];
       if (!pipelineDef) throw new Error(`Unknown pipeline: ${pipelineId}`);
 
-      // Determine which stages to include
-      const activeStageIds = pipelineDef.stages
-        .filter((s) => includeClosedStages || !s.closed)
-        .map((s) => s.id);
-
-      // Fetch deals (paginated)
+      // Fetch ALL deals in pipeline (frontend handles open/closed filtering)
       const allDeals: any[] = [];
       let after: string | undefined;
       let page = 0;
@@ -167,20 +160,27 @@ serve(async (req) => {
             {
               filters: [
                 { propertyName: "pipeline", operator: "EQ", value: pipelineId },
-                { propertyName: "dealstage", operator: "IN", values: activeStageIds },
               ],
             },
           ],
           properties: [
             "dealname", "amount", "dealstage", "pipeline", "closedate",
             "createdate", "hs_lastmodifieddate", "hubspot_owner_id",
+            "dealtype", "hs_priority", "deal_source_details",
+            "hs_forecast_probability", "notes_last_contacted",
           ],
-          sorts: [{ propertyName: "closedate", direction: "ASCENDING" }],
+          sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
           limit: 100,
         };
         if (after) body.after = after;
 
-        const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
+        let res;
+        try {
+          res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
+        } catch (searchErr) {
+          console.error("[hubspot-pipeline] Deal search error:", searchErr.message);
+          throw searchErr;
+        }
         for (const d of res.results || []) {
           allDeals.push({ id: d.id, ...d.properties });
         }
@@ -188,10 +188,11 @@ serve(async (req) => {
         page++;
       } while (after && page < 10); // cap at 1000 deals
 
-      // Batch-fetch associated company names
-      if (allDeals.length > 0) {
-        // Get company associations for all deals
-        const dealIds = allDeals.map((d) => d.id);
+      // Batch-fetch associated company names (only for open deals to stay fast)
+      const closedStageIds = new Set(pipelineDef.stages.filter((s) => s.closed).map((s) => s.id));
+      const openDealIds = allDeals.filter((d) => !closedStageIds.has(d.dealstage)).map((d) => d.id);
+      if (openDealIds.length > 0) {
+        const dealIds = openDealIds;
         const companyMap: Record<string, string> = {};
 
         // Process in batches of 20 (HubSpot association batch limit)
@@ -250,7 +251,9 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("[hubspot-pipeline] Error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    const errMsg = e instanceof Error ? e.message : "Unknown error";
+    console.error("[hubspot-pipeline] Full error:", errMsg);
+    return new Response(JSON.stringify({ error: errMsg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
