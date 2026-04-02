@@ -396,6 +396,8 @@ export default function TimelineBar({
                 side="bottom"
                 align="center"
                 onMouseDown={(e) => e.stopPropagation()}
+                onInteractOutside={(e) => e.preventDefault()}
+                onPointerDownOutside={(e) => e.preventDefault()}
               >
                 {isPpc ? (
                   <div className="space-y-3">
