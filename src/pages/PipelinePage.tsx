@@ -864,8 +864,7 @@ export default function PipelinePage() {
 
               {/* Sticky bottom bar — column totals */}
               {pipelineInfo && (
-                <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border">
-                  <div className="max-w-6xl mx-auto px-6">
+                <div className="border-t border-border bg-background/95 backdrop-blur-sm">
                   <div className="flex gap-4 overflow-x-auto" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                     {pipelineInfo.stages
                       .filter((s) => showClosed || !s.closed)
@@ -878,14 +877,13 @@ export default function PipelinePage() {
                             <span className="text-sm text-muted-foreground">Total: </span>
                             <span className="text-sm font-semibold">${total.toLocaleString()}</span>
                             {!isLast && (
-                              <svg className="absolute top-0 bottom-0 h-full w-4 z-[5]" style={{ right: -16 }} preserveAspectRatio="none" viewBox="0 0 16 100">
-                                <path d="M6 0 L10 50 L6 100" fill="none" stroke="hsl(var(--border))" strokeWidth="0.8" />
+                              <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -10 }} preserveAspectRatio="none" viewBox="0 0 16 56">
+                                <path d="M0 0 L16 28 L0 56" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
                               </svg>
                             )}
                           </div>
                         );
                       })}
-                  </div>
                   </div>
                 </div>
               )}
