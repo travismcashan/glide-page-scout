@@ -707,14 +707,14 @@ export default function PipelinePage() {
                                 fill="hsl(var(--muted) / 0.4)"
                               />
                             </svg>
-                            <div className="relative z-10 flex items-center justify-between w-full px-5 py-2" style={{ paddingLeft: isFirst ? 20 : 28 }}>
-                              <div className="min-w-0">
-                                <span className="text-sm font-semibold truncate block">{stage.label}</span>
-                                <span className="text-sm text-muted-foreground">${total.toLocaleString()}</span>
+                            <div className="relative z-10 flex items-center justify-between w-full px-4 py-2" style={{ paddingLeft: isFirst ? 16 : 28 }}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-semibold truncate">{stage.label}</span>
+                                <Badge variant="secondary" className="text-xs shrink-0">
+                                  {stageDeals.length}
+                                </Badge>
                               </div>
-                              <Badge variant="secondary" className="text-sm shrink-0 ml-2">
-                                {stageDeals.length}
-                              </Badge>
+                              <span className="text-sm text-muted-foreground shrink-0">${total.toLocaleString()}</span>
                             </div>
                           </div>
                         );
