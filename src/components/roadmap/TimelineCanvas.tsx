@@ -212,12 +212,12 @@ export default function TimelineCanvas({
 
         {activePillars.map((pillar, pillarIdx) => {
           const pillarItems = items.filter((i) => i.pillar === pillar.code).sort((a, b) => a.sortOrder - b.sortOrder);
-          const barHeight = 60;
-          const gutter = 18;
+          const barHeight = 70;
+          const gutter = 15;
           const isFirstPillar = pillarIdx === 0;
           const isLastPillar = pillarIdx === activePillars.length - 1;
-          const topPad = isFirstPillar ? 30 : gutter / 2;
-          const bottomPad = isLastPillar ? 30 : gutter / 2;
+          const topPad = isFirstPillar ? 35 : gutter / 2;
+          const bottomPad = isLastPillar ? 35 : gutter / 2;
           const laneHeight = topPad + pillarItems.length * barHeight + (pillarItems.length - 1) * gutter + bottomPad;
           const showBorder = !isLastPillar || showLastBorder;
 
