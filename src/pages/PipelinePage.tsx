@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
-  ChevronDown, X, Eye, EyeOff, Loader2,
+  ChevronDown, X, Loader2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,26 +66,35 @@ type PipelineOption = { id: string; label: string };
 type StatusInfo = { id: string; label: string };
 type OwnerInfo = { name: string; team: string | null; active: boolean };
 
+// Load saved settings from localStorage
+const loadSetting = (key: string, fallback: string) => {
+  try { return localStorage.getItem(`pipeline_${key}`) || fallback; } catch { return fallback; }
+};
+const saveSetting = (key: string, value: string) => {
+  try { localStorage.setItem(`pipeline_${key}`, value); } catch { /* noop */ }
+};
+
 export default function PipelinePage() {
-  const [activeTab, setActiveTab] = useState("deals");
+  const [activeTab, setActiveTab] = useState(() => loadSetting("tab", "deals"));
 
   // Deals state
   const [deals, setDeals] = useState<Deal[]>([]);
   const [closedDeals, setClosedDeals] = useState<Deal[]>([]);
-  const [showClosed, setShowClosed] = useState(false);
+  const [showClosed, setShowClosed] = useState(() => loadSetting("showClosed", "false") === "true");
+  const [showMetrics, setShowMetrics] = useState(() => loadSetting("showMetrics", "true") === "true");
   const [closedLoading, setClosedLoading] = useState(false);
   const [dealsLoading, setDealsLoading] = useState(true);
   const [dealsError, setDealsError] = useState<string | null>(null);
   const [pipelineInfo, setPipelineInfo] = useState<PipelineInfo | null>(null);
   const [pipelineOptions, setPipelineOptions] = useState<PipelineOption[]>([]);
-  const [selectedPipeline, setSelectedPipeline] = useState("33bc2a42-c57c-4180-b0e6-77b3d6c7f69f");
+  const [selectedPipeline, setSelectedPipeline] = useState(() => loadSetting("pipeline", "33bc2a42-c57c-4180-b0e6-77b3d6c7f69f"));
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [ownerTeams, setOwnerTeams] = useState<Record<string, OwnerInfo>>({});
-  const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [ownerFilter, setOwnerFilter] = useState(() => loadSetting("owner", "all"));
   const [showOtherOwners, setShowOtherOwners] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-  const [createDateFilter, setCreateDateFilter] = useState<string>("all");
-  const [closeDateFilter, setCloseDateFilter] = useState<string>("all");
+  const [createDateFilter, setCreateDateFilter] = useState(() => loadSetting("createDate", "all"));
+  const [closeDateFilter, setCloseDateFilter] = useState(() => loadSetting("closeDate", "all"));
 
   // Leads state
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -231,6 +240,15 @@ export default function PipelinePage() {
   useEffect(() => {
     if (showClosed && closedDeals.length === 0) fetchClosedDeals();
   }, [showClosed]);
+
+  // ---- Persist settings to localStorage ----
+  useEffect(() => { saveSetting("tab", activeTab); }, [activeTab]);
+  useEffect(() => { saveSetting("pipeline", selectedPipeline); }, [selectedPipeline]);
+  useEffect(() => { saveSetting("owner", ownerFilter); }, [ownerFilter]);
+  useEffect(() => { saveSetting("createDate", createDateFilter); }, [createDateFilter]);
+  useEffect(() => { saveSetting("closeDate", closeDateFilter); }, [closeDateFilter]);
+  useEffect(() => { saveSetting("showClosed", String(showClosed)); }, [showClosed]);
+  useEffect(() => { saveSetting("showMetrics", String(showMetrics)); }, [showMetrics]);
 
   // ---- Date range helper ----
   const getDateRange = (filter: string): { start: Date; end: Date } | null => {
@@ -552,9 +570,12 @@ export default function PipelinePage() {
                   </SelectContent>
                 </Select>
 
-                {/* Show closed toggle — fetches closed deals on demand */}
+                {/* Toggles */}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {showClosed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  <span>Metrics</span>
+                  <Switch checked={showMetrics} onCheckedChange={setShowMetrics} />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Closed</span>
                   <Switch checked={showClosed} onCheckedChange={setShowClosed} />
                 </div>
@@ -654,7 +675,7 @@ export default function PipelinePage() {
           {/* ---- DEALS TAB ---- */}
           <TabsContent value="deals" className="mt-0 flex-1 flex flex-col overflow-hidden">
             {/* Pipeline stats bar */}
-            {!dealsLoading && pipelineStats && (
+            {!dealsLoading && pipelineStats && showMetrics && (
               <div className="mb-6 rounded-lg border border-border bg-muted/30 px-6 py-5">
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
                   <div>
@@ -816,9 +837,12 @@ export default function PipelinePage() {
                                         const diffDays = Math.round((cd.getTime() - Date.now()) / 86400000);
                                         const dayLabel = diffDays >= 0 ? `${diffDays}d` : `${Math.abs(diffDays)}d ago`;
                                         return (
-                                          <p>Exp. Close: <span className={isPast(cd) ? "text-red-500" : "text-foreground"}>{format(cd, "MMMM d")} <span className="text-muted-foreground">({dayLabel})</span></span></p>
+                                          <p>Close: <span className={isPast(cd) ? "text-red-500" : "text-foreground"}>{format(cd, "MMMM d")} <span className="text-muted-foreground">({dayLabel})</span></span></p>
                                         );
                                       })()}
+                                      {deal.deal_source_details && (
+                                        <p>Source: <span className="text-foreground">{deal.deal_source_details.replace(/_/g, " ")}</span></p>
+                                      )}
                                     </div>
                                   </Card>
                                 </button>
