@@ -27,6 +27,7 @@ import GroupDetailPage from "./pages/GroupDetailPage";
 import UsagePage from "./pages/UsagePage";
 import ServicesPage from "./pages/ServicesPage";
 import ServiceDetailPage from "./pages/ServiceDetailPage";
+import PipelinePage from "./pages/PipelinePage";
 import NotFound from "./pages/NotFound";
 import FeedbackSideTabs from "./components/feedback/FeedbackSideTabs";
 
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="/groups/:groupId" element={<RedirectGroups />} />
               <Route path="/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
               <Route path="/connections" element={<ProtectedRoute><ConnectionsPage /></ProtectedRoute>} />
+              <Route path="/pipeline" element={<ProtectedRoute><PipelinePage /></ProtectedRoute>} />
               <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><GlobalChatPage /></ProtectedRoute>} />
               <Route path="/knowledge" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />

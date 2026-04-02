@@ -28,6 +28,7 @@ function darkenHex(hex: string, factor = 0.55): string {
 
 const NAV_ITEMS = [
   { label: 'Chat', to: '/chat' },
+  { label: 'Pipeline', to: '/pipeline' },
   { label: 'Knowledge', to: '/knowledge' },
   { label: 'Sites', to: '/sites', matchPrefix: '/sites' },
   { label: 'Lists', to: '/lists', matchPrefix: '/lists' },
