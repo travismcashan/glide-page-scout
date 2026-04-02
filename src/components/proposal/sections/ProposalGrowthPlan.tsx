@@ -77,8 +77,8 @@ export default function ProposalGrowthPlan({
 
   if (!items.length) {
     return (
-      <section className="py-20 px-8 lg:px-16">
-        <div className="max-w-6xl mx-auto">
+      <section className="py-20 px-8 lg:px-16 bg-white">
+        <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl md:text-5xl text-foreground tracking-tight">
             <span className="font-bold">12-Month Digital</span>{" "}
             <span className="font-light">Roadmap</span>
@@ -91,8 +91,8 @@ export default function ProposalGrowthPlan({
   }
 
   return (
-    <section className="py-20 px-8 lg:px-16">
-      <div className="max-w-6xl mx-auto">
+    <section className="py-20 px-8 lg:px-16 bg-white">
+      <div className="max-w-7xl mx-auto">
         <h2 className="text-4xl md:text-5xl text-foreground tracking-tight">
           <span className="font-bold">12-Month Digital</span>{" "}
           <span className="font-light">Roadmap</span>

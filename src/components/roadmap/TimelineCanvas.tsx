@@ -131,7 +131,7 @@ export default function TimelineCanvas({
 
   if (focusedItem) {
     return (
-      <div className="flex flex-col bg-background">
+      <div className="flex flex-col">
         <TimelineBarDetail
           item={focusedItem}
           offering={focusedOffering}
@@ -145,7 +145,7 @@ export default function TimelineCanvas({
 
   return (
     <div
-      className="flex flex-col bg-background"
+      className="flex flex-col"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
