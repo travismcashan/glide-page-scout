@@ -122,13 +122,29 @@ function markdownToHtml(md: string): string {
   return html;
 }
 
+/** Clean chat content for PDF export: strip citation tokens, devil's advocate sections, code fences */
+function cleanContentForPdf(content: string): string {
+  let cleaned = content;
+  // Strip %%DOCREF_N%% and [doc:N] citation tokens
+  cleaned = cleaned.replace(/%%DOCREF_\d+%%/g, '');
+  cleaned = cleaned.replace(/\[doc:\d+\]/g, '');
+  // Strip ```glide-doc ... ``` fenced blocks
+  cleaned = cleaned.replace(/```glide-doc\s*\n[\s\S]*?\n```/g, '');
+  // Strip Devil's Advocate / internal coaching sections (everything after that header)
+  cleaned = cleaned.replace(/#{1,3}\s*Devil'?s?\s*Advocate[\s\S]*/i, '');
+  // Clean up excessive whitespace
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  return cleaned.trim();
+}
+
 /** Build the full HTML document string (used by both preview and DocRaptor) */
 export function buildGlideHtml(options: GlideDocumentOptions): string {
   const { title, subtitle, clientDomain, companyName, sections, preparedBy = DEFAULT_PREPARED_BY } = options;
-  const bodyHtml = markdownToHtml(sections);
-  const headerRight = [title, subtitle, companyName].filter(Boolean).join('<br/>');
+  const cleanedSections = cleanContentForPdf(sections);
+  const bodyHtml = markdownToHtml(cleanedSections);
 
   const FONT_BASE = 'https://glide-page-scout.vercel.app/fonts';
+  const headerRight = [title, subtitle, companyName].filter(Boolean).join('<br/>');
 
   return `<!DOCTYPE html>
 <html>
@@ -141,20 +157,7 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
     @font-face { font-family: 'Larsseit'; src: url('${FONT_BASE}/Larsseit-Medium.otf') format('opentype'); font-weight: 500; }
     @font-face { font-family: 'Larsseit'; src: url('${FONT_BASE}/Larsseit-Bold.otf') format('opentype'); font-weight: 700; }
 
-    /* ── Page setup with Prince running header/footer ── */
-    @page {
-      size: letter;
-      margin: 0.7in 0.85in 0.9in 0.85in;
-      @top-left { content: element(page-header-left); }
-      @top-right { content: element(page-header-right-box); }
-      @bottom-center { content: element(page-footer-el); }
-    }
-    @page cover { margin: 0.85in; @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }
-
-    /* Running elements (Prince pulls these out of flow) */
-    .running-header-left { position: running(page-header-left); }
-    .running-header-right { position: running(page-header-right-box); }
-    .running-footer { position: running(page-footer-el); }
+    @page { size: letter; margin: 0.85in; }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -167,43 +170,55 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
     }
 
     /* ── Cover page ────────────────────────────── */
-    .cover {
-      page: cover;
+    .cover-page {
       page-break-after: always;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
+      position: relative;
+      height: 8.8in; /* letter minus margins */
     }
-    .cover .glide-logo { width: 180px; height: auto; margin-bottom: 2.2in; }
+    .cover-logo { width: 180px; height: auto; }
+    .cover-titles { margin-top: 2in; }
     .cover-title { font-size: 24pt; font-weight: 700; color: #1a1a1a; margin-bottom: 0.1em; line-height: 1.2; }
     .cover-subtitle { font-size: 20pt; font-weight: 300; color: #999; margin-bottom: 0.1em; line-height: 1.2; }
-    .cover-domain { font-size: 20pt; font-weight: 400; color: #3355bb; text-decoration: underline; line-height: 1.3; }
-    .prepared-by { margin-top: auto; }
+    .cover-domain { font-size: 20pt; font-weight: 400; color: #3355bb; text-decoration: underline; line-height: 1.3; display: inline-block; }
+    .prepared-by { position: absolute; bottom: 0; left: 0; }
     .prepared-by-label { font-size: 10pt; font-weight: 700; margin-bottom: 0.4em; }
     .prepared-by-detail { font-size: 9pt; line-height: 1.7; color: #1a1a1a; }
     .prepared-by-detail a { color: #3355bb; text-decoration: none; }
 
-    /* ── Running header elements ───────────────── */
-    .running-header-left .glide-logo-small { width: 110px; height: auto; }
-    .running-header-right {
+    /* ── Content pages header ──────────────────── */
+    .page-header {
+      display: table;
+      width: 100%;
+      margin-bottom: 1.2em;
+    }
+    .page-header-left { display: table-cell; vertical-align: top; }
+    .page-header-left svg { width: 110px; height: auto; }
+    .page-header-right {
+      display: table-cell;
+      vertical-align: top;
       text-align: right;
       font-size: 8pt;
       font-weight: 500;
       color: #1a1a1a;
       line-height: 1.45;
-      padding-top: 2pt;
     }
-    .running-header-right .rh-bold { font-weight: 700; }
+    .page-header-right .rh-bold { font-weight: 700; }
 
-    /* ── Running footer ────────────────────────── */
-    .running-footer {
+    /* ── Content page footer ───────────────────── */
+    .page-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+    .page-footer-inner {
       border-top: 0.5pt solid #ccc;
       padding-top: 6pt;
       font-size: 7.5pt;
       color: #666;
       text-align: center;
     }
-    .running-footer a { color: #3355bb; text-decoration: none; }
+    .page-footer a { color: #3355bb; text-decoration: none; }
 
     /* ── Content styles ────────────────────────── */
     h1 {
@@ -218,8 +233,8 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
     h2 {
       font-size: 14pt;
       font-weight: 700;
-      margin-top: 1.4em;
-      margin-bottom: 0.35em;
+      margin-top: 1.2em;
+      margin-bottom: 0.3em;
       line-height: 1.25;
     }
     h3 {
@@ -228,9 +243,9 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
       margin-top: 1em;
       margin-bottom: 0.25em;
     }
-    p { margin-bottom: 0.6em; }
-    ul, ol { padding-left: 1.4em; margin-bottom: 0.7em; }
-    li { margin-bottom: 0.2em; }
+    p { margin-bottom: 0.55em; }
+    ul, ol { padding-left: 1.4em; margin-bottom: 0.6em; }
+    li { margin-bottom: 0.15em; }
     strong { font-weight: 700; }
     em { font-style: italic; }
     a { color: #3355bb; text-decoration: underline; }
@@ -242,33 +257,17 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
       color: #555;
     }
 
-    code {
-      background: #f4f4f4;
-      padding: 0.1em 0.3em;
-      border-radius: 2px;
-      font-size: 0.9em;
-      font-family: Consolas, monospace;
-    }
-    pre {
-      background: #f4f4f4;
-      padding: 0.8em;
-      border-radius: 3px;
-      overflow-x: auto;
-      margin-bottom: 0.6em;
-    }
-    pre code { background: none; padding: 0; }
-
-    hr { border: none; border-top: 0.5pt solid #ddd; margin: 1.2em 0; }
+    hr { border: none; border-top: 0.5pt solid #ddd; margin: 1em 0; }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 0.6em 0;
+      margin: 0.5em 0;
       font-size: 10pt;
     }
     th, td {
       border: 0.5pt solid #ccc;
-      padding: 0.5em 0.7em;
+      padding: 0.45em 0.65em;
       text-align: left;
     }
     th { font-weight: 700; }
@@ -276,20 +275,10 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
 </head>
 <body>
 
-  <!-- Running elements (Prince removes these from flow and places in page margins) -->
-  <div class="running-header-left">${GLIDE_LOGO_SMALL}</div>
-  <div class="running-header-right">
-    <span class="rh-bold">${escHtml(title)}</span><br/>
-    ${subtitle ? escHtml(subtitle) + '<br/>' : ''}${companyName ? escHtml(companyName) : ''}
-  </div>
-  <div class="running-footer">
-    GLIDE&reg; &nbsp;|&nbsp; <a href="https://glidedesign.com">glidedesign.com</a> &nbsp;|&nbsp; <a href="mailto:${escHtml(preparedBy.email)}">${escHtml(preparedBy.email)}</a> &nbsp;|&nbsp; ${escHtml(preparedBy.phone)}
-  </div>
-
-  <!-- Cover Page -->
-  <div class="cover">
-    ${GLIDE_LOGO_SVG}
-    <div>
+  <!-- ═══ COVER PAGE ═══ -->
+  <div class="cover-page">
+    ${GLIDE_LOGO_SVG.replace('class="glide-logo"', 'class="cover-logo"')}
+    <div class="cover-titles">
       <div class="cover-title">${escHtml(title)}</div>
       ${subtitle ? `<div class="cover-subtitle">${escHtml(subtitle)}</div>` : ''}
       ${clientDomain ? `<a class="cover-domain" href="https://${escHtml(clientDomain)}">${escHtml(clientDomain)}</a>` : ''}
@@ -306,8 +295,22 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
     </div>
   </div>
 
-  <!-- Content -->
+  <!-- ═══ CONTENT PAGES ═══ -->
+  <div class="page-header">
+    <div class="page-header-left">${GLIDE_LOGO_SMALL}</div>
+    <div class="page-header-right">
+      <span class="rh-bold">${escHtml(title)}</span><br/>
+      ${subtitle ? escHtml(subtitle) + '<br/>' : ''}${companyName ? escHtml(companyName) : ''}
+    </div>
+  </div>
+
   ${bodyHtml}
+
+  <div class="page-footer">
+    <div class="page-footer-inner">
+      GLIDE&reg; &nbsp;|&nbsp; <a href="https://glidedesign.com">glidedesign.com</a> &nbsp;|&nbsp; <a href="mailto:${escHtml(preparedBy.email)}">${escHtml(preparedBy.email)}</a> &nbsp;|&nbsp; ${escHtml(preparedBy.phone)}
+    </div>
+  </div>
 
 </body>
 </html>`;
