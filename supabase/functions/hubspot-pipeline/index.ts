@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,7 +101,7 @@ serve(async (req) => {
     const TOKEN = Deno.env.get("HUBSPOT_ACCESS_TOKEN");
     if (!TOKEN) throw new Error("HUBSPOT_ACCESS_TOKEN not configured");
 
-    const { action, pipeline } = await req.json();
+    const { action, pipeline, closedOnly, limit: reqLimit, after: reqAfter } = await req.json();
 
     // ---- Fetch owners with team info (shared by both actions) ----
     const ownersRes = await hubspotFetch("/crm/v3/owners?limit=100", TOKEN);
@@ -162,40 +163,67 @@ serve(async (req) => {
       const pipelineDef = PIPELINES[pipelineId];
       if (!pipelineDef) throw new Error(`Unknown pipeline: ${pipelineId}`);
 
-      // Only fetch OPEN deals (not every deal since the dawn of time)
-      const openStageIds = pipelineDef.stages.filter((s) => !s.closed).map((s) => s.id);
+      const DEAL_PROPS = [
+        "dealname", "amount", "dealstage", "pipeline", "closedate",
+        "createdate", "hs_lastmodifieddate", "hubspot_owner_id",
+        "dealtype", "hs_priority", "deal_source_details",
+        "hs_forecast_probability", "notes_last_contacted",
+      ];
 
       const allDeals: any[] = [];
-      let after: string | undefined;
-      let page = 0;
-      do {
-        const body: any = {
-          filterGroups: [
-            {
+      let nextCursor: string | undefined;
+
+      if (closedOnly) {
+        // Fetch closed deals: 10 per stage so each column gets populated
+        const perStage = reqLimit || 10;
+        const closedStages = pipelineDef.stages.filter((s) => s.closed);
+        for (const stage of closedStages) {
+          try {
+            const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", {
+              filterGroups: [{
+                filters: [
+                  { propertyName: "pipeline", operator: "EQ", value: pipelineId },
+                  { propertyName: "dealstage", operator: "EQ", value: stage.id },
+                ],
+              }],
+              properties: DEAL_PROPS,
+              sorts: [{ propertyName: "closedate", direction: "DESCENDING" }],
+              limit: perStage,
+            });
+            for (const d of res.results || []) {
+              allDeals.push({ id: d.id, ...d.properties });
+            }
+          } catch (e) {
+            console.error(`[hubspot-pipeline] Closed stage ${stage.id} error: ${e.message}`);
+          }
+        }
+      } else {
+        // Fetch open deals: all of them (usually <30)
+        const openStageIds = pipelineDef.stages.filter((s) => !s.closed).map((s) => s.id);
+        let after: string | undefined = reqAfter || undefined;
+        let page = 0;
+        do {
+          const body: any = {
+            filterGroups: [{
               filters: [
                 { propertyName: "pipeline", operator: "EQ", value: pipelineId },
                 { propertyName: "dealstage", operator: "IN", values: openStageIds },
               ],
-            },
-          ],
-          properties: [
-            "dealname", "amount", "dealstage", "pipeline", "closedate",
-            "createdate", "hs_lastmodifieddate", "hubspot_owner_id",
-            "dealtype", "hs_priority", "deal_source_details",
-            "hs_forecast_probability", "notes_last_contacted",
-          ],
-          sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
-          limit: 100,
-        };
-        if (after) body.after = after;
-
-        const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
-        for (const d of res.results || []) {
-          allDeals.push({ id: d.id, ...d.properties });
-        }
-        after = res.paging?.next?.after;
-        page++;
-      } while (after && page < 3); // open deals should be well under 300
+            }],
+            properties: DEAL_PROPS,
+            sorts: [{ propertyName: "closedate", direction: "DESCENDING" }],
+            limit: 100,
+          };
+          if (after) body.after = after;
+          const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
+          for (const d of res.results || []) {
+            allDeals.push({ id: d.id, ...d.properties });
+          }
+          nextCursor = res.paging?.next?.after;
+          after = nextCursor;
+          page++;
+        } while (after && page < 3);
+      }
 
       // Batch-fetch associated company names for all open deals
       const companyMap: Record<string, string> = {};
@@ -236,11 +264,121 @@ serve(async (req) => {
         }
       }
 
+      // ---- Fetch primary contact for each deal + enrich with Apollo photo ----
+      const APOLLO_KEY = Deno.env.get("APOLLO_API_KEY");
+      const SB_URL = Deno.env.get("SUPABASE_URL");
+      const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+      if (APOLLO_KEY && SB_URL && SB_KEY && allDeals.length > 0) {
+        const sb = createClient(SB_URL, SB_KEY);
+
+        // Batch-fetch contact associations for all deals
+        const dealContactMap: Record<string, string> = {}; // dealId -> contactId
+        for (let i = 0; i < allDeals.length; i += 20) {
+          const batch = allDeals.slice(i, i + 20).map((d) => d.id);
+          try {
+            const assocRes = await hubspotFetch("/crm/v4/associations/deals/contacts/batch/read", TOKEN, "POST", {
+              inputs: batch.map((id: string) => ({ id })),
+            });
+            for (const r of assocRes.results || []) {
+              const contactId = r.to?.[0]?.toObjectId;
+              if (contactId) dealContactMap[r.from.id] = String(contactId);
+            }
+          } catch (e) {
+            console.error(`[hubspot-pipeline] Contact association error: ${e.message}`);
+          }
+        }
+
+        // Batch-read contact details from HubSpot
+        const uniqueContactIds = [...new Set(Object.values(dealContactMap))];
+        const contactDetails: Record<string, { email: string; firstname: string; lastname: string }> = {};
+        if (uniqueContactIds.length > 0) {
+          for (let i = 0; i < uniqueContactIds.length; i += 100) {
+            const batch = uniqueContactIds.slice(i, i + 100);
+            try {
+              const res = await hubspotFetch("/crm/v3/objects/contacts/batch/read", TOKEN, "POST", {
+                inputs: batch.map((id) => ({ id })),
+                properties: ["email", "firstname", "lastname"],
+              });
+              for (const c of res.results || []) {
+                contactDetails[c.id] = {
+                  email: c.properties?.email || "",
+                  firstname: c.properties?.firstname || "",
+                  lastname: c.properties?.lastname || "",
+                };
+              }
+            } catch (e) {
+              console.error(`[hubspot-pipeline] Contact batch read error: ${e.message}`);
+            }
+          }
+        }
+
+        // Check Supabase cache for existing photos
+        const emails = Object.values(contactDetails).map((c) => c.email).filter(Boolean);
+        let cachedPhotos: Record<string, { photo_url: string; name: string; title: string }> = {};
+        if (emails.length > 0) {
+          const { data: cached } = await sb
+            .from("contact_photos")
+            .select("email, photo_url, name, title")
+            .in("email", emails);
+          if (cached) {
+            for (const row of cached) {
+              cachedPhotos[row.email] = row;
+            }
+          }
+        }
+
+        // Enrich uncached contacts via Apollo (one at a time to be gentle on credits)
+        const uncachedEmails = emails.filter((e) => !cachedPhotos[e]);
+        for (const email of uncachedEmails.slice(0, 5)) { // cap at 5 new enrichments per page load
+          try {
+            const res = await fetch("https://api.apollo.io/v1/people/match", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-Api-Key": APOLLO_KEY },
+              body: JSON.stringify({ email, reveal_personal_emails: false }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const person = data.person;
+              if (person) {
+                const row = {
+                  email,
+                  photo_url: person.photo_url || null,
+                  name: person.name || null,
+                  title: person.title || null,
+                  company: person.organization?.name || null,
+                  hubspot_contact_id: Object.entries(contactDetails).find(([, c]) => c.email === email)?.[0] || null,
+                  updated_at: new Date().toISOString(),
+                };
+                await sb.from("contact_photos").upsert(row, { onConflict: "email" });
+                cachedPhotos[email] = { photo_url: row.photo_url || "", name: row.name || "", title: row.title || "" };
+              }
+            }
+          } catch (e) {
+            console.error(`[hubspot-pipeline] Apollo enrich error for ${email}: ${e.message}`);
+          }
+        }
+
+        // Attach contact info to deals
+        for (const deal of allDeals) {
+          const contactId = dealContactMap[deal.id];
+          if (contactId && contactDetails[contactId]) {
+            const contact = contactDetails[contactId];
+            const photo = cachedPhotos[contact.email];
+            deal.contactName = photo?.name || [contact.firstname, contact.lastname].filter(Boolean).join(" ") || null;
+            deal.contactTitle = photo?.title || null;
+            deal.contactPhotoUrl = photo?.photo_url || null;
+            deal.contactEmail = contact.email || null;
+          }
+        }
+      }
+
       return new Response(
         JSON.stringify({
           deals: allDeals,
           owners,
           ownerTeams,
+          nextCursor: nextCursor || null,
           pipeline: { id: pipelineId, label: pipelineDef.label, stages: pipelineDef.stages },
           pipelines: Object.entries(PIPELINES).map(([id, p]) => ({ id, label: p.label })),
         }),

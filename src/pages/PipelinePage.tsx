@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
-  ChevronDown, X,
+  ChevronDown, X, Eye, EyeOff,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import {
 import {
   Sheet, SheetContent,
 } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import { BrandLoader } from "@/components/BrandLoader";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,10 @@ type Deal = {
   hs_lastmodifieddate: string | null;
   hubspot_owner_id: string | null;
   companyName?: string;
+  contactName?: string | null;
+  contactTitle?: string | null;
+  contactPhotoUrl?: string | null;
+  contactEmail?: string | null;
   dealtype?: string | null;
   hs_priority?: string | null;
   deal_source_details?: string | null;
@@ -66,6 +71,9 @@ export default function PipelinePage() {
 
   // Deals state
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [closedDeals, setClosedDeals] = useState<Deal[]>([]);
+  const [showClosed, setShowClosed] = useState(false);
+  const [closedLoading, setClosedLoading] = useState(false);
   const [dealsLoading, setDealsLoading] = useState(true);
   const [dealsError, setDealsError] = useState<string | null>(null);
   const [pipelineInfo, setPipelineInfo] = useState<PipelineInfo | null>(null);
@@ -194,12 +202,30 @@ export default function PipelinePage() {
   // Deals + stats fire first, leads fires after deals complete
   useEffect(() => {
     fetchDeals().then(() => fetchStats());
+    setClosedDeals([]); // reset closed deals when pipeline changes
+    setShowClosed(false);
   }, [selectedPipeline]);
   useEffect(() => {
-    // Delay leads slightly so deals/stats finish their HubSpot calls first
     const t = setTimeout(() => fetchLeads(), 1500);
     return () => clearTimeout(t);
   }, []);
+
+  // Fetch closed deals on demand when toggle is turned on
+  const fetchClosedDeals = async () => {
+    if (closedDeals.length > 0) return; // already loaded
+    setClosedLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
+        body: { action: "deals", pipeline: selectedPipeline, closedOnly: true },
+      });
+      if (!error && data?.deals) setClosedDeals(data.deals);
+    } catch { /* non-critical */ }
+    setClosedLoading(false);
+  };
+
+  useEffect(() => {
+    if (showClosed && closedDeals.length === 0) fetchClosedDeals();
+  }, [showClosed]);
 
   // ---- Date range helper ----
   const getDateRange = (filter: string): { start: Date; end: Date } | null => {
@@ -249,16 +275,20 @@ export default function PipelinePage() {
     { value: "this_year", label: "This year" },
   ];
 
-  // ---- Computed: deals grouped by stage (open stages only) ----
+  // ---- Computed: deals grouped by stage ----
   const dealsByStage = useMemo(() => {
     if (!pipelineInfo) return {};
     const map: Record<string, Deal[]> = {};
     for (const stage of pipelineInfo.stages) {
-      if (stage.closed) continue; // only show open stages
+      if (stage.closed && !showClosed) continue;
       map[stage.id] = [];
     }
 
-    let filtered = ownerFilter === "all" ? deals : deals.filter((d) => d.hubspot_owner_id === ownerFilter);
+    // Merge open + closed deals (deduplicate by ID)
+    const allVisible = showClosed
+      ? [...deals, ...closedDeals.filter((cd) => !deals.some((d) => d.id === cd.id))]
+      : deals;
+    let filtered = ownerFilter === "all" ? allVisible : allVisible.filter((d) => d.hubspot_owner_id === ownerFilter);
 
     // Apply create date filter
     const createRange = getDateRange(createDateFilter);
@@ -286,7 +316,7 @@ export default function PipelinePage() {
       }
     }
     return map;
-  }, [deals, pipelineInfo, ownerFilter, createDateFilter, closeDateFilter]);
+  }, [deals, closedDeals, pipelineInfo, showClosed, ownerFilter, createDateFilter, closeDateFilter]);
 
   // ---- Computed: contacts grouped by lead status ----
   const contactsByStatus = useMemo(() => {
@@ -517,7 +547,12 @@ export default function PipelinePage() {
                   </SelectContent>
                 </Select>
 
-                {/* Closed toggle removed — only open deals are fetched for performance */}
+                {/* Show closed toggle — fetches closed deals on demand */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {showClosed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  <span>Closed</span>
+                  <Switch checked={showClosed} onCheckedChange={setShowClosed} />
+                </div>
               </div>
             )}
           </div>
@@ -628,16 +663,6 @@ export default function PipelinePage() {
                     <p className="text-sm text-muted-foreground mt-0.5">by stage probability</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Closing This Month</p>
-                    <p className="text-3xl font-bold mt-1">${pipelineStats.closingThisMonthValue >= 1_000_000 ? (pipelineStats.closingThisMonthValue / 1_000_000).toFixed(1) + "M" : (pipelineStats.closingThisMonthValue / 1_000).toFixed(0) + "K"}</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">{pipelineStats.closingThisMonthCount} deals</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Win Rate</p>
-                    <p className="text-3xl font-bold mt-1">{pipelineStats.winRate > 0 ? pipelineStats.winRate.toFixed(0) + "%" : "—"}</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">trailing 12 months</p>
-                  </div>
-                  <div>
                     <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Avg Deal Size</p>
                     <p className="text-3xl font-bold mt-1">${pipelineStats.avgDealSize >= 1_000_000 ? (pipelineStats.avgDealSize / 1_000_000).toFixed(1) + "M" : (pipelineStats.avgDealSize / 1_000).toFixed(0) + "K"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">open deals</p>
@@ -646,6 +671,16 @@ export default function PipelinePage() {
                     <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Avg Sales Cycle</p>
                     <p className="text-3xl font-bold mt-1">{pipelineStats.avgCycle > 0 ? Math.round(pipelineStats.avgCycle) + " days" : "—"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">create to close</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Win Rate</p>
+                    <p className="text-3xl font-bold mt-1">{pipelineStats.winRate > 0 ? pipelineStats.winRate.toFixed(0) + "%" : "—"}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">trailing 12 months</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Closing This Month</p>
+                    <p className="text-3xl font-bold mt-1">${pipelineStats.closingThisMonthValue >= 1_000_000 ? (pipelineStats.closingThisMonthValue / 1_000_000).toFixed(1) + "M" : (pipelineStats.closingThisMonthValue / 1_000).toFixed(0) + "K"}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{pipelineStats.closingThisMonthCount} deals</p>
                   </div>
                 </div>
               </div>
@@ -666,7 +701,7 @@ export default function PipelinePage() {
               <ScrollArea className="w-full">
                 {/* Chevron pipeline bar */}
                 {(() => {
-                  const openStages = pipelineInfo?.stages.filter((s) => !s.closed) || [];
+                  const openStages = pipelineInfo?.stages.filter((s) => showClosed || !s.closed) || [];
                   const A = 16; // arrow depth in px — consistent angle for all chevrons
                   const GAP = 3; // thin gap between chevrons to create the divider line
                   return (
@@ -690,7 +725,7 @@ export default function PipelinePage() {
                             style={{ marginLeft: isFirst ? 0 : GAP }}
                           >
                             <div
-                              className="flex items-center justify-between h-14 bg-muted/50"
+                              className="flex items-center justify-between h-14 bg-muted"
                               style={{
                                 clipPath: clip,
                                 paddingLeft: isFirst ? 16 : A + 12,
@@ -714,7 +749,7 @@ export default function PipelinePage() {
 
                 <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
-                    .filter((s) => !s.closed)
+                    .filter((s) => showClosed || !s.closed)
                     .map((stage) => {
                       const stageDeals = dealsByStage[stage.id] || [];
                       return (
@@ -732,14 +767,34 @@ export default function PipelinePage() {
                                   className="block w-full text-left"
                                 >
                                   <Card className="p-3 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+                                    {/* Company name as title */}
                                     <p className="text-sm font-semibold text-primary leading-snug">
-                                      {deal.dealname || "Untitled Deal"}
+                                      {deal.companyName || deal.dealname || "Untitled Deal"}
                                     </p>
-                                    {deal.companyName && (
-                                      <p className="text-sm text-muted-foreground mt-0.5">
-                                        {deal.companyName}
-                                      </p>
+
+                                    {/* Contact photo + name + title */}
+                                    {deal.contactName && (
+                                      <div className="flex items-center gap-2 mt-2">
+                                        {deal.contactPhotoUrl ? (
+                                          <img
+                                            src={deal.contactPhotoUrl}
+                                            alt={deal.contactName}
+                                            className="w-8 h-8 rounded-full object-cover shrink-0"
+                                          />
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                            <User className="w-4 h-4 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium truncate">{deal.contactName}</p>
+                                          {deal.contactTitle && (
+                                            <p className="text-xs text-muted-foreground truncate">{deal.contactTitle}</p>
+                                          )}
+                                        </div>
+                                      </div>
                                     )}
+
                                     <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                                       {deal.amount && (
                                         <p>Amount: <span className="text-foreground font-medium">${Number(deal.amount).toLocaleString()}</span></p>
