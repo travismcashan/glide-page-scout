@@ -785,11 +785,9 @@ export default function PipelinePage() {
                         <div key={stage.id} className="w-[300px] shrink-0 flex flex-col relative">
                           {/* Angled divider between columns */}
                           {!isLastCol && (
-                            <div className="absolute right-[-8px] top-0 bottom-0 w-[1px] z-[5]">
-                              <svg className="absolute inset-0 w-4 h-full -ml-[7px]" preserveAspectRatio="none" viewBox="0 0 16 100">
-                                <path d="M8 0 L12 50 L8 100" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
-                              </svg>
-                            </div>
+                            <svg className="absolute top-0 bottom-0 h-full w-4 z-[5]" style={{ right: -16 }} preserveAspectRatio="none" viewBox="0 0 16 100">
+                              <path d="M6 0 L10 50 L6 100" fill="none" stroke="hsl(var(--border))" strokeWidth="0.8" />
+                            </svg>
                           )}
 
                           {/* Deal cards — scrollable column */}
