@@ -272,14 +272,14 @@ ${ragContext ? `## Client Context (from meetings, emails, documents, HubSpot)\n$
           description: config.toolDescription,
           input_schema: config.toolSchema,
         }],
-        tool_choice: { type: "tool", name: config.toolName },
+        tool_choice: { type: "auto" },
       }),
     });
 
     if (!response.ok) {
       const text = await response.text();
       console.error("Anthropic API error:", response.status, text);
-      throw new Error(`Anthropic API error: ${response.status}`);
+      throw new Error(`Anthropic API error: ${response.status} - ${text}`);
     }
 
     const data = await response.json();
