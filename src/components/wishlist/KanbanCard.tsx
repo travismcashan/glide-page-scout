@@ -45,6 +45,13 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function ageColor(dateStr: string): string {
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+  if (days > 30) return 'text-destructive';
+  if (days > 14) return 'text-amber-500';
+  return 'text-muted-foreground';
+}
+
 type KanbanCardProps = {
   item: WishlistItem;
   onDelete: (id: string) => void;
@@ -68,7 +75,7 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
     ? undefined
     : {
         transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.2 : 1,
+        opacity: isDragging ? 0 : 1,
       };
 
   return (
@@ -116,8 +123,8 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
         </button>
       </div>
 
-      {/* Description */}
-      {item.description && (
+      {/* Description — hidden for small effort items to keep cards compact */}
+      {item.description && item.effort_estimate !== 'small' && (
         <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">
           {item.description}
         </p>
@@ -162,7 +169,7 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
         ) : (
           <span className="h-6 w-6 rounded-full bg-muted ring-2 ring-card" />
         )}
-        <span className="text-xs text-muted-foreground">
+        <span className={`text-xs ${ageColor(item.created_at)}`}>
           {formatDate(item.created_at)}
         </span>
       </div>
