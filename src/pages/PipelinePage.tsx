@@ -189,11 +189,11 @@ export default function PipelinePage() {
   };
 
   // ---- Fetch historical stats (win rate, avg cycle) ----
-  const fetchStats = async (pipelineId?: string) => {
+  const fetchStats = async (pipelineId?: string, owner?: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
-        body: { action: "stats", pipeline: pipelineId || selectedPipeline },
-      });
+      const body: any = { action: "stats", pipeline: pipelineId || selectedPipeline };
+      if (owner && owner !== "all") body.ownerFilter = owner;
+      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", { body });
       if (!error && data) setHistoricalStats(data);
     } catch { /* non-critical, stats just show — */ }
   };
@@ -201,10 +201,15 @@ export default function PipelinePage() {
   // Stagger API calls to avoid hitting HubSpot rate limits on mount
   // Deals + stats fire first, leads fires after deals complete
   useEffect(() => {
-    fetchDeals().then(() => fetchStats());
-    setClosedDeals([]); // reset closed deals when pipeline changes
+    fetchDeals().then(() => fetchStats(undefined, ownerFilter));
+    setClosedDeals([]);
     setShowClosed(false);
   }, [selectedPipeline]);
+
+  // Re-fetch stats when owner filter changes
+  useEffect(() => {
+    fetchStats(undefined, ownerFilter);
+  }, [ownerFilter]);
   useEffect(() => {
     const t = setTimeout(() => fetchLeads(), 1500);
     return () => clearTimeout(t);
@@ -755,12 +760,13 @@ export default function PipelinePage() {
                       return (
                         <div key={stage.id} className="w-[300px] shrink-0">
 
-                          {/* Deal cards */}
-                          <div className="space-y-2">
+                          {/* Deal cards — scrollable column */}
+                          <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
                             {stageDeals.length === 0 ? (
                               <p className="text-sm text-muted-foreground text-center py-8">No deals</p>
                             ) : (
-                              stageDeals.map((deal) => (
+                              <>
+                              {stageDeals.map((deal) => (
                                 <button
                                   key={deal.id}
                                   onClick={() => setSelectedDeal(deal)}
@@ -808,7 +814,13 @@ export default function PipelinePage() {
                                     </div>
                                   </Card>
                                 </button>
-                              ))
+                              ))}
+                              {stage.closed && stageDeals.length >= 10 && (
+                                <p className="text-sm text-muted-foreground text-center py-3">
+                                  Showing first {stageDeals.length} deals
+                                </p>
+                              )}
+                              </>
                             )}
                           </div>
                         </div>

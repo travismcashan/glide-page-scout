@@ -101,7 +101,7 @@ serve(async (req) => {
     const TOKEN = Deno.env.get("HUBSPOT_ACCESS_TOKEN");
     if (!TOKEN) throw new Error("HUBSPOT_ACCESS_TOKEN not configured");
 
-    const { action, pipeline, closedOnly, limit: reqLimit, after: reqAfter } = await req.json();
+    const { action, pipeline, closedOnly, limit: reqLimit, after: reqAfter, ownerFilter } = await req.json();
 
     // ---- Fetch owners with team info (shared by both actions) ----
     const ownersRes = await hubspotFetch("/crm/v3/owners?limit=100", TOKEN);
@@ -412,6 +412,7 @@ serve(async (req) => {
               { propertyName: "pipeline", operator: "EQ", value: pipelineId },
               { propertyName: "dealstage", operator: "IN", values: closedStageIds },
               { propertyName: "closedate", operator: "GTE", value: yearAgoStr },
+              ...(ownerFilter ? [{ propertyName: "hubspot_owner_id", operator: "EQ", value: ownerFilter }] : []),
             ],
           }],
           properties: ["createdate", "closedate", "dealstage", "amount"],
