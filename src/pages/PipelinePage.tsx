@@ -85,6 +85,12 @@ export default function PipelinePage() {
   const [leadStatuses, setLeadStatuses] = useState<StatusInfo[]>([]);
   const [leadOwners, setLeadOwners] = useState<Record<string, string>>({});
 
+  // Historical stats (from lightweight closed-deals query)
+  const [historicalStats, setHistoricalStats] = useState<{
+    winRate: number; avgCycle: number; wonRevenue: number;
+    closedWonCount: number; closedTotalCount: number;
+  } | null>(null);
+
   // ---- Fetch deals ----
   const fetchDeals = async (pipelineId?: string) => {
     setDealsLoading(true);
@@ -173,7 +179,17 @@ export default function PipelinePage() {
     setContactsLoading(false);
   };
 
-  useEffect(() => { fetchDeals(); }, [selectedPipeline]);
+  // ---- Fetch historical stats (win rate, avg cycle) ----
+  const fetchStats = async (pipelineId?: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
+        body: { action: "stats", pipeline: pipelineId || selectedPipeline },
+      });
+      if (!error && data) setHistoricalStats(data);
+    } catch { /* non-critical, stats just show — */ }
+  };
+
+  useEffect(() => { fetchDeals(); fetchStats(); }, [selectedPipeline]);
   useEffect(() => { fetchLeads(); }, []);
 
   // ---- Date range helper ----
@@ -325,12 +341,12 @@ export default function PipelinePage() {
       weightedPipeline,
       closingThisMonthValue,
       closingThisMonthCount: closingThisMonth.length,
-      winRate: 0, // requires closed deals data — future enhancement
+      winRate: historicalStats?.winRate ?? 0,
       avgDealSize,
-      avgCycle: 0, // requires closed deals data — future enhancement
+      avgCycle: historicalStats?.avgCycle ?? 0,
       openCount: filtered.length,
     };
-  }, [deals, pipelineInfo, ownerFilter]);
+  }, [deals, pipelineInfo, ownerFilter, historicalStats]);
 
   // ---- Owners grouped by team ----
   const ownersByTeam = useMemo(() => {
@@ -340,7 +356,7 @@ export default function PipelinePage() {
     // Only show owners who have deals or leads (i.e., appear in merged)
     for (const [id, name] of Object.entries(merged)) {
       const info = ownerTeams[id];
-      const team = info?.team || "Other";
+      const team = info?.team || "Others";
       if (!groups[team]) groups[team] = [];
       groups[team].push({ id, name });
     }
@@ -350,10 +366,10 @@ export default function PipelinePage() {
       groups[team].sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    // Put known teams first, "Other" last
+    // Put known teams first, "Others" last
     const sorted = Object.entries(groups).sort(([a], [b]) => {
-      if (a === "Other") return 1;
-      if (b === "Other") return -1;
+      if (a === "Others") return 1;
+      if (b === "Others") return -1;
       return a.localeCompare(b);
     });
 
@@ -378,16 +394,17 @@ export default function PipelinePage() {
           <div className="flex items-center gap-3">
             {/* Owner filter */}
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-              <SelectTrigger className="w-[200px] h-9 text-left">
+              <SelectTrigger className="w-fit min-w-[130px] h-9">
                 <User className="h-3.5 w-3.5 mr-2 shrink-0 text-muted-foreground" />
                 <SelectValue placeholder="All owners" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Owners</SelectItem>
-                {ownersByTeam.map(([team, members]) => {
-                  const isOther = team === "Other";
+                {ownersByTeam.map(([team, members], i) => {
+                  const isOther = team === "Others";
                   return (
                     <SelectGroup key={team}>
+                      <div className="mx-2 my-1 border-t border-border" />
                       {isOther ? (
                         <button
                           type="button"

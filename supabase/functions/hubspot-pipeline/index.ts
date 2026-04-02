@@ -241,7 +241,76 @@ serve(async (req) => {
       );
     }
 
-    return new Response(JSON.stringify({ error: 'Invalid action. Use "leads" or "deals".' }), {
+    if (action === "stats") {
+      // ---- STATS: lightweight closed-deal metrics (win rate, avg cycle) ----
+      const pipelineId = pipeline || DEFAULT_PIPELINE;
+      const pipelineDef = PIPELINES[pipelineId];
+      if (!pipelineDef) throw new Error(`Unknown pipeline: ${pipelineId}`);
+
+      const yearAgo = new Date();
+      yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+      const yearAgoStr = yearAgo.toISOString().split("T")[0];
+
+      const closedStageIds = pipelineDef.stages.filter((s) => s.closed).map((s) => s.id);
+      const wonStageIds = pipelineDef.stages
+        .filter((s) => s.closed && s.label.includes("Won"))
+        .map((s) => s.id);
+
+      // Fetch all closed deals in last 12 months (minimal properties)
+      const closedDeals: { createdate: string | null; closedate: string | null; dealstage: string; amount: string | null }[] = [];
+      let after: string | undefined;
+      let page = 0;
+      do {
+        const body: any = {
+          filterGroups: [{
+            filters: [
+              { propertyName: "pipeline", operator: "EQ", value: pipelineId },
+              { propertyName: "dealstage", operator: "IN", values: closedStageIds },
+              { propertyName: "closedate", operator: "GTE", value: yearAgoStr },
+            ],
+          }],
+          properties: ["createdate", "closedate", "dealstage", "amount"],
+          limit: 100,
+        };
+        if (after) body.after = after;
+        const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
+        for (const d of res.results || []) {
+          closedDeals.push(d.properties);
+        }
+        after = res.paging?.next?.after;
+        page++;
+      } while (after && page < 5); // cap at 500 closed deals
+
+      const won = closedDeals.filter((d) => wonStageIds.includes(d.dealstage));
+      const winRate = closedDeals.length > 0 ? (won.length / closedDeals.length) * 100 : 0;
+
+      const cycleDays = won
+        .filter((d) => d.createdate && d.closedate)
+        .map((d) => {
+          const created = new Date(d.createdate!).getTime();
+          const closed = new Date(d.closedate!).getTime();
+          return (closed - created) / (1000 * 60 * 60 * 24);
+        })
+        .filter((d) => d > 0);
+      const avgCycle = cycleDays.length > 0 ? cycleDays.reduce((a, b) => a + b, 0) / cycleDays.length : 0;
+
+      // Won revenue trailing 12 months
+      const wonRevenue = won.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+
+      return new Response(
+        JSON.stringify({
+          winRate,
+          avgCycle,
+          closedWonCount: won.length,
+          closedTotalCount: closedDeals.length,
+          wonRevenue,
+          period: "trailing 12 months",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(JSON.stringify({ error: 'Invalid action. Use "leads", "deals", or "stats".' }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -252,7 +321,7 @@ serve(async (req) => {
     // Translate HubSpot errors into human-readable messages
     let userMsg = raw;
     if (raw.includes("[429]") || raw.includes("TOO_MANY_REQUESTS")) {
-      userMsg = "HubSpot rate limit hit (100 requests per 10 seconds). Wait a minute and retry.";
+      userMsg = "HubSpot rate limit hit (190 requests per 10 seconds on Pro plan). Wait a minute and retry.";
     } else if (raw.includes("[401]")) {
       userMsg = "HubSpot access token is invalid or expired. Re-generate the token in HubSpot > Settings > Integrations > Private Apps.";
     } else if (raw.includes("[403]")) {
