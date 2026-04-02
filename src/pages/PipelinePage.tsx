@@ -460,7 +460,7 @@ export default function PipelinePage() {
                 <Mail className="h-3.5 w-3.5" />
                 Leads
                 {contacts.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-[11px] px-1.5 py-0">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
                     {contacts.length}
                   </Badge>
                 )}
@@ -469,7 +469,7 @@ export default function PipelinePage() {
                 <DollarSign className="h-3.5 w-3.5" />
                 Deals
                 {pipelineStats && pipelineStats.openCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-[11px] px-1.5 py-0">
+                  <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
                     {pipelineStats.openCount}
                   </Badge>
                 )}
@@ -545,7 +545,7 @@ export default function PipelinePage() {
                         {/* Column header */}
                         <div className="flex items-center justify-between px-3 py-2 mb-3 rounded-lg bg-muted/50">
                           <span className="text-sm font-semibold">{status.label}</span>
-                          <Badge variant="secondary" className="text-[11px]">
+                          <Badge variant="secondary" className="text-xs">
                             {statusContacts.length}
                           </Badge>
                         </div>
@@ -553,7 +553,7 @@ export default function PipelinePage() {
                         {/* Contact cards */}
                         <div className="space-y-2">
                           {statusContacts.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-8">No contacts</p>
+                            <p className="text-sm text-muted-foreground text-center py-8">No contacts</p>
                           ) : (
                             statusContacts.map((contact) => (
                               <a
@@ -570,14 +570,14 @@ export default function PipelinePage() {
                                         {[contact.firstname, contact.lastname].filter(Boolean).join(" ") || "Unknown"}
                                       </p>
                                       {contact.company && (
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                          <Building2 className="h-3 w-3 shrink-0" />
+                                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                                          <Building2 className="h-3.5 w-3.5 shrink-0" />
                                           <span className="truncate">{contact.company}</span>
                                         </p>
                                       )}
                                       {contact.email && (
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                          <Mail className="h-3 w-3 shrink-0" />
+                                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                                          <Mail className="h-3.5 w-3.5 shrink-0" />
                                           <span className="truncate">{contact.email}</span>
                                         </p>
                                       )}
@@ -586,13 +586,13 @@ export default function PipelinePage() {
                                   </div>
 
                                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                                    <span className="text-[11px] text-muted-foreground">
+                                    <span className="text-sm text-muted-foreground">
                                       {contact.lastmodifieddate
                                         ? formatDistanceToNow(new Date(contact.lastmodifieddate), { addSuffix: true })
                                         : ""}
                                     </span>
                                     {contact.hubspot_owner_id && leadOwners[contact.hubspot_owner_id] && (
-                                      <span className="text-[11px] text-muted-foreground">
+                                      <span className="text-sm text-muted-foreground">
                                         {leadOwners[contact.hubspot_owner_id].split(" ")[0]}
                                       </span>
                                     )}
@@ -618,34 +618,34 @@ export default function PipelinePage() {
               <div className="mb-6 rounded-lg border border-border bg-muted/30 px-6 py-5">
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-8">
                   <div>
-                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Open Pipeline</p>
+                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Open Pipeline</p>
                     <p className="text-2xl font-bold mt-1">${pipelineStats.openPipeline >= 1_000_000 ? (pipelineStats.openPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.openPipeline / 1_000).toFixed(0) + "K"}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{pipelineStats.openCount} deals</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{pipelineStats.openCount} deals</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Weighted Pipeline</p>
+                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Weighted Pipeline</p>
                     <p className="text-2xl font-bold mt-1">${pipelineStats.weightedPipeline >= 1_000_000 ? (pipelineStats.weightedPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.weightedPipeline / 1_000).toFixed(0) + "K"}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">by stage probability</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">by stage probability</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Closing This Month</p>
+                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Closing This Month</p>
                     <p className="text-2xl font-bold mt-1">${pipelineStats.closingThisMonthValue >= 1_000_000 ? (pipelineStats.closingThisMonthValue / 1_000_000).toFixed(2) + "M" : (pipelineStats.closingThisMonthValue / 1_000).toFixed(0) + "K"}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{pipelineStats.closingThisMonthCount} deals</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{pipelineStats.closingThisMonthCount} deals</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Win Rate</p>
+                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Win Rate</p>
                     <p className="text-2xl font-bold mt-1">{pipelineStats.winRate > 0 ? pipelineStats.winRate.toFixed(0) + "%" : "—"}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">trailing 12 months</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">trailing 12 months</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Avg Deal Size</p>
+                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Avg Deal Size</p>
                     <p className="text-2xl font-bold mt-1">${pipelineStats.avgDealSize >= 1_000_000 ? (pipelineStats.avgDealSize / 1_000_000).toFixed(2) + "M" : (pipelineStats.avgDealSize / 1_000).toFixed(1) + "K"}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">open deals</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">open deals</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Avg Sales Cycle</p>
+                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Avg Sales Cycle</p>
                     <p className="text-2xl font-bold mt-1">{pipelineStats.avgCycle > 0 ? pipelineStats.avgCycle.toFixed(1) + " days" : "—"}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">create to close</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">create to close</p>
                   </div>
                 </div>
               </div>
@@ -664,37 +664,77 @@ export default function PipelinePage() {
               </div>
             ) : (
               <ScrollArea className="w-full">
+                {/* Chevron pipeline bar */}
+                {(() => {
+                  const openStages = pipelineInfo?.stages.filter((s) => !s.closed) || [];
+                  return (
+                    <div className="flex mb-4" style={{ minWidth: openStages.length * 300 + (openStages.length - 1) * 16 }}>
+                      {openStages.map((stage, i) => {
+                        const stageDeals = dealsByStage[stage.id] || [];
+                        const total = stageTotal(stageDeals);
+                        const isFirst = i === 0;
+                        const isLast = i === openStages.length - 1;
+                        return (
+                          <div
+                            key={stage.id}
+                            className="relative flex items-center shrink-0"
+                            style={{ width: 300 + (isLast ? 0 : 16), marginLeft: isFirst ? 0 : -16 }}
+                          >
+                            <svg
+                              viewBox="0 0 316 48"
+                              className="absolute inset-0 w-full h-full"
+                              preserveAspectRatio="none"
+                            >
+                              <path
+                                d={isFirst
+                                  ? "M4 4 L290 4 L312 24 L290 44 L4 44 Z"
+                                  : isLast
+                                  ? "M0 4 L20 24 L0 44 L312 44 L312 4 Z"
+                                  : "M0 4 L20 24 L0 44 L290 44 L312 24 L290 4 Z"
+                                }
+                                fill="none"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="1.5"
+                                rx="2"
+                              />
+                              <path
+                                d={isFirst
+                                  ? "M4 4 L290 4 L312 24 L290 44 L4 44 Z"
+                                  : isLast
+                                  ? "M0 4 L20 24 L0 44 L312 44 L312 4 Z"
+                                  : "M0 4 L20 24 L0 44 L290 44 L312 24 L290 4 Z"
+                                }
+                                fill="hsl(var(--muted) / 0.4)"
+                              />
+                            </svg>
+                            <div className="relative z-10 flex items-center justify-between w-full px-5 py-2" style={{ paddingLeft: isFirst ? 20 : 28 }}>
+                              <div className="min-w-0">
+                                <span className="text-sm font-semibold truncate block">{stage.label}</span>
+                                <span className="text-sm text-muted-foreground">${total.toLocaleString()}</span>
+                              </div>
+                              <Badge variant="secondary" className="text-sm shrink-0 ml-2">
+                                {stageDeals.length}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
                 <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
                     .filter((s) => !s.closed)
                     .map((stage) => {
                       const stageDeals = dealsByStage[stage.id] || [];
-                      const total = stageTotal(stageDeals);
                       return (
                         <div key={stage.id} className="w-[300px] shrink-0">
-                          {/* Column header */}
-                          <div className={`flex items-center justify-between px-3 py-2 mb-3 rounded-lg ${
-                            stage.closed ? "bg-muted/30" : "bg-muted/50"
-                          }`}>
-                            <div className="min-w-0">
-                              <span className={`text-sm font-semibold ${stage.closed ? "text-muted-foreground" : ""}`}>
-                                {stage.label}
-                              </span>
-                              {total > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                  ${total.toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                            <Badge variant="secondary" className="text-[11px]">
-                              {stageDeals.length}
-                            </Badge>
-                          </div>
 
                           {/* Deal cards */}
                           <div className="space-y-2">
                             {stageDeals.length === 0 ? (
-                              <p className="text-xs text-muted-foreground text-center py-8">No deals</p>
+                              <p className="text-sm text-muted-foreground text-center py-8">No deals</p>
                             ) : (
                               stageDeals.map((deal) => (
                                 <button
@@ -703,15 +743,15 @@ export default function PipelinePage() {
                                   className="block w-full text-left"
                                 >
                                   <Card className="p-3 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
-                                    <p className="text-sm font-semibold text-primary truncate">
+                                    <p className="text-sm font-semibold text-primary leading-snug">
                                       {deal.dealname || "Untitled Deal"}
                                     </p>
                                     {deal.companyName && (
-                                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                      <p className="text-sm text-muted-foreground mt-0.5">
                                         {deal.companyName}
                                       </p>
                                     )}
-                                    <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                                       {deal.amount && (
                                         <p>Amount: <span className="text-foreground font-medium">${Number(deal.amount).toLocaleString()}</span></p>
                                       )}
@@ -775,7 +815,7 @@ export default function PipelinePage() {
                     <p className="text-sm font-semibold mb-4">About this deal</p>
                     <div className="space-y-4">
                       <div>
-                        <p className="text-xs text-muted-foreground">Deal owner</p>
+                        <p className="text-sm text-muted-foreground">Deal owner</p>
                         <p className="text-sm font-medium mt-0.5">
                           {selectedDeal.hubspot_owner_id && owners[selectedDeal.hubspot_owner_id]
                             ? owners[selectedDeal.hubspot_owner_id]
@@ -783,7 +823,7 @@ export default function PipelinePage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Last Contacted</p>
+                        <p className="text-sm text-muted-foreground">Last Contacted</p>
                         <p className="text-sm mt-0.5">
                           {selectedDeal.notes_last_contacted
                             ? format(new Date(selectedDeal.notes_last_contacted), "MM/dd/yyyy h:mm a")
@@ -791,15 +831,15 @@ export default function PipelinePage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Deal Type</p>
+                        <p className="text-sm text-muted-foreground">Deal Type</p>
                         <p className="text-sm mt-0.5">{selectedDeal.dealtype || "—"}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Priority</p>
+                        <p className="text-sm text-muted-foreground">Priority</p>
                         <p className="text-sm mt-0.5">{selectedDeal.hs_priority || "—"}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Deal Source</p>
+                        <p className="text-sm text-muted-foreground">Deal Source</p>
                         <p className="text-sm mt-0.5">
                           {selectedDeal.deal_source_details
                             ? selectedDeal.deal_source_details.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -807,7 +847,7 @@ export default function PipelinePage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Forecast Probability</p>
+                        <p className="text-sm text-muted-foreground">Forecast Probability</p>
                         <p className="text-sm mt-0.5">
                           {selectedDeal.hs_forecast_probability
                             ? `${Number(selectedDeal.hs_forecast_probability).toFixed(0)}%`
@@ -816,12 +856,12 @@ export default function PipelinePage() {
                       </div>
                       {selectedDeal.companyName && (
                         <div>
-                          <p className="text-xs text-muted-foreground">Company</p>
+                          <p className="text-sm text-muted-foreground">Company</p>
                           <p className="text-sm mt-0.5">{selectedDeal.companyName}</p>
                         </div>
                       )}
                       <div>
-                        <p className="text-xs text-muted-foreground">Created</p>
+                        <p className="text-sm text-muted-foreground">Created</p>
                         <p className="text-sm mt-0.5">
                           {selectedDeal.createdate
                             ? format(new Date(selectedDeal.createdate), "MM/dd/yyyy")
