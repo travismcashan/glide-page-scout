@@ -1,12 +1,14 @@
 /**
- * Generates a GLIDE-branded document and opens it in a print-ready window.
- * The user saves as PDF from the browser print dialog.
+ * Generates a GLIDE-branded PDF document via DocRaptor (Prince XML engine).
  *
  * Template matches the "GLIDE Executive Brief" format:
  * - Cover page with logo, title, subtitle, domain, prepared-by block
  * - Interior pages with header (logo + doc info) and footer (contact line)
  * - Larsseit font family, clean layout, simple tables
+ *
+ * Uses DocRaptor API via Supabase edge function for pixel-perfect PDF output.
  */
+import { supabase } from '@/integrations/supabase/client';
 
 export interface GlideDocumentOptions {
   title: string;
@@ -121,19 +123,13 @@ function markdownToHtml(md: string): string {
   return html;
 }
 
-export function generateGlideDocument(options: GlideDocumentOptions): void {
+/** Build the full HTML document string (used by both preview and DocRaptor) */
+export function buildGlideHtml(options: GlideDocumentOptions): string {
   const { title, subtitle, clientDomain, companyName, sections, preparedBy = DEFAULT_PREPARED_BY } = options;
-
-  const win = window.open('', '_blank');
-  if (!win) {
-    alert('Please allow popups to generate the document.');
-    return;
-  }
-
   const bodyHtml = markdownToHtml(sections);
   const headerRight = [title, subtitle, companyName].filter(Boolean).join('<br/>');
 
-  win.document.write(`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -347,12 +343,30 @@ export function generateGlideDocument(options: GlideDocumentOptions): void {
     </div>
   </div>
 
-  <script>
-    window.onload = function() {
-      setTimeout(function() { window.print(); }, 500);
-    };
-  </script>
 </body>
-</html>`);
-  win.document.close();
+</html>`;
+}
+
+/** Generate a GLIDE-branded PDF via DocRaptor and trigger download */
+export async function generateGlideDocument(options: GlideDocumentOptions): Promise<void> {
+  const html = buildGlideHtml(options);
+  const filename = `${options.title || 'Document'} — ${options.companyName || options.clientDomain || 'GLIDE'}.pdf`
+    .replace(/[^\w\s.—-]/g, '');
+
+  const { data, error } = await supabase.functions.invoke('generate-pdf', {
+    body: { html, filename, test: false },
+  });
+
+  if (error) throw error;
+
+  // data is a Blob when the function returns binary content
+  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

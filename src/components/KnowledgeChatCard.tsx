@@ -981,13 +981,21 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
     }
   };
 
-  const handleExportPdf = () => {
-    generateGlideDocument({
-      title: 'Executive Summary',
-      subtitle: domain || undefined,
-      clientDomain: domain || undefined,
-      sections: content,
-    });
+  const handleExportPdf = async () => {
+    setExporting('pdf');
+    try {
+      await generateGlideDocument({
+        title: 'Executive Summary',
+        subtitle: domain || undefined,
+        clientDomain: domain || undefined,
+        sections: content,
+      });
+    } catch (e: any) {
+      console.error('PDF generation error:', e);
+      toast.error(e?.message || 'Failed to generate PDF');
+    } finally {
+      setExporting(null);
+    }
   };
 
   const handleExportGoogleDoc = async () => {
@@ -1146,9 +1154,10 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
               <TooltipTrigger asChild>
                 <button
                   onClick={handleExportPdf}
+                  disabled={exporting === 'pdf'}
                   className="p-1 rounded-md hover:bg-muted text-red-500/70 hover:text-red-600"
                 >
-                  <Download className="h-5 w-5" />
+                  {exporting === 'pdf' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
