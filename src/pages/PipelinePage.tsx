@@ -727,49 +727,34 @@ export default function PipelinePage() {
               <>
               <ScrollArea className="w-full flex-1">
                 {/* Chevron pipeline bar */}
+                {/* Stage headers — bordered outline matching footer style */}
                 {(() => {
-                  const openStages = pipelineInfo?.stages.filter((s) => showClosed || !s.closed) || [];
-                  const A = 16; // arrow depth in px — consistent angle for all chevrons
-                  const GAP = 3; // thin gap between chevrons to create the divider line
+                  const visibleStages = pipelineInfo?.stages.filter((s) => showClosed || !s.closed) || [];
                   return (
-                    <div className="flex mb-4 sticky top-0 z-10 bg-background pb-1" style={{ minWidth: openStages.length * 220 }}>
-                      {openStages.map((stage, i) => {
-                        const stageDeals = dealsByStage[stage.id] || [];
-                        const total = stageTotal(stageDeals);
-                        const isFirst = i === 0;
-                        const isLast = i === openStages.length - 1;
-
-                        const clip = isFirst
-                          ? `polygon(0 0, calc(100% - ${A}px) 0, 100% 50%, calc(100% - ${A}px) 100%, 0 100%)`
-                          : isLast
-                          ? `polygon(0 0, 100% 0, 100% 100%, 0 100%, ${A}px 50%)`
-                          : `polygon(0 0, calc(100% - ${A}px) 0, 100% 50%, calc(100% - ${A}px) 100%, 0 100%, ${A}px 50%)`;
-
-                        return (
-                          <div
-                            key={stage.id}
-                            className="shrink-0 flex-1"
-                            style={{ marginLeft: isFirst ? 0 : GAP }}
-                          >
-                            <div
-                              className="flex items-center justify-between h-14 bg-muted"
-                              style={{
-                                clipPath: clip,
-                                paddingLeft: isFirst ? 16 : A + 12,
-                                paddingRight: isLast ? 16 : A + 6,
-                              }}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-sm font-semibold truncate">{stage.label}</span>
-                                <Badge variant="secondary" className="text-xs shrink-0">
-                                  {stageDeals.length}
-                                </Badge>
+                    <div className="sticky top-0 z-10 bg-background pb-2">
+                      <div className="border border-border rounded-lg flex" style={{ minWidth: visibleStages.length * 220 }}>
+                        {visibleStages.map((stage, i) => {
+                          const stageDeals = dealsByStage[stage.id] || [];
+                          const isLast = i === visibleStages.length - 1;
+                          return (
+                            <div key={stage.id} className="flex-1 relative">
+                              <div className="flex items-center justify-between h-12 px-4">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-sm font-semibold truncate">{stage.label}</span>
+                                  <Badge variant="secondary" className="text-xs shrink-0">
+                                    {stageDeals.length}
+                                  </Badge>
+                                </div>
                               </div>
-                              <span className="text-sm text-muted-foreground shrink-0">${total.toLocaleString()}</span>
+                              {!isLast && (
+                                <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
+                                  <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
+                                </svg>
+                              )}
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })()}
