@@ -334,7 +334,7 @@ export default function TimelineBar({
       <TooltipTrigger asChild>
         <div
           ref={barRef}
-          className={`group absolute top-0 flex h-10 items-center rounded-lg transition-all ${BAR_STYLES[item.pillar]} ${BAR_HOVER[item.pillar]} ${dragging ? "opacity-90 shadow-lg" : ""} ${editing ? "cursor-text" : "cursor-grab"}`}
+          className={`group absolute top-0 flex h-10 items-center rounded-lg transition-all hover:z-20 ${BAR_STYLES[item.pillar]} ${BAR_HOVER[item.pillar]} ${dragging ? "opacity-90 shadow-lg z-20" : ""} ${editing ? "cursor-text" : "cursor-grab active:cursor-grabbing"}`}
           style={{
             left: `${barLeft}px`,
             width: `${Math.max(barWidth, columnWidth * 0.5)}px`,
@@ -348,7 +348,7 @@ export default function TimelineBar({
           }}
         >
           <div
-            className="absolute left-0 top-0 h-full w-2 cursor-col-resize rounded-l-lg opacity-0 transition-opacity group-hover:opacity-100"
+            className="absolute -left-1 top-0 h-full w-3 cursor-col-resize rounded-l-lg opacity-0 transition-opacity group-hover:opacity-100"
             onMouseDown={handleResizeLeft}
           />
 
@@ -521,7 +521,7 @@ export default function TimelineBar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="absolute -left-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
+                  className="absolute -left-2 -top-2 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -584,7 +584,7 @@ export default function TimelineBar({
 
           {/* Delete button — always visible on hover */}
           <button
-            className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-destructive group-hover:opacity-100"
+            className="absolute -right-2 -top-2 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-destructive group-hover:opacity-100"
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -595,7 +595,7 @@ export default function TimelineBar({
           </button>
 
           <div
-            className="absolute right-0 top-0 h-full w-2 cursor-col-resize rounded-r-lg opacity-0 transition-opacity group-hover:opacity-100"
+            className="absolute -right-1 top-0 h-full w-3 cursor-col-resize rounded-r-lg opacity-0 transition-opacity group-hover:opacity-100"
             onMouseDown={handleResizeRight}
           />
         </div>
