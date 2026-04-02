@@ -742,7 +742,7 @@ export default function PipelinePage() {
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="text-sm font-semibold truncate">{stage.label}</span>
                                   <Badge variant="secondary" className="text-xs shrink-0">
-                                    {stageDeals.length}
+                                    {stageDeals.length} {stageDeals.length === 1 ? "deal" : "deals"}
                                   </Badge>
                                 </div>
                               </div>
@@ -762,10 +762,15 @@ export default function PipelinePage() {
                 <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
                     .filter((s) => showClosed || !s.closed)
-                    .map((stage) => {
+                    .map((stage, colIdx, filteredStages) => {
                       const stageDeals = dealsByStage[stage.id] || [];
+                      const isLastCol = colIdx === filteredStages.length - 1;
                       return (
-                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col">
+                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col relative">
+                          {/* Vertical gutter line connecting header to footer */}
+                          {!isLastCol && (
+                            <div className="absolute top-0 bottom-0 w-px bg-border" style={{ right: -9 }} />
+                          )}
 
                           {/* Deal cards — scrollable column */}
                           <div className="space-y-4 overflow-y-auto flex-1">
@@ -812,7 +817,7 @@ export default function PipelinePage() {
                                       </div>
                                     )}
 
-                                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                    <div className="mt-2 space-y-0.5 text-sm text-muted-foreground leading-snug">
                                       {deal.amount && (
                                         <p>Amount: <span className="text-foreground font-medium">${Number(deal.amount).toLocaleString()}</span></p>
                                       )}
@@ -851,26 +856,29 @@ export default function PipelinePage() {
               {pipelineInfo && (
                 <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-20 w-full max-w-6xl px-6">
                   <div className="border border-border border-b-0 rounded-t-lg bg-background/95 backdrop-blur-sm">
-                  <div className="flex gap-4 overflow-x-auto" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
-                    {pipelineInfo.stages
-                      .filter((s) => showClosed || !s.closed)
-                      .map((stage, idx, arr) => {
+                  {(() => {
+                    const footerStages = pipelineInfo.stages.filter((s) => showClosed || !s.closed);
+                    return (
+                    <div className="flex" style={{ width: footerStages.length * 300 + (footerStages.length - 1) * 16 }}>
+                    {footerStages.map((stage, idx) => {
                         const sd = dealsByStage[stage.id] || [];
                         const total = stageTotal(sd);
-                        const isLast = idx === arr.length - 1;
+                        const isLast = idx === footerStages.length - 1;
                         return (
-                          <div key={`footer-${stage.id}`} className="w-[300px] shrink-0 py-2.5 text-center relative">
+                          <div key={`footer-${stage.id}`} className="relative flex items-center justify-center h-12" style={{ width: 300 + (isLast ? 0 : 16) }}>
                             <span className="text-sm text-muted-foreground">Total: </span>
-                            <span className="text-sm font-semibold">${total.toLocaleString()}</span>
+                            <span className="text-sm font-semibold ml-1">${total.toLocaleString()}</span>
                             {!isLast && (
-                              <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -10 }} preserveAspectRatio="none" viewBox="0 0 16 56">
-                                <path d="M0 0 L16 28 L0 56" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
+                              <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
+                                <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
                               </svg>
                             )}
                           </div>
                         );
                       })}
                   </div>
+                    );
+                  })()}
                   </div>
                 </div>
               )}
