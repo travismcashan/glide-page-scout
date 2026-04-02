@@ -84,7 +84,7 @@ export default function WishlistPage() {
       const { data, error } = await withQueryTimeout(
         supabase
           .from('wishlist_items')
-          .select('*, profiles:submitted_by(display_name, avatar_url)')
+          .select('*')
           .order('created_at', { ascending: false }),
         12000,
         'Loading wishlist timed out'
@@ -94,7 +94,20 @@ export default function WishlistPage() {
         throw error;
       }
 
-      setItems((data as any[]) || []);
+      // Enrich with profile data
+      const items = (data as any[]) || [];
+      const userIds = [...new Set(items.map(i => i.submitted_by).filter(Boolean))];
+      if (userIds.length) {
+        const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+        if (profiles?.length) {
+          const profileMap = new Map(profiles.map(p => [p.id, p]));
+          for (const item of items) {
+            if (item.submitted_by) item.profiles = profileMap.get(item.submitted_by) || null;
+          }
+        }
+      }
+
+      setItems(items);
     } catch (error: any) {
       console.error('Failed to load wishlist items:', error);
       setItems([]);
