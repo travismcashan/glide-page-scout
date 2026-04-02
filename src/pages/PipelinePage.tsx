@@ -60,7 +60,7 @@ export default function PipelinePage() {
   const [pipelineInfo, setPipelineInfo] = useState<PipelineInfo | null>(null);
   const [pipelineOptions, setPipelineOptions] = useState<PipelineOption[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState("33bc2a42-c57c-4180-b0e6-77b3d6c7f69f");
-  const [showClosed, setShowClosed] = useState(true);
+  const [showClosed, setShowClosed] = useState(false);
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
 
