@@ -57,13 +57,31 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
   const { user } = useAuth();
   const { offerings, loading: offeringsLoading } = useServiceOfferings();
   const [proposalData, setProposalData] = useState<ProposalData>(EMPTY_PROPOSAL);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [genStep, setGenStep] = useState(0);
   const [contactName, setContactName] = useState("");
   const [contactTitle, setContactTitle] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [companyName, setCompanyName] = useState(domain?.replace(/^https?:\/\//, "").replace(/\/$/, "") || "");
+
+  // ── Section-by-section generation state ─────────────────────
+  type SectionKey = 'whatWeHeard' | 'northStar' | 'measurementPlan' | 'strategicFoundation' | 'whyGlide' | 'faqs';
+  type SectionStatus = 'idle' | 'generating' | 'complete' | 'error';
+  const SECTION_ORDER: SectionKey[] = ['whatWeHeard', 'northStar', 'measurementPlan', 'strategicFoundation', 'whyGlide', 'faqs'];
+  const SECTION_LABELS: Record<SectionKey, string> = {
+    whatWeHeard: 'Synthesizing what we heard...',
+    northStar: 'Defining the North Star positioning...',
+    measurementPlan: 'Building measurement plan with KPIs...',
+    strategicFoundation: 'Running 5C strategic diagnostic...',
+    whyGlide: "Crafting 'Why GLIDE' value narrative...",
+    faqs: 'Generating client-specific FAQs...',
+  };
+  const [sectionStatuses, setSectionStatuses] = useState<Record<SectionKey, SectionStatus>>(
+    () => Object.fromEntries(SECTION_ORDER.map(k => [k, 'idle'])) as Record<SectionKey, SectionStatus>
+  );
+  const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
+  const [currentSection, setCurrentSection] = useState<SectionKey | null>(null);
+  const contextRef = useRef<{ clientContext: string; ragContext: string; clientName: string; domain: string } | null>(null);
+  const isGenerating = currentSection !== null || SECTION_ORDER.some(k => sectionStatuses[k] === 'generating');
 
   // ── Roadmap state (interactive, same as RoadmapTab) ─────────
   const [roadmapId, setRoadmapId] = useState<string | null>(null);
@@ -73,17 +91,6 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
   const [outcomesData, setOutcomesData] = useState<Record<number, string[]>>({});
   const [roadmapLoaded, setRoadmapLoaded] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-
-  const GEN_STEPS = [
-    "Analyzing discovery notes and client context...",
-    "Synthesizing what we heard from the client...",
-    "Defining the North Star positioning...",
-    "Building measurement plan with KPIs...",
-    "Running 5C strategic diagnostic...",
-    "Crafting 'Why GLIDE' value narrative...",
-    "Generating client-specific FAQs...",
-    "Assembling final proposal...",
-  ];
 
   // ── Load roadmap (same logic as RoadmapTab) ─────────────────
   useEffect(() => {
@@ -325,30 +332,91 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
       } as any, { onConflict: "session_id" });
   }, [sessionId, user, contactName, contactTitle, contactEmail, companyName]);
 
-  const generateProposal = useCallback(async () => {
-    setIsGenerating(true);
-    setGenStep(0);
-    const interval = setInterval(() => setGenStep((p) => (p + 1) % GEN_STEPS.length), 3500);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-proposal", {
-        body: { sessionId, domain, companyName },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data?.proposal) {
-        setProposalData(data.proposal);
-        setHasGenerated(true);
-        await saveProposal(data.proposal);
-        toast.success("Proposal generated successfully");
+  const generateSection = useCallback(async (
+    sectionKey: SectionKey,
+    context: { clientContext: string; ragContext: string; clientName: string; domain: string },
+    priorData: ProposalData,
+  ): Promise<any> => {
+    setSectionStatuses(prev => ({ ...prev, [sectionKey]: 'generating' }));
+    setCurrentSection(sectionKey);
+    setSectionErrors(prev => { const n = { ...prev }; delete n[sectionKey]; return n; });
+
+    // Build priorSections from already-completed sections
+    const priorSections: Record<string, any> = {};
+    for (const key of SECTION_ORDER) {
+      if (key === sectionKey) break;
+      const val = priorData[key];
+      if (val && (Array.isArray(val) ? val.length > 0 : typeof val === 'object' && Object.values(val).some(v => v))) {
+        priorSections[key] = val;
       }
-    } catch (e: any) {
-      console.error("Generate proposal error:", e);
-      toast.error(e?.message || "Failed to generate proposal");
-    } finally {
-      clearInterval(interval);
-      setIsGenerating(false);
     }
-  }, [sessionId, domain, companyName, saveProposal]);
+
+    const { data, error } = await supabase.functions.invoke("generate-proposal-section", {
+      body: { section: sectionKey, ...context, priorSections },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data?.data?.[sectionKey] ?? data?.data;
+  }, []);
+
+  const generateProposal = useCallback(async () => {
+    // Reset all sections
+    setSectionStatuses(Object.fromEntries(SECTION_ORDER.map(k => [k, 'idle'])) as Record<SectionKey, SectionStatus>);
+    setSectionErrors({});
+
+    // Step 1: Gather context once
+    setCurrentSection('whatWeHeard'); // Show loading state
+    try {
+      const { data: ctx, error: ctxErr } = await supabase.functions.invoke("gather-proposal-context", {
+        body: { sessionId },
+      });
+      if (ctxErr) throw ctxErr;
+      if (ctx?.error) throw new Error(ctx.error);
+      contextRef.current = ctx;
+      if (ctx.clientName && !companyName) setCompanyName(ctx.clientName);
+    } catch (e: any) {
+      toast.error("Failed to gather client context: " + (e?.message || "Unknown error"));
+      setCurrentSection(null);
+      return;
+    }
+
+    // Step 2: Generate sections sequentially
+    let accumulatedData = { ...EMPTY_PROPOSAL };
+    for (const sectionKey of SECTION_ORDER) {
+      try {
+        const sectionData = await generateSection(sectionKey, contextRef.current!, accumulatedData);
+        accumulatedData = { ...accumulatedData, [sectionKey]: sectionData };
+        setProposalData({ ...accumulatedData });
+        setHasGenerated(true);
+        setSectionStatuses(prev => ({ ...prev, [sectionKey]: 'complete' }));
+        // Incremental save
+        await saveProposal(accumulatedData);
+      } catch (e: any) {
+        console.error(`Section ${sectionKey} failed:`, e);
+        setSectionStatuses(prev => ({ ...prev, [sectionKey]: 'error' }));
+        setSectionErrors(prev => ({ ...prev, [sectionKey]: e?.message || 'Generation failed' }));
+        // Continue to next section
+      }
+    }
+    setCurrentSection(null);
+    toast.success("Proposal generation complete");
+  }, [sessionId, companyName, saveProposal, generateSection]);
+
+  const retrySection = useCallback(async (sectionKey: SectionKey) => {
+    if (!contextRef.current) { toast.error("No context cached. Regenerate the full proposal."); return; }
+    try {
+      const sectionData = await generateSection(sectionKey, contextRef.current, proposalData);
+      const updated = { ...proposalData, [sectionKey]: sectionData };
+      setProposalData(updated);
+      setSectionStatuses(prev => ({ ...prev, [sectionKey]: 'complete' }));
+      await saveProposal(updated);
+      toast.success(`${sectionKey} regenerated`);
+    } catch (e: any) {
+      setSectionStatuses(prev => ({ ...prev, [sectionKey]: 'error' }));
+      setSectionErrors(prev => ({ ...prev, [sectionKey]: e?.message || 'Retry failed' }));
+    }
+    setCurrentSection(null);
+  }, [proposalData, generateSection, saveProposal]);
 
   // ── Empty state ─────────────────────────────────────────────
   if (!hasGenerated && !isGenerating) {
@@ -393,35 +461,47 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     );
   }
 
-  // ── Loading state ───────────────────────────────────────────
-  if (isGenerating) {
-    return (
-      <div className="space-y-8">
-        <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/[0.04] via-primary/[0.02] to-transparent p-8">
-          <div className="max-w-xl mx-auto text-center space-y-6">
-            <div className="flex h-16 w-16 mx-auto items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 104 104" fill="none" className="h-16 w-16 animate-spin [animation-duration:3s]">
-                <circle cx="50" cy="49" r="46" stroke="hsl(var(--pillar-is))" strokeWidth="8" strokeDasharray="120 170" opacity="0.9" />
-                <circle cx="50" cy="67" r="28" stroke="hsl(var(--pillar-go))" strokeWidth="8" strokeDasharray="80 100" opacity="0.9" />
-                <circle cx="50" cy="77" r="18" stroke="hsl(var(--pillar-fb))" strokeWidth="8" strokeDasharray="50 65" opacity="0.9" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-foreground">Generating Proposal</h2>
-            <p key={genStep} className="text-sm text-muted-foreground animate-in fade-in slide-in-from-bottom-1 duration-300">
-              {GEN_STEPS[genStep]}
-            </p>
-            <div className="space-y-2">
-              <div className="h-3 w-3/4 mx-auto rounded-full bg-primary/10 animate-pulse" />
-              <div className="h-3 w-full rounded-full bg-primary/[0.07] animate-pulse [animation-delay:150ms]" />
-              <div className="h-3 w-5/6 mx-auto rounded-full bg-primary/[0.07] animate-pulse [animation-delay:300ms]" />
-            </div>
-          </div>
+  // ── Section skeleton for progressive rendering ──────────────
+  const SectionSkeleton = ({ sectionKey }: { sectionKey: SectionKey }) => (
+    <section className="py-12 px-8 lg:px-16">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center gap-3 mb-4">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">{SECTION_LABELS[sectionKey]}</span>
+        </div>
+        <div className="space-y-2">
+          <div className="h-3 w-3/4 rounded-full bg-primary/10 animate-pulse" />
+          <div className="h-3 w-full rounded-full bg-primary/[0.07] animate-pulse [animation-delay:150ms]" />
+          <div className="h-3 w-5/6 rounded-full bg-primary/[0.07] animate-pulse [animation-delay:300ms]" />
         </div>
       </div>
-    );
-  }
+    </section>
+  );
 
-  // ── Full proposal ───────────────────────────────────────────
+  const SectionError = ({ sectionKey }: { sectionKey: SectionKey }) => (
+    <section className="py-8 px-8 lg:px-16">
+      <div className="max-w-6xl mx-auto rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-destructive">Failed to generate: {sectionKey}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sectionErrors[sectionKey]}</p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => retrySection(sectionKey)}>
+          <RefreshCw className="h-3.5 w-3.5" />
+          Retry
+        </Button>
+      </div>
+    </section>
+  );
+
+  // Helper: should we show a section's content?
+  const sectionReady = (key: SectionKey) => {
+    const d = proposalData[key];
+    if (Array.isArray(d)) return d.length > 0;
+    if (typeof d === 'object' && d) return Object.values(d).some(v => v);
+    return false;
+  };
+
+  // ── Full proposal (progressive rendering) ──────────────────
   return (
     <div className="space-y-0">
       {/* Toolbar */}
@@ -438,7 +518,7 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
         </div>
       </div>
 
-      {/* Proposal sections */}
+      {/* Proposal sections — progressive rendering */}
       <ProposalHero
         domain={domain}
         companyName={companyName}
@@ -446,10 +526,21 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
         contactTitle={contactTitle}
         contactEmail={contactEmail}
       />
-      <WhatWeHeard insights={proposalData.whatWeHeard} />
-      <NorthStar data={proposalData.northStar} />
-      <MeasurementPlan kpis={proposalData.measurementPlan} />
-      <StrategicFoundation categories={proposalData.strategicFoundation} />
+      {sectionStatuses.whatWeHeard === 'generating' && <SectionSkeleton sectionKey="whatWeHeard" />}
+      {sectionStatuses.whatWeHeard === 'error' && <SectionError sectionKey="whatWeHeard" />}
+      {sectionReady('whatWeHeard') && <WhatWeHeard insights={proposalData.whatWeHeard} />}
+
+      {sectionStatuses.northStar === 'generating' && <SectionSkeleton sectionKey="northStar" />}
+      {sectionStatuses.northStar === 'error' && <SectionError sectionKey="northStar" />}
+      {sectionReady('northStar') && <NorthStar data={proposalData.northStar} />}
+
+      {sectionStatuses.measurementPlan === 'generating' && <SectionSkeleton sectionKey="measurementPlan" />}
+      {sectionStatuses.measurementPlan === 'error' && <SectionError sectionKey="measurementPlan" />}
+      {sectionReady('measurementPlan') && <MeasurementPlan kpis={proposalData.measurementPlan} />}
+
+      {sectionStatuses.strategicFoundation === 'generating' && <SectionSkeleton sectionKey="strategicFoundation" />}
+      {sectionStatuses.strategicFoundation === 'error' && <SectionError sectionKey="strategicFoundation" />}
+      {sectionReady('strategicFoundation') && <StrategicFoundation categories={proposalData.strategicFoundation} />}
       <ProposalGrowthPlan
         items={items}
         offerings={offerings}
@@ -474,8 +565,13 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
         savedOutcomes={outcomesData}
         onOutcomesChange={handleOutcomesChange}
       />
-      <WhyGlide pillars={proposalData.whyGlide} companyName={companyName} />
-      <ProposalFAQ faqs={proposalData.faqs} />
+      {sectionStatuses.whyGlide === 'generating' && <SectionSkeleton sectionKey="whyGlide" />}
+      {sectionStatuses.whyGlide === 'error' && <SectionError sectionKey="whyGlide" />}
+      {sectionReady('whyGlide') ? <WhyGlide pillars={proposalData.whyGlide} companyName={companyName} /> : !isGenerating && <WhyGlide pillars={[]} companyName={companyName} />}
+
+      {sectionStatuses.faqs === 'generating' && <SectionSkeleton sectionKey="faqs" />}
+      {sectionStatuses.faqs === 'error' && <SectionError sectionKey="faqs" />}
+      {sectionReady('faqs') && <ProposalFAQ faqs={proposalData.faqs} />}
       <NextSteps contactEmail={contactEmail} />
     </div>
   );
