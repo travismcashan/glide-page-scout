@@ -676,7 +676,7 @@ export default function PipelinePage() {
           <TabsContent value="deals" className="mt-0 flex-1 flex flex-col overflow-hidden">
             {/* Pipeline stats bar */}
             {!dealsLoading && pipelineStats && showMetrics && (
-              <div className="mb-6 rounded-lg border border-border bg-muted/30 px-6 py-5">
+              <div className="mb-4 rounded-lg border border-border bg-muted/30 px-6 py-5">
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
                   <div>
                     <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Open Pipeline</p>
@@ -731,14 +731,14 @@ export default function PipelinePage() {
                 {(() => {
                   const visibleStages = pipelineInfo?.stages.filter((s) => showClosed || !s.closed) || [];
                   return (
-                    <div className="sticky top-0 z-10 bg-background pb-2">
-                      <div className="border border-border rounded-lg flex" style={{ minWidth: visibleStages.length * 220 }}>
+                    <div className="sticky top-0 z-10 bg-background pb-4">
+                      <div className="flex gap-4" style={{ minWidth: visibleStages.length * 300 }}>
                         {visibleStages.map((stage, i) => {
                           const stageDeals = dealsByStage[stage.id] || [];
                           const isLast = i === visibleStages.length - 1;
                           return (
-                            <div key={stage.id} className="flex-1 relative">
-                              <div className="flex items-center justify-between h-12 px-4">
+                            <div key={stage.id} className="w-[300px] shrink-0 relative">
+                              <div className="flex items-center justify-between h-12 px-4 border border-border rounded-lg">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="text-sm font-semibold truncate">{stage.label}</span>
                                   <Badge variant="secondary" className="text-xs shrink-0">
@@ -747,7 +747,7 @@ export default function PipelinePage() {
                                 </div>
                               </div>
                               {!isLast && (
-                                <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
+                                <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -10 }} preserveAspectRatio="none" viewBox="0 0 16 48">
                                   <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
                                 </svg>
                               )}
