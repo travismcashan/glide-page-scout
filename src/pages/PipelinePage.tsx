@@ -612,7 +612,7 @@ export default function PipelinePage() {
                         </div>
 
                         {/* Contact cards */}
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           {statusContacts.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">No contacts</p>
                           ) : (
@@ -769,11 +769,11 @@ export default function PipelinePage() {
                         <div key={stage.id} className="w-[300px] shrink-0 flex flex-col relative">
                           {/* Vertical gutter line connecting header to footer */}
                           {!isLastCol && (
-                            <div className="absolute top-0 bottom-0 w-px bg-border" style={{ right: -9 }} />
+                            <div className="absolute bottom-0 w-px bg-border" style={{ right: -9, top: -16 }} />
                           )}
 
                           {/* Deal cards — scrollable column */}
-                          <div className="space-y-4 overflow-y-auto flex-1">
+                          <div className="space-y-2 overflow-y-auto flex-1">
                             {stageDeals.length === 0 && stage.closed && closedLoading ? (
                               <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
