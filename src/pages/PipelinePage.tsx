@@ -864,7 +864,8 @@ export default function PipelinePage() {
 
               {/* Sticky bottom bar — column totals */}
               {pipelineInfo && (
-                <div className="border-t border-border bg-background/95 backdrop-blur-sm">
+                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-20 w-full max-w-6xl px-6">
+                  <div className="border border-border border-b-0 rounded-t-lg bg-background/95 backdrop-blur-sm">
                   <div className="flex gap-4 overflow-x-auto" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                     {pipelineInfo.stages
                       .filter((s) => showClosed || !s.closed)
@@ -884,6 +885,7 @@ export default function PipelinePage() {
                           </div>
                         );
                       })}
+                  </div>
                   </div>
                 </div>
               )}
