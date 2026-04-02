@@ -425,9 +425,9 @@ export default function PipelinePage() {
     stageDeals.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       <AppHeader />
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="flex-1 flex flex-col max-w-6xl mx-auto px-6 py-6 w-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -488,7 +488,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <TabsList>
               <TabsTrigger value="leads" className="gap-2">
@@ -652,7 +652,7 @@ export default function PipelinePage() {
           </TabsContent>
 
           {/* ---- DEALS TAB ---- */}
-          <TabsContent value="deals" className="mt-0">
+          <TabsContent value="deals" className="mt-0 flex-1 flex flex-col overflow-hidden">
             {/* Pipeline stats bar */}
             {!dealsLoading && pipelineStats && (
               <div className="mb-6 rounded-lg border border-border bg-muted/30 px-6 py-5">
@@ -704,7 +704,7 @@ export default function PipelinePage() {
               </div>
             ) : (
               <>
-              <ScrollArea className="w-full">
+              <ScrollArea className="w-full flex-1">
                 {/* Chevron pipeline bar */}
                 {(() => {
                   const openStages = pipelineInfo?.stages.filter((s) => showClosed || !s.closed) || [];
@@ -760,10 +760,10 @@ export default function PipelinePage() {
                       const stageDeals = dealsByStage[stage.id] || [];
                       const colTotal = stageTotal(stageDeals);
                       return (
-                        <div key={stage.id} className="w-[300px] shrink-0">
+                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col">
 
                           {/* Deal cards — scrollable column */}
-                          <div className="space-y-3 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                          <div className="space-y-3 overflow-y-auto flex-1 pr-1">
                             {stageDeals.length === 0 && stage.closed && closedLoading ? (
                               <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
