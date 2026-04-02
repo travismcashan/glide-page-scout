@@ -189,8 +189,16 @@ export default function PipelinePage() {
     } catch { /* non-critical, stats just show — */ }
   };
 
-  useEffect(() => { fetchDeals(); fetchStats(); }, [selectedPipeline]);
-  useEffect(() => { fetchLeads(); }, []);
+  // Stagger API calls to avoid hitting HubSpot rate limits on mount
+  // Deals + stats fire first, leads fires after deals complete
+  useEffect(() => {
+    fetchDeals().then(() => fetchStats());
+  }, [selectedPipeline]);
+  useEffect(() => {
+    // Delay leads slightly so deals/stats finish their HubSpot calls first
+    const t = setTimeout(() => fetchLeads(), 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   // ---- Date range helper ----
   const getDateRange = (filter: string): { start: Date; end: Date } | null => {

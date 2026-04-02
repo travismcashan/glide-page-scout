@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function hubspotFetch(path: string, token: string, method = "GET", body?: any) {
+async function hubspotFetch(path: string, token: string, method = "GET", body?: any, retries = 1): Promise<any> {
   const opts: RequestInit = {
     method,
     headers: {
@@ -16,6 +16,13 @@ async function hubspotFetch(path: string, token: string, method = "GET", body?: 
   };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`https://api.hubapi.com${path}`, opts);
+  if (res.status === 429 && retries > 0) {
+    // Rate limited — wait and retry once
+    const retryAfter = Number(res.headers.get("Retry-After")) || 5;
+    console.log(`[hubspot-pipeline] Rate limited, waiting ${retryAfter}s before retry...`);
+    await new Promise((r) => setTimeout(r, retryAfter * 1000));
+    return hubspotFetch(path, token, method, body, retries - 1);
+  }
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`HubSpot API [${res.status}]: ${errText.substring(0, 500)}`);
