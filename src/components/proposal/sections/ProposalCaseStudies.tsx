@@ -44,6 +44,8 @@ export default function ProposalCaseStudies({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [driveOpen, setDriveOpen] = useState(false);
+  const [stagedFiles, setStagedFiles] = useState<{ name: string; content: string; type: 'file' | 'drive' | 'url' | 'text' }[]>([]);
+  const [stagedScreenshotUrl, setStagedScreenshotUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState<string | null>(null); // case study id
@@ -115,124 +117,85 @@ export default function ProposalCaseStudies({
     };
   };
 
-  // ── Handle file drop/upload ──────────────────────────────────
+  // ── Stage files (parse but don't generate yet) ────────────────
   const handleFiles = async (files: FileList | File[]) => {
-    setIsProcessing(true);
-    try {
-      let rawContent = "";
-
-      for (const file of Array.from(files)) {
-        if (file.type.startsWith("image/")) {
-          // Skip images in the content parse — handle screenshots separately
-          continue;
-        }
+    for (const file of Array.from(files)) {
+      if (file.type.startsWith("image/")) continue;
+      try {
         setProcessingLabel(`Parsing ${file.name}...`);
+        setIsProcessing(true);
         const text = await parseFile(file);
-        rawContent += (rawContent ? "\n\n---\n\n" : "") + text;
-      }
-
-      // Check for pasted/typed text too
-      if (textInput.trim()) {
-        rawContent += (rawContent ? "\n\n---\n\n" : "") + textInput.trim();
-        setTextInput("");
-        setShowTextInput(false);
-      }
-
-      if (!rawContent.trim()) {
-        toast.error("No text content found in uploads");
-        setIsProcessing(false);
-        return;
-      }
-
-      setProcessingLabel("AI is structuring the case study...");
-      const newStudy = await generateCaseStudy(rawContent);
-      const updated = [...caseStudies, newStudy];
-      onCaseStudiesChange(updated);
-      await saveCaseStudies(updated);
-      toast.success(`Case study for ${newStudy.company} created`);
-    } catch (e: any) {
-      console.error("Case study creation error:", e);
-      toast.error(e?.message || "Failed to create case study");
+        if (text.trim()) setStagedFiles(prev => [...prev, { name: file.name, content: text, type: 'file' }]);
+      } catch { toast.error(`Failed to parse ${file.name}`); }
     }
     setIsProcessing(false);
     setProcessingLabel("");
   };
 
-  // ── Handle text-only submission ──────────────────────────────
-  const handleTextSubmit = async () => {
+  // ── Stage text ───────────────────────────────────────────────
+  const handleStageText = () => {
     if (!textInput.trim()) return;
-    setIsProcessing(true);
-    setProcessingLabel("AI is structuring the case study...");
-    try {
-      const newStudy = await generateCaseStudy(textInput.trim());
-      const updated = [...caseStudies, newStudy];
-      onCaseStudiesChange(updated);
-      await saveCaseStudies(updated);
-      setTextInput("");
-      setShowTextInput(false);
-      toast.success(`Case study for ${newStudy.company} created`);
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to create case study");
-    }
-    setIsProcessing(false);
-    setProcessingLabel("");
+    setStagedFiles(prev => [...prev, { name: "Pasted text", content: textInput.trim(), type: 'text' }]);
+    setTextInput("");
+    setShowTextInput(false);
   };
 
-  // ── Handle URL submission (scrape + screenshot) ──────────────
-  const handleUrlSubmit = async () => {
+  // ── Stage URL (scrape + screenshot) ──────────────────────────
+  const handleStageUrl = async () => {
     const url = urlInput.trim();
     if (!url) return;
     setIsProcessing(true);
     try {
-      // Scrape content
-      setProcessingLabel("Scraping website content...");
+      setProcessingLabel("Scraping website...");
       const { data: scrapeData, error: scrapeErr } = await supabase.functions.invoke("firecrawl-scrape", {
         body: { url, formats: ["markdown"], onlyMainContent: true },
       });
       if (scrapeErr) throw scrapeErr;
       const rawContent = scrapeData?.markdown || scrapeData?.text || scrapeData?.content || url;
+      if (rawContent.trim()) setStagedFiles(prev => [...prev, { name: url, content: rawContent, type: 'url' }]);
 
       // Take screenshot
       setProcessingLabel("Taking screenshot...");
-      let screenshotUrl = "";
       try {
-        const { data: ssData } = await supabase.functions.invoke("thum-screenshot", {
-          body: { url },
-        });
-        if (ssData?.screenshotUrl) screenshotUrl = ssData.screenshotUrl;
-        else if (ssData?.screenshot_url) screenshotUrl = ssData.screenshot_url;
-      } catch { /* screenshot is optional */ }
+        const { data: ssData } = await supabase.functions.invoke("thum-screenshot", { body: { url } });
+        const ssUrl = ssData?.screenshotUrl || ssData?.screenshot_url;
+        if (ssUrl) setStagedScreenshotUrl(ssUrl);
+      } catch { /* optional */ }
 
-      // Generate case study
-      setProcessingLabel("AI is structuring the case study...");
-      const newStudy = await generateCaseStudy(rawContent);
-      if (screenshotUrl) newStudy.screenshot_url = screenshotUrl;
-      const updated = [...caseStudies, newStudy];
-      onCaseStudiesChange(updated);
-      await saveCaseStudies(updated);
       setUrlInput("");
       setShowUrlInput(false);
-      toast.success(`Case study for ${newStudy.company} created`);
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to create case study from URL");
-    }
+    } catch (e: any) { toast.error(e?.message || "Failed to scrape URL"); }
     setIsProcessing(false);
     setProcessingLabel("");
   };
 
-  // ── Handle Google Drive files ────────────────────────────────
-  const handleDriveFiles = async (files: { name: string; content?: string; mimeType: string; isText: boolean }[]) => {
+  // ── Stage Google Drive files ─────────────────────────────────
+  const handleDriveFiles = (files: { name: string; content?: string; mimeType: string; isText: boolean }[]) => {
     setDriveOpen(false);
     const textFiles = files.filter(f => f.isText && f.content);
-    if (!textFiles.length) { toast.error("No text content found in selected files"); return; }
+    if (!textFiles.length) { toast.error("No text content found"); return; }
+    setStagedFiles(prev => [...prev, ...textFiles.map(f => ({ name: f.name, content: f.content!, type: 'drive' as const }))]);
+  };
+
+  // ── Remove staged file ───────────────────────────────────────
+  const removeStagedFile = (idx: number) => {
+    setStagedFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // ── GENERATE: combine all staged content and submit ──────────
+  const handleGenerate = async () => {
+    const allContent = stagedFiles.map(f => f.content).join("\n\n---\n\n");
+    if (!allContent.trim()) { toast.error("Add some content first"); return; }
     setIsProcessing(true);
+    setProcessingLabel("AI is structuring the case study...");
     try {
-      const rawContent = textFiles.map(f => f.content).join("\n\n---\n\n");
-      setProcessingLabel("AI is structuring the case study...");
-      const newStudy = await generateCaseStudy(rawContent);
+      const newStudy = await generateCaseStudy(allContent);
+      if (stagedScreenshotUrl) newStudy.screenshot_url = stagedScreenshotUrl;
       const updated = [...caseStudies, newStudy];
       onCaseStudiesChange(updated);
       await saveCaseStudies(updated);
+      setStagedFiles([]);
+      setStagedScreenshotUrl("");
       toast.success(`Case study for ${newStudy.company} created`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to create case study");
@@ -439,10 +402,10 @@ export default function ProposalCaseStudies({
                         placeholder="https://example.com — we'll screenshot it and scrape the content"
                         value={urlInput}
                         onChange={(e) => setUrlInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleUrlSubmit(); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleStageUrl(); }}
                       />
-                      <Button size="sm" onClick={handleUrlSubmit} disabled={!urlInput.trim()}>
-                        Go
+                      <Button size="sm" onClick={handleStageUrl} disabled={!urlInput.trim() || isProcessing}>
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
                       </Button>
                     </div>
                   </div>
@@ -451,12 +414,42 @@ export default function ProposalCaseStudies({
                 {showTextInput && (
                   <div className="mt-4 space-y-3">
                     <textarea
-                      className="w-full rounded-lg border border-border bg-background p-3 text-sm min-h-[120px] resize-y outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-border bg-background p-3 text-sm min-h-[100px] resize-y outline-none focus:ring-1 focus:ring-primary"
                       placeholder="Paste case study content here... company name, metrics, description, anything you have."
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                     />
-                    <Button size="sm" onClick={handleTextSubmit} disabled={!textInput.trim()}>
+                    <Button size="sm" variant="outline" onClick={handleStageText} disabled={!textInput.trim()}>
+                      Add to Staged
+                    </Button>
+                  </div>
+                )}
+
+                {/* Staged files list + Generate button */}
+                {stagedFiles.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Staged Content ({stagedFiles.length})</p>
+                    {stagedFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-1.5">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm text-foreground truncate flex-1">{f.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{f.type}</span>
+                        <button onClick={() => removeStagedFile(i)} className="text-muted-foreground hover:text-destructive shrink-0">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {stagedScreenshotUrl && (
+                      <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-1.5">
+                        <ImagePlus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm text-foreground truncate flex-1">Screenshot captured</span>
+                        <button onClick={() => setStagedScreenshotUrl("")} className="text-muted-foreground hover:text-destructive shrink-0">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    <Button className="w-full mt-2" onClick={handleGenerate} disabled={isProcessing}>
+                      {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                       Generate Case Study
                     </Button>
                   </div>
