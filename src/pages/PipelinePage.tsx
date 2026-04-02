@@ -777,21 +777,13 @@ export default function PipelinePage() {
                 <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
                     .filter((s) => showClosed || !s.closed)
-                    .map((stage, stageIdx, filteredStages) => {
+                    .map((stage) => {
                       const stageDeals = dealsByStage[stage.id] || [];
-                      const colTotal = stageTotal(stageDeals);
-                      const isLastCol = stageIdx === filteredStages.length - 1;
                       return (
-                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col relative">
-                          {/* Angled divider between columns */}
-                          {!isLastCol && (
-                            <svg className="absolute top-0 bottom-0 h-full w-4 z-[5]" style={{ right: -16 }} preserveAspectRatio="none" viewBox="0 0 16 100">
-                              <path d="M6 0 L10 50 L6 100" fill="none" stroke="hsl(var(--border))" strokeWidth="0.8" />
-                            </svg>
-                          )}
+                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col">
 
                           {/* Deal cards — scrollable column */}
-                          <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+                          <div className="space-y-4 overflow-y-auto flex-1">
                             {stageDeals.length === 0 && stage.closed && closedLoading ? (
                               <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -872,20 +864,28 @@ export default function PipelinePage() {
 
               {/* Sticky bottom bar — column totals */}
               {pipelineInfo && (
-                <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm border-t border-border -mx-6 px-6">
-                  <div className="flex gap-3 overflow-x-auto" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
+                <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border">
+                  <div className="max-w-6xl mx-auto px-6">
+                  <div className="flex gap-4 overflow-x-auto" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                     {pipelineInfo.stages
                       .filter((s) => showClosed || !s.closed)
-                      .map((stage) => {
+                      .map((stage, idx, arr) => {
                         const sd = dealsByStage[stage.id] || [];
                         const total = stageTotal(sd);
+                        const isLast = idx === arr.length - 1;
                         return (
-                          <div key={`footer-${stage.id}`} className="w-[300px] shrink-0 py-2.5 text-center">
+                          <div key={`footer-${stage.id}`} className="w-[300px] shrink-0 py-2.5 text-center relative">
+                            <span className="text-sm text-muted-foreground">Total: </span>
                             <span className="text-sm font-semibold">${total.toLocaleString()}</span>
-                            <span className="text-sm text-muted-foreground ml-1">total</span>
+                            {!isLast && (
+                              <svg className="absolute top-0 bottom-0 h-full w-4 z-[5]" style={{ right: -16 }} preserveAspectRatio="none" viewBox="0 0 16 100">
+                                <path d="M6 0 L10 50 L6 100" fill="none" stroke="hsl(var(--border))" strokeWidth="0.8" />
+                              </svg>
+                            )}
                           </div>
                         );
                       })}
+                  </div>
                   </div>
                 </div>
               )}
