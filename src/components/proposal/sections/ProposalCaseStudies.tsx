@@ -140,47 +140,46 @@ export default function ProposalCaseStudies({
     setShowTextInput(false);
   };
 
-  // ── Stage URL (scrape + screenshot + quick name extraction) ──
+  // ── Stage URL (scrape first, screenshot in background) ───────
   const handleStageUrl = async () => {
     const url = urlInput.trim();
     if (!url) return;
     setIsProcessing(true);
+    setUrlInput("");
+    setShowUrlInput(false);
     try {
-      // Fire scrape and screenshot in parallel
-      setProcessingLabel("Fetching site...");
-      const [scrapeResult, ssResult] = await Promise.allSettled([
-        supabase.functions.invoke("firecrawl-scrape", { body: { url, formats: ["markdown"], onlyMainContent: true } }),
-        supabase.functions.invoke("thum-screenshot", { body: { url } }),
-      ]);
+      // Scrape content first (fast, ~2-5s)
+      setProcessingLabel("Scraping site content...");
+      const { data: scrapeData, error: scrapeErr } = await supabase.functions.invoke("firecrawl-scrape", {
+        body: { url, formats: ["markdown"], onlyMainContent: true },
+      });
+      if (scrapeErr) throw scrapeErr;
+      const rawContent = scrapeData?.markdown || scrapeData?.text || scrapeData?.content || url;
 
-      // Handle scrape
-      let rawContent = "";
-      if (scrapeResult.status === "fulfilled" && scrapeResult.value.data) {
-        const d = scrapeResult.value.data;
-        rawContent = d?.markdown || d?.text || d?.content || url;
-      }
-      if (rawContent.trim()) setStagedFiles(prev => [...prev, { name: url, content: rawContent, type: 'url' }]);
+      // Stage the content immediately
+      const titleMatch = rawContent.match(/^#\s+(.+)/m);
+      const quickName = titleMatch?.[1]?.slice(0, 60) || url;
+      if (rawContent.trim()) setStagedFiles(prev => [...prev, { name: quickName, content: rawContent, type: 'url' }]);
 
-      // Handle screenshot
-      if (ssResult.status === "fulfilled" && ssResult.value.data) {
-        const ssUrl = ssResult.value.data?.screenshotUrl || ssResult.value.data?.screenshot_url;
-        if (ssUrl) setStagedScreenshotUrl(ssUrl);
-      }
+      // Release the UI — scrape is done
+      setIsProcessing(false);
+      setProcessingLabel("");
+      toast.success("Site content scraped");
 
-      // Quick name extraction from the scraped content (first line or title)
-      if (rawContent) {
-        const firstLine = rawContent.split('\n').find(l => l.trim() && !l.startsWith('#') && !l.startsWith('['));
-        const titleMatch = rawContent.match(/^#\s+(.+)/m);
-        const quickName = titleMatch?.[1] || firstLine?.slice(0, 60) || url;
-        // Update the staged file name to something readable
-        setStagedFiles(prev => prev.map(f => f.name === url ? { ...f, name: `${quickName} (${url})` } : f));
-      }
+      // Screenshot in background (can be slow, don't block UI)
+      supabase.functions.invoke("thum-screenshot", { body: { url } }).then(({ data: ssData }) => {
+        const ssUrl = ssData?.screenshotUrl || ssData?.screenshot_url;
+        if (ssUrl) {
+          setStagedScreenshotUrl(ssUrl);
+          toast.success("Screenshot captured");
+        }
+      }).catch(() => { /* silent fail, screenshot is optional */ });
 
-      setUrlInput("");
-      setShowUrlInput(false);
-    } catch (e: any) { toast.error(e?.message || "Failed to fetch URL"); }
-    setIsProcessing(false);
-    setProcessingLabel("");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to scrape URL");
+      setIsProcessing(false);
+      setProcessingLabel("");
+    }
   };
 
   // ── Stage Google Drive files ─────────────────────────────────
