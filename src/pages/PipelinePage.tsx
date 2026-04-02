@@ -732,12 +732,12 @@ export default function PipelinePage() {
                   const visibleStages = pipelineInfo?.stages.filter((s) => showClosed || !s.closed) || [];
                   return (
                     <div className="sticky top-0 z-10 bg-background pb-4">
-                      <div className="border border-border rounded-lg flex" style={{ minWidth: visibleStages.length * 300 }}>
+                      <div className="border border-border rounded-lg flex" style={{ width: visibleStages.length * 300 + (visibleStages.length - 1) * 16 }}>
                         {visibleStages.map((stage, i) => {
                           const stageDeals = dealsByStage[stage.id] || [];
                           const isLast = i === visibleStages.length - 1;
                           return (
-                            <div key={stage.id} className="flex-1 relative">
+                            <div key={stage.id} className="relative" style={{ width: 300 + (isLast ? 0 : 16) }}>
                               <div className="flex items-center h-12 px-4">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="text-sm font-semibold truncate">{stage.label}</span>
