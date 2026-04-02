@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 
-type RagDocument = { name: string; source_type: string };
+type RagDocument = { name: string; source_type: string; passage?: string };
 type CouncilModel = { key: string; name: string; status: 'thinking' | 'done' | 'error'; response?: string };
 type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[]; councilModels?: CouncilModel[] };
 
@@ -634,12 +634,13 @@ function WebCitationsBlock({ citations, isSearching }: { citations: string[]; is
   );
 }
 
-/** Renders text nodes, transforming [N] citation references into styled superscript links */
-function CitationText({ children, citations }: { children: React.ReactNode; citations?: string[] }) {
+/** Renders text nodes, transforming [N] web citations and %%DOCREF_N%% RAG citations into styled badges */
+function CitationText({ children, citations, ragDocuments }: { children: React.ReactNode; citations?: string[]; ragDocuments?: RagDocument[] }) {
   if (typeof children !== 'string') return <>{children}</>;
 
   const parts: React.ReactNode[] = [];
-  const regex = /\[(\d+)\]/g;
+  // Match %%DOCREF_N%% (pre-processed doc citations) and [N] (web citations)
+  const regex = /%%DOCREF_(\d+)%%|\[(\d+)\]/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -647,30 +648,65 @@ function CitationText({ children, citations }: { children: React.ReactNode; cita
     if (match.index > lastIndex) {
       parts.push(children.slice(lastIndex, match.index));
     }
-    const num = parseInt(match[1], 10);
-    const url = citations && citations[num - 1];
-    if (url) {
-      parts.push(
-        <a
-          key={match.index}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-primary/15 text-primary hover:bg-primary/25 transition-colors no-underline align-super leading-none -translate-y-[1px]"
-          title={url}
-        >
-          {num}
-        </a>
-      );
-    } else {
-      parts.push(
-        <span
-          key={match.index}
-          className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-muted text-muted-foreground align-super leading-none -translate-y-[1px]"
-        >
-          {num}
-        </span>
-      );
+
+    const docNum = match[1] ? parseInt(match[1], 10) : null;
+    const webNum = match[2] ? parseInt(match[2], 10) : null;
+
+    if (docNum !== null) {
+      // RAG document citation %%DOCREF_N%%
+      const doc = ragDocuments && ragDocuments[docNum - 1];
+      if (doc) {
+        parts.push(
+          <span
+            key={`doc-${match.index}`}
+            className="group/cite relative inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-default align-super leading-none -translate-y-[1px]"
+          >
+            {docNum}
+            <span className="invisible group-hover/cite:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-2.5 rounded-lg shadow-lg bg-popover border border-border text-xs text-popover-foreground z-50 pointer-events-none">
+              <span className="font-semibold block text-[11px] mb-1 truncate">{doc.name}</span>
+              {doc.passage && (
+                <span className="block text-muted-foreground leading-relaxed line-clamp-4">{doc.passage}</span>
+              )}
+              <span className="block text-[10px] text-muted-foreground/60 mt-1">{doc.source_type}</span>
+            </span>
+          </span>
+        );
+      } else {
+        parts.push(
+          <span
+            key={`doc-${match.index}`}
+            className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-muted text-muted-foreground align-super leading-none -translate-y-[1px]"
+          >
+            d{docNum}
+          </span>
+        );
+      }
+    } else if (webNum !== null) {
+      // Web citation [N]
+      const url = citations && citations[webNum - 1];
+      if (url) {
+        parts.push(
+          <a
+            key={`web-${match.index}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-primary/15 text-primary hover:bg-primary/25 transition-colors no-underline align-super leading-none -translate-y-[1px]"
+            title={url}
+          >
+            {webNum}
+          </a>
+        );
+      } else {
+        parts.push(
+          <span
+            key={`web-${match.index}`}
+            className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-muted text-muted-foreground align-super leading-none -translate-y-[1px]"
+          >
+            {webNum}
+          </span>
+        );
+      }
     }
     lastIndex = regex.lastIndex;
   }
@@ -743,13 +779,29 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick, webCitations }:
                 {otherDocs.length > 0 && (
                   <>
                     <div className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mt-1 mb-1">Documents</div>
-                    {otherDocs.map((doc, i) => (
-                      <div key={`rag-${i}`} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                        <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
-                        <span className="truncate max-w-[300px]">{doc.name}</span>
-                        <span className="text-[11px] opacity-60">({doc.source_type})</span>
-                      </div>
-                    ))}
+                    {otherDocs.map((doc, i) => {
+                      // Find the 1-based index matching the doc's position in the full ragDocuments array
+                      const docIndex = ragDocuments.indexOf(doc) + 1;
+                      return (
+                        <div key={`rag-${i}`} className="flex flex-col gap-0.5 text-[13px] text-muted-foreground py-0.5">
+                          <div className="flex items-center gap-1.5">
+                            {docIndex > 0 && (
+                              <span className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                                {docIndex}
+                              </span>
+                            )}
+                            <span>{SOURCE_TYPE_ICONS[doc.source_type] || '📄'}</span>
+                            <span className="truncate max-w-[300px]">{doc.name}</span>
+                            <span className="text-[11px] opacity-60">({doc.source_type})</span>
+                          </div>
+                          {doc.passage && (
+                            <div className="ml-7 text-[12px] text-muted-foreground/70 leading-relaxed line-clamp-2">
+                              {doc.passage}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </>
                 )}
               </>
@@ -859,8 +911,12 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
     }
   };
 
+  // Pre-process: escape [doc:N] to a markdown-safe token before ReactMarkdown parses it.
+  // Markdown treats [text][ref] as a reference link, so adjacent [doc:1][doc:3] gets swallowed.
+  const processedContent = content.replace(/\[doc:(\d+)\]/g, '%%DOCREF_$1%%');
+
   const markdownComponents = {
-    text: ({ children }: any) => <CitationText citations={webCitations}>{children}</CitationText>,
+    text: ({ children }: any) => <CitationText citations={webCitations} ragDocuments={ragDocuments}>{children}</CitationText>,
     img: ({ src, alt, ...props }: any) => (
       <img src={src} alt={alt || ''} className="max-w-full rounded-lg my-2" style={{ maxHeight: 300 }} loading="lazy" {...props} />
     ),
@@ -879,9 +935,9 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       {isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0 && (
         <DeepResearchStepsBlock steps={deepResearchSteps} sources={webCitations} isStreaming={isStreamingThis && !content} />
       )}
-      <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{content}</div>}>
+      <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{processedContent}</div>}>
         <div className="chat-prose max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{processedContent}</ReactMarkdown>
         </div>
       </Suspense>
       {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && !(councilModels && councilModels.length > 0) && (

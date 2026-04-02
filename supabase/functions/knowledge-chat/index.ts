@@ -151,7 +151,7 @@ function buildSystemPrompt(contextBlock: string, tonePreset?: string, characteri
 
 You have access to comprehensive audit data from multiple integration tools. When answering questions:
 
-1. **Cite your sources**: Always reference the specific integration by name (e.g., "According to the SEMrush Domain Analysis…", "The WAVE Accessibility scan found…", "Based on the PageSpeed Insights data…").
+1. **Cite your sources**: When referencing retrieved knowledge documents, use inline [doc:N] citations matching the document numbers (e.g., [doc:1], [doc:2]). Also reference the specific integration by name (e.g., "According to the SEMrush Domain Analysis [doc:3]…").
 2. **Stay grounded in the data**: Base your answers on the actual data provided. Don't fabricate metrics or findings.
 3. **Be specific**: Quote actual numbers, scores, grades, and findings from the data.
 4. **Be consultative**: Provide actionable recommendations when appropriate.
@@ -384,7 +384,8 @@ async function getEmbedding(query: string): Promise<number[] | null> {
 }
 
 /**
- * Perform RAG search using a pre-computed embedding
+ * Perform hybrid RAG search (vector + BM25 with RRF fusion) using a pre-computed embedding.
+ * Falls back to vector-only search if hybrid functions are unavailable.
  */
 async function ragSearchWithEmbedding(
   sessionId: string | string[],
@@ -392,6 +393,7 @@ async function ragSearchWithEmbedding(
   matchCount: number,
   matchThreshold: number,
   sourceTypes?: string[],
+  queryText?: string,
 ): Promise<Array<{ id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number }>> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -399,9 +401,21 @@ async function ragSearchWithEmbedding(
 
   const embeddingStr = `[${embedding.join(',')}]`;
   const isMulti = Array.isArray(sessionId);
+  const useHybrid = !!queryText;
 
   if (isMulti) {
-    // Multi-session search using the new function
+    // Multi-session hybrid search
+    if (useHybrid) {
+      const { data, error } = await supabase.rpc('match_knowledge_chunks_hybrid_multi', {
+        p_session_ids: sessionId,
+        p_embedding: embeddingStr,
+        p_query: queryText,
+        p_match_count: matchCount,
+        p_match_threshold: matchThreshold,
+      });
+      if (!error) return data || [];
+      console.warn('[knowledge-chat] Hybrid multi-session search failed, falling back to vector-only:', error.message);
+    }
     const { data, error } = await supabase.rpc('match_knowledge_chunks_multi', {
       p_session_ids: sessionId,
       p_embedding: embeddingStr,
@@ -414,6 +428,19 @@ async function ragSearchWithEmbedding(
     }
     return data || [];
   } else if (sourceTypes && sourceTypes.length > 0) {
+    // Source-filtered hybrid search
+    if (useHybrid) {
+      const { data, error } = await supabase.rpc('match_knowledge_chunks_hybrid_by_source', {
+        p_session_id: sessionId,
+        p_embedding: embeddingStr,
+        p_query: queryText,
+        p_source_types: sourceTypes,
+        p_match_count: matchCount,
+        p_match_threshold: matchThreshold,
+      });
+      if (!error) return data || [];
+      console.warn('[knowledge-chat] Hybrid source-filtered search failed, falling back to vector-only:', error.message);
+    }
     const { data, error } = await supabase.rpc('match_knowledge_chunks_by_source', {
       p_session_id: sessionId,
       p_embedding: embeddingStr,
@@ -427,6 +454,18 @@ async function ragSearchWithEmbedding(
     }
     return data || [];
   } else {
+    // Single-session hybrid search
+    if (useHybrid) {
+      const { data, error } = await supabase.rpc('match_knowledge_chunks_hybrid', {
+        p_session_id: sessionId,
+        p_embedding: embeddingStr,
+        p_query: queryText,
+        p_match_count: matchCount,
+        p_match_threshold: matchThreshold,
+      });
+      if (!error) return data || [];
+      console.warn('[knowledge-chat] Hybrid search failed, falling back to vector-only:', error.message);
+    }
     const { data, error } = await supabase.rpc('match_knowledge_chunks', {
       p_session_id: sessionId,
       p_embedding: embeddingStr,
@@ -442,10 +481,125 @@ async function ragSearchWithEmbedding(
 }
 
 /**
+ * Rerank RAG results using Gemini Flash as a cross-encoder.
+ * Sends query + chunk pairs for relevance scoring, reorders by LLM-judged relevance.
+ * Falls back to original ordering if reranking fails.
+ */
+type RagMatch = { id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number };
+
+async function rerankResults(
+  query: string,
+  matches: RagMatch[],
+  topK: number = 20,
+): Promise<RagMatch[]> {
+  if (matches.length <= topK) return matches;
+
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) return matches.slice(0, topK);
+
+  try {
+    // Build numbered chunk list for the LLM — truncate each to save tokens
+    const maxChunkChars = 500;
+    const chunkList = matches.map((m, i) =>
+      `[${i}] (${m.document_name}) ${m.chunk_text.slice(0, maxChunkChars)}`
+    ).join('\n\n');
+
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a relevance judge. Given a search query and numbered text chunks, return the indices of the most relevant chunks in order of relevance (most relevant first). Only include chunks that are actually relevant to the query. Return at most ${topK} indices.`,
+          },
+          {
+            role: 'user',
+            content: `Query: "${query}"\n\nChunks:\n${chunkList}`,
+          },
+        ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'rank_chunks',
+            description: 'Return chunk indices ordered by relevance to the query',
+            parameters: {
+              type: 'object',
+              properties: {
+                ranked_indices: {
+                  type: 'array',
+                  items: { type: 'integer' },
+                  description: `Chunk indices ordered by relevance, most relevant first. Max ${topK} items.`,
+                },
+              },
+              required: ['ranked_indices'],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: 'function', function: { name: 'rank_chunks' } },
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[knowledge-chat] Reranker API error:', response.status);
+      return matches.slice(0, topK);
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) {
+      console.warn('[knowledge-chat] Reranker returned no tool call');
+      return matches.slice(0, topK);
+    }
+
+    const parsed = JSON.parse(toolCall.function.arguments);
+    const rankedIndices: number[] = parsed.ranked_indices || [];
+
+    // Map indices back to matches, filtering invalid indices
+    const reranked: RagMatch[] = [];
+    const seen = new Set<number>();
+    for (const idx of rankedIndices) {
+      if (typeof idx === 'number' && idx >= 0 && idx < matches.length && !seen.has(idx)) {
+        seen.add(idx);
+        reranked.push(matches[idx]);
+      }
+      if (reranked.length >= topK) break;
+    }
+
+    // If reranker returned very few results, backfill with original order
+    if (reranked.length < Math.min(topK, matches.length)) {
+      for (const m of matches) {
+        if (!reranked.some(r => r.id === m.id)) {
+          reranked.push(m);
+        }
+        if (reranked.length >= topK) break;
+      }
+    }
+
+    console.log(`[knowledge-chat] Reranked ${matches.length} → ${reranked.length} chunks`);
+    return reranked;
+  } catch (e) {
+    console.warn('[knowledge-chat] Reranker failed, using original order:', e);
+    return matches.slice(0, topK);
+  }
+}
+
+/**
  * Format RAG matches into context string, optionally sorting chronologically
  */
-function formatRagResults(matches: Array<{ id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number }>, chronological: boolean, prioritySources: string[]): string {
-  if (matches.length === 0) return '';
+type RagDocEnriched = { name: string; source_type: string; passage?: string };
+
+function formatRagResults(
+  matches: Array<{ id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number }>,
+  chronological: boolean,
+  prioritySources: string[],
+): { context: string; numberedDocs: RagDocEnriched[] } {
+  if (matches.length === 0) return { context: '', numberedDocs: [] };
 
   // If chronological, sort priority source chunks by chunk_index (proxy for document order/time)
   if (chronological && prioritySources.length > 0) {
@@ -462,6 +616,7 @@ function formatRagResults(matches: Array<{ id: string; document_id: string; chun
     matches = [...priorityMatches, ...otherMatches];
   }
 
+  // Group chunks by document, preserving insertion order
   const docChunks = new Map<string, { name: string; sourceType: string; chunks: string[] }>();
   for (const match of matches) {
     const key = match.document_id;
@@ -471,14 +626,24 @@ function formatRagResults(matches: Array<{ id: string; document_id: string; chun
     docChunks.get(key)!.chunks.push(match.chunk_text);
   }
 
-  let ragContext = '--- RETRIEVED KNOWLEDGE (most relevant chunks from indexed documents) ---\n\n';
+  // Number documents sequentially and build context with [doc:N] labels
+  const numberedDocs: RagDocEnriched[] = [];
+  let ragContext = '--- RETRIEVED KNOWLEDGE (most relevant chunks from indexed documents) ---\n';
+  ragContext += 'IMPORTANT: When you reference information from these documents, cite the source using [doc:N] notation (e.g., [doc:1], [doc:2]) so the user can verify.\n\n';
+
+  let docNum = 1;
   for (const [, doc] of docChunks) {
-    ragContext += `=== ${doc.name} (${doc.sourceType}) ===\n`;
+    ragContext += `=== [doc:${docNum}] ${doc.name} (${doc.sourceType}) ===\n`;
     ragContext += doc.chunks.join('\n\n');
     ragContext += '\n\n';
+
+    // Build passage preview from first chunk (truncated)
+    const passage = doc.chunks[0]?.slice(0, 200).trim() || '';
+    numberedDocs.push({ name: doc.name, source_type: doc.sourceType, passage });
+    docNum++;
   }
 
-  return ragContext;
+  return { context: ragContext, numberedDocs };
 }
 
 /**
@@ -565,16 +730,17 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
 
     const { priority_sources, chronological } = routing;
 
-    // Step 2: Run general search + source-filtered search in parallel
+    // Step 2: Fetch more candidates than needed (reranker will refine)
+    const fetchCount = 40;
     const searchPromises: Promise<Array<any>>[] = [];
 
-    // Always run the general search (existing behavior)
-    searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, matchCount, matchThreshold));
+    // Always run the general hybrid search
+    searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, fetchCount, matchThreshold, undefined, query));
 
     // If router identified priority sources, also search filtered
     if (priority_sources.length > 0) {
-      const sourceMatchCount = chronological ? 50 : 25; // fetch more for chronological
-      searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, sourceMatchCount, Math.max(matchThreshold - 0.05, 0.05), priority_sources));
+      const sourceMatchCount = chronological ? 50 : 30;
+      searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, sourceMatchCount, Math.max(matchThreshold - 0.05, 0.05), priority_sources, query));
     }
 
     const results = await Promise.all(searchPromises);
@@ -602,8 +768,11 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
 
     if (merged.length === 0) return '';
 
-    const ragContext = formatRagResults(merged, chronological, priority_sources);
-    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological})`);
+    // Step 4: Rerank with cross-encoder (skip for chronological queries where order matters)
+    const finalMatches = chronological ? merged.slice(0, matchCount) : await rerankResults(query, merged, matchCount);
+
+    const { context: ragContext } = formatRagResults(finalMatches, chronological, priority_sources);
+    console.log(`[knowledge-chat] Hybrid RAG + rerank: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged → ${finalMatches.length} reranked (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological})`);
     return ragContext;
   } catch (e) {
     console.error('[knowledge-chat] RAG search failed:', e);
@@ -615,7 +784,7 @@ async function ragSearch(sessionId: string, query: string, matchCount = 25, matc
  * Perform RAG search and also return the routing result for screenshot decisions
  * and the list of documents referenced
  */
-async function ragSearchWithRouting(sessionId: string | string[], query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: { name: string; source_type: string }[] }> {
+async function ragSearchWithRouting(sessionId: string | string[], query: string, matchCount = 25, matchThreshold = 0.25): Promise<{ ragContext: string; needs_screenshots: boolean; ragDocuments: RagDocEnriched[] }> {
   try {
     const [routing, embedding] = await Promise.all([
       routeQuery(query),
@@ -626,12 +795,14 @@ async function ragSearchWithRouting(sessionId: string | string[], query: string,
 
     const { priority_sources, chronological, needs_screenshots } = routing;
 
+    // Fetch more candidates for reranking
+    const fetchCount = 40;
     const searchPromises: Promise<Array<any>>[] = [];
-    searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, matchCount, matchThreshold));
+    searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, fetchCount, matchThreshold, undefined, query));
 
     if (priority_sources.length > 0) {
-      const sourceMatchCount = chronological ? 50 : 25;
-      searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, sourceMatchCount, Math.max(matchThreshold - 0.05, 0.05), priority_sources));
+      const sourceMatchCount = chronological ? 50 : 30;
+      searchPromises.push(ragSearchWithEmbedding(sessionId, embedding, sourceMatchCount, Math.max(matchThreshold - 0.05, 0.05), priority_sources, query));
     }
 
     const results = await Promise.all(searchPromises);
@@ -656,17 +827,14 @@ async function ragSearchWithRouting(sessionId: string | string[], query: string,
 
     if (merged.length === 0) return { ragContext: '', needs_screenshots, ragDocuments: [] };
 
-    // Extract unique documents referenced
-    const docMap = new Map<string, { name: string; source_type: string }>();
-    for (const match of merged) {
-      if (!docMap.has(match.document_id)) {
-        docMap.set(match.document_id, { name: match.document_name, source_type: match.source_type });
-      }
-    }
-    const ragDocuments = Array.from(docMap.values());
+    // Rerank with cross-encoder (skip for chronological queries where order matters)
+    const finalMatches = chronological ? merged.slice(0, matchCount) : await rerankResults(query, merged, matchCount);
 
-    const ragContext = formatRagResults(merged, chronological, priority_sources);
-    console.log(`[knowledge-chat] Smart RAG: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged chunks from ${ragDocuments.length} documents (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
+    const { context: ragContext, numberedDocs } = formatRagResults(finalMatches, chronological, priority_sources);
+    // Use enriched docs (with passages) from formatRagResults instead of manually building docMap
+    const ragDocuments = numberedDocs;
+
+    console.log(`[knowledge-chat] Hybrid RAG + rerank: ${generalMatches.length} general + ${sourceMatches.length} source-filtered → ${merged.length} merged → ${finalMatches.length} reranked from ${ragDocuments.length} docs (route: ${JSON.stringify(priority_sources)}, chrono: ${chronological}, screenshots: ${needs_screenshots})`);
     return { ragContext, needs_screenshots, ragDocuments };
   } catch (e) {
     console.error('[knowledge-chat] RAG search failed:', e);
@@ -1196,7 +1364,7 @@ async function handleGatewayRequest(
   reasoning: string | undefined,
   enableTools: boolean | { analytics: boolean; apiProxy: boolean } = false,
   contextPreset: { gateway: number; claude: Record<string, number>; perplexity: number } = { gateway: 65536, claude: {}, perplexity: 16384 },
-  ragDocuments?: { name: string; source_type: string }[],
+  ragDocuments?: RagDocEnriched[],
   userId?: string | null,
 ): Promise<Response> {
   const selectedModel = ALLOWED_GATEWAY_MODELS.includes(model) ? model : 'google/gemini-3-flash-preview';
@@ -1620,7 +1788,7 @@ serve(async (req) => {
     // Build context based on selected sources
     let ragContext = '';
     let needsScreenshots = false;
-    let ragDocuments: { name: string; source_type: string }[] = [];
+    let ragDocuments: RagDocEnriched[] = [];
     let webContext = '';
     let webCitations: string[] = [];
 

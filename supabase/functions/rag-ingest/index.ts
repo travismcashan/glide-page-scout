@@ -11,29 +11,158 @@ const CHUNK_OVERLAP = 200;  // overlap for context continuity
 const EMBEDDING_MODEL = 'google/gemini-2.5-flash-lite';
 const BATCH_SIZE = 100;     // embeddings per batch (Gemini batchEmbedContents limit)
 
-function chunkText(text: string): string[] {
-  const chunks: string[] = [];
-  if (!text || text.length < 50) return chunks;
+/**
+ * Split text into semantic sections that respect markdown structure.
+ * Returns blocks that should stay together: header sections, tables, code blocks, list groups.
+ */
+function splitIntoSemanticBlocks(text: string): string[] {
+  const blocks: string[] = [];
+  const lines = text.split('\n');
+  let current = '';
+  let inCodeBlock = false;
+  let inTable = false;
+  let inList = false;
 
-  // Try to split on paragraph boundaries first
-  const paragraphs = text.split(/\n\n+/);
+  function flush() {
+    if (current.trim()) {
+      blocks.push(current.trim());
+      current = '';
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Code block boundaries — keep entire block together
+    if (trimmed.startsWith('```')) {
+      if (!inCodeBlock) {
+        // Starting a code block — flush what came before
+        flush();
+        inCodeBlock = true;
+        current = line;
+      } else {
+        // Ending a code block
+        current += '\n' + line;
+        inCodeBlock = false;
+        flush();
+      }
+      continue;
+    }
+    if (inCodeBlock) {
+      current += '\n' + line;
+      continue;
+    }
+
+    // Table rows (lines starting with |)
+    const isTableRow = trimmed.startsWith('|') || /^\|?[-:| ]+\|?$/.test(trimmed);
+    if (isTableRow) {
+      if (!inTable) {
+        flush();
+        inTable = true;
+      }
+      current += (current ? '\n' : '') + line;
+      continue;
+    } else if (inTable) {
+      inTable = false;
+      flush();
+    }
+
+    // Headers — always start a new block
+    if (/^#{1,6}\s/.test(trimmed)) {
+      flush();
+      current = line;
+      continue;
+    }
+
+    // List items (-, *, numbered) — group together
+    const isListItem = /^[\s]*[-*+]\s/.test(line) || /^[\s]*\d+[.)]\s/.test(line);
+    const isIndentedContinuation = /^[\s]{2,}/.test(line) && trimmed.length > 0;
+
+    if (isListItem) {
+      if (!inList) {
+        flush();
+        inList = true;
+      }
+      current += (current ? '\n' : '') + line;
+      continue;
+    } else if (inList && isIndentedContinuation) {
+      // Continuation of a list item (indented text)
+      current += '\n' + line;
+      continue;
+    } else if (inList) {
+      inList = false;
+      flush();
+    }
+
+    // Blank line — paragraph boundary
+    if (trimmed === '') {
+      if (current.trim()) {
+        flush();
+      }
+      continue;
+    }
+
+    // Regular text — accumulate
+    current += (current ? '\n' : '') + line;
+  }
+
+  flush();
+  return blocks;
+}
+
+/**
+ * Markdown-aware text chunking.
+ * Respects headers, tables, code blocks, and list boundaries.
+ * Falls back to paragraph/character splitting for non-markdown content.
+ */
+function chunkText(text: string): string[] {
+  if (!text || text.length < 50) return [];
+
+  // Split into semantic blocks that respect markdown structure
+  const blocks = splitIntoSemanticBlocks(text);
+
+  const chunks: string[] = [];
   let current = '';
 
-  for (const para of paragraphs) {
-    if ((current + '\n\n' + para).length > CHUNK_SIZE && current.length > 0) {
+  for (const block of blocks) {
+    // If a single block exceeds chunk size, split it at sentence/paragraph level
+    if (block.length > CHUNK_SIZE) {
+      // Flush current accumulator first
+      if (current.trim()) {
+        chunks.push(current.trim());
+        current = '';
+      }
+      // Split oversized block on sentences or double-newlines
+      const subParts = block.split(/(?<=\.)\s+|(?<=\n)\n+/);
+      for (const part of subParts) {
+        if ((current + '\n\n' + part).length > CHUNK_SIZE && current.length > 0) {
+          chunks.push(current.trim());
+          const overlapText = current.slice(-CHUNK_OVERLAP);
+          current = overlapText + '\n\n' + part;
+        } else {
+          current = current ? current + '\n\n' + part : part;
+        }
+      }
+      continue;
+    }
+
+    // Normal-sized block — try to accumulate with previous content
+    if ((current + '\n\n' + block).length > CHUNK_SIZE && current.length > 0) {
       chunks.push(current.trim());
       // Keep overlap from end of previous chunk
       const overlapText = current.slice(-CHUNK_OVERLAP);
-      current = overlapText + '\n\n' + para;
+      current = overlapText + '\n\n' + block;
     } else {
-      current = current ? current + '\n\n' + para : para;
+      current = current ? current + '\n\n' + block : block;
     }
   }
+
   if (current.trim()) {
     chunks.push(current.trim());
   }
 
-  // If no paragraph splits worked (e.g., one giant block), fall back to character splitting
+  // Final fallback: if we still have a giant single chunk, character-split it
   if (chunks.length === 1 && chunks[0].length > CHUNK_SIZE * 2) {
     const bigText = chunks[0];
     chunks.length = 0;

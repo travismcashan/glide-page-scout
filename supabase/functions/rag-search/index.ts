@@ -61,30 +61,48 @@ serve(async (req) => {
       );
     }
 
-    // Perform similarity search via database function
+    // Perform hybrid search (vector + BM25 with RRF fusion)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: matches, error } = await supabase.rpc('match_knowledge_chunks', {
+    const { data: matches, error } = await supabase.rpc('match_knowledge_chunks_hybrid', {
       p_session_id: session_id,
       p_embedding: `[${queryEmbedding.join(',')}]`,
+      p_query: query,
       p_match_count: match_count,
       p_match_threshold: match_threshold,
     });
 
     if (error) {
-      console.error('Vector search error:', error);
+      console.error('Hybrid search error:', error);
+      // Fallback to vector-only search if hybrid fails
+      console.log('[rag-search] Falling back to vector-only search');
+      const { data: fallbackMatches, error: fallbackError } = await supabase.rpc('match_knowledge_chunks', {
+        p_session_id: session_id,
+        p_embedding: `[${queryEmbedding.join(',')}]`,
+        p_match_count: match_count,
+        p_match_threshold: match_threshold,
+      });
+
+      if (fallbackError) {
+        return new Response(
+          JSON.stringify({ error: 'Search failed: ' + fallbackError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`[rag-search] Fallback query "${query.slice(0, 50)}..." returned ${fallbackMatches?.length || 0} chunks`);
       return new Response(
-        JSON.stringify({ error: 'Vector search failed: ' + error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: true, matches: fallbackMatches || [], search_type: 'vector_fallback' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[rag-search] Query "${query.slice(0, 50)}..." returned ${matches?.length || 0} chunks`);
+    console.log(`[rag-search] Hybrid query "${query.slice(0, 50)}..." returned ${matches?.length || 0} chunks`);
 
     return new Response(
-      JSON.stringify({ success: true, matches: matches || [] }),
+      JSON.stringify({ success: true, matches: matches || [], search_type: 'hybrid' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e) {
