@@ -592,7 +592,7 @@ async function rerankResults(
 /**
  * Format RAG matches into context string, optionally sorting chronologically
  */
-type RagDocEnriched = { name: string; source_type: string; passage?: string };
+type RagDocEnriched = { name: string; source_type: string; passage?: string; document_id?: string };
 
 function formatRagResults(
   matches: Array<{ id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number }>,
@@ -632,14 +632,14 @@ function formatRagResults(
   ragContext += 'IMPORTANT: When you reference information from these documents, cite the source using [doc:N] notation (e.g., [doc:1], [doc:2]) so the user can verify.\n\n';
 
   let docNum = 1;
-  for (const [, doc] of docChunks) {
+  for (const [docId, doc] of docChunks) {
     ragContext += `=== [doc:${docNum}] ${doc.name} (${doc.sourceType}) ===\n`;
     ragContext += doc.chunks.join('\n\n');
     ragContext += '\n\n';
 
     // Build passage preview from first chunk (truncated)
     const passage = doc.chunks[0]?.slice(0, 200).trim() || '';
-    numberedDocs.push({ name: doc.name, source_type: doc.sourceType, passage });
+    numberedDocs.push({ name: doc.name, source_type: doc.sourceType, passage, document_id: docId });
     docNum++;
   }
 
