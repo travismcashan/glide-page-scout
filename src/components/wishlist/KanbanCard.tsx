@@ -1,0 +1,175 @@
+import { useRef } from 'react';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { Sparkles, Bug, Lightbulb, Trash2, Loader2 } from 'lucide-react';
+
+export type WishlistItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  status: string;
+  priority: string;
+  effort_estimate: string | null;
+  created_at: string;
+  submitted_by: string | null;
+  page_url: string | null;
+  element_selector: string | null;
+  source: string | null;
+  profiles?: { display_name: string | null; avatar_url: string | null } | null;
+};
+
+const CATEGORY_TAG: Record<string, { label: string; icon: typeof Sparkles; bg: string; text: string }> = {
+  feature: { label: 'Feature', icon: Sparkles, bg: 'bg-primary/10', text: 'text-primary' },
+  bug: { label: 'Bug', icon: Bug, bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400' },
+  idea: { label: 'Idea', icon: Lightbulb, bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400' },
+};
+
+const EFFORT_TAG: Record<string, { label: string; bg: string; text: string }> = {
+  small: { label: 'Small', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400' },
+  medium: { label: 'Medium', bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400' },
+  large: { label: 'Large', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400' },
+};
+
+const PRIORITY_INDICATOR: Record<string, string> = {
+  high: 'text-red-500',
+  medium: 'text-amber-500',
+  low: 'text-green-500',
+};
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+type KanbanCardProps = {
+  item: WishlistItem;
+  onDelete: (id: string) => void;
+  onCardClick?: (item: WishlistItem) => void;
+  deleting: string | null;
+  overlay?: boolean;
+};
+
+export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: KanbanCardProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: item.id,
+    data: { status: item.status },
+  });
+
+  const cat = CATEGORY_TAG[item.category] || CATEGORY_TAG.feature;
+  const CatIcon = cat.icon;
+  const effort = item.effort_estimate ? EFFORT_TAG[item.effort_estimate] : null;
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+
+  const style = overlay
+    ? undefined
+    : {
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.2 : 1,
+      };
+
+  return (
+    <div
+      ref={overlay ? undefined : setNodeRef}
+      style={style}
+      {...(overlay ? {} : { ...listeners, ...attributes })}
+      onMouseDown={(e) => { pointerStart.current = { x: e.clientX, y: e.clientY }; }}
+      onMouseUp={(e) => {
+        if (!pointerStart.current || !onCardClick) return;
+        const dx = Math.abs(e.clientX - pointerStart.current.x);
+        const dy = Math.abs(e.clientY - pointerStart.current.y);
+        if (dx < 5 && dy < 5) onCardClick(item);
+        pointerStart.current = null;
+      }}
+      className={`
+        group rounded-xl bg-card border border-border/50
+        p-4 cursor-grab active:cursor-grabbing
+        hover:shadow-md hover:border-border
+        transition-all duration-150
+        ${overlay ? 'shadow-xl ring-1 ring-black/5 rotate-[1deg] scale-[1.03]' : 'shadow-sm'}
+        ${isDragging ? 'z-50' : ''}
+      `}
+    >
+      {/* Title + delete */}
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="text-[15px] font-semibold leading-snug text-foreground">
+          {item.title}
+        </h4>
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0 -mt-0.5 -mr-1"
+          title="Delete item"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm(`Delete "${item.title.slice(0, 60)}"?`)) {
+              onDelete(item.id);
+            }
+          }}
+          disabled={deleting === item.id}
+        >
+          {deleting === item.id
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <Trash2 className="h-4 w-4" />
+          }
+        </button>
+      </div>
+
+      {/* Description */}
+      {item.description && (
+        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">
+          {item.description}
+        </p>
+      )}
+
+      {/* Tags */}
+      <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cat.bg} ${cat.text}`}>
+          <CatIcon className="h-3 w-3" />
+          {cat.label}
+        </span>
+        {effort && (
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${effort.bg} ${effort.text}`}>
+            {effort.label}
+          </span>
+        )}
+        {item.source === 'claude' && (
+          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+            AI
+          </span>
+        )}
+      </div>
+
+      {/* Footer: avatar + date */}
+      <div className="flex items-center gap-2 mt-3">
+        {item.profiles?.display_name ? (
+          item.profiles.avatar_url ? (
+            <img
+              src={item.profiles.avatar_url}
+              alt={item.profiles.display_name}
+              title={item.profiles.display_name}
+              className="h-6 w-6 rounded-full ring-2 ring-card"
+            />
+          ) : (
+            <span
+              className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground ring-2 ring-card"
+              title={item.profiles.display_name}
+            >
+              {item.profiles.display_name.charAt(0).toUpperCase()}
+            </span>
+          )
+        ) : (
+          <span className="h-6 w-6 rounded-full bg-muted ring-2 ring-card" />
+        )}
+        <span className="text-xs text-muted-foreground">
+          {formatDate(item.created_at)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function KanbanCardOverlay({ item, onDelete, deleting }: Omit<KanbanCardProps, 'overlay'>) {
+  return <KanbanCard item={item} onDelete={onDelete} deleting={deleting} overlay />;
+}
