@@ -536,7 +536,9 @@ export default function TimelineBar({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      setPriceOpen(true);
+                      // Delay so the dropdown fully closes before the popover opens
+                      // (Radix DropdownMenu close events conflict with Popover open)
+                      setTimeout(() => setPriceOpen(true), 150);
                     }}
                   >
                     <DollarSign className="mr-2 h-3.5 w-3.5" />
