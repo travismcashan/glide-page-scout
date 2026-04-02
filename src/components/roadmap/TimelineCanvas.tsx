@@ -153,7 +153,7 @@ export default function TimelineCanvas({
       {/* Month headers — drag left/right to shift timeline */}
       <div
         ref={containerRef}
-        className={`sticky top-[var(--month-bar-top)] z-10 flex h-11 bg-background ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`sticky top-[var(--month-bar-top)] z-10 flex h-11 ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
         onMouseDown={onViewOffsetChange ? (e) => {
           e.preventDefault();
           const startX = e.clientX;
