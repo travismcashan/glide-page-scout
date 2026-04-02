@@ -460,7 +460,7 @@ export default function PipelinePage() {
                 <Mail className="h-3.5 w-3.5" />
                 Leads
                 {contacts.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+                  <Badge variant="secondary" className="ml-1 text-[11px] px-1.5 py-0">
                     {contacts.length}
                   </Badge>
                 )}
@@ -469,7 +469,7 @@ export default function PipelinePage() {
                 <DollarSign className="h-3.5 w-3.5" />
                 Deals
                 {pipelineStats && pipelineStats.openCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+                  <Badge variant="secondary" className="ml-1 text-[11px] px-1.5 py-0">
                     {pipelineStats.openCount}
                   </Badge>
                 )}
@@ -545,7 +545,7 @@ export default function PipelinePage() {
                         {/* Column header */}
                         <div className="flex items-center justify-between px-3 py-2 mb-3 rounded-lg bg-muted/50">
                           <span className="text-sm font-semibold">{status.label}</span>
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-[11px]">
                             {statusContacts.length}
                           </Badge>
                         </div>
@@ -586,13 +586,13 @@ export default function PipelinePage() {
                                   </div>
 
                                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                                    <span className="text-[10px] text-muted-foreground">
+                                    <span className="text-[11px] text-muted-foreground">
                                       {contact.lastmodifieddate
                                         ? formatDistanceToNow(new Date(contact.lastmodifieddate), { addSuffix: true })
                                         : ""}
                                     </span>
                                     {contact.hubspot_owner_id && leadOwners[contact.hubspot_owner_id] && (
-                                      <span className="text-[10px] text-muted-foreground">
+                                      <span className="text-[11px] text-muted-foreground">
                                         {leadOwners[contact.hubspot_owner_id].split(" ")[0]}
                                       </span>
                                     )}
@@ -615,37 +615,37 @@ export default function PipelinePage() {
           <TabsContent value="deals" className="mt-0">
             {/* Pipeline stats bar */}
             {!dealsLoading && pipelineStats && (
-              <div className="mb-4 rounded-lg border border-border bg-muted/30 px-6 py-4">
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
+              <div className="mb-6 rounded-lg border border-border bg-muted/30 px-6 py-5">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-8">
                   <div>
-                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Open Pipeline</p>
-                    <p className="text-xl font-bold mt-0.5">${pipelineStats.openPipeline >= 1_000_000 ? (pipelineStats.openPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.openPipeline / 1_000).toFixed(0) + "K"}</p>
-                    <p className="text-[10px] text-muted-foreground">{pipelineStats.openCount} deals</p>
+                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Open Pipeline</p>
+                    <p className="text-2xl font-bold mt-1">${pipelineStats.openPipeline >= 1_000_000 ? (pipelineStats.openPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.openPipeline / 1_000).toFixed(0) + "K"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{pipelineStats.openCount} deals</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Weighted Pipeline</p>
-                    <p className="text-xl font-bold mt-0.5">${pipelineStats.weightedPipeline >= 1_000_000 ? (pipelineStats.weightedPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.weightedPipeline / 1_000).toFixed(0) + "K"}</p>
-                    <p className="text-[10px] text-muted-foreground">by stage probability</p>
+                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Weighted Pipeline</p>
+                    <p className="text-2xl font-bold mt-1">${pipelineStats.weightedPipeline >= 1_000_000 ? (pipelineStats.weightedPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.weightedPipeline / 1_000).toFixed(0) + "K"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">by stage probability</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Closing This Month</p>
-                    <p className="text-xl font-bold mt-0.5">${pipelineStats.closingThisMonthValue >= 1_000_000 ? (pipelineStats.closingThisMonthValue / 1_000_000).toFixed(2) + "M" : (pipelineStats.closingThisMonthValue / 1_000).toFixed(0) + "K"}</p>
-                    <p className="text-[10px] text-muted-foreground">{pipelineStats.closingThisMonthCount} deals</p>
+                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Closing This Month</p>
+                    <p className="text-2xl font-bold mt-1">${pipelineStats.closingThisMonthValue >= 1_000_000 ? (pipelineStats.closingThisMonthValue / 1_000_000).toFixed(2) + "M" : (pipelineStats.closingThisMonthValue / 1_000).toFixed(0) + "K"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{pipelineStats.closingThisMonthCount} deals</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Win Rate</p>
-                    <p className="text-xl font-bold mt-0.5">{pipelineStats.winRate > 0 ? pipelineStats.winRate.toFixed(0) + "%" : "—"}</p>
-                    <p className="text-[10px] text-muted-foreground">trailing 12 months</p>
+                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Win Rate</p>
+                    <p className="text-2xl font-bold mt-1">{pipelineStats.winRate > 0 ? pipelineStats.winRate.toFixed(0) + "%" : "—"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">trailing 12 months</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Avg Deal Size</p>
-                    <p className="text-xl font-bold mt-0.5">${pipelineStats.avgDealSize >= 1_000_000 ? (pipelineStats.avgDealSize / 1_000_000).toFixed(2) + "M" : (pipelineStats.avgDealSize / 1_000).toFixed(1) + "K"}</p>
-                    <p className="text-[10px] text-muted-foreground">open deals</p>
+                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Avg Deal Size</p>
+                    <p className="text-2xl font-bold mt-1">${pipelineStats.avgDealSize >= 1_000_000 ? (pipelineStats.avgDealSize / 1_000_000).toFixed(2) + "M" : (pipelineStats.avgDealSize / 1_000).toFixed(1) + "K"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">open deals</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Avg Sales Cycle</p>
-                    <p className="text-xl font-bold mt-0.5">{pipelineStats.avgCycle > 0 ? pipelineStats.avgCycle.toFixed(1) + " days" : "—"}</p>
-                    <p className="text-[10px] text-muted-foreground">create to close</p>
+                    <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">Avg Sales Cycle</p>
+                    <p className="text-2xl font-bold mt-1">{pipelineStats.avgCycle > 0 ? pipelineStats.avgCycle.toFixed(1) + " days" : "—"}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">create to close</p>
                   </div>
                 </div>
               </div>
@@ -681,12 +681,12 @@ export default function PipelinePage() {
                                 {stage.label}
                               </span>
                               {total > 0 && (
-                                <p className="text-[10px] text-muted-foreground">
+                                <p className="text-xs text-muted-foreground">
                                   ${total.toLocaleString()}
                                 </p>
                               )}
                             </div>
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-[11px]">
                               {stageDeals.length}
                             </Badge>
                           </div>
