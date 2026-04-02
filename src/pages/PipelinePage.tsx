@@ -598,7 +598,7 @@ export default function PipelinePage() {
               </div>
             ) : (
               <ScrollArea className="w-full">
-                <div className="flex gap-3 pb-4" style={{ minWidth: leadStatuses.length * 300 }}>
+                <div className="flex gap-4 pb-4" style={{ minWidth: leadStatuses.length * 300 }}>
                   {leadStatuses.map((status) => {
                     const statusContacts = contactsByStatus[status.id] || [];
                     return (
@@ -612,7 +612,7 @@ export default function PipelinePage() {
                         </div>
 
                         {/* Contact cards */}
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {statusContacts.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">No contacts</p>
                           ) : (
@@ -774,7 +774,7 @@ export default function PipelinePage() {
                   );
                 })()}
 
-                <div className="flex gap-3 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
+                <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
                     .filter((s) => showClosed || !s.closed)
                     .map((stage) => {
@@ -784,7 +784,7 @@ export default function PipelinePage() {
                         <div key={stage.id} className="w-[300px] shrink-0 flex flex-col">
 
                           {/* Deal cards — scrollable column */}
-                          <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+                          <div className="space-y-4 overflow-y-auto flex-1 pr-1">
                             {stageDeals.length === 0 && stage.closed && closedLoading ? (
                               <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
