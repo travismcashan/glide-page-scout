@@ -8,6 +8,7 @@ export interface DriveFile {
   modifiedTime?: string;
   iconLink?: string;
   thumbnailLink?: string;
+  _matchType?: 'name' | 'content'; // set during search results
 }
 
 const STORAGE_KEY = 'google-drive-folder-state';
@@ -105,6 +106,32 @@ export function useGoogleDrive() {
     } catch (err) {
       console.error('Error listing files:', err);
       setIsConnected(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const searchFiles = useCallback(async (searchQuery: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(LIST_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ searchQuery }),
+      });
+
+      if (response.status === 401) { setIsConnected(false); setFiles([]); return; }
+      if (!response.ok) throw new Error('Failed to search files');
+
+      const data = await response.json().catch(() => ({}));
+      if (data.error === 'token_expired' || data.error === 'drive_auth_required') {
+        setIsConnected(false); setFiles([]); return;
+      }
+
+      setFiles(data.files || []);
+      setIsConnected(true);
+    } catch (err) {
+      console.error('Error searching files:', err);
     } finally {
       setIsLoading(false);
     }
@@ -266,6 +293,7 @@ export function useGoogleDrive() {
     connect,
     checkConnection,
     listFiles,
+    searchFiles,
     navigateToFolder,
     navigateToBreadcrumb,
     downloadFile,

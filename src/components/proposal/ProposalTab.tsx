@@ -324,7 +324,7 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
         .select("*")
         .eq("session_id", sessionId)
         .order("sort_order");
-      if (cs?.length) setCaseStudies(cs);
+      if (cs?.length) setCaseStudies(cs.map((c: any) => ({ ...c, references: c.sources || c.references })));
     })();
   }, [sessionId]);
 

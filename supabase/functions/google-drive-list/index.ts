@@ -68,7 +68,7 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken: clientToken, folderId = 'root', pageToken } = await req.json();
+    const { accessToken: clientToken, folderId = 'root', pageToken, searchQuery } = await req.json();
 
     // Resolve token: use provided one or fetch from DB
     let accessToken = clientToken;
@@ -86,10 +86,51 @@ serve(async (req) => {
       });
     }
 
-    const query = `'${folderId}' in parents and trashed = false`;
     const fields = 'nextPageToken,files(id,name,mimeType,size,modifiedTime,iconLink,thumbnailLink)';
 
-    let driveUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}&pageSize=100&orderBy=folder,name`;
+    // If searchQuery is provided, search across ALL folders with relevance ranking
+    if (searchQuery && searchQuery.trim()) {
+      const escaped = searchQuery.trim().replace(/'/g, "\\'");
+      console.log(`[drive-list] Searching all Drive for: "${searchQuery.trim()}"`);
+
+      // Single search using fullText (searches names AND content).
+      // No orderBy = Google returns in their own relevance ranking,
+      // which naturally prioritizes name matches over content-only matches.
+      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`fullText contains '${escaped}' and trashed = false`)}&fields=${encodeURIComponent(fields)}&pageSize=100`;
+
+      const searchRes = await fetch(searchUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (searchRes.status === 401) {
+        return new Response(JSON.stringify({ error: 'token_expired' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        });
+      }
+
+      if (!searchRes.ok) {
+        const errorText = await searchRes.text();
+        console.error('Drive search error:', errorText);
+        return new Response(JSON.stringify({ error: 'Drive search error' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
+      }
+
+      const searchData = await searchRes.json();
+      const files = searchData.files || [];
+
+      console.log(`[drive-list] Google relevance search returned ${files.length} results`);
+
+      return new Response(JSON.stringify({ files }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Default: browse a specific folder
+    const query = `'${folderId}' in parents and trashed = false`;
+    let driveUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=${encodeURIComponent(fields)}&pageSize=100&orderBy=${encodeURIComponent('folder,name')}`;
     if (pageToken) {
       driveUrl += `&pageToken=${pageToken}`;
     }
