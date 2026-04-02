@@ -95,12 +95,16 @@ serve(async (req) => {
 
     const { action, pipeline } = await req.json();
 
-    // ---- Fetch owners (shared by both actions) ----
+    // ---- Fetch owners with team info (shared by both actions) ----
     const ownersRes = await hubspotFetch("/crm/v3/owners?limit=100", TOKEN);
     const owners: Record<string, string> = {};
+    const ownerTeams: Record<string, { name: string; team: string | null; active: boolean }> = {};
     for (const o of ownersRes.results || []) {
       const name = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email || "Unknown";
-      owners[String(o.id)] = name;
+      const id = String(o.id);
+      owners[id] = name;
+      const teamName = o.teams?.[0]?.name || null;
+      ownerTeams[id] = { name, team: teamName, active: !o.archived };
     }
 
     if (action === "leads") {
@@ -138,6 +142,7 @@ serve(async (req) => {
         JSON.stringify({
           contacts: allContacts,
           owners,
+          ownerTeams,
           statuses: LEAD_STATUSES,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -228,6 +233,7 @@ serve(async (req) => {
         JSON.stringify({
           deals: allDeals,
           owners,
+          ownerTeams,
           pipeline: { id: pipelineId, label: pipelineDef.label, stages: pipelineDef.stages },
           pipelines: Object.entries(PIPELINES).map(([id, p]) => ({ id, label: p.label })),
         }),

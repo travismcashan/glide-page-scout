@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Sheet, SheetContent,
@@ -58,6 +58,7 @@ type StageInfo = { id: string; label: string; closed?: boolean };
 type PipelineInfo = { id: string; label: string; stages: StageInfo[] };
 type PipelineOption = { id: string; label: string };
 type StatusInfo = { id: string; label: string };
+type OwnerInfo = { name: string; team: string | null; active: boolean };
 
 export default function PipelinePage() {
   const [activeTab, setActiveTab] = useState("deals");
@@ -70,7 +71,9 @@ export default function PipelinePage() {
   const [pipelineOptions, setPipelineOptions] = useState<PipelineOption[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState("33bc2a42-c57c-4180-b0e6-77b3d6c7f69f");
   const [owners, setOwners] = useState<Record<string, string>>({});
+  const [ownerTeams, setOwnerTeams] = useState<Record<string, OwnerInfo>>({});
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [showOtherOwners, setShowOtherOwners] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [createDateFilter, setCreateDateFilter] = useState<string>("all");
   const [closeDateFilter, setCloseDateFilter] = useState<string>("all");
@@ -121,6 +124,7 @@ export default function PipelinePage() {
       }
       setDeals(data.deals || []);
       setOwners(data.owners || {});
+      if (data.ownerTeams) setOwnerTeams((prev) => ({ ...prev, ...data.ownerTeams }));
       if (data.pipeline) setPipelineInfo(data.pipeline);
       if (data.pipelines) setPipelineOptions(data.pipelines);
     } catch (err: any) {
@@ -160,6 +164,7 @@ export default function PipelinePage() {
       }
       setContacts(data.contacts || []);
       setLeadOwners(data.owners || {});
+      if (data.ownerTeams) setOwnerTeams((prev) => ({ ...prev, ...data.ownerTeams }));
       if (data.statuses) setLeadStatuses(data.statuses);
     } catch (err: any) {
       setContactsError(err?.message || "Unexpected error loading leads");
@@ -327,11 +332,33 @@ export default function PipelinePage() {
     };
   }, [deals, pipelineInfo, ownerFilter]);
 
-  // ---- All unique owners (merged from both) ----
-  const allOwners = useMemo(() => {
+  // ---- Owners grouped by team ----
+  const ownersByTeam = useMemo(() => {
     const merged = { ...owners, ...leadOwners };
-    return Object.entries(merged).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [owners, leadOwners]);
+    const groups: Record<string, { id: string; name: string }[]> = {};
+
+    // Only show owners who have deals or leads (i.e., appear in merged)
+    for (const [id, name] of Object.entries(merged)) {
+      const info = ownerTeams[id];
+      const team = info?.team || "Other";
+      if (!groups[team]) groups[team] = [];
+      groups[team].push({ id, name });
+    }
+
+    // Sort owners within each group
+    for (const team of Object.keys(groups)) {
+      groups[team].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Put known teams first, "Other" last
+    const sorted = Object.entries(groups).sort(([a], [b]) => {
+      if (a === "Other") return 1;
+      if (b === "Other") return -1;
+      return a.localeCompare(b);
+    });
+
+    return sorted;
+  }, [owners, leadOwners, ownerTeams]);
 
   // ---- Stage totals ----
   const stageTotal = (stageDeals: Deal[]) =>
@@ -351,15 +378,38 @@ export default function PipelinePage() {
           <div className="flex items-center gap-3">
             {/* Owner filter */}
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-              <SelectTrigger className="w-[180px] h-9">
-                <User className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+              <SelectTrigger className="w-[200px] h-9 text-left">
+                <User className="h-3.5 w-3.5 mr-2 shrink-0 text-muted-foreground" />
                 <SelectValue placeholder="All owners" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Owners</SelectItem>
-                {allOwners.map(([id, name]) => (
-                  <SelectItem key={id} value={id}>{name}</SelectItem>
-                ))}
+                {ownersByTeam.map(([team, members]) => {
+                  const isOther = team === "Other";
+                  return (
+                    <SelectGroup key={team}>
+                      {isOther ? (
+                        <button
+                          type="button"
+                          className="flex items-center gap-0.5 py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-full cursor-pointer hover:text-foreground transition-colors"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowOtherOwners((v) => !v);
+                          }}
+                        >
+                          <ChevronDown className={`h-3 w-3 stroke-[2.5] transition-transform ${showOtherOwners ? "" : "-rotate-90"}`} />
+                          {team} ({members.length})
+                        </button>
+                      ) : (
+                        <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider">{team}</SelectLabel>
+                      )}
+                      {(!isOther || showOtherOwners) && members.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  );
+                })}
               </SelectContent>
             </Select>
 
