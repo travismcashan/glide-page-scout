@@ -616,35 +616,35 @@ export default function PipelinePage() {
             {/* Pipeline stats bar */}
             {!dealsLoading && pipelineStats && (
               <div className="mb-6 rounded-lg border border-border bg-muted/30 px-6 py-5">
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-8">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
                   <div>
-                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Open Pipeline</p>
-                    <p className="text-2xl font-bold mt-1">${pipelineStats.openPipeline >= 1_000_000 ? (pipelineStats.openPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.openPipeline / 1_000).toFixed(0) + "K"}</p>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Open Pipeline</p>
+                    <p className="text-3xl font-bold mt-1">${pipelineStats.openPipeline >= 1_000_000 ? (pipelineStats.openPipeline / 1_000_000).toFixed(1) + "M" : (pipelineStats.openPipeline / 1_000).toFixed(0) + "K"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">{pipelineStats.openCount} deals</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Weighted Pipeline</p>
-                    <p className="text-2xl font-bold mt-1">${pipelineStats.weightedPipeline >= 1_000_000 ? (pipelineStats.weightedPipeline / 1_000_000).toFixed(2) + "M" : (pipelineStats.weightedPipeline / 1_000).toFixed(0) + "K"}</p>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Weighted Pipeline</p>
+                    <p className="text-3xl font-bold mt-1">${pipelineStats.weightedPipeline >= 1_000_000 ? (pipelineStats.weightedPipeline / 1_000_000).toFixed(1) + "M" : (pipelineStats.weightedPipeline / 1_000).toFixed(0) + "K"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">by stage probability</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Closing This Month</p>
-                    <p className="text-2xl font-bold mt-1">${pipelineStats.closingThisMonthValue >= 1_000_000 ? (pipelineStats.closingThisMonthValue / 1_000_000).toFixed(2) + "M" : (pipelineStats.closingThisMonthValue / 1_000).toFixed(0) + "K"}</p>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Closing This Month</p>
+                    <p className="text-3xl font-bold mt-1">${pipelineStats.closingThisMonthValue >= 1_000_000 ? (pipelineStats.closingThisMonthValue / 1_000_000).toFixed(1) + "M" : (pipelineStats.closingThisMonthValue / 1_000).toFixed(0) + "K"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">{pipelineStats.closingThisMonthCount} deals</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Win Rate</p>
-                    <p className="text-2xl font-bold mt-1">{pipelineStats.winRate > 0 ? pipelineStats.winRate.toFixed(0) + "%" : "—"}</p>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Win Rate</p>
+                    <p className="text-3xl font-bold mt-1">{pipelineStats.winRate > 0 ? pipelineStats.winRate.toFixed(0) + "%" : "—"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">trailing 12 months</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Avg Deal Size</p>
-                    <p className="text-2xl font-bold mt-1">${pipelineStats.avgDealSize >= 1_000_000 ? (pipelineStats.avgDealSize / 1_000_000).toFixed(2) + "M" : (pipelineStats.avgDealSize / 1_000).toFixed(1) + "K"}</p>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Avg Deal Size</p>
+                    <p className="text-3xl font-bold mt-1">${pipelineStats.avgDealSize >= 1_000_000 ? (pipelineStats.avgDealSize / 1_000_000).toFixed(1) + "M" : (pipelineStats.avgDealSize / 1_000).toFixed(0) + "K"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">open deals</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">Avg Sales Cycle</p>
-                    <p className="text-2xl font-bold mt-1">{pipelineStats.avgCycle > 0 ? pipelineStats.avgCycle.toFixed(1) + " days" : "—"}</p>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Avg Sales Cycle</p>
+                    <p className="text-3xl font-bold mt-1">{pipelineStats.avgCycle > 0 ? Math.round(pipelineStats.avgCycle) + " days" : "—"}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">create to close</p>
                   </div>
                 </div>
@@ -667,47 +667,36 @@ export default function PipelinePage() {
                 {/* Chevron pipeline bar */}
                 {(() => {
                   const openStages = pipelineInfo?.stages.filter((s) => !s.closed) || [];
+                  const A = 16; // arrow depth in px — consistent angle for all chevrons
+                  const GAP = 3; // thin gap between chevrons to create the divider line
                   return (
-                    <div className="flex mb-4" style={{ minWidth: openStages.length * 300 + (openStages.length - 1) * 16 }}>
+                    <div className="flex mb-4" style={{ minWidth: openStages.length * 220 }}>
                       {openStages.map((stage, i) => {
                         const stageDeals = dealsByStage[stage.id] || [];
                         const total = stageTotal(stageDeals);
                         const isFirst = i === 0;
                         const isLast = i === openStages.length - 1;
+
+                        const clip = isFirst
+                          ? `polygon(0 0, calc(100% - ${A}px) 0, 100% 50%, calc(100% - ${A}px) 100%, 0 100%)`
+                          : isLast
+                          ? `polygon(0 0, 100% 0, 100% 100%, 0 100%, ${A}px 50%)`
+                          : `polygon(0 0, calc(100% - ${A}px) 0, 100% 50%, calc(100% - ${A}px) 100%, 0 100%, ${A}px 50%)`;
+
                         return (
                           <div
                             key={stage.id}
-                            className="relative flex items-center shrink-0"
-                            style={{ width: 300 + (isLast ? 0 : 16), marginLeft: isFirst ? 0 : -16 }}
+                            className="shrink-0 flex-1"
+                            style={{ marginLeft: isFirst ? 0 : GAP }}
                           >
-                            <svg
-                              viewBox="0 0 316 48"
-                              className="absolute inset-0 w-full h-full"
-                              preserveAspectRatio="none"
+                            <div
+                              className="flex items-center justify-between h-14 bg-muted/50"
+                              style={{
+                                clipPath: clip,
+                                paddingLeft: isFirst ? 16 : A + 12,
+                                paddingRight: isLast ? 16 : A + 6,
+                              }}
                             >
-                              <path
-                                d={isFirst
-                                  ? "M4 4 L290 4 L312 24 L290 44 L4 44 Z"
-                                  : isLast
-                                  ? "M0 4 L20 24 L0 44 L312 44 L312 4 Z"
-                                  : "M0 4 L20 24 L0 44 L290 44 L312 24 L290 4 Z"
-                                }
-                                fill="none"
-                                stroke="hsl(var(--border))"
-                                strokeWidth="1.5"
-                                rx="2"
-                              />
-                              <path
-                                d={isFirst
-                                  ? "M4 4 L290 4 L312 24 L290 44 L4 44 Z"
-                                  : isLast
-                                  ? "M0 4 L20 24 L0 44 L312 44 L312 4 Z"
-                                  : "M0 4 L20 24 L0 44 L290 44 L312 24 L290 4 Z"
-                                }
-                                fill="hsl(var(--muted) / 0.4)"
-                              />
-                            </svg>
-                            <div className="relative z-10 flex items-center justify-between w-full px-4 py-2" style={{ paddingLeft: isFirst ? 16 : 28 }}>
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-sm font-semibold truncate">{stage.label}</span>
                                 <Badge variant="secondary" className="text-xs shrink-0">
