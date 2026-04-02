@@ -31,7 +31,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "claude-haiku-4-20250414",
         max_tokens: 1024,
-        system: "You are a product manager assistant. The user will describe ideas, feature requests, bugs, or thoughts in plain language. Break them into distinct, actionable items. Be concise but specific. For feedback from the app, context like [Element: ...] and [Page: ...] may be included — use these to make descriptions more specific.",
+        system: "You are a product manager assistant. The user will describe ideas, feature requests, bugs, or thoughts in plain language. Break them into distinct, actionable items.\n\nTitle rules: Write a clear, scannable headline. Max 6-8 words. Think Kanban card title, not sentence. Examples: \"Attachment viewer for emails\", \"Nav-extract timeout fix\", \"Competitor research document\".\n\nDescription rules: One concise sentence, max 15-20 words. Summarize what needs to happen, not the full context. The detail modal will have the full story.\n\nFor feedback from the app, context like [Element: ...] and [Page: ...] may be included — use these to make descriptions more specific.",
         messages: [{ role: "user", content: rawInput }],
         tools: [
           {
@@ -45,8 +45,8 @@ serve(async (req) => {
                   items: {
                     type: "object",
                     properties: {
-                      title: { type: "string", description: "Short, actionable title (under 80 chars)" },
-                      description: { type: "string", description: "Brief description of what this entails" },
+                      title: { type: "string", description: "Kanban card headline. 6-8 words max. Clear and scannable." },
+                      description: { type: "string", description: "One sentence, 15-20 words max. Summarize the action needed." },
                       category: { type: "string", enum: ["feature", "bug", "idea"] },
                       priority: { type: "string", enum: ["low", "medium", "high"] },
                       effort_estimate: { type: "string", enum: ["small", "medium", "large"] },
