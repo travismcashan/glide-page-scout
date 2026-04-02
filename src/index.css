@@ -424,6 +424,11 @@ body[data-scroll-locked] {
   background-size: 200% 100%;
 }
 
+/* Fix Loader2 spin wobble — ensure rotation is centered */
+.animate-spin {
+  transform-origin: center center;
+}
+
 /* Print styles for PDF export */
 @media print {
   body {
