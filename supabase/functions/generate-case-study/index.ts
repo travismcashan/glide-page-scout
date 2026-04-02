@@ -68,7 +68,7 @@ Extract the company name, a one-line tagline describing what they do, key metric
               tagline: { type: "string", description: "One-line italic description of what the company does" },
               metrics: {
                 type: "array",
-                description: "1-4 key metrics with bold stat and label",
+                description: "Exactly 3 key metrics with bold stat and label. No more than 3.",
                 items: {
                   type: "object",
                   properties: {
@@ -78,8 +78,8 @@ Extract the company name, a one-line tagline describing what they do, key metric
                   required: ["stat", "label"],
                 },
               },
-              description: { type: "string", description: "2-4 sentence description of the work and results. Should draw parallels to the proposal client." },
-              whyItMatters: { type: "string", description: "2-4 sentence 'Why It Matters' paragraph tailored to the proposal client. Direct, strategic, specific." },
+              description: { type: "string", description: "2 sentences MAX. What we did and the key result. Draw a parallel to the proposal client. Be punchy, not verbose." },
+              whyItMatters: { type: "string", description: "2 sentences MAX. Why this matters for the proposal client specifically. Direct, strategic, no fluff." },
             },
             required: ["company", "tagline", "metrics", "description", "whyItMatters"],
           },

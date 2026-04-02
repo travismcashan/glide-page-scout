@@ -199,7 +199,8 @@ export default function ProposalCaseStudies({
         const { data: ssData } = await supabase.functions.invoke("thum-screenshot", {
           body: { url },
         });
-        if (ssData?.screenshot_url) screenshotUrl = ssData.screenshot_url;
+        if (ssData?.screenshotUrl) screenshotUrl = ssData.screenshotUrl;
+        else if (ssData?.screenshot_url) screenshotUrl = ssData.screenshot_url;
       } catch { /* screenshot is optional */ }
 
       // Generate case study
@@ -287,7 +288,8 @@ export default function ProposalCaseStudies({
             <hr className="border-t-2 border-foreground mt-8" />
           </div>
 
-          <div className="lg:col-span-3 space-y-16">
+          <div className="hidden lg:block lg:col-span-1" />
+          <div className="lg:col-span-2 space-y-16">
             {/* Rendered case studies */}
             {caseStudies.map((cs, idx) => (
               <div key={cs.id || idx} className="group relative">
