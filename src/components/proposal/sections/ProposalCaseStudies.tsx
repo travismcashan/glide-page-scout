@@ -140,31 +140,45 @@ export default function ProposalCaseStudies({
     setShowTextInput(false);
   };
 
-  // ── Stage URL (scrape + screenshot) ──────────────────────────
+  // ── Stage URL (scrape + screenshot + quick name extraction) ──
   const handleStageUrl = async () => {
     const url = urlInput.trim();
     if (!url) return;
     setIsProcessing(true);
     try {
-      setProcessingLabel("Scraping website...");
-      const { data: scrapeData, error: scrapeErr } = await supabase.functions.invoke("firecrawl-scrape", {
-        body: { url, formats: ["markdown"], onlyMainContent: true },
-      });
-      if (scrapeErr) throw scrapeErr;
-      const rawContent = scrapeData?.markdown || scrapeData?.text || scrapeData?.content || url;
+      // Fire scrape and screenshot in parallel
+      setProcessingLabel("Fetching site...");
+      const [scrapeResult, ssResult] = await Promise.allSettled([
+        supabase.functions.invoke("firecrawl-scrape", { body: { url, formats: ["markdown"], onlyMainContent: true } }),
+        supabase.functions.invoke("thum-screenshot", { body: { url } }),
+      ]);
+
+      // Handle scrape
+      let rawContent = "";
+      if (scrapeResult.status === "fulfilled" && scrapeResult.value.data) {
+        const d = scrapeResult.value.data;
+        rawContent = d?.markdown || d?.text || d?.content || url;
+      }
       if (rawContent.trim()) setStagedFiles(prev => [...prev, { name: url, content: rawContent, type: 'url' }]);
 
-      // Take screenshot
-      setProcessingLabel("Taking screenshot...");
-      try {
-        const { data: ssData } = await supabase.functions.invoke("thum-screenshot", { body: { url } });
-        const ssUrl = ssData?.screenshotUrl || ssData?.screenshot_url;
+      // Handle screenshot
+      if (ssResult.status === "fulfilled" && ssResult.value.data) {
+        const ssUrl = ssResult.value.data?.screenshotUrl || ssResult.value.data?.screenshot_url;
         if (ssUrl) setStagedScreenshotUrl(ssUrl);
-      } catch { /* optional */ }
+      }
+
+      // Quick name extraction from the scraped content (first line or title)
+      if (rawContent) {
+        const firstLine = rawContent.split('\n').find(l => l.trim() && !l.startsWith('#') && !l.startsWith('['));
+        const titleMatch = rawContent.match(/^#\s+(.+)/m);
+        const quickName = titleMatch?.[1] || firstLine?.slice(0, 60) || url;
+        // Update the staged file name to something readable
+        setStagedFiles(prev => prev.map(f => f.name === url ? { ...f, name: `${quickName} (${url})` } : f));
+      }
 
       setUrlInput("");
       setShowUrlInput(false);
-    } catch (e: any) { toast.error(e?.message || "Failed to scrape URL"); }
+    } catch (e: any) { toast.error(e?.message || "Failed to fetch URL"); }
     setIsProcessing(false);
     setProcessingLabel("");
   };
@@ -440,12 +454,15 @@ export default function ProposalCaseStudies({
                       </div>
                     ))}
                     {stagedScreenshotUrl && (
-                      <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-1.5">
-                        <ImagePlus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-sm text-foreground truncate flex-1">Screenshot captured</span>
-                        <button onClick={() => setStagedScreenshotUrl("")} className="text-muted-foreground hover:text-destructive shrink-0">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                      <div className="rounded-md border border-border bg-muted/30 overflow-hidden">
+                        <img src={stagedScreenshotUrl} alt="Screenshot preview" className="w-full max-h-48 object-cover object-top" />
+                        <div className="flex items-center gap-2 px-3 py-1.5">
+                          <ImagePlus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-muted-foreground flex-1">Screenshot will be used as case study image</span>
+                          <button onClick={() => setStagedScreenshotUrl("")} className="text-muted-foreground hover:text-destructive shrink-0">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     )}
                     <Button className="w-full mt-2" onClick={handleGenerate} disabled={isProcessing}>
