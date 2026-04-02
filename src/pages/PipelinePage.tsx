@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
-  Loader2, ChevronDown, X,
+  ChevronDown, X,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,8 @@ import {
 import {
   Sheet, SheetContent,
 } from "@/components/ui/sheet";
-
+import AppHeader from "@/components/AppHeader";
+import { BrandLoader } from "@/components/BrandLoader";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow, format, isPast } from "date-fns";
 
@@ -390,6 +391,7 @@ export default function PipelinePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <AppHeader />
       <div className="max-w-[1600px] mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -524,7 +526,7 @@ export default function PipelinePage() {
           <TabsContent value="leads" className="mt-0">
             {contactsLoading ? (
               <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <BrandLoader size={64} />
               </div>
             ) : contactsError ? (
               <div className="flex flex-col items-center justify-center py-24 gap-3">
@@ -651,7 +653,7 @@ export default function PipelinePage() {
 
             {dealsLoading ? (
               <div className="flex items-center justify-center py-24">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <BrandLoader size={64} />
               </div>
             ) : dealsError ? (
               <div className="flex flex-col items-center justify-center py-24 gap-3">
