@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Sparkles, ChevronUp } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -212,15 +212,7 @@ export default function WishlistPage() {
 
         {/* Collapsible brain dump input */}
         {inputOpen && (
-          <div className="relative">
-            <WishlistInput onItemsAdded={handleItemsAdded} />
-            <button
-              onClick={() => setInputOpen(false)}
-              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground p-1"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </button>
-          </div>
+          <WishlistInput onItemsAdded={handleItemsAdded} onClose={() => setInputOpen(false)} />
         )}
 
         {/* Toolbar: Add button left, search + filters right */}

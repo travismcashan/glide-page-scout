@@ -26,9 +26,10 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Sparkles; co
 
 type WishlistInputProps = {
   onItemsAdded: () => void;
+  onClose: () => void;
 };
 
-export function WishlistInput({ onItemsAdded }: WishlistInputProps) {
+export function WishlistInput({ onItemsAdded, onClose }: WishlistInputProps) {
   const { toast } = useToast();
   const [rawInput, setRawInput] = useState('');
   const [parsing, setParsing] = useState(false);
@@ -130,10 +131,15 @@ export function WishlistInput({ onItemsAdded }: WishlistInputProps) {
             >
               {showManual ? 'Hide manual form' : 'or add manually'}
             </button>
-            <Button onClick={breakItDown} disabled={parsing || !rawInput.trim()} size="sm">
-              {parsing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-              Break it down
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={breakItDown} disabled={parsing || !rawInput.trim()} size="sm">
+                {parsing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
+                Break it down
+              </Button>
+            </div>
           </div>
         </Card>
       )}
