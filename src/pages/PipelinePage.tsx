@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
-  ChevronDown, X, Eye, EyeOff,
+  ChevronDown, X, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -577,7 +577,7 @@ export default function PipelinePage() {
               </div>
             ) : (
               <ScrollArea className="w-full">
-                <div className="flex gap-4 pb-4" style={{ minWidth: leadStatuses.length * 300 }}>
+                <div className="flex gap-3 pb-4" style={{ minWidth: leadStatuses.length * 300 }}>
                   {leadStatuses.map((status) => {
                     const statusContacts = contactsByStatus[status.id] || [];
                     return (
@@ -591,7 +591,7 @@ export default function PipelinePage() {
                         </div>
 
                         {/* Contact cards */}
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {statusContacts.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">No contacts</p>
                           ) : (
@@ -703,6 +703,7 @@ export default function PipelinePage() {
                 </Button>
               </div>
             ) : (
+              <>
               <ScrollArea className="w-full">
                 {/* Chevron pipeline bar */}
                 {(() => {
@@ -752,17 +753,22 @@ export default function PipelinePage() {
                   );
                 })()}
 
-                <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
+                <div className="flex gap-3 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
                     .filter((s) => showClosed || !s.closed)
                     .map((stage) => {
                       const stageDeals = dealsByStage[stage.id] || [];
+                      const colTotal = stageTotal(stageDeals);
                       return (
                         <div key={stage.id} className="w-[300px] shrink-0">
 
                           {/* Deal cards — scrollable column */}
-                          <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
-                            {stageDeals.length === 0 ? (
+                          <div className="space-y-3 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                            {stageDeals.length === 0 && stage.closed && closedLoading ? (
+                              <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                              </div>
+                            ) : stageDeals.length === 0 ? (
                               <p className="text-sm text-muted-foreground text-center py-8">No deals</p>
                             ) : (
                               <>
@@ -805,12 +811,14 @@ export default function PipelinePage() {
                                       {deal.amount && (
                                         <p>Amount: <span className="text-foreground font-medium">${Number(deal.amount).toLocaleString()}</span></p>
                                       )}
-                                      {deal.closedate && (
-                                        <p>Close date: <span className={isPast(new Date(deal.closedate)) ? "text-red-500" : "text-foreground"}>{format(new Date(deal.closedate), "MM/dd/yyyy")}</span></p>
-                                      )}
-                                      {deal.deal_source_details && (
-                                        <p>Deal Source: <span className="text-foreground">{deal.deal_source_details.replace(/_/g, " ")}</span></p>
-                                      )}
+                                      {deal.closedate && (() => {
+                                        const cd = new Date(deal.closedate);
+                                        const diffDays = Math.round((cd.getTime() - Date.now()) / 86400000);
+                                        const dayLabel = diffDays >= 0 ? `${diffDays}d` : `${Math.abs(diffDays)}d ago`;
+                                        return (
+                                          <p>Exp. Close: <span className={isPast(cd) ? "text-red-500" : "text-foreground"}>{format(cd, "MMMM d")} <span className="text-muted-foreground">({dayLabel})</span></span></p>
+                                        );
+                                      })()}
                                     </div>
                                   </Card>
                                 </button>
@@ -823,12 +831,33 @@ export default function PipelinePage() {
                               </>
                             )}
                           </div>
+
                         </div>
                       );
                     })}
                 </div>
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
+
+              {/* Sticky bottom bar — column totals */}
+              {pipelineInfo && (
+                <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm border-t border-border -mx-6 px-6">
+                  <div className="flex gap-3 overflow-x-auto" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
+                    {pipelineInfo.stages
+                      .filter((s) => showClosed || !s.closed)
+                      .map((stage) => {
+                        const sd = dealsByStage[stage.id] || [];
+                        const total = stageTotal(sd);
+                        return (
+                          <div key={`footer-${stage.id}`} className="w-[300px] shrink-0 py-2.5 text-center">
+                            <span className="text-sm font-semibold">${total.toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </TabsContent>
         </Tabs>
