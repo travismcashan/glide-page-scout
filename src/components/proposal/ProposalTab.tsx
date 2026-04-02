@@ -13,7 +13,7 @@ import NorthStar from "./sections/NorthStar";
 import MeasurementPlan from "./sections/MeasurementPlan";
 import StrategicFoundation from "./sections/StrategicFoundation";
 import ProposalGrowthPlan from "./sections/ProposalGrowthPlan";
-import ProposalCaseStudies from "./sections/ProposalCaseStudies";
+import ProposalCaseStudies, { type CaseStudy } from "./sections/ProposalCaseStudies";
 import ProposalTestimonials from "./sections/ProposalTestimonials";
 import ProposalInvestment from "./sections/ProposalInvestment";
 import WhyGlide from "./sections/WhyGlide";
@@ -82,6 +82,9 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
   const [currentSection, setCurrentSection] = useState<SectionKey | null>(null);
   const contextRef = useRef<{ clientContext: string; ragContext: string; clientName: string; domain: string } | null>(null);
   const isGenerating = currentSection !== null || SECTION_ORDER.some(k => sectionStatuses[k] === 'generating');
+
+  // ── Case studies state ───────────────────────────────────────
+  const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
 
   // ── Roadmap state (interactive, same as RoadmapTab) ─────────
   const [roadmapId, setRoadmapId] = useState<string | null>(null);
@@ -313,6 +316,15 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
           if (co.name) setCompanyName(co.name);
         }
       }
+    })();
+
+    // Load case studies
+    (async () => {
+      const { data: cs } = await (supabase.from("proposal_case_studies" as any) as any)
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("sort_order");
+      if (cs?.length) setCaseStudies(cs);
     })();
   }, [sessionId]);
 
@@ -556,7 +568,7 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
         onSetAdSpend={setItemAdSpend}
         onSetDiscount={setItemDiscount}
       />
-      <ProposalCaseStudies />
+      <ProposalCaseStudies sessionId={sessionId} clientName={companyName} domain={domain} caseStudies={caseStudies} onCaseStudiesChange={setCaseStudies} />
       <ProposalTestimonials />
       <ProposalInvestment
         items={items}
