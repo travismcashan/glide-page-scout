@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Sparkles, Bug, Lightbulb, Trash2, Loader2 } from 'lucide-react';
+import { Sparkles, Bug, Lightbulb, Trash2, Loader2, Paperclip, MessageCircle } from 'lucide-react';
 
 export type WishlistItem = {
   id: string;
@@ -17,6 +17,8 @@ export type WishlistItem = {
   element_selector: string | null;
   source: string | null;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
+  attachment_count?: number;
+  comment_count?: number;
 };
 
 const CATEGORY_TAG: Record<string, { label: string; icon: typeof Sparkles; bg: string; text: string }> = {
@@ -169,9 +171,23 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
         ) : (
           <span className="h-6 w-6 rounded-full bg-muted ring-2 ring-card" />
         )}
-        <span className={`text-xs ${ageColor(item.created_at)}`}>
-          {formatDate(item.created_at)}
-        </span>
+        <div className="flex items-center gap-3 ml-auto">
+          {(item.attachment_count ?? 0) > 0 && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Paperclip className="h-3 w-3" />
+              {item.attachment_count}
+            </span>
+          )}
+          {(item.comment_count ?? 0) > 0 && (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <MessageCircle className="h-3 w-3" />
+              {item.comment_count}
+            </span>
+          )}
+          <span className={`text-xs ${ageColor(item.created_at)}`}>
+            {formatDate(item.created_at)}
+          </span>
+        </div>
       </div>
     </div>
   );

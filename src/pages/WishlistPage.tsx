@@ -48,6 +48,9 @@ export default function WishlistPage() {
       if (error) throw error;
 
       const items = (data as any[]) || [];
+      const itemIds = items.map(i => i.id);
+
+      // Enrich with profile data
       const userIds = [...new Set(items.map(i => i.submitted_by).filter(Boolean))];
       if (userIds.length) {
         const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
@@ -56,6 +59,22 @@ export default function WishlistPage() {
           for (const item of items) {
             if (item.submitted_by) item.profiles = profileMap.get(item.submitted_by) || null;
           }
+        }
+      }
+
+      // Enrich with attachment + comment counts
+      if (itemIds.length) {
+        const [{ data: attCounts }, { data: cmtCounts }] = await Promise.all([
+          supabase.from('wishlist_attachments').select('wishlist_item_id').in('wishlist_item_id', itemIds),
+          supabase.from('wishlist_comments').select('wishlist_item_id').in('wishlist_item_id', itemIds),
+        ]);
+        const attMap = new Map<string, number>();
+        const cmtMap = new Map<string, number>();
+        for (const a of attCounts || []) attMap.set(a.wishlist_item_id, (attMap.get(a.wishlist_item_id) || 0) + 1);
+        for (const c of cmtCounts || []) cmtMap.set(c.wishlist_item_id, (cmtMap.get(c.wishlist_item_id) || 0) + 1);
+        for (const item of items) {
+          item.attachment_count = attMap.get(item.id) || 0;
+          item.comment_count = cmtMap.get(item.id) || 0;
         }
       }
 
