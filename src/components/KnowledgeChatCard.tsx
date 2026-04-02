@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, lazy, Suspense, useMemo, memo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, useMemo, memo } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
@@ -634,19 +634,34 @@ function WebCitationsBlock({ citations, isSearching }: { citations: string[]; is
   );
 }
 
-/** Renders text nodes, transforming [N] web citations and %%DOCREF_N%% RAG citations into styled badges */
-function CitationText({ children, citations, ragDocuments }: { children: React.ReactNode; citations?: string[]; ragDocuments?: RagDocument[] }) {
-  if (typeof children !== 'string') return <>{children}</>;
+/**
+ * Recursively walk React children, transforming string nodes that contain
+ * %%DOCREF_N%% (RAG doc citations) or [N] (web citations) into styled badges.
+ * Works with react-markdown v10+ where there is no `text` component.
+ */
+function processCitationsInChildren(children: React.ReactNode, citations?: string[], ragDocuments?: RagDocument[]): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      return renderCitationString(child, citations, ragDocuments);
+    }
+    if (React.isValidElement(child) && child.props?.children) {
+      return React.cloneElement(child as React.ReactElement<any>, {}, processCitationsInChildren(child.props.children, citations, ragDocuments));
+    }
+    return child;
+  });
+}
 
+/** Transforms a single string, replacing %%DOCREF_N%% and [N] patterns with React elements */
+function renderCitationString(text: string, citations?: string[], ragDocuments?: RagDocument[]): React.ReactNode {
   const parts: React.ReactNode[] = [];
   // Match %%DOCREF_N%% (pre-processed doc citations) and [N] (web citations)
   const regex = /%%DOCREF_(\d+)%%|\[(\d+)\]/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(children)) !== null) {
+  while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(children.slice(lastIndex, match.index));
+      parts.push(text.slice(lastIndex, match.index));
     }
 
     const docNum = match[1] ? parseInt(match[1], 10) : null;
@@ -711,11 +726,11 @@ function CitationText({ children, citations, ragDocuments }: { children: React.R
     lastIndex = regex.lastIndex;
   }
 
-  if (lastIndex < children.length) {
-    parts.push(children.slice(lastIndex));
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
   }
 
-  return parts.length > 0 ? <>{parts}</> : <>{children}</>;
+  return parts.length > 0 ? <>{parts}</> : text;
 }
 
 const SOURCE_TYPE_ICONS: Record<string, string> = {
@@ -915,8 +930,17 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   // Markdown treats [text][ref] as a reference link, so adjacent [doc:1][doc:3] gets swallowed.
   const processedContent = content.replace(/\[doc:(\d+)\]/g, '%%DOCREF_$1%%');
 
+  // react-markdown v10 has no `text` component — process citations via block-level components
+  const withCitations = (Tag: string) => ({ children, ...props }: any) => {
+    const processed = processCitationsInChildren(children, webCitations, ragDocuments);
+    return React.createElement(Tag, props, processed);
+  };
+
   const markdownComponents = {
-    text: ({ children }: any) => <CitationText citations={webCitations} ragDocuments={ragDocuments}>{children}</CitationText>,
+    p: withCitations('p'),
+    li: withCitations('li'),
+    td: withCitations('td'),
+    th: withCitations('th'),
     img: ({ src, alt, ...props }: any) => (
       <img src={src} alt={alt || ''} className="max-w-full rounded-lg my-2" style={{ maxHeight: 300 }} loading="lazy" {...props} />
     ),
