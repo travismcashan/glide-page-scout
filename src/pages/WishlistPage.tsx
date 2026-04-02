@@ -27,6 +27,7 @@ type WishlistItem = {
   page_url: string | null;
   element_selector: string | null;
   source: string | null;
+  profiles?: { display_name: string | null; avatar_url: string | null } | null;
 };
 
 type ParsedItem = {
@@ -83,7 +84,7 @@ export default function WishlistPage() {
       const { data, error } = await withQueryTimeout(
         supabase
           .from('wishlist_items')
-          .select('*')
+          .select('*, profiles:submitted_by(display_name, avatar_url)')
           .order('created_at', { ascending: false }),
         12000,
         'Loading wishlist timed out'
@@ -416,6 +417,21 @@ export default function WishlistPage() {
                                       Claude
                                     </Badge>
                                   )}
+                                  {item.profiles?.display_name && (
+                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      {item.profiles.avatar_url ? (
+                                        <img src={item.profiles.avatar_url} alt="" className="h-3.5 w-3.5 rounded-full" />
+                                      ) : (
+                                        <span className="h-3.5 w-3.5 rounded-full bg-muted-foreground/20 flex items-center justify-center text-[8px] font-bold">
+                                          {item.profiles.display_name.charAt(0)}
+                                        </span>
+                                      )}
+                                      {item.profiles.display_name}
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
                                   {item.page_url && (
                                     <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                                       <ExternalLink className="h-2.5 w-2.5" />
