@@ -128,21 +128,33 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
   const bodyHtml = markdownToHtml(sections);
   const headerRight = [title, subtitle, companyName].filter(Boolean).join('<br/>');
 
+  const FONT_BASE = 'https://glide-page-scout.vercel.app/fonts';
+
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>${escHtml(title)} — ${escHtml(companyName || clientDomain || '')}</title>
+  <title>${escHtml(title)} - ${escHtml(companyName || clientDomain || '')}</title>
   <style>
-    @font-face { font-family: 'Larsseit'; src: url('/fonts/Larsseit-Light.otf') format('opentype'); font-weight: 300; font-style: normal; }
-    @font-face { font-family: 'Larsseit'; src: url('/fonts/Larsseit-Regular.otf') format('opentype'); font-weight: 400; font-style: normal; }
-    @font-face { font-family: 'Larsseit'; src: url('/fonts/Larsseit-Medium.otf') format('opentype'); font-weight: 500; font-style: normal; }
-    @font-face { font-family: 'Larsseit'; src: url('/fonts/Larsseit-Bold.otf') format('opentype'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Larsseit'; src: url('${FONT_BASE}/Larsseit-Light.otf') format('opentype'); font-weight: 300; }
+    @font-face { font-family: 'Larsseit'; src: url('${FONT_BASE}/Larsseit-Regular.otf') format('opentype'); font-weight: 400; }
+    @font-face { font-family: 'Larsseit'; src: url('${FONT_BASE}/Larsseit-Medium.otf') format('opentype'); font-weight: 500; }
+    @font-face { font-family: 'Larsseit'; src: url('${FONT_BASE}/Larsseit-Bold.otf') format('opentype'); font-weight: 700; }
 
+    /* ── Page setup with Prince running header/footer ── */
     @page {
       size: letter;
-      margin: 0.75in 0.85in;
+      margin: 0.7in 0.85in 0.9in 0.85in;
+      @top-left { content: element(page-header-left); }
+      @top-right { content: element(page-header-right-box); }
+      @bottom-center { content: element(page-footer-el); }
     }
+    @page cover { margin: 0.85in; @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }
+
+    /* Running elements (Prince pulls these out of flow) */
+    .running-header-left { position: running(page-header-left); }
+    .running-header-right { position: running(page-header-right-box); }
+    .running-footer { position: running(page-footer-el); }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -154,59 +166,61 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
       color: #1a1a1a;
     }
 
-    /* ── Cover page ───────────────────────────── */
+    /* ── Cover page ────────────────────────────── */
     .cover {
+      page: cover;
       page-break-after: always;
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
-      min-height: calc(100vh - 1.5in);
-      padding-top: 1.5in;
     }
-    .cover .glide-logo { width: 200px; height: auto; margin-bottom: 2.5in; }
-    .cover-title { font-size: 26pt; font-weight: 700; color: #1a1a1a; margin-bottom: 0.15em; }
-    .cover-subtitle { font-size: 22pt; font-weight: 300; color: #999; margin-bottom: 0.15em; }
-    .cover-domain { font-size: 22pt; font-weight: 400; color: #5b3cc4; text-decoration: none; }
-    .cover-domain:hover { text-decoration: underline; }
-    .prepared-by { margin-top: auto; padding-top: 2in; }
-    .prepared-by-label { font-size: 10pt; font-weight: 700; margin-bottom: 0.5em; }
-    .prepared-by-detail { font-size: 9.5pt; line-height: 1.65; color: #333; }
-    .prepared-by-detail a { color: #5b3cc4; text-decoration: none; }
+    .cover .glide-logo { width: 180px; height: auto; margin-bottom: 2.2in; }
+    .cover-title { font-size: 24pt; font-weight: 700; color: #1a1a1a; margin-bottom: 0.1em; line-height: 1.2; }
+    .cover-subtitle { font-size: 20pt; font-weight: 300; color: #999; margin-bottom: 0.1em; line-height: 1.2; }
+    .cover-domain { font-size: 20pt; font-weight: 400; color: #3355bb; text-decoration: underline; line-height: 1.3; }
+    .prepared-by { margin-top: auto; }
+    .prepared-by-label { font-size: 10pt; font-weight: 700; margin-bottom: 0.4em; }
+    .prepared-by-detail { font-size: 9pt; line-height: 1.7; color: #1a1a1a; }
+    .prepared-by-detail a { color: #3355bb; text-decoration: none; }
 
-    /* ── Interior pages ───────────────────────── */
-    .content-page {
-      page-break-before: always;
-    }
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 1.5em;
-      padding-bottom: 0;
-    }
-    .page-header .glide-logo-small { width: 130px; height: auto; }
-    .page-header-right {
+    /* ── Running header elements ───────────────── */
+    .running-header-left .glide-logo-small { width: 110px; height: auto; }
+    .running-header-right {
       text-align: right;
-      font-size: 8.5pt;
+      font-size: 8pt;
       font-weight: 500;
-      color: #333;
-      line-height: 1.5;
+      color: #1a1a1a;
+      line-height: 1.45;
+      padding-top: 2pt;
     }
+    .running-header-right .rh-bold { font-weight: 700; }
 
-    /* ── Content styles ───────────────────────── */
+    /* ── Running footer ────────────────────────── */
+    .running-footer {
+      border-top: 0.5pt solid #ccc;
+      padding-top: 6pt;
+      font-size: 7.5pt;
+      color: #666;
+      text-align: center;
+    }
+    .running-footer a { color: #3355bb; text-decoration: none; }
+
+    /* ── Content styles ────────────────────────── */
     h1 {
-      font-size: 18pt;
+      font-size: 20pt;
       font-weight: 700;
-      margin-top: 0.2em;
-      margin-bottom: 0.4em;
-      padding-bottom: 0.25em;
-      border-bottom: 1px solid #ddd;
+      margin-top: 0;
+      margin-bottom: 0.5em;
+      padding-bottom: 0.2em;
+      border-bottom: 0.5pt solid #ddd;
+      line-height: 1.2;
     }
     h2 {
-      font-size: 13pt;
+      font-size: 14pt;
       font-weight: 700;
-      margin-top: 1.3em;
-      margin-bottom: 0.3em;
+      margin-top: 1.4em;
+      margin-bottom: 0.35em;
+      line-height: 1.25;
     }
     h3 {
       font-size: 11pt;
@@ -214,22 +228,15 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
       margin-top: 1em;
       margin-bottom: 0.25em;
     }
-    p {
-      margin-bottom: 0.6em;
-    }
-    ul, ol {
-      padding-left: 1.4em;
-      margin-bottom: 0.6em;
-    }
-    li {
-      margin-bottom: 0.25em;
-    }
+    p { margin-bottom: 0.6em; }
+    ul, ol { padding-left: 1.4em; margin-bottom: 0.7em; }
+    li { margin-bottom: 0.2em; }
     strong { font-weight: 700; }
     em { font-style: italic; }
-    a { color: #5b3cc4; text-decoration: underline; }
+    a { color: #3355bb; text-decoration: underline; }
 
     blockquote {
-      border-left: 3px solid #ccc;
+      border-left: 2pt solid #ccc;
       margin: 0.6em 0;
       padding-left: 1em;
       color: #555;
@@ -238,73 +245,46 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
     code {
       background: #f4f4f4;
       padding: 0.1em 0.3em;
-      border-radius: 3px;
+      border-radius: 2px;
       font-size: 0.9em;
-      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-family: Consolas, monospace;
     }
     pre {
       background: #f4f4f4;
       padding: 0.8em;
-      border-radius: 4px;
+      border-radius: 3px;
       overflow-x: auto;
       margin-bottom: 0.6em;
     }
     pre code { background: none; padding: 0; }
 
-    hr {
-      border: none;
-      border-top: 1px solid #ddd;
-      margin: 1.2em 0;
-    }
+    hr { border: none; border-top: 0.5pt solid #ddd; margin: 1.2em 0; }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 0.8em 0;
+      margin: 0.6em 0;
       font-size: 10pt;
     }
     th, td {
-      border: 1px solid #ddd;
-      padding: 0.45em 0.65em;
+      border: 0.5pt solid #ccc;
+      padding: 0.5em 0.7em;
       text-align: left;
     }
-    th {
-      font-weight: 700;
-      background: #fafafa;
-    }
-
-    /* ── Footer ───────────────────────────────── */
-    .page-footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 0 0.85in 0.5in 0.85in;
-      font-size: 8pt;
-      color: #666;
-    }
-    .page-footer-inner {
-      border-top: 1px solid #ccc;
-      padding-top: 0.5em;
-      text-align: center;
-    }
-    .page-footer a { color: #5b3cc4; text-decoration: none; }
-
-    /* ── Print-specific ───────────────────────── */
-    @media print {
-      .cover { min-height: auto; height: 100vh; }
-      .page-footer { position: fixed; }
-    }
-
-    @media screen {
-      body { max-width: 8.5in; margin: 0 auto; padding: 0.75in 0.85in; }
-      .cover { min-height: 9in; }
-      .page-footer { position: relative; margin-top: 3em; padding: 0; }
-      .page-footer-inner { padding-top: 0.8em; }
-    }
+    th { font-weight: 700; }
   </style>
 </head>
 <body>
+
+  <!-- Running elements (Prince removes these from flow and places in page margins) -->
+  <div class="running-header-left">${GLIDE_LOGO_SMALL}</div>
+  <div class="running-header-right">
+    <span class="rh-bold">${escHtml(title)}</span><br/>
+    ${subtitle ? escHtml(subtitle) + '<br/>' : ''}${companyName ? escHtml(companyName) : ''}
+  </div>
+  <div class="running-footer">
+    GLIDE&reg; &nbsp;|&nbsp; <a href="https://glidedesign.com">glidedesign.com</a> &nbsp;|&nbsp; <a href="mailto:${escHtml(preparedBy.email)}">${escHtml(preparedBy.email)}</a> &nbsp;|&nbsp; ${escHtml(preparedBy.phone)}
+  </div>
 
   <!-- Cover Page -->
   <div class="cover">
@@ -326,21 +306,8 @@ export function buildGlideHtml(options: GlideDocumentOptions): string {
     </div>
   </div>
 
-  <!-- Content Pages -->
-  <div class="content-page">
-    <div class="page-header">
-      ${GLIDE_LOGO_SMALL}
-      <div class="page-header-right">${headerRight}</div>
-    </div>
-    ${bodyHtml}
-  </div>
-
-  <!-- Footer (shows on all interior pages) -->
-  <div class="page-footer">
-    <div class="page-footer-inner">
-      GLIDE&reg; &nbsp;|&nbsp; <a href="https://glidedesign.com">glidedesign.com</a> &nbsp;|&nbsp; <a href="mailto:${escHtml(preparedBy.email)}">${escHtml(preparedBy.email)}</a> &nbsp;|&nbsp; ${escHtml(preparedBy.phone)}
-    </div>
-  </div>
+  <!-- Content -->
+  ${bodyHtml}
 
 </body>
 </html>`;

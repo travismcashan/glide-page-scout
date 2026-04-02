@@ -55,12 +55,14 @@ serve(async (req) => {
 
     // Return the PDF binary
     const pdfBytes = await response.arrayBuffer();
+    // Sanitize filename to ASCII for Content-Disposition header (non-ASCII chars crash Deno)
+    const safeFilename = filename.replace(/[^\x20-\x7E]/g, '-');
     return new Response(pdfBytes, {
       status: 200,
       headers: {
         ...corsHeaders,
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${safeFilename}"`,
         "X-DocRaptor-Pages": response.headers.get("X-DocRaptor-Num-Pages") || "0",
       },
     });
