@@ -732,7 +732,7 @@ export default function PipelinePage() {
                   const A = 16; // arrow depth in px — consistent angle for all chevrons
                   const GAP = 3; // thin gap between chevrons to create the divider line
                   return (
-                    <div className="flex mb-4" style={{ minWidth: openStages.length * 220 }}>
+                    <div className="flex mb-4 sticky top-0 z-10 bg-background pb-1" style={{ minWidth: openStages.length * 220 }}>
                       {openStages.map((stage, i) => {
                         const stageDeals = dealsByStage[stage.id] || [];
                         const total = stageTotal(stageDeals);
