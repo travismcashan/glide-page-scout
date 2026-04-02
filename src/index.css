@@ -167,9 +167,9 @@ body[data-scroll-locked] {
     --pillar-go: 118 100% 78%;
     --pillar-go-light: 118 80% 94%;
     --pillar-go-foreground: 118 60% 18%;
-    --pillar-ts: 237 100% 88%;
-    --pillar-ts-light: 237 80% 95%;
-    --pillar-ts-foreground: 237 60% 28%;
+    --pillar-ts: 330 100% 85%;
+    --pillar-ts-light: 330 80% 95%;
+    --pillar-ts-foreground: 330 60% 28%;
   }
 
   .dark {
@@ -222,9 +222,9 @@ body[data-scroll-locked] {
     --pillar-go: 118 70% 60%;
     --pillar-go-light: 118 50% 13%;
     --pillar-go-foreground: 118 80% 88%;
-    --pillar-ts: 237 80% 75%;
-    --pillar-ts-light: 237 50% 16%;
-    --pillar-ts-foreground: 237 90% 92%;
+    --pillar-ts: 330 80% 75%;
+    --pillar-ts-light: 330 50% 16%;
+    --pillar-ts-foreground: 330 90% 92%;
   }
 }
 

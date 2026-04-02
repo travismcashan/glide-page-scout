@@ -1,4 +1,4 @@
-import { Sparkles, Share2, Eye, EyeOff } from "lucide-react";
+import { Sparkles, Share2, Eye, EyeOff, PanelLeftOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +14,8 @@ interface RoadmapToolbarProps {
   isGenerating: boolean;
   onGenerate: () => void;
   hasItems: boolean;
+  catalogVisible?: boolean;
+  onShowCatalog?: () => void;
 }
 
 export default function RoadmapToolbar({
@@ -26,11 +28,19 @@ export default function RoadmapToolbar({
   isGenerating,
   onGenerate,
   hasItems,
+  catalogVisible,
+  onShowCatalog,
 }: RoadmapToolbarProps) {
   return (
     <div className="mb-4 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-2.5">
       {/* Left: controls */}
       <div className="flex items-center gap-4">
+        {!catalogVisible && onShowCatalog && (
+          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" onClick={onShowCatalog}>
+            <PanelLeftOpen className="h-3.5 w-3.5" />
+            Services
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <label className="text-sm font-bold text-foreground">Start</label>
           <Select

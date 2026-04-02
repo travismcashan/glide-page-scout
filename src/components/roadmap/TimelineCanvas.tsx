@@ -153,7 +153,7 @@ export default function TimelineCanvas({
       {/* Month headers — drag left/right to shift timeline */}
       <div
         ref={containerRef}
-        className={`sticky top-[var(--month-bar-top)] z-10 flex h-16 bg-background ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`sticky top-[var(--month-bar-top)] z-10 flex h-11 bg-background ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
         onMouseDown={onViewOffsetChange ? (e) => {
           e.preventDefault();
           const startX = e.clientX;
@@ -213,8 +213,8 @@ export default function TimelineCanvas({
         {activePillars.map((pillar, pillarIdx) => {
           const pillarItems = items.filter((i) => i.pillar === pillar.code).sort((a, b) => a.sortOrder - b.sortOrder);
           const barHeight = 60;
-          const topPad = 6;
-          const bottomPad = 9;
+          const topPad = 30;
+          const bottomPad = 30;
           const gutter = 18;
           const laneHeight = topPad + pillarItems.length * barHeight + (pillarItems.length - 1) * gutter + bottomPad;
           const isLastPillar = pillarIdx === activePillars.length - 1;

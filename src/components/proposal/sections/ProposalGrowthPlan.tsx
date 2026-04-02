@@ -90,7 +90,7 @@ export default function ProposalGrowthPlan({
           {PILLARS.map((p) => (
             <div key={p.code} className="flex items-center gap-1.5">
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${PILLAR_DOT[p.code]}`} />
-              <span className="text-base font-medium text-muted-foreground">
+              <span className="text-sm font-medium text-muted-foreground">
                 {p.name} ({p.code})
               </span>
             </div>
