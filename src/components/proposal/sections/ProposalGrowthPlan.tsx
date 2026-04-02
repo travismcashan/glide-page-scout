@@ -100,7 +100,7 @@ export default function ProposalGrowthPlan({
         <hr className="border-t-2 border-foreground mt-8 mb-6" />
 
         {/* White card wrapping the roadmap */}
-        <div className="rounded-xl border border-border bg-background shadow-sm p-6 pt-0">
+        <div className="rounded-xl border border-border bg-background shadow-sm p-6">
           {/* Timeline */}
           <TimelineCanvas
             items={items}
