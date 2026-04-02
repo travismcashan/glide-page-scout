@@ -211,7 +211,7 @@ export default function TimelineBar({
     }
   };
 
-  const ROW_HEIGHT = 48;
+  const ROW_HEIGHT = 78;
 
   const handleDragMove = useCallback(
     (e: React.MouseEvent) => {
@@ -334,7 +334,7 @@ export default function TimelineBar({
       <TooltipTrigger asChild>
         <div
           ref={barRef}
-          className={`group absolute top-0 flex h-10 items-center rounded-lg transition-all hover:z-20 ${BAR_STYLES[item.pillar]} ${BAR_HOVER[item.pillar]} ${dragging ? "opacity-90 shadow-lg z-20" : ""} ${editing ? "cursor-text" : "cursor-grab active:cursor-grabbing"}`}
+          className={`group absolute top-0 flex h-[60px] items-center rounded-lg transition-all hover:z-20 ${BAR_STYLES[item.pillar]} ${BAR_HOVER[item.pillar]} ${dragging ? "opacity-90 shadow-lg z-20" : ""} ${editing ? "cursor-text" : "cursor-grab active:cursor-grabbing"}`}
           style={{
             left: `${barLeft}px`,
             width: `${Math.max(barWidth, columnWidth * 0.5)}px`,
