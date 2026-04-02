@@ -27,6 +27,8 @@ interface GoogleDrivePickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFilesSelected: (files: { name: string; content?: string; mimeType: string; isText: boolean }[]) => void;
+  /** When provided, "Done" returns file links instead of downloading content. */
+  onFilesLinked?: (files: { id: string; name: string; mimeType: string; url: string }[]) => void;
 }
 
 const SUPPORTED_MIMES = [
@@ -80,7 +82,7 @@ function getFileTypeLabel(mimeType: string): string {
   return 'File';
 }
 
-export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: GoogleDrivePickerProps) {
+export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected, onFilesLinked }: GoogleDrivePickerProps) {
   const {
     isConnected, isLoading, files, folderStack,
     connect, checkConnection, searchFiles, listFiles, navigateToFolder, navigateToBreadcrumb, downloadFile, listDocTabs, downloadDocTabs,
@@ -201,8 +203,23 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   }, [open]);
 
   const handleImport = async () => {
-    const filesToImport = files.filter(f => selectedFiles.has(f.id) && isFileSupported(f.mimeType));
+    const filesToImport = files.filter(f => selectedFiles.has(f.id) && !isFolder(f.mimeType));
     if (filesToImport.length === 0) return;
+
+    // Link mode: return file references without downloading content
+    if (onFilesLinked) {
+      const linked = filesToImport.map(f => {
+        const isGoogleApp = f.mimeType.startsWith('application/vnd.google-apps.');
+        const url = isGoogleApp
+          ? `https://docs.google.com/document/d/${f.id}`
+          : `https://drive.google.com/file/d/${f.id}/view`;
+        return { id: f.id, name: f.name, mimeType: f.mimeType, url };
+      });
+      onFilesLinked(linked);
+      setSelectedFiles(new Set());
+      onOpenChange(false);
+      return;
+    }
 
     // Check if any Google Docs need tab selection (tabMode === 'choose')
     const googleDocs = filesToImport.filter(f => f.mimeType === 'application/vnd.google-apps.document');

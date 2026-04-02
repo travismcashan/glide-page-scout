@@ -9,6 +9,8 @@ import { KanbanBoard } from '@/components/wishlist/KanbanBoard';
 import { WishlistInput } from '@/components/wishlist/WishlistInput';
 import { KanbanToolbar, type SortMode } from '@/components/wishlist/KanbanToolbar';
 import { CardDetailModal } from '@/components/wishlist/CardDetailModal';
+import { RecommendBanner } from '@/components/wishlist/RecommendBanner';
+import { RecommendModal, type RecommendedItem } from '@/components/wishlist/RecommendModal';
 import type { WishlistItem } from '@/components/wishlist/KanbanCard';
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -26,12 +28,31 @@ export default function WishlistPage() {
   const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Toolbar state
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [sort, setSort] = useState<SortMode>('newest');
+  // Toolbar state — persisted to localStorage
+  const stored = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('wishlist-toolbar');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }, []);
+  const [search, setSearch] = useState(stored?.search || '');
+  const [categoryFilter, setCategoryFilter] = useState(stored?.category || 'all');
+  const [priorityFilter, setPriorityFilter] = useState(stored?.priority || 'all');
+  const [sort, setSort] = useState<SortMode>(stored?.sort || 'priority');
   const [prioritizing, setPrioritizing] = useState(false);
+
+  // Persist toolbar state
+  useEffect(() => {
+    localStorage.setItem('wishlist-toolbar', JSON.stringify({
+      search, category: categoryFilter, priority: priorityFilter, sort,
+    }));
+  }, [search, categoryFilter, priorityFilter, sort]);
+
+  // AI recommendation
+  const [recommendedItems, setRecommendedItems] = useState<RecommendedItem[]>([]);
+  const [recommendSummary, setRecommendSummary] = useState('');
+  const [recommendModalOpen, setRecommendModalOpen] = useState(false);
+  const [recommending, setRecommending] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -178,22 +199,108 @@ export default function WishlistPage() {
         await supabase.from('wishlist_items').update(fields as any).eq('id', id);
       }
 
-      // Update local state
-      setItems((prev) => prev.map((item) => {
+      // Build updated items list
+      const updatedItems = items.map((item) => {
         const u = updates[item.id];
         return u ? { ...item, ...u } : item;
-      }));
-
-      // Find the recommended next item
-      const nextItem = items.find((i) => i.id === data.next_item_id);
-      toast({
-        title: nextItem ? `Work on: ${nextItem.title}` : 'Backlog analyzed',
-        description: data.next_item_reason + (changeCount ? ` (${changeCount} fields updated)` : ''),
       });
+      setItems(updatedItems);
+
+      // Show recommendation modal with single item
+      const nextItem = updatedItems.find((i) => i.id === data.next_item_id);
+      if (nextItem) {
+        setRecommendedItems([{
+          id: nextItem.id, title: nextItem.title, description: nextItem.description,
+          reason: data.next_item_reason, category: nextItem.category,
+          priority: nextItem.priority, effort: nextItem.effort_estimate,
+        }]);
+        setRecommendSummary('');
+        setRecommendModalOpen(true);
+      } else {
+        toast({
+          title: 'Backlog analyzed',
+          description: data.next_item_reason + (changeCount ? ` (${changeCount} fields updated)` : ''),
+        });
+      }
+
+      if (changeCount) {
+        toast({ title: `${changeCount} field${changeCount > 1 ? 's' : ''} updated` });
+      }
+
+      // Auto-generate cover images for large-effort items without one
+      const needsCover = updatedItems.filter(
+        (i) => i.effort_estimate === 'large' && !i.cover_image_url && i.status !== 'done'
+      );
+      if (needsCover.length) {
+        Promise.allSettled(
+          needsCover.map((item) =>
+            supabase.functions.invoke('wishlist-cover-image', {
+              body: { item_id: item.id, title: item.title, description: item.description },
+            }).then(({ data: imgData, error: imgErr }) => {
+              if (imgErr || imgData?.error) return;
+              if (imgData?.cover_image_url) {
+                setItems((prev) =>
+                  prev.map((i) => i.id === item.id ? { ...i, cover_image_url: imgData.cover_image_url } : i)
+                );
+              }
+            })
+          )
+        ).then((results) => {
+          const generated = results.filter((r) => r.status === 'fulfilled').length;
+          if (generated > 0) {
+            toast({ title: `Generated ${generated} cover image${generated > 1 ? 's' : ''}` });
+          }
+        });
+      }
     } catch (e: any) {
       toast({ title: 'Prioritize failed', description: e.message || 'Try again', variant: 'destructive' });
     } finally {
       setPrioritizing(false);
+    }
+  };
+
+  const handleRecommend = async () => {
+    setRecommending(true);
+    try {
+      const backlogItems = items
+        .filter((i) => i.status === 'wishlist' || i.status === 'planned')
+        .map(({ id, title, category, priority, effort_estimate, status, created_at }) =>
+          ({ id, title, category, priority, effort_estimate, status, created_at }));
+
+      if (backlogItems.length < 2) {
+        toast({ title: 'Not enough items', description: 'Need at least 2 items in wishlist or planned to recommend a sprint.' });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('wishlist-recommend', {
+        body: { items: backlogItems },
+      });
+      if (error) throw error;
+      if (data?.error) { toast({ title: 'AI Error', description: data.error, variant: 'destructive' }); return; }
+
+      const recs: RecommendedItem[] = (data.recommendations || [])
+        .map((r: any) => {
+          const item = items.find((i) => i.id === r.id);
+          if (!item) return null;
+          return {
+            id: item.id, title: item.title, description: item.description,
+            reason: r.reason, category: item.category,
+            priority: item.priority, effort: item.effort_estimate,
+          };
+        })
+        .filter(Boolean);
+
+      if (recs.length) {
+        setRecommendedItems(recs);
+        setRecommendSummary(data.sprint_summary || '');
+        setRecommendModalOpen(true);
+      } else {
+        toast({ title: 'No recommendations', description: 'AI could not find suitable items.' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Recommend failed', description: e.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setRecommending(false);
     }
   };
 
@@ -231,6 +338,20 @@ export default function WishlistPage() {
             onAddClick={() => setInputOpen(!inputOpen)}
             onPrioritize={handlePrioritize}
             prioritizing={prioritizing}
+            onRecommend={handleRecommend}
+            recommending={recommending}
+          />
+        )}
+
+        {/* AI Recommendation banner (visible after modal dismissed) */}
+        {recommendedItems.length > 0 && !recommendModalOpen && (
+          <RecommendBanner
+            title={recommendedItems.length > 1
+              ? `${recommendedItems.length} items recommended`
+              : recommendedItems[0].title}
+            reason={recommendSummary || recommendedItems[0].reason}
+            onView={() => setRecommendModalOpen(true)}
+            onDismiss={() => setRecommendedItems([])}
           />
         )}
 
@@ -253,6 +374,26 @@ export default function WishlistPage() {
             deleting={deleting}
           />
         )}
+        {/* AI Recommendation modal */}
+        {recommendedItems.length > 0 && (
+          <RecommendModal
+            open={recommendModalOpen}
+            onOpenChange={setRecommendModalOpen}
+            items={recommendedItems}
+            summary={recommendSummary}
+            onAccept={async () => {
+              for (const rec of recommendedItems) {
+                await updateStatus(rec.id, 'planned');
+              }
+              setRecommendModalOpen(false);
+              const count = recommendedItems.length;
+              setRecommendedItems([]);
+              toast({ title: `${count} item${count > 1 ? 's' : ''} moved to Planned` });
+            }}
+            onDismiss={() => setRecommendModalOpen(false)}
+          />
+        )}
+
         <CardDetailModal
           item={selectedItem}
           open={modalOpen}

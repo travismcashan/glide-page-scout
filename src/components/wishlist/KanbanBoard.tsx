@@ -18,6 +18,7 @@ const WIP_LIMIT = 3;
 
 export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, deleting }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragHeight, setDragHeight] = useState<number>(80);
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -32,6 +33,8 @@ export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, dele
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id as string);
+    const el = document.getElementById(`card-${event.active.id}`);
+    if (el) setDragHeight(el.getBoundingClientRect().height);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -76,6 +79,7 @@ export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, dele
             onCardClick={onCardClick}
             deleting={deleting}
             activeId={activeId}
+            dragHeight={dragHeight}
           />
         ))}
       </div>

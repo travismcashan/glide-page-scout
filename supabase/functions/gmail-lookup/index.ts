@@ -219,7 +219,7 @@ serve(async (req) => {
     if (action === 'search') {
       const emails: string[] = contactEmails || [];
       const searchDomain: string = domain || '';
-      const limit = Math.min(maxResults || 50, 100);
+      const limit = maxResults || 200;
 
       let query = '';
       if (emails.length > 0) {
@@ -240,12 +240,22 @@ serve(async (req) => {
 
       console.log(`[gmail] Searching: ${query} (limit: ${limit})`);
 
-      const searchRes = await gmailFetch(
-        `/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${limit}`,
-        token,
-      );
+      // Paginate through all results up to limit
+      const messageIds: string[] = [];
+      let pageToken: string | null = null;
+      const pageSize = Math.min(limit, 100);
+      do {
+        let url = `/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${pageSize}`;
+        if (pageToken) url += `&pageToken=${pageToken}`;
+        const searchRes = await gmailFetch(url, token);
+        for (const m of (searchRes.messages || [])) {
+          messageIds.push(m.id);
+        }
+        pageToken = searchRes.nextPageToken || null;
+      } while (pageToken && messageIds.length < limit);
 
-      const messageIds = (searchRes.messages || []).map((m: any) => m.id);
+      // Trim to limit
+      if (messageIds.length > limit) messageIds.length = limit;
       console.log(`[gmail] Found ${messageIds.length} messages`);
 
       if (messageIds.length === 0) {
