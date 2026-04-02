@@ -377,9 +377,9 @@ export default function TimelineBar({
               className={
                 overflows
                   ? nearRightEdge
-                    ? "pointer-events-none absolute right-full z-10 mr-2 whitespace-nowrap text-base font-bold text-foreground"
-                    : "pointer-events-none absolute left-full z-10 ml-2 whitespace-nowrap text-base font-bold text-foreground"
-                  : "flex-1 truncate px-2.5 text-center text-base font-bold text-black"
+                    ? "pointer-events-none absolute right-full z-10 mr-2 whitespace-nowrap text-[15px] font-bold text-foreground"
+                    : "pointer-events-none absolute left-full z-10 ml-2 whitespace-nowrap text-[15px] font-bold text-foreground"
+                  : "flex-1 truncate px-2.5 text-center text-[15px] font-bold text-black"
               }
             >
               {labelText}
