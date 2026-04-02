@@ -93,7 +93,7 @@ Be direct and practical. The team is small.`,
                     },
                     required: ["id", "new_effort", "reason"],
                   },
-                  description: "Items whose effort estimate should change based on complexity analysis.",
+                  description: "Items whose effort estimate should change OR items with effort 'unknown' that need an estimate. Always include items missing an effort estimate.",
                 },
                 category_changes: {
                   type: "array",
