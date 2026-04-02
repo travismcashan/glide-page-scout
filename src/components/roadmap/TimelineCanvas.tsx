@@ -153,7 +153,7 @@ export default function TimelineCanvas({
       {/* Month headers — drag left/right to shift timeline */}
       <div
         ref={containerRef}
-        className={`sticky top-[var(--month-bar-top)] z-10 flex h-16 border-b border-border bg-muted ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`sticky top-[var(--month-bar-top)] z-10 flex h-16 border-b border-border bg-background ${onViewOffsetChange ? "cursor-grab active:cursor-grabbing" : ""}`}
         onMouseDown={onViewOffsetChange ? (e) => {
           e.preventDefault();
           const startX = e.clientX;
@@ -178,9 +178,7 @@ export default function TimelineCanvas({
           return (
             <div
               key={i}
-              className={`flex-1 flex flex-col items-center justify-center border-r transition-colors last:border-r-0 ${
-                isYearEnd ? "border-foreground/40" : "border-foreground/10"
-              } ${dropMonth === i ? "bg-accent" : ""}`}
+              className={`flex-1 flex flex-col items-center justify-center border-r border-foreground/10 transition-colors last:border-r-0 ${dropMonth === i ? "bg-accent" : ""}`}
             >
               <span className="text-base font-bold text-foreground select-none">{my.month}</span>
               <span className="text-sm font-normal text-muted-foreground select-none">{my.year}</span>
@@ -223,7 +221,7 @@ export default function TimelineCanvas({
           const showBorder = !isLastPillar || showLastBorder;
 
           return (
-            <div key={pillar.code} className={`relative ${showBorder ? "border-b border-foreground/10" : ""}`}>
+            <div key={pillar.code} className="relative">
               <div className="relative">
                 <div className="absolute inset-0 flex">
                   {months.map((_, i) => (
