@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
+import { generateGlideDocument } from '@/lib/generateGlideDocument';
 import { DocumentDownloadBlock } from '@/components/chat/DocumentDownloadBlock';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
@@ -981,7 +982,12 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   };
 
   const handleExportPdf = () => {
-    downloadReportPdf(content, 'AI Chat Response', domain || 'chat');
+    generateGlideDocument({
+      title: 'Executive Summary',
+      subtitle: domain || undefined,
+      clientDomain: domain || undefined,
+      sections: content,
+    });
   };
 
   const handleExportGoogleDoc = async () => {
@@ -1140,13 +1146,13 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
               <TooltipTrigger asChild>
                 <button
                   onClick={handleExportPdf}
-                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                  className="p-1 rounded-md hover:bg-muted text-red-500/70 hover:text-red-600"
                 >
                   <Download className="h-5 w-5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
-                PDF
+                GLIDE PDF
               </TooltipContent>
             </Tooltip>
             <Tooltip>
