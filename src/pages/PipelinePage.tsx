@@ -777,11 +777,20 @@ export default function PipelinePage() {
                 <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
                     .filter((s) => showClosed || !s.closed)
-                    .map((stage) => {
+                    .map((stage, stageIdx, filteredStages) => {
                       const stageDeals = dealsByStage[stage.id] || [];
                       const colTotal = stageTotal(stageDeals);
+                      const isLastCol = stageIdx === filteredStages.length - 1;
                       return (
-                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col">
+                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col relative">
+                          {/* Angled divider between columns */}
+                          {!isLastCol && (
+                            <div className="absolute right-[-8px] top-0 bottom-0 w-[1px] z-[5]">
+                              <svg className="absolute inset-0 w-4 h-full -ml-[7px]" preserveAspectRatio="none" viewBox="0 0 16 100">
+                                <path d="M8 0 L12 50 L8 100" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
+                              </svg>
+                            </div>
+                          )}
 
                           {/* Deal cards — scrollable column */}
                           <div className="space-y-4 overflow-y-auto flex-1 pr-1">
@@ -875,6 +884,7 @@ export default function PipelinePage() {
                         return (
                           <div key={`footer-${stage.id}`} className="w-[300px] shrink-0 py-2.5 text-center">
                             <span className="text-sm font-semibold">${total.toLocaleString()}</span>
+                            <span className="text-sm text-muted-foreground ml-1">total</span>
                           </div>
                         );
                       })}
