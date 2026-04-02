@@ -58,6 +58,10 @@ type Contact = {
   hubspot_owner_id: string | null;
   lastmodifieddate: string | null;
   createdate: string | null;
+  notes_last_updated?: string | null;
+  contactPhotoUrl?: string | null;
+  contactTitle?: string | null;
+  hs_email_last_send_date?: string | null;
 };
 
 type StageInfo = { id: string; label: string; closed?: boolean };
@@ -83,6 +87,8 @@ export default function PipelinePage() {
   const [showClosed, setShowClosed] = useState(() => loadSetting("showClosed", "false") === "true");
   const [showMetrics, setShowMetrics] = useState(() => loadSetting("showMetrics", "true") === "true");
   const [closedLoading, setClosedLoading] = useState(false);
+  const [stagePaging, setStagePaging] = useState<Record<string, { hasMore: boolean; nextCursor: string | null; total: number }>>({});
+  const [stageLoadingMore, setStageLoadingMore] = useState<Record<string, boolean>>({});
   const [dealsLoading, setDealsLoading] = useState(true);
   const [dealsError, setDealsError] = useState<string | null>(null);
   const [pipelineInfo, setPipelineInfo] = useState<PipelineInfo | null>(null);
@@ -93,6 +99,7 @@ export default function PipelinePage() {
   const [ownerFilter, setOwnerFilter] = useState(() => loadSetting("owner", "all"));
   const [showOtherOwners, setShowOtherOwners] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [createDateFilter, setCreateDateFilter] = useState(() => loadSetting("createDate", "all"));
   const [closeDateFilter, setCloseDateFilter] = useState(() => loadSetting("closeDate", "all"));
 
@@ -233,8 +240,31 @@ export default function PipelinePage() {
         body: { action: "deals", pipeline: selectedPipeline, closedOnly: true },
       });
       if (!error && data?.deals) setClosedDeals(data.deals);
+      if (data?.stagePaging) setStagePaging(data.stagePaging);
     } catch { /* non-critical */ }
     setClosedLoading(false);
+  };
+
+  const loadMoreDeals = async (stageId: string) => {
+    const paging = stagePaging[stageId];
+    if (!paging?.hasMore || !paging.nextCursor) return;
+    setStageLoadingMore((prev) => ({ ...prev, [stageId]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
+        body: { action: "deals", pipeline: selectedPipeline, closedOnly: true, stageId, after: paging.nextCursor },
+      });
+      if (!error && data?.deals) {
+        setClosedDeals((prev) => {
+          const existingIds = new Set(prev.map((d) => d.id));
+          const newDeals = data.deals.filter((d: Deal) => !existingIds.has(d.id));
+          return [...prev, ...newDeals];
+        });
+      }
+      if (data?.stagePaging?.[stageId]) {
+        setStagePaging((prev) => ({ ...prev, [stageId]: data.stagePaging[stageId] }));
+      }
+    } catch { /* non-critical */ }
+    setStageLoadingMore((prev) => ({ ...prev, [stageId]: false }));
   };
 
   useEffect(() => {
@@ -445,7 +475,7 @@ export default function PipelinePage() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <AppHeader />
-      <div className="flex-1 flex flex-col max-w-6xl mx-auto px-6 py-6 w-full overflow-hidden">
+      <div className="flex-1 flex flex-col max-w-6xl mx-auto px-6 pt-6 w-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -455,43 +485,17 @@ export default function PipelinePage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Owner filter */}
-            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-              <SelectTrigger className="w-fit min-w-[130px] h-9">
-                <User className="h-3.5 w-3.5 mr-2 shrink-0 text-muted-foreground" />
-                <SelectValue placeholder="All owners" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Owners</SelectItem>
-                {ownersByTeam.map(([team, members], i) => {
-                  const isOther = team === "Others";
-                  return (
-                    <SelectGroup key={team}>
-                      <div className="mx-2 my-1 border-t border-border" />
-                      {isOther ? (
-                        <button
-                          type="button"
-                          className="flex items-center gap-0.5 py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-full cursor-pointer hover:text-foreground transition-colors"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setShowOtherOwners((v) => !v);
-                          }}
-                        >
-                          <ChevronDown className={`h-3 w-3 stroke-[2.5] transition-transform ${showOtherOwners ? "" : "-rotate-90"}`} />
-                          {team} ({members.length})
-                        </button>
-                      ) : (
-                        <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider">{team}</SelectLabel>
-                      )}
-                      {(!isOther || showOtherOwners) && members.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+            {/* Toggles */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="leading-[1.1] text-right">{showMetrics ? <><span className="block">Hide</span><span className="block">Metrics</span></> : <><span className="block">Show</span><span className="block">Metrics</span></>}</span>
+              <Switch checked={showMetrics} onCheckedChange={setShowMetrics} />
+            </div>
+            {activeTab === "deals" && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="leading-[1.1] text-right">{showClosed ? <><span className="block">Hide</span><span className="block">Closed</span></> : <><span className="block">Show</span><span className="block">Closed</span></>}</span>
+                <Switch checked={showClosed} onCheckedChange={setShowClosed} />
+              </div>
+            )}
 
             {/* Refresh */}
             <Button
@@ -529,62 +533,148 @@ export default function PipelinePage() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Deals-specific controls */}
-            {activeTab === "deals" && (
+            {/* Filter controls */}
               <div className="flex items-center gap-3 flex-wrap">
-                {/* Pipeline selector */}
-                <Select value={selectedPipeline} onValueChange={(v) => { setSelectedPipeline(v); fetchDeals(v); }}>
-                  <SelectTrigger className="w-[220px] h-9">
-                    <SelectValue />
+                {/* Pipeline selector — deals only */}
+                {activeTab === "deals" && (
+                  <Select value={selectedPipeline} onValueChange={(v) => { setSelectedPipeline(v); fetchDeals(v); }}>
+                    <SelectTrigger className="w-fit h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pipelineOptions.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.label.replace(/^GLIDE\s*/i, "")}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Owner filter — both tabs */}
+                <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                  <SelectTrigger className="w-fit h-9">
+                    <User className="h-3.5 w-3.5 mr-2 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder="All owners" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pipelineOptions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
-                    ))}
+                    <SelectItem value="all">All Owners</SelectItem>
+                    {ownersByTeam.map(([team, members], i) => {
+                      const isOther = team === "Others";
+                      return (
+                        <SelectGroup key={team}>
+                          <div className="mx-2 my-1 border-t border-border" />
+                          {isOther ? (
+                            <button
+                              type="button"
+                              className="flex items-center gap-0.5 py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-full cursor-pointer hover:text-foreground transition-colors"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowOtherOwners((v) => !v);
+                              }}
+                            >
+                              <ChevronDown className={`h-3 w-3 stroke-[2.5] transition-transform ${showOtherOwners ? "" : "-rotate-90"}`} />
+                              {team} ({members.length})
+                            </button>
+                          ) : (
+                            <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider">{team}</SelectLabel>
+                          )}
+                          {(!isOther || showOtherOwners) && members.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
 
-                {/* Create date filter */}
-                <Select value={createDateFilter} onValueChange={setCreateDateFilter}>
-                  <SelectTrigger className="w-[150px] h-9">
-                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                    <SelectValue placeholder="Create date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DATE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Create date" : o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Date filters — deals only */}
+                {activeTab === "deals" && (
+                  <>
+                    <Select value={createDateFilter} onValueChange={setCreateDateFilter}>
+                      <SelectTrigger className="w-fit h-9">
+                        <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                        <SelectValue placeholder="Create date" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DATE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Create date" : o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                {/* Close date filter */}
-                <Select value={closeDateFilter} onValueChange={setCloseDateFilter}>
-                  <SelectTrigger className="w-[150px] h-9">
-                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                    <SelectValue placeholder="Close date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DATE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Close date" : o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Toggles */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Metrics</span>
-                  <Switch checked={showMetrics} onCheckedChange={setShowMetrics} />
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Closed</span>
-                  <Switch checked={showClosed} onCheckedChange={setShowClosed} />
-                </div>
+                    <Select value={closeDateFilter} onValueChange={setCloseDateFilter}>
+                      <SelectTrigger className="w-fit h-9">
+                        <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                        <SelectValue placeholder="Close date" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DATE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Close date" : o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
               </div>
-            )}
           </div>
 
           {/* ---- LEADS TAB ---- */}
-          <TabsContent value="leads" className="mt-0">
+          <TabsContent value="leads" className="mt-0 flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden">
+            {/* Leads metrics bar */}
+            {!contactsLoading && contacts.length > 0 && showMetrics && (() => {
+              const filtered = ownerFilter === "all" ? contacts : contacts.filter((c) => c.hubspot_owner_id === ownerFilter);
+              const total = filtered.length;
+              const now = Date.now();
+              const weekAgo = now - 7 * 86400000;
+              const thisWeek = filtered.filter((c) => c.createdate && new Date(c.createdate).getTime() > weekAgo).length;
+              const ages = filtered.filter((c) => c.createdate).map((c) => (now - new Date(c.createdate!).getTime()) / 86400000);
+              const avgAge = ages.length > 0 ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+              // Avg time to first touch: days between createdate and notes_last_updated
+              const touchTimes = filtered
+                .filter((c) => c.createdate && c.notes_last_updated)
+                .map((c) => (new Date(c.notes_last_updated!).getTime() - new Date(c.createdate!).getTime()) / 86400000)
+                .filter((d) => d >= 0);
+              const avgTouch = touchTimes.length > 0 ? Math.round(touchTimes.reduce((a, b) => a + b, 0) / touchTimes.length * 10) / 10 : null;
+              // Unique owners count
+              const uniqueOwners = new Set(filtered.filter((c) => c.hubspot_owner_id).map((c) => c.hubspot_owner_id)).size;
+              return (
+                <div className="mb-4 rounded-lg border border-border bg-muted/30 px-6 py-5">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Total Leads</p>
+                      <p className="text-3xl font-bold mt-1">{total}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">active contacts</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">New This Week</p>
+                      <p className="text-3xl font-bold mt-1">{thisWeek}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">last 7 days</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Avg Lead Age</p>
+                      <p className="text-3xl font-bold mt-1">{avgAge} days</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">since created</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Avg First Touch</p>
+                      <p className="text-3xl font-bold mt-1">{avgTouch !== null ? (avgTouch < 1 ? "<1 day" : `${avgTouch} days`) : "—"}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">create to activity</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Owners</p>
+                      <p className="text-3xl font-bold mt-1">{uniqueOwners}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">assigned reps</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Unassigned</p>
+                      <p className="text-3xl font-bold mt-1">{filtered.filter((c) => !c.hubspot_owner_id).length}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">no owner</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {contactsLoading ? (
               <div className="flex items-center justify-center py-24">
                 <BrandLoader size={64} />
@@ -597,69 +687,84 @@ export default function PipelinePage() {
                 </Button>
               </div>
             ) : (
-              <ScrollArea className="w-full">
-                <div className="flex gap-4 pb-4" style={{ minWidth: leadStatuses.length * 300 }}>
-                  {leadStatuses.map((status) => {
-                    const statusContacts = contactsByStatus[status.id] || [];
-                    return (
-                      <div key={status.id} className="w-[300px] shrink-0">
-                        {/* Column header */}
-                        <div className="flex items-center justify-between px-3 py-2 mb-3 rounded-lg bg-muted/50">
-                          <span className="text-sm font-semibold">{status.label}</span>
-                          <Badge variant="secondary" className="text-xs">
-                            {statusContacts.length}
-                          </Badge>
+              <>
+              <ScrollArea className="w-full flex-1">
+                {/* Stage headers — matching deals style */}
+                <div className="sticky top-0 z-10 bg-background pb-4">
+                  <div className="border border-border rounded-lg flex" style={{ width: leadStatuses.length * 300 + (leadStatuses.length - 1) * 16 }}>
+                    {leadStatuses.map((status, i) => {
+                      const statusContacts = contactsByStatus[status.id] || [];
+                      const isLast = i === leadStatuses.length - 1;
+                      return (
+                        <div key={status.id} className="relative flex items-center justify-center h-12" style={{ width: 300 + (isLast ? 0 : 16) }}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-semibold truncate">{status.label}</span>
+                            <Badge variant="secondary" className="text-xs shrink-0">
+                              {statusContacts.length} {statusContacts.length === 1 ? "contact" : "contacts"}
+                            </Badge>
+                          </div>
+                          {!isLast && (
+                            <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
+                              <path d="M0 0 L16 24 L8 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
+                            </svg>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                        {/* Contact cards */}
-                        <div className="space-y-2">
+                {/* Contact cards */}
+                <div className="flex pb-4" style={{ width: leadStatuses.length * 300 + (leadStatuses.length - 1) * 16 }}>
+                  {leadStatuses.map((status, colIdx) => {
+                    const statusContacts = contactsByStatus[status.id] || [];
+                    const isLastCol = colIdx === leadStatuses.length - 1;
+                    return (
+                      <div key={status.id} className="shrink-0 flex flex-col relative" style={{ width: 300 + (isLastCol ? 0 : 16) }}>
+                        <div className="space-y-4 overflow-y-auto flex-1 w-[300px]">
                           {statusContacts.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">No contacts</p>
                           ) : (
                             statusContacts.map((contact) => (
-                              <a
+                              <button
                                 key={contact.id}
-                                href={`https://app.hubspot.com/contacts/${HUBSPOT_ACCOUNT}/record/0-1/${contact.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block"
+                                onClick={() => setSelectedContact(contact)}
+                                className="block w-full text-left"
                               >
-                                <Card className="p-3 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0 flex-1">
+                                <Card className="p-3 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+                                  {contact.company && (
+                                    <p className="text-sm font-semibold text-primary leading-snug">{contact.company}</p>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-2">
+                                    {contact.contactPhotoUrl ? (
+                                      <img src={contact.contactPhotoUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                        <User className="w-4 h-4 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
                                       <p className="text-sm font-medium truncate">
                                         {[contact.firstname, contact.lastname].filter(Boolean).join(" ") || "Unknown"}
                                       </p>
-                                      {contact.company && (
-                                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                                          <Building2 className="h-3.5 w-3.5 shrink-0" />
-                                          <span className="truncate">{contact.company}</span>
-                                        </p>
-                                      )}
-                                      {contact.email && (
-                                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                                          <Mail className="h-3.5 w-3.5 shrink-0" />
-                                          <span className="truncate">{contact.email}</span>
-                                        </p>
+                                      {(contact.contactTitle || contact.jobtitle) && (
+                                        <p className="text-xs text-muted-foreground truncate">{contact.contactTitle || contact.jobtitle}</p>
                                       )}
                                     </div>
-                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors shrink-0 mt-0.5" />
                                   </div>
-
-                                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                                    <span className="text-sm text-muted-foreground">
-                                      {contact.lastmodifieddate
-                                        ? formatDistanceToNow(new Date(contact.lastmodifieddate), { addSuffix: true })
-                                        : ""}
-                                    </span>
+                                  <div className="mt-2 space-y-0.5 text-sm text-muted-foreground leading-snug">
+                                    {contact.email && (
+                                      <p className="flex items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{contact.email}</span></p>
+                                    )}
+                                    {contact.createdate && (
+                                      <p>Created: <span className="text-foreground">{formatDistanceToNow(new Date(contact.createdate), { addSuffix: true })}</span></p>
+                                    )}
                                     {contact.hubspot_owner_id && leadOwners[contact.hubspot_owner_id] && (
-                                      <span className="text-sm text-muted-foreground">
-                                        {leadOwners[contact.hubspot_owner_id].split(" ")[0]}
-                                      </span>
+                                      <p>Owner: <span className="text-foreground">{leadOwners[contact.hubspot_owner_id].split(" ")[0]}</span></p>
                                     )}
                                   </div>
                                 </Card>
-                              </a>
+                              </button>
                             ))
                           )}
                         </div>
@@ -667,13 +772,37 @@ export default function PipelinePage() {
                     );
                   })}
                 </div>
+
+                {/* Sticky bottom bar — column counts */}
+                <div className="sticky bottom-0 z-20">
+                  <div className="border border-border border-b-0 rounded-t-lg bg-background/95 backdrop-blur-sm">
+                    <div className="flex" style={{ width: leadStatuses.length * 300 + (leadStatuses.length - 1) * 16 }}>
+                      {leadStatuses.map((status, idx) => {
+                        const sc = contactsByStatus[status.id] || [];
+                        const isLast = idx === leadStatuses.length - 1;
+                        return (
+                          <div key={`footer-${status.id}`} className="relative flex items-center justify-center h-12" style={{ width: 300 + (isLast ? 0 : 16) }}>
+                            <span className="text-sm text-muted-foreground">Count: </span>
+                            <span className="text-sm font-semibold ml-1">{sc.length}</span>
+                            {!isLast && (
+                              <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
+                                <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
+                              </svg>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
+              </>
             )}
           </TabsContent>
 
           {/* ---- DEALS TAB ---- */}
-          <TabsContent value="deals" className="mt-0 flex-1 flex flex-col overflow-hidden">
+          <TabsContent value="deals" className="mt-0 flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden">
             {/* Pipeline stats bar */}
             {!dealsLoading && pipelineStats && showMetrics && (
               <div className="mb-4 rounded-lg border border-border bg-muted/30 px-6 py-5">
@@ -737,14 +866,12 @@ export default function PipelinePage() {
                           const stageDeals = dealsByStage[stage.id] || [];
                           const isLast = i === visibleStages.length - 1;
                           return (
-                            <div key={stage.id} className="relative" style={{ width: 300 + (isLast ? 0 : 16) }}>
-                              <div className="flex items-center h-12 px-4">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-sm font-semibold truncate">{stage.label}</span>
-                                  <Badge variant="secondary" className="text-xs shrink-0">
-                                    {stageDeals.length} {stageDeals.length === 1 ? "deal" : "deals"}
-                                  </Badge>
-                                </div>
+                            <div key={stage.id} className="relative flex items-center justify-center h-12" style={{ width: 300 + (isLast ? 0 : 16) }}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-semibold truncate">{stage.label}</span>
+                                <Badge variant="secondary" className="text-xs shrink-0">
+                                  {stageDeals.length} {stageDeals.length === 1 ? "deal" : "deals"}
+                                </Badge>
                               </div>
                               {!isLast && (
                                 <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
@@ -759,21 +886,17 @@ export default function PipelinePage() {
                   );
                 })()}
 
-                <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
+                <div className="flex pb-4" style={{ width: (() => { const n = pipelineInfo?.stages.filter((s) => showClosed || !s.closed).length || 0; return n * 300 + (n - 1) * 16; })() }}>
                   {pipelineInfo?.stages
                     .filter((s) => showClosed || !s.closed)
                     .map((stage, colIdx, filteredStages) => {
                       const stageDeals = dealsByStage[stage.id] || [];
                       const isLastCol = colIdx === filteredStages.length - 1;
                       return (
-                        <div key={stage.id} className="w-[300px] shrink-0 flex flex-col relative">
-                          {/* Vertical gutter line connecting header to footer */}
-                          {!isLastCol && (
-                            <div className="absolute bottom-0 w-px bg-border" style={{ right: -9, top: -16 }} />
-                          )}
+                        <div key={stage.id} className="shrink-0 flex flex-col relative" style={{ width: 300 + (isLastCol ? 0 : 16) }}>
 
                           {/* Deal cards — scrollable column */}
-                          <div className="space-y-2 overflow-y-auto flex-1">
+                          <div className="space-y-4 overflow-y-auto flex-1 w-[300px]">
                             {stageDeals.length === 0 && stage.closed && closedLoading ? (
                               <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -836,10 +959,20 @@ export default function PipelinePage() {
                                   </Card>
                                 </button>
                               ))}
-                              {stage.closed && stageDeals.length >= 10 && (
-                                <p className="text-sm text-muted-foreground text-center py-3">
-                                  Showing first {stageDeals.length} deals
-                                </p>
+                              {stage.closed && stagePaging[stage.id]?.hasMore && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); loadMoreDeals(stage.id); }}
+                                  disabled={stageLoadingMore[stage.id]}
+                                  className="w-full text-center py-2 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                                >
+                                  {stageLoadingMore[stage.id] ? (
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                                    </span>
+                                  ) : (
+                                    `Load more (${stagePaging[stage.id]?.total ? stagePaging[stage.id].total - stageDeals.length : ""}+)`
+                                  )}
+                                </button>
                               )}
                               </>
                             )}
@@ -849,13 +982,10 @@ export default function PipelinePage() {
                       );
                     })}
                 </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-
-              {/* Sticky bottom bar — column totals */}
-              {pipelineInfo && (
-                <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-20 w-full max-w-6xl px-6">
-                  <div className="border border-border border-b-0 rounded-t-lg bg-background/95 backdrop-blur-sm">
+                {/* Sticky bottom bar — column totals */}
+                {pipelineInfo && (
+                  <div className="sticky bottom-0 z-20">
+                    <div className="border border-border border-b-0 rounded-t-lg bg-background/95 backdrop-blur-sm">
                   {(() => {
                     const footerStages = pipelineInfo.stages.filter((s) => showClosed || !s.closed);
                     return (
@@ -882,6 +1012,8 @@ export default function PipelinePage() {
                   </div>
                 </div>
               )}
+              <ScrollBar orientation="horizontal" />
+              </ScrollArea>
               </>
             )}
           </TabsContent>
@@ -979,6 +1111,84 @@ export default function PipelinePage() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                </>
+              );
+            })()}
+          </SheetContent>
+        </Sheet>
+
+        {/* ---- Lead Detail Drawer ---- */}
+        <Sheet open={!!selectedContact} onOpenChange={(o) => !o && setSelectedContact(null)}>
+          <SheetContent side="right" className="sm:max-w-md p-0 flex flex-col">
+            {selectedContact && (() => {
+              const c = selectedContact;
+              const name = [c.firstname, c.lastname].filter(Boolean).join(" ") || "Unknown";
+              const statusLabel = leadStatuses.find((s) => s.id === c.hs_lead_status)?.label || c.hs_lead_status || "Unknown";
+              return (
+                <>
+                  {/* Header */}
+                  <div className="px-6 pt-8 pb-4 border-b border-border bg-primary/5">
+                    <div className="flex items-center gap-3">
+                      {c.contactPhotoUrl ? (
+                        <img src={c.contactPhotoUrl} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <User className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xl font-bold truncate">{name}</p>
+                        {(c.contactTitle || c.jobtitle) && (
+                          <p className="text-sm text-muted-foreground truncate">{c.contactTitle || c.jobtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                    {c.company && <p className="text-sm text-primary mt-2 font-medium">{c.company}</p>}
+                    <Badge className="mt-2">{statusLabel}</Badge>
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                    {c.email && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Email</p>
+                        <a href={`mailto:${c.email}`} className="text-sm text-primary hover:underline">{c.email}</a>
+                      </div>
+                    )}
+                    {c.phone && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Phone</p>
+                        <a href={`tel:${c.phone}`} className="text-sm text-primary hover:underline">{c.phone}</a>
+                      </div>
+                    )}
+                    {c.hubspot_owner_id && leadOwners[c.hubspot_owner_id] && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Owner</p>
+                        <p className="text-sm">{leadOwners[c.hubspot_owner_id]}</p>
+                      </div>
+                    )}
+                    {c.createdate && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Created</p>
+                        <p className="text-sm">{format(new Date(c.createdate), "MMMM d, yyyy")} ({formatDistanceToNow(new Date(c.createdate), { addSuffix: true })})</p>
+                      </div>
+                    )}
+                    {c.lastmodifieddate && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Last Modified</p>
+                        <p className="text-sm">{formatDistanceToNow(new Date(c.lastmodifieddate), { addSuffix: true })}</p>
+                      </div>
+                    )}
+
+                    <a
+                      href={`https://app.hubspot.com/contacts/${HUBSPOT_ACCOUNT}/record/0-1/${c.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-4"
+                    >
+                      <ExternalLink className="h-3 w-3" /> View in HubSpot
+                    </a>
                   </div>
                 </>
               );

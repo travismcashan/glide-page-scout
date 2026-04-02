@@ -101,7 +101,7 @@ serve(async (req) => {
     const TOKEN = Deno.env.get("HUBSPOT_ACCESS_TOKEN");
     if (!TOKEN) throw new Error("HUBSPOT_ACCESS_TOKEN not configured");
 
-    const { action, pipeline, closedOnly, limit: reqLimit, after: reqAfter, ownerFilter } = await req.json();
+    const { action, pipeline, closedOnly, limit: reqLimit, after: reqAfter, ownerFilter, stageId } = await req.json();
 
     // ---- Fetch owners with team info (shared by both actions) ----
     const ownersRes = await hubspotFetch("/crm/v3/owners?limit=100", TOKEN);
@@ -131,6 +131,7 @@ serve(async (req) => {
               "firstname", "lastname", "email", "company", "jobtitle", "phone",
               "lifecyclestage", "hs_lead_status", "hubspot_owner_id",
               "notes_last_updated", "lastmodifieddate", "createdate",
+              "hs_email_last_send_date",
             ],
             sorts: [{ propertyName: "lastmodifieddate", direction: "DESCENDING" }],
             limit: 100,
@@ -144,6 +145,46 @@ serve(async (req) => {
           after = res.paging?.next?.after;
           page++;
         } while (after && page < 5); // cap at 500 contacts per status
+      }
+
+      // ---- Enrich lead contacts with Apollo photos ----
+      const APOLLO_KEY = Deno.env.get("APOLLO_API_KEY");
+      const SB_URL = Deno.env.get("SUPABASE_URL");
+      const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (APOLLO_KEY && SB_URL && SB_KEY && allContacts.length > 0) {
+        const sb = createClient(SB_URL, SB_KEY);
+        const emails = allContacts.map((c) => c.email).filter(Boolean);
+        let cachedPhotos: Record<string, { photo_url: string; name: string; title: string }> = {};
+        if (emails.length > 0) {
+          const { data: cached } = await sb.from("contact_photos").select("email, photo_url, name, title").in("email", emails.slice(0, 100));
+          if (cached) { for (const row of cached) { cachedPhotos[row.email] = row; } }
+        }
+        const uncachedEmails = emails.filter((e) => !cachedPhotos[e]);
+        for (const email of uncachedEmails.slice(0, 5)) {
+          try {
+            const res = await fetch("https://api.apollo.io/v1/people/match", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-Api-Key": APOLLO_KEY },
+              body: JSON.stringify({ email, reveal_personal_emails: false }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const person = data.person;
+              if (person) {
+                const row = { email, photo_url: person.photo_url || null, name: person.name || null, title: person.title || null, company: person.organization?.name || null, hubspot_contact_id: allContacts.find((c) => c.email === email)?.id || null, updated_at: new Date().toISOString() };
+                await sb.from("contact_photos").upsert(row, { onConflict: "email" });
+                cachedPhotos[email] = { photo_url: row.photo_url || "", name: row.name || "", title: row.title || "" };
+              }
+            }
+          } catch (e) { console.error(`[hubspot-pipeline] Apollo lead enrich error for ${email}: ${e.message}`); }
+        }
+        for (const contact of allContacts) {
+          const photo = cachedPhotos[contact.email];
+          if (photo) {
+            contact.contactPhotoUrl = photo.photo_url || null;
+            contact.contactTitle = photo.title || null;
+          }
+        }
       }
 
       return new Response(
@@ -173,13 +214,17 @@ serve(async (req) => {
       const allDeals: any[] = [];
       let nextCursor: string | undefined;
 
+      const stagePaging: Record<string, { hasMore: boolean; nextCursor: string | null; total: number }> = {};
+
       if (closedOnly) {
         // Fetch closed deals: 10 per stage so each column gets populated
         const perStage = reqLimit || 10;
-        const closedStages = pipelineDef.stages.filter((s) => s.closed);
+        const closedStages = stageId
+          ? pipelineDef.stages.filter((s) => s.id === stageId)
+          : pipelineDef.stages.filter((s) => s.closed);
         for (const stage of closedStages) {
           try {
-            const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", {
+            const body: any = {
               filterGroups: [{
                 filters: [
                   { propertyName: "pipeline", operator: "EQ", value: pipelineId },
@@ -189,10 +234,17 @@ serve(async (req) => {
               properties: DEAL_PROPS,
               sorts: [{ propertyName: "closedate", direction: "DESCENDING" }],
               limit: perStage,
-            });
+            };
+            if (reqAfter && stageId) body.after = reqAfter;
+            const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
             for (const d of res.results || []) {
               allDeals.push({ id: d.id, ...d.properties });
             }
+            stagePaging[stage.id] = {
+              hasMore: !!res.paging?.next?.after,
+              nextCursor: res.paging?.next?.after || null,
+              total: res.total || 0,
+            };
           } catch (e) {
             console.error(`[hubspot-pipeline] Closed stage ${stage.id} error: ${e.message}`);
           }
@@ -379,6 +431,7 @@ serve(async (req) => {
           owners,
           ownerTeams,
           nextCursor: nextCursor || null,
+          stagePaging,
           pipeline: { id: pipelineId, label: pipelineDef.label, stages: pipelineDef.stages },
           pipelines: Object.entries(PIPELINES).map(([id, p]) => ({ id, label: p.label })),
         }),

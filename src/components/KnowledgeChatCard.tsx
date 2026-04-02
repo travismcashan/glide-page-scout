@@ -1724,8 +1724,8 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               updateMessages();
             }
           } catch {
-            textBuffer = line + '\n' + textBuffer;
-            break;
+            // Malformed chunk — skip it and continue reading the stream
+            continue;
           }
         }
       }

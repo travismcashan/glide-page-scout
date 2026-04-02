@@ -297,12 +297,14 @@ serve(async (req) => {
               return { key: m.key, name: m.name, response: streamResult.text };
             } catch (e) {
               const err = e instanceof Error ? e.message : 'failed';
+              console.error(`[council-chat] Model ${m.name} (${m.id}) failed:`, err);
               send('model_error', { key: m.key, name: m.name, error: err });
               return { key: m.key, name: m.name, response: `[Error: ${err}]` };
             }
           });
 
           const results = await Promise.all(modelPromises);
+          console.log(`[council-chat] All models complete. Results: ${results.map(r => `${r.name}: ${r.response.substring(0, 50)}...`).join(' | ')}`);
 
           // Phase 2: Synthesize with configurable model
           send('synthesis_start', {});
@@ -326,6 +328,7 @@ serve(async (req) => {
               system: SYNTHESIS_SYSTEM,
               messages: [{ role: 'user', content: synthUserContent }],
             };
+            synthBody.max_tokens = 128000;
             if (synthReasoning !== 'none') {
               const budgetMap: Record<string, number> = { low: 16000, medium: 32000, high: 64000 };
               synthBody.thinking = { type: 'enabled', budget_tokens: budgetMap[synthReasoning] || 10000 };
@@ -344,6 +347,7 @@ serve(async (req) => {
             if (!synthResp.ok) {
               const errText = await synthResp.text();
               send('error', { message: `Synthesis error: ${errText.slice(0, 200)}` });
+              return;
             } else {
               const reader = synthResp.body!.getReader();
               const decoder = new TextDecoder();
@@ -400,9 +404,9 @@ serve(async (req) => {
               stream_options: { include_usage: true },
             };
             if (isOpenAI) {
-              synthGatewayBody.max_completion_tokens = 8192;
+              synthGatewayBody.max_completion_tokens = 128000;
             } else {
-              synthGatewayBody.max_tokens = 8192;
+              synthGatewayBody.max_tokens = 128000;
             }
             if (synthReasoning !== 'none') {
               synthGatewayBody.reasoning = { effort: synthReasoning };
@@ -417,6 +421,7 @@ serve(async (req) => {
             if (!synthResp.ok) {
               const errText = await synthResp.text();
               send('error', { message: `Synthesis error: ${errText.slice(0, 200)}` });
+              return;
             } else {
               const reader = synthResp.body!.getReader();
               const decoder = new TextDecoder();
