@@ -8,7 +8,6 @@
  *
  * Uses DocRaptor API via Supabase edge function for pixel-perfect PDF output.
  */
-import { supabase } from '@/integrations/supabase/client';
 
 export interface GlideDocumentOptions {
   title: string;
@@ -353,14 +352,25 @@ export async function generateGlideDocument(options: GlideDocumentOptions): Prom
   const filename = `${options.title || 'Document'} — ${options.companyName || options.clientDomain || 'GLIDE'}.pdf`
     .replace(/[^\w\s.—-]/g, '');
 
-  const { data, error } = await supabase.functions.invoke('generate-pdf', {
-    body: { html, filename, test: false },
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-pdf`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+    },
+    body: JSON.stringify({ html, filename, test: false }),
   });
 
-  if (error) throw error;
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`PDF generation failed (${response.status}): ${errText}`);
+  }
 
-  // data is a Blob when the function returns binary content
-  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' });
+  const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

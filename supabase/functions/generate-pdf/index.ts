@@ -15,7 +15,9 @@ serve(async (req) => {
     const DOCRAPTOR_API_KEY = Deno.env.get("DOCRAPTOR_API_KEY");
     if (!DOCRAPTOR_API_KEY) throw new Error("DOCRAPTOR_API_KEY is not configured");
 
-    const { html, filename = "document.pdf", test = false } = await req.json();
+    const body = await req.json();
+    console.log("[generate-pdf] Request received, html length:", body.html?.length || 0);
+    const { html, filename = "document.pdf", test = false } = body;
     if (!html) {
       return new Response(JSON.stringify({ error: "html is required" }), {
         status: 400,
@@ -41,6 +43,7 @@ serve(async (req) => {
       }),
     });
 
+    console.log("[generate-pdf] DocRaptor response status:", response.status);
     if (!response.ok) {
       const errorText = await response.text();
       console.error("DocRaptor error:", response.status, errorText);
@@ -62,7 +65,7 @@ serve(async (req) => {
       },
     });
   } catch (e) {
-    console.error("generate-pdf error:", e);
+    console.error("generate-pdf CATCH error:", e, e instanceof Error ? e.stack : '');
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
