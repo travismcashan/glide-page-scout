@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
+import { DocumentDownloadBlock } from '@/components/chat/DocumentDownloadBlock';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
@@ -1029,6 +1030,21 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   // Markdown treats [text][ref] as a reference link, so adjacent [doc:1][doc:3] gets swallowed.
   const processedContent = content.replace(/\[doc:(\d+)\]/g, '%%DOCREF_$1%%');
 
+  // Parse GLIDE_DOC blocks for branded document downloads
+  const glideDocMatch = processedContent.match(/<!--GLIDE_DOC:([\s\S]*?)-->/);
+  let glideDocMeta: { title: string; subtitle?: string; clientDomain?: string; companyName?: string } | null = null;
+  let glideDocContent = '';
+  let contentWithoutDocBlock = processedContent;
+  if (glideDocMatch) {
+    try {
+      glideDocMeta = JSON.parse(glideDocMatch[1]);
+      // Everything after the GLIDE_DOC block is the document content
+      const blockEnd = processedContent.indexOf(glideDocMatch[0]) + glideDocMatch[0].length;
+      glideDocContent = processedContent.slice(blockEnd).trim();
+      contentWithoutDocBlock = processedContent.slice(0, processedContent.indexOf(glideDocMatch[0])).trim();
+    } catch { /* ignore parse errors */ }
+  }
+
   // react-markdown v10 has no `text` component — process citations via block-level components
   const withCitations = (Tag: string) => ({ children, ...props }: any) => {
     const processed = processCitationsInChildren(children, webCitations, ragDocuments);
@@ -1060,7 +1076,15 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
       )}
       <Suspense fallback={<div className="chat-prose max-w-none invisible" aria-hidden>{processedContent}</div>}>
         <div className="chat-prose max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{processedContent}</ReactMarkdown>
+          {glideDocMeta ? (
+            <>
+              {contentWithoutDocBlock && <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{contentWithoutDocBlock}</ReactMarkdown>}
+              <DocumentDownloadBlock docMeta={glideDocMeta} markdownContent={glideDocContent} />
+              {glideDocContent && <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{glideDocContent}</ReactMarkdown>}
+            </>
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{processedContent}</ReactMarkdown>
+          )}
         </div>
       </Suspense>
       {isStreamingThis && !content && !thinking && !(isDeepResearch && deepResearchSteps && deepResearchSteps.length > 0) && !(councilModels && councilModels.length > 0) && (

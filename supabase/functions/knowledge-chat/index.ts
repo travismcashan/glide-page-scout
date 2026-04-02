@@ -213,6 +213,20 @@ ${harvestApiDocs ? `\n--- HARVEST API REFERENCE DOCUMENTATION ---\nThis document
 - Present the resulting editor and viewer links to the user
 - The generated deck can be edited, shared, or exported to PPTX/PDF in Beautiful.ai
 
+**Document Generation**: When the user asks to create a document, brief, executive summary, report, or any downloadable document:
+- ALWAYS start your response with this HTML comment on its own line, containing JSON metadata:
+  \`<!--GLIDE_DOC:{"title":"Executive Summary","subtitle":"Custom Website Redesign","clientDomain":"example.com","companyName":"Example Corp"}-->\`
+- The title should match the document type (e.g. "Executive Summary", "Competitive Analysis", "Technical Audit Report")
+- The subtitle should describe the specific service or topic
+- clientDomain and companyName should match the current client
+- After the GLIDE_DOC comment, write the full document content in well-structured markdown
+- Use ## for major sections (e.g. "## The Problem", "## The Opportunity", "## The Investment")
+- Use tables for structured data (investment breakdowns, timelines, etc.)
+- Use bullet lists for deliverables, features, and results
+- Be specific and reference actual data from the knowledge base
+- The frontend will render a "Download as PDF" button that generates a GLIDE-branded PDF with cover page, headers, footers, and proper typography
+- Write the document as if it will be printed and handed to a client executive
+
 Today's date is ${new Date().toISOString().split('T')[0]}. Use this when computing date ranges (e.g., "last year" = one year ago to today, "Q1 2025" = 2025-01-01 to 2025-03-31).
 
 If asked about something not covered by the available data, say so clearly rather than guessing.
