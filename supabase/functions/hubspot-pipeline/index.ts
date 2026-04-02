@@ -150,7 +150,9 @@ serve(async (req) => {
       const pipelineDef = PIPELINES[pipelineId];
       if (!pipelineDef) throw new Error(`Unknown pipeline: ${pipelineId}`);
 
-      // Fetch ALL deals in pipeline (frontend handles open/closed filtering)
+      // Only fetch OPEN deals (not every deal since the dawn of time)
+      const openStageIds = pipelineDef.stages.filter((s) => !s.closed).map((s) => s.id);
+
       const allDeals: any[] = [];
       let after: string | undefined;
       let page = 0;
@@ -160,6 +162,7 @@ serve(async (req) => {
             {
               filters: [
                 { propertyName: "pipeline", operator: "EQ", value: pipelineId },
+                { propertyName: "dealstage", operator: "IN", values: openStageIds },
               ],
             },
           ],
@@ -174,30 +177,19 @@ serve(async (req) => {
         };
         if (after) body.after = after;
 
-        let res;
-        try {
-          res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
-        } catch (searchErr) {
-          console.error("[hubspot-pipeline] Deal search error:", searchErr.message);
-          throw searchErr;
-        }
+        const res = await hubspotFetch("/crm/v3/objects/deals/search", TOKEN, "POST", body);
         for (const d of res.results || []) {
           allDeals.push({ id: d.id, ...d.properties });
         }
         after = res.paging?.next?.after;
         page++;
-      } while (after && page < 10); // cap at 1000 deals
+      } while (after && page < 3); // open deals should be well under 300
 
-      // Batch-fetch associated company names (only for open deals to stay fast)
-      const closedStageIds = new Set(pipelineDef.stages.filter((s) => s.closed).map((s) => s.id));
-      const openDealIds = allDeals.filter((d) => !closedStageIds.has(d.dealstage)).map((d) => d.id);
-      if (openDealIds.length > 0) {
-        const dealIds = openDealIds;
-        const companyMap: Record<string, string> = {};
-
-        // Process in batches of 20 (HubSpot association batch limit)
-        for (let i = 0; i < dealIds.length; i += 20) {
-          const batch = dealIds.slice(i, i + 20);
+      // Batch-fetch associated company names for all open deals
+      const companyMap: Record<string, string> = {};
+      if (allDeals.length > 0) {
+        for (let i = 0; i < allDeals.length; i += 20) {
+          const batch = allDeals.slice(i, i + 20).map((d) => d.id);
           try {
             const assocRes = await hubspotFetch("/crm/v4/associations/deals/companies/batch/read", TOKEN, "POST", {
               inputs: batch.map((id: string) => ({ id })),
@@ -212,7 +204,6 @@ serve(async (req) => {
               }
             }
 
-            // Batch-read company names
             if (companyIds.size > 0) {
               const compRes = await hubspotFetch("/crm/v3/objects/companies/batch/read", TOKEN, "POST", {
                 inputs: Array.from(companyIds).map((id) => ({ id })),
@@ -223,7 +214,6 @@ serve(async (req) => {
               }
             }
 
-            // Attach company names to deals
             for (const [dealId, compId] of Object.entries(dealToCompany)) {
               const deal = allDeals.find((d) => d.id === dealId);
               if (deal) deal.companyName = companyMap[compId] || "";
@@ -250,10 +240,22 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[hubspot-pipeline] Error:", e);
-    const errMsg = e instanceof Error ? e.message : "Unknown error";
-    console.error("[hubspot-pipeline] Full error:", errMsg);
-    return new Response(JSON.stringify({ error: errMsg }), {
+    const raw = e instanceof Error ? e.message : "Unknown error";
+    console.error("[hubspot-pipeline] Error:", raw);
+
+    // Translate HubSpot errors into human-readable messages
+    let userMsg = raw;
+    if (raw.includes("[429]") || raw.includes("TOO_MANY_REQUESTS")) {
+      userMsg = "HubSpot rate limit hit (100 requests per 10 seconds). Wait a minute and retry.";
+    } else if (raw.includes("[401]")) {
+      userMsg = "HubSpot access token is invalid or expired. Re-generate the token in HubSpot > Settings > Integrations > Private Apps.";
+    } else if (raw.includes("[403]")) {
+      userMsg = "HubSpot API token does not have permission for this resource. Check the private app scopes.";
+    } else if (raw.includes("[400]")) {
+      userMsg = "Bad request to HubSpot API. " + raw.substring(raw.indexOf(":") + 2, 200);
+    }
+
+    return new Response(JSON.stringify({ error: userMsg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

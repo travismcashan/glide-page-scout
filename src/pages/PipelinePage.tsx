@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
-  Loader2, ChevronDown, Eye, EyeOff, X,
+  Loader2, ChevronDown, X,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import {
 import {
   Sheet, SheetContent,
 } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
+
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow, format, isPast } from "date-fns";
 
@@ -64,12 +64,11 @@ export default function PipelinePage() {
 
   // Deals state
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [allDeals, setAllDeals] = useState<Deal[]>([]); // includes closed, for stats
   const [dealsLoading, setDealsLoading] = useState(true);
+  const [dealsError, setDealsError] = useState<string | null>(null);
   const [pipelineInfo, setPipelineInfo] = useState<PipelineInfo | null>(null);
   const [pipelineOptions, setPipelineOptions] = useState<PipelineOption[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState("33bc2a42-c57c-4180-b0e6-77b3d6c7f69f");
-  const [showClosed, setShowClosed] = useState(false);
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
@@ -79,12 +78,14 @@ export default function PipelinePage() {
   // Leads state
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(true);
+  const [contactsError, setContactsError] = useState<string | null>(null);
   const [leadStatuses, setLeadStatuses] = useState<StatusInfo[]>([]);
   const [leadOwners, setLeadOwners] = useState<Record<string, string>>({});
 
   // ---- Fetch deals ----
   const fetchDeals = async (pipelineId?: string) => {
     setDealsLoading(true);
+    setDealsError(null);
     try {
       const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
         body: {
@@ -93,16 +94,38 @@ export default function PipelinePage() {
         },
       });
       if (error) {
-        // Try to read response body for debugging
-        console.error("Deals fetch error details:", error, data);
-        throw error;
+        // Extract readable error from edge function response
+        let msg = "Failed to load deals";
+        try {
+          const body = typeof error === "object" && error?.context?.body
+            ? await new Response(error.context.body).text()
+            : null;
+          if (body) {
+            const parsed = JSON.parse(body);
+            msg = parsed.error || msg;
+          }
+        } catch { /* fallback to generic message */ }
+
+        // Detect common HubSpot errors
+        if (msg.includes("429") || msg.includes("TOO_MANY")) {
+          msg = "HubSpot rate limit reached. Try again in a few minutes.";
+        } else if (msg.includes("401") || msg.includes("UNAUTHORIZED")) {
+          msg = "HubSpot access token expired. Contact admin to refresh.";
+        } else if (msg.includes("403")) {
+          msg = "HubSpot permissions error. The API token may not have deal access.";
+        }
+        setDealsError(msg);
+        console.error("Deals fetch error:", msg, error);
+        setDealsLoading(false);
+        return;
       }
-      setAllDeals(data.deals || []);
       setDeals(data.deals || []);
       setOwners(data.owners || {});
       if (data.pipeline) setPipelineInfo(data.pipeline);
       if (data.pipelines) setPipelineOptions(data.pipelines);
-    } catch (err) {
+    } catch (err: any) {
+      const msg = err?.message || "Unexpected error loading deals";
+      setDealsError(msg);
       console.error("Failed to fetch deals:", err);
     }
     setDealsLoading(false);
@@ -111,15 +134,35 @@ export default function PipelinePage() {
   // ---- Fetch leads ----
   const fetchLeads = async () => {
     setContactsLoading(true);
+    setContactsError(null);
     try {
       const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
         body: { action: "leads" },
       });
-      if (error) throw error;
+      if (error) {
+        let msg = "Failed to load leads";
+        try {
+          const body = typeof error === "object" && error?.context?.body
+            ? await new Response(error.context.body).text()
+            : null;
+          if (body) {
+            const parsed = JSON.parse(body);
+            msg = parsed.error || msg;
+          }
+        } catch { /* fallback */ }
+        if (msg.includes("429") || msg.includes("TOO_MANY")) {
+          msg = "HubSpot rate limit reached. Try again in a few minutes.";
+        }
+        setContactsError(msg);
+        console.error("Leads fetch error:", msg);
+        setContactsLoading(false);
+        return;
+      }
       setContacts(data.contacts || []);
       setLeadOwners(data.owners || {});
       if (data.statuses) setLeadStatuses(data.statuses);
-    } catch (err) {
+    } catch (err: any) {
+      setContactsError(err?.message || "Unexpected error loading leads");
       console.error("Failed to fetch leads:", err);
     }
     setContactsLoading(false);
@@ -176,12 +219,12 @@ export default function PipelinePage() {
     { value: "this_year", label: "This year" },
   ];
 
-  // ---- Computed: deals grouped by stage ----
+  // ---- Computed: deals grouped by stage (open stages only) ----
   const dealsByStage = useMemo(() => {
     if (!pipelineInfo) return {};
     const map: Record<string, Deal[]> = {};
     for (const stage of pipelineInfo.stages) {
-      if (!showClosed && stage.closed) continue;
+      if (stage.closed) continue; // only show open stages
       map[stage.id] = [];
     }
 
@@ -213,7 +256,7 @@ export default function PipelinePage() {
       }
     }
     return map;
-  }, [deals, pipelineInfo, showClosed, ownerFilter, createDateFilter, closeDateFilter]);
+  }, [deals, pipelineInfo, ownerFilter, createDateFilter, closeDateFilter]);
 
   // ---- Computed: contacts grouped by lead status ----
   const contactsByStatus = useMemo(() => {
@@ -248,70 +291,41 @@ export default function PipelinePage() {
     "1103540135": 0.6, "1103625803": 0.8, "1103625804": 1.0,
   };
 
-  // ---- Summary stats (computed from allDeals) ----
+  // ---- Summary stats (computed from open deals only) ----
   const pipelineStats = useMemo(() => {
     if (!pipelineInfo) return null;
-    const closedWonIds = new Set(
-      pipelineInfo.stages.filter((s) => s.label.includes("Won")).map((s) => s.id)
-    );
-    const closedIds = new Set(
-      pipelineInfo.stages.filter((s) => s.closed).map((s) => s.id)
-    );
+    const filtered = ownerFilter === "all" ? deals : deals.filter((d) => d.hubspot_owner_id === ownerFilter);
 
-    const filtered = ownerFilter === "all" ? allDeals : allDeals.filter((d) => d.hubspot_owner_id === ownerFilter);
-
-    const open = filtered.filter((d) => !closedIds.has(d.dealstage));
-    const closedWon = filtered.filter((d) => closedWonIds.has(d.dealstage));
-    const closedAll = filtered.filter((d) => closedIds.has(d.dealstage));
-
-    const openPipeline = open.reduce((s, d) => s + (Number(d.amount) || 0), 0);
-    const weightedPipeline = open.reduce((s, d) => {
+    const openPipeline = filtered.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    const weightedPipeline = filtered.reduce((s, d) => {
       const prob = STAGE_PROBABILITY[d.dealstage] || 0.5;
       return s + (Number(d.amount) || 0) * prob;
     }, 0);
 
     // Closing this month
     const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const closingThisMonth = open.filter((d) => {
+    const closingThisMonth = filtered.filter((d) => {
       if (!d.closedate) return false;
       const cd = new Date(d.closedate);
-      return cd <= monthEnd && cd >= new Date(now.getFullYear(), now.getMonth(), 1);
+      return cd >= monthStart && cd <= monthEnd;
     });
     const closingThisMonthValue = closingThisMonth.reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
-    // Win rate (closed-won / total closed, trailing 12 months)
-    const yearAgo = new Date();
-    yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-    const recentClosed = closedAll.filter((d) => d.closedate && new Date(d.closedate) >= yearAgo);
-    const recentWon = closedWon.filter((d) => d.closedate && new Date(d.closedate) >= yearAgo);
-    const winRate = recentClosed.length > 0 ? (recentWon.length / recentClosed.length) * 100 : 0;
-
-    // Avg deal size (open deals)
-    const avgDealSize = open.length > 0 ? openPipeline / open.length : 0;
-
-    // Avg sales cycle (closed-won deals, days from create to close)
-    const cycleDays = recentWon
-      .filter((d) => d.createdate && d.closedate)
-      .map((d) => {
-        const created = new Date(d.createdate!).getTime();
-        const closed = new Date(d.closedate!).getTime();
-        return (closed - created) / (1000 * 60 * 60 * 24);
-      })
-      .filter((d) => d > 0);
-    const avgCycle = cycleDays.length > 0 ? cycleDays.reduce((a, b) => a + b, 0) / cycleDays.length : 0;
+    const avgDealSize = filtered.length > 0 ? openPipeline / filtered.length : 0;
 
     return {
       openPipeline,
       weightedPipeline,
       closingThisMonthValue,
       closingThisMonthCount: closingThisMonth.length,
-      winRate,
+      winRate: 0, // requires closed deals data — future enhancement
       avgDealSize,
-      avgCycle,
-      openCount: open.length,
+      avgCycle: 0, // requires closed deals data — future enhancement
+      openCount: filtered.length,
     };
-  }, [allDeals, pipelineInfo, ownerFilter]);
+  }, [deals, pipelineInfo, ownerFilter]);
 
   // ---- All unique owners (merged from both) ----
   const allOwners = useMemo(() => {
@@ -426,12 +440,7 @@ export default function PipelinePage() {
                   </SelectContent>
                 </Select>
 
-                {/* Show closed toggle */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {showClosed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                  <span>Closed</span>
-                  <Switch checked={showClosed} onCheckedChange={setShowClosed} />
-                </div>
+                {/* Closed toggle removed — only open deals are fetched for performance */}
               </div>
             )}
           </div>
@@ -441,6 +450,13 @@ export default function PipelinePage() {
             {contactsLoading ? (
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : contactsError ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-3">
+                <div className="text-sm text-destructive font-medium">{contactsError}</div>
+                <Button variant="outline" size="sm" onClick={() => fetchLeads()}>
+                  <RefreshCw className="h-3.5 w-3.5 mr-2" /> Retry
+                </Button>
               </div>
             ) : (
               <ScrollArea className="w-full">
@@ -562,11 +578,18 @@ export default function PipelinePage() {
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
+            ) : dealsError ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-3">
+                <div className="text-sm text-destructive font-medium">{dealsError}</div>
+                <Button variant="outline" size="sm" onClick={() => fetchDeals()}>
+                  <RefreshCw className="h-3.5 w-3.5 mr-2" /> Retry
+                </Button>
+              </div>
             ) : (
               <ScrollArea className="w-full">
                 <div className="flex gap-4 pb-4" style={{ minWidth: Object.keys(dealsByStage).length * 300 }}>
                   {pipelineInfo?.stages
-                    .filter((s) => showClosed || !s.closed)
+                    .filter((s) => !s.closed)
                     .map((stage) => {
                       const stageDeals = dealsByStage[stage.id] || [];
                       const total = stageTotal(stageDeals);
