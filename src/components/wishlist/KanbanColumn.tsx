@@ -15,9 +15,10 @@ type KanbanColumnProps = {
   onCardClick?: (item: WishlistItem) => void;
   deleting: string | null;
   activeId: string | null;
+  dragHeight?: number;
 };
 
-export function KanbanColumn({ status, items, onDelete, onCardClick, deleting, activeId }: KanbanColumnProps) {
+export function KanbanColumn({ status, items, onDelete, onCardClick, deleting, activeId, dragHeight = 80 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.wishlist;
   const isWip = status === 'in-progress' && items.length > 3;
@@ -57,21 +58,23 @@ export function KanbanColumn({ status, items, onDelete, onCardClick, deleting, a
           <KanbanCard key={item.id} item={item} onDelete={onDelete} onCardClick={onCardClick} deleting={deleting} />
         ))}
 
-        {/* Drop placeholder — shows when dragging over this column from another column */}
+        {/* Drop placeholder — matches the height of the card being dragged */}
         {isOver && !isDraggingFromHere && (
-          <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/[0.02] p-4 min-h-[80px] transition-all duration-200" />
+          <div
+            className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/[0.02] transition-all duration-200"
+            style={{ height: dragHeight }}
+          />
         )}
 
         {/* Empty state — only when column is truly empty and not dragging */}
         {items.length === 0 && !isOver && (
-          <div className={`
-            rounded-xl border-2 border-dashed min-h-[80px]
-            transition-colors duration-200
-            ${isDragging
-              ? 'border-border/50'
-              : 'border-border/20'
-            }
-          `} />
+          <div
+            className={`
+              rounded-xl border-2 border-dashed transition-colors duration-200
+              ${isDragging ? 'border-border/50' : 'border-border/20'}
+            `}
+            style={{ height: isDragging ? dragHeight : 80 }}
+          />
         )}
       </div>
     </div>

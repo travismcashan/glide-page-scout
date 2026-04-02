@@ -1,7 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Sparkles, Bug, Lightbulb, Trash2, Loader2, Paperclip, MessageCircle } from 'lucide-react';
+import { Sparkles, Bug, Lightbulb, Trash2, Loader2, Paperclip, MessageCircle, Copy, Check } from 'lucide-react';
 
 export type WishlistItem = {
   id: string;
@@ -73,6 +73,7 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
   const CatIcon = cat.icon;
   const effort = item.effort_estimate ? EFFORT_TAG[item.effort_estimate] : null;
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const style = overlay
     ? undefined
@@ -83,6 +84,7 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
 
   return (
     <div
+      id={overlay ? undefined : `card-${item.id}`}
       ref={overlay ? undefined : setNodeRef}
       style={style}
       {...(overlay ? {} : { ...listeners, ...attributes })}
@@ -95,7 +97,7 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
         pointerStart.current = null;
       }}
       className={`
-        group rounded-xl bg-card border border-border/50
+        group relative rounded-xl bg-card border border-border/50
         p-4 cursor-grab active:cursor-grabbing
         hover:shadow-md hover:border-border
         transition-all duration-150
@@ -103,13 +105,41 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
         ${isDragging ? 'z-50' : ''}
       `}
     >
-      {/* Title + delete */}
-      <div className="flex items-start justify-between gap-2">
-        <h4 className="text-[15px] font-semibold leading-snug text-foreground">
-          {item.title}
-        </h4>
+      {/* Title */}
+      <h4 className="text-[15px] font-semibold leading-snug text-foreground pr-8">
+        {item.title}
+      </h4>
+
+      {/* Floating action icons — absolute so they don't affect layout */}
+      <div
+        className="absolute top-3 right-3 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <button
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0 -mt-0.5 -mr-1"
+          className="p-1.5 rounded-md bg-card/90 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors shadow-sm"
+          title="Copy prompt"
+          onClick={(e) => {
+            e.stopPropagation();
+            const prompt = [
+              `Implement the following wishlist item:`,
+              ``,
+              `**${item.title}**`,
+              item.description || null,
+              ``,
+              `Category: ${item.category} | Priority: ${item.priority} | Effort: ${item.effort_estimate || 'unknown'}`,
+              `Status: ${item.status}`,
+              ``,
+              `First, move this card to "in-progress" on the Kanban board. When complete, move it to "done".`,
+            ].filter(Boolean).join('\n');
+            navigator.clipboard.writeText(prompt);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+        >
+          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+        </button>
+        <button
+          className="p-1.5 rounded-md bg-card/90 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shadow-sm"
           title="Delete item"
           onClick={(e) => {
             e.stopPropagation();

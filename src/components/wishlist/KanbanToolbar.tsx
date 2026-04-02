@@ -1,4 +1,4 @@
-import { Search, X, ArrowUpDown, Filter, Layers, Plus, Wand2, Loader2 } from 'lucide-react';
+import { Search, X, ArrowUpDown, Filter, Layers, Plus, Wand2, Loader2, Zap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,6 +25,8 @@ type KanbanToolbarProps = {
   onAddClick: () => void;
   onPrioritize: () => void;
   prioritizing: boolean;
+  onRecommend: () => void;
+  recommending: boolean;
 };
 
 export function KanbanToolbar({
@@ -35,6 +37,7 @@ export function KanbanToolbar({
   totalCount, filteredCount,
   onAddClick,
   onPrioritize, prioritizing,
+  onRecommend, recommending,
 }: KanbanToolbarProps) {
   const isFiltered = search || category !== 'all' || priority !== 'all';
 
@@ -54,11 +57,23 @@ export function KanbanToolbar({
         variant="outline"
         size="sm"
         onClick={onPrioritize}
-        disabled={prioritizing || totalCount === 0}
+        disabled={prioritizing || recommending || totalCount === 0}
         className="shrink-0"
       >
         {prioritizing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
         {prioritizing ? 'Analyzing...' : 'AI Prioritize'}
+      </Button>
+
+      {/* AI Recommend Sprint */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onRecommend}
+        disabled={recommending || prioritizing || totalCount === 0}
+        className="shrink-0"
+      >
+        {recommending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 mr-1.5" />}
+        {recommending ? 'Planning...' : 'AI Recommend'}
       </Button>
 
       {/* Spacer */}

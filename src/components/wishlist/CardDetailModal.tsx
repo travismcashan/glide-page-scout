@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Trash2, Send, MessageCircle, Paperclip, X, FileText, Image as ImageIcon, Wand2 } from 'lucide-react';
+import { Loader2, Trash2, Send, MessageCircle, Paperclip, X, FileText, Image as ImageIcon, Wand2, Copy, Check, Link2, ExternalLink, HardDrive } from 'lucide-react';
+import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { WishlistItem } from './KanbanCard';
@@ -79,6 +80,15 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [generatingCover, setGeneratingCover] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Link attachment
+  const [linkInputOpen, setLinkInputOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [addingLink, setAddingLink] = useState(false);
+
+  // Google Drive picker
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -131,8 +141,9 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
     const { data: { user } } = await supabase.auth.getUser();
 
     for (const file of Array.from(files)) {
-      const ext = file.name.split('.').pop();
-      const path = `${item.id}/${Date.now()}-${file.name}`;
+      const ext = file.name.split('.').pop() || 'bin';
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${item.id}/${Date.now()}-${safeName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('wishlist-attachments')
@@ -195,6 +206,54 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
     } finally {
       setGeneratingCover(false);
     }
+  }
+
+  async function handleAddLink() {
+    if (!linkUrl.trim() || !item) return;
+    setAddingLink(true);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Derive a display name from the URL
+    const url = linkUrl.trim();
+    const isGoogleDrive = /drive\.google\.com|docs\.google\.com/.test(url);
+    const displayName = isGoogleDrive
+      ? 'Google Drive file'
+      : new URL(url).hostname.replace('www.', '') + new URL(url).pathname.split('/').pop();
+
+    await supabase.from('wishlist_attachments').insert({
+      wishlist_item_id: item.id,
+      file_name: displayName,
+      file_url: url,
+      file_type: 'link',
+      file_size: null,
+      uploaded_by: user?.id || null,
+      source: isGoogleDrive ? 'google_drive' : 'link',
+    } as any);
+
+    setLinkUrl('');
+    setLinkInputOpen(false);
+    setAddingLink(false);
+    await loadAttachments(item.id);
+    onUpdate({ ...item, attachment_count: (item.attachment_count || 0) + 1 });
+  }
+
+  async function handleDriveFilesLinked(driveFiles: { id: string; name: string; mimeType: string; url: string }[]) {
+    if (!item) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    for (const df of driveFiles) {
+      await supabase.from('wishlist_attachments').insert({
+        wishlist_item_id: item.id,
+        file_name: df.name,
+        file_url: df.url,
+        file_type: 'link',
+        file_size: null,
+        uploaded_by: user?.id || null,
+        source: 'google_drive',
+      } as any);
+    }
+    await loadAttachments(item.id);
+    onUpdate({ ...item, attachment_count: (item.attachment_count || 0) + driveFiles.length });
+    toast({ title: `${driveFiles.length} file${driveFiles.length > 1 ? 's' : ''} linked from Google Drive` });
   }
 
   async function handleSendComment() {
@@ -268,7 +327,7 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="text-lg font-semibold border-0 px-0 h-auto focus-visible:ring-0 shadow-none"
+            className="text-2xl font-bold border-0 px-0 h-auto focus-visible:ring-0 shadow-none"
             placeholder="Card title"
           />
 
@@ -341,18 +400,16 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
           </div>
 
           {/* Meta info */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground pt-2 border-t">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
+            {item.profiles?.avatar_url ? (
+              <img src={item.profiles.avatar_url} alt="" className="h-6 w-6 rounded-full" />
+            ) : item.profiles?.display_name ? (
+              <span className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+                {item.profiles.display_name.charAt(0).toUpperCase()}
+              </span>
+            ) : null}
             {item.profiles?.display_name && (
-              <div className="flex items-center gap-2">
-                {item.profiles.avatar_url ? (
-                  <img src={item.profiles.avatar_url} alt="" className="h-6 w-6 rounded-full" />
-                ) : (
-                  <span className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
-                    {item.profiles.display_name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <span>{item.profiles.display_name}</span>
-              </div>
+              <span>{item.profiles.display_name}</span>
             )}
             <span className="text-xs">{createdDate}</span>
           </div>
@@ -365,28 +422,78 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
               {attachments.length > 0 && (
                 <span className="text-xs text-muted-foreground">{attachments.length}</span>
               )}
-              <label className="ml-auto cursor-pointer">
-                <input
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                />
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
-                  {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
-                  {uploading ? 'Uploading...' : 'Add file'}
-                </span>
-              </label>
+              <div className="flex items-center gap-1 ml-auto">
+                <button
+                  onClick={() => setDrivePickerOpen(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <HardDrive className="h-3 w-3" />
+                  Google Drive
+                </button>
+                <button
+                  onClick={() => setLinkInputOpen(!linkInputOpen)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Link2 className="h-3 w-3" />
+                  Add link
+                </button>
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
+                    {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
+                    {uploading ? 'Uploading...' : 'Add file'}
+                  </span>
+                </label>
+              </div>
             </div>
+
+            {/* Link input */}
+            {linkInputOpen && (
+              <div className="flex gap-2 mb-3">
+                <Input
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="Paste a Google Drive or any URL..."
+                  className="text-sm"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
+                  autoFocus
+                />
+                <Button
+                  size="sm"
+                  onClick={handleAddLink}
+                  disabled={addingLink || !linkUrl.trim()}
+                >
+                  {addingLink ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Add'}
+                </Button>
+              </div>
+            )}
 
             {attachments.length > 0 && (
               <div className="space-y-1.5 mb-3">
                 {attachments.map((att) => {
                   const isImage = att.file_type?.startsWith('image/');
+                  const isLink = att.file_type === 'link';
+                  const isDrive = /drive\.google\.com|docs\.google\.com/.test(att.file_url);
                   return (
                     <div key={att.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 group">
-                      {isImage ? (
+                      {isDrive ? (
+                        <svg className="h-4 w-4 shrink-0" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-20.4 35.3c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+                          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 13.8z" fill="#ea4335"/>
+                          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                          <path d="m73.4 26.5-10.1-17.5c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 23.8h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                        </svg>
+                      ) : isLink ? (
+                        <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : isImage ? (
                         <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                       ) : (
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -475,16 +582,41 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={handleDelete}
-              disabled={deletingItem}
-            >
-              {deletingItem ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Trash2 className="h-4 w-4 mr-1.5" />}
-              Delete
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleDelete}
+                disabled={deletingItem}
+              >
+                {deletingItem ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Trash2 className="h-4 w-4 mr-1.5" />}
+                Delete
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const prompt = [
+                    `Implement the following wishlist item:`,
+                    ``,
+                    `**${title}**`,
+                    description ? `${description}` : null,
+                    ``,
+                    `Category: ${category} | Priority: ${priority} | Effort: ${effort || 'unknown'}`,
+                    `Status: ${status}`,
+                    ``,
+                    `First, move this card to "in-progress" on the Kanban board. When complete, move it to "done".`,
+                  ].filter(Boolean).join('\n');
+                  navigator.clipboard.writeText(prompt);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
+                {copied ? 'Copied' : 'Copy prompt'}
+              </Button>
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button size="sm" onClick={handleSave} disabled={saving || !hasChanges || !title.trim()}>
@@ -495,6 +627,12 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
           </div>
         </div>
       </DialogContent>
+      <GoogleDrivePicker
+        open={drivePickerOpen}
+        onOpenChange={setDrivePickerOpen}
+        onFilesSelected={() => {}}
+        onFilesLinked={handleDriveFilesLinked}
+      />
     </Dialog>
   );
 }
