@@ -19,6 +19,7 @@ export type WishlistItem = {
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
   attachment_count?: number;
   comment_count?: number;
+  cover_image_url?: string | null;
 };
 
 const CATEGORY_TAG: Record<string, { label: string; icon: typeof Sparkles; bg: string; text: string }> = {
@@ -124,6 +125,17 @@ export function KanbanCard({ item, onDelete, onCardClick, deleting, overlay }: K
           }
         </button>
       </div>
+
+      {/* Cover image — shown for large effort items with a generated image */}
+      {item.cover_image_url && item.effort_estimate === 'large' && (
+        <div className="mt-2.5 -mx-1 rounded-lg overflow-hidden">
+          <img
+            src={item.cover_image_url}
+            alt=""
+            className="w-full h-28 object-cover rounded-lg"
+          />
+        </div>
+      )}
 
       {/* Description — hidden for small effort items to keep cards compact */}
       {item.description && item.effort_estimate !== 'small' && (

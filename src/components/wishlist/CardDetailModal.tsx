@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Trash2, Sparkles, Bug, Lightbulb, Send, MessageCircle } from 'lucide-react';
+import { Loader2, Trash2, Send, MessageCircle, Paperclip, X, FileText, Image as ImageIcon, Wand2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { WishlistItem } from './KanbanCard';
@@ -42,6 +42,15 @@ type Comment = {
   profile?: { display_name: string | null; avatar_url: string | null } | null;
 };
 
+type Attachment = {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string | null;
+  file_size: number | null;
+  created_at: string;
+};
+
 type CardDetailModalProps = {
   item: WishlistItem | null;
   open: boolean;
@@ -66,6 +75,11 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
+  // Attachments
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [generatingCover, setGeneratingCover] = useState(false);
+
   useEffect(() => {
     if (item) {
       setTitle(item.title);
@@ -75,6 +89,7 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
       setPriority(item.priority);
       setEffort(item.effort_estimate || '');
       loadComments(item.id);
+      loadAttachments(item.id);
     }
   }, [item]);
 
@@ -97,6 +112,89 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
       }
     }
     setComments(comments);
+  }
+
+  async function loadAttachments(itemId: string) {
+    const { data } = await supabase
+      .from('wishlist_attachments')
+      .select('*')
+      .eq('wishlist_item_id', itemId)
+      .order('created_at', { ascending: false });
+    setAttachments((data as Attachment[]) || []);
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files?.length || !item) return;
+    setUploading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    for (const file of Array.from(files)) {
+      const ext = file.name.split('.').pop();
+      const path = `${item.id}/${Date.now()}-${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('wishlist-attachments')
+        .upload(path, file);
+
+      if (uploadError) {
+        toast({ title: 'Upload failed', description: uploadError.message, variant: 'destructive' });
+        continue;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('wishlist-attachments')
+        .getPublicUrl(path);
+
+      await supabase.from('wishlist_attachments').insert({
+        wishlist_item_id: item.id,
+        file_name: file.name,
+        file_url: publicUrl,
+        file_type: file.type || null,
+        file_size: file.size,
+        uploaded_by: user?.id || null,
+      } as any);
+    }
+
+    setUploading(false);
+    await loadAttachments(item.id);
+    onUpdate({ ...item, attachment_count: (item.attachment_count || 0) + files.length });
+    e.target.value = '';
+  }
+
+  async function handleDeleteAttachment(att: Attachment) {
+    if (!item) return;
+    // Extract storage path from URL
+    const urlParts = att.file_url.split('/wishlist-attachments/');
+    const storagePath = urlParts[1] ? decodeURIComponent(urlParts[1]) : null;
+
+    if (storagePath) {
+      await supabase.storage.from('wishlist-attachments').remove([storagePath]);
+    }
+    await supabase.from('wishlist_attachments').delete().eq('id', att.id);
+    setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+    onUpdate({ ...item, attachment_count: Math.max(0, (item.attachment_count || 0) - 1) });
+  }
+
+  async function handleGenerateCover() {
+    if (!item) return;
+    setGeneratingCover(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('wishlist-cover-image', {
+        body: { item_id: item.id, title: title || item.title, description: description || item.description },
+      });
+      if (error) throw error;
+      if (data?.error) { toast({ title: 'Image generation failed', description: data.error, variant: 'destructive' }); return; }
+      if (data?.cover_image_url) {
+        onUpdate({ ...item, cover_image_url: data.cover_image_url });
+        toast({ title: 'Cover image generated' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setGeneratingCover(false);
+    }
   }
 
   async function handleSendComment() {
@@ -188,6 +286,25 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
             />
           </div>
 
+          {/* Cover image */}
+          {item.cover_image_url && (
+            <div className="rounded-lg overflow-hidden">
+              <img src={item.cover_image_url} alt="" className="w-full h-40 object-cover rounded-lg" />
+            </div>
+          )}
+          {(effort === 'large' || !effort) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateCover}
+              disabled={generatingCover}
+              className="w-full"
+            >
+              {generatingCover ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1.5" />}
+              {generatingCover ? 'Generating cover image...' : item.cover_image_url ? 'Regenerate cover image' : 'Generate cover image'}
+            </Button>
+          )}
+
           {/* Fields grid */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -238,6 +355,66 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
               </div>
             )}
             <span className="text-xs">{createdDate}</span>
+          </div>
+
+          {/* Attachments */}
+          <div className="pt-2 border-t">
+            <div className="flex items-center gap-2 mb-3">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Attachments</span>
+              {attachments.length > 0 && (
+                <span className="text-xs text-muted-foreground">{attachments.length}</span>
+              )}
+              <label className="ml-auto cursor-pointer">
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                />
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
+                  {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
+                  {uploading ? 'Uploading...' : 'Add file'}
+                </span>
+              </label>
+            </div>
+
+            {attachments.length > 0 && (
+              <div className="space-y-1.5 mb-3">
+                {attachments.map((att) => {
+                  const isImage = att.file_type?.startsWith('image/');
+                  return (
+                    <div key={att.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 group">
+                      {isImage ? (
+                        <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <a
+                        href={att.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-foreground hover:underline truncate flex-1"
+                      >
+                        {att.file_name}
+                      </a>
+                      {att.file_size && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {att.file_size < 1024 ? `${att.file_size}B` : att.file_size < 1048576 ? `${Math.round(att.file_size / 1024)}KB` : `${(att.file_size / 1048576).toFixed(1)}MB`}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleDeleteAttachment(att)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Comments */}
