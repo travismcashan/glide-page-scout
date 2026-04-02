@@ -214,8 +214,9 @@ ${harvestApiDocs ? `\n--- HARVEST API REFERENCE DOCUMENTATION ---\nThis document
 - The generated deck can be edited, shared, or exported to PPTX/PDF in Beautiful.ai
 
 **Document Generation**: When the user asks to create a document, brief, executive summary, report, or any downloadable document:
-- ALWAYS start your response with this HTML comment on its own line, containing JSON metadata:
-  \`<!--GLIDE_DOC:{"title":"Executive Summary","subtitle":"Custom Website Redesign","clientDomain":"example.com","companyName":"Example Corp"}-->\`
+- ALWAYS start your response with this exact tag on its own line (no backticks, no code formatting, just the raw tag):
+  <!--GLIDE_DOC:{"title":"Executive Summary","subtitle":"Custom Website Redesign","clientDomain":"example.com","companyName":"Example Corp"}-->
+- CRITICAL: Output the GLIDE_DOC tag as raw text, NOT wrapped in backticks or code blocks. It must appear exactly as shown above.
 - The title should match the document type (e.g. "Executive Summary", "Competitive Analysis", "Technical Audit Report")
 - The subtitle should describe the specific service or topic
 - clientDomain and companyName should match the current client

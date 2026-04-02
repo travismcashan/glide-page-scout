@@ -1030,8 +1030,8 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   // Markdown treats [text][ref] as a reference link, so adjacent [doc:1][doc:3] gets swallowed.
   const processedContent = content.replace(/\[doc:(\d+)\]/g, '%%DOCREF_$1%%');
 
-  // Parse GLIDE_DOC blocks for branded document downloads
-  const glideDocMatch = processedContent.match(/<!--GLIDE_DOC:([\s\S]*?)-->/);
+  // Parse GLIDE_DOC blocks for branded document downloads (handles raw or backtick-wrapped)
+  const glideDocMatch = processedContent.match(/`?<!--GLIDE_DOC:([\s\S]*?)-->`?/);
   let glideDocMeta: { title: string; subtitle?: string; clientDomain?: string; companyName?: string } | null = null;
   let glideDocContent = '';
   let contentWithoutDocBlock = processedContent;
