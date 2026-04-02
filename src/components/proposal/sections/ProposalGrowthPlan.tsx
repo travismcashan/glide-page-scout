@@ -66,7 +66,7 @@ export default function ProposalGrowthPlan({
         <hr className="border-t-2 border-foreground mt-8 mb-6" />
 
         {/* Fully interactive timeline — identical to Roadmap tab */}
-        <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
+        <div>
           <TimelineCanvas
             items={items}
             offerings={offerings}
