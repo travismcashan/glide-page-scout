@@ -737,7 +737,7 @@ export default function ConnectionsPage() {
                 {syncResult.updated > 0 && <span className="text-blue-400 font-medium">{syncResult.updated} updated</span>}
                 {syncResult.matched?.domain > 0 && <span> &middot; {syncResult.matched.domain} matched by domain</span>}
                 {syncResult.matched?.name > 0 && <span> &middot; {syncResult.matched.name} matched by name</span>}
-                {' '}&middot; Sources: {syncResult.sources?.harvest || 0} Harvest, {syncResult.sources?.asana || 0} Asana, {syncResult.sources?.hubspot || 0} HubSpot, {syncResult.sources?.freshdesk || 0} Freshdesk
+                {' '}&middot; Companies: {syncResult.sources?.hubspot || 0} HubSpot, {syncResult.sources?.harvest || 0} Harvest, {syncResult.sources?.freshdesk || 0} Freshdesk &middot; Linked: {syncResult.sources?.asana || 0} Asana projects
               </span>
             )}
           </div>

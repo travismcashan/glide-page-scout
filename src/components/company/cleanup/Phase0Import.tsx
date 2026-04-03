@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2, Columns3 } from 'lucide-react';
+import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2, Columns3, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCompanyName, normalizeDomain, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
@@ -540,9 +540,12 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       if (!user) throw new Error('Not authenticated');
 
       let linked = 0;
+      let created = 0;
       for (let i = 0; i < matches.length; i++) {
         const m = matches[i];
-        if (approvedMatches.has(i) && m.matchedCompanyId) {
+        if (!approvedMatches.has(i)) continue;
+
+        if (m.matchedCompanyId) {
           // Update existing company with QuickBooks data
           await supabase
             .from('companies')
@@ -552,10 +555,25 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             })
             .eq('id', m.matchedCompanyId);
           linked++;
+        } else {
+          // Create new company from QuickBooks (unmatched = still a real client)
+          await supabase
+            .from('companies')
+            .insert({
+              user_id: user.id,
+              name: m.qbName,
+              quickbooks_client_name: m.qbName,
+              quickbooks_invoice_summary: m.invoiceSummary,
+              status: 'active',
+            });
+          created++;
         }
       }
 
-      toast.success(`Linked ${linked} companies to QuickBooks data`);
+      const parts = [];
+      if (linked) parts.push(`${linked} linked`);
+      if (created) parts.push(`${created} created`);
+      toast.success(`QuickBooks import: ${parts.join(', ')}`);
       setStep('done');
       onRefetch();
     } catch (err: any) {
@@ -564,6 +582,25 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       setSaving(false);
     }
   };
+
+  // ── Done Step ──
+  if (step === 'done') {
+    return (
+      <Card className="p-8 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
+          </div>
+          <h2 className="text-lg font-semibold">QuickBooks Import Complete</h2>
+          <p className="text-sm text-muted-foreground">
+            {matches.filter((_, i) => approvedMatches.has(i) && matches[i].matchedCompanyId).length} linked to existing companies,{' '}
+            {matches.filter((_, i) => approvedMatches.has(i) && !matches[i].matchedCompanyId).length} new companies created.
+          </p>
+          <Button onClick={onComplete} className="mt-2">Continue to Next Step</Button>
+        </div>
+      </Card>
+    );
+  }
 
   // ── Upload Step ──
   if (step === 'upload') {
@@ -908,7 +945,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
     const lowMatches = matches.filter(m => m.confidence === 'low');
     const noMatches = matches.filter(m => m.confidence === 'none');
 
-    const approvedCount = matches.filter((m, i) => approvedMatches.has(i) && m.matchedCompanyId).length;
+    const approvedCount = matches.filter((_, i) => approvedMatches.has(i)).length;
 
     return (
       <Card className="p-8">
@@ -939,6 +976,11 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             matches.forEach((m, i) => { if (m.matchedCompanyId) next.add(i); });
             setApprovedMatches(next);
           }}>Select All Matched</Button>
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+            const next = new Set<number>();
+            matches.forEach((_, i) => next.add(i));
+            setApprovedMatches(next);
+          }}>Select All (incl. new)</Button>
           <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setApprovedMatches(new Set())}>Deselect All</Button>
         </div>
 
@@ -958,22 +1000,20 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             </TableHeader>
             <TableBody>
               {matches.map((m, i) => (
-                <TableRow key={i} className={approvedMatches.has(i) ? 'bg-green-500/5' : m.confidence === 'none' ? 'opacity-50' : ''}>
+                <TableRow key={i} className={approvedMatches.has(i) ? 'bg-green-500/5' : ''}>
                   <TableCell className="py-2">
-                    {m.matchedCompanyId && (
-                      <Checkbox
-                        checked={approvedMatches.has(i)}
-                        onCheckedChange={() => setApprovedMatches(prev => {
-                          const next = new Set(prev);
-                          if (next.has(i)) next.delete(i); else next.add(i);
-                          return next;
-                        })}
-                      />
-                    )}
+                    <Checkbox
+                      checked={approvedMatches.has(i)}
+                      onCheckedChange={() => setApprovedMatches(prev => {
+                        const next = new Set(prev);
+                        if (next.has(i)) next.delete(i); else next.add(i);
+                        return next;
+                      })}
+                    />
                   </TableCell>
                   <TableCell className="text-sm font-medium py-2">{m.qbName}</TableCell>
                   <TableCell className="text-sm py-2">
-                    {m.matchedCompanyName || <span className="text-muted-foreground italic">No match</span>}
+                    {m.matchedCompanyName || (approvedMatches.has(i) ? <span className="text-blue-500 italic">Will create new</span> : <span className="text-muted-foreground italic">No match — will create</span>)}
                   </TableCell>
                   <TableCell className="text-sm text-right py-2 tabular-nums">
                     {m.invoiceSummary.count || '-'}

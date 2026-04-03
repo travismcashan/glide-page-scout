@@ -15,7 +15,7 @@ function getConfig() {
   const domain = Deno.env.get('FRESHDESK_DOMAIN');
   if (!apiKey || !domain) return null;
   return {
-    baseUrl: `https://${domain}.freshdesk.com/api/v2`,
+    baseUrl: domain.includes('.') ? `https://${domain}/api/v2` : `https://${domain}.freshdesk.com/api/v2`,
     headers: {
       'Authorization': `Basic ${btoa(apiKey + ':X')}`,
       'Content-Type': 'application/json',

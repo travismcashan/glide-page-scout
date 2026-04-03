@@ -50,11 +50,11 @@ async function fetchHarvestData(token: string, accountId: string): Promise<Harve
     'Content-Type': 'application/json',
   };
 
-  // Fetch clients
+  // Fetch ALL clients (active + archived)
   const clientMap = new Map<number, HarvestClient>();
   let page = 1;
-  while (page <= 10) {
-    const res = await fetch(`https://api.harvestapp.com/v2/clients?is_active=true&per_page=100&page=${page}`, { headers });
+  while (page <= 30) {
+    const res = await fetch(`https://api.harvestapp.com/v2/clients?per_page=100&page=${page}`, { headers });
     if (!res.ok) { console.error('[global-sync] Harvest clients error:', res.status); break; }
     const data = await res.json();
     for (const c of (data.clients || [])) {
@@ -64,23 +64,31 @@ async function fetchHarvestData(token: string, accountId: string): Promise<Harve
     page++;
   }
 
-  // Fetch active projects to mark which clients have active work
+  // Fetch ALL projects (active + archived) to mark which clients have active work
   page = 1;
-  while (page <= 10) {
-    const res = await fetch(`https://api.harvestapp.com/v2/projects?is_active=true&per_page=100&page=${page}`, { headers });
+  while (page <= 30) {
+    const res = await fetch(`https://api.harvestapp.com/v2/projects?per_page=100&page=${page}`, { headers });
     if (!res.ok) break;
     const data = await res.json();
     for (const p of (data.projects || [])) {
       const clientId = p.client?.id;
-      if (clientId && clientMap.has(clientId)) {
-        clientMap.get(clientId)!.hasActiveProject = true;
+      if (clientId) {
+        // Add client if we somehow missed it (e.g., project exists for an unlisted client)
+        if (!clientMap.has(clientId) && p.client?.name) {
+          clientMap.set(clientId, { id: clientId, name: p.client.name, isActive: false, hasActiveProject: false });
+        }
+        // Mark hasActiveProject only if the project itself is active
+        if (clientMap.has(clientId) && p.is_active) {
+          clientMap.get(clientId)!.hasActiveProject = true;
+        }
       }
     }
     if (!data.next_page) break;
     page++;
   }
 
-  console.log(`[global-sync] Harvest: ${clientMap.size} clients fetched`);
+  const activeCount = Array.from(clientMap.values()).filter(c => c.isActive).length;
+  console.log(`[global-sync] Harvest: ${clientMap.size} clients fetched (${activeCount} active, ${clientMap.size - activeCount} archived)`);
   return Array.from(clientMap.values());
 }
 
@@ -103,60 +111,72 @@ async function fetchAsanaData(token: string): Promise<AsanaProject[]> {
   const workspaces = wsData.data || [];
   console.log(`[global-sync] Asana: found ${workspaces.length} workspaces`);
 
-  // Step 2: Fetch projects for each workspace
+  // Step 2: Fetch projects for each workspace (active + archived)
   for (const ws of workspaces) {
     console.log(`[global-sync] Asana: fetching projects for workspace "${ws.name}" (${ws.gid})...`);
-    let url: string | null = `https://app.asana.com/api/1.0/projects?workspace=${ws.gid}&opt_fields=name,notes,custom_fields.name,custom_fields.display_value&limit=100`;
 
-    while (url) {
-      const res = await fetch(url, { headers });
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error(`[global-sync] Asana projects error for workspace ${ws.gid}:`, res.status, errText);
-        break;
-      }
-      const data = await res.json();
+    // Asana API returns only active projects by default.
+    // Archived projects require a separate call with archived=true.
+    const passes = [
+      { label: 'active', archived: false },
+      { label: 'archived', archived: true },
+    ];
 
-      for (const p of (data.data || [])) {
-        // Try to extract domain from custom fields
-        let domain: string | null = null;
-        for (const cf of (p.custom_fields || [])) {
-          const fieldName = (cf.name || '').toLowerCase();
-          if (['url', 'domain', 'website', 'client url', 'client domain', 'site'].includes(fieldName)) {
-            domain = normalizeDomain(cf.display_value) || extractDomainFromText(cf.display_value || '');
-            if (domain) break;
+    for (const pass of passes) {
+      const archivedParam = pass.archived ? '&archived=true' : '';
+      let url: string | null = `https://app.asana.com/api/1.0/projects?workspace=${ws.gid}&opt_fields=name,notes,archived,custom_fields.name,custom_fields.display_value&limit=100${archivedParam}`;
+
+      while (url) {
+        const res = await fetch(url, { headers });
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`[global-sync] Asana ${pass.label} projects error for workspace ${ws.gid}:`, res.status, errText);
+          break;
+        }
+        const data = await res.json();
+
+        for (const p of (data.data || [])) {
+          // Try to extract domain from custom fields
+          let domain: string | null = null;
+          for (const cf of (p.custom_fields || [])) {
+            const fieldName = (cf.name || '').toLowerCase();
+            if (['url', 'domain', 'website', 'client url', 'client domain', 'site'].includes(fieldName)) {
+              domain = normalizeDomain(cf.display_value) || extractDomainFromText(cf.display_value || '');
+              if (domain) break;
+            }
           }
-        }
 
-        // Try notes for domain
-        if (!domain && p.notes) {
-          domain = extractDomainFromText(p.notes);
-        }
-
-        // Parse client name from project name ("ClientName - Project Description" or "ClientName: ...")
-        let clientName: string | null = null;
-        const separators = [' - ', ' — ', ' – ', ': ', ' | '];
-        for (const sep of separators) {
-          if (p.name.includes(sep)) {
-            clientName = p.name.split(sep)[0].trim();
-            break;
+          // Try notes for domain
+          if (!domain && p.notes) {
+            domain = extractDomainFromText(p.notes);
           }
+
+          // Parse client name from project name ("ClientName - Project Description" or "ClientName: ...")
+          let clientName: string | null = null;
+          const separators = [' - ', ' — ', ' – ', ': ', ' | '];
+          for (const sep of separators) {
+            if (p.name.includes(sep)) {
+              clientName = p.name.split(sep)[0].trim();
+              break;
+            }
+          }
+
+          // If project name looks like a domain, use it
+          if (!domain && p.name) {
+            const possibleDomain = extractDomainFromText(p.name);
+            if (possibleDomain) domain = possibleDomain;
+          }
+
+          projects.push({ gid: p.gid, name: p.name, domain, clientName: clientName || p.name });
         }
 
-        // If project name looks like a domain, use it
-        if (!domain && p.name) {
-          const possibleDomain = extractDomainFromText(p.name);
-          if (possibleDomain) domain = possibleDomain;
-        }
-
-        projects.push({ gid: p.gid, name: p.name, domain, clientName: clientName || p.name });
+        url = data.next_page?.uri || null;
       }
-
-      url = data.next_page?.uri || null;
     }
   }
 
-  console.log(`[global-sync] Asana: ${projects.length} total projects fetched across ${workspaces.length} workspaces`);
+  const uniqueGids = new Set(projects.map(p => p.gid));
+  console.log(`[global-sync] Asana: ${projects.length} total projects (${uniqueGids.size} unique) fetched across ${workspaces.length} workspaces`);
   return projects;
 }
 
@@ -218,7 +238,8 @@ async function fetchHubSpotData(token: string): Promise<HubSpotCompany[]> {
 type FreshdeskCompany = { id: number; name: string; domain: string | null; domains: string[] };
 
 async function fetchFreshdeskData(apiKey: string, domain: string): Promise<FreshdeskCompany[]> {
-  const baseUrl = `https://${domain}.freshdesk.com/api/v2`;
+  // Support both custom domains (e.g., support.glidedesign.com) and Freshdesk subdomains (e.g., glide)
+  const baseUrl = domain.includes('.') ? `https://${domain}/api/v2` : `https://${domain}.freshdesk.com/api/v2`;
   const headers = {
     'Authorization': `Basic ${btoa(apiKey + ':X')}`,
     'Content-Type': 'application/json',
@@ -471,12 +492,21 @@ Deno.serve(async (req) => {
       (freshdeskApiKey && freshdeskDomain) ? fetchFreshdeskData(freshdeskApiKey, freshdeskDomain) : Promise.resolve([]),
     ]);
 
-    // Fetch existing companies
-    const { data: existingCompanies } = await supabase
-      .from('companies')
-      .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, freshdesk_company_id, freshdesk_company_name, status');
+    // Fetch existing companies (paginate to avoid Supabase 1000-row default limit)
+    const allExisting: any[] = [];
+    const PAGE_SIZE = 1000;
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      const { data: batch } = await supabase
+        .from('companies')
+        .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, freshdesk_company_id, freshdesk_company_name, status')
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (!batch || batch.length === 0) break;
+      allExisting.push(...batch);
+      if (batch.length < PAGE_SIZE) break;
+    }
+    const existingCompanies = allExisting;
 
-    console.log(`[global-sync] Existing companies: ${(existingCompanies || []).length}`);
+    console.log(`[global-sync] Existing companies: ${existingCompanies.length}`);
 
     // Cross-reference
     const unified = crossReference(
@@ -484,7 +514,7 @@ Deno.serve(async (req) => {
       asanaProjects,
       hubspotCompanies,
       freshdeskCompanies,
-      existingCompanies || []
+      existingCompanies
     );
 
     console.log(`[global-sync] Unified clients: ${unified.length} (${unified.filter(u => u.action === 'create').length} new, ${unified.filter(u => u.action === 'update').length} update)`);
@@ -496,7 +526,7 @@ Deno.serve(async (req) => {
         asana: asanaProjects.length,
         hubspot: hubspotCompanies.length,
         freshdesk: freshdeskCompanies.length,
-        existing: (existingCompanies || []).length,
+        existing: (existingCompanies).length,
       },
       matched: { domain: 0, name: 0 },
       created: 0,

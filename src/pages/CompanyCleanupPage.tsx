@@ -99,7 +99,7 @@ export default function CompanyCleanupPage() {
             <span className="text-muted-foreground">HubSpot: <span className="text-foreground font-medium">{analysis.stats.withHubspot}</span></span>
             <span className="text-muted-foreground">Harvest: <span className="text-foreground font-medium">{analysis.stats.withHarvest}</span></span>
             <span className="text-muted-foreground">Freshdesk: <span className="text-foreground font-medium">{analysis.stats.withFreshdesk}</span></span>
-            <span className="text-muted-foreground">Asana: <span className="text-foreground font-medium">{analysis.stats.withAsana}</span></span>
+            <span className="text-muted-foreground">Asana <span className="text-muted-foreground/60">(projects)</span>: <span className="text-foreground font-medium">{analysis.stats.withAsana}</span></span>
             <span className="text-muted-foreground">QuickBooks: <span className="text-foreground font-medium">{analysis.stats.withQuickbooks}</span></span>
             <div className="h-4 w-px bg-border" />
             <span className="text-muted-foreground">Duplicates: <span className="text-amber-500 font-medium">{analysis.stats.duplicateGroups}</span></span>
