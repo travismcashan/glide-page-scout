@@ -435,6 +435,34 @@ export async function autoIngestIntegrations(
     }
   }
 
+  // Gmail: expand into per-email documents
+  const gmailData = sessionData.gmail_data;
+  if (gmailData && typeof gmailData === 'object' && !gmailData._error && gmailData.emails?.length) {
+    const hasGmailDocs = Array.from(existingMap.keys()).some(k => k.startsWith('gmail_data:'));
+    if (!hasGmailDocs) {
+      const emails = gmailData.emails || [];
+      for (let i = 0; i < emails.length; i++) {
+        const email = emails[i];
+        const subject = email.subject || 'No subject';
+        const parts: string[] = [];
+        if (email.date) parts.push(`Date: ${new Date(email.date).toLocaleString()}`);
+        if (email.from) parts.push(`From: ${email.from}`);
+        if (email.to) parts.push(`To: ${Array.isArray(email.to) ? email.to.join(', ') : email.to}`);
+        if (email.cc) parts.push(`CC: ${Array.isArray(email.cc) ? email.cc.join(', ') : email.cc}`);
+        if (email.snippet) parts.push(`\n${email.snippet}`);
+        if (email.body) parts.push(`\n${stripHtml(email.body)}`);
+        const content = parts.join('\n');
+        if (content.length < 30) continue;
+        docsToIngest.push({
+          name: `Email: ${subject}`,
+          content: content.slice(0, 15_000),
+          source_type: 'integration',
+          source_key: `gmail_data:email:${email.id || i}`,
+        });
+      }
+    }
+  }
+
   if (docsToIngest.length === 0) {
     return { ingested: 0, skipped: existingMap.size };
   }
