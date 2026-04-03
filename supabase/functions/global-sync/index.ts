@@ -649,6 +649,12 @@ Deno.serve(async (req) => {
           sources: sourceList,
           action: client.existingId ? 'would_update' : 'would_create',
           hasActiveProject: client.hasActiveProject,
+          hubspotId: client.hubspot?.id || null,
+          hubspotName: client.hubspot?.name || null,
+          harvestId: client.harvest ? String(client.harvest.id) : null,
+          harvestName: client.harvest?.name || null,
+          freshdeskId: client.freshdesk ? String(client.freshdesk.id) : null,
+          freshdeskName: client.freshdesk?.name || null,
         });
       }
     }

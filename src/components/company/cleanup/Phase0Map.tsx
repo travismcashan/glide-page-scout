@@ -60,6 +60,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   const [saving, setSaving] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confidenceMin, setConfidenceMin] = useState<number>(0);
   // Track user overrides: companyId -> { hubspot?: id, harvest?: id, freshdesk?: id }
   const [overrides, setOverrides] = useState<Map<string, Record<string, string>>>(new Map());
 
@@ -84,20 +85,26 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to fetch sources');
 
-      // Extract source records from sync details
+      // Extract source records with IDs from sync details
       const hubspot: SourceRecord[] = [];
       const harvest: SourceRecord[] = [];
       const freshdesk: SourceRecord[] = [];
+      const seenHS = new Set<string>();
+      const seenHV = new Set<string>();
+      const seenFD = new Set<string>();
 
       for (const d of (data.summary?.details || [])) {
-        if (d.sources?.includes('HubSpot')) {
-          hubspot.push({ id: d.hubspotId || d.name, name: d.name, domain: d.domain });
+        if (d.hubspotId && !seenHS.has(d.hubspotId)) {
+          seenHS.add(d.hubspotId);
+          hubspot.push({ id: d.hubspotId, name: d.hubspotName || d.name, domain: d.domain });
         }
-        if (d.sources?.includes('Harvest')) {
-          harvest.push({ id: d.harvestId || d.name, name: d.name, domain: d.domain });
+        if (d.harvestId && !seenHV.has(d.harvestId)) {
+          seenHV.add(d.harvestId);
+          harvest.push({ id: d.harvestId, name: d.harvestName || d.name, domain: d.domain });
         }
-        if (d.sources?.includes('Freshdesk')) {
-          freshdesk.push({ id: d.freshdeskId || d.name, name: d.name, domain: d.domain });
+        if (d.freshdeskId && !seenFD.has(d.freshdeskId)) {
+          seenFD.add(d.freshdeskId);
+          freshdesk.push({ id: d.freshdeskId, name: d.freshdeskName || d.name, domain: d.domain });
         }
       }
 
@@ -140,6 +147,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     return map;
   }, [companies, sourceData]);
 
+  // Helper: best match score for a company
+  const bestScore = (c: CompanyRecord): number => {
+    const m = allMatches.get(c.id);
+    if (!m) return 0;
+    return Math.max(m.hubspot[0]?.score || 0, m.harvest[0]?.score || 0, m.freshdesk[0]?.score || 0);
+  };
+
   // Filter
   const filtered = useMemo(() => {
     let result = [...companies];
@@ -152,31 +166,26 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
       result = result.filter(c => mappedCount(c) > 0 && mappedCount(c) < 3);
     }
 
+    // Confidence threshold filter
+    if (confidenceMin > 0) {
+      const minScore = confidenceMin / 100;
+      result = result.filter(c => mappedCount(c) === 3 || bestScore(c) >= minScore);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(c => c.name.toLowerCase().includes(q));
     }
 
     result.sort((a, b) => {
-      // Companies with suggestions first
-      const aHas = allMatches.get(a.id);
-      const bHas = allMatches.get(b.id);
-      const aScore = aHas ? Math.max(
-        aHas.hubspot[0]?.score || 0,
-        aHas.harvest[0]?.score || 0,
-        aHas.freshdesk[0]?.score || 0,
-      ) : 0;
-      const bScore = bHas ? Math.max(
-        bHas.hubspot[0]?.score || 0,
-        bHas.harvest[0]?.score || 0,
-        bHas.freshdesk[0]?.score || 0,
-      ) : 0;
+      const aScore = bestScore(a);
+      const bScore = bestScore(b);
       if (aScore !== bScore) return bScore - aScore;
       return a.name.localeCompare(b.name);
     });
 
     return result;
-  }, [companies, filter, search, allMatches]);
+  }, [companies, filter, search, allMatches, confidenceMin]);
 
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.ceil(filtered.length / pageSize);
@@ -295,7 +304,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
           });
         }}
       >
-        <SelectTrigger className="h-7 text-xs w-full">
+        <SelectTrigger className="h-7 text-xs w-full max-w-[200px] truncate">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -379,6 +388,19 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <SelectItem value="fully_mapped">Fully Mapped ({stats.fullyMapped})</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={String(confidenceMin)} onValueChange={(v) => { setConfidenceMin(Number(v)); setPage(0); }}>
+            <SelectTrigger className="w-36 h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Any confidence</SelectItem>
+              <SelectItem value="95">95%+ (High)</SelectItem>
+              <SelectItem value="90">90%+ </SelectItem>
+              <SelectItem value="85">85%+ (Med)</SelectItem>
+              <SelectItem value="80">80%+</SelectItem>
+              <SelectItem value="75">75%+ (Low)</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(0); }}>
             <SelectTrigger className="w-24 h-9 text-sm">
               <SelectValue />
@@ -407,7 +429,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg border border-border mb-4">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
               <TableRow>
                 <TableHead className="text-xs w-8">
@@ -423,10 +445,10 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     }}
                   />
                 </TableHead>
-                <TableHead className="text-xs w-[22%]">QuickBooks Client</TableHead>
-                <TableHead className="text-xs w-[22%]">HubSpot Match</TableHead>
-                <TableHead className="text-xs w-[22%]">Harvest Match</TableHead>
-                <TableHead className="text-xs w-[22%]">Freshdesk Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '25%', minWidth: 160 }}>QuickBooks Client</TableHead>
+                <TableHead className="text-xs" style={{ width: '22%', minWidth: 120 }}>HubSpot Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '22%', minWidth: 120 }}>Harvest Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '22%', minWidth: 120 }}>Freshdesk Match</TableHead>
                 <TableHead className="text-xs w-[6%] text-center">Map</TableHead>
                 <TableHead className="text-xs w-[6%] text-center"></TableHead>
               </TableRow>
