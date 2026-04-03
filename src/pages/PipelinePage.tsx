@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
-  ChevronDown, X, Loader2,
+  ChevronDown, X, Loader2, Linkedin, Briefcase,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,7 @@ const saveSetting = (key: string, value: string) => {
 };
 
 export default function PipelinePage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(() => loadSetting("tab", "deals"));
 
   // Deals state
@@ -100,6 +102,43 @@ export default function PipelinePage() {
   const [showOtherOwners, setShowOtherOwners] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  // Agency brain enrichment for selected contact
+  type AgencyBrainContact = {
+    linkedin_url: string | null;
+    seniority: string | null;
+    department: string | null;
+    photo_url: string | null;
+    company_id: string | null;
+    company_name: string | null;
+    enrichment_data: any;
+  };
+  const [brainContact, setBrainContact] = useState<AgencyBrainContact | null>(null);
+  useEffect(() => {
+    if (!selectedContact?.email) { setBrainContact(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('contacts')
+        .select('linkedin_url, seniority, department, photo_url, company_id, enrichment_data')
+        .eq('email', selectedContact.email)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!data) { setBrainContact(null); return; }
+      // Fetch company name if linked
+      let companyName: string | null = null;
+      if (data.company_id) {
+        const { data: co } = await supabase
+          .from('companies')
+          .select('name')
+          .eq('id', data.company_id)
+          .maybeSingle();
+        if (!cancelled && co) companyName = co.name;
+      }
+      if (!cancelled) setBrainContact({ ...data, company_name: companyName });
+    })();
+    return () => { cancelled = true; };
+  }, [selectedContact?.email]);
   const [createDateFilter, setCreateDateFilter] = useState(() => loadSetting("createDate", "all"));
   const [closeDateFilter, setCloseDateFilter] = useState(() => loadSetting("closeDate", "all"));
 
@@ -1181,14 +1220,53 @@ export default function PipelinePage() {
                       </div>
                     )}
 
-                    <a
-                      href={`https://app.hubspot.com/contacts/${HUBSPOT_ACCOUNT}/record/0-1/${c.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-4"
-                    >
-                      <ExternalLink className="h-3 w-3" /> View in HubSpot
-                    </a>
+                    {/* Agency Brain enrichment */}
+                    {brainContact && (
+                      <div className="border-t border-border pt-4 mt-4 space-y-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Agency Brain</p>
+                        {brainContact.seniority && (
+                          <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Seniority</p>
+                            <p className="text-sm capitalize">{brainContact.seniority.replace('_', ' ')}</p>
+                          </div>
+                        )}
+                        {brainContact.department && (
+                          <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Department</p>
+                            <p className="text-sm capitalize">{brainContact.department}</p>
+                          </div>
+                        )}
+                        {brainContact.linkedin_url && (
+                          <a
+                            href={brainContact.linkedin_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            <Linkedin className="h-3 w-3" /> LinkedIn Profile
+                          </a>
+                        )}
+                        {brainContact.company_id && brainContact.company_name && (
+                          <button
+                            onClick={() => { setSelectedContact(null); navigate(`/companies/${brainContact.company_id}`); }}
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            <Building2 className="h-3 w-3" /> View {brainContact.company_name}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 mt-4">
+                      <a
+                        href={`https://app.hubspot.com/contacts/${HUBSPOT_ACCOUNT}/record/0-1/${c.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" /> View in HubSpot
+                      </a>
+                    </div>
                   </div>
                 </>
               );
