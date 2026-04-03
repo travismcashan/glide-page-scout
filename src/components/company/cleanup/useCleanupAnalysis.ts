@@ -49,13 +49,24 @@ export function useCleanupAnalysis(): CleanupAnalysis {
   const fetchAndAnalyze = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select(COMPANY_COLUMNS)
-        .order('name');
+      // Paginate to get ALL companies (Supabase defaults to 1000 limit)
+      let allData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from('companies')
+          .select(COMPANY_COLUMNS)
+          .order('name')
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = allData.concat(data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
 
-      if (error) throw error;
-      const all = (data || []) as CompanyRecord[];
+      const all = allData as CompanyRecord[];
       setCompanies(all);
 
       // Find duplicates
