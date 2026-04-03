@@ -400,9 +400,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50 ml-1" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[300px] p-0" align="start">
+          <PopoverContent className="w-[300px] p-0" align="start" sideOffset={4}>
             <Command>
-              <CommandInput placeholder={`Search ${source}...`} className="h-8 text-xs" defaultValue={selectedRecord?.name || ''} />
+              <CommandInput placeholder={`Search ${source}...`} className="h-8 text-xs" />
               <CommandList className="max-h-[250px]">
                 <CommandEmpty>No results found.</CommandEmpty>
                 <CommandItem onSelect={() => setSourceOverride('')} className={`text-xs ${!selectedId ? 'font-bold' : 'text-muted-foreground'}`}>
