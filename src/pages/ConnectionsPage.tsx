@@ -435,7 +435,7 @@ export default function ConnectionsPage() {
   const notebooklmConnection = connections.find(c => c.provider === 'google-notebooklm');
   const slackConnection = connections.find(c => c.provider === 'slack');
 
-  // Slack OAuth uses a redirect flow (not Google's inline code client)
+  // Slack OAuth — redirect flow (popups don't work reliably in Safari)
   const connectSlack = async () => {
     setConnectingProvider('slack');
     try {
@@ -451,42 +451,43 @@ export default function ConnectionsPage() {
       const userScopes = 'search:read';
       const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=&user_scope=${encodeURIComponent(userScopes)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
-      // Open popup
-      const popup = window.open(slackAuthUrl, 'slack-oauth', 'width=600,height=700');
-      if (!popup) throw new Error('Popup blocked');
-
-      // Poll for the code in the popup URL
-      const pollInterval = setInterval(async () => {
-        try {
-          if (popup.closed) { clearInterval(pollInterval); setConnectingProvider(null); return; }
-          const popupUrl = popup.location.href;
-          if (popupUrl.includes('code=')) {
-            clearInterval(pollInterval);
-            popup.close();
-            const url = new URL(popupUrl);
-            const code = url.searchParams.get('code');
-            if (!code) throw new Error('No code received');
-
-            const exchangeRes = await fetch(SLACK_OAUTH_URL, {
-              method: 'POST',
-              headers: apiHeaders,
-              body: JSON.stringify({ action: 'exchange', code, redirectUri }),
-            });
-            const result = await exchangeRes.json();
-            if (!exchangeRes.ok || !result.success) throw new Error(result.error || 'Exchange failed');
-
-            await fetchConnections();
-          }
-        } catch (e) {
-          // Cross-origin errors are expected until redirect completes
-        }
-      }, 500);
+      // Redirect the main page (not popup) — Slack will redirect back with ?code=
+      window.location.href = slackAuthUrl;
     } catch (err: any) {
       console.error('Slack connect error:', err);
-    } finally {
       setConnectingProvider(null);
     }
   };
+
+  // Handle Slack OAuth callback (code in URL params after redirect back)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code || params.get('state')) return; // state param means it's Google, not Slack
+
+    // Clean the URL
+    window.history.replaceState({}, '', '/connections');
+
+    // Exchange code for token
+    (async () => {
+      try {
+        const redirectUri = `${window.location.origin}/connections`;
+        const exchangeRes = await fetch(SLACK_OAUTH_URL, {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({ action: 'exchange', code, redirectUri }),
+        });
+        const result = await exchangeRes.json();
+        if (result.success) {
+          await fetchConnections();
+        } else {
+          console.error('Slack exchange failed:', result.error);
+        }
+      } catch (err) {
+        console.error('Slack callback error:', err);
+      }
+    })();
+  }, []);
   const ga4Connection = connections.find(c => c.provider === 'google-analytics');
   const gscConnection = connections.find(c => c.provider === 'google-search-console');
 
