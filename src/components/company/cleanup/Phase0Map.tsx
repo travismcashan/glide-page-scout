@@ -599,14 +599,23 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                       {renderSourceCell(c, 'freshdesk', c.freshdesk_company_id, c.freshdesk_company_name)}
                     </TableCell>
                     <TableCell className="py-2">
-                      <Badge variant="outline" className={`text-xs py-0 ${
-                        count === 3 ? 'text-green-600 border-green-500/30' :
-                        count > 0 ? 'text-amber-500 border-amber-500/30' :
-                        bestScore > 0 ? 'text-blue-500 border-blue-500/30' :
-                        'text-muted-foreground/40'
-                      }`}>
-                        {count}/3
-                      </Badge>
+                      {(() => {
+                        const isLocked = localLocks.has(c.id);
+                        const m = allMatches.get(c.id);
+                        const foundCount = m ? (m.hubspot.length > 0 ? 1 : 0) + (m.harvest.length > 0 ? 1 : 0) + (m.freshdesk.length > 0 ? 1 : 0) : 0;
+                        if (isLocked) {
+                          const lockData = localLocks.get(c.id) || {};
+                          const lockedCount = (lockData.hubspot_company_id ? 1 : 0) + (lockData.harvest_client_id ? 1 : 0) + (lockData.freshdesk_company_id ? 1 : 0);
+                          return <Badge variant="outline" className={`text-xs py-0 ${lockedCount === 3 ? 'text-green-600 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>{lockedCount}/3 locked</Badge>;
+                        }
+                        if (count === 3) {
+                          return <Badge variant="outline" className="text-xs py-0 text-green-600 border-green-500/30">3/3 saved</Badge>;
+                        }
+                        if (foundCount > 0) {
+                          return <Badge variant="outline" className="text-xs py-0 text-blue-500 border-blue-500/30">{foundCount} found</Badge>;
+                        }
+                        return <Badge variant="outline" className="text-xs py-0 text-muted-foreground/40">0 found</Badge>;
+                      })()}
                     </TableCell>
                     <TableCell className="py-2">
                       {(() => {
