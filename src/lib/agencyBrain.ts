@@ -69,7 +69,7 @@ export async function upsertCompanyFromApollo(
     .single();
 
   if (error) {
-    console.error('[companyBrain] Failed to create company:', error);
+    console.error('[agencyBrain] Failed to create company:', error);
     return null;
   }
 
@@ -140,7 +140,7 @@ export async function upsertContactFromApollo(
     .single();
 
   if (error) {
-    console.error('[companyBrain] Failed to create contact:', error);
+    console.error('[agencyBrain] Failed to create contact:', error);
     return null;
   }
 
@@ -185,10 +185,10 @@ export async function syncCompanyBrain(
       await linkSessionToCompany(sessionId, companyId);
     }
 
-    console.log(`[companyBrain] Synced: company=${companyId}, contact=${contactId}, session=${sessionId}`);
+    console.log(`[agencyBrain] Synced: company=${companyId}, contact=${contactId}, session=${sessionId}`);
     return { companyId, contactId };
   } catch (err) {
-    console.error('[companyBrain] Sync failed:', err);
+    console.error('[agencyBrain] Sync failed:', err);
     return { companyId: null, contactId: null };
   }
 }
@@ -280,7 +280,7 @@ type OceanData = {
 };
 
 /**
- * Sync Ocean.io data to company brain.
+ * Sync Ocean.io data to agency brain.
  * Call this after ocean_data lands on a crawl_session.
  */
 export async function syncOceanToCompanyBrain(
@@ -339,7 +339,7 @@ export async function syncOceanToCompanyBrain(
         .eq('id', existing.id);
 
       await linkSessionToCompany(sessionId, existing.id);
-      console.log(`[companyBrain] Ocean synced to existing company=${existing.id}`);
+      console.log(`[agencyBrain] Ocean synced to existing company=${existing.id}`);
       return existing.id;
     }
 
@@ -362,15 +362,15 @@ export async function syncOceanToCompanyBrain(
       .single();
 
     if (error) {
-      console.error('[companyBrain] Failed to create company from Ocean:', error);
+      console.error('[agencyBrain] Failed to create company from Ocean:', error);
       return null;
     }
 
     await linkSessionToCompany(sessionId, newCompany.id);
-    console.log(`[companyBrain] Ocean created new company=${newCompany.id}`);
+    console.log(`[agencyBrain] Ocean created new company=${newCompany.id}`);
     return newCompany.id;
   } catch (err) {
-    console.error('[companyBrain] Ocean sync failed:', err);
+    console.error('[agencyBrain] Ocean sync failed:', err);
     return null;
   }
 }
@@ -449,7 +449,7 @@ type HubSpotData = {
 };
 
 /**
- * Sync HubSpot data to company brain tables.
+ * Sync HubSpot data to agency brain tables.
  * Call this after hubspot_data lands on a crawl_session.
  */
 export async function syncHubSpotToCompanyBrain(
@@ -504,10 +504,10 @@ export async function syncHubSpotToCompanyBrain(
       if (engId) engagementIds.push(engId);
     }
 
-    console.log(`[companyBrain] HubSpot synced: company=${companyId}, contacts=${contactIds.length}, deals=${dealIds.length}, engagements=${engagementIds.length}`);
+    console.log(`[agencyBrain] HubSpot synced: company=${companyId}, contacts=${contactIds.length}, deals=${dealIds.length}, engagements=${engagementIds.length}`);
     return { companyId, contactIds, dealIds, engagementIds };
   } catch (err) {
-    console.error('[companyBrain] HubSpot sync failed:', err);
+    console.error('[agencyBrain] HubSpot sync failed:', err);
     return { companyId: null, contactIds: [], dealIds: [], engagementIds: [] };
   }
 }
@@ -576,7 +576,7 @@ async function upsertCompanyFromHubSpot(
     .single();
 
   if (error) {
-    console.error('[companyBrain] Failed to create company from HubSpot:', error);
+    console.error('[agencyBrain] Failed to create company from HubSpot:', error);
     return null;
   }
   return newCompany.id;
@@ -626,7 +626,7 @@ async function upsertContactFromHubSpot(
     .single();
 
   if (error) {
-    console.error('[companyBrain] Failed to create contact from HubSpot:', error);
+    console.error('[agencyBrain] Failed to create contact from HubSpot:', error);
     return null;
   }
   return newContact.id;
@@ -672,7 +672,7 @@ async function upsertDealFromHubSpot(
     .single();
 
   if (error) {
-    console.error('[companyBrain] Failed to create deal from HubSpot:', error);
+    console.error('[agencyBrain] Failed to create deal from HubSpot:', error);
     return null;
   }
   return newDeal.id;
@@ -746,7 +746,7 @@ async function upsertEngagementFromHubSpot(
     .single();
 
   if (error) {
-    console.error('[companyBrain] Failed to create engagement:', error);
+    console.error('[agencyBrain] Failed to create engagement:', error);
     return null;
   }
   return newEng.id;
