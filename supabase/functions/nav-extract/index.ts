@@ -75,10 +75,62 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Truncate HTML — keep first 60k chars which should include header and footer nav
-    const truncatedHtml = html.length > 60000 ? html.substring(0, 30000) + '\n<!-- TRUNCATED -->\n' + html.substring(html.length - 30000) : html;
+    // Pre-process HTML: extract only nav-relevant elements to dramatically reduce size
+    let processedHtml = html;
 
-    const aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    // Remove script, style, SVG, and comment tags (never nav-relevant)
+    processedHtml = processedHtml.replace(/<script[\s\S]*?<\/script>/gi, '');
+    processedHtml = processedHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
+    processedHtml = processedHtml.replace(/<svg[\s\S]*?<\/svg>/gi, '');
+    processedHtml = processedHtml.replace(/<!--[\s\S]*?-->/g, '');
+
+    // Try to extract just the nav-relevant sections
+    const navSections: string[] = [];
+    // Extract <header> elements
+    const headerMatches = processedHtml.match(/<header[\s\S]*?<\/header>/gi) || [];
+    navSections.push(...headerMatches);
+    // Extract <nav> elements (may be outside header)
+    const navMatches = processedHtml.match(/<nav[\s\S]*?<\/nav>/gi) || [];
+    for (const nav of navMatches) {
+      if (!headerMatches.some(h => h.includes(nav))) navSections.push(nav);
+    }
+    // Extract <footer> elements
+    const footerMatches = processedHtml.match(/<footer[\s\S]*?<\/footer>/gi) || [];
+    navSections.push(...footerMatches);
+
+    // Use extracted sections if we found meaningful nav content, otherwise fall back to truncated full HTML
+    let truncatedHtml: string;
+    const extractedNav = navSections.join('\n');
+    if (extractedNav.length > 500 && extractedNav.includes('<a ')) {
+      truncatedHtml = extractedNav;
+      console.log(`HTML size: ${html.length} -> ${truncatedHtml.length} (extracted header/nav/footer only)`);
+    } else {
+      // Fallback: remove large non-nav sections
+      processedHtml = processedHtml.replace(/<(main|article|section)[\s\S]*?<\/\1>/gi, (match) => {
+        if (/<nav/i.test(match)) return match;
+        if (match.length < 5000) return match;
+        return '';
+      });
+      processedHtml = processedHtml.replace(/\s{2,}/g, ' ');
+      truncatedHtml = processedHtml.length > 60000
+        ? processedHtml.substring(0, 30000) + '\n<!-- TRUNCATED -->\n' + processedHtml.substring(processedHtml.length - 30000)
+        : processedHtml;
+      console.log(`HTML size: ${html.length} -> ${truncatedHtml.length} (fallback truncation)`);
+    }
+
+    // Final safety: cap at 60k
+    if (truncatedHtml.length > 60000) {
+      truncatedHtml = truncatedHtml.substring(0, 30000) + '\n<!-- TRUNCATED -->\n' + truncatedHtml.substring(truncatedHtml.length - 30000);
+    }
+
+    // Add 45s timeout on AI call so we fall back to regex sooner
+    const aiController = new AbortController();
+    const aiTimeout = setTimeout(() => aiController.abort(), 45000);
+
+    let aiResponse: Response;
+    try {
+    aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      signal: aiController.signal,
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${geminiKey}`,
@@ -206,51 +258,115 @@ Links found in the <footer> element. IMPORTANT: Only include footer links whose 
         tool_choice: { type: 'function', function: { name: 'extract_navigation' } }
       }),
     });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, errText);
-
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again in a moment.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'AI credits exhausted. Please add funds in Settings > Workspace > Usage.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI analysis failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    } catch (fetchErr: any) {
+      clearTimeout(aiTimeout);
+      console.error(`AI fetch failed (likely timeout): ${fetchErr.message}`);
+      // Fall through to regex fallback below
+      aiResponse = null as any;
     }
 
-    let aiData: any;
-    try {
-      aiData = await aiResponse.json();
-    } catch {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to parse AI response' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let aiData: any = null;
+    let aiSuccess = false;
+
+    if (aiResponse && !aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error('AI gateway error:', aiResponse.status, errText);
+      // Don't return -- fall through to regex fallback
+    } else if (aiResponse) {
+      try {
+        aiData = await aiResponse.json();
+        aiSuccess = true;
+      } catch {
+        console.error('Failed to parse AI response JSON');
+      }
+    } else {
+      console.log('AI request timed out or failed to connect');
     }
 
     const userId = getUserIdFromRequest(req);
-    const usage = extractOpenAIUsage(aiData);
-    logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash-lite', edge_function: 'nav-extract' });
+    if (aiData) {
+      const usage = extractOpenAIUsage(aiData);
+      logUsage({ ...usage, user_id: userId, provider: 'gemini', model: 'gemini-2.5-flash-lite', edge_function: 'nav-extract' });
+    }
 
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const toolCall = aiData?.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) {
-      console.error('No tool call in AI response:', JSON.stringify(aiData));
-      return new Response(
-        JSON.stringify({ success: false, error: 'AI did not return structured navigation data' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Log the full AI response to diagnose the issue
+      const msgContent = aiData?.choices?.[0]?.message?.content;
+      const finishReason = aiData?.choices?.[0]?.finish_reason;
+      if (aiData) {
+        console.error(`No tool call in AI response. finish_reason: ${finishReason}, has content: ${!!msgContent}, content preview: ${(msgContent || '').substring(0, 300)}`);
+        console.error('Full response keys:', JSON.stringify(Object.keys(aiData?.choices?.[0]?.message || {})));
+      } else {
+        console.log('No AI data available (timeout or connection error)');
+      }
+
+      // Try to parse if AI returned JSON in content instead of tool call
+      if (msgContent) {
+        try {
+          const parsed = JSON.parse(msgContent);
+          if (parsed.primary && Array.isArray(parsed.primary)) {
+            console.log('Recovered nav data from content instead of tool call');
+            // Fall through to normal processing
+            const fakeToolCall = { function: { arguments: msgContent } };
+            Object.assign(aiData, { choices: [{ ...aiData?.choices?.[0], message: { ...aiData?.choices?.[0]?.message, tool_calls: [fakeToolCall] } }] });
+          }
+        } catch {
+          // Not JSON, continue to error
+        }
+      }
+
+      // If still no tool call after recovery attempt, use regex-based fallback
+      if (!aiData?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments) {
+        console.log('AI failed, trying regex-based nav extraction fallback');
+
+        function extractLinks(htmlStr: string, baseUrl: string): { label: string; url: string | null }[] {
+          const links: { label: string; url: string | null }[] = [];
+          const seen = new Set<string>();
+          const regex = /<a[^>]*href=["']([^"'#]*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+          let match;
+          while ((match = regex.exec(htmlStr)) !== null) {
+            let href = match[1].trim();
+            let label = match[2].replace(/<[^>]*>/g, '').trim();
+            if (!label || label.length > 100 || !href) continue;
+            // Resolve relative URLs
+            if (href.startsWith('/')) href = new URL(href, baseUrl).href;
+            if (seen.has(href)) continue;
+            seen.add(href);
+            links.push({ label, url: href });
+          }
+          return links;
+        }
+
+        const headerHtml = (html.match(/<header[\s\S]*?<\/header>/gi) || []).join('\n');
+        const navHtml = (html.match(/<nav[\s\S]*?<\/nav>/gi) || []).join('\n');
+        const footerHtml = (html.match(/<footer[\s\S]*?<\/footer>/gi) || []).join('\n');
+
+        const primaryLinks = extractLinks(headerHtml || navHtml, formattedUrl);
+        const footerLinks = extractLinks(footerHtml, formattedUrl);
+        const primaryUrls = new Set(primaryLinks.map(l => l.url));
+        const dedupedFooter = footerLinks.filter(l => !primaryUrls.has(l.url));
+
+        if (primaryLinks.length > 0 || dedupedFooter.length > 0) {
+          const result = {
+            success: true,
+            primary: [{ label: 'Home', url: formattedUrl }, ...primaryLinks],
+            secondary: [],
+            footer: dedupedFooter,
+            totalLinks: primaryLinks.length + dedupedFooter.length + 1,
+            items: [{ label: 'Home', url: formattedUrl }, ...primaryLinks],
+            extractionMethod: 'regex_fallback',
+          };
+          return new Response(JSON.stringify(result), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({ success: false, error: 'AI did not return structured navigation data and regex fallback found no links' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     let navStructure: any;
