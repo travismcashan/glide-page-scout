@@ -411,7 +411,7 @@ export default function CompaniesPage() {
         const { data: batch, error: batchError } = await supabase
           .from('companies')
           .select(
-            'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, status, harvest_client_id, harvest_client_name, asana_project_gids, hubspot_company_id, last_synced_at, created_at, updated_at',
+            'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, status, harvest_client_id, harvest_client_name, asana_project_gids, hubspot_company_id, freshdesk_company_id, freshdesk_company_name, quickbooks_client_name, last_synced_at, created_at, updated_at',
           )
           .order('name')
           .range(from, from + pageSize - 1);
