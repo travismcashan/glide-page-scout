@@ -291,25 +291,35 @@ export default function CompanyDetailPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="contacts" className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" /> Contacts
+              {contacts.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{contacts.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="deals" className="flex items-center gap-1.5">
+              <DollarSign className="h-3.5 w-3.5" /> Deals
+              {deals.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{deals.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="sites" className="flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5" /> Sites
+              {sites.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{sites.length}</Badge>}
+            </TabsTrigger>
             <TabsTrigger value="knowledge" className="flex items-center gap-1.5">
               <Database className="h-3.5 w-3.5" /> Knowledge
             </TabsTrigger>
             <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="chat" className="flex items-center gap-1.5">
               <Brain className="h-3.5 w-3.5" /> Chat
-              {sites.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{sites.length} sites</Badge>}
             </TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
+          {/* Overview Tab — clean summary */}
           <TabsContent value="overview">
-            {/* Stats row */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
-              <StatCard label="Contacts" value={contacts.length} icon={<Users className="h-4 w-4" />} />
-              <StatCard label="Sites" value={sites.length} icon={<Globe className="h-4 w-4" />} />
-              <StatCard label="Deals" value={deals.length} icon={<DollarSign className="h-4 w-4" />} />
+              <button onClick={() => setActiveTab('contacts')} className="text-left"><StatCard label="Contacts" value={contacts.length} icon={<Users className="h-4 w-4" />} /></button>
+              <button onClick={() => setActiveTab('sites')} className="text-left"><StatCard label="Sites" value={sites.length} icon={<Globe className="h-4 w-4" />} /></button>
+              <button onClick={() => setActiveTab('deals')} className="text-left"><StatCard label="Deals" value={deals.length} icon={<DollarSign className="h-4 w-4" />} /></button>
               <StatCard label="Engagements" value={engagements.length} icon={<MessageSquare className="h-4 w-4" />} />
               {deals.length > 0 && (
                 <StatCard
@@ -320,156 +330,136 @@ export default function CompanyDetailPage() {
               )}
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-6">
-              {/* Contacts column */}
-              <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Users className="h-4 w-4" /> Contacts ({contacts.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {contacts.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4">No contacts yet. Enrich a contact via Apollo to add one.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {contacts.map(contact => (
-                          <div key={contact.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors">
-                            <div className="shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                              {contact.photo_url ? (
-                                <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-sm font-medium text-muted-foreground">
-                                  {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
-                                </span>
-                              )}
+            {/* Technologies */}
+            {technologies.length > 0 && (
+              <Card className="mb-6">
+                <CardHeader className="pb-3"><CardTitle className="text-base">Technologies ({technologies.length})</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-1.5">
+                    {technologies.map((tech: string) => <Badge key={tech} variant="secondary" className="text-xs">{tech}</Badge>)}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent Activity */}
+            {engagements.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Recent Activity ({engagements.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {engagements.map(eng => {
+                      const icon = { email: <Mail className="h-3.5 w-3.5" />, call: <PhoneCall className="h-3.5 w-3.5" />, meeting: <Calendar className="h-3.5 w-3.5" />, note: <StickyNote className="h-3.5 w-3.5" />, task: <CheckSquare className="h-3.5 w-3.5" /> }[eng.engagement_type] || <MessageSquare className="h-3.5 w-3.5" />;
+                      return (
+                        <div key={eng.id} className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-accent/5 transition-colors">
+                          <div className="text-muted-foreground mt-0.5 shrink-0">{icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium capitalize">{eng.engagement_type}</span>
+                              {eng.direction && <Badge variant="outline" className="text-[10px] py-0">{eng.direction}</Badge>}
+                              {eng.occurred_at && <span className="text-[10px] text-muted-foreground/60 ml-auto">{format(new Date(eng.occurred_at), 'MMM d, yyyy')}</span>}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
-                                {contact.is_primary && <Badge variant="outline" className="text-[10px] py-0">Primary</Badge>}
-                                {contact.seniority && <Badge variant="secondary" className={`text-[10px] py-0 ${SENIORITY_COLORS[contact.seniority] || ''}`}>{contact.seniority.replace('_', ' ')}</Badge>}
-                              </div>
-                              {contact.title && <p className="text-xs text-muted-foreground mt-0.5">{contact.title}</p>}
-                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
-                                {contact.email && <a href={`mailto:${contact.email}`} className="flex items-center gap-1 hover:text-foreground"><Mail className="h-3 w-3" /> {contact.email}</a>}
-                                {contact.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.phone}</span>}
-                                {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><Linkedin className="h-3 w-3" /> LinkedIn</a>}
-                              </div>
-                            </div>
+                            {eng.subject && eng.subject !== eng.engagement_type.charAt(0).toUpperCase() + eng.engagement_type.slice(1) && <p className="text-xs text-muted-foreground truncate mt-0.5">{eng.subject}</p>}
+                            {eng.body_preview && <p className="text-xs text-muted-foreground/60 line-clamp-2 mt-0.5">{eng.body_preview}</p>}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-                {/* Deals */}
-                {deals.length > 0 && (
-                  <Card className="mt-6">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> Deals ({deals.length})</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {deals.map(deal => (
-                          <div key={deal.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/50">
-                            <Briefcase className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm truncate">{deal.name}</span>
-                                <Badge variant="outline" className={deal.status === 'won' ? 'bg-green-500/15 text-green-400' : deal.status === 'lost' ? 'bg-red-500/15 text-red-400' : 'bg-blue-500/15 text-blue-400'}>{deal.status}</Badge>
-                              </div>
-                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
-                                {deal.amount != null && <span className="font-medium">${deal.amount.toLocaleString()}</span>}
-                                {deal.close_date && <span>Close: {format(new Date(deal.close_date), 'MMM d, yyyy')}</span>}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+            {company.notes && (
+              <Card className="mt-6">
+                <CardHeader className="pb-3"><CardTitle className="text-base">Notes</CardTitle></CardHeader>
+                <CardContent><p className="text-sm text-muted-foreground whitespace-pre-wrap">{company.notes}</p></CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-                {/* Engagements */}
-                {engagements.length > 0 && (
-                  <Card className="mt-6">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Recent Activity ({engagements.length})</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {engagements.map(eng => {
-                          const icon = { email: <Mail className="h-3.5 w-3.5" />, call: <PhoneCall className="h-3.5 w-3.5" />, meeting: <Calendar className="h-3.5 w-3.5" />, note: <StickyNote className="h-3.5 w-3.5" />, task: <CheckSquare className="h-3.5 w-3.5" /> }[eng.engagement_type] || <MessageSquare className="h-3.5 w-3.5" />;
-                          return (
-                            <div key={eng.id} className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-accent/5 transition-colors">
-                              <div className="text-muted-foreground mt-0.5 shrink-0">{icon}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium capitalize">{eng.engagement_type}</span>
-                                  {eng.direction && <Badge variant="outline" className="text-[10px] py-0">{eng.direction}</Badge>}
-                                  {eng.occurred_at && <span className="text-[10px] text-muted-foreground/60 ml-auto">{format(new Date(eng.occurred_at), 'MMM d, yyyy')}</span>}
-                                </div>
-                                {eng.subject && eng.subject !== eng.engagement_type.charAt(0).toUpperCase() + eng.engagement_type.slice(1) && <p className="text-xs text-muted-foreground truncate mt-0.5">{eng.subject}</p>}
-                                {eng.body_preview && <p className="text-xs text-muted-foreground/60 line-clamp-2 mt-0.5">{eng.body_preview}</p>}
-                              </div>
-                            </div>
-                          );
-                        })}
+          {/* Contacts Tab */}
+          <TabsContent value="contacts">
+            {contacts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No contacts yet. Enrich a contact via Apollo to add one.</div>
+            ) : (
+              <div className="space-y-3">
+                {contacts.map(contact => (
+                  <div key={contact.id} className="flex items-start gap-3 p-4 rounded-lg border border-border/50 hover:border-border transition-colors bg-card">
+                    <div className="shrink-0 w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                      {contact.photo_url ? (
+                        <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
+                        {contact.is_primary && <Badge variant="outline" className="text-[10px] py-0">Primary</Badge>}
+                        {contact.seniority && <Badge variant="secondary" className={`text-[10px] py-0 ${SENIORITY_COLORS[contact.seniority] || ''}`}>{contact.seniority.replace('_', ' ')}</Badge>}
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Technologies */}
-                {technologies.length > 0 && (
-                  <Card className="mt-6">
-                    <CardHeader className="pb-3"><CardTitle className="text-base">Technologies ({technologies.length})</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-1.5">
-                        {technologies.map((tech: string) => <Badge key={tech} variant="secondary" className="text-xs">{tech}</Badge>)}
+                      {contact.title && <p className="text-sm text-muted-foreground mt-0.5">{contact.title}</p>}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                        {contact.email && <a href={`mailto:${contact.email}`} className="flex items-center gap-1 hover:text-foreground"><Mail className="h-3.5 w-3.5" /> {contact.email}</a>}
+                        {contact.phone && <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {contact.phone}</span>}
+                        {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><Linkedin className="h-3.5 w-3.5" /> LinkedIn</a>}
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+          </TabsContent>
 
-              {/* Sites column */}
-              <div>
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" /> Sites ({sites.length})</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {sites.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4">No sites linked to this company yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {sites.map(site => (
-                          <button key={site.id} onClick={() => navigate(buildSitePath(site.domain, site.created_at, 'raw-data'))} className="w-full text-left p-3 rounded-lg border border-border/50 hover:border-border hover:bg-accent/5 transition-all group flex items-center gap-3">
-                            <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{site.domain}</p>
-                              <p className="text-xs text-muted-foreground">{format(new Date(site.created_at), 'MMM d, yyyy')} &middot; {site.status}</p>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 shrink-0" />
-                          </button>
-                        ))}
+          {/* Deals Tab */}
+          <TabsContent value="deals">
+            {deals.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No deals yet. Deals sync automatically from HubSpot.</div>
+            ) : (
+              <div className="space-y-3">
+                {deals.map(deal => (
+                  <div key={deal.id} className="flex items-start gap-4 p-4 rounded-lg border border-border/50 bg-card">
+                    <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold truncate">{deal.name}</span>
+                        <Badge variant="outline" className={deal.status === 'won' ? 'bg-green-500/15 text-green-400' : deal.status === 'lost' ? 'bg-red-500/15 text-red-400' : 'bg-blue-500/15 text-blue-400'}>{deal.status}</Badge>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {company.notes && (
-                  <Card className="mt-6">
-                    <CardHeader className="pb-3"><CardTitle className="text-base">Notes</CardTitle></CardHeader>
-                    <CardContent><p className="text-sm text-muted-foreground whitespace-pre-wrap">{company.notes}</p></CardContent>
-                  </Card>
-                )}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                        {deal.amount != null && <span className="font-semibold text-foreground">${deal.amount.toLocaleString()}</span>}
+                        {deal.close_date && <span>Close: {format(new Date(deal.close_date), 'MMM d, yyyy')}</span>}
+                        {deal.pipeline && <span>Pipeline: {deal.pipeline}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
+          </TabsContent>
+
+          {/* Sites Tab */}
+          <TabsContent value="sites">
+            {sites.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No sites linked to this company yet. Analyze a site to link it.</div>
+            ) : (
+              <div className="space-y-3">
+                {sites.map(site => (
+                  <button key={site.id} onClick={() => navigate(buildSitePath(site.domain, site.created_at, 'raw-data'))} className="w-full text-left p-4 rounded-lg border border-border/50 hover:border-border hover:bg-accent/5 transition-all group flex items-center gap-4 bg-card">
+                    <Globe className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold">{site.domain}</p>
+                      <p className="text-sm text-muted-foreground">{format(new Date(site.created_at), 'MMM d, yyyy')} &middot; {site.status}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-foreground/50 shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Knowledge Tab */}
