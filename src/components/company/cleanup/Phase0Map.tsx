@@ -575,18 +575,44 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center py-2">
-                      {count < 3 && bestScore >= 0.75 && (
-                        <Button
-                          size="sm" variant="outline" className="h-7 text-xs gap-1"
-                          onClick={() => lockMapping(c.id)}
-                        >
-                          <Lock className="h-3 w-3" />
-                          Lock
-                        </Button>
-                      )}
-                      {count === 3 && (
-                        <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
-                      )}
+                      {(() => {
+                        const isLocked = localLocks.has(c.id);
+                        const hasMatches = bestScore >= 0.75;
+                        if (isLocked) {
+                          return (
+                            <Button
+                              size="sm" variant="outline"
+                              className="h-7 text-xs gap-1 text-green-600 border-green-500/30 bg-green-500/10 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+                              onClick={() => {
+                                // Unlock all sources for this company
+                                setLocalLocks(prev => { const next = new Map(prev); next.delete(c.id); return next; });
+                              }}
+                            >
+                              <Lock className="h-3 w-3" />
+                              Locked
+                            </Button>
+                          );
+                        }
+                        if (count === 3) {
+                          return (
+                            <span className="text-xs text-green-600 flex items-center justify-center gap-1">
+                              <Lock className="h-3 w-3" /> Saved
+                            </span>
+                          );
+                        }
+                        if (hasMatches) {
+                          return (
+                            <Button
+                              size="sm" variant="outline" className="h-7 text-xs gap-1"
+                              onClick={() => lockMapping(c.id)}
+                            >
+                              <Lock className="h-3 w-3" />
+                              Lock
+                            </Button>
+                          );
+                        }
+                        return null;
+                      })()}
                     </TableCell>
                   </TableRow>
                 );
