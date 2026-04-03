@@ -21,6 +21,8 @@ import { MONTH_NAMES } from "@/data/offerings";
 interface RoadmapTabProps {
   sessionId: string;
   domain?: string;
+  companyId?: string;
+  companyName?: string;
 }
 
 function isRecurringOffering(offering: Offering): boolean {
@@ -33,7 +35,7 @@ function isRecurringOffering(offering: Offering): boolean {
   );
 }
 
-export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
+export default function RoadmapTab({ sessionId, domain, companyId, companyName }: RoadmapTabProps) {
   const { user } = useAuth();
   const { offerings, loading: offeringsLoading } = useServiceOfferings();
   const [roadmapId, setRoadmapId] = useState<string | null>(null);
@@ -82,13 +84,14 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
       let roadmap = existing as any;
 
       if (!roadmap) {
-        // Create one, defaulting client_name to domain
-        const defaultName = domain
-          ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "")
-          : "Client";
+        // Create one, defaulting client_name to company name or domain
+        const defaultName = companyName
+          || (domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "Client");
+        const insertData: any = { session_id: sessionId, user_id: user?.id ?? null, client_name: defaultName, start_month: new Date().getMonth(), total_months: 12 };
+        if (companyId) insertData.company_id = companyId;
         const { data: created } = await supabase
           .from("roadmaps" as any)
-          .insert({ session_id: sessionId, user_id: user?.id ?? null, client_name: defaultName, start_month: new Date().getMonth(), total_months: 12 })
+          .insert(insertData)
           .select()
           .single();
         roadmap = created as any;
