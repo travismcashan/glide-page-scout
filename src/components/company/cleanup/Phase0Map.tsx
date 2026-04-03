@@ -66,7 +66,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   const [confidenceMin, setConfidenceMin] = useState<number>(0);
   // Track user overrides: companyId -> { hubspot?: id, harvest?: id, freshdesk?: id }
   const [overrides, setOverrides] = useState<Map<string, Record<string, string>>>(new Map());
-  // Local lock state so we don't need to refetch after each lock
+  // Rows explicitly locked by clicking Lock button (visual state only)
+  const [lockedRows, setLockedRows] = useState<Set<string>>(new Set());
+  // Local changes to save (dropdown changes + locks)
   const [localLocks, setLocalLocks] = useState<Map<string, { hubspot_company_id?: string; harvest_client_id?: string; harvest_client_name?: string; freshdesk_company_id?: string; freshdesk_company_name?: string; domain?: string }>>(new Map());
 
   useEffect(() => {
@@ -284,6 +286,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     const updates = buildUpdates(companyId);
     if (Object.keys(updates).length === 0) return;
     setLocalLocks(prev => new Map(prev).set(companyId, { ...(prev.get(companyId) || {}), ...updates }));
+    setLockedRows(prev => new Set(prev).add(companyId));
   };
 
   // Unlock a specific source (local)
@@ -299,19 +302,36 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   const bulkLock = () => {
     if (selected.size === 0) return;
     let locked = 0;
+    const newLocked = new Set(lockedRows);
     setLocalLocks(prev => {
       const next = new Map(prev);
       for (const id of selected) {
         const updates = buildUpdates(id);
         if (Object.keys(updates).length === 0) continue;
         next.set(id, { ...(prev.get(id) || {}), ...updates });
+        newLocked.add(id);
         locked++;
       }
       return next;
     });
+    setLockedRows(newLocked);
     toast.success(`Locked ${locked} companies. Click Save to commit.`);
     setSelected(new Set());
   };
+
+  // Track which source IDs are already claimed (locked or saved) — prevent double-mapping
+  const claimedIds = useMemo(() => {
+    const hs = new Set<string>();
+    const hv = new Set<string>();
+    const fd = new Set<string>();
+    for (const c of companies) {
+      const eff = getEffective(c);
+      if (eff.hubspot_company_id) hs.add(eff.hubspot_company_id);
+      if (eff.harvest_client_id) hv.add(eff.harvest_client_id);
+      if (eff.freshdesk_company_id) fd.add(eff.freshdesk_company_id);
+    }
+    return { hubspot: hs, harvest: hv, freshdesk: fd };
+  }, [companies, localLocks]);
 
   // Mark for deletion (local)
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
@@ -385,8 +405,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     }
 
     const matches = allMatches.get(company.id);
-    const candidates = matches?.[source] || [];
-    const allSourceRecords = sourceData?.[source] || [];
+    const claimed = claimedIds[source];
+    // Filter out IDs already claimed by other companies (allow current company's own selection)
+    const currentId = source === 'hubspot' ? getEffective(company).hubspot_company_id
+      : source === 'harvest' ? getEffective(company).harvest_client_id
+      : getEffective(company).freshdesk_company_id;
+    const candidates = (matches?.[source] || []).filter(c => !claimed.has(c.id) || c.id === currentId);
+    const allSourceRecords = (sourceData?.[source] || []).filter(r => !claimed.has(r.id) || r.id === currentId);
 
     const override = overrides.get(company.id)?.[source];
     const selectedId = override || (candidates.length > 0 ? candidates[0]?.id : '__none__');
@@ -403,7 +428,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         next.set(company.id, { ...existing, [source]: id });
         return next;
       });
-      // Track as unsaved change
+      // Track change for Save (but don't visually lock the row)
       const isNone = id === '__none__' || !id;
       const record = isNone ? null : (candidates.find(c => c.id === id) || allSourceRecords.find(r => r.id === id));
       const lockUpdate: any = {};
@@ -642,7 +667,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 ) : 0;
 
                 return (
-                  <TableRow key={c.id} className={pendingDeletes.has(c.id) ? 'bg-red-500/10 opacity-50 line-through' : selected.has(c.id) ? 'bg-primary/5' : localLocks.has(c.id) ? 'bg-blue-500/5' : count === 3 ? 'bg-green-500/5' : bestScore >= 0.9 ? 'bg-amber-500/5' : ''}>
+                  <TableRow key={c.id} className={pendingDeletes.has(c.id) ? 'bg-red-500/10 opacity-50 line-through' : selected.has(c.id) ? 'bg-primary/5' : lockedRows.has(c.id) ? 'bg-green-500/5' : localLocks.has(c.id) ? 'bg-blue-500/5' : count === 3 ? 'bg-green-500/5' : bestScore >= 0.9 ? 'bg-amber-500/5' : ''}>
                     <TableCell className="py-2">
                       <Checkbox
                         checked={selected.has(c.id)}
@@ -680,7 +705,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     </TableCell>
                     <TableCell className="py-2">
                       {(() => {
-                        const isLocked = localLocks.has(c.id);
+                        const isLocked = lockedRows.has(c.id);
                         const m = allMatches.get(c.id);
                         const foundCount = m ? (m.hubspot.length > 0 ? 1 : 0) + (m.harvest.length > 0 ? 1 : 0) + (m.freshdesk.length > 0 ? 1 : 0) : 0;
                         if (isLocked) {
@@ -699,14 +724,14 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     </TableCell>
                     <TableCell className="py-2">
                       {(() => {
-                        const isLocked = localLocks.has(c.id);
+                        const isLocked = lockedRows.has(c.id);
                         const hasMatches = bestScore >= 0.75;
                         if (isLocked) {
                           return (
                             <Button
                               size="sm" variant="outline"
                               className="h-7 text-xs gap-1 text-green-600 border-green-500/30 bg-green-500/10 hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/30"
-                              onClick={() => setLocalLocks(prev => { const next = new Map(prev); next.delete(c.id); return next; })}
+                              onClick={() => { setLockedRows(prev => { const next = new Set(prev); next.delete(c.id); return next; }); setLocalLocks(prev => { const next = new Map(prev); next.delete(c.id); return next; }); }}
                             >
                               <Lock className="h-3 w-3" />
                               Locked
