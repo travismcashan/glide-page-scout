@@ -62,6 +62,12 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
   const [driveIngesting, setDriveIngesting] = useState<Set<string>>(new Set());
   const [driveIngested, setDriveIngested] = useState<Set<string>>(new Set());
 
+  // Slack state
+  const [slackSearching, setSlackSearching] = useState(false);
+  const [slackResults, setSlackResults] = useState<{ id: string; text: string; username: string; channel: string; date: string | null; permalink: string }[]>([]);
+  const [slackIngesting, setSlackIngesting] = useState(false);
+  const [slackIngested, setSlackIngested] = useState(false);
+
   const sessionIds = sites.map(s => s.id);
 
   const fetchDocuments = useCallback(async () => {
@@ -206,6 +212,84 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
     setDriveIngesting(prev => { const n = new Set(prev); n.delete(file.id); return n; });
   };
 
+  // Slack: search for messages about company
+  const handleSlackSearch = async () => {
+    setSlackSearching(true);
+    setSlackResults([]);
+    setSlackIngested(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('slack-search', {
+        body: { query: companyName, count: 30 },
+      });
+      if (error) throw error;
+      if (data?.error === 'slack_auth_required') {
+        toast.error('Slack is not connected. Go to Connections to set it up.');
+        setSlackSearching(false);
+        return;
+      }
+      if (data?.error) throw new Error(data.error);
+      setSlackResults(data?.messages || []);
+      if (!data?.messages?.length) toast.info('No Slack messages found for this company.');
+      else toast.success(`Found ${data.messages.length} Slack messages (${data.total} total)`);
+    } catch (err) {
+      console.error('[knowledge] Slack search failed:', err);
+      toast.error('Slack search failed. Check your connection in Settings.');
+    }
+    setSlackSearching(false);
+  };
+
+  // Slack: ingest all results as one knowledge document
+  const handleSlackIngest = async () => {
+    if (!sessionIds[0] || slackResults.length === 0) return;
+    setSlackIngesting(true);
+    try {
+      const content = slackResults.map(msg => {
+        const date = msg.date ? new Date(msg.date).toLocaleString() : '';
+        return `[${date}] #${msg.channel} @${msg.username}: ${msg.text}`;
+      }).join('\n\n');
+
+      const targetSessionId = sessionIds[0];
+      const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
+
+      const { data: doc } = await supabase
+        .from('knowledge_documents')
+        .insert({
+          session_id: targetSessionId,
+          name: `Slack: ${companyName} messages (${slackResults.length})`,
+          source_type: 'slack',
+          source_key: `slack:${companyName}:${Date.now()}`,
+          status: 'pending',
+          chunk_count: 0,
+          char_count: content.length,
+        })
+        .select('id')
+        .single();
+
+      if (!doc) throw new Error('Failed to create document record');
+
+      await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          session_id: targetSessionId,
+          documents: [{ document_id: doc.id, content: content.slice(0, 30_000) }],
+        }),
+      });
+
+      setSlackIngested(true);
+      toast.success(`Indexed ${slackResults.length} Slack messages`);
+      fetchDocuments();
+    } catch (err) {
+      console.error('[knowledge] Slack ingest failed:', err);
+      toast.error('Failed to index Slack messages');
+    }
+    setSlackIngesting(false);
+  };
+
   // Group documents by site
   const docsBySite = new Map<string, KnowledgeDoc[]>();
   for (const doc of documents) {
@@ -325,12 +409,44 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
             <div className="flex items-center gap-2 mb-2">
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Slack</span>
-              <Badge variant="secondary" className="text-[10px] py-0">Coming Soon</Badge>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">Search Slack for messages about "{companyName}" and index key threads.</p>
-            <Button disabled variant="outline" size="sm" className="w-full gap-2 opacity-50">
-              <Search className="h-3.5 w-3.5" /> Search Slack
+            <p className="text-xs text-muted-foreground mb-3">Search Slack for messages about "{companyName}" and index them.</p>
+            <Button onClick={handleSlackSearch} disabled={slackSearching} variant="outline" size="sm" className="w-full gap-2">
+              {slackSearching ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...</> : <><Search className="h-3.5 w-3.5" /> Search Slack</>}
             </Button>
+            {slackResults.length > 0 && (
+              <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
+                {slackResults.slice(0, 10).map((msg, i) => (
+                  <div key={msg.id || i} className="text-xs p-1.5 rounded bg-muted/30">
+                    <div className="flex items-center gap-1 text-muted-foreground mb-0.5">
+                      <span className="font-medium">#{msg.channel}</span>
+                      <span>&middot;</span>
+                      <span>@{msg.username}</span>
+                      {msg.date && <span className="ml-auto text-[10px]">{new Date(msg.date).toLocaleDateString()}</span>}
+                    </div>
+                    <p className="line-clamp-2">{msg.text}</p>
+                  </div>
+                ))}
+                {slackResults.length > 10 && (
+                  <p className="text-[10px] text-muted-foreground text-center">+ {slackResults.length - 10} more messages</p>
+                )}
+                {slackIngested ? (
+                  <div className="flex items-center justify-center gap-1 text-xs text-green-400 mt-2">
+                    <CheckCircle className="h-3.5 w-3.5" /> Indexed
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleSlackIngest}
+                    disabled={slackIngesting}
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2 text-xs"
+                  >
+                    {slackIngesting ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Indexing...</> : `Index All ${slackResults.length} Messages`}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Card>

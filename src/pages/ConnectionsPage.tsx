@@ -4,11 +4,12 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, MessageSquare, Eye, Zap, Key } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
+const SLACK_OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/slack-oauth-exchange`;
 const EMAIL_SCOPE = 'email profile';
 const GMAIL_SCOPE = `https://www.googleapis.com/auth/gmail.readonly ${EMAIL_SCOPE}`;
 const DRIVE_SCOPES = `https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file ${EMAIL_SCOPE}`;
@@ -432,6 +433,60 @@ export default function ConnectionsPage() {
   const gmailConnection = connections.find(c => c.provider === 'gmail');
   const driveConnection = connections.find(c => c.provider === 'google-drive');
   const notebooklmConnection = connections.find(c => c.provider === 'google-notebooklm');
+  const slackConnection = connections.find(c => c.provider === 'slack');
+
+  // Slack OAuth uses a redirect flow (not Google's inline code client)
+  const connectSlack = async () => {
+    setConnectingProvider('slack');
+    try {
+      const configRes = await fetch(SLACK_OAUTH_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ action: 'get-config' }),
+      });
+      const { clientId, error } = await configRes.json();
+      if (!clientId) throw new Error(error || 'SLACK_CLIENT_ID not configured');
+
+      const redirectUri = `${window.location.origin}/connections`;
+      const scopes = 'search:read,channels:read,users:read';
+      const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+      // Open popup
+      const popup = window.open(slackAuthUrl, 'slack-oauth', 'width=600,height=700');
+      if (!popup) throw new Error('Popup blocked');
+
+      // Poll for the code in the popup URL
+      const pollInterval = setInterval(async () => {
+        try {
+          if (popup.closed) { clearInterval(pollInterval); setConnectingProvider(null); return; }
+          const popupUrl = popup.location.href;
+          if (popupUrl.includes('code=')) {
+            clearInterval(pollInterval);
+            popup.close();
+            const url = new URL(popupUrl);
+            const code = url.searchParams.get('code');
+            if (!code) throw new Error('No code received');
+
+            const exchangeRes = await fetch(SLACK_OAUTH_URL, {
+              method: 'POST',
+              headers: apiHeaders,
+              body: JSON.stringify({ action: 'exchange', code, redirectUri }),
+            });
+            const result = await exchangeRes.json();
+            if (!exchangeRes.ok || !result.success) throw new Error(result.error || 'Exchange failed');
+
+            await fetchConnections();
+          }
+        } catch (e) {
+          // Cross-origin errors are expected until redirect completes
+        }
+      }, 500);
+    } catch (err: any) {
+      console.error('Slack connect error:', err);
+    } finally {
+      setConnectingProvider(null);
+    }
+  };
   const ga4Connection = connections.find(c => c.provider === 'google-analytics');
   const gscConnection = connections.find(c => c.provider === 'google-search-console');
 
@@ -471,11 +526,28 @@ export default function ConnectionsPage() {
       connection: notebooklmConnection,
       hasPropertyPicker: false,
     },
+    {
+      id: 'slack',
+      name: 'Slack',
+      scope: 'search:read,channels:read,users:read',
+      icon: MessageSquare,
+      iconBg: 'bg-purple-500/10',
+      iconColor: 'text-purple-600',
+      description: 'Search Slack messages about companies and index them into the knowledge base',
+      connection: slackConnection,
+      hasPropertyPicker: false,
+    },
   ];
+
+  // Wrap connectProvider to route Slack through its own OAuth flow
+  const connectProviderRouted = async (provider: string, scope: string) => {
+    if (provider === 'slack') { connectSlack(); return; }
+    connectProvider(provider, scope);
+  };
 
   const rowProps = {
     connectingProvider, disconnecting, pickerProvider, pickerProperties,
-    pickerLoading, savingProperty, connectProvider, loadProperties,
+    pickerLoading, savingProperty, connectProvider: connectProviderRouted, loadProperties,
     saveProperty, disconnectConnection, setPickerProvider,
   };
 
