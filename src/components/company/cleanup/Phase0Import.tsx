@@ -372,11 +372,12 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
 
           // Unify columns that map to the same field across files.
           // e.g. "Memo" (file1) and "Memo/Description" (file2) both map to 'memo'
-          // Copy values between them so both columns show data.
+          // Build mappings directly from each file's auto-mapped columns (not React state)
           const fieldToColumns = new Map<string, string[]>();
-          const FIELDS = ['clientName', 'num', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const;
-          for (const [, fm] of fileMappings) {
-            for (const field of FIELDS) {
+          const FIELDS_LIST = ['clientName', 'num', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const;
+          for (const f of next) {
+            const fm = autoMapColumns(f.headers);
+            for (const field of FIELDS_LIST) {
               const col = (fm as any)[field];
               if (col) {
                 if (!fieldToColumns.has(field)) fieldToColumns.set(field, []);
