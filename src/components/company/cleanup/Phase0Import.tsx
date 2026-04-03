@@ -20,6 +20,7 @@ type ParsedRow = Record<string, string>;
 
 type ColumnMapping = {
   clientName: string;
+  num?: string;
   invoiceTotal?: string;
   invoiceCount?: string;
   date?: string;
@@ -50,6 +51,7 @@ type MatchedQBClient = {
 
 const AUTO_MAP_HINTS: Record<keyof ColumnMapping, string[]> = {
   clientName: ['client name', 'customer', 'client', 'company', 'name', 'customer name', 'company name'],
+  num: ['num', 'number', 'invoice number', 'invoice #', 'invoice no', 'doc number', 'ref'],
   invoiceTotal: ['income', 'total', 'revenue', 'sum', 'invoice total', 'total amount', 'net income'],
   invoiceCount: ['count', 'invoices', 'qty', 'quantity', 'invoice count', 'num invoices', 'number'],
   date: ['date', 'invoice date', 'transaction date', 'created'],
@@ -294,8 +296,13 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
         // This joins Transaction List and Sales by Client Detail on invoice number within each client.
         // Rows without a Num get kept as-is (tagged with source).
         const clientCol = 'Client Name';
-        const numCol = 'Num';
-        const hasNum = next.some(f => f.headers.includes(numCol));
+        // Find the Num column name from any file's mapping, or fall back to 'Num'
+        let numCol = 'Num';
+        for (const [, fm] of fileMappings) {
+          if (fm.num) { numCol = fm.num; break; }
+        }
+        // Also check if any file has a 'Num' header directly
+        const hasNum = next.some(f => f.headers.includes(numCol) || f.headers.includes('Num'));
 
         let allRows: ParsedRow[];
 
@@ -307,7 +314,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
           for (const f of next) {
             for (const row of f.rows) {
               const client = row[clientCol] || '';
-              const num = row[numCol] || '';
+              const num = row[numCol] || row['Num'] || '';
 
               if (client && num) {
                 const key = `${client}|${num}`;
@@ -571,9 +578,9 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             });
           };
 
-          const FIELDS = ['clientName', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const;
+          const FIELDS = ['clientName', 'num', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const;
           const LABELS: Record<string, string> = {
-            clientName: 'Client Name *', invoiceTotal: 'Invoice Total', invoiceCount: 'Invoice Count',
+            clientName: 'Client Name *', num: 'Invoice / Ref # (merge key)', invoiceTotal: 'Invoice Total', invoiceCount: 'Invoice Count',
             date: 'Date', transactionType: 'Transaction Type', memo: 'Memo / Description',
             amount: 'Amount', productService: 'Product / Service', salesPrice: 'Sales Price',
           };
@@ -667,7 +674,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                       const mapped = visibleHeaders.filter(h => Object.values(mapping).includes(h));
                       const unmapped = visibleHeaders.filter(h => !Object.values(mapping).includes(h));
                       return [...mapped, ...unmapped].map(h => (
-                        <TableHead key={h} className={`text-xs whitespace-nowrap ${mapped.includes(h) ? 'bg-green-500/10 text-green-700 font-semibold' : 'text-muted-foreground'}`}>{h}</TableHead>
+                        <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
                       ));
                     })()}
                   </TableRow>
@@ -690,7 +697,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                     return sampled.map((row, ri) => (
                       <TableRow key={ri}>
                         {orderedCols.map(h => (
-                          <TableCell key={h} className={`text-xs py-2 max-w-[250px] truncate ${mapped.includes(h) ? 'bg-green-500/5 font-medium' : 'text-muted-foreground'}`}>{row[h]}</TableCell>
+                          <TableCell key={h} className="text-xs py-2 max-w-[250px] truncate">{row[h]}</TableCell>
                         ))}
                       </TableRow>
                     ));
@@ -707,13 +714,14 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             Preview — sampled rows per file, mapped columns highlighted
           </p>
           {uploadedFiles.map((file, fi) => {
-            const mappedKeys = Object.values(mapping).filter(v => v && v !== '__none__') as string[];
-            const clientCol = mapping.clientName;
-            // Filter to meaningful rows from this file
-            const fileRows = rawData.filter(r => r['__source__'] === file.name);
+            const fm = fileMappings.get(file.name) || { clientName: '' };
+            const fmKeys = Object.values(fm).filter(v => v && v !== '__none__') as string[];
+            const clientCol = fm.clientName || mapping.clientName;
+            // Filter to rows from this file (including merged rows that contain this file)
+            const fileRows = rawData.filter(r => (r['__source__'] || '').includes(file.name));
             const meaningful = fileRows.filter(row => {
               if (!clientCol || !row[clientCol]) return false;
-              const otherMapped = mappedKeys.filter(k => k !== clientCol && row[k]);
+              const otherMapped = fmKeys.filter(k => k !== clientCol && row[k]);
               return otherMapped.length > 0;
             });
             const source = meaningful.length > 0 ? meaningful : fileRows;
@@ -723,10 +731,11 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             for (let i = 0; i < source.length && sampled.length < pc; i += step) {
               sampled.push(source[i]);
             }
-            // Only show columns that this file actually has data for
+            // Only show columns that this file actually has, highlight ones mapped in THIS file's mapping
             const fileCols = file.headers.filter(h => h);
-            const mapped = fileCols.filter(h => Object.values(mapping).includes(h));
-            const unmapped = fileCols.filter(h => !Object.values(mapping).includes(h));
+            const fileMappedValues = Object.values(fm).filter(Boolean) as string[];
+            const mapped = fileCols.filter(h => fileMappedValues.includes(h));
+            const unmapped = fileCols.filter(h => !fileMappedValues.includes(h));
             const orderedCols = [...mapped, ...unmapped];
 
             return (
@@ -757,7 +766,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                         {orderedCols.map(h => {
                           const isMapped = mapped.includes(h);
                           return (
-                            <TableHead key={h} className={`text-xs whitespace-nowrap ${isMapped ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground'}`}>{h}</TableHead>
+                            <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
                           );
                         })}
                       </TableRow>
@@ -768,7 +777,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                           {orderedCols.map(h => {
                             const isMapped = mapped.includes(h);
                             return (
-                              <TableCell key={h} className={`text-xs py-2 max-w-[250px] truncate ${isMapped ? 'bg-primary/5 font-medium' : 'text-muted-foreground'}`}>{row[h]}</TableCell>
+                              <TableCell key={h} className="text-xs py-2 max-w-[250px] truncate">{row[h]}</TableCell>
                             );
                           })}
                         </TableRow>
