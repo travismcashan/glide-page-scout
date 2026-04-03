@@ -319,12 +319,15 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     if (lockedId) {
       return (
         <button
-          className="flex items-center gap-1 group cursor-pointer hover:opacity-70 transition-opacity"
+          className="flex flex-col group cursor-pointer hover:opacity-70 transition-opacity"
           onClick={() => unlockSource(company.id, source)}
           title="Click to unlock"
         >
-          <Lock className="h-3 w-3 text-green-600 shrink-0 group-hover:text-amber-500" />
-          <span className="text-xs text-green-700 truncate max-w-[140px] group-hover:text-amber-600">{lockedName || lockedId}</span>
+          <div className="flex items-center gap-1">
+            <Lock className="h-3 w-3 text-green-600 shrink-0 group-hover:text-amber-500" />
+            <span className="text-xs text-green-700 truncate max-w-[160px] group-hover:text-amber-600">{lockedName || lockedId}</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground/60 truncate max-w-[160px]">ID: {lockedId}</span>
         </button>
       );
     }
