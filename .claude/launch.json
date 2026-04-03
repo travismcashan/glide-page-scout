@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "vite-dev",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite"],
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["/Users/travismcashan/glide-page-scout/node_modules/.bin/vite"],
       "port": 8080
     }
   ]
