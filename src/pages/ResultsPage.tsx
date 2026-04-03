@@ -244,6 +244,8 @@ export default function ResultsPage() {
   const [session, setSession] = useState<CrawlSession | null>(null);
   const [integrationRunStatuses, setIntegrationRunStatuses] = useState<Record<string, string>>({});
   const [pages, setPages] = useState<CrawlPage[]>([]);
+  const [hasMorePages, setHasMorePages] = useState(false);
+  const [loadingMorePages, setLoadingMorePages] = useState(false);
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const [processingPages, setProcessingPages] = useState<Set<string>>(new Set());
   const [generatingOutline, setGeneratingOutline] = useState<Set<string>>(new Set());
@@ -452,11 +454,33 @@ export default function ResultsPage() {
     await toggleIntegrationPause(key);
     setPauseVersion(v => v + 1);
   }, []);
+  // Selective columns for crawl_sessions — excludes unused heavy JSONB:
+  // wappalyzer_data, observations_data, gmail_data
+  const SESSION_COLUMNS = [
+    'id', 'domain', 'base_url', 'status', 'created_at', 'updated_at',
+    'builtwith_data', 'semrush_data', 'psi_data', 'detectzestack_data',
+    'carbon_data', 'crux_data', 'wave_data', 'observatory_data',
+    'ocean_data', 'ssllabs_data', 'httpstatus_data', 'linkcheck_data',
+    'w3c_data', 'schema_data', 'readable_data', 'yellowlab_data',
+    'deep_research_data', 'avoma_data', 'apollo_data', 'apollo_team_data',
+    'hubspot_data', 'ga4_data', 'search_console_data',
+    'nav_structure', 'discovered_urls', 'content_types_data',
+    'page_tags', 'sitemap_data', 'forms_data', 'forms_tiers',
+    'template_tiers', 'tech_analysis_data',
+    'gtmetrix_grade', 'gtmetrix_scores', 'gtmetrix_test_id',
+    'prospect_domain', 'lookback_days', 'company_id',
+    'integration_durations', 'integration_timestamps',
+  ].join(',');
+
+  // Selective columns for crawl_pages — excludes unused gtmetrix columns
+  const PAGE_COLUMNS = 'id,session_id,url,title,raw_content,ai_outline,screenshot_url,status,created_at';
+  const PAGE_LIMIT = 500;
+
   const fetchData = useCallback(async () => {
     if (!sessionId) return;
     const [sessionRes, pagesRes, runsRes] = await Promise.all([
-      supabase.from('crawl_sessions').select('*').eq('id', sessionId).single(),
-      supabase.from('crawl_pages').select('*').eq('session_id', sessionId),
+      supabase.from('crawl_sessions').select(SESSION_COLUMNS).eq('id', sessionId).single(),
+      supabase.from('crawl_pages').select(PAGE_COLUMNS).eq('session_id', sessionId).order('created_at', { ascending: true }).limit(PAGE_LIMIT),
       supabase.from('integration_runs').select('integration_key, status').eq('session_id', sessionId),
     ]);
     // Store integration_runs statuses for server-completed sessions
@@ -514,12 +538,30 @@ export default function ResultsPage() {
     }
     if (pagesRes.data) {
       setPages(pagesRes.data as unknown as CrawlPage[]);
+      setHasMorePages(pagesRes.data.length >= PAGE_LIMIT);
       if (pagesRes.data.length > 0 && expandedPages.size === 0) {
         setExpandedPages(new Set([pagesRes.data[0].id]));
       }
     }
     setLoading(false);
   }, [sessionId]);
+
+  // Load remaining pages beyond the initial PAGE_LIMIT
+  const loadMorePages = useCallback(async () => {
+    if (!sessionId || loadingMorePages) return;
+    setLoadingMorePages(true);
+    const { data } = await supabase
+      .from('crawl_pages')
+      .select(PAGE_COLUMNS)
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true })
+      .range(pages.length, pages.length + PAGE_LIMIT - 1);
+    if (data) {
+      setPages(prev => [...prev, ...(data as unknown as CrawlPage[])]);
+      setHasMorePages(data.length >= PAGE_LIMIT);
+    }
+    setLoadingMorePages(false);
+  }, [sessionId, pages.length, loadingMorePages]);
 
   // Direct session state merge — avoids re-fetching the entire row from DB
   const updateSession = useCallback((partial: Partial<CrawlSession>) => {
@@ -2672,6 +2714,7 @@ export default function ResultsPage() {
               )}
 
               {session && shouldShowIntegration('content', pages.length > 0, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
+                <>
                 <ContentSectionCard
                   pages={pages}
                   sessionId={session.id}
@@ -2686,6 +2729,14 @@ export default function ResultsPage() {
                   generatingOutline={generatingOutline}
                   collapsed={allCollapsed}
                 />
+                {hasMorePages && (
+                  <div className="flex justify-center py-3">
+                    <Button variant="outline" size="sm" onClick={loadMorePages} disabled={loadingMorePages}>
+                      {loadingMorePages ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Loading...</> : <>Load More Pages ({pages.length} loaded)</>}
+                    </Button>
+                  </div>
+                )}
+                </>
               )}
 
               {shouldShowIntegration('readable', !!(session as any)?.readable_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (

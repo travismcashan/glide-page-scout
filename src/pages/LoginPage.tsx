@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
 
   // If already signed in, redirect to home
   if (!loading && user) {
@@ -36,27 +35,11 @@ export default function LoginPage() {
     if (!email || !password) return;
     setIsSubmitting(true);
 
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        toast.error(error.message);
-      } else {
-        // Auto sign-in after sign up
-        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-        if (loginError) {
-          toast.error(loginError.message);
-        } else {
-          toast.success('Account created!');
-          navigate('/');
-        }
-      }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      toast.error(error.message);
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        toast.error(error.message);
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     }
 
     setIsSubmitting(false);
@@ -129,17 +112,9 @@ export default function LoginPage() {
             className="w-full h-12 text-base"
             disabled={isSubmitting || !email || !password}
           >
-            {isSubmitting ? (isSignUp ? 'Creating account...' : 'Signing in...') : (isSignUp ? 'Create Account' : 'Sign in with Email')}
+            {isSubmitting ? 'Signing in...' : 'Sign in with Email'}
           </Button>
         </form>
-
-        <button
-          type="button"
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-        </button>
 
         <p className="text-xs text-muted-foreground">
           By continuing, you agree to our terms of service.
