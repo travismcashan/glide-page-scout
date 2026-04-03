@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractOrchestration } from "../_shared/orchestration.ts";
 
 const corsHeaders = {
@@ -49,10 +50,16 @@ function extractMeeting(meeting: any) {
 }
 
 function tryMatch(meeting: any, domainLower: string, companyHint: string): string | null {
+  // Check attendee emails for domain match
   const emailMatch = (meeting.attendees || []).some((a: any) =>
     a.email && a.email.toLowerCase().endsWith(`@${domainLower}`)
   );
   if (emailMatch) return 'email_domain';
+
+  // Check organizer email for domain match
+  if (meeting.organizer_email && meeting.organizer_email.toLowerCase().endsWith(`@${domainLower}`)) {
+    return 'organizer_email';
+  }
 
   if (companyHint.length >= 3) {
     const nameMatch = (meeting.attendees || []).some((a: any) =>
@@ -172,7 +179,7 @@ serve(async (req) => {
     }
 
     // === Default: meeting list lookup ===
-    const { domain } = body;
+    const { domain, contactEmails } = body;
     if (!domain) {
       if (orch) await orch.markFailed('domain is required');
       return new Response(JSON.stringify({ success: false, error: 'domain is required' }), {
@@ -192,25 +199,135 @@ serve(async (req) => {
     const fromDate = lookbackDate.toISOString();
     const toDate = now.toISOString();
 
-    console.log(`[avoma] Searching meetings for domain: ${domainLower} (company hint: "${companyHint}"), from: ${fromDate}, to: ${toDate}`);
+    // Build contact email list from: explicit input, HubSpot contacts, Apollo team data
+    const emailsToSearch: string[] = [];
+    if (contactEmails && Array.isArray(contactEmails)) {
+      for (const e of contactEmails) {
+        if (typeof e === 'string' && e.includes('@')) emailsToSearch.push(e.toLowerCase().trim());
+      }
+    }
 
-    const apiUrl = `https://api.avoma.com/v1/meetings/?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}&page_size=100`;
-    const res = await fetch(apiUrl, {
+    // Auto-discover contact emails from DB if running in orchestrated mode
+    const sessionId = body._session_id;
+    if (sessionId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const sb = createClient(supabaseUrl, serviceKey);
+
+        const { data: sessionData } = await sb.from('crawl_sessions')
+          .select('hubspot_data, apollo_team_data, apollo_data')
+          .eq('id', sessionId)
+          .single();
+
+        if (sessionData) {
+          // Extract HubSpot contact emails
+          const hContacts = sessionData.hubspot_data?.contacts || [];
+          for (const c of hContacts) {
+            if (c.email) emailsToSearch.push(c.email.toLowerCase().trim());
+          }
+          // HubSpot deal associated contacts
+          const hDeals = sessionData.hubspot_data?.deals || [];
+          for (const d of hDeals) {
+            if (d.contact_email) emailsToSearch.push(d.contact_email.toLowerCase().trim());
+          }
+
+          // Extract Apollo team member emails
+          const aTeam = sessionData.apollo_team_data?.people || sessionData.apollo_team_data?.contacts || [];
+          for (const p of aTeam) {
+            if (p.email) emailsToSearch.push(p.email.toLowerCase().trim());
+          }
+
+          // Apollo single enrichment email
+          if (sessionData.apollo_data?.email) {
+            emailsToSearch.push(sessionData.apollo_data.email.toLowerCase().trim());
+          }
+        }
+      } catch (err) {
+        console.warn(`[avoma] Failed to fetch contact emails from DB: ${err.message}`);
+      }
+    }
+
+    // Deduplicate and filter out own org emails (GLIDE team)
+    const uniqueEmails = [...new Set(emailsToSearch)].filter(e =>
+      e.endsWith(`@${domainLower}`) || // Keep emails matching the target domain
+      (!e.endsWith('@glidedesign.com') && !e.endsWith('@gmail.com')) // Keep non-GLIDE, non-generic
+    );
+    // Ensure we at least try domain-based matching
+    const domainEmails = uniqueEmails.filter(e => e.endsWith(`@${domainLower}`));
+
+    console.log(`[avoma] Searching meetings for domain: ${domainLower} (company hint: "${companyHint}"), discovered ${uniqueEmails.length} contact emails: [${uniqueEmails.slice(0, 10).join(', ')}], from: ${fromDate}, to: ${toDate}`);
+
+    // Strategy: If we have contact emails, use attendee_emails filter for a targeted query.
+    // Then also do an is_internal=false scan to catch meetings matched by name/subject.
+    let baseParams = `from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}&page_size=100`;
+
+    // TARGETED QUERY: use attendee_emails filter if we have contact emails
+    let targetedResults: any[] = [];
+    if (uniqueEmails.length > 0) {
+      const attendeeParam = uniqueEmails.join(',');
+      const targetedUrl = `https://api.avoma.com/v1/meetings/?${baseParams}&attendee_emails=${encodeURIComponent(attendeeParam)}`;
+      console.log(`[avoma] Targeted query with ${uniqueEmails.length} contact emails: ${attendeeParam.substring(0, 200)}`);
+
+      const tRes = await fetch(targetedUrl, {
+        headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}`, 'Content-Type': 'application/json' },
+      });
+
+      if (tRes.ok) {
+        const tData = await tRes.json();
+        targetedResults = tData.results || [];
+        console.log(`[avoma] Targeted query: ${targetedResults.length} meetings on first page, total: ${tData.count || 0}`);
+
+        // Paginate through all targeted results
+        let tNext = tData.next || null;
+        let tPage = 1;
+        while (tNext && tPage < 20) {
+          tPage++;
+          try {
+            const pRes = await fetch(tNext, {
+              headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}`, 'Content-Type': 'application/json' },
+            });
+            if (!pRes.ok) break;
+            const pData = await pRes.json();
+            targetedResults.push(...(pData.results || []));
+            tNext = pData.next || null;
+          } catch { break; }
+        }
+        console.log(`[avoma] Targeted query total after pagination: ${targetedResults.length} meetings`);
+      } else {
+        const errText = await tRes.text();
+        console.warn(`[avoma] Targeted query failed [${tRes.status}]: ${errText.substring(0, 200)}`);
+      }
+    }
+
+    // BROAD SCAN: is_internal=false to catch name/subject matches
+    // Skip if targeted query found enough results (saves API calls against 60 req/min limit)
+    const skipBroadScan = targetedResults.length >= 5;
+    if (skipBroadScan) {
+      console.log(`[avoma] Skipping broad scan (${targetedResults.length} targeted matches sufficient)`);
+    }
+    const apiUrl = `https://api.avoma.com/v1/meetings/?${baseParams}&is_internal=false`;
+    const res = skipBroadScan ? null : await fetch(apiUrl, {
       headers: { 'Authorization': `Bearer ${AVOMA_API_KEY}`, 'Content-Type': 'application/json' },
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[avoma] API error [${res.status}]: ${errText}`);
-      return new Response(JSON.stringify({ success: false, error: `Avoma API error [${res.status}]: ${errText.substring(0, 500)}` }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (res && !res.ok) {
+      // If broad scan fails but targeted worked, use targeted results
+      if (targetedResults.length > 0) {
+        console.warn(`[avoma] Broad scan failed, using targeted results only`);
+      } else {
+        const errText = await res.text();
+        console.error(`[avoma] API error [${res.status}]: ${errText}`);
+        return new Response(JSON.stringify({ success: false, error: `Avoma API error [${res.status}]: ${errText.substring(0, 500)}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    const data = await res.json();
+    const data = (res && res.ok) ? await res.json() : { results: [], count: 0, next: null };
     const firstResults = data.results || [];
     const totalCount = data.count || 0;
-    console.log(`[avoma] First page returned ${firstResults.length} meetings, total count: ${totalCount}`);
+    if (!skipBroadScan) console.log(`[avoma] Broad scan first page: ${firstResults.length} meetings, total external: ${totalCount}`);
 
     const matchedMeetings: any[] = [];
     const matchedUuids = new Set<string>();
@@ -223,6 +340,15 @@ serve(async (req) => {
       matchedMeetings.push(extractMeeting(meeting));
     }
 
+    // First: add all targeted results (these are high-confidence matches via attendee_emails filter)
+    for (const meeting of targetedResults) {
+      addMatch(meeting, 'attendee_email');
+    }
+    if (targetedResults.length > 0) {
+      console.log(`[avoma] Added ${matchedMeetings.length} meetings from targeted attendee_emails query`);
+    }
+
+    // Then: scan broad results for additional name/subject matches
     for (const meeting of firstResults) {
       const reason = tryMatch(meeting, domainLower, companyHint);
       if (reason) addMatch(meeting, reason);
@@ -247,15 +373,13 @@ serve(async (req) => {
             phase: 'scanning',
           });
 
-          // Paginate
+          // Paginate through ALL external meetings (no aggressive early termination)
           let nextUrl = data.next || null;
           let pageCount = 1;
           let consecutiveEmpty = 0;
           let meetingsScanned = firstResults.length;
 
-          while (nextUrl && pageCount < 40) {
-            const emptyLimit = matchedMeetings.length >= 10 ? 3 : 10;
-            if (consecutiveEmpty >= emptyLimit) break;
+          while (nextUrl && pageCount < 80) {
             pageCount++;
             try {
               const pageRes = await fetch(nextUrl, {
@@ -297,16 +421,17 @@ serve(async (req) => {
           });
 
           // Sort
-          const reasonOrder: Record<string, number> = { email_domain: 0, attendee_name: 1, subject: 2 };
+          const reasonOrder: Record<string, number> = { attendee_email: 0, email_domain: 1, organizer_email: 1, attendee_name: 2, subject: 3 };
           matchedMeetings.sort((a, b) =>
             (reasonOrder[matchReasons.get(a.uuid) || 'subject'] || 9) -
             (reasonOrder[matchReasons.get(b.uuid) || 'subject'] || 9)
           );
 
-          const emailCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'email_domain').length;
+          const attendeeEmailCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'attendee_email').length;
+          const emailCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'email_domain' || matchReasons.get(m.uuid) === 'organizer_email').length;
           const nameCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'attendee_name').length;
           const subjectCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'subject').length;
-          console.log(`[avoma] Found ${matchedMeetings.length} meetings matching "${domainLower}" (email: ${emailCount}, name: ${nameCount}, subject: ${subjectCount})`);
+          console.log(`[avoma] Found ${matchedMeetings.length} meetings matching "${domainLower}" (attendee_filter: ${attendeeEmailCount}, email_scan: ${emailCount}, name: ${nameCount}, subject: ${subjectCount})`);
 
           // Enrich
           const enriched = await enrichMeetings(matchedMeetings, matchReasons, AVOMA_API_KEY);
@@ -317,7 +442,7 @@ serve(async (req) => {
             domain: domainLower,
             totalMatches: matchedMeetings.length,
             meetings: enriched,
-            matchBreakdown: { emailDomain: emailCount, attendeeName: nameCount, subject: subjectCount },
+            matchBreakdown: { attendeeEmail: attendeeEmailCount, emailDomain: emailCount, attendeeName: nameCount, subject: subjectCount },
           });
           } catch (streamErr) {
             console.error('[avoma] Stream error:', streamErr);
@@ -364,16 +489,17 @@ serve(async (req) => {
     }
     console.log(`[avoma] Scanned ${pageCount} pages, early-stop empty streak: ${consecutiveEmpty}`);
 
-    const reasonOrder: Record<string, number> = { email_domain: 0, attendee_name: 1, subject: 2 };
+    const reasonOrder: Record<string, number> = { attendee_email: 0, email_domain: 1, organizer_email: 1, attendee_name: 2, subject: 3 };
     matchedMeetings.sort((a, b) =>
       (reasonOrder[matchReasons.get(a.uuid) || 'subject'] || 9) -
       (reasonOrder[matchReasons.get(b.uuid) || 'subject'] || 9)
     );
 
-    const emailCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'email_domain').length;
+    const attendeeEmailCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'attendee_email').length;
+    const emailCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'email_domain' || matchReasons.get(m.uuid) === 'organizer_email').length;
     const nameCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'attendee_name').length;
     const subjectCount = matchedMeetings.filter(m => matchReasons.get(m.uuid) === 'subject').length;
-    console.log(`[avoma] Found ${matchedMeetings.length} meetings matching "${domainLower}" (email: ${emailCount}, name: ${nameCount}, subject: ${subjectCount})`);
+    console.log(`[avoma] Found ${matchedMeetings.length} meetings matching "${domainLower}" (attendee_filter: ${attendeeEmailCount}, email_scan: ${emailCount}, name: ${nameCount}, subject: ${subjectCount})`);
 
     const enriched = await enrichMeetings(matchedMeetings, matchReasons, AVOMA_API_KEY);
 
@@ -382,7 +508,7 @@ serve(async (req) => {
       domain: domainLower,
       totalMatches: matchedMeetings.length,
       meetings: enriched,
-      matchBreakdown: { emailDomain: emailCount, attendeeName: nameCount, subject: subjectCount },
+      matchBreakdown: { attendeeEmail: attendeeEmailCount, emailDomain: emailCount, attendeeName: nameCount, subject: subjectCount },
     };
 
     if (orch) await orch.markDone(result);

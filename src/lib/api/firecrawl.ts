@@ -478,7 +478,7 @@ export const readableApi = {
 };
 
 export const avomaApi = {
-  async lookup(domain: string, lookbackDays?: number): Promise<{
+  async lookup(domain: string, lookbackDays?: number, contactEmails?: string[]): Promise<{
     success: boolean;
     domain?: string;
     totalMatches?: number;
@@ -486,7 +486,7 @@ export const avomaApi = {
     error?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('avoma-lookup', {
-      body: { domain, lookbackDays },
+      body: { domain, lookbackDays, contactEmails },
     });
     if (error) return { success: false, error: error.message };
     return data;
@@ -496,6 +496,7 @@ export const avomaApi = {
     domain: string,
     lookbackDays: number | undefined,
     onProgress: (progress: { page: number; meetingsScanned: number; totalMeetings: number; matchesFound: number; phase: string }) => void,
+    contactEmails?: string[],
   ): Promise<{ success: boolean; domain?: string; totalMatches?: number; meetings?: any[]; matchBreakdown?: any; error?: string }> {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -508,7 +509,7 @@ export const avomaApi = {
         'Authorization': `Bearer ${anonKey}`,
         'apikey': anonKey,
       },
-      body: JSON.stringify({ domain, lookbackDays, stream: true }),
+      body: JSON.stringify({ domain, lookbackDays, stream: true, contactEmails }),
     });
 
     if (!res.ok) {
