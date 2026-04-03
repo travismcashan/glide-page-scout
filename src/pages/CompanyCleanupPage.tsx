@@ -8,7 +8,6 @@ import AppHeader from '@/components/AppHeader';
 import CleanupStepper, { type PhaseStatus } from '@/components/company/cleanup/CleanupStepper';
 import { useCleanupAnalysis } from '@/components/company/cleanup/useCleanupAnalysis';
 import { BrandLoader } from '@/components/BrandLoader';
-import Phase0Map from '@/components/company/cleanup/Phase0Map';
 import Phase2Deduplicate from '@/components/company/cleanup/Phase2Deduplicate';
 import Phase4Validate from '@/components/company/cleanup/Phase4Validate';
 import Phase5Enrich from '@/components/company/cleanup/Phase5Enrich';
@@ -18,7 +17,7 @@ export default function CompanyCleanupPage() {
   const analysis = useCleanupAnalysis();
   const [activePhase, setActivePhase] = useState(0);
   const [phaseStatuses, setPhaseStatuses] = useState<PhaseStatus[]>([
-    'active', 'pending', 'pending', 'pending',
+    'active', 'pending', 'pending',
   ]);
 
   const completePhase = (phase: number) => {
@@ -28,7 +27,7 @@ export default function CompanyCleanupPage() {
       if (phase + 1 < next.length) next[phase + 1] = 'active';
       return next;
     });
-    if (phase + 1 < 4) setActivePhase(phase + 1);
+    if (phase + 1 < 3) setActivePhase(phase + 1);
   };
 
   const skipPhase = (phase: number) => {
@@ -38,14 +37,13 @@ export default function CompanyCleanupPage() {
       if (phase + 1 < next.length) next[phase + 1] = 'active';
       return next;
     });
-    if (phase + 1 < 4) setActivePhase(phase + 1);
+    if (phase + 1 < 3) setActivePhase(phase + 1);
   };
 
   const phaseCounts = [
-    analysis.unlinkedHarvest.length + analysis.unlinkedFreshdesk.length + analysis.unlinkedAsana.length, // Phase 0: Map
-    analysis.duplicates.length, // Phase 1: Deduplicate
-    analysis.missingDomain.length, // Phase 2: Validate
-    analysis.urlAsName.length + analysis.missingEnrichment.length, // Phase 3: Enrich
+    analysis.duplicates.length,
+    analysis.missingDomain.length,
+    analysis.urlAsName.length + analysis.missingEnrichment.length,
   ];
 
   if (analysis.loading) {
@@ -65,7 +63,6 @@ export default function CompanyCleanupPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/companies')}>
             <ArrowLeft className="h-4 w-4" />
@@ -78,12 +75,11 @@ export default function CompanyCleanupPage() {
               </Badge>
             </div>
             <p className="text-muted-foreground text-sm mt-0.5">
-              Map sources, deduplicate, validate, and enrich your company data.
+              Deduplicate, validate, and enrich your company data.
             </p>
           </div>
         </div>
 
-        {/* Stats bar */}
         <Card className="p-4 mb-6">
           <div className="flex items-center gap-6 text-sm flex-wrap">
             <div className="flex items-center gap-1.5">
@@ -92,17 +88,11 @@ export default function CompanyCleanupPage() {
               <span className="font-medium">{analysis.stats.total}</span>
             </div>
             <div className="h-4 w-px bg-border" />
-            <span className="text-muted-foreground">HubSpot: <span className="text-foreground font-medium">{analysis.stats.withHubspot}</span></span>
-            <span className="text-muted-foreground">Harvest: <span className="text-foreground font-medium">{analysis.stats.withHarvest}</span></span>
-            <span className="text-muted-foreground">Freshdesk: <span className="text-foreground font-medium">{analysis.stats.withFreshdesk}</span></span>
-            <span className="text-muted-foreground">QuickBooks: <span className="text-foreground font-medium">{analysis.stats.withQuickbooks}</span></span>
-            <div className="h-4 w-px bg-border" />
             <span className="text-muted-foreground">Duplicates: <span className="text-amber-500 font-medium">{analysis.stats.duplicateGroups}</span></span>
             <span className="text-muted-foreground">URL-as-name: <span className="text-amber-500 font-medium">{analysis.stats.urlAsNameCount}</span></span>
           </div>
         </Card>
 
-        {/* Stepper */}
         <CleanupStepper
           activePhase={activePhase}
           phaseStatuses={phaseStatuses}
@@ -110,38 +100,29 @@ export default function CompanyCleanupPage() {
           onPhaseClick={setActivePhase}
         />
 
-        {/* Active Phase Content */}
         <div className="min-h-[400px]">
           {activePhase === 0 && (
-            <Phase0Map
-              companies={analysis.companies}
+            <Phase2Deduplicate
+              duplicates={analysis.duplicates}
               onComplete={() => completePhase(0)}
               onSkip={() => skipPhase(0)}
               onRefetch={analysis.refetch}
             />
           )}
           {activePhase === 1 && (
-            <Phase2Deduplicate
-              duplicates={analysis.duplicates}
+            <Phase4Validate
+              companies={analysis.companies}
               onComplete={() => completePhase(1)}
               onSkip={() => skipPhase(1)}
               onRefetch={analysis.refetch}
             />
           )}
           {activePhase === 2 && (
-            <Phase4Validate
-              companies={analysis.companies}
-              onComplete={() => completePhase(2)}
-              onSkip={() => skipPhase(2)}
-              onRefetch={analysis.refetch}
-            />
-          )}
-          {activePhase === 3 && (
             <Phase5Enrich
               companies={analysis.companies}
               urlAsName={analysis.urlAsName}
-              onComplete={() => completePhase(3)}
-              onSkip={() => skipPhase(3)}
+              onComplete={() => completePhase(2)}
+              onSkip={() => skipPhase(2)}
               onRefetch={analysis.refetch}
             />
           )}

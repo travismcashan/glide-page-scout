@@ -31,6 +31,7 @@ import PipelinePage from "./pages/PipelinePage";
 import CompaniesPage from "./pages/CompaniesPage";
 import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyCleanupPage from "./pages/CompanyCleanupPage";
+import CompanyMappingPage from "./pages/CompanyMappingPage";
 import NotFound from "./pages/NotFound";
 import FeedbackSideTabs from "./components/feedback/FeedbackSideTabs";
 
@@ -85,6 +86,7 @@ const App = () => (
               <Route path="/pipeline" element={<ProtectedRoute><PipelinePage /></ProtectedRoute>} />
               <Route path="/companies" element={<ProtectedRoute><CompaniesPage /></ProtectedRoute>} />
               <Route path="/companies/cleanup" element={<ProtectedRoute><CompanyCleanupPage /></ProtectedRoute>} />
+              <Route path="/companies/mapping" element={<ProtectedRoute><CompanyMappingPage /></ProtectedRoute>} />
               <Route path="/companies/:id" element={<ProtectedRoute><CompanyDetailPage /></ProtectedRoute>} />
               <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><GlobalChatPage /></ProtectedRoute>} />

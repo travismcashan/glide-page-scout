@@ -484,10 +484,11 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Fetch from all sources in parallel
-    console.log('[global-sync] Starting parallel fetch from all streams...');
+    // Skip Asana in preview mode — it's not a company source and its 1500+ projects eat timeout budget
+    console.log(`[global-sync] Starting parallel fetch (action=${action}, Asana: ${action === 'preview' ? 'skipped' : 'included'})...`);
     const [harvestClients, asanaProjects, hubspotCompanies, freshdeskCompanies] = await Promise.all([
       (harvestToken && harvestAccountId) ? fetchHarvestData(harvestToken, harvestAccountId) : Promise.resolve([]),
-      asanaToken ? fetchAsanaData(asanaToken) : Promise.resolve([]),
+      (asanaToken && action !== 'preview') ? fetchAsanaData(asanaToken) : Promise.resolve([]),
       hubspotToken ? fetchHubSpotData(hubspotToken) : Promise.resolve([]),
       (freshdeskApiKey && freshdeskDomain) ? fetchFreshdeskData(freshdeskApiKey, freshdeskDomain) : Promise.resolve([]),
     ]);

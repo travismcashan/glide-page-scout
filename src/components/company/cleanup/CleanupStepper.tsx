@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { Layers, Link2, Shield, Sparkles, Check } from 'lucide-react';
+import { Layers, Shield, Sparkles, Check } from 'lucide-react';
 
 export type PhaseStatus = 'pending' | 'active' | 'complete' | 'skipped';
 
@@ -11,7 +11,6 @@ type Props = {
 };
 
 const STEPS: { label: string; icon: any }[] = [
-  { label: 'Map', icon: Link2 },
   { label: 'Deduplicate', icon: Layers },
   { label: 'Validate', icon: Shield },
   { label: 'Enrich', icon: Sparkles },
