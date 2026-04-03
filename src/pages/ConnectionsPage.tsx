@@ -448,8 +448,8 @@ export default function ConnectionsPage() {
       if (!clientId) throw new Error(error || 'SLACK_CLIENT_ID not configured');
 
       const redirectUri = `${window.location.origin}/connections`;
-      const scopes = 'search:read,channels:read,users:read';
-      const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const userScopes = 'search:read,channels:read,users:read';
+      const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&user_scope=${userScopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
       // Open popup
       const popup = window.open(slackAuthUrl, 'slack-oauth', 'width=600,height=700');
