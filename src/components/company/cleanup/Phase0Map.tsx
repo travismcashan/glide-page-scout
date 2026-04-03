@@ -395,7 +395,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         {pct > 0 && <span className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right`}>{pct}%</span>}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className={`h-7 text-xs justify-between flex-1 min-w-0 font-normal ${!selectedRecord ? 'text-muted-foreground' : ''}`}>
+            <Button variant="outline" size="sm" className={`h-7 text-xs justify-between flex-1 min-w-0 font-normal ${!selectedRecord ? 'text-red-500 border-red-500/30' : ''}`}>
               <span className="truncate">{selectedRecord?.name || 'No match'}</span>
               <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50 ml-1" />
             </Button>
@@ -514,7 +514,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
             </SelectContent>
           </Select>
           <Select value={String(confidenceMin)} onValueChange={(v) => { setConfidenceMin(Number(v)); setPage(0); }}>
-            <SelectTrigger className="w-36 h-9 text-sm">
+            <SelectTrigger className="w-56 h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
