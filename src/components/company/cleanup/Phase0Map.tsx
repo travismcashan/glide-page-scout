@@ -176,11 +176,11 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     let result = [...companies];
 
     if (filter === 'needs_mapping') {
-      result = result.filter(c => mappedCount(c) < 3);
+      result = result.filter(c => mappedCount(getEffective(c)) < 3);
     } else if (filter === 'fully_mapped') {
-      result = result.filter(c => mappedCount(c) === 3);
+      result = result.filter(c => mappedCount(getEffective(c)) === 3);
     } else if (filter === 'partially_mapped') {
-      result = result.filter(c => mappedCount(c) > 0 && mappedCount(c) < 3);
+      result = result.filter(c => { const n = mappedCount(getEffective(c)); return n > 0 && n < 3; });
     }
 
     // Confidence threshold filter
@@ -193,7 +193,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
       });
     } else if (confidenceMin > 0) {
       const minScore = confidenceMin / 100;
-      result = result.filter(c => mappedCount(c) === 3 || bestScore(c) >= minScore);
+      result = result.filter(c => mappedCount(getEffective(c)) === 3 || bestScore(c) >= minScore);
     }
 
     if (search.trim()) {
@@ -218,16 +218,16 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     });
 
     return result;
-  }, [companies, filter, search, allMatches, confidenceMin, sortBy]);
+  }, [companies, filter, search, allMatches, confidenceMin, sortBy, localLocks]);
 
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.ceil(filtered.length / pageSize);
 
   const stats = useMemo(() => ({
     total: companies.length,
-    fullyMapped: companies.filter(c => mappedCount(c) === 3).length,
-    partial: companies.filter(c => mappedCount(c) > 0 && mappedCount(c) < 3).length,
-    needsMapping: companies.filter(c => mappedCount(c) === 0).length,
+    fullyMapped: companies.filter(c => mappedCount(getEffective(c)) === 3).length,
+    partial: companies.filter(c => { const n = mappedCount(getEffective(c)); return n > 0 && n < 3; }).length,
+    needsMapping: companies.filter(c => mappedCount(getEffective(c)) === 0).length,
     ultraConf: companies.filter(c => {
       const m = allMatches.get(c.id);
       if (!m) return false;
@@ -236,7 +236,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     highConf: companies.filter(c => bestScore(c) >= 0.95).length,
     medConf: companies.filter(c => bestScore(c) >= 0.85 && bestScore(c) < 0.95).length,
     lowConf: companies.filter(c => bestScore(c) >= 0.75 && bestScore(c) < 0.85).length,
-  }), [companies, allMatches]);
+  }), [companies, allMatches, localLocks]);
 
   // Build updates object for a company from its matches + manual overrides
   const buildUpdates = (companyId: string) => {
@@ -476,13 +476,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-semibold">Company Source Mapping</h2>
-          <p className="text-sm text-muted-foreground">
-            QuickBooks is the source of truth. Map each company to its HubSpot, Harvest, and Freshdesk records.
-          </p>
-        </div>
+      <div className="flex items-center justify-end mb-4">
         <div className="flex gap-2">
           {unsavedCount > 0 && (
             <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-xs">
@@ -639,7 +633,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
             <TableBody>
               {paged.map(rawC => {
                 const c = getEffective(rawC);
-                const count = mappedCount(c);
+                const count = mappedCount(getEffective(c));
                 const hasAnyMatch = allMatches.get(c.id);
                 const bestScore = hasAnyMatch ? Math.max(
                   hasAnyMatch.hubspot[0]?.score || 0,
