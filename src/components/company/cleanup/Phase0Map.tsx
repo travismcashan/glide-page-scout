@@ -57,6 +57,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   const [page, setPage] = useState(0);
   const [sourceData, setSourceData] = useState<SourceData | null>(null);
   const [loadingSources, setLoadingSources] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confidenceMin, setConfidenceMin] = useState<number>(0);
   // Track user overrides: companyId -> { hubspot?: id, harvest?: id, freshdesk?: id }
@@ -75,50 +76,56 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     return { ...c, ...lock } as CompanyRecord;
   };
 
-  // Fetch source data from APIs via global-sync preview
+  // Fetch source data from APIs — one source at a time for progress visibility
+  const apiHeaders = {
+    'Content-Type': 'application/json',
+    'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+  };
+
+  const fetchOneSource = async (sourceKey: string, label: string): Promise<SourceRecord[]> => {
+    setLoadingStatus(`Loading ${label}...`);
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/global-sync`, {
+      method: 'POST',
+      headers: apiHeaders,
+      body: JSON.stringify({ action: 'preview', sources: [sourceKey] }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(`${label}: ${data.error || 'failed'}`);
+
+    const records: SourceRecord[] = [];
+    const seen = new Set<string>();
+    const idKey = sourceKey === 'hubspot' ? 'hubspotId' : sourceKey === 'harvest' ? 'harvestId' : 'freshdeskId';
+    const nameKey = sourceKey === 'hubspot' ? 'hubspotName' : sourceKey === 'harvest' ? 'harvestName' : 'freshdeskName';
+
+    for (const d of (data.summary?.details || [])) {
+      const id = d[idKey];
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        records.push({ id, name: d[nameKey] || d.name, domain: d.domain });
+      }
+    }
+    return records;
+  };
+
   const fetchSources = async () => {
     setLoadingSources(true);
+    setLoadingStatus('Starting...');
     try {
-      const apiHeaders = {
-        'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      };
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/global-sync`, {
-        method: 'POST',
-        headers: apiHeaders,
-        body: JSON.stringify({ action: 'preview' }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Failed to fetch sources');
+      const hubspot = await fetchOneSource('hubspot', 'HubSpot');
+      setLoadingStatus(`HubSpot: ${hubspot.length} loaded. Loading Harvest...`);
 
-      // Extract source records with IDs from sync details
-      const hubspot: SourceRecord[] = [];
-      const harvest: SourceRecord[] = [];
-      const freshdesk: SourceRecord[] = [];
-      const seenHS = new Set<string>();
-      const seenHV = new Set<string>();
-      const seenFD = new Set<string>();
+      const harvest = await fetchOneSource('harvest', 'Harvest');
+      setLoadingStatus(`HubSpot: ${hubspot.length}, Harvest: ${harvest.length}. Loading Freshdesk...`);
 
-      for (const d of (data.summary?.details || [])) {
-        if (d.hubspotId && !seenHS.has(d.hubspotId)) {
-          seenHS.add(d.hubspotId);
-          hubspot.push({ id: d.hubspotId, name: d.hubspotName || d.name, domain: d.domain });
-        }
-        if (d.harvestId && !seenHV.has(d.harvestId)) {
-          seenHV.add(d.harvestId);
-          harvest.push({ id: d.harvestId, name: d.harvestName || d.name, domain: d.domain });
-        }
-        if (d.freshdeskId && !seenFD.has(d.freshdeskId)) {
-          seenFD.add(d.freshdeskId);
-          freshdesk.push({ id: d.freshdeskId, name: d.freshdeskName || d.name, domain: d.domain });
-        }
-      }
+      const freshdesk = await fetchOneSource('freshdesk', 'Freshdesk');
+      setLoadingStatus('');
 
       setSourceData({ hubspot, harvest, freshdesk });
-      toast.success(`Loaded ${hubspot.length} HubSpot, ${harvest.length} Harvest, ${freshdesk.length} Freshdesk records`);
+      toast.success(`Loaded ${hubspot.length} HS, ${harvest.length} HV, ${freshdesk.length} FD`);
     } catch (err: any) {
-      toast.error(`Failed to load sources: ${err.message}`);
+      toast.error(`Failed: ${err.message}`);
+      setLoadingStatus('');
     } finally {
       setLoadingSources(false);
     }
@@ -400,8 +407,11 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
           </p>
           <Button onClick={fetchSources} disabled={loadingSources} className="gap-2">
             {loadingSources ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {loadingSources ? 'Loading sources...' : 'Load HubSpot, Harvest & Freshdesk'}
+            {loadingSources ? 'Loading...' : 'Load HubSpot, Harvest & Freshdesk'}
           </Button>
+          {loadingStatus && (
+            <p className="text-sm text-muted-foreground mt-3 animate-pulse">{loadingStatus}</p>
+          )}
         </div>
       ) : (<>
         {/* Stats */}
@@ -504,12 +514,12 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     }}
                   />
                 </TableHead>
-                <TableHead className="text-xs" style={{ width: '18%' }}>QuickBooks Client</TableHead>
-                <TableHead className="text-xs" style={{ width: '22%' }}>HubSpot Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '22%' }}>Harvest Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '22%' }}>Freshdesk Match</TableHead>
-                <TableHead className="text-xs w-[6%] text-center">Map</TableHead>
-                <TableHead className="text-xs w-[6%] text-center"></TableHead>
+                <TableHead className="text-xs" style={{ width: '16%' }}>QuickBooks Client</TableHead>
+                <TableHead className="text-xs" style={{ width: '20%' }}>HubSpot Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '20%' }}>Harvest Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '20%' }}>Freshdesk Match</TableHead>
+                <TableHead className="text-xs text-center" style={{ width: '5%' }}>#</TableHead>
+                <TableHead className="text-xs text-center" style={{ width: '8%' }}>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

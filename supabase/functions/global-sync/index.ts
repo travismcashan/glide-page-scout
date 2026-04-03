@@ -192,18 +192,13 @@ async function fetchHubSpotData(token: string): Promise<HubSpotCompany[]> {
   const companies: HubSpotCompany[] = [];
   let after: string | undefined;
   let page = 0;
+  const props = 'name,domain,industry,numberofemployees,annualrevenue,city,state,country,website';
 
-  while (page < 20) {
-    const body: any = {
-      properties: ['name', 'domain', 'industry', 'numberofemployees', 'annualrevenue', 'city', 'state', 'country', 'website'],
-      limit: 100,
-    };
-    if (after) body.after = after;
-
-    const res = await fetch('https://api.hubapi.com/crm/v3/objects/companies/search', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+  // Use list API (not search) to avoid the search endpoint's ~1000 result cap
+  while (page < 50) {
+    const url = `https://api.hubapi.com/crm/v3/objects/companies?limit=100&properties=${props}${after ? `&after=${after}` : ''}`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` },
     });
 
     if (!res.ok) { console.error('[global-sync] HubSpot error:', res.status); break; }
@@ -227,9 +222,11 @@ async function fetchHubSpotData(token: string): Promise<HubSpotCompany[]> {
     after = data.paging?.next?.after;
     if (!after) break;
     page++;
+    // Rate limit safety: pause 1s every 10 pages (HubSpot allows 100 req/10s)
+    if (page % 10 === 0) await new Promise(r => setTimeout(r, 1000));
   }
 
-  console.log(`[global-sync] HubSpot: ${companies.length} companies fetched`);
+  console.log(`[global-sync] HubSpot: ${companies.length} companies fetched (${page + 1} pages)`);
   return companies;
 }
 
@@ -470,7 +467,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action = 'preview', userId } = await req.json();
+    const { action = 'preview', userId, sources: sourcesFilter } = await req.json();
 
     const harvestToken = Deno.env.get('HARVEST_ACCESS_TOKEN');
     const harvestAccountId = Deno.env.get('HARVEST_ACCOUNT_ID');
@@ -483,14 +480,19 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Fetch from all sources in parallel
-    // Skip Asana in preview mode — it's not a company source and its 1500+ projects eat timeout budget
-    console.log(`[global-sync] Starting parallel fetch (action=${action}, Asana: ${action === 'preview' ? 'skipped' : 'included'})...`);
+    // Fetch from sources — supports filtering to a single source via `sources` param
+    const sf = sourcesFilter as string[] | undefined;
+    const fetchHS = !sf || sf.includes('hubspot');
+    const fetchHV = !sf || sf.includes('harvest');
+    const fetchFD = !sf || sf.includes('freshdesk');
+    const fetchAsana = (!sf || sf.includes('asana')) && action !== 'preview';
+
+    console.log(`[global-sync] Fetching: HS=${fetchHS} HV=${fetchHV} FD=${fetchFD} Asana=${fetchAsana}`);
     const [harvestClients, asanaProjects, hubspotCompanies, freshdeskCompanies] = await Promise.all([
-      (harvestToken && harvestAccountId) ? fetchHarvestData(harvestToken, harvestAccountId) : Promise.resolve([]),
-      (asanaToken && action !== 'preview') ? fetchAsanaData(asanaToken) : Promise.resolve([]),
-      hubspotToken ? fetchHubSpotData(hubspotToken) : Promise.resolve([]),
-      (freshdeskApiKey && freshdeskDomain) ? fetchFreshdeskData(freshdeskApiKey, freshdeskDomain) : Promise.resolve([]),
+      (fetchHV && harvestToken && harvestAccountId) ? fetchHarvestData(harvestToken, harvestAccountId) : Promise.resolve([]),
+      (fetchAsana && asanaToken) ? fetchAsanaData(asanaToken) : Promise.resolve([]),
+      (fetchHS && hubspotToken) ? fetchHubSpotData(hubspotToken) : Promise.resolve([]),
+      (fetchFD && freshdeskApiKey && freshdeskDomain) ? fetchFreshdeskData(freshdeskApiKey, freshdeskDomain) : Promise.resolve([]),
     ]);
 
     // Fetch existing companies (paginate to avoid Supabase 1000-row default limit)
