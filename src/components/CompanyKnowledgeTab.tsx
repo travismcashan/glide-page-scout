@@ -5,7 +5,7 @@ import { BrandLoader } from '@/components/BrandLoader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Database, RefreshCw, CheckCircle, AlertCircle, FileText, Mail, Phone, Calendar, StickyNote, Globe, Loader2 } from 'lucide-react';
+import { Database, RefreshCw, CheckCircle, AlertCircle, FileText, Mail, Phone, Calendar, StickyNote, Globe, Loader2, HardDrive, MessageSquare, Search, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -33,6 +33,8 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
   upload: <FileText className="h-3.5 w-3.5" />,
   scrape: <Globe className="h-3.5 w-3.5" />,
   screenshot: <Globe className="h-3.5 w-3.5" />,
+  gdrive: <HardDrive className="h-3.5 w-3.5" />,
+  slack: <MessageSquare className="h-3.5 w-3.5" />,
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -53,6 +55,12 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Google Drive state
+  const [driveSearching, setDriveSearching] = useState(false);
+  const [driveResults, setDriveResults] = useState<{ id: string; name: string; mimeType: string; modifiedTime: string }[]>([]);
+  const [driveIngesting, setDriveIngesting] = useState<Set<string>>(new Set());
+  const [driveIngested, setDriveIngested] = useState<Set<string>>(new Set());
 
   const sessionIds = sites.map(s => s.id);
 
@@ -107,6 +115,95 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
     } else {
       toast.info('All documents already up to date');
     }
+  };
+
+  // Google Drive: search for company-related docs
+  const handleDriveSearch = async () => {
+    setDriveSearching(true);
+    setDriveResults([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('google-drive-list', {
+        body: { searchQuery: companyName },
+      });
+      if (error) throw error;
+      if (data?.error === 'drive_auth_required') {
+        toast.error('Google Drive is not connected. Go to Connections to set it up.');
+        setDriveSearching(false);
+        return;
+      }
+      const files = (data?.files || []).filter((f: any) =>
+        f.mimeType !== 'application/vnd.google-apps.folder'
+      );
+      setDriveResults(files);
+      if (files.length === 0) toast.info('No Drive documents found for this company.');
+      else toast.success(`Found ${files.length} documents in Google Drive`);
+    } catch (err) {
+      console.error('[knowledge] Drive search failed:', err);
+      toast.error('Google Drive search failed');
+    }
+    setDriveSearching(false);
+  };
+
+  // Google Drive: download + ingest a single doc
+  const handleDriveIngest = async (file: { id: string; name: string; mimeType: string }) => {
+    if (!sessionIds[0]) { toast.error('No session to ingest into'); return; }
+    setDriveIngesting(prev => new Set([...prev, file.id]));
+    try {
+      // Download content
+      const { data: dlData, error: dlError } = await supabase.functions.invoke('google-drive-download', {
+        body: { fileId: file.id },
+      });
+      if (dlError) throw dlError;
+      const content = dlData?.content || dlData?.text || '';
+      if (!content || content.length < 30) {
+        toast.error(`${file.name}: no readable content`);
+        setDriveIngesting(prev => { const n = new Set(prev); n.delete(file.id); return n; });
+        return;
+      }
+
+      // Register as knowledge document on the first session
+      const targetSessionId = sessionIds[0];
+      const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
+
+      // Create document record
+      const { data: doc } = await supabase
+        .from('knowledge_documents')
+        .insert({
+          session_id: targetSessionId,
+          name: `Google Drive: ${file.name}`,
+          source_type: 'gdrive',
+          source_key: `gdrive:${file.id}`,
+          status: 'pending',
+          chunk_count: 0,
+          char_count: content.length,
+        })
+        .select('id')
+        .single();
+
+      if (!doc) throw new Error('Failed to create document record');
+
+      // Send to rag-ingest
+      await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          session_id: targetSessionId,
+          documents: [{ document_id: doc.id, content: content.slice(0, 30_000) }],
+        }),
+      });
+
+      setDriveIngested(prev => new Set([...prev, file.id]));
+      toast.success(`Indexed: ${file.name}`);
+      fetchDocuments();
+    } catch (err) {
+      console.error('[knowledge] Drive ingest failed:', err);
+      toast.error(`Failed to index ${file.name}`);
+    }
+    setDriveIngesting(prev => { const n = new Set(prev); n.delete(file.id); return n; });
   };
 
   // Group documents by site
@@ -172,6 +269,71 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
           <p className="text-xs text-muted-foreground">Chunks</p>
         </div>
       </div>
+
+      {/* External Sources */}
+      <Card className="p-4">
+        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Search className="h-4 w-4" /> External Sources
+        </h4>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {/* Google Drive */}
+          <div className="border border-border/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <HardDrive className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Google Drive</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Search Drive for docs about "{companyName}" and index them.</p>
+            <Button onClick={handleDriveSearch} disabled={driveSearching} variant="outline" size="sm" className="w-full gap-2">
+              {driveSearching ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...</> : <><Search className="h-3.5 w-3.5" /> Search Drive</>}
+            </Button>
+            {driveResults.length > 0 && (
+              <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
+                {driveResults.map(file => (
+                  <div key={file.id} className="flex items-center gap-2 text-xs">
+                    <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="truncate flex-1">{file.name}</span>
+                    {driveIngested.has(file.id) ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                    ) : (
+                      <Button
+                        onClick={() => handleDriveIngest(file)}
+                        disabled={driveIngesting.has(file.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs shrink-0"
+                      >
+                        {driveIngesting.has(file.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  onClick={() => driveResults.filter(f => !driveIngested.has(f.id)).forEach(f => handleDriveIngest(f))}
+                  disabled={driveResults.every(f => driveIngested.has(f.id))}
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2 text-xs"
+                >
+                  Index All ({driveResults.filter(f => !driveIngested.has(f.id)).length} remaining)
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Slack */}
+          <div className="border border-border/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Slack</span>
+              <Badge variant="secondary" className="text-[10px] py-0">Coming Soon</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Search Slack for messages about "{companyName}" and index key threads.</p>
+            <Button disabled variant="outline" size="sm" className="w-full gap-2 opacity-50">
+              <Search className="h-3.5 w-3.5" /> Search Slack
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {sites.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
