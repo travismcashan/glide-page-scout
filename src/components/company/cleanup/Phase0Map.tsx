@@ -57,16 +57,23 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   const [page, setPage] = useState(0);
   const [sourceData, setSourceData] = useState<SourceData | null>(null);
   const [loadingSources, setLoadingSources] = useState(false);
-  const [saving, setSaving] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [confidenceMin, setConfidenceMin] = useState<number>(0);
   // Track user overrides: companyId -> { hubspot?: id, harvest?: id, freshdesk?: id }
   const [overrides, setOverrides] = useState<Map<string, Record<string, string>>>(new Map());
+  // Local lock state so we don't need to refetch after each lock
+  const [localLocks, setLocalLocks] = useState<Map<string, { hubspot_company_id?: string; harvest_client_id?: string; harvest_client_name?: string; freshdesk_company_id?: string; freshdesk_company_name?: string; domain?: string }>>(new Map());
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ filter, pageSize }));
   }, [filter, pageSize]);
+
+  // Merge local locks into company data for display
+  const getEffective = (c: CompanyRecord): CompanyRecord => {
+    const lock = localLocks.get(c.id);
+    if (!lock) return c;
+    return { ...c, ...lock } as CompanyRecord;
+  };
 
   // Fetch source data from APIs via global-sync preview
   const fetchSources = async () => {
@@ -197,89 +204,121 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     needsMapping: companies.filter(c => mappedCount(c) === 0).length,
   }), [companies]);
 
-  // Lock a mapping: save source IDs to company record
-  const lockMapping = async (companyId: string) => {
-    setSaving(companyId);
-    try {
-      const matches = allMatches.get(companyId);
-      const override = overrides.get(companyId) || {};
-      const updates: any = {};
-
-      // HubSpot
-      const hsMatch = override.hubspot
-        ? matches?.hubspot.find(m => m.id === override.hubspot) || matches?.hubspot[0]
-        : matches?.hubspot[0];
-      if (hsMatch && hsMatch.score >= 0.75) {
-        updates.hubspot_company_id = hsMatch.id;
-      }
-
-      // Harvest
-      const hvMatch = override.harvest
-        ? matches?.harvest.find(m => m.id === override.harvest) || matches?.harvest[0]
-        : matches?.harvest[0];
-      if (hvMatch && hvMatch.score >= 0.75) {
-        updates.harvest_client_id = hvMatch.id;
-        updates.harvest_client_name = hvMatch.name;
-      }
-
-      // Freshdesk
-      const fdMatch = override.freshdesk
-        ? matches?.freshdesk.find(m => m.id === override.freshdesk) || matches?.freshdesk[0]
-        : matches?.freshdesk[0];
-      if (fdMatch && fdMatch.score >= 0.75) {
-        updates.freshdesk_company_id = fdMatch.id;
-        updates.freshdesk_company_name = fdMatch.name;
-      }
-
-      // Also save domain if any match has one
-      const domain = hsMatch?.domain || fdMatch?.domain;
-      if (domain) updates.domain = domain;
-
-      if (Object.keys(updates).length === 0) {
-        toast.info('No matches to lock');
-        setSaving(null);
-        return;
-      }
-
-      updates.last_synced_at = new Date().toISOString();
-      await supabase.from('companies').update(updates).eq('id', companyId);
-      toast.success('Mapping locked');
-      onRefetch();
-    } catch (err: any) {
-      toast.error(`Lock failed: ${err.message}`);
-    } finally {
-      setSaving(null);
-    }
+  // Build updates object for a company from its matches
+  const buildUpdates = (companyId: string) => {
+    const matches = allMatches.get(companyId);
+    const override = overrides.get(companyId) || {};
+    if (!matches) return {};
+    const updates: any = {};
+    const hsMatch = override.hubspot ? matches.hubspot.find(m => m.id === override.hubspot) : matches.hubspot[0];
+    if (hsMatch && hsMatch.score >= 0.75) updates.hubspot_company_id = hsMatch.id;
+    const hvMatch = override.harvest ? matches.harvest.find(m => m.id === override.harvest) : matches.harvest[0];
+    if (hvMatch && hvMatch.score >= 0.75) { updates.harvest_client_id = hvMatch.id; updates.harvest_client_name = hvMatch.name; }
+    const fdMatch = override.freshdesk ? matches.freshdesk.find(m => m.id === override.freshdesk) : matches.freshdesk[0];
+    if (fdMatch && fdMatch.score >= 0.75) { updates.freshdesk_company_id = fdMatch.id; updates.freshdesk_company_name = fdMatch.name; }
+    const domain = hsMatch?.domain || fdMatch?.domain;
+    if (domain) updates.domain = domain;
+    return updates;
   };
 
-  // Bulk delete
-  const bulkDelete = async () => {
+  // All actions are LOCAL until Save is clicked
+
+  // Lock a single company's mappings (local)
+  const lockMapping = (companyId: string) => {
+    const updates = buildUpdates(companyId);
+    if (Object.keys(updates).length === 0) return;
+    setLocalLocks(prev => new Map(prev).set(companyId, { ...(prev.get(companyId) || {}), ...updates }));
+  };
+
+  // Unlock a specific source (local)
+  const unlockSource = (companyId: string, source: 'hubspot' | 'harvest' | 'freshdesk') => {
+    const nulls: any = {};
+    if (source === 'hubspot') nulls.hubspot_company_id = null;
+    else if (source === 'harvest') { nulls.harvest_client_id = null; nulls.harvest_client_name = null; }
+    else if (source === 'freshdesk') { nulls.freshdesk_company_id = null; nulls.freshdesk_company_name = null; }
+    setLocalLocks(prev => new Map(prev).set(companyId, { ...(prev.get(companyId) || {}), ...nulls }));
+  };
+
+  // Bulk lock selected (local)
+  const bulkLock = () => {
     if (selected.size === 0) return;
-    setBulkDeleting(true);
-    try {
+    let locked = 0;
+    setLocalLocks(prev => {
+      const next = new Map(prev);
       for (const id of selected) {
-        await supabase.from('companies').delete().eq('id', id);
+        const updates = buildUpdates(id);
+        if (Object.keys(updates).length === 0) continue;
+        next.set(id, { ...(prev.get(id) || {}), ...updates });
+        locked++;
       }
-      toast.success(`Deleted ${selected.size} companies`);
-      setSelected(new Set());
+      return next;
+    });
+    toast.success(`Locked ${locked} companies. Click Save to commit.`);
+    setSelected(new Set());
+  };
+
+  // Mark for deletion (local)
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+  const bulkMarkDelete = () => {
+    if (selected.size === 0) return;
+    setPendingDeletes(prev => {
+      const next = new Set(prev);
+      selected.forEach(id => next.add(id));
+      return next;
+    });
+    toast.success(`Marked ${selected.size} for deletion. Click Save to commit.`);
+    setSelected(new Set());
+  };
+
+  // Count unsaved changes
+  const [savingAll, setSavingAll] = useState(false);
+  const unsavedCount = localLocks.size + pendingDeletes.size;
+
+  // Save everything to the database at once
+  const saveAll = async () => {
+    if (unsavedCount === 0) return;
+    setSavingAll(true);
+    let saved = 0;
+    let deleted = 0;
+    try {
+      for (const [companyId, updates] of localLocks) {
+        if (pendingDeletes.has(companyId)) continue; // skip if also marked for delete
+        const dbUpdates = { ...updates, last_synced_at: new Date().toISOString() };
+        await supabase.from('companies').update(dbUpdates).eq('id', companyId);
+        saved++;
+      }
+      for (const id of pendingDeletes) {
+        await supabase.from('companies').delete().eq('id', id);
+        deleted++;
+      }
+      const parts = [];
+      if (saved) parts.push(`${saved} mapped`);
+      if (deleted) parts.push(`${deleted} deleted`);
+      toast.success(`Saved: ${parts.join(', ')}`);
+      setLocalLocks(new Map());
+      setPendingDeletes(new Set());
       onRefetch();
     } catch (err: any) {
-      toast.error(`Delete failed: ${err.message}`);
+      toast.error(`Save failed: ${err.message}`);
     } finally {
-      setBulkDeleting(false);
+      setSavingAll(false);
     }
   };
 
   const allPageSelected = paged.length > 0 && paged.every(c => selected.has(c.id));
 
-  // Render a source cell: either locked (already mapped) or dropdown with matches
+  // Render a source cell: either locked (clickable to unlock) or dropdown with matches
   const renderSourceCell = (company: CompanyRecord, source: 'hubspot' | 'harvest' | 'freshdesk', lockedId: string | null, lockedName: string | null) => {
     if (lockedId) {
       return (
-        <div className="flex items-center gap-1">
-          <Lock className="h-3 w-3 text-green-600 shrink-0" />
-          <span className="text-xs text-green-700 truncate max-w-[140px]" title={lockedName || lockedId}>{lockedName || lockedId}</span>
-        </div>
+        <button
+          className="flex items-center gap-1 group cursor-pointer hover:opacity-70 transition-opacity"
+          onClick={() => unlockSource(company.id, source)}
+          title="Click to unlock"
+        >
+          <Lock className="h-3 w-3 text-green-600 shrink-0 group-hover:text-amber-500" />
+          <span className="text-xs text-green-700 truncate max-w-[140px] group-hover:text-amber-600">{lockedName || lockedId}</span>
+        </button>
       );
     }
 
@@ -337,8 +376,19 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onSkip}>Skip</Button>
-          <Button onClick={onComplete}>Done</Button>
+          {unsavedCount > 0 && (
+            <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-xs">
+              {unsavedCount} unsaved
+            </Badge>
+          )}
+          <Button variant="outline" onClick={() => {
+            if (unsavedCount > 0 && !confirm(`You have ${unsavedCount} unsaved changes. Discard and leave?`)) return;
+            onSkip();
+          }}>Cancel</Button>
+          <Button onClick={saveAll} disabled={savingAll || unsavedCount === 0} className="gap-1.5">
+            {savingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lock className="h-3.5 w-3.5" />}
+            Save {unsavedCount > 0 ? `(${unsavedCount})` : ''}
+          </Button>
         </div>
       </div>
 
@@ -424,9 +474,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         {selected.size > 0 && (
           <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-muted/50 rounded-lg">
             <span className="text-sm font-medium">{selected.size} selected</span>
-            <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" disabled={bulkDeleting} onClick={bulkDelete}>
-              {bulkDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-              Delete
+            <Button size="sm" className="h-7 text-xs gap-1" onClick={bulkLock}>
+              <Lock className="h-3 w-3" />
+              Lock Selected
+            </Button>
+            <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={bulkMarkDelete}>
+              <Trash2 className="h-3 w-3" />
+              Mark Delete
             </Button>
             <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSelected(new Set())}>Clear</Button>
           </div>
@@ -450,16 +504,17 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     }}
                   />
                 </TableHead>
-                <TableHead className="text-xs" style={{ width: '25%', minWidth: 160 }}>QuickBooks Client</TableHead>
-                <TableHead className="text-xs" style={{ width: '22%', minWidth: 120 }}>HubSpot Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '22%', minWidth: 120 }}>Harvest Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '22%', minWidth: 120 }}>Freshdesk Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '18%' }}>QuickBooks Client</TableHead>
+                <TableHead className="text-xs" style={{ width: '22%' }}>HubSpot Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '22%' }}>Harvest Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '22%' }}>Freshdesk Match</TableHead>
                 <TableHead className="text-xs w-[6%] text-center">Map</TableHead>
                 <TableHead className="text-xs w-[6%] text-center"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paged.map(c => {
+              {paged.map(rawC => {
+                const c = getEffective(rawC);
                 const count = mappedCount(c);
                 const hasAnyMatch = allMatches.get(c.id);
                 const bestScore = hasAnyMatch ? Math.max(
@@ -469,7 +524,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 ) : 0;
 
                 return (
-                  <TableRow key={c.id} className={selected.has(c.id) ? 'bg-primary/5' : count === 3 ? 'bg-green-500/5' : bestScore >= 0.9 ? 'bg-amber-500/5' : ''}>
+                  <TableRow key={c.id} className={pendingDeletes.has(c.id) ? 'bg-red-500/10 opacity-50 line-through' : selected.has(c.id) ? 'bg-primary/5' : localLocks.has(c.id) ? 'bg-blue-500/5' : count === 3 ? 'bg-green-500/5' : bestScore >= 0.9 ? 'bg-amber-500/5' : ''}>
                     <TableCell className="py-2">
                       <Checkbox
                         checked={selected.has(c.id)}
@@ -513,10 +568,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                       {count < 3 && bestScore >= 0.75 && (
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1"
-                          disabled={saving === c.id}
                           onClick={() => lockMapping(c.id)}
                         >
-                          {saving === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Lock className="h-3 w-3" />}
+                          <Lock className="h-3 w-3" />
                           Lock
                         </Button>
                       )}
