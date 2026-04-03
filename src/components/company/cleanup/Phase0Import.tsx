@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -125,6 +126,43 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   const [saving, setSaving] = useState(false);
   const [previewCounts, setPreviewCounts] = useState<Record<string, number>>({});
   const [excludedCols, setExcludedCols] = useState<Set<string>>(new Set(['Balance', 'Posting (Y/N)']));
+  const [columnRenames, setColumnRenames] = useState<Record<string, string>>({});
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [editingCol, setEditingCol] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [templateName, setTemplateName] = useState('');
+
+  const displayName = (col: string) => columnRenames[col] || col;
+
+  // Save/load import templates to localStorage
+  const saveTemplate = (name: string) => {
+    const templates = JSON.parse(localStorage.getItem('qb-import-templates') || '{}');
+    templates[name] = {
+      fileMappings: Object.fromEntries(fileMappings),
+      excludedCols: Array.from(excludedCols),
+      columnRenames,
+      columnOrder,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem('qb-import-templates', JSON.stringify(templates));
+    toast.success(`Template "${name}" saved`);
+  };
+
+  const loadTemplate = (name: string) => {
+    const templates = JSON.parse(localStorage.getItem('qb-import-templates') || '{}');
+    const t = templates[name];
+    if (!t) { toast.error('Template not found'); return; }
+    if (t.fileMappings) setFileMappings(new Map(Object.entries(t.fileMappings)));
+    if (t.excludedCols) setExcludedCols(new Set(t.excludedCols));
+    if (t.columnRenames) setColumnRenames(t.columnRenames);
+    if (t.columnOrder) setColumnOrder(t.columnOrder);
+    toast.success(`Template "${name}" loaded`);
+  };
+
+  const getSavedTemplates = (): string[] => {
+    const templates = JSON.parse(localStorage.getItem('qb-import-templates') || '{}');
+    return Object.keys(templates);
+  };
   const getPreviewCount = (key: string) => previewCounts[key] || 10;
   const setPreviewCount = (key: string, val: number) => setPreviewCounts(prev => ({ ...prev, [key]: val }));
 
@@ -642,10 +680,25 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                 </SelectContent>
               </Select>
             </div>
-            {/* Column toggles */}
+            {/* Column toggles + rename */}
             <div className="flex flex-wrap gap-1 mb-2">
-              {headers.filter(h => h).map(h => {
+              {(columnOrder.length > 0 ? columnOrder : headers).filter(h => h && headers.includes(h)).map((h, idx) => {
                 const isExcluded = excludedCols.has(h);
+                const isEditing = editingCol === h;
+                if (isEditing) {
+                  return (
+                    <form key={h} onSubmit={(e) => { e.preventDefault(); setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }}
+                      className="inline-flex">
+                      <Input
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onBlur={() => { setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }}
+                        className="h-6 w-32 text-[10px] px-1.5"
+                        autoFocus
+                      />
+                    </form>
+                  );
+                }
                 return (
                   <button
                     key={h}
@@ -654,16 +707,42 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                       if (next.has(h)) next.delete(h); else next.add(h);
                       return next;
                     })}
+                    onDoubleClick={(e) => { e.preventDefault(); setEditingCol(h); setEditingName(displayName(h)); }}
+                    title="Click to toggle, double-click to rename"
                     className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
                       isExcluded
                         ? 'bg-muted/50 text-muted-foreground border-border line-through opacity-50'
                         : 'bg-green-500/10 text-green-700 border-green-500/20'
                     }`}
                   >
-                    {h}
+                    {displayName(h)}
                   </button>
                 );
               })}
+            </div>
+            <p className="text-[10px] text-muted-foreground mb-2">Click to toggle columns. Double-click to rename.</p>
+
+            {/* Save/Load Template */}
+            <div className="flex items-center gap-2 mb-3">
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Template name..."
+                className="h-7 text-xs w-48"
+              />
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { if (templateName) saveTemplate(templateName); }} disabled={!templateName}>
+                Save Template
+              </Button>
+              {getSavedTemplates().length > 0 && (
+                <Select onValueChange={(v) => loadTemplate(v)}>
+                  <SelectTrigger className="w-[160px] h-7 text-xs"><SelectValue placeholder="Load template..." /></SelectTrigger>
+                  <SelectContent>
+                    {getSavedTemplates().map(name => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="overflow-x-auto rounded-lg border border-green-500/20">
               <Table>
@@ -674,7 +753,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                       const mapped = visibleHeaders.filter(h => Object.values(mapping).includes(h));
                       const unmapped = visibleHeaders.filter(h => !Object.values(mapping).includes(h));
                       return [...mapped, ...unmapped].map(h => (
-                        <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
+                        <TableHead key={h} className="text-xs whitespace-nowrap">{displayName(h)}</TableHead>
                       ));
                     })()}
                   </TableRow>
@@ -766,7 +845,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                         {orderedCols.map(h => {
                           const isMapped = mapped.includes(h);
                           return (
-                            <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
+                            <TableHead key={h} className="text-xs whitespace-nowrap">{displayName(h)}</TableHead>
                           );
                         })}
                       </TableRow>
