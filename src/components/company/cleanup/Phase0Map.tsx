@@ -291,34 +291,40 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
     const override = overrides.get(company.id)?.[source];
     const selectedId = override || candidates[0]?.id;
+    const activeCand = candidates.find(c => c.id === selectedId) || candidates[0];
+    const pct = activeCand ? Math.round(activeCand.score * 100) : 0;
+    const pctColor = pct >= 95 ? 'text-green-600' : pct >= 85 ? 'text-amber-500' : 'text-orange-500';
 
     return (
-      <Select
-        value={selectedId}
-        onValueChange={(v) => {
-          setOverrides(prev => {
-            const next = new Map(prev);
-            const existing = next.get(company.id) || {};
-            next.set(company.id, { ...existing, [source]: v });
-            return next;
-          });
-        }}
-      >
-        <SelectTrigger className="h-7 text-xs w-full max-w-[200px] truncate">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__none__">
-            <span className="text-muted-foreground">No match</span>
-          </SelectItem>
-          {candidates.map(c => (
-            <SelectItem key={c.id} value={c.id}>
-              <span className="truncate">{c.name}</span>
-              {confidenceBadge(c.score)}
+      <div className="flex items-center gap-1.5">
+        <span className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right`}>{pct}%</span>
+        <Select
+          value={selectedId}
+          onValueChange={(v) => {
+            setOverrides(prev => {
+              const next = new Map(prev);
+              const existing = next.get(company.id) || {};
+              next.set(company.id, { ...existing, [source]: v });
+              return next;
+            });
+          }}
+        >
+          <SelectTrigger className="h-7 text-xs flex-1 min-w-0 max-w-[170px] truncate">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">
+              <span className="text-muted-foreground">No match</span>
             </SelectItem>
-          ))}
+            {candidates.map(c => (
+              <SelectItem key={c.id} value={c.id}>
+                <span className={`font-bold ${c.score >= 0.95 ? 'text-green-600' : c.score >= 0.85 ? 'text-amber-500' : 'text-orange-500'} mr-1`}>{Math.round(c.score * 100)}%</span>
+                <span className="truncate">{c.name}</span>
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
+      </div>
     );
   };
 
