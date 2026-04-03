@@ -543,10 +543,10 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 </TableHead>
                 <TableHead className="text-xs" style={{ width: '17%' }}>QuickBooks Client</TableHead>
                 <TableHead className="text-xs" style={{ width: '9%' }}>Domain</TableHead>
-                <TableHead className="text-xs" style={{ width: '16%' }}>HubSpot Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '16%' }}>Harvest Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '16%' }}>Freshdesk Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '6%' }}>Matches</TableHead>
+                <TableHead className="text-xs" style={{ width: '15%' }}>HubSpot Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '15%' }}>Harvest Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '15%' }}>Freshdesk Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '9%' }}>Matches</TableHead>
                 <TableHead className="text-xs" style={{ width: '10%' }}></TableHead>
               </TableRow>
             </TableHeader>
@@ -606,10 +606,10 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                         if (isLocked) {
                           const lockData = localLocks.get(c.id) || {};
                           const lockedCount = (lockData.hubspot_company_id ? 1 : 0) + (lockData.harvest_client_id ? 1 : 0) + (lockData.freshdesk_company_id ? 1 : 0);
-                          return <Badge variant="outline" className={`text-xs py-0 ${lockedCount === 3 ? 'text-green-600 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>{lockedCount}/3 locked</Badge>;
+                          return <Badge variant="outline" className={`text-xs py-0 whitespace-nowrap ${lockedCount === 3 ? 'text-green-600 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>{lockedCount}/3 locked</Badge>;
                         }
                         if (count === 3) {
-                          return <Badge variant="outline" className="text-xs py-0 text-green-600 border-green-500/30">3/3 saved</Badge>;
+                          return <Badge variant="outline" className="text-xs py-0 whitespace-nowrap text-green-600 border-green-500/30">3/3 saved</Badge>;
                         }
                         if (foundCount > 0) {
                           return <Badge variant="outline" className="text-xs py-0 text-blue-500 border-blue-500/30">{foundCount} found</Badge>;
