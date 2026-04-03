@@ -55,6 +55,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').pageSize || 25; } catch { return 25; }
   });
   const [page, setPage] = useState(0);
+  const [wrapText, setWrapText] = useState(true);
   const [sourceData, setSourceData] = useState<SourceData | null>(null);
   const [loadingSources, setLoadingSources] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('');
@@ -480,6 +481,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <SelectItem value="100">100 / pg</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => setWrapText(w => !w)}>
+            {wrapText ? 'Truncate' : 'Wrap'}
+          </Button>
           <span className="text-xs text-muted-foreground">{filtered.length} companies</span>
         </div>
 
@@ -501,7 +505,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg border border-border mb-4">
-          <Table className="table-fixed">
+          <Table className={`table-fixed ${!wrapText ? '[&_td]:truncate [&_td]:overflow-hidden [&_td]:whitespace-nowrap' : ''}`}>
             <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
               <TableRow>
                 <TableHead className="text-xs w-8">
@@ -522,8 +526,8 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 <TableHead className="text-xs" style={{ width: '17%' }}>HubSpot Match</TableHead>
                 <TableHead className="text-xs" style={{ width: '17%' }}>Harvest Match</TableHead>
                 <TableHead className="text-xs" style={{ width: '17%' }}>Freshdesk Match</TableHead>
-                <TableHead className="text-xs text-center" style={{ width: '6%' }}>Matches</TableHead>
-                <TableHead className="text-xs text-center" style={{ width: '7%' }}></TableHead>
+                <TableHead className="text-xs" style={{ width: '6%' }}>Matches</TableHead>
+                <TableHead className="text-xs" style={{ width: '7%' }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -574,7 +578,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     <TableCell className="py-2">
                       {renderSourceCell(c, 'freshdesk', c.freshdesk_company_id, c.freshdesk_company_name)}
                     </TableCell>
-                    <TableCell className="text-center py-2">
+                    <TableCell className="py-2">
                       <Badge variant="outline" className={`text-xs py-0 ${
                         count === 3 ? 'text-green-600 border-green-500/30' :
                         count > 0 ? 'text-amber-500 border-amber-500/30' :
@@ -584,7 +588,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                         {count}/3
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center py-2">
+                    <TableCell className="py-2">
                       {(() => {
                         const isLocked = localLocks.has(c.id);
                         const hasMatches = bestScore >= 0.75;
@@ -602,7 +606,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                         }
                         if (count === 3) {
                           return (
-                            <span className="text-xs text-green-600 flex items-center justify-center gap-1">
+                            <span className="text-xs text-green-600 flex items-center gap-1">
                               <Lock className="h-3 w-3" /> Saved
                             </span>
                           );
