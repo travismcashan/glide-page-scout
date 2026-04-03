@@ -395,7 +395,16 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
     return (
       <div className="flex items-center gap-1.5">
-        {pct > 0 && <span className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right`}>{pct}%</span>}
+        {selectedRecord && (
+          <button
+            className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right group relative`}
+            title="Clear selection"
+            onClick={(e) => { e.stopPropagation(); setSourceOverride('__none__'); }}
+          >
+            <span className="group-hover:hidden">{pct > 0 ? `${pct}%` : '?'}</span>
+            <span className="hidden group-hover:inline text-red-500">✕</span>
+          </button>
+        )}
         <Popover open={openPopover === `${company.id}:${source}`} onOpenChange={(open) => setOpenPopover(open ? `${company.id}:${source}` : null)}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className={`h-7 text-xs justify-between flex-1 min-w-0 font-normal hover:text-foreground ${!selectedRecord ? 'bg-red-500/10 border-red-500/30' : ''}`}>
