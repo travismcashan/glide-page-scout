@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Search, Lock, Loader2, Filter, Trash2, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Search, Lock, LockOpen, Loader2, Filter, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCompanyName, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
@@ -582,11 +582,8 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                           return (
                             <Button
                               size="sm" variant="outline"
-                              className="h-7 text-xs gap-1 text-green-600 border-green-500/30 bg-green-500/10 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
-                              onClick={() => {
-                                // Unlock all sources for this company
-                                setLocalLocks(prev => { const next = new Map(prev); next.delete(c.id); return next; });
-                              }}
+                              className="h-7 text-xs gap-1 text-green-600 border-green-500/30 bg-green-500/10 hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/30"
+                              onClick={() => setLocalLocks(prev => { const next = new Map(prev); next.delete(c.id); return next; })}
                             >
                               <Lock className="h-3 w-3" />
                               Locked
@@ -603,11 +600,11 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                         if (hasMatches) {
                           return (
                             <Button
-                              size="sm" variant="outline" className="h-7 text-xs gap-1"
+                              size="sm" variant="outline" className="h-7 text-xs gap-1 text-muted-foreground"
                               onClick={() => lockMapping(c.id)}
                             >
-                              <Lock className="h-3 w-3" />
-                              Lock
+                              <LockOpen className="h-3 w-3" />
+                              Unlocked
                             </Button>
                           );
                         }

@@ -14,7 +14,7 @@ export default function CompanyMappingPage() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="max-w-6xl mx-auto px-6 py-8">
+        <main className="mx-auto py-8" style={{ paddingLeft: 100, paddingRight: 100 }}>
           <div className="flex items-center justify-center py-20">
             <BrandLoader size={48} />
           </div>
@@ -26,7 +26,7 @@ export default function CompanyMappingPage() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="mx-auto py-8" style={{ paddingLeft: 100, paddingRight: 100 }}>
         <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/companies')}>
             <ArrowLeft className="h-4 w-4" />
