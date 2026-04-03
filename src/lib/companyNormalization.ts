@@ -31,11 +31,26 @@ export function looksLikeDomain(name: string): boolean {
  * Returns 0-1 where 1 is an exact match.
  */
 export function computeSimilarity(s1: string, s2: string): number {
-  const a = s1.toLowerCase();
-  const b = s2.toLowerCase();
+  const a = s1.toLowerCase().trim();
+  const b = s2.toLowerCase().trim();
   if (a === b) return 1;
   if (a.length === 0 || b.length === 0) return 0;
 
+  // Containment: one string fully inside the other = very high match
+  if (a.includes(b) || b.includes(a)) return 0.95;
+
+  // Word overlap: all words in the shorter string appear in the longer
+  const aWords = a.split(/\s+/).filter(w => w.length > 1);
+  const bWords = b.split(/\s+/).filter(w => w.length > 1);
+  const [shorter, longer] = aWords.length <= bWords.length ? [aWords, bWords] : [bWords, aWords];
+  if (shorter.length > 0) {
+    const longerStr = longer.join(' ');
+    const matched = shorter.filter(w => longerStr.includes(w)).length;
+    if (matched === shorter.length) return 0.92; // all words found
+    if (matched > 0 && matched / shorter.length >= 0.8) return 0.85; // most words found
+  }
+
+  // Jaro-Winkler for fuzzy character-level matching
   const matchWindow = Math.max(Math.floor(Math.max(a.length, b.length) / 2) - 1, 0);
   const aMatches = new Array(a.length).fill(false);
   const bMatches = new Array(b.length).fill(false);
