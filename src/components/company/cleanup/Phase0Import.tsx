@@ -128,6 +128,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   const [fileMappings, setFileMappings] = useState<Map<string, ColumnMapping>>(new Map());
   const [matches, setMatches] = useState<MatchedQBClient[]>([]);
   const [saving, setSaving] = useState(false);
+  const [approvedMatches, setApprovedMatches] = useState<Set<number>>(new Set());
   const [previewCounts, setPreviewCounts] = useState<Record<string, number>>({});
   const [excludedCols, setExcludedCols] = useState<Set<string>>(new Set(['Balance', 'Posting (Y/N)']));
   const [templateName, setTemplateName] = useState('');
@@ -525,6 +526,10 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
     const matched = matchQBClients(Array.from(clientNames), invoiceData, companies);
     matched.sort((a, b) => b.score - a.score);
     setMatches(matched);
+    // Auto-select high confidence matches
+    const autoApproved = new Set<number>();
+    matched.forEach((m, i) => { if (m.confidence === 'high' && m.matchedCompanyId) autoApproved.add(i); });
+    setApprovedMatches(autoApproved);
     setStep('review');
   };
 
@@ -535,10 +540,9 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       if (!user) throw new Error('Not authenticated');
 
       let linked = 0;
-      let created = 0;
-
-      for (const m of matches) {
-        if (m.matchedCompanyId && m.confidence !== 'none') {
+      for (let i = 0; i < matches.length; i++) {
+        const m = matches[i];
+        if (approvedMatches.has(i) && m.matchedCompanyId) {
           // Update existing company with QuickBooks data
           await supabase
             .from('companies')
@@ -904,6 +908,8 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
     const lowMatches = matches.filter(m => m.confidence === 'low');
     const noMatches = matches.filter(m => m.confidence === 'none');
 
+    const approvedCount = matches.filter((m, i) => approvedMatches.has(i) && m.matchedCompanyId).length;
+
     return (
       <Card className="p-8">
         <h2 className="text-lg font-semibold mb-2">Review Matches</h2>
@@ -913,14 +919,36 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
           <span className="text-amber-500 ml-2">{medMatches.length} medium</span>
           <span className="text-orange-500 ml-2">{lowMatches.length} low</span>
           <span className="text-muted-foreground ml-2">{noMatches.length} unmatched</span>
+          <span className="text-primary ml-2 font-medium">{approvedCount} selected</span>
         </p>
+
+        {/* Bulk actions */}
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+            const next = new Set<number>();
+            matches.forEach((m, i) => { if (m.confidence === 'high' && m.matchedCompanyId) next.add(i); });
+            setApprovedMatches(next);
+          }}>Select High Only</Button>
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+            const next = new Set<number>();
+            matches.forEach((m, i) => { if ((m.confidence === 'high' || m.confidence === 'medium') && m.matchedCompanyId) next.add(i); });
+            setApprovedMatches(next);
+          }}>Select High + Medium</Button>
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => {
+            const next = new Set<number>();
+            matches.forEach((m, i) => { if (m.matchedCompanyId) next.add(i); });
+            setApprovedMatches(next);
+          }}>Select All Matched</Button>
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setApprovedMatches(new Set())}>Deselect All</Button>
+        </div>
 
         <div className="overflow-y-auto max-h-[500px] rounded-lg border border-border mb-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs w-[22%]">QuickBooks Client</TableHead>
-                <TableHead className="text-xs w-[22%]">Matched Company</TableHead>
+                <TableHead className="text-xs w-8"></TableHead>
+                <TableHead className="text-xs w-[20%]">QuickBooks Client</TableHead>
+                <TableHead className="text-xs w-[20%]">Matched Company</TableHead>
                 <TableHead className="text-xs text-right">Txns</TableHead>
                 <TableHead className="text-xs text-right">Total</TableHead>
                 <TableHead className="text-xs">Date Range</TableHead>
@@ -930,7 +958,19 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             </TableHeader>
             <TableBody>
               {matches.map((m, i) => (
-                <TableRow key={i}>
+                <TableRow key={i} className={approvedMatches.has(i) ? 'bg-green-500/5' : m.confidence === 'none' ? 'opacity-50' : ''}>
+                  <TableCell className="py-2">
+                    {m.matchedCompanyId && (
+                      <Checkbox
+                        checked={approvedMatches.has(i)}
+                        onCheckedChange={() => setApprovedMatches(prev => {
+                          const next = new Set(prev);
+                          if (next.has(i)) next.delete(i); else next.add(i);
+                          return next;
+                        })}
+                      />
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm font-medium py-2">{m.qbName}</TableCell>
                   <TableCell className="text-sm py-2">
                     {m.matchedCompanyName || <span className="text-muted-foreground italic">No match</span>}
@@ -987,9 +1027,9 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
         </div>
 
         <div className="flex items-center gap-3">
-          <Button onClick={saveMatches} disabled={saving}>
+          <Button onClick={saveMatches} disabled={saving || approvedCount === 0}>
             {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-            Save {highMatches.length + medMatches.length} High/Medium Matches
+            Save {approvedCount} Selected Matches
           </Button>
           <Button variant="outline" onClick={() => setStep('map')}>Back</Button>
           <Button variant="outline" onClick={onSkip}>Skip</Button>
