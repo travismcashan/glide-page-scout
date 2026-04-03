@@ -715,7 +715,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                           return <Badge variant="outline" className={`text-xs py-0 whitespace-nowrap ${lockedCount === 3 ? 'text-green-600 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>{lockedCount}/3 locked</Badge>;
                         }
                         if (count === 3) {
-                          return <Badge variant="outline" className="text-xs py-0 whitespace-nowrap text-green-600 border-green-500/30">3/3 saved</Badge>;
+                          return <Badge variant="outline" className="text-xs py-0 whitespace-nowrap text-green-600 border-green-500/30">3/3 locked</Badge>;
                         }
                         if (foundCount > 0) {
                           return <Badge variant="outline" className="text-xs py-0 text-blue-500 border-blue-500/30">{foundCount} found</Badge>;
@@ -754,7 +754,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                               }}
                             >
                               <Lock className="h-3 w-3" />
-                              Saved
+                              Locked
                             </Button>
                           );
                         }
