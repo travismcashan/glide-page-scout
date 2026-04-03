@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Search, Lock, LockOpen, Loader2, Filter, Trash2, RefreshCw } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { CheckCircle2, Search, Lock, LockOpen, Loader2, Filter, Trash2, RefreshCw, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCompanyName, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
@@ -345,57 +347,63 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
     const matches = allMatches.get(company.id);
     const candidates = matches?.[source] || [];
-    // Get all records from this source for manual browsing
     const allSourceRecords = sourceData?.[source] || [];
 
     const override = overrides.get(company.id)?.[source];
-    const selectedId = override || (candidates.length > 0 ? candidates[0]?.id : '__none__');
-    const activeCand = candidates.find(c => c.id === selectedId) || candidates[0];
+    const selectedId = override || (candidates.length > 0 ? candidates[0]?.id : '');
+    const activeCand = candidates.find(c => c.id === selectedId);
+    const selectedRecord = activeCand || allSourceRecords.find(r => r.id === selectedId);
     const pct = activeCand ? Math.round(activeCand.score * 100) : 0;
     const pctColor = pct >= 95 ? 'text-green-600' : pct >= 85 ? 'text-amber-500' : 'text-orange-500';
+
+    const setSourceOverride = (id: string) => {
+      setOverrides(prev => {
+        const next = new Map(prev);
+        const existing = next.get(company.id) || {};
+        next.set(company.id, { ...existing, [source]: id });
+        return next;
+      });
+    };
 
     return (
       <div className="flex items-center gap-1.5">
         {pct > 0 && <span className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right`}>{pct}%</span>}
-        <Select
-          value={selectedId}
-          onValueChange={(v) => {
-            setOverrides(prev => {
-              const next = new Map(prev);
-              const existing = next.get(company.id) || {};
-              next.set(company.id, { ...existing, [source]: v });
-              return next;
-            });
-          }}
-        >
-          <SelectTrigger className={`h-7 text-xs flex-1 min-w-0 ${selectedId === '__none__' ? 'text-muted-foreground' : ''}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="max-h-[300px]">
-            <SelectItem value="__none__">
-              <span className="text-muted-foreground">No match</span>
-            </SelectItem>
-            {candidates.length > 0 && candidates.map(c => (
-              <SelectItem key={c.id} value={c.id}>
-                <span className="truncate">{c.name}</span>
-              </SelectItem>
-            ))}
-            {/* Show all source records for manual browsing */}
-            {allSourceRecords.length > 0 && candidates.length < allSourceRecords.length && (
-              <>
-                <div className="px-2 py-1 text-xs text-muted-foreground border-t mt-1 pt-1">All {source} records</div>
-                {allSourceRecords.slice(0, 50).map(r => (
-                  <SelectItem key={`all-${r.id}`} value={r.id}>
-                    <span className="truncate">{r.name}</span>
-                  </SelectItem>
-                ))}
-                {allSourceRecords.length > 50 && (
-                  <div className="px-2 py-1 text-xs text-muted-foreground">...and {allSourceRecords.length - 50} more</div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={`h-7 text-xs justify-between flex-1 min-w-0 font-normal ${!selectedRecord ? 'text-muted-foreground' : ''}`}>
+              <span className="truncate">{selectedRecord?.name || 'No match'}</span>
+              <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50 ml-1" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[280px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder={`Search ${source}...`} className="h-8 text-xs" />
+              <CommandList className="max-h-[250px]">
+                <CommandEmpty>No results found.</CommandEmpty>
+                <CommandItem onSelect={() => setSourceOverride('')} className="text-xs text-muted-foreground">
+                  No match
+                </CommandItem>
+                {candidates.length > 0 && (
+                  <CommandGroup heading="Suggested">
+                    {candidates.map(c => (
+                      <CommandItem key={c.id} value={c.name} onSelect={() => setSourceOverride(c.id)} className="text-xs">
+                        {c.name}
+                        <span className={`ml-auto text-xs font-bold ${c.score >= 0.95 ? 'text-green-600' : c.score >= 0.85 ? 'text-amber-500' : 'text-orange-500'}`}>{Math.round(c.score * 100)}%</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
                 )}
-              </>
-            )}
-        </SelectContent>
-      </Select>
+                <CommandGroup heading={`All ${source} (${allSourceRecords.length})`}>
+                  {allSourceRecords.map(r => (
+                    <CommandItem key={r.id} value={r.name} onSelect={() => setSourceOverride(r.id)} className="text-xs">
+                      {r.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
     );
   };
