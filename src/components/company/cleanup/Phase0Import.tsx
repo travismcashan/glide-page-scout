@@ -108,7 +108,8 @@ function matchQBClients(qbNames: string[], invoiceData: Map<string, any>, compan
   });
 }
 
-type UploadedFile = { name: string; rows: ParsedRow[]; headers: string[] };
+type FileType = 'summary' | 'transactions';
+type UploadedFile = { name: string; rows: ParsedRow[]; headers: string[]; fileType: FileType };
 
 export default function Phase0Import({ companies, onComplete, onSkip, onRefetch }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -120,12 +121,52 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   const [mapping, setMapping] = useState<ColumnMapping>({ clientName: '' });
   const [matches, setMatches] = useState<MatchedQBClient[]>([]);
   const [saving, setSaving] = useState(false);
+  const [previewCount, setPreviewCount] = useState(10);
 
   const parseCSV = useCallback((text: string) => {
-    const allLines = text.split('\n');
-    if (allLines.length < 2) { toast.error('CSV must have a header row and at least one data row'); return; }
+    if (text.length < 10) { toast.error('CSV file appears empty'); return; }
 
-    // Simple CSV parser (handles quoted fields)
+    // Full CSV parser that handles multi-line quoted fields (QuickBooks exports
+    // memo fields with newlines inside quotes)
+    const parseAllRows = (csv: string): string[][] => {
+      const rows: string[][] = [];
+      let current = '';
+      let inQuotes = false;
+      let row: string[] = [];
+
+      for (let i = 0; i < csv.length; i++) {
+        const ch = csv[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+          continue;
+        }
+        if (ch === ',' && !inQuotes) {
+          row.push(current.trim());
+          current = '';
+          continue;
+        }
+        if ((ch === '\n' || ch === '\r') && !inQuotes) {
+          if (ch === '\r' && csv[i + 1] === '\n') i++; // skip \r\n
+          row.push(current.trim());
+          current = '';
+          if (row.some(v => v)) rows.push(row);
+          row = [];
+          continue;
+        }
+        // Inside quotes, replace newlines with spaces for cleaner display
+        if ((ch === '\n' || ch === '\r') && inQuotes) {
+          if (ch === '\r' && csv[i + 1] === '\n') i++;
+          current += ' ';
+          continue;
+        }
+        current += ch;
+      }
+      // Last row
+      row.push(current.trim());
+      if (row.some(v => v)) rows.push(row);
+      return rows;
+    };
+
     const parseLine = (line: string): string[] => {
       const result: string[] = [];
       let current = '';
@@ -139,29 +180,24 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       return result;
     };
 
-    // QuickBooks CSVs have metadata rows before the actual headers.
-    // Detect header row: first row with 2+ non-empty comma-separated values
-    // that looks like column labels (not a report title or company name).
+    const allRows = parseAllRows(text);
+    if (allRows.length < 2) { toast.error('CSV must have a header row and at least one data row'); return; }
+
+    // Detect header row: first row with 2+ non-empty values that looks like column labels
     let headerIdx = 0;
-    const lines = allLines.filter(l => l.trim());
-    for (let i = 0; i < Math.min(lines.length, 10); i++) {
-      const parsed = parseLine(lines[i]);
-      const nonEmpty = parsed.filter(v => v);
-      // Header row has multiple non-empty values and at least one looks like a label
-      // (contains letters, not just a company name on its own)
+    for (let i = 0; i < Math.min(allRows.length, 10); i++) {
+      const row = allRows[i];
+      const nonEmpty = row.filter(v => v);
       if (nonEmpty.length >= 2) {
-        // Check if this looks like data vs. a report title
-        // QuickBooks headers: ",Income,Expenses,Net income" or ",Date,Transaction type,..."
-        // Report titles: "Income by Client Summary,,," (mostly empty after first col)
-        const emptyCount = parsed.filter(v => !v).length;
-        if (emptyCount < parsed.length - 1) {
+        const emptyCount = row.filter(v => !v).length;
+        if (emptyCount < row.length - 1) {
           headerIdx = i;
           break;
         }
       }
     }
 
-    const hdrs = parseLine(lines[headerIdx]);
+    const hdrs = [...allRows[headerIdx]];
     // If first header is empty (QuickBooks puts client name in col 0 with no label), name it
     if (!hdrs[0]) hdrs[0] = 'Client Name';
 
@@ -170,8 +206,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
     // We need to carry the client name forward into each transaction row.
     let currentClient = '';
     const rows: ParsedRow[] = [];
-    for (const line of lines.slice(headerIdx + 1)) {
-      const vals = parseLine(line);
+    for (const vals of allRows.slice(headerIdx + 1)) {
       const row: ParsedRow = {};
       hdrs.forEach((h, i) => { row[h] = vals[i] || ''; });
 
@@ -219,32 +254,41 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       if (!parsed) return;
       parsed.name = fileName;
 
+      // Auto-detect file type: summary (1 row per client) vs transactions (many rows per client)
+      // Summary files have columns like "Income", "Expenses", "Net income"
+      // Transaction files have columns like "Date", "Transaction type", "Memo"
+      const headerLower = parsed.headers.map(h => h.toLowerCase());
+      const isSummary = headerLower.some(h => h.includes('income') || h.includes('expenses') || h.includes('net income'))
+        && !headerLower.some(h => h.includes('date') || h.includes('transaction type'));
+      (parsed as UploadedFile).fileType = isSummary ? 'summary' : 'transactions';
+
       setUploadedFiles(prev => {
-        const next = [...prev, parsed];
-        // Merge all files: combine headers, merge rows by client name
+        const next = [...prev, parsed as UploadedFile];
+
+        // Combine all headers across files
         const allHeaders = new Set<string>();
         for (const f of next) f.headers.forEach(h => allHeaders.add(h));
         const mergedHeaders = Array.from(allHeaders);
 
-        // Merge rows: for each file, index by the first column (client name)
-        const byClient = new Map<string, ParsedRow>();
+        // Keep ALL rows from all files (don't merge - let runMatching aggregate per client)
+        const allRows: ParsedRow[] = [];
         for (const f of next) {
           for (const row of f.rows) {
-            const clientKey = row[f.headers[0]] || '';
-            if (!clientKey) continue;
-            const existing = byClient.get(clientKey) || {};
-            byClient.set(clientKey, { ...existing, ...row });
+            // Ensure all header keys exist on every row
+            const fullRow: ParsedRow = {};
+            for (const h of mergedHeaders) fullRow[h] = row[h] || '';
+            allRows.push(fullRow);
           }
         }
 
-        const mergedRows = Array.from(byClient.values());
         setHeaders(mergedHeaders);
-        setRawData(mergedRows);
+        setRawData(allRows);
         setMapping(autoMapColumns(mergedHeaders));
         return next;
       });
 
-      toast.success(`Added "${fileName}" (${text.split('\n').length} lines)`);
+      const typeLabel = (parsed as UploadedFile).fileType === 'summary' ? 'Summary' : 'Transactions';
+      toast.success(`Added "${fileName}" — ${typeLabel} (${parsed.rows.length} rows)`);
     } catch (err: any) {
       toast.error(`Failed to parse ${fileName}: ${err.message}`);
     }
@@ -395,13 +439,15 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             {uploadedFiles.map((f, i) => (
               <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{f.name}</span>
+                <span className="text-sm font-medium truncate">{f.name}</span>
+                <Badge variant="outline" className={`text-[10px] py-0 ${
+                  f.fileType === 'summary' ? 'text-blue-600 border-blue-500/30 bg-blue-500/10' : 'text-purple-600 border-purple-500/30 bg-purple-500/10'
+                }`}>{f.fileType === 'summary' ? 'Summary' : 'Transactions'}</Badge>
                 <Badge variant="outline" className="text-[10px] py-0">{f.rows.length} rows</Badge>
-                <Badge variant="outline" className="text-[10px] py-0">{f.headers.length} columns</Badge>
               </div>
             ))}
             <p className="text-xs text-muted-foreground">
-              Merged: {rawData.length} unique clients across {headers.length} columns
+              {rawData.length.toLocaleString()} total rows across {headers.length} columns
             </p>
           </div>
         )}
@@ -425,7 +471,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       <Card className="p-8">
         <h2 className="text-lg font-semibold mb-2">Map Columns</h2>
         <p className="text-sm text-muted-foreground mb-6">
-          We detected {headers.length} columns and {rawData.length} rows. Map the columns to the right fields.
+          {rawData.length.toLocaleString()} rows across {headers.length} columns from {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}. Map the columns to the right fields. Data will be aggregated per client automatically.
         </p>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -462,30 +508,69 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
 
         {/* Preview first 5 rows */}
         <div className="mb-6">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Preview (first 5 rows) — mapped columns highlighted</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Preview — showing rows with mapped data, sampled from {rawData.length.toLocaleString()} total rows
+            </p>
+            <Select value={String(previewCount)} onValueChange={(v) => setPreviewCount(Number(v))}>
+              <SelectTrigger className="w-[130px] h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 rows</SelectItem>
+                <SelectItem value="25">25 rows</SelectItem>
+                <SelectItem value="50">50 rows</SelectItem>
+                <SelectItem value="100">100 rows</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  {headers.filter(h => h).map(h => {
-                    const isMapped = Object.values(mapping).includes(h);
-                    return (
-                      <TableHead key={h} className={`text-xs whitespace-nowrap ${isMapped ? 'bg-primary/10 text-primary font-semibold' : ''}`}>{h}</TableHead>
-                    );
-                  })}
+                  {(() => {
+                    // Show mapped columns first, then unmapped
+                    const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
+                    const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
+                    return [...mapped, ...unmapped].map(h => {
+                      const isMapped = mapped.includes(h);
+                      return (
+                        <TableHead key={h} className={`text-xs whitespace-nowrap ${isMapped ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground'}`}>{h}</TableHead>
+                      );
+                    });
+                  })()}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rawData.slice(0, 5).map((row, i) => (
-                  <TableRow key={i}>
-                    {headers.filter(h => h).map(h => {
-                      const isMapped = Object.values(mapping).includes(h);
-                      return (
-                        <TableCell key={h} className={`text-xs py-2 ${isMapped ? 'bg-primary/5 font-medium' : ''}`}>{row[h]}</TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
+                {(() => {
+                  // Only show rows that have data in Client Name + at least one other mapped column
+                  const mappedKeys = Object.values(mapping).filter(v => v && v !== '__none__') as string[];
+                  const clientCol = mapping.clientName;
+                  const meaningfulRows = rawData.filter(row => {
+                    if (!clientCol || !row[clientCol]) return false;
+                    const otherMapped = mappedKeys.filter(k => k !== clientCol && row[k]);
+                    return otherMapped.length > 0;
+                  });
+                  const source = meaningfulRows.length > 0 ? meaningfulRows : rawData;
+                  const step = Math.max(1, Math.floor(source.length / previewCount));
+                  const sampled: { row: ParsedRow; idx: number }[] = [];
+                  for (let i = 0; i < source.length && sampled.length < previewCount; i += step) {
+                    sampled.push({ row: source[i], idx: i });
+                  }
+                  const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
+                  const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
+                  const orderedHeaders = [...mapped, ...unmapped];
+                  return sampled.map(({ row, idx }) => (
+                    <TableRow key={idx}>
+                      {orderedHeaders.map(h => {
+                        const isMapped = mapped.includes(h);
+                        return (
+                          <TableCell key={h} className={`text-xs py-2 max-w-[200px] truncate ${isMapped ? 'bg-primary/5 font-medium' : 'text-muted-foreground'}`}>{row[h]}</TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ));
+                })()}
               </TableBody>
             </Table>
           </div>
