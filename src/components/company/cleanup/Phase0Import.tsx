@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2, Columns3, GripVertical, Pencil } from 'lucide-react';
+import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2, Columns3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCompanyName, normalizeDomain, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
@@ -128,13 +128,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   const [saving, setSaving] = useState(false);
   const [previewCounts, setPreviewCounts] = useState<Record<string, number>>({});
   const [excludedCols, setExcludedCols] = useState<Set<string>>(new Set(['Balance', 'Posting (Y/N)']));
-  const [columnRenames, setColumnRenames] = useState<Record<string, string>>({});
-  const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const [editingCol, setEditingCol] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
   const [templateName, setTemplateName] = useState('');
-
-  const displayName = (col: string) => columnRenames[col] || col;
 
   // Save/load import templates to localStorage
   const saveTemplate = (name: string) => {
@@ -142,8 +136,6 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
     templates[name] = {
       fileMappings: Object.fromEntries(fileMappings),
       excludedCols: Array.from(excludedCols),
-      columnRenames,
-      columnOrder,
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem('qb-import-templates', JSON.stringify(templates));
@@ -156,8 +148,6 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
     if (!t) { toast.error('Template not found'); return; }
     if (t.fileMappings) setFileMappings(new Map(Object.entries(t.fileMappings)));
     if (t.excludedCols) setExcludedCols(new Set(t.excludedCols));
-    if (t.columnRenames) setColumnRenames(t.columnRenames);
-    if (t.columnOrder) setColumnOrder(t.columnOrder);
     toast.success(`Template "${name}" loaded`);
   };
 
@@ -379,6 +369,33 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
           }
 
           allRows = [...Array.from(mergedMap.values()), ...unmatchedRows];
+
+          // Unify columns that map to the same field across files.
+          // e.g. "Memo" (file1) and "Memo/Description" (file2) both map to 'memo'
+          // Copy values between them so both columns show data.
+          const fieldToColumns = new Map<string, string[]>();
+          const FIELDS = ['clientName', 'num', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const;
+          for (const [, fm] of fileMappings) {
+            for (const field of FIELDS) {
+              const col = (fm as any)[field];
+              if (col) {
+                if (!fieldToColumns.has(field)) fieldToColumns.set(field, []);
+                const cols = fieldToColumns.get(field)!;
+                if (!cols.includes(col)) cols.push(col);
+              }
+            }
+          }
+          // For each row, if a field has multiple column names, copy the value across
+          for (const row of allRows) {
+            for (const [, cols] of fieldToColumns) {
+              if (cols.length < 2) continue;
+              const value = cols.map(c => row[c]).find(v => v) || '';
+              for (const c of cols) {
+                if (!row[c]) row[c] = value;
+              }
+            }
+          }
+
           const mergedCount = Array.from(mergedMap.values()).filter(r => r['__source__']?.includes('+')).length;
           if (mergedCount > 0) {
             toast.success(`Merged ${mergedCount.toLocaleString()} rows on invoice number`);
@@ -692,32 +709,15 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                     Columns ({headers.filter(h => h && !excludedCols.has(h)).length}/{headers.filter(h => h).length})
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start">
+                <PopoverContent className="w-56 p-0" align="start">
                   <div className="p-2 border-b border-border">
-                    <p className="text-xs font-medium">Toggle & reorder columns</p>
-                    <p className="text-[10px] text-muted-foreground">Drag to reorder. Click checkbox to show/hide. Click name to rename.</p>
+                    <p className="text-xs font-medium">Show / hide columns</p>
                   </div>
                   <div className="max-h-[400px] overflow-y-auto p-1">
-                    {(columnOrder.length > 0 ? columnOrder : headers).filter(h => h && headers.includes(h)).map((h, idx) => {
+                    {headers.filter(h => h).map(h => {
                       const isExcluded = excludedCols.has(h);
-                      const isEditing = editingCol === h;
                       return (
-                        <div
-                          key={h}
-                          draggable
-                          onDragStart={(e) => { e.dataTransfer.setData('col-idx', String(idx)); }}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            const fromIdx = parseInt(e.dataTransfer.getData('col-idx'));
-                            const order = columnOrder.length > 0 ? [...columnOrder] : [...headers.filter(h => h)];
-                            const [moved] = order.splice(fromIdx, 1);
-                            order.splice(idx, 0, moved);
-                            setColumnOrder(order);
-                          }}
-                          className={`flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-grab ${isExcluded ? 'opacity-50' : ''}`}
-                        >
-                          <GripVertical className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <label key={h} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer">
                           <Checkbox
                             checked={!isExcluded}
                             onCheckedChange={() => setExcludedCols(prev => {
@@ -726,26 +726,8 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                               return next;
                             })}
                           />
-                          {isEditing ? (
-                            <form onSubmit={(e) => { e.preventDefault(); setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }} className="flex-1">
-                              <Input
-                                value={editingName}
-                                onChange={(e) => setEditingName(e.target.value)}
-                                onBlur={() => { setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }}
-                                className="h-6 text-xs px-1.5"
-                                autoFocus
-                              />
-                            </form>
-                          ) : (
-                            <button
-                              onClick={() => { setEditingCol(h); setEditingName(displayName(h)); }}
-                              className={`text-xs text-left flex-1 hover:text-primary ${isExcluded ? 'line-through' : ''}`}
-                            >
-                              {displayName(h)}
-                              {columnRenames[h] && <span className="text-[10px] text-muted-foreground ml-1">({h})</span>}
-                            </button>
-                          )}
-                        </div>
+                          <span className={`text-xs ${isExcluded ? 'text-muted-foreground line-through' : ''}`}>{h}</span>
+                        </label>
                       );
                     })}
                   </div>
@@ -780,12 +762,11 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                 <TableHeader>
                   <TableRow>
                     {(() => {
-                      const ordered = columnOrder.length > 0 ? columnOrder.filter(h => headers.includes(h)) : headers;
-                      const visibleHeaders = ordered.filter(h => h && !excludedCols.has(h));
+                      const visibleHeaders = headers.filter(h => h && !excludedCols.has(h));
                       const mapped = visibleHeaders.filter(h => Object.values(mapping).includes(h));
                       const unmapped = visibleHeaders.filter(h => !Object.values(mapping).includes(h));
                       return [...mapped, ...unmapped].map(h => (
-                        <TableHead key={h} className="text-xs whitespace-nowrap">{displayName(h)}</TableHead>
+                        <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
                       ));
                     })()}
                   </TableRow>
@@ -877,7 +858,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                         {orderedCols.map(h => {
                           const isMapped = mapped.includes(h);
                           return (
-                            <TableHead key={h} className="text-xs whitespace-nowrap">{displayName(h)}</TableHead>
+                            <TableHead key={h} className="text-xs whitespace-nowrap">{h}</TableHead>
                           );
                         })}
                       </TableRow>
