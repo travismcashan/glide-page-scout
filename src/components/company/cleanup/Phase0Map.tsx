@@ -349,7 +349,8 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
   // Count unsaved changes
   const [savingAll, setSavingAll] = useState(false);
-  const unsavedCount = localLocks.size + pendingDeletes.size;
+  const [committedIds, setCommittedIds] = useState<Set<string>>(new Set());
+  const unsavedCount = [...localLocks.keys()].filter(id => !committedIds.has(id)).length + pendingDeletes.size;
 
   // Save everything to the database at once
   const saveAll = async () => {
@@ -372,9 +373,16 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
       if (saved) parts.push(`${saved} mapped`);
       if (deleted) parts.push(`${deleted} deleted`);
       toast.success(`Saved: ${parts.join(', ')}`);
-      setLocalLocks(new Map());
+      // Mark saved IDs as committed so unsaved count resets
+      const newCommitted = new Set(committedIds);
+      for (const [id] of localLocks) {
+        if (!pendingDeletes.has(id)) newCommitted.add(id);
+      }
+      setCommittedIds(newCommitted);
       setPendingDeletes(new Set());
-      onRefetch();
+      setOverrides(new Map());
+      setLockedRows(prev => new Set([...prev, ...newCommitted]));
+      // Don't call onRefetch() — keeps source data and page state intact
     } catch (err: any) {
       toast.error(`Save failed: ${err.message}`);
     } finally {
