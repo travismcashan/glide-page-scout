@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key, Hash, Clock, CheckSquare, Waves, ArrowRight } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key, Hash, Clock, CheckSquare, Waves, ArrowRight, ArrowDown, ArrowLeftRight, Radio, Upload, Headphones } from 'lucide-react';
 import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
@@ -656,7 +656,7 @@ export default function ConnectionsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Connections</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Connect your accounts once — they stay active across all scans. No more re-authenticating every session.
+            The nervous system of Agency Brain. Every source of truth wired in and flowing continuously.
           </p>
         </div>
 
@@ -665,22 +665,24 @@ export default function ConnectionsPage() {
             <BrandLoader size={48} />
           </div>
         ) : (<>
-        {/* Global Streams */}
+        {/* ── Synced Connections ── */}
         <div className="mb-8">
           <div className="mb-3">
             <div className="flex items-center gap-2">
-              <Waves className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold text-foreground tracking-tight">Global Streams</h2>
+              <ArrowLeftRight className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-foreground tracking-tight">Synced</h2>
+              <Badge variant="outline" className="text-[10px] py-0 text-muted-foreground">Two-way</Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Platform-level data rivers that feed Agency Brain across all clients. Connected once, shared everywhere.
+              Read and write back. These connections keep Agency Brain in sync with your operational tools.
             </p>
           </div>
-          <div className="grid sm:grid-cols-3 gap-3 mb-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             {[
               { id: 'harvest', name: 'Harvest', icon: Clock, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500', healthKey: 'harvest', desc: 'Time tracking, projects, and client billing' },
               { id: 'asana', name: 'Asana', icon: CheckSquare, iconBg: 'bg-purple-500/10', iconColor: 'text-purple-500', healthKey: 'asana', desc: 'Project management and delivery tracking' },
               { id: 'hubspot', name: 'HubSpot', icon: Building2, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-600', healthKey: 'hubspot', desc: 'Contacts, deals, pipeline, and engagements' },
+              { id: 'freshdesk', name: 'Freshdesk', icon: Headphones, iconBg: 'bg-green-500/10', iconColor: 'text-green-600', healthKey: 'freshdesk', desc: 'Support tickets, companies, and client history' },
             ].map(stream => {
               const status = apiStatus(stream.healthKey);
               return (
@@ -735,7 +737,7 @@ export default function ConnectionsPage() {
                 {syncResult.updated > 0 && <span className="text-blue-400 font-medium">{syncResult.updated} updated</span>}
                 {syncResult.matched?.domain > 0 && <span> &middot; {syncResult.matched.domain} matched by domain</span>}
                 {syncResult.matched?.name > 0 && <span> &middot; {syncResult.matched.name} matched by name</span>}
-                {' '}&middot; Sources: {syncResult.sources?.harvest || 0} Harvest, {syncResult.sources?.asana || 0} Asana, {syncResult.sources?.hubspot || 0} HubSpot
+                {' '}&middot; Sources: {syncResult.sources?.harvest || 0} Harvest, {syncResult.sources?.asana || 0} Asana, {syncResult.sources?.hubspot || 0} HubSpot, {syncResult.sources?.freshdesk || 0} Freshdesk
               </span>
             )}
           </div>
@@ -771,12 +773,16 @@ export default function ConnectionsPage() {
           )}
         </div>
 
-        {/* Live Sources */}
+        {/* ── Live Connections ── */}
         <div className="mb-8">
           <div className="mb-3">
-            <h2 className="text-sm font-semibold text-foreground tracking-tight">Live Sources</h2>
+            <div className="flex items-center gap-2">
+              <Radio className="h-4 w-4 text-emerald-500" />
+              <h2 className="text-sm font-semibold text-foreground tracking-tight">Live</h2>
+              <Badge variant="outline" className="text-[10px] py-0 text-muted-foreground">Real-time</Badge>
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              The AI queries these in real-time during chat — no need to re-crawl. Google Analytics and Search Console connect per-site on the results page.
+              The AI queries these APIs on-demand during conversation. No stale data, no re-crawl needed.
             </p>
           </div>
           <div className="space-y-3">
@@ -820,12 +826,16 @@ export default function ConnectionsPage() {
           </div>
         </div>
 
-        {/* Account Access */}
+        {/* ── Backfill / Account Access ── */}
         <div className="mb-8">
           <div className="mb-3">
-            <h2 className="text-sm font-semibold text-foreground tracking-tight">Account Access</h2>
+            <div className="flex items-center gap-2">
+              <Upload className="h-4 w-4 text-amber-500" />
+              <h2 className="text-sm font-semibold text-foreground tracking-tight">Backfill</h2>
+              <Badge variant="outline" className="text-[10px] py-0 text-muted-foreground">Import</Badge>
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Used for importing and crawling data into your knowledge base.
+              Import historical data into the knowledge base. OAuth accounts for document access, plus CSV/PDF/URL uploads.
             </p>
           </div>
           <div className="space-y-3">
@@ -899,12 +909,16 @@ export default function ConnectionsPage() {
           </div>
         </div>
 
-        {/* API Connections */}
+        {/* ── Static Connections ── */}
         <div className="mb-8">
           <div className="mb-3">
-            <h2 className="text-sm font-semibold text-foreground tracking-tight">API Connections</h2>
+            <div className="flex items-center gap-2">
+              <ArrowDown className="h-4 w-4 text-blue-500" />
+              <h2 className="text-sm font-semibold text-foreground tracking-tight">Static</h2>
+              <Badge variant="outline" className="text-[10px] py-0 text-muted-foreground">One-way read</Badge>
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Server-side API keys that power integrations. Managed via Supabase environment secrets.
+              Pull data and store it. Fire-and-forget API integrations managed via server secrets.
             </p>
           </div>
           <Card className="p-0 overflow-hidden divide-y divide-border">

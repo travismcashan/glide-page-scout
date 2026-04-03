@@ -69,6 +69,50 @@ async function checkHubSpot(): Promise<HealthResult> {
   }
 }
 
+async function checkHarvest(): Promise<HealthResult> {
+  const start = Date.now();
+  try {
+    const token = Deno.env.get('HARVEST_ACCESS_TOKEN');
+    const accountId = Deno.env.get('HARVEST_ACCOUNT_ID');
+    if (!token || !accountId) return { id: 'harvest', ok: false, latencyMs: 0, detail: 'No API key' };
+    const res = await fetch('https://api.harvestapp.com/v2/users/me', {
+      headers: { 'Authorization': `Bearer ${token}`, 'Harvest-Account-Id': accountId },
+    });
+    return { id: 'harvest', ok: res.ok, latencyMs: Date.now() - start };
+  } catch (e) {
+    return { id: 'harvest', ok: false, latencyMs: Date.now() - start, detail: (e as Error).message };
+  }
+}
+
+async function checkAsana(): Promise<HealthResult> {
+  const start = Date.now();
+  try {
+    const token = Deno.env.get('ASANA_ACCESS_TOKEN');
+    if (!token) return { id: 'asana', ok: false, latencyMs: 0, detail: 'No API key' };
+    const res = await fetch('https://app.asana.com/api/1.0/users/me', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    return { id: 'asana', ok: res.ok, latencyMs: Date.now() - start };
+  } catch (e) {
+    return { id: 'asana', ok: false, latencyMs: Date.now() - start, detail: (e as Error).message };
+  }
+}
+
+async function checkFreshdesk(): Promise<HealthResult> {
+  const start = Date.now();
+  try {
+    const apiKey = Deno.env.get('FRESHDESK_API_KEY');
+    const domain = Deno.env.get('FRESHDESK_DOMAIN');
+    if (!apiKey || !domain) return { id: 'freshdesk', ok: false, latencyMs: 0, detail: 'No API key' };
+    const res = await fetch(`https://${domain}.freshdesk.com/api/v2/companies?per_page=1&page=1`, {
+      headers: { 'Authorization': `Basic ${btoa(apiKey + ':X')}`, 'Content-Type': 'application/json' },
+    });
+    return { id: 'freshdesk', ok: res.ok, latencyMs: Date.now() - start };
+  } catch (e) {
+    return { id: 'freshdesk', ok: false, latencyMs: Date.now() - start, detail: (e as Error).message };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -82,6 +126,9 @@ Deno.serve(async (req) => {
       checkWebsiteCarbon(),
       checkPageSpeed(),
       checkHubSpot(),
+      checkHarvest(),
+      checkAsana(),
+      checkFreshdesk(),
     ]);
 
     const map: Record<string, HealthResult> = {};

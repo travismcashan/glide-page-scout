@@ -1,7 +1,7 @@
 /**
  * Global Sync Engine
- * Connects Harvest, Asana, and HubSpot streams into Agency Brain.
- * Cross-references all three sources to build a unified client list.
+ * Connects Harvest, Asana, HubSpot, and Freshdesk streams into Agency Brain.
+ * Cross-references all four sources to build a unified client list.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -213,6 +213,46 @@ async function fetchHubSpotData(token: string): Promise<HubSpotCompany[]> {
   return companies;
 }
 
+// ── Freshdesk API ──
+
+type FreshdeskCompany = { id: number; name: string; domain: string | null; domains: string[] };
+
+async function fetchFreshdeskData(apiKey: string, domain: string): Promise<FreshdeskCompany[]> {
+  const baseUrl = `https://${domain}.freshdesk.com/api/v2`;
+  const headers = {
+    'Authorization': `Basic ${btoa(apiKey + ':X')}`,
+    'Content-Type': 'application/json',
+  };
+
+  const companies: FreshdeskCompany[] = [];
+  let page = 1;
+  while (page <= 300) {
+    const res = await fetch(`${baseUrl}/companies?per_page=100&page=${page}`, { headers });
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get('Retry-After') || '5', 10);
+      console.log(`[global-sync] Freshdesk rate limited, waiting ${retryAfter}s...`);
+      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      continue;
+    }
+    if (!res.ok) { console.error('[global-sync] Freshdesk companies error:', res.status); break; }
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) break;
+    for (const c of data) {
+      companies.push({
+        id: c.id,
+        name: c.name || '',
+        domain: normalizeDomain(c.domains?.[0]) || null,
+        domains: (c.domains || []).map((d: string) => normalizeDomain(d)).filter(Boolean),
+      });
+    }
+    if (data.length < 100) break;
+    page++;
+  }
+
+  console.log(`[global-sync] Freshdesk: ${companies.length} companies fetched`);
+  return companies;
+}
+
 // ── Cross-Reference Engine ──
 
 type UnifiedClient = {
@@ -222,6 +262,7 @@ type UnifiedClient = {
   existingId: string | null;
   harvest: HarvestClient | null;
   hubspot: HubSpotCompany | null;
+  freshdesk: FreshdeskCompany | null;
   asanaGids: string[];
   hasActiveProject: boolean;
   action: 'create' | 'update' | 'skip';
@@ -231,6 +272,7 @@ function crossReference(
   harvestClients: HarvestClient[],
   asanaProjects: AsanaProject[],
   hubspotCompanies: HubSpotCompany[],
+  freshdeskCompanies: FreshdeskCompany[],
   existingCompanies: any[]
 ): UnifiedClient[] {
   const unified = new Map<string, UnifiedClient>();
@@ -241,12 +283,15 @@ function crossReference(
   const existingByHarvestId = new Map<string, any>();
   const existingByHubspotId = new Map<string, any>();
 
+  const existingByFreshdeskId = new Map<string, any>();
+
   for (const c of existingCompanies) {
     const d = normalizeDomain(c.domain);
     if (d) existingByDomain.set(d, c);
     existingByName.set(normalizeCompanyName(c.name), c);
     if (c.harvest_client_id) existingByHarvestId.set(c.harvest_client_id, c);
     if (c.hubspot_company_id) existingByHubspotId.set(c.hubspot_company_id, c);
+    if (c.freshdesk_company_id) existingByFreshdeskId.set(c.freshdesk_company_id, c);
   }
 
   // Helper to find or create a unified entry
@@ -259,6 +304,7 @@ function crossReference(
         existingId: existing?.id || null,
         harvest: null,
         hubspot: null,
+        freshdesk: null,
         asanaGids: [],
         hasActiveProject: false,
         action: existing ? 'update' : 'create',
@@ -353,6 +399,45 @@ function crossReference(
     // Unmatched Asana projects don't create companies (too many false positives from internal projects)
   }
 
+  // Pass 4: Freshdesk companies
+  for (const fd of freshdeskCompanies) {
+    if (!fd.name) continue;
+
+    let existing = existingByFreshdeskId.get(String(fd.id));
+    let matchKey: string | null = null;
+
+    // Try domain match (Freshdesk can have multiple domains)
+    for (const d of fd.domains) {
+      if (d && unified.has(d)) { matchKey = d; break; }
+      if (d && existingByDomain.has(d)) { existing = existingByDomain.get(d); matchKey = d; break; }
+    }
+
+    // Try name match
+    if (!matchKey) {
+      const normName = normalizeCompanyName(fd.name);
+      for (const [key, entry] of unified) {
+        if (normalizeCompanyName(entry.name) === normName) {
+          matchKey = key;
+          break;
+        }
+      }
+      if (!matchKey && existingByName.has(normName)) {
+        existing = existingByName.get(normName);
+      }
+    }
+
+    if (!matchKey) matchKey = `freshdesk:${fd.id}`;
+
+    const entry = getOrCreate(
+      matchKey,
+      fd.name,
+      fd.domain,
+      fd.domain ? 'domain' : (matchKey.startsWith('freshdesk:') ? 'new' : 'name'),
+      existing
+    );
+    entry.freshdesk = fd;
+  }
+
   return Array.from(unified.values());
 }
 
@@ -370,6 +455,8 @@ Deno.serve(async (req) => {
     const harvestAccountId = Deno.env.get('HARVEST_ACCOUNT_ID');
     const asanaToken = Deno.env.get('ASANA_ACCESS_TOKEN');
     const hubspotToken = Deno.env.get('HUBSPOT_ACCESS_TOKEN');
+    const freshdeskApiKey = Deno.env.get('FRESHDESK_API_KEY');
+    const freshdeskDomain = Deno.env.get('FRESHDESK_DOMAIN');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -377,16 +464,17 @@ Deno.serve(async (req) => {
 
     // Fetch from all sources in parallel
     console.log('[global-sync] Starting parallel fetch from all streams...');
-    const [harvestClients, asanaProjects, hubspotCompanies] = await Promise.all([
+    const [harvestClients, asanaProjects, hubspotCompanies, freshdeskCompanies] = await Promise.all([
       (harvestToken && harvestAccountId) ? fetchHarvestData(harvestToken, harvestAccountId) : Promise.resolve([]),
       asanaToken ? fetchAsanaData(asanaToken) : Promise.resolve([]),
       hubspotToken ? fetchHubSpotData(hubspotToken) : Promise.resolve([]),
+      (freshdeskApiKey && freshdeskDomain) ? fetchFreshdeskData(freshdeskApiKey, freshdeskDomain) : Promise.resolve([]),
     ]);
 
     // Fetch existing companies
     const { data: existingCompanies } = await supabase
       .from('companies')
-      .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, status');
+      .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, freshdesk_company_id, freshdesk_company_name, status');
 
     console.log(`[global-sync] Existing companies: ${(existingCompanies || []).length}`);
 
@@ -395,6 +483,7 @@ Deno.serve(async (req) => {
       harvestClients,
       asanaProjects,
       hubspotCompanies,
+      freshdeskCompanies,
       existingCompanies || []
     );
 
@@ -406,6 +495,7 @@ Deno.serve(async (req) => {
         harvest: harvestClients.length,
         asana: asanaProjects.length,
         hubspot: hubspotCompanies.length,
+        freshdesk: freshdeskCompanies.length,
         existing: (existingCompanies || []).length,
       },
       matched: { domain: 0, name: 0 },
@@ -421,6 +511,7 @@ Deno.serve(async (req) => {
         const sourceList: string[] = [];
         if (client.harvest) sourceList.push('Harvest');
         if (client.hubspot) sourceList.push('HubSpot');
+        if (client.freshdesk) sourceList.push('Freshdesk');
         if (client.asanaGids.length > 0) sourceList.push('Asana');
 
         try {
@@ -441,6 +532,10 @@ Deno.serve(async (req) => {
               if (client.hubspot.location) updates.location = client.hubspot.location;
               if (client.hubspot.domain) updates.domain = client.hubspot.domain;
               if (client.hubspot.website) updates.website_url = client.hubspot.website;
+            }
+            if (client.freshdesk) {
+              updates.freshdesk_company_id = String(client.freshdesk.id);
+              updates.freshdesk_company_name = client.freshdesk.name;
             }
             if (client.asanaGids.length > 0) {
               updates.asana_project_gids = client.asanaGids;
@@ -475,6 +570,10 @@ Deno.serve(async (req) => {
               newCompany.location = client.hubspot.location;
               newCompany.website_url = client.hubspot.website;
             }
+            if (client.freshdesk) {
+              newCompany.freshdesk_company_id = String(client.freshdesk.id);
+              newCompany.freshdesk_company_name = client.freshdesk.name;
+            }
             if (client.asanaGids.length > 0) {
               newCompany.asana_project_gids = client.asanaGids;
             }
@@ -502,6 +601,7 @@ Deno.serve(async (req) => {
         const sourceList: string[] = [];
         if (client.harvest) sourceList.push('Harvest');
         if (client.hubspot) sourceList.push('HubSpot');
+        if (client.freshdesk) sourceList.push('Freshdesk');
         if (client.asanaGids.length > 0) sourceList.push('Asana');
 
         if (client.existingId) {

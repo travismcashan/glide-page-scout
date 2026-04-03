@@ -47,6 +47,7 @@ import {
   X,
   Check,
   SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
@@ -793,6 +794,10 @@ export default function CompaniesPage() {
               </span>
             )}
           </div>
+          <Button variant="outline" size="sm" onClick={() => navigate('/companies/cleanup')} className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            Cleanup
+          </Button>
         </div>
 
         {/* ── Smart Views ── */}
