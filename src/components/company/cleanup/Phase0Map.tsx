@@ -320,7 +320,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     if (lockedId) {
       return (
         <button
-          className="flex flex-col group cursor-pointer hover:opacity-70 transition-opacity"
+          className="flex flex-col items-start text-left group cursor-pointer hover:opacity-70 transition-opacity"
           onClick={() => unlockSource(company.id, source)}
           title="Click to unlock"
         >
