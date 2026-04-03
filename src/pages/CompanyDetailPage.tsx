@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
+import RoadmapTab from '@/components/roadmap/RoadmapTab';
 import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
@@ -166,9 +167,9 @@ export default function CompanyDetailPage() {
     fetchAll();
   }, [id]);
 
-  // Initialize chat session when Chat tab is first opened
+  // Initialize sentinel session when Chat or Roadmap tab is first opened
   useEffect(() => {
-    if (activeTab !== 'chat' || chatSession || chatLoading || !id) return;
+    if ((activeTab !== 'chat' && activeTab !== 'roadmap') || chatSession || chatLoading || !id) return;
     setChatLoading(true);
 
     const domain = `${COMPANY_CHAT_PREFIX}${id}`;
@@ -291,6 +292,7 @@ export default function CompanyDetailPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="chat" className="flex items-center gap-1.5">
               <Brain className="h-3.5 w-3.5" /> Chat
               {sites.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{sites.length} sites</Badge>}
@@ -464,6 +466,31 @@ export default function CompanyDetailPage() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* Roadmap Tab */}
+          <TabsContent value="roadmap" className="min-h-[600px]">
+            {chatLoading ? (
+              <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
+            ) : !chatSession ? (
+              <div className="text-center py-20 text-muted-foreground">Loading roadmap...</div>
+            ) : (
+              <ErrorBoundary fallback={
+                <div className="flex items-center justify-center py-20 text-center">
+                  <div>
+                    <p className="text-muted-foreground mb-2">Roadmap failed to load.</p>
+                    <button className="text-sm underline text-muted-foreground hover:text-foreground" onClick={() => window.location.reload()}>Reload page</button>
+                  </div>
+                </div>
+              }>
+                <RoadmapTab
+                  sessionId={chatSession.id}
+                  domain={company.domain || undefined}
+                  companyId={company.id}
+                  companyName={company.name}
+                />
+              </ErrorBoundary>
+            )}
           </TabsContent>
 
           {/* Chat Tab */}
