@@ -31,22 +31,27 @@ export function looksLikeDomain(name: string): boolean {
  * Returns 0-1 where 1 is an exact match.
  */
 export function computeSimilarity(s1: string, s2: string): number {
-  const a = s1.toLowerCase().trim();
-  const b = s2.toLowerCase().trim();
+  // Normalize for structured matching (strips suffixes, special chars)
+  const a = normalizeCompanyName(s1);
+  const b = normalizeCompanyName(s2);
   if (a === b) return 1;
   if (a.length === 0 || b.length === 0) return 0;
 
-  // Containment: one string fully inside the other = very high match
-  // Only count if the contained string is meaningful (4+ chars and at least 30% of the longer string)
-  const shorter = a.length <= b.length ? a : b;
-  const longerStr = a.length > b.length ? a : b;
-  if (shorter.length >= 4 && shorter.length / longerStr.length >= 0.3) {
-    if (longerStr.includes(shorter)) return 0.95;
+  // Containment: check on ORIGINAL lowercase names (not normalized)
+  // "280 Group" should match inside "z_ARCHIVE_280 Group"
+  const rawA = s1.toLowerCase().trim();
+  const rawB = s2.toLowerCase().trim();
+  const shorterRaw = rawA.length <= rawB.length ? rawA : rawB;
+  const longerRaw = rawA.length > rawB.length ? rawA : rawB;
+  if (shorterRaw.length >= 3 && shorterRaw.length / longerRaw.length >= 0.2) {
+    if (longerRaw.includes(shorterRaw)) return 0.95;
   }
 
   // Word overlap: all significant words in the shorter name appear in the longer
-  const aWords = a.split(/\s+/).filter(w => w.length > 2);
-  const bWords = b.split(/\s+/).filter(w => w.length > 2);
+  // Keep numbers (any length) and words 3+ chars — "280" is significant, "of" is not
+  const isSignificant = (w: string) => w.length > 2 || /^\d+$/.test(w);
+  const aWords = a.split(/\s+/).filter(isSignificant);
+  const bWords = b.split(/\s+/).filter(isSignificant);
   const [shorterWords, longerWords] = aWords.length <= bWords.length ? [aWords, bWords] : [bWords, aWords];
   if (shorterWords.length > 0) {
     const longerJoined = longerWords.join(' ');

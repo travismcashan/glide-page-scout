@@ -141,13 +141,12 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     const map = new Map<string, CompanyMatches>();
 
     for (const c of companies) {
-      const normName = normalizeCompanyName(c.name);
-      if (!normName) continue;
+      if (!c.name) continue;
 
       const findMatches = (records: SourceRecord[]): MatchCandidate[] => {
         const candidates: MatchCandidate[] = [];
         for (const r of records) {
-          const score = computeSimilarity(normName, normalizeCompanyName(r.name));
+          const score = computeSimilarity(c.name, r.name);
           if (score >= 0.75) {
             candidates.push({ id: r.id, name: r.name, score, domain: r.domain });
           }
