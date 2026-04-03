@@ -400,18 +400,20 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50 ml-1" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[280px] p-0" align="start">
+          <PopoverContent className="w-[300px] p-0" align="start">
             <Command>
-              <CommandInput placeholder={`Search ${source}...`} className="h-8 text-xs" />
+              <CommandInput placeholder={`Search ${source}...`} className="h-8 text-xs" defaultValue={selectedRecord?.name || ''} />
               <CommandList className="max-h-[250px]">
                 <CommandEmpty>No results found.</CommandEmpty>
-                <CommandItem onSelect={() => setSourceOverride('')} className="text-xs text-muted-foreground">
+                <CommandItem onSelect={() => setSourceOverride('')} className={`text-xs ${!selectedId ? 'font-bold' : 'text-muted-foreground'}`}>
+                  {!selectedId && <CheckCircle2 className="h-3 w-3 mr-1.5 text-foreground" />}
                   No match
                 </CommandItem>
                 {candidates.length > 0 && (
                   <CommandGroup heading="Suggested">
                     {candidates.map(c => (
-                      <CommandItem key={c.id} value={c.name} onSelect={() => setSourceOverride(c.id)} className="text-xs">
+                      <CommandItem key={c.id} value={c.name} onSelect={() => setSourceOverride(c.id)} className={`text-xs ${selectedId === c.id ? 'font-bold' : ''}`}>
+                        {selectedId === c.id && <CheckCircle2 className="h-3 w-3 mr-1.5 text-green-600" />}
                         {c.name}
                         <span className={`ml-auto text-xs font-bold ${c.score >= 0.95 ? 'text-green-600' : c.score >= 0.85 ? 'text-amber-500' : 'text-orange-500'}`}>{Math.round(c.score * 100)}%</span>
                       </CommandItem>
@@ -420,7 +422,8 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 )}
                 <CommandGroup heading={`All ${source} (${allSourceRecords.length})`}>
                   {allSourceRecords.map(r => (
-                    <CommandItem key={r.id} value={r.name} onSelect={() => setSourceOverride(r.id)} className="text-xs">
+                    <CommandItem key={r.id} value={r.name} onSelect={() => setSourceOverride(r.id)} className={`text-xs ${selectedId === r.id ? 'font-bold' : ''}`}>
+                      {selectedId === r.id && <CheckCircle2 className="h-3 w-3 mr-1.5 text-green-600" />}
                       {r.name}
                     </CommandItem>
                   ))}

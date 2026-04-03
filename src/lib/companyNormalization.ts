@@ -37,17 +37,23 @@ export function computeSimilarity(s1: string, s2: string): number {
   if (a.length === 0 || b.length === 0) return 0;
 
   // Containment: one string fully inside the other = very high match
-  if (a.includes(b) || b.includes(a)) return 0.95;
+  // Only count if the contained string is meaningful (4+ chars and at least 30% of the longer string)
+  const shorter = a.length <= b.length ? a : b;
+  const longerStr = a.length > b.length ? a : b;
+  if (shorter.length >= 4 && shorter.length / longerStr.length >= 0.3) {
+    if (longerStr.includes(shorter)) return 0.95;
+  }
 
-  // Word overlap: all words in the shorter string appear in the longer
-  const aWords = a.split(/\s+/).filter(w => w.length > 1);
-  const bWords = b.split(/\s+/).filter(w => w.length > 1);
-  const [shorter, longer] = aWords.length <= bWords.length ? [aWords, bWords] : [bWords, aWords];
-  if (shorter.length > 0) {
-    const longerStr = longer.join(' ');
-    const matched = shorter.filter(w => longerStr.includes(w)).length;
-    if (matched === shorter.length) return 0.92; // all words found
-    if (matched > 0 && matched / shorter.length >= 0.8) return 0.85; // most words found
+  // Word overlap: all significant words in the shorter name appear in the longer
+  const aWords = a.split(/\s+/).filter(w => w.length > 2);
+  const bWords = b.split(/\s+/).filter(w => w.length > 2);
+  const [shorterWords, longerWords] = aWords.length <= bWords.length ? [aWords, bWords] : [bWords, aWords];
+  if (shorterWords.length > 0) {
+    const longerJoined = longerWords.join(' ');
+    const matched = shorterWords.filter(w => longerJoined.includes(w)).length;
+    if (matched === shorterWords.length && shorterWords.length >= 2) return 0.92; // all words found, 2+ words
+    if (matched === shorterWords.length && shorterWords.length === 1 && shorterWords[0].length >= 5) return 0.90; // single long word
+    if (matched > 1 && matched / shorterWords.length >= 0.8) return 0.85; // most words found
   }
 
   // Jaro-Winkler for fuzzy character-level matching
