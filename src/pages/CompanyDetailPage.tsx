@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Building2, Users, Globe, MapPin, Mail, Phone, Linkedin, ExternalLink,
   ArrowLeft, Briefcase, Clock, TrendingUp, ChevronRight, DollarSign,
@@ -171,9 +172,23 @@ export default function CompanyDetailPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-2xl font-bold tracking-tight truncate">{company.name}</h1>
-              <Badge variant="outline" className={STATUS_COLORS[company.status] || ''}>
-                {company.status}
-              </Badge>
+              <Select
+                value={company.status}
+                onValueChange={async (value) => {
+                  await supabase.from('companies').update({ status: value, updated_at: new Date().toISOString() }).eq('id', company.id);
+                  setCompany({ ...company, status: value });
+                }}
+              >
+                <SelectTrigger className={`w-auto h-7 text-xs border ${STATUS_COLORS[company.status] || ''}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="prospect">Prospect</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="past">Past</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             {company.description && (
               <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{company.description}</p>

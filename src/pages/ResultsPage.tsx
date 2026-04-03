@@ -2990,6 +2990,20 @@ export default function ResultsPage() {
           {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
             <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
               {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <ErrorBoundary><div className="animate-fade-in space-y-6">
+              {/* Agency Brain link */}
+              {(session as any)?.company_id && (
+                <button
+                  onClick={() => navigate(`/companies/${(session as any).company_id}`)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                >
+                  <Building2 className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">View in Agency Brain</p>
+                    <p className="text-xs text-muted-foreground">See all contacts, deals, engagements, and enrichment for this company</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </button>
+              )}
               {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
                 <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
                   {session?.ocean_data && !session.ocean_data._error ? <OceanCard data={session.ocean_data} /> : null}
