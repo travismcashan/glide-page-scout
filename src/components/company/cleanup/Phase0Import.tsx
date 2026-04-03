@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, FileText, Check, X, ArrowRight, Loader2 } from 'lucide-react';
+import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCompanyName, normalizeDomain, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
@@ -118,10 +118,22 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [rawData, setRawData] = useState<ParsedRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
-  const [mapping, setMapping] = useState<ColumnMapping>({ clientName: '' });
+  const [fileMappings, setFileMappings] = useState<Map<string, ColumnMapping>>(new Map());
   const [matches, setMatches] = useState<MatchedQBClient[]>([]);
   const [saving, setSaving] = useState(false);
   const [previewCount, setPreviewCount] = useState(10);
+
+  // Derived: unified mapping (first non-empty value per field across all file mappings)
+  const mapping: ColumnMapping = (() => {
+    const unified: any = { clientName: '' };
+    const fields = ['clientName', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const;
+    for (const field of fields) {
+      for (const [, fm] of fileMappings) {
+        if ((fm as any)[field]) { unified[field] = (fm as any)[field]; break; }
+      }
+    }
+    return unified;
+  })();
 
   const parseCSV = useCallback((text: string) => {
     if (text.length < 10) { toast.error('CSV file appears empty'); return; }
@@ -270,20 +282,75 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
         for (const f of next) f.headers.forEach(h => allHeaders.add(h));
         const mergedHeaders = Array.from(allHeaders);
 
-        // Keep ALL rows from all files (don't merge - let runMatching aggregate per client)
-        const allRows: ParsedRow[] = [];
-        for (const f of next) {
-          for (const row of f.rows) {
-            // Ensure all header keys exist on every row
-            const fullRow: ParsedRow = {};
-            for (const h of mergedHeaders) fullRow[h] = row[h] || '';
-            allRows.push(fullRow);
+        // Merge rows across files using composite key: Client Name + Num (invoice number)
+        // This joins Transaction List and Sales by Client Detail on invoice number within each client.
+        // Rows without a Num get kept as-is (tagged with source).
+        const clientCol = 'Client Name';
+        const numCol = 'Num';
+        const hasNum = next.some(f => f.headers.includes(numCol));
+
+        let allRows: ParsedRow[];
+
+        if (hasNum && next.length > 1) {
+          // Build a map keyed by "clientName|num" for merging
+          const mergedMap = new Map<string, ParsedRow>();
+          const unmatchedRows: ParsedRow[] = [];
+
+          for (const f of next) {
+            for (const row of f.rows) {
+              const client = row[clientCol] || '';
+              const num = row[numCol] || '';
+
+              if (client && num) {
+                const key = `${client}|${num}`;
+                const existing = mergedMap.get(key) || {};
+                // Merge: existing values take priority, fill in blanks from new row
+                const merged: ParsedRow = {};
+                for (const h of mergedHeaders) {
+                  merged[h] = existing[h] || row[h] || '';
+                }
+                merged['__source__'] = existing['__source__']
+                  ? (existing['__source__'].includes(f.name) ? existing['__source__'] : `${existing['__source__']} + ${f.name}`)
+                  : f.name;
+                mergedMap.set(key, merged);
+              } else if (client) {
+                // Row without invoice number (e.g. summary row or payment)
+                const fullRow: ParsedRow = {};
+                for (const h of mergedHeaders) fullRow[h] = row[h] || '';
+                fullRow['__source__'] = f.name;
+                unmatchedRows.push(fullRow);
+              }
+            }
+          }
+
+          allRows = [...Array.from(mergedMap.values()), ...unmatchedRows];
+          const mergedCount = Array.from(mergedMap.values()).filter(r => r['__source__']?.includes('+')).length;
+          if (mergedCount > 0) {
+            toast.success(`Merged ${mergedCount.toLocaleString()} rows on invoice number`);
+          }
+        } else {
+          // Single file or no Num column - just stack rows
+          allRows = [];
+          for (const f of next) {
+            for (const row of f.rows) {
+              const fullRow: ParsedRow = {};
+              for (const h of mergedHeaders) fullRow[h] = row[h] || '';
+              fullRow['__source__'] = f.name;
+              allRows.push(fullRow);
+            }
           }
         }
 
         setHeaders(mergedHeaders);
         setRawData(allRows);
-        setMapping(autoMapColumns(mergedHeaders));
+        // Auto-map per file
+        setFileMappings(prev => {
+          const next = new Map(prev);
+          if (!next.has(parsed.name)) {
+            next.set(parsed.name, autoMapColumns(parsed.headers));
+          }
+          return next;
+        });
         return next;
       });
 
@@ -310,59 +377,71 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   }, [handleFile]);
 
   const runMatching = () => {
-    if (!mapping.clientName) { toast.error('Please map the client name column'); return; }
+    // Validate: at least one file has clientName mapped
+    const hasClientName = Array.from(fileMappings.values()).some(fm => fm.clientName);
+    if (!hasClientName) { toast.error('Please map the Client Name column in at least one file'); return; }
+
+    // Helper: get the mapped column value for a row, using its source file's mapping
+    const getField = (row: ParsedRow, field: keyof ColumnMapping): string => {
+      // Row might come from merged sources (e.g. "file1.csv + file2.csv")
+      const sources = (row['__source__'] || '').split(' + ');
+      for (const src of sources) {
+        const fm = fileMappings.get(src.trim());
+        if (fm && (fm as any)[field]) {
+          const val = row[(fm as any)[field]];
+          if (val) return val;
+        }
+      }
+      // Fallback: try unified mapping
+      if ((mapping as any)[field]) return row[(mapping as any)[field]] || '';
+      return '';
+    };
 
     // Build invoice summary per client
     const invoiceData = new Map<string, any>();
     const clientNames = new Set<string>();
 
     for (const row of rawData) {
-      const name = row[mapping.clientName];
+      const name = getField(row, 'clientName');
       if (!name) continue;
       clientNames.add(name);
 
       const existing = invoiceData.get(name) || { total: 0, count: 0, transactionTypes: {}, sampleMemos: [] };
-      if (mapping.invoiceTotal) {
-        const val = parseFloat(row[mapping.invoiceTotal]?.replace(/[$,]/g, '') || '0');
+      const invoiceTotal = getField(row, 'invoiceTotal');
+      if (invoiceTotal) {
+        const val = parseFloat(invoiceTotal.replace(/[$,]/g, '') || '0');
         if (!isNaN(val)) existing.total += val;
       }
-      if (mapping.amount) {
-        const val = parseFloat(row[mapping.amount]?.replace(/[$,]/g, '') || '0');
+      const amount = getField(row, 'amount');
+      if (amount && !invoiceTotal) {
+        const val = parseFloat(amount.replace(/[$,]/g, '') || '0');
         if (!isNaN(val)) existing.total += val;
       }
       existing.count++;
-      if (mapping.date && row[mapping.date]) {
-        const dateVal = row[mapping.date];
-        if (!existing.firstDate || dateVal < existing.firstDate) {
-          existing.firstDate = dateVal;
-        }
-        if (!existing.lastDate || dateVal > existing.lastDate) {
-          existing.lastDate = dateVal;
-        }
+      const dateVal = getField(row, 'date');
+      if (dateVal) {
+        if (!existing.firstDate || dateVal < existing.firstDate) existing.firstDate = dateVal;
+        if (!existing.lastDate || dateVal > existing.lastDate) existing.lastDate = dateVal;
       }
-      if (mapping.transactionType && row[mapping.transactionType]) {
-        const txType = row[mapping.transactionType];
+      const txType = getField(row, 'transactionType');
+      if (txType) {
         existing.transactionTypes[txType] = (existing.transactionTypes[txType] || 0) + 1;
-        if (txType.toLowerCase().includes('time charge')) {
-          existing.hasSupportTickets = true;
-        }
+        if (txType.toLowerCase().includes('time charge')) existing.hasSupportTickets = true;
       }
-      if (mapping.memo && row[mapping.memo] && existing.sampleMemos.length < 5) {
-        const memo = row[mapping.memo].trim();
-        if (memo && !existing.sampleMemos.includes(memo)) {
-          existing.sampleMemos.push(memo);
-        }
+      const memo = getField(row, 'memo');
+      if (memo && existing.sampleMemos.length < 5) {
+        const trimmed = memo.trim();
+        if (trimmed && !existing.sampleMemos.includes(trimmed)) existing.sampleMemos.push(trimmed);
       }
-      if (mapping.productService && row[mapping.productService]) {
-        const svc = row[mapping.productService].trim();
-        if (svc) {
-          if (!existing.services) existing.services = {};
-          if (!existing.services[svc]) existing.services[svc] = { count: 0, total: 0 };
-          existing.services[svc].count++;
-          if (mapping.salesPrice) {
-            const price = parseFloat(row[mapping.salesPrice]?.replace(/[$,]/g, '') || '0');
-            if (!isNaN(price)) existing.services[svc].total += price;
-          }
+      const svc = getField(row, 'productService');
+      if (svc) {
+        if (!existing.services) existing.services = {};
+        if (!existing.services[svc]) existing.services[svc] = { count: 0, total: 0 };
+        existing.services[svc].count++;
+        const price = getField(row, 'salesPrice');
+        if (price) {
+          const val = parseFloat(price.replace(/[$,]/g, '') || '0');
+          if (!isNaN(val)) existing.services[svc].total += val;
         }
       }
       invoiceData.set(name, existing);
@@ -471,109 +550,191 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       <Card className="p-8">
         <h2 className="text-lg font-semibold mb-2">Map Columns</h2>
         <p className="text-sm text-muted-foreground mb-6">
-          {rawData.length.toLocaleString()} rows across {headers.length} columns from {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''}. Map the columns to the right fields. Data will be aggregated per client automatically.
+          {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} loaded. Map each file's columns to the unified fields below. Files will be merged on invoice number (Num) and aggregated per client.
         </p>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          {(['clientName', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const).map(field => (
-            <div key={field}>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                {field === 'clientName' ? 'Client Name *' :
-                 field === 'invoiceTotal' ? 'Invoice Total (summary reports)' :
-                 field === 'invoiceCount' ? 'Invoice Count (summary reports)' :
-                 field === 'date' ? 'Date (oldest/newest inferred)' :
-                 field === 'transactionType' ? 'Transaction Type' :
-                 field === 'memo' ? 'Memo / Description' :
-                 field === 'amount' ? 'Amount (per-transaction)' :
-                 field === 'productService' ? 'Product / Service' :
-                 'Sales Price'}
-              </label>
-              <Select
-                value={(mapping as any)[field] || '__none__'}
-                onValueChange={(v) => setMapping(prev => ({ ...prev, [field]: v === '__none__' ? undefined : v }))}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue placeholder="Select column..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">-- Not mapped --</SelectItem>
-                  {headers.filter(h => h).map(h => (
-                    <SelectItem key={h} value={h}>{h}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
+        {uploadedFiles.map((file, fi) => {
+          const fm = fileMappings.get(file.name) || { clientName: '' };
+          const updateFileMapping = (field: string, value: string | undefined) => {
+            setFileMappings(prev => {
+              const next = new Map(prev);
+              next.set(file.name, { ...fm, [field]: value } as ColumnMapping);
+              return next;
+            });
+          };
 
-        {/* Preview first 5 rows */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
+          const FIELDS = ['clientName', 'invoiceTotal', 'invoiceCount', 'date', 'transactionType', 'memo', 'amount', 'productService', 'salesPrice'] as const;
+          const LABELS: Record<string, string> = {
+            clientName: 'Client Name *', invoiceTotal: 'Invoice Total', invoiceCount: 'Invoice Count',
+            date: 'Date', transactionType: 'Transaction Type', memo: 'Memo / Description',
+            amount: 'Amount', productService: 'Product / Service', salesPrice: 'Sales Price',
+          };
+
+          return (
+            <div key={fi} className="mb-6 p-4 rounded-lg border border-border bg-muted/20">
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">{file.name}</span>
+                <Badge variant="outline" className={`text-[10px] py-0 ${
+                  file.fileType === 'summary' ? 'text-blue-600 border-blue-500/30 bg-blue-500/10' : 'text-purple-600 border-purple-500/30 bg-purple-500/10'
+                }`}>{file.fileType === 'summary' ? 'Summary' : 'Transactions'}</Badge>
+                <span className="text-[10px] text-muted-foreground">{file.headers.length} columns, {file.rows.length.toLocaleString()} rows</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {FIELDS.map(field => (
+                  <div key={field}>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-1 block">{LABELS[field]}</label>
+                    <Select
+                      value={(fm as any)[field] || '__none__'}
+                      onValueChange={(v) => updateFileMapping(field, v === '__none__' ? undefined : v)}
+                    >
+                      <SelectTrigger className="text-xs h-8">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-- Not mapped --</SelectItem>
+                        {file.headers.filter(h => h).map(h => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Merged preview when multiple files */}
+        {uploadedFiles.length > 1 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Link2 className="h-3.5 w-3.5 text-green-600" />
+              <span className="text-xs font-semibold">Merged View</span>
+              <Badge variant="outline" className="text-[10px] py-0 text-green-600 border-green-500/30 bg-green-500/10">
+                {rawData.filter(r => r['__source__']?.includes('+')).length.toLocaleString()} rows merged on invoice #
+              </Badge>
+              <span className="text-[10px] text-muted-foreground">{rawData.length.toLocaleString()} total rows</span>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-green-500/20">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {(() => {
+                      const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
+                      const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
+                      return [...mapped, ...unmapped].map(h => (
+                        <TableHead key={h} className={`text-xs whitespace-nowrap ${mapped.includes(h) ? 'bg-green-500/10 text-green-700 font-semibold' : 'text-muted-foreground'}`}>{h}</TableHead>
+                      ));
+                    })()}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    // Show only merged rows (from both files)
+                    const mergedRows = rawData.filter(r => r['__source__']?.includes('+'));
+                    const source = mergedRows.length > 0 ? mergedRows : rawData;
+                    const step = Math.max(1, Math.floor(source.length / previewCount));
+                    const sampled: ParsedRow[] = [];
+                    for (let i = 0; i < source.length && sampled.length < previewCount; i += step) {
+                      sampled.push(source[i]);
+                    }
+                    const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
+                    const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
+                    const orderedCols = [...mapped, ...unmapped];
+                    return sampled.map((row, ri) => (
+                      <TableRow key={ri}>
+                        {orderedCols.map(h => (
+                          <TableCell key={h} className={`text-xs py-2 max-w-[250px] truncate ${mapped.includes(h) ? 'bg-green-500/5 font-medium' : 'text-muted-foreground'}`}>{row[h]}</TableCell>
+                        ))}
+                      </TableRow>
+                    ));
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+
+        {/* Preview per file */}
+        <div className="mb-6 space-y-4">
+          <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-muted-foreground">
-              Preview — showing rows with mapped data, sampled from {rawData.length.toLocaleString()} total rows
+              Preview — sampled rows per file, mapped columns highlighted
             </p>
             <Select value={String(previewCount)} onValueChange={(v) => setPreviewCount(Number(v))}>
               <SelectTrigger className="w-[130px] h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="10">10 rows</SelectItem>
-                <SelectItem value="25">25 rows</SelectItem>
-                <SelectItem value="50">50 rows</SelectItem>
-                <SelectItem value="100">100 rows</SelectItem>
+                <SelectItem value="5">5 per file</SelectItem>
+                <SelectItem value="10">10 per file</SelectItem>
+                <SelectItem value="25">25 per file</SelectItem>
+                <SelectItem value="50">50 per file</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {(() => {
-                    // Show mapped columns first, then unmapped
-                    const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
-                    const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
-                    return [...mapped, ...unmapped].map(h => {
-                      const isMapped = mapped.includes(h);
-                      return (
-                        <TableHead key={h} className={`text-xs whitespace-nowrap ${isMapped ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground'}`}>{h}</TableHead>
-                      );
-                    });
-                  })()}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(() => {
-                  // Only show rows that have data in Client Name + at least one other mapped column
-                  const mappedKeys = Object.values(mapping).filter(v => v && v !== '__none__') as string[];
-                  const clientCol = mapping.clientName;
-                  const meaningfulRows = rawData.filter(row => {
-                    if (!clientCol || !row[clientCol]) return false;
-                    const otherMapped = mappedKeys.filter(k => k !== clientCol && row[k]);
-                    return otherMapped.length > 0;
-                  });
-                  const source = meaningfulRows.length > 0 ? meaningfulRows : rawData;
-                  const step = Math.max(1, Math.floor(source.length / previewCount));
-                  const sampled: { row: ParsedRow; idx: number }[] = [];
-                  for (let i = 0; i < source.length && sampled.length < previewCount; i += step) {
-                    sampled.push({ row: source[i], idx: i });
-                  }
-                  const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
-                  const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
-                  const orderedHeaders = [...mapped, ...unmapped];
-                  return sampled.map(({ row, idx }) => (
-                    <TableRow key={idx}>
-                      {orderedHeaders.map(h => {
-                        const isMapped = mapped.includes(h);
-                        return (
-                          <TableCell key={h} className={`text-xs py-2 max-w-[200px] truncate ${isMapped ? 'bg-primary/5 font-medium' : 'text-muted-foreground'}`}>{row[h]}</TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ));
-                })()}
-              </TableBody>
-            </Table>
-          </div>
+          {uploadedFiles.map((file, fi) => {
+            const mappedKeys = Object.values(mapping).filter(v => v && v !== '__none__') as string[];
+            const clientCol = mapping.clientName;
+            // Filter to meaningful rows from this file
+            const fileRows = rawData.filter(r => r['__source__'] === file.name);
+            const meaningful = fileRows.filter(row => {
+              if (!clientCol || !row[clientCol]) return false;
+              const otherMapped = mappedKeys.filter(k => k !== clientCol && row[k]);
+              return otherMapped.length > 0;
+            });
+            const source = meaningful.length > 0 ? meaningful : fileRows;
+            const step = Math.max(1, Math.floor(source.length / previewCount));
+            const sampled: ParsedRow[] = [];
+            for (let i = 0; i < source.length && sampled.length < previewCount; i += step) {
+              sampled.push(source[i]);
+            }
+            // Only show columns that this file actually has data for
+            const fileCols = file.headers.filter(h => h);
+            const mapped = fileCols.filter(h => Object.values(mapping).includes(h));
+            const unmapped = fileCols.filter(h => !Object.values(mapping).includes(h));
+            const orderedCols = [...mapped, ...unmapped];
+
+            return (
+              <div key={fi}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-semibold">{file.name}</span>
+                  <Badge variant="outline" className={`text-[10px] py-0 ${
+                    file.fileType === 'summary' ? 'text-blue-600 border-blue-500/30 bg-blue-500/10' : 'text-purple-600 border-purple-500/30 bg-purple-500/10'
+                  }`}>{file.fileType === 'summary' ? 'Summary' : 'Transactions'}</Badge>
+                  <span className="text-[10px] text-muted-foreground">{source.length.toLocaleString()} rows with data</span>
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {orderedCols.map(h => {
+                          const isMapped = mapped.includes(h);
+                          return (
+                            <TableHead key={h} className={`text-xs whitespace-nowrap ${isMapped ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground'}`}>{h}</TableHead>
+                          );
+                        })}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sampled.map((row, ri) => (
+                        <TableRow key={ri}>
+                          {orderedCols.map(h => {
+                            const isMapped = mapped.includes(h);
+                            return (
+                              <TableCell key={h} className={`text-xs py-2 max-w-[250px] truncate ${isMapped ? 'bg-primary/5 font-medium' : 'text-muted-foreground'}`}>{row[h]}</TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-3">
