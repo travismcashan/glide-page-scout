@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback, lazy, Suspense, useMemo, memo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, useMemo, memo } from 'react';
+import { createPortal } from 'react-dom';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
@@ -11,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { buildCrawlContext } from '@/lib/buildCrawlContext';
 import { downloadReportPdf } from '@/lib/downloadReportPdf';
+import { generateGlideDocument } from '@/lib/generateGlideDocument';
+import { DocumentDownloadBlock } from '@/components/chat/DocumentDownloadBlock';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatFileUpload, type ChatAttachment } from '@/components/chat/ChatFileUpload';
 import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
@@ -34,7 +37,7 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 
-type RagDocument = { name: string; source_type: string; passage?: string };
+type RagDocument = { name: string; source_type: string; passage?: string; document_id?: string };
 type CouncilModel = { key: string; name: string; status: 'thinking' | 'done' | 'error'; response?: string };
 type Message = { role: 'user' | 'assistant'; content: string | any[]; sources?: string[]; attachmentNames?: string[]; thinking?: string; webCitations?: string[]; ragDocuments?: RagDocument[]; isDeepResearch?: boolean; deepResearchSteps?: string[]; councilModels?: CouncilModel[] };
 
@@ -634,19 +637,144 @@ function WebCitationsBlock({ citations, isSearching }: { citations: string[]; is
   );
 }
 
-/** Renders text nodes, transforming [N] web citations and %%DOCREF_N%% RAG citations into styled badges */
-function CitationText({ children, citations, ragDocuments }: { children: React.ReactNode; citations?: string[]; ragDocuments?: RagDocument[] }) {
-  if (typeof children !== 'string') return <>{children}</>;
+/** Clickable citation badge — click to pin popover, "View full document" opens inline preview */
+function DocCiteBadge({ docNum, doc }: { docNum: number; doc: RagDocument }) {
+  const [open, setOpen] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
+  const loadPreview = async () => {
+    if (!doc.document_id) return;
+    setPreviewLoading(true);
+    setShowPreview(true);
+    setOpen(false);
+    try {
+      const { data } = await supabase
+        .from('knowledge_chunks')
+        .select('chunk_text, chunk_index')
+        .eq('document_id', doc.document_id)
+        .order('chunk_index', { ascending: true })
+        .limit(50);
+      setPreviewContent(data?.map((c: any) => c.chunk_text).join('\n\n') || 'No content found.');
+    } catch {
+      setPreviewContent('Failed to load document.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const badgeRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <>
+      <button
+        ref={badgeRef}
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center justify-center px-1.5 py-0.5 text-[1em] font-medium rounded-md border border-primary/40 text-primary/70 hover:bg-primary/10 transition-colors cursor-pointer leading-none mx-0.5"
+      >
+        {docNum}
+      </button>
+      {/* Portal popover and overlays to body so they don't break p > div nesting */}
+      {open && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-50 w-72 p-2.5 rounded-lg shadow-lg bg-popover border border-border text-xs text-popover-foreground"
+            style={{
+              top: badgeRef.current ? badgeRef.current.getBoundingClientRect().top - 8 : 0,
+              left: badgeRef.current ? badgeRef.current.getBoundingClientRect().left + badgeRef.current.offsetWidth / 2 - 144 : 0,
+              transform: 'translateY(-100%)',
+            }}
+          >
+            <span className="font-semibold block text-[11px] mb-1 truncate">{doc.name}</span>
+            {doc.passage && (
+              <span className="block text-muted-foreground leading-relaxed line-clamp-4">{doc.passage}</span>
+            )}
+            <span className="block text-[10px] text-muted-foreground/60 mt-1">{doc.source_type}</span>
+            {doc.document_id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  loadPreview();
+                }}
+                className="mt-2 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+              >
+                View full document →
+              </button>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+      {showPreview && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowPreview(false)}>
+          <div
+            className="bg-popover border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm truncate">{doc.name}</span>
+                <span className="text-xs text-muted-foreground shrink-0">({doc.source_type})</span>
+              </div>
+              <button onClick={() => setShowPreview(false)} className="p-1 rounded-md hover:bg-muted text-muted-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {previewLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading preview…
+                </div>
+              ) : (
+                <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed text-foreground">{previewContent}</pre>
+              )}
+            </div>
+            <div className="px-4 py-2 border-t border-border flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Press Esc to close</span>
+              <button onClick={() => setShowPreview(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
+/**
+ * Recursively walk React children, transforming string nodes that contain
+ * %%DOCREF_N%% (RAG doc citations) or [N] (web citations) into styled badges.
+ * Works with react-markdown v10+ where there is no `text` component.
+ */
+function processCitationsInChildren(children: React.ReactNode, citations?: string[], ragDocuments?: RagDocument[]): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      return renderCitationString(child, citations, ragDocuments);
+    }
+    if (React.isValidElement(child) && child.props?.children) {
+      return React.cloneElement(child as React.ReactElement<any>, {}, processCitationsInChildren(child.props.children, citations, ragDocuments));
+    }
+    return child;
+  });
+}
+
+/** Transforms a single string, replacing %%DOCREF_N%% and [N] patterns with React elements */
+function renderCitationString(text: string, citations?: string[], ragDocuments?: RagDocument[]): React.ReactNode {
   const parts: React.ReactNode[] = [];
   // Match %%DOCREF_N%% (pre-processed doc citations) and [N] (web citations)
   const regex = /%%DOCREF_(\d+)%%|\[(\d+)\]/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(children)) !== null) {
+  while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(children.slice(lastIndex, match.index));
+      parts.push(text.slice(lastIndex, match.index));
     }
 
     const docNum = match[1] ? parseInt(match[1], 10) : null;
@@ -657,27 +785,15 @@ function CitationText({ children, citations, ragDocuments }: { children: React.R
       const doc = ragDocuments && ragDocuments[docNum - 1];
       if (doc) {
         parts.push(
-          <span
-            key={`doc-${match.index}`}
-            className="group/cite relative inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-default align-super leading-none -translate-y-[1px]"
-          >
-            {docNum}
-            <span className="invisible group-hover/cite:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-2.5 rounded-lg shadow-lg bg-popover border border-border text-xs text-popover-foreground z-50 pointer-events-none">
-              <span className="font-semibold block text-[11px] mb-1 truncate">{doc.name}</span>
-              {doc.passage && (
-                <span className="block text-muted-foreground leading-relaxed line-clamp-4">{doc.passage}</span>
-              )}
-              <span className="block text-[10px] text-muted-foreground/60 mt-1">{doc.source_type}</span>
-            </span>
-          </span>
+          <DocCiteBadge key={`doc-${match.index}`} docNum={docNum} doc={doc} />
         );
       } else {
         parts.push(
           <span
             key={`doc-${match.index}`}
-            className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-muted text-muted-foreground align-super leading-none -translate-y-[1px]"
+            className="inline-flex items-center justify-center px-1.5 py-0.5 text-[1em] font-medium rounded-md bg-muted text-muted-foreground leading-none mx-0.5"
           >
-            d{docNum}
+            {docNum}
           </span>
         );
       }
@@ -711,11 +827,11 @@ function CitationText({ children, citations, ragDocuments }: { children: React.R
     lastIndex = regex.lastIndex;
   }
 
-  if (lastIndex < children.length) {
-    parts.push(children.slice(lastIndex));
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
   }
 
-  return parts.length > 0 ? <>{parts}</> : <>{children}</>;
+  return parts.length > 0 ? <>{parts}</> : text;
 }
 
 const SOURCE_TYPE_ICONS: Record<string, string> = {
@@ -786,7 +902,7 @@ function ReferencesBlock({ ragDocuments, sources, onSourceClick, webCitations }:
                         <div key={`rag-${i}`} className="flex flex-col gap-0.5 text-[13px] text-muted-foreground py-0.5">
                           <div className="flex items-center gap-1.5">
                             {docIndex > 0 && (
-                              <span className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] px-[3px] text-[10px] font-semibold rounded-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                              <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[12px] font-medium rounded-md bg-primary/10 text-primary/70">
                                 {docIndex}
                               </span>
                             )}
@@ -865,8 +981,21 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
     }
   };
 
-  const handleExportPdf = () => {
-    downloadReportPdf(content, 'AI Chat Response', domain || 'chat');
+  const handleExportPdf = async () => {
+    setExporting('pdf');
+    try {
+      await generateGlideDocument({
+        title: 'Executive Summary',
+        subtitle: domain || undefined,
+        clientDomain: domain || undefined,
+        sections: content,
+      });
+    } catch (e: any) {
+      console.error('PDF generation error:', e);
+      toast.error(e?.message || 'Failed to generate PDF');
+    } finally {
+      setExporting(null);
+    }
   };
 
   const handleExportGoogleDoc = async () => {
@@ -915,11 +1044,42 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
   // Markdown treats [text][ref] as a reference link, so adjacent [doc:1][doc:3] gets swallowed.
   const processedContent = content.replace(/\[doc:(\d+)\]/g, '%%DOCREF_$1%%');
 
+  // Track glide-doc metadata extracted from code fences for document download
+  const glideDocRef = React.useRef<{ title: string; subtitle?: string; clientDomain?: string; companyName?: string } | null>(null);
+  // Extract the full markdown content (minus the glide-doc fence) for PDF export
+  const docContentForPdf = React.useMemo(() => {
+    return processedContent.replace(/```glide-doc\s*\n[\s\S]*?\n```/g, '').trim();
+  }, [processedContent]);
+
+  // react-markdown v10 has no `text` component — process citations via block-level components
+  const withCitations = (Tag: string) => ({ children, ...props }: any) => {
+    const processed = processCitationsInChildren(children, webCitations, ragDocuments);
+    return React.createElement(Tag, props, processed);
+  };
+
   const markdownComponents = {
-    text: ({ children }: any) => <CitationText citations={webCitations} ragDocuments={ragDocuments}>{children}</CitationText>,
+    p: withCitations('p'),
+    li: withCitations('li'),
+    td: withCitations('td'),
+    th: withCitations('th'),
     img: ({ src, alt, ...props }: any) => (
       <img src={src} alt={alt || ''} className="max-w-full rounded-lg my-2" style={{ maxHeight: 300 }} loading="lazy" {...props} />
     ),
+    code: ({ className, children, ...props }: any) => {
+      // Intercept glide-doc fenced code blocks → render DocumentDownloadBlock
+      if (className === 'language-glide-doc') {
+        try {
+          const meta = JSON.parse(String(children).trim());
+          glideDocRef.current = meta;
+          return <DocumentDownloadBlock docMeta={meta} markdownContent={docContentForPdf} />;
+        } catch { /* fall through to normal code rendering */ }
+      }
+      // Default code rendering
+      if (className) {
+        return <pre className={`${className} rounded-lg p-3 overflow-x-auto`}><code {...props}>{children}</code></pre>;
+      }
+      return <code className="bg-muted px-1 py-0.5 rounded text-sm" {...props}>{children}</code>;
+    },
   };
 
   return (
@@ -994,13 +1154,14 @@ function AssistantBubbleInner({ content, thinking, isStreamingThis, onSaveNote, 
               <TooltipTrigger asChild>
                 <button
                   onClick={handleExportPdf}
-                  className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                  disabled={exporting === 'pdf'}
+                  className="p-1 rounded-md hover:bg-muted text-red-500/70 hover:text-red-600"
                 >
-                  <Download className="h-5 w-5" />
+                  {exporting === 'pdf' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-black text-white text-xs px-2 py-1 border-0">
-                PDF
+                GLIDE PDF
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -3120,10 +3281,7 @@ export function KnowledgeChatCard({ session, pages, selectedModel, provider, rea
               style={{ width: 44, height: 44 }}
             >
               {isStreaming ? (
-                <div className="relative flex items-center justify-center" style={{ width: 28, height: 28 }}>
-                  <Loader2 style={{ width: 28, height: 28 }} className="animate-spin absolute text-muted-foreground" />
-                  <Square className="h-2 w-2 fill-current text-destructive" />
-                </div>
+                <Square className="h-3.5 w-3.5 fill-current text-destructive" />
               ) : (
                 <ArrowUp style={{ width: 28, height: 28 }} strokeWidth={1.5} />
               )}

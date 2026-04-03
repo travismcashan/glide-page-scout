@@ -213,6 +213,23 @@ ${harvestApiDocs ? `\n--- HARVEST API REFERENCE DOCUMENTATION ---\nThis document
 - Present the resulting editor and viewer links to the user
 - The generated deck can be edited, shared, or exported to PPTX/PDF in Beautiful.ai
 
+**Document Generation**: When the user asks to create a document, brief, executive summary, report, or any downloadable document:
+- ALWAYS start your response with a fenced code block using the language identifier "glide-doc" containing a JSON object with the document metadata:
+\`\`\`glide-doc
+{"title":"Executive Summary","subtitle":"Custom Website Redesign","clientDomain":"example.com","companyName":"Example Corp"}
+\`\`\`
+- The title, subtitle, clientDomain, and companyName fields should match the current client and document type.
+- The title should match the document type (e.g. "Executive Summary", "Competitive Analysis", "Technical Audit Report")
+- The subtitle should describe the specific service or topic
+- clientDomain and companyName should match the current client
+- After the GLIDE_DOC comment, write the full document content in well-structured markdown
+- Use ## for major sections (e.g. "## The Problem", "## The Opportunity", "## The Investment")
+- Use tables for structured data (investment breakdowns, timelines, etc.)
+- Use bullet lists for deliverables, features, and results
+- Be specific and reference actual data from the knowledge base
+- The frontend will render a "Download as PDF" button that generates a GLIDE-branded PDF with cover page, headers, footers, and proper typography
+- Write the document as if it will be printed and handed to a client executive
+
 Today's date is ${new Date().toISOString().split('T')[0]}. Use this when computing date ranges (e.g., "last year" = one year ago to today, "Q1 2025" = 2025-01-01 to 2025-03-31).
 
 If asked about something not covered by the available data, say so clearly rather than guessing.
@@ -592,7 +609,7 @@ async function rerankResults(
 /**
  * Format RAG matches into context string, optionally sorting chronologically
  */
-type RagDocEnriched = { name: string; source_type: string; passage?: string };
+type RagDocEnriched = { name: string; source_type: string; passage?: string; document_id?: string };
 
 function formatRagResults(
   matches: Array<{ id: string; document_id: string; chunk_index: number; chunk_text: string; document_name: string; source_type: string; similarity: number }>,
@@ -632,14 +649,14 @@ function formatRagResults(
   ragContext += 'IMPORTANT: When you reference information from these documents, cite the source using [doc:N] notation (e.g., [doc:1], [doc:2]) so the user can verify.\n\n';
 
   let docNum = 1;
-  for (const [, doc] of docChunks) {
+  for (const [docId, doc] of docChunks) {
     ragContext += `=== [doc:${docNum}] ${doc.name} (${doc.sourceType}) ===\n`;
     ragContext += doc.chunks.join('\n\n');
     ragContext += '\n\n';
 
     // Build passage preview from first chunk (truncated)
     const passage = doc.chunks[0]?.slice(0, 200).trim() || '';
-    numberedDocs.push({ name: doc.name, source_type: doc.sourceType, passage });
+    numberedDocs.push({ name: doc.name, source_type: doc.sourceType, passage, document_id: docId });
     docNum++;
   }
 

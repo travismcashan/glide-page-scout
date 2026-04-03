@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import type { TimelineItem } from "@/types/roadmap";
 import type { Offering } from "@/hooks/useServiceOfferings";
-import { PILLARS } from "@/data/offerings";
+import { PILLARS, getMonthLabels } from "@/data/offerings";
 import TimelineCanvas from "@/components/roadmap/TimelineCanvas";
 
 interface ProposalGrowthPlanProps {
@@ -17,6 +18,7 @@ interface ProposalGrowthPlanProps {
   onSetPrice?: (sku: number, price: number) => void;
   onSetAdSpend?: (sku: number, adSpend: number) => void;
   onSetDiscount?: (sku: number, type: "percent" | "fixed" | null, value: number | null) => void;
+  digitalDifference?: string;
 }
 
 const PILLAR_DOT: Record<string, string> = {
@@ -40,14 +42,46 @@ export default function ProposalGrowthPlan({
   onSetPrice,
   onSetAdSpend,
   onSetDiscount,
+  digitalDifference,
 }: ProposalGrowthPlanProps) {
+  // Only show pillars that have items
+  const activePillarCodes = useMemo(() => {
+    const codes = new Set(items.map(i => i.pillar));
+    return PILLARS.filter(p => codes.has(p.code));
+  }, [items]);
+
+  // Auto-generate a Digital Difference description from the roadmap structure
+  const autoDescription = useMemo(() => {
+    if (!items.length) return '';
+    const months = getMonthLabels(startMonthIndex, totalMonths);
+    const sorted = [...items].sort((a, b) => a.startMonth - b.startMonth);
+    const firstItem = sorted[0];
+    const startMonth = months[firstItem.startMonth];
+
+    const fbItems = items.filter(i => i.pillar === 'FB');
+    const goItems = items.filter(i => i.pillar === 'GO');
+    const tsItems = items.filter(i => i.pillar === 'TS');
+
+    const parts: string[] = [];
+    if (fbItems.length && goItems.length) {
+      parts.push(`We diagnose the search landscape and technical debt in parallel with the build \u2014 not after it \u2014 so the site launches already optimized for the keywords your competitors are winning on.`);
+    }
+    if (goItems.length) {
+      parts.push(`Post-launch, we systematically scale organic visibility while providing continuous maintenance and on-demand support,`);
+    }
+    if (tsItems.length) {
+      parts.push(`ensuring your digital presence keeps pace with business milestones driving full market adoption.`);
+    }
+    return parts.join(' ') || `A phased rollout beginning ${startMonth}, establishing a modern digital foundation before scaling search-driven growth and ongoing technical support.`;
+  }, [items, startMonthIndex, totalMonths]);
+
   if (!items.length) {
     return (
       <section className="py-20 px-8 lg:px-16">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl md:text-5xl text-foreground tracking-tight">
             <span className="font-bold">12-Month Digital</span>{" "}
-            <span className="font-light">Growth Plan</span>
+            <span className="font-light">Roadmap</span>
           </h2>
           <hr className="border-t-2 border-foreground mt-8 mb-8" />
           <p className="text-muted-foreground italic">No roadmap configured yet. Add services to the Roadmap tab to populate this section.</p>
@@ -58,15 +92,16 @@ export default function ProposalGrowthPlan({
 
   return (
     <section className="py-20 px-8 lg:px-16">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <h2 className="text-4xl md:text-5xl text-foreground tracking-tight">
           <span className="font-bold">12-Month Digital</span>{" "}
-          <span className="font-light">Growth Plan</span>
+          <span className="font-light">Roadmap</span>
         </h2>
         <hr className="border-t-2 border-foreground mt-8 mb-6" />
 
-        {/* Fully interactive timeline — identical to Roadmap tab */}
-        <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
+        {/* White card wrapping the roadmap */}
+        <div className="rounded-xl border border-border bg-white shadow-sm p-6">
+          {/* Timeline */}
           <TimelineCanvas
             items={items}
             offerings={offerings}
@@ -83,18 +118,29 @@ export default function ProposalGrowthPlan({
             onSetAdSpend={onSetAdSpend}
             onSetDiscount={onSetDiscount}
           />
-        </div>
 
-        {/* Legend */}
-        <div className="flex items-center justify-center gap-5 px-6 py-3 mt-2">
-          {PILLARS.map((p) => (
-            <div key={p.code} className="flex items-center gap-1.5">
-              <span className={`inline-block h-2.5 w-2.5 rounded-full ${PILLAR_DOT[p.code]}`} />
-              <span className="text-base font-medium text-muted-foreground">
-                {p.name} ({p.code})
-              </span>
-            </div>
-          ))}
+          {/* Divider */}
+          <hr className="border-t border-border mt-4 mb-4" />
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-5">
+            {activePillarCodes.map((p) => (
+              <div key={p.code} className="flex items-center gap-1.5">
+                <span className={`inline-block h-2.5 w-2.5 rounded-full ${PILLAR_DOT[p.code]}`} />
+                <span className="text-sm font-normal text-muted-foreground">
+                  {p.name} ({p.code})
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* The Digital Difference */}
+          <div className="mt-6 rounded-lg bg-foreground/[0.04] px-6 py-5 text-center">
+            <p className="text-sm text-muted-foreground italic leading-relaxed">
+              <span className="font-bold not-italic text-foreground">The Digital Difference: </span>
+              {digitalDifference || autoDescription}
+            </p>
+          </div>
         </div>
       </div>
     </section>

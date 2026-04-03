@@ -415,6 +415,8 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           isGenerating={isGeneratingPlan}
           onGenerate={handleGenerateGrowthPlan}
           hasItems={items.length > 0}
+          catalogVisible={catalogVisible}
+          onShowCatalog={() => setCatalogVisible(true)}
         />
 
         {/* AI Reasoning / Loading State */}
@@ -460,9 +462,9 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
           </div>
         )}
 
-        <div className="flex [overflow:clip] rounded-xl border border-border bg-background shadow-sm">
+        <div className="flex [overflow:clip]">
           {catalogVisible && (
-            <div className="w-[300px] shrink-0 max-h-[calc(100vh-200px)]">
+            <div className="w-[300px] shrink-0 max-h-[calc(100vh-200px)] rounded-xl border border-border bg-background shadow-sm">
               <ServiceCatalog
                 offerings={offerings}
                 showAll={showAll}
@@ -475,19 +477,6 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
             </div>
           )}
           <div className="flex-1 min-w-0">
-            {!catalogVisible && (
-              <div className="flex items-center border-b border-border px-3 py-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs text-muted-foreground"
-                  onClick={() => setCatalogVisible(true)}
-                >
-                  <PanelLeftOpen className="h-3.5 w-3.5" />
-                  Show Services Catalog
-                </Button>
-              </div>
-            )}
             <TimelineCanvas
               items={items}
               offerings={offerings}
@@ -519,7 +508,7 @@ export default function RoadmapTab({ sessionId, domain }: RoadmapTabProps) {
               <span
                 className={`inline-block h-2.5 w-2.5 rounded-full ${{ IS: "bg-pillar-is", FB: "bg-pillar-fb", GO: "bg-pillar-go", TS: "bg-pillar-ts" }[p.code]}`}
               />
-              <span className="text-base font-medium text-muted-foreground">
+              <span className="text-sm font-normal text-muted-foreground">
                 {p.name} ({p.code})
               </span>
             </div>

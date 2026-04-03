@@ -211,7 +211,7 @@ export default function TimelineBar({
     }
   };
 
-  const ROW_HEIGHT = 48;
+  const ROW_HEIGHT = 80;
 
   const handleDragMove = useCallback(
     (e: React.MouseEvent) => {
@@ -310,11 +310,11 @@ export default function TimelineBar({
   const startLabel = months[item.startMonth];
   const endLabel = months[Math.min(item.startMonth + item.duration - 1, totalMonths - 1)];
 
-  const PAD = 6;
+  const PAD = 0;
   const visibleDuration = Math.min(item.duration, totalMonths - item.startMonth);
   const barLeft = (item.startMonth - viewOffset) * columnWidth + PAD;
   const barWidth = visibleDuration * columnWidth - PAD * 2;
-  const labelText = `${item.name} (${visibleDuration} mo)`;
+  const labelText = `${item.name} (${startLabel}–${endLabel}, ${visibleDuration} mo)`;
   const barEnd = item.startMonth + visibleDuration;
   const nearRightEdge = barEnd >= totalMonths - 1;
 
@@ -334,7 +334,7 @@ export default function TimelineBar({
       <TooltipTrigger asChild>
         <div
           ref={barRef}
-          className={`group absolute top-0 flex h-10 items-center rounded-lg transition-all ${BAR_STYLES[item.pillar]} ${BAR_HOVER[item.pillar]} ${dragging ? "opacity-90 shadow-lg" : ""} ${editing ? "cursor-text" : "cursor-grab"}`}
+          className={`group absolute top-0 flex h-[65px] items-center rounded-[6px] transition-all hover:z-20 ${BAR_STYLES[item.pillar]} ${BAR_HOVER[item.pillar]} ${dragging ? "opacity-90 shadow-lg z-20" : ""} ${editing ? "cursor-text" : "cursor-grab active:cursor-grabbing"}`}
           style={{
             left: `${barLeft}px`,
             width: `${Math.max(barWidth, columnWidth * 0.5)}px`,
@@ -348,7 +348,7 @@ export default function TimelineBar({
           }}
         >
           <div
-            className="absolute left-0 top-0 h-full w-2 cursor-col-resize rounded-l-lg opacity-0 transition-opacity group-hover:opacity-100"
+            className="absolute -left-1 top-0 h-full w-3 cursor-col-resize rounded-l-lg opacity-0 transition-opacity group-hover:opacity-100"
             onMouseDown={handleResizeLeft}
           />
 
@@ -377,9 +377,9 @@ export default function TimelineBar({
               className={
                 overflows
                   ? nearRightEdge
-                    ? "pointer-events-none absolute right-full z-10 mr-2 whitespace-nowrap text-sm font-medium text-foreground"
-                    : "pointer-events-none absolute left-full z-10 ml-2 whitespace-nowrap text-sm font-medium text-foreground"
-                  : "flex-1 truncate px-2.5 text-center text-sm font-medium text-black"
+                    ? "pointer-events-none absolute right-full z-10 mr-2 whitespace-nowrap text-[15px] font-bold text-foreground"
+                    : "pointer-events-none absolute left-full z-10 ml-2 whitespace-nowrap text-[15px] font-bold text-foreground"
+                  : "flex-1 truncate px-2.5 text-center text-[15px] font-bold text-black"
               }
             >
               {labelText}
@@ -396,6 +396,8 @@ export default function TimelineBar({
                 side="bottom"
                 align="center"
                 onMouseDown={(e) => e.stopPropagation()}
+                onInteractOutside={(e) => e.preventDefault()}
+                onPointerDownOutside={(e) => e.preventDefault()}
               >
                 {isPpc ? (
                   <div className="space-y-3">
@@ -519,7 +521,7 @@ export default function TimelineBar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="absolute -left-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
+                  className="absolute -left-2 -top-2 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-primary group-hover:opacity-100"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -534,7 +536,9 @@ export default function TimelineBar({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      setPriceOpen(true);
+                      // Delay so the dropdown fully closes before the popover opens
+                      // (Radix DropdownMenu close events conflict with Popover open)
+                      setTimeout(() => setPriceOpen(true), 150);
                     }}
                   >
                     <DollarSign className="mr-2 h-3.5 w-3.5" />
@@ -580,7 +584,7 @@ export default function TimelineBar({
 
           {/* Delete button — always visible on hover */}
           <button
-            className="absolute -right-2 -top-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-destructive group-hover:opacity-100"
+            className="absolute -right-2 -top-2 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-sm transition-opacity hover:bg-destructive group-hover:opacity-100"
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -591,7 +595,7 @@ export default function TimelineBar({
           </button>
 
           <div
-            className="absolute right-0 top-0 h-full w-2 cursor-col-resize rounded-r-lg opacity-0 transition-opacity group-hover:opacity-100"
+            className="absolute -right-1 top-0 h-full w-3 cursor-col-resize rounded-r-lg opacity-0 transition-opacity group-hover:opacity-100"
             onMouseDown={handleResizeRight}
           />
         </div>

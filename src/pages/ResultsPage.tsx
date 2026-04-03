@@ -957,13 +957,17 @@ export default function ResultsPage() {
     }
   }, [(session as any)?.apollo_team_data]);
 
-  const handleApolloSearch = async (email: string, firstName?: string, lastName?: string) => {
+  const handleApolloSearch = async (email: string, firstName?: string, lastName?: string, isManual = false) => {
     setApolloLoading(true);
     try {
       const result = await apolloApi.enrich(email, firstName, lastName, session?.domain);
-      setApolloData(result);
-      if (result.success && session) {
-        await supabase.from('crawl_sessions').update({ apollo_data: result } as any).eq('id', session.id);
+      // Always save to DB when the user manually searched (even found:false so their intent persists)
+      // For auto-enrich, only save when we actually found someone (don't block future manual entry)
+      const shouldSave = result.success && session && (isManual || result.found);
+      const savedResult = isManual ? { ...result, _manualSearch: true } : result;
+      setApolloData(savedResult);
+      if (shouldSave) {
+        await supabase.from('crawl_sessions').update({ apollo_data: savedResult } as any).eq('id', session.id);
         // Sync to agency brain (companies + contacts tables)
         syncCompanyBrain(result, session.id, session.domain).catch(err =>
           console.error('[apollo] Agency brain sync failed:', err)
@@ -999,7 +1003,10 @@ export default function ResultsPage() {
   // Auto-enrich Apollo using primary HubSpot contact
   useEffect(() => {
     if (serverCompleted || apolloAutoTriggered.current) return;
-    if (apolloLoading || apolloData || session?.apollo_data) return;
+    if (apolloLoading || apolloData) return;
+    // Never overwrite a manual search or a previously found contact
+    const existing = session?.apollo_data as any;
+    if (existing && (existing._manualSearch || existing.found)) return;
     if (isIntegrationPaused('apollo')) return;
     const hubspot = (session as any)?.hubspot_data;
     if (!hubspot?.success || !hubspot?.contacts?.length) return;
@@ -3011,7 +3018,7 @@ export default function ResultsPage() {
               )}
               {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
                 <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io" icon={<UserPlus className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('apollo', 'apollo_data', apolloLoading)} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
-                  <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={handleApolloSearch} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
+                  <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={(email, fn, ln) => handleApolloSearch(email, fn, ln, true)} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
                 </SectionCard></ErrorBoundary>
               )}
               {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
@@ -3027,7 +3034,7 @@ export default function ResultsPage() {
                   paused={isIntegrationPaused('hubspot') && !(session as any)?.hubspot_data}
                   onTogglePause={() => handleTogglePause('hubspot')}
                 >
-                  {(session as any)?.hubspot_data && (session as any).hubspot_data.success ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={handleApolloSearch} /> : null}
+                  {(session as any)?.hubspot_data && (session as any).hubspot_data.success ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={(email, fn, ln) => handleApolloSearch(email, fn, ln, true)} /> : null}
                 </SectionCard></ErrorBoundary>
               )}
               <ErrorBoundary><SectionCard

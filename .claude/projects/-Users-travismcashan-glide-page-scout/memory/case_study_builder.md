@@ -1,0 +1,10 @@
+- Case study builder lives in ProposalCaseStudies.tsx with staging area pattern
+- Screenshots come from Firecrawl (formats: ["markdown", "screenshot"]), NOT Thum.io (broken, 100% failure)
+- Ocean.io enrichment runs in parallel with Firecrawl scrape for company data
+- generate-case-study edge function does its own RAG search (4 queries × 15 chunks) + Avoma boost
+- rag-search always boosts Avoma Meeting chunks (2-step: find docs by ilike, then fetch chunks by document_id)
+- References/sources stored in proposal_case_studies.sources (JSONB) — "references" is reserved SQL word
+- Metrics: 5-column grid, stat must be single number/word, labels 3-4 words
+- Google Drive search uses Google's relevance ranking (single fullText query, no manual tiering)
+- Client-side sort skipped during search mode to preserve server order
+- DB migration: proposal_case_studies.sources column added

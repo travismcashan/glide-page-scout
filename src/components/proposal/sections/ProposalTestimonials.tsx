@@ -37,12 +37,13 @@ export default function ProposalTestimonials() {
           <div className="hidden lg:block lg:col-span-1" />
           <div className="lg:col-span-2 space-y-8">
             {TESTIMONIALS.map((t, idx) => (
-              <div key={idx} className="border-l-2 border-primary/30 pl-6">
+              <div key={idx} className="border-l-[3px] border-foreground pl-6">
                 <blockquote className="text-base text-muted-foreground italic leading-relaxed mb-3">
                   "{t.quote}"
                 </blockquote>
-                <p className="text-sm font-semibold text-foreground">{t.author}</p>
-                <p className="text-xs text-muted-foreground">{t.company}</p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-bold text-foreground">{t.author}</span>, {t.company}
+                </p>
               </div>
             ))}
           </div>

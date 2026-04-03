@@ -1,80 +1,58 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Sparkles, Bug, Lightbulb, Trash2, Loader2, X, Wand2, ChevronDown, ExternalLink, Crosshair } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Sparkles } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AppHeader from '@/components/AppHeader';
 import { withQueryTimeout } from '@/lib/queryTimeout';
+import { KanbanBoard } from '@/components/wishlist/KanbanBoard';
+import { WishlistInput } from '@/components/wishlist/WishlistInput';
+import { KanbanToolbar, type SortMode } from '@/components/wishlist/KanbanToolbar';
+import { CardDetailModal } from '@/components/wishlist/CardDetailModal';
+import { RecommendBanner } from '@/components/wishlist/RecommendBanner';
+import { RecommendModal, type RecommendedItem } from '@/components/wishlist/RecommendModal';
+import type { WishlistItem } from '@/components/wishlist/KanbanCard';
 
-type WishlistItem = {
-  id: string;
-  title: string;
-  description: string | null;
-  category: string;
-  status: string;
-  priority: string;
-  effort_estimate: string | null;
-  created_at: string;
-  submitted_by: string | null;
-  page_url: string | null;
-  element_selector: string | null;
-};
-
-type ParsedItem = {
-  title: string;
-  description: string;
-  category: string;
-  priority: string;
-  effort_estimate: string;
-  selected: boolean;
-};
-
-const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Sparkles; color: string }> = {
-  feature: { label: 'Feature', icon: Sparkles, color: 'bg-primary/10 text-primary border-primary/20' },
-  bug: { label: 'Bug', icon: Bug, color: 'bg-destructive/10 text-destructive border-destructive/20' },
-  idea: { label: 'Idea', icon: Lightbulb, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-};
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  wishlist: { label: 'Wishlist', color: 'bg-muted text-muted-foreground' },
-  planned: { label: 'Planned', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-  'in-progress': { label: 'In Progress', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  done: { label: 'Done', color: 'bg-green-600/10 text-green-600 border-green-600/20' },
-};
-
-const EFFORT_CONFIG: Record<string, { label: string; color: string }> = {
-  small: { label: 'Small', color: 'bg-green-600/10 text-green-600 border-green-600/20' },
-  medium: { label: 'Medium', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  large: { label: 'Large', color: 'bg-destructive/10 text-destructive border-destructive/20' },
-};
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export default function WishlistPage() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Brain dump state
-  const [rawInput, setRawInput] = useState('');
-  const [parsing, setParsing] = useState(false);
-  const [parsedItems, setParsedItems] = useState<ParsedItem[] | null>(null);
+  // Collapsible input
+  const [inputOpen, setInputOpen] = useState(false);
 
-  // Manual form state
-  const [showManual, setShowManual] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('feature');
-  const [priority, setPriority] = useState('medium');
+  // Detail modal
+  const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // Toolbar state — persisted to localStorage
+  const stored = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('wishlist-toolbar');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }, []);
+  const [search, setSearch] = useState(stored?.search || '');
+  const [categoryFilter, setCategoryFilter] = useState(stored?.category || 'all');
+  const [priorityFilter, setPriorityFilter] = useState(stored?.priority || 'all');
+  const [sort, setSort] = useState<SortMode>(stored?.sort || 'priority');
+  const [prioritizing, setPrioritizing] = useState(false);
+
+  // Persist toolbar state
+  useEffect(() => {
+    localStorage.setItem('wishlist-toolbar', JSON.stringify({
+      search, category: categoryFilter, priority: priorityFilter, sort,
+    }));
+  }, [search, categoryFilter, priorityFilter, sort]);
+
+  // AI recommendation
+  const [recommendedItems, setRecommendedItems] = useState<RecommendedItem[]>([]);
+  const [recommendSummary, setRecommendSummary] = useState('');
+  const [recommendModalOpen, setRecommendModalOpen] = useState(false);
+  const [recommending, setRecommending] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -88,11 +66,40 @@ export default function WishlistPage() {
         'Loading wishlist timed out'
       );
 
-      if (error) {
-        throw error;
+      if (error) throw error;
+
+      const items = (data as any[]) || [];
+      const itemIds = items.map(i => i.id);
+
+      // Enrich with profile data
+      const userIds = [...new Set(items.map(i => i.submitted_by).filter(Boolean))];
+      if (userIds.length) {
+        const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+        if (profiles?.length) {
+          const profileMap = new Map(profiles.map(p => [p.id, p]));
+          for (const item of items) {
+            if (item.submitted_by) item.profiles = profileMap.get(item.submitted_by) || null;
+          }
+        }
       }
 
-      setItems((data as any[]) || []);
+      // Enrich with attachment + comment counts
+      if (itemIds.length) {
+        const [{ data: attCounts }, { data: cmtCounts }] = await Promise.all([
+          supabase.from('wishlist_attachments').select('wishlist_item_id').in('wishlist_item_id', itemIds),
+          supabase.from('wishlist_comments').select('wishlist_item_id').in('wishlist_item_id', itemIds),
+        ]);
+        const attMap = new Map<string, number>();
+        const cmtMap = new Map<string, number>();
+        for (const a of attCounts || []) attMap.set(a.wishlist_item_id, (attMap.get(a.wishlist_item_id) || 0) + 1);
+        for (const c of cmtCounts || []) cmtMap.set(c.wishlist_item_id, (cmtMap.get(c.wishlist_item_id) || 0) + 1);
+        for (const item of items) {
+          item.attachment_count = attMap.get(item.id) || 0;
+          item.comment_count = cmtMap.get(item.id) || 0;
+        }
+      }
+
+      setItems(items);
     } catch (error: any) {
       console.error('Failed to load wishlist items:', error);
       setItems([]);
@@ -108,65 +115,6 @@ export default function WishlistPage() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  const breakItDown = async () => {
-    if (!rawInput.trim()) return;
-    setParsing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('wishlist-parse', {
-        body: { rawInput: rawInput.trim() },
-      });
-      if (error) throw error;
-      if (data?.error) {
-        toast({ title: 'AI Error', description: data.error, variant: 'destructive' });
-        setParsing(false);
-        return;
-      }
-      const items = (data?.items || []).map((item: any) => ({ ...item, selected: true }));
-      setParsedItems(items);
-    } catch (e: any) {
-      toast({ title: 'Error', description: e.message || 'Failed to parse ideas', variant: 'destructive' });
-    }
-    setParsing(false);
-  };
-
-  const saveSelected = async () => {
-    if (!parsedItems) return;
-    const selected = parsedItems.filter((i) => i.selected);
-    if (selected.length === 0) return;
-    setSaving(true);
-    const rows = selected.map((i) => ({
-      title: i.title,
-      description: i.description || null,
-      category: i.category,
-      priority: i.priority,
-      effort_estimate: i.effort_estimate || null,
-    }));
-    await supabase.from('wishlist_items').insert(rows as any);
-    setParsedItems(null);
-    setRawInput('');
-    setSaving(false);
-    fetchItems();
-    toast({ title: `${selected.length} item${selected.length > 1 ? 's' : ''} added` });
-  };
-
-  const addManualItem = async () => {
-    if (!title.trim()) return;
-    setSaving(true);
-    await supabase.from('wishlist_items').insert({
-      title: title.trim(),
-      description: description.trim() || null,
-      category,
-      priority,
-    } as any);
-    setTitle('');
-    setDescription('');
-    setCategory('feature');
-    setPriority('medium');
-    setShowManual(false);
-    setSaving(false);
-    fetchItems();
-  };
-
   const deleteItem = async (id: string) => {
     setDeleting(id);
     await supabase.from('wishlist_items').delete().eq('id', id);
@@ -175,193 +123,239 @@ export default function WishlistPage() {
   };
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from('wishlist_items').update({ status } as any).eq('id', id);
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)));
+    await supabase.from('wishlist_items').update({ status } as any).eq('id', id);
   };
 
-  const toggleParsedItem = (index: number) => {
-    setParsedItems((prev) =>
-      prev ? prev.map((item, i) => (i === index ? { ...item, selected: !item.selected } : item)) : prev
-    );
+  // Filter + sort
+  const filteredItems = useMemo(() => {
+    let result = items;
+
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((i) =>
+        i.title.toLowerCase().includes(q) ||
+        (i.description && i.description.toLowerCase().includes(q))
+      );
+    }
+
+    if (categoryFilter !== 'all') {
+      result = result.filter((i) => i.category === categoryFilter);
+    }
+
+    if (priorityFilter !== 'all') {
+      result = result.filter((i) => i.priority === priorityFilter);
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      if (sort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      // priority: high first
+      return (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1);
+    });
+
+    return result;
+  }, [items, search, categoryFilter, priorityFilter, sort]);
+
+  const handleItemsAdded = () => {
+    setInputOpen(false);
+    fetchItems();
   };
 
-  const updateParsedItem = (index: number, field: string, value: string) => {
-    setParsedItems((prev) =>
-      prev ? prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)) : prev
-    );
+  const handlePrioritize = async () => {
+    setPrioritizing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('wishlist-prioritize', {
+        body: { items: items.map(({ id, title, category, priority, effort_estimate, status, created_at }) => ({ id, title, category, priority, effort_estimate, status, created_at })) },
+      });
+      if (error) throw error;
+      if (data?.error) { toast({ title: 'AI Error', description: data.error, variant: 'destructive' }); return; }
+
+      let changeCount = 0;
+      const updates: Record<string, any> = {};
+
+      // Apply priority changes
+      for (const ch of data.priority_changes || []) {
+        if (!updates[ch.id]) updates[ch.id] = {};
+        updates[ch.id].priority = ch.new_priority;
+        changeCount++;
+      }
+      // Apply effort changes
+      for (const ch of data.effort_changes || []) {
+        if (!updates[ch.id]) updates[ch.id] = {};
+        updates[ch.id].effort_estimate = ch.new_effort;
+        changeCount++;
+      }
+      // Apply category changes
+      for (const ch of data.category_changes || []) {
+        if (!updates[ch.id]) updates[ch.id] = {};
+        updates[ch.id].category = ch.new_category;
+        changeCount++;
+      }
+
+      // Persist all changes to DB
+      for (const [id, fields] of Object.entries(updates)) {
+        await supabase.from('wishlist_items').update(fields as any).eq('id', id);
+      }
+
+      // Build updated items list
+      const updatedItems = items.map((item) => {
+        const u = updates[item.id];
+        return u ? { ...item, ...u } : item;
+      });
+      setItems(updatedItems);
+
+      // Show recommendation modal with single item
+      const nextItem = updatedItems.find((i) => i.id === data.next_item_id);
+      if (nextItem) {
+        setRecommendedItems([{
+          id: nextItem.id, title: nextItem.title, description: nextItem.description,
+          reason: data.next_item_reason, category: nextItem.category,
+          priority: nextItem.priority, effort: nextItem.effort_estimate,
+        }]);
+        setRecommendSummary('');
+        setRecommendModalOpen(true);
+      } else {
+        toast({
+          title: 'Backlog analyzed',
+          description: data.next_item_reason + (changeCount ? ` (${changeCount} fields updated)` : ''),
+        });
+      }
+
+      if (changeCount) {
+        toast({ title: `${changeCount} field${changeCount > 1 ? 's' : ''} updated` });
+      }
+
+      // Auto-generate cover images for large-effort items without one
+      const needsCover = updatedItems.filter(
+        (i) => i.effort_estimate === 'large' && !i.cover_image_url && i.status !== 'done'
+      );
+      if (needsCover.length) {
+        Promise.allSettled(
+          needsCover.map((item) =>
+            supabase.functions.invoke('wishlist-cover-image', {
+              body: { item_id: item.id, title: item.title, description: item.description },
+            }).then(({ data: imgData, error: imgErr }) => {
+              if (imgErr || imgData?.error) return;
+              if (imgData?.cover_image_url) {
+                setItems((prev) =>
+                  prev.map((i) => i.id === item.id ? { ...i, cover_image_url: imgData.cover_image_url } : i)
+                );
+              }
+            })
+          )
+        ).then((results) => {
+          const generated = results.filter((r) => r.status === 'fulfilled').length;
+          if (generated > 0) {
+            toast({ title: `Generated ${generated} cover image${generated > 1 ? 's' : ''}` });
+          }
+        });
+      }
+    } catch (e: any) {
+      toast({ title: 'Prioritize failed', description: e.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setPrioritizing(false);
+    }
   };
 
-  const grouped = {
-    wishlist: items.filter((i) => i.status === 'wishlist'),
-    planned: items.filter((i) => i.status === 'planned'),
-    'in-progress': items.filter((i) => i.status === 'in-progress'),
-    done: items.filter((i) => i.status === 'done'),
+  const handleRecommend = async () => {
+    setRecommending(true);
+    try {
+      const backlogItems = items
+        .filter((i) => i.status === 'wishlist' || i.status === 'planned')
+        .map(({ id, title, category, priority, effort_estimate, status, created_at }) =>
+          ({ id, title, category, priority, effort_estimate, status, created_at }));
+
+      if (backlogItems.length < 2) {
+        toast({ title: 'Not enough items', description: 'Need at least 2 items in wishlist or planned to recommend a sprint.' });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('wishlist-recommend', {
+        body: { items: backlogItems },
+      });
+      if (error) throw error;
+      if (data?.error) { toast({ title: 'AI Error', description: data.error, variant: 'destructive' }); return; }
+
+      const recs: RecommendedItem[] = (data.recommendations || [])
+        .map((r: any) => {
+          const item = items.find((i) => i.id === r.id);
+          if (!item) return null;
+          return {
+            id: item.id, title: item.title, description: item.description,
+            reason: r.reason, category: item.category,
+            priority: item.priority, effort: item.effort_estimate,
+          };
+        })
+        .filter(Boolean);
+
+      if (recs.length) {
+        setRecommendedItems(recs);
+        setRecommendSummary(data.sprint_summary || '');
+        setRecommendModalOpen(true);
+      } else {
+        toast({ title: 'No recommendations', description: 'AI could not find suitable items.' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Recommend failed', description: e.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setRecommending(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Wishlist</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Brain dump your ideas and let AI break them into actionable items.
-            </p>
-          </div>
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold tracking-tight">Wishlist</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            Brain dump your ideas and let AI break them into actionable items.
+          </p>
         </div>
 
-        {/* Brain dump input */}
-        {!parsedItems && (
-          <Card className="p-5 mb-4">
-            <Textarea
-              placeholder="What's on your mind? Describe features, bugs, ideas — anything. AI will break it down..."
-              value={rawInput}
-              onChange={(e) => setRawInput(e.target.value)}
-              rows={3}
-              className="resize-none mb-3"
-            />
-            <div className="flex items-center justify-between">
-              <button
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setShowManual(!showManual)}
-              >
-                {showManual ? 'Hide manual form' : 'or add manually'}
-              </button>
-              <Button onClick={breakItDown} disabled={parsing || !rawInput.trim()} size="sm">
-                {parsing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                Break it down
-              </Button>
-            </div>
-          </Card>
+        {/* Collapsible brain dump input */}
+        {inputOpen && (
+          <WishlistInput onItemsAdded={handleItemsAdded} onClose={() => setInputOpen(false)} />
         )}
 
-        {/* Manual form */}
-        {showManual && !parsedItems && (
-          <Card className="p-5 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">Add Manually</h3>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowManual(false)}>
-                <X className="h-3 w-3" />
-              </Button>
-            </div>
-            <div className="space-y-3">
-              <Input
-                placeholder="Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addManualItem()}
-              />
-              <Textarea placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
-              <div className="flex gap-3">
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="feature">Feature</SelectItem>
-                    <SelectItem value="bug">Bug</SelectItem>
-                    <SelectItem value="idea">Idea</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={addManualItem} disabled={saving || !title.trim()} className="ml-auto" size="sm">
-                  {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
-                  Add
-                </Button>
-              </div>
-            </div>
-          </Card>
+        {/* Toolbar: Add button left, search + filters right */}
+        {!loading && (
+          <KanbanToolbar
+            search={search}
+            onSearchChange={setSearch}
+            category={categoryFilter}
+            onCategoryChange={setCategoryFilter}
+            priority={priorityFilter}
+            onPriorityChange={setPriorityFilter}
+            sort={sort}
+            onSortChange={setSort}
+            totalCount={items.length}
+            filteredCount={filteredItems.length}
+            onAddClick={() => setInputOpen(!inputOpen)}
+            onPrioritize={handlePrioritize}
+            prioritizing={prioritizing}
+            onRecommend={handleRecommend}
+            recommending={recommending}
+          />
         )}
 
-        {/* Review parsed items */}
-        {parsedItems && (
-          <Card className="p-5 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold">
-                AI found {parsedItems.length} item{parsedItems.length !== 1 ? 's' : ''}
-              </h3>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => { setParsedItems(null); }}>
-                  Discard
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={saveSelected}
-                  disabled={saving || parsedItems.filter((i) => i.selected).length === 0}
-                >
-                  {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
-                  Add {parsedItems.filter((i) => i.selected).length} Selected
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {parsedItems.map((item, idx) => {
-                const cat = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.feature;
-                const CatIcon = cat.icon;
-                return (
-                  <div
-                    key={idx}
-                    className={`flex items-start gap-3 p-3 rounded-lg border transition-opacity ${item.selected ? 'border-border' : 'border-border/50 opacity-50'}`}
-                  >
-                    <Checkbox
-                      checked={item.selected}
-                      onCheckedChange={() => toggleParsedItem(idx)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <Input
-                        value={item.title}
-                        onChange={(e) => updateParsedItem(idx, 'title', e.target.value)}
-                        className="h-8 text-sm font-medium"
-                      />
-                      <Input
-                        value={item.description}
-                        onChange={(e) => updateParsedItem(idx, 'description', e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder="Description"
-                      />
-                      <div className="flex gap-2 flex-wrap">
-                        <Select value={item.category} onValueChange={(v) => updateParsedItem(idx, 'category', v)}>
-                          <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="feature">Feature</SelectItem>
-                            <SelectItem value="bug">Bug</SelectItem>
-                            <SelectItem value="idea">Idea</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={item.priority} onValueChange={(v) => updateParsedItem(idx, 'priority', v)}>
-                          <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={item.effort_estimate} onValueChange={(v) => updateParsedItem(idx, 'effort_estimate', v)}>
-                          <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="small">Small</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="large">Large</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+        {/* AI Recommendation banner (visible after modal dismissed) */}
+        {recommendedItems.length > 0 && !recommendModalOpen && (
+          <RecommendBanner
+            title={recommendedItems.length > 1
+              ? `${recommendedItems.length} items recommended`
+              : recommendedItems[0].title}
+            reason={recommendSummary || recommendedItems[0].reason}
+            onView={() => setRecommendModalOpen(true)}
+            onDismiss={() => setRecommendedItems([])}
+          />
         )}
 
-        {/* Existing items list */}
+        {/* Board */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <BrandLoader size={48} />
@@ -372,91 +366,43 @@ export default function WishlistPage() {
             <p className="text-sm">No items yet. Brain dump your first idea above.</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {Object.entries(grouped).map(([status, statusItems]) => {
-              if (statusItems.length === 0) return null;
-              const config = STATUS_CONFIG[status];
-              return (
-                <div key={status}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="outline" className={`text-xs ${config.color}`}>
-                      {config.label}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{statusItems.length}</span>
-                  </div>
-                  <div className="space-y-2">
-                    {statusItems.map((item) => {
-                      const cat = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.feature;
-                      const CatIcon = cat.icon;
-                      const effort = item.effort_estimate ? EFFORT_CONFIG[item.effort_estimate] : null;
-                      return (
-                        <Card key={item.id} className="px-4 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 min-w-0">
-                              <div className={`h-7 w-7 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${cat.color}`}>
-                                <CatIcon className="h-3.5 w-3.5" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium">{item.title}</p>
-                                {item.description && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
-                                )}
-                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                    {item.priority}
-                                  </Badge>
-                                  {effort && (
-                                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${effort.color}`}>
-                                      {effort.label}
-                                    </Badge>
-                                  )}
-                                  {item.page_url && (
-                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                      <ExternalLink className="h-2.5 w-2.5" />
-                                      {item.page_url.replace(/^https?:\/\/[^/]+/, '').slice(0, 40)}
-                                    </span>
-                                  )}
-                                  {item.element_selector && (
-                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                      <Crosshair className="h-2.5 w-2.5" />
-                                      <code className="max-w-[120px] truncate">{item.element_selector}</code>
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Select value={item.status} onValueChange={(v) => updateStatus(item.id, v)}>
-                                <SelectTrigger className="h-7 text-xs w-28">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="wishlist">Wishlist</SelectItem>
-                                  <SelectItem value="planned">Planned</SelectItem>
-                                  <SelectItem value="in-progress">In Progress</SelectItem>
-                                  <SelectItem value="done">Done</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                onClick={() => deleteItem(item.id)}
-                                disabled={deleting === item.id}
-                              >
-                                {deleting === item.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <KanbanBoard
+            items={filteredItems}
+            onStatusChange={updateStatus}
+            onDelete={deleteItem}
+            onCardClick={(item) => { setSelectedItem(item); setModalOpen(true); }}
+            deleting={deleting}
+          />
         )}
+        {/* AI Recommendation modal */}
+        {recommendedItems.length > 0 && (
+          <RecommendModal
+            open={recommendModalOpen}
+            onOpenChange={setRecommendModalOpen}
+            items={recommendedItems}
+            summary={recommendSummary}
+            onAccept={async () => {
+              for (const rec of recommendedItems) {
+                await updateStatus(rec.id, 'planned');
+              }
+              setRecommendModalOpen(false);
+              const count = recommendedItems.length;
+              setRecommendedItems([]);
+              toast({ title: `${count} item${count > 1 ? 's' : ''} moved to Planned` });
+            }}
+            onDismiss={() => setRecommendModalOpen(false)}
+          />
+        )}
+
+        <CardDetailModal
+          item={selectedItem}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          onUpdate={(updated) => {
+            setItems((prev) => prev.map((i) => (i.id === updated.id ? { ...i, ...updated } : i)));
+          }}
+          onDelete={deleteItem}
+        />
       </main>
     </div>
   );

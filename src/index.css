@@ -167,9 +167,9 @@ body[data-scroll-locked] {
     --pillar-go: 118 100% 78%;
     --pillar-go-light: 118 80% 94%;
     --pillar-go-foreground: 118 60% 18%;
-    --pillar-ts: 237 100% 88%;
-    --pillar-ts-light: 237 80% 95%;
-    --pillar-ts-foreground: 237 60% 28%;
+    --pillar-ts: 330 100% 85%;
+    --pillar-ts-light: 330 80% 95%;
+    --pillar-ts-foreground: 330 60% 28%;
   }
 
   .dark {
@@ -222,9 +222,9 @@ body[data-scroll-locked] {
     --pillar-go: 118 70% 60%;
     --pillar-go-light: 118 50% 13%;
     --pillar-go-foreground: 118 80% 88%;
-    --pillar-ts: 237 80% 75%;
-    --pillar-ts-light: 237 50% 16%;
-    --pillar-ts-foreground: 237 90% 92%;
+    --pillar-ts: 330 80% 75%;
+    --pillar-ts-light: 330 50% 16%;
+    --pillar-ts-foreground: 330 90% 92%;
   }
 }
 
@@ -422,6 +422,23 @@ body[data-scroll-locked] {
     #aa55ff 100%
   );
   background-size: 200% 100%;
+}
+
+/* Fix Loader2 spin wobble — ensure rotation is centered */
+.animate-spin {
+  transform-origin: center center;
+}
+
+/* Shimmer skeleton loading effect */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, hsl(var(--muted-foreground) / 0.15) 25%, hsl(var(--muted-foreground) / 0.30) 50%, hsl(var(--muted-foreground) / 0.15) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
 }
 
 /* Print styles for PDF export */

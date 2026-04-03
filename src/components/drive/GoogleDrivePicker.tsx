@@ -27,6 +27,8 @@ interface GoogleDrivePickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFilesSelected: (files: { name: string; content?: string; mimeType: string; isText: boolean }[]) => void;
+  /** When provided, "Done" returns file links instead of downloading content. */
+  onFilesLinked?: (files: { id: string; name: string; mimeType: string; url: string }[]) => void;
 }
 
 const SUPPORTED_MIMES = [
@@ -80,15 +82,17 @@ function getFileTypeLabel(mimeType: string): string {
   return 'File';
 }
 
-export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: GoogleDrivePickerProps) {
+export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected, onFilesLinked }: GoogleDrivePickerProps) {
   const {
     isConnected, isLoading, files, folderStack,
-    connect, checkConnection, navigateToFolder, navigateToBreadcrumb, downloadFile, listDocTabs, downloadDocTabs,
+    connect, checkConnection, searchFiles, listFiles, navigateToFolder, navigateToBreadcrumb, downloadFile, listDocTabs, downloadDocTabs,
   } = useGoogleDrive();
 
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [focusedFileId, setFocusedFileId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<DriveFile | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
@@ -120,7 +124,7 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
 
   useEffect(() => {
     if (open) checkConnection();
-    else { setPreviewFile(null); setPreviewContent(null); setFocusedFileId(null); }
+    else { setPreviewFile(null); setPreviewContent(null); setFocusedFileId(null); setSearchQuery(''); setIsSearching(false); }
   }, [open, checkConnection]);
 
   const toggleFileSelection = useCallback((fileId: string) => {
@@ -199,8 +203,23 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
   }, [open]);
 
   const handleImport = async () => {
-    const filesToImport = files.filter(f => selectedFiles.has(f.id) && isFileSupported(f.mimeType));
+    const filesToImport = files.filter(f => selectedFiles.has(f.id) && !isFolder(f.mimeType));
     if (filesToImport.length === 0) return;
+
+    // Link mode: return file references without downloading content
+    if (onFilesLinked) {
+      const linked = filesToImport.map(f => {
+        const isGoogleApp = f.mimeType.startsWith('application/vnd.google-apps.');
+        const url = isGoogleApp
+          ? `https://docs.google.com/document/d/${f.id}`
+          : `https://drive.google.com/file/d/${f.id}/view`;
+        return { id: f.id, name: f.name, mimeType: f.mimeType, url };
+      });
+      onFilesLinked(linked);
+      setSelectedFiles(new Set());
+      onOpenChange(false);
+      return;
+    }
 
     // Check if any Google Docs need tab selection (tabMode === 'choose')
     const googleDocs = filesToImport.filter(f => f.mimeType === 'application/vnd.google-apps.document');
@@ -357,12 +376,15 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
 
   const filteredAndSortedFiles = files
     .filter(file => {
-      if (!file.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (filterBy === 'all') return true;
       if (filterBy === 'supported') return isFileSupported(file.mimeType) || isFolder(file.mimeType);
       return getFileCategory(file.mimeType) === filterBy;
     })
     .sort((a, b) => {
+      // When searching, server returns results in tier order (folders > name matches > content).
+      // Don't re-sort — preserve that order.
+      if (searchQuery) return 0;
+
       if (foldersOnTop) {
         if (isFolder(a.mimeType) && !isFolder(b.mimeType)) return -1;
         if (!isFolder(a.mimeType) && isFolder(b.mimeType)) return 1;
@@ -494,9 +516,29 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search in Drive" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 pr-8 bg-muted/50 border-0 focus-visible:ring-1" />
+              <Input placeholder="Search all of Drive..." value={searchQuery} onChange={e => {
+                const q = e.target.value;
+                setSearchQuery(q);
+                // Debounced server-side search across all folders
+                if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+                if (q.trim().length >= 2) {
+                  setIsSearching(true);
+                  searchTimerRef.current = setTimeout(() => {
+                    searchFiles(q.trim()).finally(() => setIsSearching(false));
+                  }, 400);
+                } else if (q.trim().length === 0) {
+                  // Clear search — go back to current folder
+                  setIsSearching(false);
+                  listFiles(folderStack[folderStack.length - 1]?.id || 'root');
+                }
+              }} className="pl-10 pr-8 bg-muted/50 border-0 focus-visible:ring-1" />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                <button onClick={() => {
+                  setSearchQuery('');
+                  setIsSearching(false);
+                  if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+                  listFiles(folderStack[folderStack.length - 1]?.id || 'root');
+                }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -572,22 +614,32 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
           </div>
         </div>
 
-        {/* Breadcrumbs */}
+        {/* Breadcrumbs or Search indicator */}
         <div className="flex items-center gap-1 text-sm px-4 py-2 border-b flex-shrink-0 bg-muted/30">
-          {folderStack.map((folder, index) => (
-            <div key={folder.id} className="flex items-center">
-              {index > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground mx-1" />}
-              <button
-                onClick={() => navigateToBreadcrumb(index)}
-                className={cn(
-                  'px-2 py-1 rounded hover:bg-accent transition-colors whitespace-nowrap',
-                  index === folderStack.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {folder.name}
-              </button>
+          {searchQuery ? (
+            <div className="flex items-center gap-2 px-2 py-1">
+              <Search className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground">Search results for</span>
+              <span className="font-medium text-foreground">"{searchQuery}"</span>
+              {isSearching && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+              <span className="text-muted-foreground">({files.length} found)</span>
             </div>
-          ))}
+          ) : (
+            folderStack.map((folder, index) => (
+              <div key={folder.id} className="flex items-center">
+                {index > 0 && <ChevronRight className="w-4 h-4 text-muted-foreground mx-1" />}
+                <button
+                  onClick={() => navigateToBreadcrumb(index)}
+                  className={cn(
+                    'px-2 py-1 rounded hover:bg-accent transition-colors whitespace-nowrap',
+                    index === folderStack.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {folder.name}
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
         {/* File list */}
@@ -605,20 +657,20 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
               </div>
             ) : (
               <div className="divide-y">
-                {filteredAndSortedFiles.map(file => {
+                {filteredAndSortedFiles.map((file, fileIdx) => {
                   const isFolderItem = isFolder(file.mimeType);
                   const isSupported = isFileSupported(file.mimeType);
                   const isSelected = selectedFiles.has(file.id);
                   const isFocused = focusedFileId === file.id;
 
                   return (
+                    <div key={file.id}>
                     <div
-                      key={file.id}
                       onClick={(e) => handleFileClick(file, e)}
                       onFocus={() => !isFolderItem && setFocusedFileId(file.id)}
                       tabIndex={!isFolderItem && isSupported ? 0 : -1}
                       className={cn(
-                        'flex items-center gap-4 px-4 py-3 transition-colors group cursor-pointer outline-none',
+                        'flex items-center gap-3 px-4 py-3 transition-colors group cursor-pointer outline-none overflow-hidden',
                         isFolderItem && 'hover:bg-accent/50',
                         !isFolderItem && isSupported && 'hover:bg-accent/50',
                         !isFolderItem && !isSupported && 'opacity-40 cursor-not-allowed',
@@ -640,21 +692,22 @@ export function GoogleDrivePicker({ open, onOpenChange, onFilesSelected }: Googl
                       <div className="flex-1 min-w-0">
                         <p className={cn('text-sm truncate', !isFolderItem && !isSupported && 'text-muted-foreground')}>{file.name}</p>
                       </div>
-                      {isFocused && !isFolderItem && isSupported && (
-                        <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {isFocused && !isFolderItem && isSupported && !searchQuery && (
+                        <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0">
                           <Eye className="w-3.5 h-3.5" />
                           <span>Space to preview</span>
                         </div>
                       )}
-                      {!isFolderItem && file.size && (
+                      {!isFolderItem && file.size && !searchQuery && (
                         <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block tabular-nums">
                           {formatFileSize(Number(file.size))}
                         </div>
                       )}
-                      <div className="flex-shrink-0 text-sm text-muted-foreground hidden sm:block pr-1">
+                      <div className="flex-shrink-0 text-xs text-muted-foreground hidden sm:block pr-1">
                         {file.modifiedTime && new Date(file.modifiedTime).toLocaleDateString()}
                       </div>
                       {isFolderItem && <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
+                    </div>
                     </div>
                   );
                 })}
