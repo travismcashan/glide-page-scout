@@ -514,12 +514,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     }}
                   />
                 </TableHead>
-                <TableHead className="text-xs" style={{ width: '16%' }}>QuickBooks Client</TableHead>
-                <TableHead className="text-xs" style={{ width: '20%' }}>HubSpot Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '20%' }}>Harvest Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '20%' }}>Freshdesk Match</TableHead>
-                <TableHead className="text-xs text-center" style={{ width: '5%' }}>#</TableHead>
-                <TableHead className="text-xs text-center" style={{ width: '8%' }}>Action</TableHead>
+                <TableHead className="text-xs" style={{ width: '18%' }}>QuickBooks Client</TableHead>
+                <TableHead className="text-xs" style={{ width: '10%' }}>Domain</TableHead>
+                <TableHead className="text-xs" style={{ width: '17%' }}>HubSpot Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '17%' }}>Harvest Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '17%' }}>Freshdesk Match</TableHead>
+                <TableHead className="text-xs text-center" style={{ width: '6%' }}>Matches</TableHead>
+                <TableHead className="text-xs text-center" style={{ width: '7%' }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -547,12 +548,18 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     </TableCell>
                     <TableCell className="py-2">
                       <div className="text-sm font-medium">{c.name}</div>
-                      {c.domain && <div className="text-[11px] text-muted-foreground">{c.domain}</div>}
                       {c.quickbooks_invoice_summary && (
                         <div className="text-[10px] text-muted-foreground">
                           {(c.quickbooks_invoice_summary as any)?.count || 0} txns
                           {(c.quickbooks_invoice_summary as any)?.total ? ` · $${Math.round((c.quickbooks_invoice_summary as any).total).toLocaleString()}` : ''}
                         </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {c.domain ? (
+                        <span className="text-[11px] text-muted-foreground">{c.domain}</span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/40">—</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2">
