@@ -102,6 +102,12 @@ export default function CompaniesPage() {
               {companies.length} {companies.length === 1 ? 'company' : 'companies'}
             </p>
           </div>
+          <button
+            onClick={() => navigate('/sites')}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          >
+            <Globe className="h-3.5 w-3.5" /> All Sites
+          </button>
         </div>
 
         <div className="relative mb-6">
