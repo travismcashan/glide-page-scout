@@ -224,18 +224,40 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     needsMapping: companies.filter(c => mappedCount(c) === 0).length,
   }), [companies]);
 
-  // Build updates object for a company from its matches
+  // Build updates object for a company from its matches + manual overrides
   const buildUpdates = (companyId: string) => {
     const matches = allMatches.get(companyId);
     const override = overrides.get(companyId) || {};
-    if (!matches) return {};
     const updates: any = {};
-    const hsMatch = override.hubspot ? matches.hubspot.find(m => m.id === override.hubspot) : matches.hubspot[0];
-    if (hsMatch && hsMatch.score >= 0.75) updates.hubspot_company_id = hsMatch.id;
-    const hvMatch = override.harvest ? matches.harvest.find(m => m.id === override.harvest) : matches.harvest[0];
-    if (hvMatch && hvMatch.score >= 0.75) { updates.harvest_client_id = hvMatch.id; updates.harvest_client_name = hvMatch.name; }
-    const fdMatch = override.freshdesk ? matches.freshdesk.find(m => m.id === override.freshdesk) : matches.freshdesk[0];
-    if (fdMatch && fdMatch.score >= 0.75) { updates.freshdesk_company_id = fdMatch.id; updates.freshdesk_company_name = fdMatch.name; }
+
+    // Helper: find record from matches first, then fall back to full source list
+    const findRecord = (source: 'hubspot' | 'harvest' | 'freshdesk', overrideId?: string) => {
+      const candidates = matches?.[source] || [];
+      if (overrideId) {
+        const fromCandidates = candidates.find(m => m.id === overrideId);
+        if (fromCandidates) return fromCandidates;
+        // Manual selection from full source list
+        const fromSource = sourceData?.[source]?.find(r => r.id === overrideId);
+        if (fromSource) return { ...fromSource, score: 1 }; // manual = full confidence
+      }
+      return candidates[0] || null;
+    };
+
+    const hsMatch = findRecord('hubspot', override.hubspot);
+    if (hsMatch && (hsMatch.score >= 0.75 || override.hubspot)) updates.hubspot_company_id = hsMatch.id;
+
+    const hvMatch = findRecord('harvest', override.harvest);
+    if (hvMatch && (hvMatch.score >= 0.75 || override.harvest)) {
+      updates.harvest_client_id = hvMatch.id;
+      updates.harvest_client_name = hvMatch.name;
+    }
+
+    const fdMatch = findRecord('freshdesk', override.freshdesk);
+    if (fdMatch && (fdMatch.score >= 0.75 || override.freshdesk)) {
+      updates.freshdesk_company_id = fdMatch.id;
+      updates.freshdesk_company_name = fdMatch.name;
+    }
+
     const domain = hsMatch?.domain || fdMatch?.domain;
     if (domain) updates.domain = domain;
     return updates;
