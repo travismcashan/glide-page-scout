@@ -318,7 +318,6 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
             </SelectItem>
             {candidates.map(c => (
               <SelectItem key={c.id} value={c.id}>
-                <span className={`font-bold ${c.score >= 0.95 ? 'text-green-600' : c.score >= 0.85 ? 'text-amber-500' : 'text-orange-500'} mr-1`}>{Math.round(c.score * 100)}%</span>
                 <span className="truncate">{c.name}</span>
               </SelectItem>
             ))}
