@@ -325,9 +325,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         >
           <div className="flex items-center gap-1">
             <Lock className="h-3 w-3 text-green-600 shrink-0 group-hover:text-amber-500" />
-            <span className="text-xs text-green-700 truncate max-w-[160px] group-hover:text-amber-600">{lockedName || lockedId}</span>
+            <span className="text-xs text-green-700 truncate max-w-full group-hover:text-amber-600">{lockedName || lockedId}</span>
           </div>
-          <span className="text-[10px] text-muted-foreground/60 truncate max-w-[160px]">ID: {lockedId}</span>
+          <span className="text-xs text-muted-foreground/60 truncate max-w-full">ID: {lockedId}</span>
         </button>
       );
     }
@@ -358,7 +358,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
             });
           }}
         >
-          <SelectTrigger className="h-7 text-xs flex-1 min-w-0 max-w-[170px] truncate">
+          <SelectTrigger className="h-7 text-xs flex-1 min-w-0 min-w-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -552,7 +552,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     <TableCell className="py-2">
                       <div className="text-sm font-medium">{c.name}</div>
                       {c.quickbooks_invoice_summary && (
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                           {(c.quickbooks_invoice_summary as any)?.count || 0} txns
                           {(c.quickbooks_invoice_summary as any)?.total ? ` · $${Math.round((c.quickbooks_invoice_summary as any).total).toLocaleString()}` : ''}
                         </div>
@@ -560,13 +560,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     </TableCell>
                     <TableCell className="py-2">
                       {c.domain ? (
-                        <span className="text-[11px] text-muted-foreground">{c.domain}</span>
+                        <span className="text-xs text-muted-foreground">{c.domain}</span>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground/40">—</span>
+                        <span className="text-xs text-muted-foreground/40">—</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2">
-                      {renderSourceCell(c, 'hubspot', c.hubspot_company_id, c.hubspot_company_id)}
+                      {renderSourceCell(c, 'hubspot', c.hubspot_company_id, c.hubspot_company_id ? c.name : null)}
                     </TableCell>
                     <TableCell className="py-2">
                       {renderSourceCell(c, 'harvest', c.harvest_client_id, c.harvest_client_name)}
@@ -575,7 +575,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                       {renderSourceCell(c, 'freshdesk', c.freshdesk_company_id, c.freshdesk_company_name)}
                     </TableCell>
                     <TableCell className="text-center py-2">
-                      <Badge variant="outline" className={`text-[10px] py-0 ${
+                      <Badge variant="outline" className={`text-xs py-0 ${
                         count === 3 ? 'text-green-600 border-green-500/30' :
                         count > 0 ? 'text-amber-500 border-amber-500/30' :
                         bestScore > 0 ? 'text-blue-500 border-blue-500/30' :
