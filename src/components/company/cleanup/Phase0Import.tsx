@@ -71,7 +71,9 @@ function autoMapColumns(headers: string[]): ColumnMapping {
 
   for (const [field, hints] of Object.entries(AUTO_MAP_HINTS)) {
     for (const hint of hints) {
-      const idx = lowerHeaders.findIndex(h => h === hint || h.includes(hint));
+      // Exact match only, or starts with hint followed by space/end
+      // This prevents "account full name" from matching "name"
+      const idx = lowerHeaders.findIndex(h => h === hint);
       if (idx >= 0 && !Object.values(mapping).includes(headers[idx])) {
         mapping[field] = headers[idx];
         break;
