@@ -68,10 +68,11 @@ serve(async (req) => {
         });
       }
 
-      const accessToken = tokenData.access_token;
+      // For user_scope OAuth, the user token is in authed_user.access_token
+      const accessToken = tokenData.authed_user?.access_token || tokenData.access_token;
       const teamName = tokenData.team?.name || 'Slack';
       const teamId = tokenData.team?.id || '';
-      const scope = tokenData.scope || '';
+      const scope = tokenData.authed_user?.scope || tokenData.scope || '';
       const authedUserId = tokenData.authed_user?.id || '';
 
       // Get user info for email
