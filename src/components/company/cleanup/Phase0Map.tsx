@@ -521,13 +521,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     }}
                   />
                 </TableHead>
-                <TableHead className="text-xs" style={{ width: '18%' }}>QuickBooks Client</TableHead>
-                <TableHead className="text-xs" style={{ width: '10%' }}>Domain</TableHead>
-                <TableHead className="text-xs" style={{ width: '17%' }}>HubSpot Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '17%' }}>Harvest Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '17%' }}>Freshdesk Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '17%' }}>QuickBooks Client</TableHead>
+                <TableHead className="text-xs" style={{ width: '9%' }}>Domain</TableHead>
+                <TableHead className="text-xs" style={{ width: '16%' }}>HubSpot Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '16%' }}>Harvest Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '16%' }}>Freshdesk Match</TableHead>
                 <TableHead className="text-xs" style={{ width: '6%' }}>Matches</TableHead>
-                <TableHead className="text-xs" style={{ width: '7%' }}></TableHead>
+                <TableHead className="text-xs" style={{ width: '10%' }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
