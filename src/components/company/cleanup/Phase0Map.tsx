@@ -56,6 +56,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   });
   const [page, setPage] = useState(0);
   const [wrapText, setWrapText] = useState(true);
+  const [sortBy, setSortBy] = useState<'confidence' | 'name' | 'matches'>('confidence');
   const [sourceData, setSourceData] = useState<SourceData | null>(null);
   const [loadingSources, setLoadingSources] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('');
@@ -193,14 +194,23 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     }
 
     result.sort((a, b) => {
-      const aScore = bestScore(a);
-      const bScore = bestScore(b);
-      if (aScore !== bScore) return bScore - aScore;
+      if (sortBy === 'confidence') {
+        const aScore = bestScore(a);
+        const bScore = bestScore(b);
+        if (aScore !== bScore) return bScore - aScore;
+        return a.name.localeCompare(b.name);
+      }
+      if (sortBy === 'matches') {
+        const aCount = mappedCount(getEffective(a));
+        const bCount = mappedCount(getEffective(b));
+        if (aCount !== bCount) return bCount - aCount;
+        return a.name.localeCompare(b.name);
+      }
       return a.name.localeCompare(b.name);
     });
 
     return result;
-  }, [companies, filter, search, allMatches, confidenceMin]);
+  }, [companies, filter, search, allMatches, confidenceMin, sortBy]);
 
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.ceil(filtered.length / pageSize);
@@ -479,6 +489,16 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <SelectItem value="25">25 / pg</SelectItem>
               <SelectItem value="50">50 / pg</SelectItem>
               <SelectItem value="100">100 / pg</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(v: 'confidence' | 'name' | 'matches') => { setSortBy(v); setPage(0); }}>
+            <SelectTrigger className="w-40 h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="confidence">Sort: Confidence</SelectItem>
+              <SelectItem value="name">Sort: Name (A-Z)</SelectItem>
+              <SelectItem value="matches">Sort: Most Matched</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => setWrapText(w => !w)}>
