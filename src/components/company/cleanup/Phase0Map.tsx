@@ -351,6 +351,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
   const allPageSelected = paged.length > 0 && paged.every(c => selected.has(c.id));
 
+  // Track which popover is open: "companyId:source"
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
+
   // Render a source cell: either locked (clickable to unlock) or dropdown with matches
   const renderSourceCell = (company: CompanyRecord, source: 'hubspot' | 'harvest' | 'freshdesk', lockedId: string | null, lockedName: string | null) => {
     if (lockedId) {
@@ -374,9 +377,10 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     const allSourceRecords = sourceData?.[source] || [];
 
     const override = overrides.get(company.id)?.[source];
-    const selectedId = override || (candidates.length > 0 ? candidates[0]?.id : '');
-    const activeCand = candidates.find(c => c.id === selectedId);
-    const selectedRecord = activeCand || allSourceRecords.find(r => r.id === selectedId);
+    const selectedId = override || (candidates.length > 0 ? candidates[0]?.id : '__none__');
+    const isNoMatch = selectedId === '__none__' || !selectedId;
+    const activeCand = isNoMatch ? null : candidates.find(c => c.id === selectedId);
+    const selectedRecord = isNoMatch ? null : (activeCand || allSourceRecords.find(r => r.id === selectedId));
     const pct = activeCand ? Math.round(activeCand.score * 100) : 0;
     const pctColor = pct >= 95 ? 'text-green-600' : pct >= 85 ? 'text-amber-500' : 'text-orange-500';
 
@@ -392,7 +396,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     return (
       <div className="flex items-center gap-1.5">
         {pct > 0 && <span className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right`}>{pct}%</span>}
-        <Popover>
+        <Popover open={openPopover === `${company.id}:${source}`} onOpenChange={(open) => setOpenPopover(open ? `${company.id}:${source}` : null)}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className={`h-7 text-xs justify-between flex-1 min-w-0 font-normal hover:text-foreground ${!selectedRecord ? 'bg-red-500/10 border-red-500/30' : ''}`}>
               <span className="truncate">{selectedRecord?.name || 'No match'}</span>
@@ -404,14 +408,14 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <CommandInput placeholder={`Search ${source}...`} className="h-8 text-xs" />
               <CommandList className="max-h-[250px]">
                 <CommandEmpty>No results found.</CommandEmpty>
-                <CommandItem onSelect={() => setSourceOverride('')} className={`text-xs ${!selectedId ? 'font-bold' : 'text-muted-foreground'}`}>
-                  {!selectedId && <CheckCircle2 className="h-3 w-3 mr-1.5 text-foreground" />}
+                <CommandItem onSelect={() => { setSourceOverride('__none__'); setOpenPopover(null); }} className={`text-xs ${selectedId === '__none__' || !selectedId ? 'font-bold' : 'text-muted-foreground'}`}>
+                  {(selectedId === '__none__' || !selectedId) && <CheckCircle2 className="h-3 w-3 mr-1.5 text-foreground" />}
                   No match
                 </CommandItem>
                 {candidates.length > 0 && (
                   <CommandGroup heading="Suggested">
                     {candidates.map(c => (
-                      <CommandItem key={c.id} value={c.name} onSelect={() => setSourceOverride(c.id)} className={`text-xs ${selectedId === c.id ? 'font-bold' : ''}`}>
+                      <CommandItem key={c.id} value={c.name} onSelect={() => { setSourceOverride(c.id); setOpenPopover(null); }} className={`text-xs ${selectedId === c.id ? 'font-bold' : ''}`}>
                         {selectedId === c.id && <CheckCircle2 className="h-3 w-3 mr-1.5 text-green-600" />}
                         {c.name}
                         <span className={`ml-auto text-xs font-bold ${c.score >= 0.95 ? 'text-green-600' : c.score >= 0.85 ? 'text-amber-500' : 'text-orange-500'}`}>{Math.round(c.score * 100)}%</span>
@@ -421,7 +425,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 )}
                 <CommandGroup heading={`All ${source} (${allSourceRecords.length})`}>
                   {allSourceRecords.map(r => (
-                    <CommandItem key={r.id} value={r.name} onSelect={() => setSourceOverride(r.id)} className={`text-xs ${selectedId === r.id ? 'font-bold' : ''}`}>
+                    <CommandItem key={r.id} value={r.name} onSelect={() => { setSourceOverride(r.id); setOpenPopover(null); }} className={`text-xs ${selectedId === r.id ? 'font-bold' : ''}`}>
                       {selectedId === r.id && <CheckCircle2 className="h-3 w-3 mr-1.5 text-green-600" />}
                       {r.name}
                     </CommandItem>
