@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2 } from 'lucide-react';
+import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2, Columns3, GripVertical, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCompanyName, normalizeDomain, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
@@ -680,50 +682,79 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                 </SelectContent>
               </Select>
             </div>
-            {/* Column toggles + rename */}
-            <div className="flex flex-wrap gap-1 mb-2">
-              {(columnOrder.length > 0 ? columnOrder : headers).filter(h => h && headers.includes(h)).map((h, idx) => {
-                const isExcluded = excludedCols.has(h);
-                const isEditing = editingCol === h;
-                if (isEditing) {
-                  return (
-                    <form key={h} onSubmit={(e) => { e.preventDefault(); setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }}
-                      className="inline-flex">
-                      <Input
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onBlur={() => { setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }}
-                        className="h-6 w-32 text-[10px] px-1.5"
-                        autoFocus
-                      />
-                    </form>
-                  );
-                }
-                return (
-                  <button
-                    key={h}
-                    onClick={() => setExcludedCols(prev => {
-                      const next = new Set(prev);
-                      if (next.has(h)) next.delete(h); else next.add(h);
-                      return next;
-                    })}
-                    onDoubleClick={(e) => { e.preventDefault(); setEditingCol(h); setEditingName(displayName(h)); }}
-                    title="Click to toggle, double-click to rename"
-                    className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
-                      isExcluded
-                        ? 'bg-muted/50 text-muted-foreground border-border line-through opacity-50'
-                        : 'bg-green-500/10 text-green-700 border-green-500/20'
-                    }`}
-                  >
-                    {displayName(h)}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[10px] text-muted-foreground mb-2">Click to toggle columns. Double-click to rename.</p>
-
-            {/* Save/Load Template */}
+            {/* Column config + Save/Load Template */}
             <div className="flex items-center gap-2 mb-3">
+              {/* Columns dropdown */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                    <Columns3 className="h-3.5 w-3.5" />
+                    Columns ({headers.filter(h => h && !excludedCols.has(h)).length}/{headers.filter(h => h).length})
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <div className="p-2 border-b border-border">
+                    <p className="text-xs font-medium">Toggle & reorder columns</p>
+                    <p className="text-[10px] text-muted-foreground">Drag to reorder. Click checkbox to show/hide. Click name to rename.</p>
+                  </div>
+                  <div className="max-h-[400px] overflow-y-auto p-1">
+                    {(columnOrder.length > 0 ? columnOrder : headers).filter(h => h && headers.includes(h)).map((h, idx) => {
+                      const isExcluded = excludedCols.has(h);
+                      const isEditing = editingCol === h;
+                      return (
+                        <div
+                          key={h}
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.setData('col-idx', String(idx)); }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const fromIdx = parseInt(e.dataTransfer.getData('col-idx'));
+                            const order = columnOrder.length > 0 ? [...columnOrder] : [...headers.filter(h => h)];
+                            const [moved] = order.splice(fromIdx, 1);
+                            order.splice(idx, 0, moved);
+                            setColumnOrder(order);
+                          }}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-grab ${isExcluded ? 'opacity-50' : ''}`}
+                        >
+                          <GripVertical className="h-3 w-3 text-muted-foreground shrink-0" />
+                          <Checkbox
+                            checked={!isExcluded}
+                            onCheckedChange={() => setExcludedCols(prev => {
+                              const next = new Set(prev);
+                              if (next.has(h)) next.delete(h); else next.add(h);
+                              return next;
+                            })}
+                          />
+                          {isEditing ? (
+                            <form onSubmit={(e) => { e.preventDefault(); setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }} className="flex-1">
+                              <Input
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                onBlur={() => { setColumnRenames(prev => ({ ...prev, [h]: editingName || h })); setEditingCol(null); }}
+                                className="h-6 text-xs px-1.5"
+                                autoFocus
+                              />
+                            </form>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingCol(h); setEditingName(displayName(h)); }}
+                              className={`text-xs text-left flex-1 hover:text-primary ${isExcluded ? 'line-through' : ''}`}
+                            >
+                              {displayName(h)}
+                              {columnRenames[h] && <span className="text-[10px] text-muted-foreground ml-1">({h})</span>}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <div className="h-4 w-px bg-border" />
+
+              {/* Save/Load Template */}
               <Input
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
@@ -749,7 +780,8 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                 <TableHeader>
                   <TableRow>
                     {(() => {
-                      const visibleHeaders = headers.filter(h => h && !excludedCols.has(h));
+                      const ordered = columnOrder.length > 0 ? columnOrder.filter(h => headers.includes(h)) : headers;
+                      const visibleHeaders = ordered.filter(h => h && !excludedCols.has(h));
                       const mapped = visibleHeaders.filter(h => Object.values(mapping).includes(h));
                       const unmapped = visibleHeaders.filter(h => !Object.values(mapping).includes(h));
                       return [...mapped, ...unmapped].map(h => (
