@@ -515,10 +515,10 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">All</SelectItem>
-              <SelectItem value="95">High (95%+)</SelectItem>
-              <SelectItem value="85">Medium (85%+)</SelectItem>
-              <SelectItem value="75">Low (75%+)</SelectItem>
+              <SelectItem value="0">All Confidence</SelectItem>
+              <SelectItem value="95">High Confidence (95%+)</SelectItem>
+              <SelectItem value="85">Medium Confidence (85%+)</SelectItem>
+              <SelectItem value="75">Low Confidence (75%+)</SelectItem>
             </SelectContent>
           </Select>
           <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(0); }}>
