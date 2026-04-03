@@ -96,19 +96,20 @@ serve(async (req) => {
         email = teamName;
       }
 
-      // Upsert into oauth_connections
+      // Delete existing slack connection, then insert fresh
+      await supabase.from('oauth_connections').delete().eq('provider', 'slack');
       const { error: upsertError } = await supabase
         .from('oauth_connections')
-        .upsert({
+        .insert({
           provider: 'slack',
           provider_email: email,
           access_token: accessToken,
-          refresh_token: null, // Slack user tokens don't use refresh tokens
-          token_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Slack tokens don't expire
+          refresh_token: null,
+          token_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
           scopes: scope,
           provider_config: { team_id: teamId, team_name: teamName, authed_user_id: authedUserId },
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'provider' });
+        });
 
       if (upsertError) {
         console.error('[slack-oauth] Upsert error:', upsertError);
