@@ -121,7 +121,9 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   const [fileMappings, setFileMappings] = useState<Map<string, ColumnMapping>>(new Map());
   const [matches, setMatches] = useState<MatchedQBClient[]>([]);
   const [saving, setSaving] = useState(false);
-  const [previewCount, setPreviewCount] = useState(10);
+  const [previewCounts, setPreviewCounts] = useState<Record<string, number>>({});
+  const getPreviewCount = (key: string) => previewCounts[key] || 10;
+  const setPreviewCount = (key: string, val: number) => setPreviewCounts(prev => ({ ...prev, [key]: val }));
 
   // Derived: unified mapping (first non-empty value per field across all file mappings)
   const mapping: ColumnMapping = (() => {
@@ -229,7 +231,12 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       // Skip empty rows and total/summary rows
       if (!firstVal && otherVals.length === 0) continue;
       const lower = firstVal.toLowerCase();
-      if (lower === 'total' || lower.startsWith('total ')) continue;
+      if (lower === 'total' || lower.startsWith('total ') || lower.startsWith('total for ')) continue;
+      // Also check if any column value starts with "TOTAL" or is a report footer
+      const allVals = hdrs.map((h, i) => vals[i] || '');
+      if (allVals.some(v => v.trim().toUpperCase() === 'TOTAL')) continue;
+      // Skip report footer lines (e.g. "Cash Basis Friday, April 03, 2026...")
+      if (firstVal.toLowerCase().startsWith('cash basis ') || firstVal.toLowerCase().startsWith('accrual basis ')) continue;
 
       // If first column has a value but other columns are empty, it's a client name header
       if (firstVal && otherVals.length === 0) {
@@ -608,13 +615,24 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
         {/* Merged preview when multiple files */}
         {uploadedFiles.length > 1 && (
           <div className="mb-6">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Link2 className="h-3.5 w-3.5 text-green-600" />
-              <span className="text-xs font-semibold">Merged View</span>
-              <Badge variant="outline" className="text-[10px] py-0 text-green-600 border-green-500/30 bg-green-500/10">
-                {rawData.filter(r => r['__source__']?.includes('+')).length.toLocaleString()} rows merged on invoice #
-              </Badge>
-              <span className="text-[10px] text-muted-foreground">{rawData.length.toLocaleString()} total rows</span>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-3.5 w-3.5 text-green-600" />
+                <span className="text-xs font-semibold">Merged View</span>
+                <Badge variant="outline" className="text-[10px] py-0 text-green-600 border-green-500/30 bg-green-500/10">
+                  {rawData.filter(r => r['__source__']?.includes('+')).length.toLocaleString()} rows merged on invoice #
+                </Badge>
+                <span className="text-[10px] text-muted-foreground">{rawData.length.toLocaleString()} total rows</span>
+              </div>
+              <Select value={String(getPreviewCount('merged'))} onValueChange={(v) => setPreviewCount('merged', Number(v))}>
+                <SelectTrigger className="w-[110px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 rows</SelectItem>
+                  <SelectItem value="25">25 rows</SelectItem>
+                  <SelectItem value="50">50 rows</SelectItem>
+                  <SelectItem value="100">100 rows</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="overflow-x-auto rounded-lg border border-green-500/20">
               <Table>
@@ -632,11 +650,12 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                 <TableBody>
                   {(() => {
                     // Show only merged rows (from both files)
+                    const pc = getPreviewCount('merged');
                     const mergedRows = rawData.filter(r => r['__source__']?.includes('+'));
                     const source = mergedRows.length > 0 ? mergedRows : rawData;
-                    const step = Math.max(1, Math.floor(source.length / previewCount));
+                    const step = Math.max(1, Math.floor(source.length / pc));
                     const sampled: ParsedRow[] = [];
-                    for (let i = 0; i < source.length && sampled.length < previewCount; i += step) {
+                    for (let i = 0; i < source.length && sampled.length < pc; i += step) {
                       sampled.push(source[i]);
                     }
                     const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
@@ -658,22 +677,9 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
 
         {/* Preview per file */}
         <div className="mb-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground">
-              Preview — sampled rows per file, mapped columns highlighted
-            </p>
-            <Select value={String(previewCount)} onValueChange={(v) => setPreviewCount(Number(v))}>
-              <SelectTrigger className="w-[130px] h-7 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 per file</SelectItem>
-                <SelectItem value="10">10 per file</SelectItem>
-                <SelectItem value="25">25 per file</SelectItem>
-                <SelectItem value="50">50 per file</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-xs font-medium text-muted-foreground mb-3">
+            Preview — sampled rows per file, mapped columns highlighted
+          </p>
           {uploadedFiles.map((file, fi) => {
             const mappedKeys = Object.values(mapping).filter(v => v && v !== '__none__') as string[];
             const clientCol = mapping.clientName;
@@ -685,9 +691,10 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
               return otherMapped.length > 0;
             });
             const source = meaningful.length > 0 ? meaningful : fileRows;
-            const step = Math.max(1, Math.floor(source.length / previewCount));
+            const pc = getPreviewCount(file.name);
+            const step = Math.max(1, Math.floor(source.length / pc));
             const sampled: ParsedRow[] = [];
-            for (let i = 0; i < source.length && sampled.length < previewCount; i += step) {
+            for (let i = 0; i < source.length && sampled.length < pc; i += step) {
               sampled.push(source[i]);
             }
             // Only show columns that this file actually has data for
@@ -698,13 +705,24 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
 
             return (
               <div key={fi}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs font-semibold">{file.name}</span>
-                  <Badge variant="outline" className={`text-[10px] py-0 ${
-                    file.fileType === 'summary' ? 'text-blue-600 border-blue-500/30 bg-blue-500/10' : 'text-purple-600 border-purple-500/30 bg-purple-500/10'
-                  }`}>{file.fileType === 'summary' ? 'Summary' : 'Transactions'}</Badge>
-                  <span className="text-[10px] text-muted-foreground">{source.length.toLocaleString()} rows with data</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-semibold truncate max-w-[300px]">{file.name}</span>
+                    <Badge variant="outline" className={`text-[10px] py-0 ${
+                      file.fileType === 'summary' ? 'text-blue-600 border-blue-500/30 bg-blue-500/10' : 'text-purple-600 border-purple-500/30 bg-purple-500/10'
+                    }`}>{file.fileType === 'summary' ? 'Summary' : 'Transactions'}</Badge>
+                    <span className="text-[10px] text-muted-foreground">{source.length.toLocaleString()} rows</span>
+                  </div>
+                  <Select value={String(getPreviewCount(file.name))} onValueChange={(v) => setPreviewCount(file.name, Number(v))}>
+                    <SelectTrigger className="w-[110px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10 rows</SelectItem>
+                      <SelectItem value="25">25 rows</SelectItem>
+                      <SelectItem value="50">50 rows</SelectItem>
+                      <SelectItem value="100">100 rows</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="overflow-x-auto rounded-lg border border-border">
                   <Table>
