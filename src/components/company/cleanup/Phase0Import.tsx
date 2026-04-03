@@ -11,12 +11,13 @@ import { Upload, FileText, Check, X, ArrowRight, Loader2, Link2, Columns3, Check
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCompanyName, normalizeDomain, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
+import { useCompaniesForMatching } from '@/hooks/useCompaniesForMatching';
 
 type Props = {
-  companies: CompanyRecord[];
-  onComplete: () => void;
-  onSkip: () => void;
-  onRefetch: () => void;
+  companies?: CompanyRecord[];
+  onComplete?: () => void;
+  onSkip?: () => void;
+  onRefetch?: () => void;
 };
 
 type ParsedRow = Record<string, string>;
@@ -118,7 +119,9 @@ function matchQBClients(qbNames: string[], invoiceData: Map<string, any>, compan
 type FileType = 'summary' | 'transactions';
 type UploadedFile = { name: string; rows: ParsedRow[]; headers: string[]; fileType: FileType };
 
-export default function Phase0Import({ companies, onComplete, onSkip, onRefetch }: Props) {
+export default function Phase0Import({ companies: companiesProp, onComplete, onSkip, onRefetch }: Props) {
+  const selfFetch = useCompaniesForMatching();
+  const companies = companiesProp ?? selfFetch.companies;
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [step, setStep] = useState<'upload' | 'map' | 'review' | 'done'>('upload');
@@ -575,7 +578,8 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
       if (created) parts.push(`${created} created`);
       toast.success(`QuickBooks import: ${parts.join(', ')}`);
       setStep('done');
-      onRefetch();
+      onRefetch?.();
+      selfFetch.refetch();
     } catch (err: any) {
       toast.error(`Save failed: ${err.message}`);
     } finally {
@@ -596,7 +600,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             {matches.filter((_, i) => approvedMatches.has(i) && matches[i].matchedCompanyId).length} linked to existing companies,{' '}
             {matches.filter((_, i) => approvedMatches.has(i) && !matches[i].matchedCompanyId).length} new companies created.
           </p>
-          <Button onClick={onComplete} className="mt-2">Continue to Next Step</Button>
+          {onComplete && <Button onClick={onComplete} className="mt-2">Continue to Next Step</Button>}
         </div>
       </Card>
     );
@@ -654,7 +658,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
               Continue to Column Mapping
             </Button>
           )}
-          <Button variant="outline" onClick={onSkip}>Skip this step</Button>
+          {onSkip && <Button variant="outline" onClick={onSkip}>Skip this step</Button>}
         </div>
       </Card>
     );
@@ -932,7 +936,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             Match Against Companies
           </Button>
           <Button variant="outline" onClick={() => setStep('upload')}>Back</Button>
-          <Button variant="outline" onClick={onSkip}>Skip</Button>
+          {onSkip && <Button variant="outline" onClick={onSkip}>Skip</Button>}
         </div>
       </Card>
     );
@@ -1072,7 +1076,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
             Save {approvedCount} Selected Matches
           </Button>
           <Button variant="outline" onClick={() => setStep('map')}>Back</Button>
-          <Button variant="outline" onClick={onSkip}>Skip</Button>
+          {onSkip && <Button variant="outline" onClick={onSkip}>Skip</Button>}
         </div>
       </Card>
     );

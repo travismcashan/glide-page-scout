@@ -4,10 +4,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key, Hash, Clock, CheckSquare, Waves, ArrowRight, ArrowDown, ArrowLeftRight, Radio, Upload, Headphones } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key, Hash, Clock, CheckSquare, Waves, ArrowRight, ArrowDown, ArrowLeftRight, Radio, Upload, Headphones, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
+import QuickBooksImportDialog from '@/components/connections/QuickBooksImportDialog';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const SLACK_OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/slack-oauth-exchange`;
@@ -273,6 +274,9 @@ export default function ConnectionsPage() {
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [hubspotConfigured, setHubspotConfigured] = useState<boolean | null>(null);
   const [apiHealthData, setApiHealthData] = useState<Record<string, boolean | null>>({});
+
+  // QuickBooks import dialog
+  const [qbDialogOpen, setQbDialogOpen] = useState(false);
 
   // Global Sync state
   const [globalSyncing, setGlobalSyncing] = useState(false);
@@ -677,14 +681,16 @@ export default function ConnectionsPage() {
               Read and write back. These connections keep Agency Brain in sync with your operational tools.
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
             {[
               { id: 'harvest', name: 'Harvest', icon: Clock, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500', healthKey: 'harvest', desc: 'Time tracking, projects, and client billing' },
               { id: 'asana', name: 'Asana', icon: CheckSquare, iconBg: 'bg-purple-500/10', iconColor: 'text-purple-500', healthKey: 'asana', desc: 'Project management and delivery tracking' },
               { id: 'hubspot', name: 'HubSpot', icon: Building2, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-600', healthKey: 'hubspot', desc: 'Contacts, deals, pipeline, and engagements' },
               { id: 'freshdesk', name: 'Freshdesk', icon: Headphones, iconBg: 'bg-green-500/10', iconColor: 'text-green-600', healthKey: 'freshdesk', desc: 'Support tickets, companies, and client history' },
+              { id: 'quickbooks', name: 'QuickBooks', icon: Receipt, iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600', healthKey: null, desc: 'Invoicing history and client billing records' },
             ].map(stream => {
               const status = apiStatus(stream.healthKey);
+              const isQB = stream.id === 'quickbooks';
               return (
                 <Card key={stream.id} className="p-4">
                   <div className="flex items-center gap-3 mb-2">
@@ -694,7 +700,12 @@ export default function ConnectionsPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{stream.name}</span>
-                        {status === 'active' ? (
+                        {isQB ? (
+                          <Badge variant="outline" className="text-emerald-600 border-emerald-600/30 bg-emerald-600/10 text-[10px] py-0">
+                            <Upload className="h-2.5 w-2.5 mr-0.5" />
+                            CSV
+                          </Badge>
+                        ) : status === 'active' ? (
                           <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-[10px] py-0">
                             <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
                             Live
@@ -713,6 +724,11 @@ export default function ConnectionsPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">{stream.desc}</p>
+                  {isQB && (
+                    <Button size="sm" variant="outline" className="mt-2 w-full text-xs gap-1.5" onClick={() => setQbDialogOpen(true)}>
+                      <Upload className="h-3 w-3" /> Import CSV
+                    </Button>
+                  )}
                 </Card>
               );
             })}
@@ -944,6 +960,7 @@ export default function ConnectionsPage() {
         </div>
         </>)}
       </main>
+      <QuickBooksImportDialog open={qbDialogOpen} onOpenChange={setQbDialogOpen} />
     </div>
   );
 }

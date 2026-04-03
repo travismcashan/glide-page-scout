@@ -3,15 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Building2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Building2 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import CleanupStepper, { type PhaseStatus } from '@/components/company/cleanup/CleanupStepper';
 import { useCleanupAnalysis } from '@/components/company/cleanup/useCleanupAnalysis';
 import { BrandLoader } from '@/components/BrandLoader';
-import Phase0Import from '@/components/company/cleanup/Phase0Import';
-import Phase1Freshdesk from '@/components/company/cleanup/Phase1Freshdesk';
+import Phase0Map from '@/components/company/cleanup/Phase0Map';
 import Phase2Deduplicate from '@/components/company/cleanup/Phase2Deduplicate';
-import Phase3MatchLink from '@/components/company/cleanup/Phase3MatchLink';
 import Phase4Validate from '@/components/company/cleanup/Phase4Validate';
 import Phase5Enrich from '@/components/company/cleanup/Phase5Enrich';
 
@@ -20,7 +18,7 @@ export default function CompanyCleanupPage() {
   const analysis = useCleanupAnalysis();
   const [activePhase, setActivePhase] = useState(0);
   const [phaseStatuses, setPhaseStatuses] = useState<PhaseStatus[]>([
-    'active', 'pending', 'pending', 'pending', 'pending', 'pending',
+    'active', 'pending', 'pending', 'pending',
   ]);
 
   const completePhase = (phase: number) => {
@@ -30,7 +28,7 @@ export default function CompanyCleanupPage() {
       if (phase + 1 < next.length) next[phase + 1] = 'active';
       return next;
     });
-    if (phase + 1 < 6) setActivePhase(phase + 1);
+    if (phase + 1 < 4) setActivePhase(phase + 1);
   };
 
   const skipPhase = (phase: number) => {
@@ -40,16 +38,14 @@ export default function CompanyCleanupPage() {
       if (phase + 1 < next.length) next[phase + 1] = 'active';
       return next;
     });
-    if (phase + 1 < 6) setActivePhase(phase + 1);
+    if (phase + 1 < 4) setActivePhase(phase + 1);
   };
 
   const phaseCounts = [
-    undefined, // Phase 0: Import (no count)
-    undefined, // Phase 1: Freshdesk (no count until synced)
-    analysis.duplicates.length, // Phase 2: Deduplicate
-    analysis.unlinkedHarvest.length + analysis.unlinkedFreshdesk.length + analysis.unlinkedAsana.length, // Phase 3: Match
-    analysis.missingDomain.length, // Phase 4: Validate
-    analysis.urlAsName.length + analysis.missingEnrichment.length, // Phase 5: Enrich
+    analysis.unlinkedHarvest.length + analysis.unlinkedFreshdesk.length + analysis.unlinkedAsana.length, // Phase 0: Map
+    analysis.duplicates.length, // Phase 1: Deduplicate
+    analysis.missingDomain.length, // Phase 2: Validate
+    analysis.urlAsName.length + analysis.missingEnrichment.length, // Phase 3: Enrich
   ];
 
   if (analysis.loading) {
@@ -82,7 +78,7 @@ export default function CompanyCleanupPage() {
               </Badge>
             </div>
             <p className="text-muted-foreground text-sm mt-0.5">
-              Import references, deduplicate, match, validate, and enrich your company data.
+              Map sources, deduplicate, validate, and enrich your company data.
             </p>
           </div>
         </div>
@@ -99,7 +95,6 @@ export default function CompanyCleanupPage() {
             <span className="text-muted-foreground">HubSpot: <span className="text-foreground font-medium">{analysis.stats.withHubspot}</span></span>
             <span className="text-muted-foreground">Harvest: <span className="text-foreground font-medium">{analysis.stats.withHarvest}</span></span>
             <span className="text-muted-foreground">Freshdesk: <span className="text-foreground font-medium">{analysis.stats.withFreshdesk}</span></span>
-            <span className="text-muted-foreground">Asana <span className="text-muted-foreground/60">(projects)</span>: <span className="text-foreground font-medium">{analysis.stats.withAsana}</span></span>
             <span className="text-muted-foreground">QuickBooks: <span className="text-foreground font-medium">{analysis.stats.withQuickbooks}</span></span>
             <div className="h-4 w-px bg-border" />
             <span className="text-muted-foreground">Duplicates: <span className="text-amber-500 font-medium">{analysis.stats.duplicateGroups}</span></span>
@@ -118,7 +113,7 @@ export default function CompanyCleanupPage() {
         {/* Active Phase Content */}
         <div className="min-h-[400px]">
           {activePhase === 0 && (
-            <Phase0Import
+            <Phase0Map
               companies={analysis.companies}
               onComplete={() => completePhase(0)}
               onSkip={() => skipPhase(0)}
@@ -126,46 +121,27 @@ export default function CompanyCleanupPage() {
             />
           )}
           {activePhase === 1 && (
-            <Phase1Freshdesk
-              companies={analysis.companies}
+            <Phase2Deduplicate
+              duplicates={analysis.duplicates}
               onComplete={() => completePhase(1)}
               onSkip={() => skipPhase(1)}
               onRefetch={analysis.refetch}
             />
           )}
           {activePhase === 2 && (
-            <Phase2Deduplicate
-              duplicates={analysis.duplicates}
+            <Phase4Validate
+              companies={analysis.companies}
               onComplete={() => completePhase(2)}
               onSkip={() => skipPhase(2)}
               onRefetch={analysis.refetch}
             />
           )}
           {activePhase === 3 && (
-            <Phase3MatchLink
-              companies={analysis.companies}
-              unlinkedHarvest={analysis.unlinkedHarvest}
-              unlinkedFreshdesk={analysis.unlinkedFreshdesk}
-              unlinkedAsana={analysis.unlinkedAsana}
-              onComplete={() => completePhase(3)}
-              onSkip={() => skipPhase(3)}
-              onRefetch={analysis.refetch}
-            />
-          )}
-          {activePhase === 4 && (
-            <Phase4Validate
-              companies={analysis.companies}
-              onComplete={() => completePhase(4)}
-              onSkip={() => skipPhase(4)}
-              onRefetch={analysis.refetch}
-            />
-          )}
-          {activePhase === 5 && (
             <Phase5Enrich
               companies={analysis.companies}
               urlAsName={analysis.urlAsName}
-              onComplete={() => completePhase(5)}
-              onSkip={() => skipPhase(5)}
+              onComplete={() => completePhase(3)}
+              onSkip={() => skipPhase(3)}
               onRefetch={analysis.refetch}
             />
           )}
@@ -174,4 +150,3 @@ export default function CompanyCleanupPage() {
     </div>
   );
 }
-

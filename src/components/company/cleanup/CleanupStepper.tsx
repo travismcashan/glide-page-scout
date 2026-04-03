@@ -1,15 +1,7 @@
 import { Badge } from '@/components/ui/badge';
-import { Upload, Headphones, Layers, Link2, Shield, Sparkles, Check } from 'lucide-react';
+import { Layers, Link2, Shield, Sparkles, Check } from 'lucide-react';
 
 export type PhaseStatus = 'pending' | 'active' | 'complete' | 'skipped';
-
-type Step = {
-  phase: number;
-  label: string;
-  icon: any;
-  count?: number;
-  status: PhaseStatus;
-};
 
 type Props = {
   activePhase: number;
@@ -19,10 +11,8 @@ type Props = {
 };
 
 const STEPS: { label: string; icon: any }[] = [
-  { label: 'Import', icon: Upload },
-  { label: 'Freshdesk', icon: Headphones },
+  { label: 'Map', icon: Link2 },
   { label: 'Deduplicate', icon: Layers },
-  { label: 'Match & Link', icon: Link2 },
   { label: 'Validate', icon: Shield },
   { label: 'Enrich', icon: Sparkles },
 ];
