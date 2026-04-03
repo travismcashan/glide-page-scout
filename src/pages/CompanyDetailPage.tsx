@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Building2, Users, Globe, MapPin, Mail, Phone, Linkedin, ExternalLink,
   ArrowLeft, Briefcase, Clock, TrendingUp, ChevronRight, DollarSign,
-  MessageSquare, PhoneCall, Calendar, StickyNote, CheckSquare, Brain
+  MessageSquare, PhoneCall, Calendar, StickyNote, CheckSquare, Brain, Database
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import RoadmapTab from '@/components/roadmap/RoadmapTab';
+import { CompanyKnowledgeTab } from '@/components/CompanyKnowledgeTab';
 import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
@@ -292,6 +293,9 @@ export default function CompanyDetailPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="knowledge" className="flex items-center gap-1.5">
+              <Database className="h-3.5 w-3.5" /> Knowledge
+            </TabsTrigger>
             <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="chat" className="flex items-center gap-1.5">
               <Brain className="h-3.5 w-3.5" /> Chat
@@ -466,6 +470,15 @@ export default function CompanyDetailPage() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* Knowledge Tab */}
+          <TabsContent value="knowledge">
+            <CompanyKnowledgeTab
+              companyId={company.id}
+              companyName={company.name}
+              sites={sites}
+            />
           </TabsContent>
 
           {/* Roadmap Tab */}
