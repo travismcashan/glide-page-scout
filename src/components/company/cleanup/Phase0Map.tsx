@@ -345,19 +345,18 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
     const matches = allMatches.get(company.id);
     const candidates = matches?.[source] || [];
-    if (candidates.length === 0) {
-      return <span className="text-xs text-muted-foreground/40">—</span>;
-    }
+    // Get all records from this source for manual browsing
+    const allSourceRecords = sourceData?.[source] || [];
 
     const override = overrides.get(company.id)?.[source];
-    const selectedId = override || candidates[0]?.id;
+    const selectedId = override || (candidates.length > 0 ? candidates[0]?.id : '__none__');
     const activeCand = candidates.find(c => c.id === selectedId) || candidates[0];
     const pct = activeCand ? Math.round(activeCand.score * 100) : 0;
     const pctColor = pct >= 95 ? 'text-green-600' : pct >= 85 ? 'text-amber-500' : 'text-orange-500';
 
     return (
       <div className="flex items-center gap-1.5">
-        <span className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right`}>{pct}%</span>
+        {pct > 0 && <span className={`text-xs font-bold ${pctColor} shrink-0 w-[32px] text-right`}>{pct}%</span>}
         <Select
           value={selectedId}
           onValueChange={(v) => {
@@ -369,18 +368,32 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
             });
           }}
         >
-          <SelectTrigger className="h-7 text-xs flex-1 min-w-0 min-w-0">
+          <SelectTrigger className={`h-7 text-xs flex-1 min-w-0 ${selectedId === '__none__' ? 'text-muted-foreground' : ''}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="max-h-[300px]">
             <SelectItem value="__none__">
               <span className="text-muted-foreground">No match</span>
             </SelectItem>
-            {candidates.map(c => (
+            {candidates.length > 0 && candidates.map(c => (
               <SelectItem key={c.id} value={c.id}>
                 <span className="truncate">{c.name}</span>
               </SelectItem>
             ))}
+            {/* Show all source records for manual browsing */}
+            {allSourceRecords.length > 0 && candidates.length < allSourceRecords.length && (
+              <>
+                <div className="px-2 py-1 text-xs text-muted-foreground border-t mt-1 pt-1">All {source} records</div>
+                {allSourceRecords.slice(0, 50).map(r => (
+                  <SelectItem key={`all-${r.id}`} value={r.id}>
+                    <span className="truncate">{r.name}</span>
+                  </SelectItem>
+                ))}
+                {allSourceRecords.length > 50 && (
+                  <div className="px-2 py-1 text-xs text-muted-foreground">...and {allSourceRecords.length - 50} more</div>
+                )}
+              </>
+            )}
         </SelectContent>
       </Select>
       </div>
