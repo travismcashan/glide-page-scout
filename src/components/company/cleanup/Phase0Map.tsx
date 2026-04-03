@@ -184,7 +184,14 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     }
 
     // Confidence threshold filter
-    if (confidenceMin > 0) {
+    if (confidenceMin === 100) {
+      // Ultra: all 3 sources at 100%
+      result = result.filter(c => {
+        const m = allMatches.get(c.id);
+        if (!m) return false;
+        return (m.hubspot[0]?.score || 0) >= 1 && (m.harvest[0]?.score || 0) >= 1 && (m.freshdesk[0]?.score || 0) >= 1;
+      });
+    } else if (confidenceMin > 0) {
       const minScore = confidenceMin / 100;
       result = result.filter(c => mappedCount(c) === 3 || bestScore(c) >= minScore);
     }
@@ -221,6 +228,11 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     fullyMapped: companies.filter(c => mappedCount(c) === 3).length,
     partial: companies.filter(c => mappedCount(c) > 0 && mappedCount(c) < 3).length,
     needsMapping: companies.filter(c => mappedCount(c) === 0).length,
+    ultraConf: companies.filter(c => {
+      const m = allMatches.get(c.id);
+      if (!m) return false;
+      return (m.hubspot[0]?.score || 0) >= 1 && (m.harvest[0]?.score || 0) >= 1 && (m.freshdesk[0]?.score || 0) >= 1;
+    }).length,
     highConf: companies.filter(c => bestScore(c) >= 0.95).length,
     medConf: companies.filter(c => bestScore(c) >= 0.85 && bestScore(c) < 0.95).length,
     lowConf: companies.filter(c => bestScore(c) >= 0.75 && bestScore(c) < 0.85).length,
@@ -391,6 +403,20 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         next.set(company.id, { ...existing, [source]: id });
         return next;
       });
+      // Track as unsaved change
+      const isNone = id === '__none__' || !id;
+      const record = isNone ? null : (candidates.find(c => c.id === id) || allSourceRecords.find(r => r.id === id));
+      const lockUpdate: any = {};
+      if (source === 'hubspot') lockUpdate.hubspot_company_id = isNone ? null : id;
+      else if (source === 'harvest') {
+        lockUpdate.harvest_client_id = isNone ? null : id;
+        lockUpdate.harvest_client_name = isNone ? null : (record?.name || null);
+      } else if (source === 'freshdesk') {
+        lockUpdate.freshdesk_company_id = isNone ? null : id;
+        lockUpdate.freshdesk_company_name = isNone ? null : (record?.name || null);
+      }
+      if (record?.domain) lockUpdate.domain = record.domain;
+      setLocalLocks(prev => new Map(prev).set(company.id, { ...(prev.get(company.id) || {}), ...lockUpdate }));
     };
 
     return (
@@ -534,6 +560,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">All Confidence ({stats.total})</SelectItem>
+              <SelectItem value="100">Ultra Confidence ({stats.ultraConf})</SelectItem>
               <SelectItem value="95">High Confidence ({stats.highConf})</SelectItem>
               <SelectItem value="85">Medium Confidence ({stats.medConf})</SelectItem>
               <SelectItem value="75">Low Confidence ({stats.lowConf})</SelectItem>
