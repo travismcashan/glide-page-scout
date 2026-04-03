@@ -291,6 +291,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
 
   // Unlock a specific source (local)
   const unlockSource = (companyId: string, source: 'hubspot' | 'harvest' | 'freshdesk') => {
+    if (!confirm(`Unlock ${source} mapping for this company?`)) return;
     const nulls: any = {};
     if (source === 'hubspot') nulls.hubspot_company_id = null;
     else if (source === 'harvest') { nulls.harvest_client_id = null; nulls.harvest_client_name = null; }
@@ -731,7 +732,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                             <Button
                               size="sm" variant="outline"
                               className="h-7 text-xs gap-1 text-green-600 border-green-500/30 bg-green-500/10 hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/30"
-                              onClick={() => { setLockedRows(prev => { const next = new Set(prev); next.delete(c.id); return next; }); setLocalLocks(prev => { const next = new Map(prev); next.delete(c.id); return next; }); }}
+                              onClick={() => { if (!confirm('Unlock this mapping?')) return; setLockedRows(prev => { const next = new Set(prev); next.delete(c.id); return next; }); setLocalLocks(prev => { const next = new Map(prev); next.delete(c.id); return next; }); }}
                             >
                               <Lock className="h-3 w-3" />
                               Locked
@@ -740,9 +741,21 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                         }
                         if (count === 3) {
                           return (
-                            <span className="text-xs text-green-600 flex items-center gap-1">
-                              <Lock className="h-3 w-3" /> Saved
-                            </span>
+                            <Button
+                              size="sm" variant="outline"
+                              className="h-7 text-xs gap-1 text-green-600 border-green-500/30 bg-green-500/10 hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/30"
+                              onClick={() => {
+                                if (!confirm('Unlock this saved mapping? You can re-lock it before saving.')) return;
+                                setLocalLocks(prev => new Map(prev).set(c.id, {
+                                  hubspot_company_id: null,
+                                  harvest_client_id: null, harvest_client_name: null,
+                                  freshdesk_company_id: null, freshdesk_company_name: null,
+                                }));
+                              }}
+                            >
+                              <Lock className="h-3 w-3" />
+                              Saved
+                            </Button>
                           );
                         }
                         if (hasMatches) {
