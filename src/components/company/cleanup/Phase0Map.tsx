@@ -222,7 +222,10 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     fullyMapped: companies.filter(c => mappedCount(c) === 3).length,
     partial: companies.filter(c => mappedCount(c) > 0 && mappedCount(c) < 3).length,
     needsMapping: companies.filter(c => mappedCount(c) === 0).length,
-  }), [companies]);
+    highConf: companies.filter(c => bestScore(c) >= 0.95).length,
+    medConf: companies.filter(c => bestScore(c) >= 0.85 && bestScore(c) < 0.95).length,
+    lowConf: companies.filter(c => bestScore(c) >= 0.75 && bestScore(c) < 0.85).length,
+  }), [companies, allMatches]);
 
   // Build updates object for a company from its matches + manual overrides
   const buildUpdates = (companyId: string) => {
@@ -515,10 +518,10 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">All Confidence</SelectItem>
-              <SelectItem value="95">High Confidence (95%+)</SelectItem>
-              <SelectItem value="85">Medium Confidence (85%+)</SelectItem>
-              <SelectItem value="75">Low Confidence (75%+)</SelectItem>
+              <SelectItem value="0">All Confidence ({stats.total})</SelectItem>
+              <SelectItem value="95">High Confidence ({stats.highConf})</SelectItem>
+              <SelectItem value="85">Medium Confidence ({stats.medConf})</SelectItem>
+              <SelectItem value="75">Low Confidence ({stats.lowConf})</SelectItem>
             </SelectContent>
           </Select>
           <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(0); }}>
