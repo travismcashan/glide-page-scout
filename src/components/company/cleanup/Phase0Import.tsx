@@ -122,6 +122,7 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
   const [matches, setMatches] = useState<MatchedQBClient[]>([]);
   const [saving, setSaving] = useState(false);
   const [previewCounts, setPreviewCounts] = useState<Record<string, number>>({});
+  const [excludedCols, setExcludedCols] = useState<Set<string>>(new Set(['Balance', 'Posting (Y/N)']));
   const getPreviewCount = (key: string) => previewCounts[key] || 10;
   const setPreviewCount = (key: string, val: number) => setPreviewCounts(prev => ({ ...prev, [key]: val }));
 
@@ -634,13 +635,37 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                 </SelectContent>
               </Select>
             </div>
+            {/* Column toggles */}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {headers.filter(h => h).map(h => {
+                const isExcluded = excludedCols.has(h);
+                return (
+                  <button
+                    key={h}
+                    onClick={() => setExcludedCols(prev => {
+                      const next = new Set(prev);
+                      if (next.has(h)) next.delete(h); else next.add(h);
+                      return next;
+                    })}
+                    className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+                      isExcluded
+                        ? 'bg-muted/50 text-muted-foreground border-border line-through opacity-50'
+                        : 'bg-green-500/10 text-green-700 border-green-500/20'
+                    }`}
+                  >
+                    {h}
+                  </button>
+                );
+              })}
+            </div>
             <div className="overflow-x-auto rounded-lg border border-green-500/20">
               <Table>
                 <TableHeader>
                   <TableRow>
                     {(() => {
-                      const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
-                      const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
+                      const visibleHeaders = headers.filter(h => h && !excludedCols.has(h));
+                      const mapped = visibleHeaders.filter(h => Object.values(mapping).includes(h));
+                      const unmapped = visibleHeaders.filter(h => !Object.values(mapping).includes(h));
                       return [...mapped, ...unmapped].map(h => (
                         <TableHead key={h} className={`text-xs whitespace-nowrap ${mapped.includes(h) ? 'bg-green-500/10 text-green-700 font-semibold' : 'text-muted-foreground'}`}>{h}</TableHead>
                       ));
@@ -658,8 +683,9 @@ export default function Phase0Import({ companies, onComplete, onSkip, onRefetch 
                     for (let i = 0; i < source.length && sampled.length < pc; i += step) {
                       sampled.push(source[i]);
                     }
-                    const mapped = headers.filter(h => h && Object.values(mapping).includes(h));
-                    const unmapped = headers.filter(h => h && !Object.values(mapping).includes(h));
+                    const visibleHeaders = headers.filter(h => h && !excludedCols.has(h));
+                    const mapped = visibleHeaders.filter(h => Object.values(mapping).includes(h));
+                    const unmapped = visibleHeaders.filter(h => !Object.values(mapping).includes(h));
                     const orderedCols = [...mapped, ...unmapped];
                     return sampled.map((row, ri) => (
                       <TableRow key={ri}>
