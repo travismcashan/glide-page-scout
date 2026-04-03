@@ -1,13 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { autoIngestIntegrations } from '@/lib/ragIngest';
+import {
+  getConnectedFolders, connectFolder, disconnectFolder, syncFolder,
+  type ConnectedFolder, type SyncProgress,
+} from '@/lib/driveFolderSync';
+import { ConnectFolderDialog } from '@/components/company/ConnectFolderDialog';
 import { BrandLoader } from '@/components/BrandLoader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Database, RefreshCw, CheckCircle, AlertCircle, FileText, Mail, Phone, Calendar, StickyNote, Globe, Loader2, HardDrive, MessageSquare, Search, Download } from 'lucide-react';
+import {
+  Database, RefreshCw, CheckCircle, FileText, Globe, Loader2,
+  HardDrive, MessageSquare, Search, FolderOpen, Plus, Trash2, Clock,
+  Briefcase, Users as UsersIcon, FolderSync,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 type Site = {
   id: string;
@@ -33,6 +42,7 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
   upload: <FileText className="h-3.5 w-3.5" />,
   scrape: <Globe className="h-3.5 w-3.5" />,
   screenshot: <Globe className="h-3.5 w-3.5" />,
+  'google-drive': <HardDrive className="h-3.5 w-3.5" />,
   gdrive: <HardDrive className="h-3.5 w-3.5" />,
   slack: <MessageSquare className="h-3.5 w-3.5" />,
 };
@@ -42,6 +52,12 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-yellow-500/15 text-yellow-400',
   processing: 'bg-blue-500/15 text-blue-400',
   error: 'bg-red-500/15 text-red-400',
+};
+
+const LABEL_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
+  sales: { icon: <Briefcase className="h-3 w-3" />, color: 'bg-orange-500/15 text-orange-400 border-orange-500/30' },
+  client: { icon: <UsersIcon className="h-3 w-3" />, color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+  general: { icon: <FolderOpen className="h-3 w-3" />, color: 'bg-muted text-muted-foreground border-border' },
 };
 
 type Props = {
@@ -56,11 +72,13 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
 
-  // Google Drive state
-  const [driveSearching, setDriveSearching] = useState(false);
-  const [driveResults, setDriveResults] = useState<{ id: string; name: string; mimeType: string; modifiedTime: string }[]>([]);
-  const [driveIngesting, setDriveIngesting] = useState<Set<string>>(new Set());
-  const [driveIngested, setDriveIngested] = useState<Set<string>>(new Set());
+  // Connected folders (Streams)
+  const [folders, setFolders] = useState<ConnectedFolder[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(true);
+  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+  const [folderSyncProgress, setFolderSyncProgress] = useState<Record<string, SyncProgress>>({});
+  const [syncingFolderId, setSyncingFolderId] = useState<string | null>(null);
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
   // Slack state
   const [slackSearching, setSlackSearching] = useState(false);
@@ -68,7 +86,11 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
   const [slackIngesting, setSlackIngesting] = useState(false);
   const [slackIngested, setSlackIngested] = useState(false);
 
+  // Auto-sync guard
+  const autoSyncRan = useRef(false);
+
   const sessionIds = sites.map(s => s.id);
+  const primarySessionId = sessionIds[0] || null;
 
   const fetchDocuments = useCallback(async () => {
     if (sessionIds.length === 0) { setLoading(false); return; }
@@ -84,6 +106,39 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
+  // Fetch connected folders
+  const fetchFolders = useCallback(async () => {
+    const data = await getConnectedFolders(companyId);
+    setFolders(data);
+    setFoldersLoading(false);
+  }, [companyId]);
+
+  useEffect(() => { fetchFolders(); }, [fetchFolders]);
+
+  // Auto-sync stale folders on mount (1 hour staleness)
+  useEffect(() => {
+    if (autoSyncRan.current || foldersLoading || !primarySessionId || folders.length === 0) return;
+    autoSyncRan.current = true;
+
+    const staleFolders = folders.filter(f => {
+      if (!f.is_enabled || f.sync_status === 'syncing') return false;
+      if (!f.last_synced_at) return true;
+      return Date.now() - new Date(f.last_synced_at).getTime() > 3600_000;
+    });
+
+    if (staleFolders.length === 0) return;
+
+    (async () => {
+      for (const folder of staleFolders) {
+        await syncFolder(primarySessionId, folder, (p) => {
+          setFolderSyncProgress(prev => ({ ...prev, [folder.id]: p }));
+        });
+      }
+      fetchFolders();
+      fetchDocuments();
+    })();
+  }, [foldersLoading, folders.length, primarySessionId]);
+
   const handleSyncAll = async () => {
     if (syncing) return;
     setSyncing(true);
@@ -94,17 +149,13 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
     for (let i = 0; i < sites.length; i++) {
       const site = sites[i];
       setSyncProgress({ current: i + 1, total: sites.length });
-
       try {
-        // Fetch session data
         const { data: session } = await supabase
           .from('crawl_sessions')
           .select('*')
           .eq('id', site.id)
           .single();
-
         if (!session) continue;
-
         const result = await autoIngestIntegrations(site.id, session as any);
         totalIngested += result.ingested;
       } catch (err) {
@@ -123,96 +174,47 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
     }
   };
 
-  // Google Drive: search for company-related docs
-  const handleDriveSearch = async () => {
-    setDriveSearching(true);
-    setDriveResults([]);
-    try {
-      const { data, error } = await supabase.functions.invoke('google-drive-list', {
-        body: { searchQuery: companyName },
+  const handleConnectFolder = async (folderId: string, folderName: string, folderPath: string, label: string) => {
+    const folder = await connectFolder(companyId, folderId, folderName, folderPath, label);
+    if (!folder) { toast.error('Failed to connect folder'); return; }
+    toast.success(`Connected "${folderName}"`);
+    await fetchFolders();
+
+    if (primarySessionId) {
+      setSyncingFolderId(folder.id);
+      const result = await syncFolder(primarySessionId, folder, (p) => {
+        setFolderSyncProgress(prev => ({ ...prev, [folder.id]: p }));
       });
-      if (error) throw error;
-      if (data?.error === 'drive_auth_required') {
-        toast.error('Google Drive is not connected. Go to Connections to set it up.');
-        setDriveSearching(false);
-        return;
-      }
-      const files = (data?.files || []).filter((f: any) =>
-        f.mimeType !== 'application/vnd.google-apps.folder'
-      );
-      setDriveResults(files);
-      if (files.length === 0) toast.info('No Drive documents found for this company.');
-      else toast.success(`Found ${files.length} documents in Google Drive`);
-    } catch (err) {
-      console.error('[knowledge] Drive search failed:', err);
-      toast.error('Google Drive search failed');
+      setSyncingFolderId(null);
+      await fetchFolders();
+      await fetchDocuments();
+      if (result.ingested > 0) toast.success(`Indexed ${result.ingested} documents from "${folderName}"`);
+      else if (!result.error) toast.info(`No new documents found in "${folderName}"`);
     }
-    setDriveSearching(false);
   };
 
-  // Google Drive: download + ingest a single doc
-  const handleDriveIngest = async (file: { id: string; name: string; mimeType: string }) => {
-    if (!sessionIds[0]) { toast.error('No session to ingest into'); return; }
-    setDriveIngesting(prev => new Set([...prev, file.id]));
-    try {
-      // Download content
-      const { data: dlData, error: dlError } = await supabase.functions.invoke('google-drive-download', {
-        body: { fileId: file.id },
-      });
-      if (dlError) throw dlError;
-      const content = dlData?.content || dlData?.text || '';
-      if (!content || content.length < 30) {
-        toast.error(`${file.name}: no readable content`);
-        setDriveIngesting(prev => { const n = new Set(prev); n.delete(file.id); return n; });
-        return;
-      }
-
-      // Register as knowledge document on the first session
-      const targetSessionId = sessionIds[0];
-      const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
-
-      // Create document record
-      const { data: doc } = await supabase
-        .from('knowledge_documents')
-        .insert({
-          session_id: targetSessionId,
-          name: `Google Drive: ${file.name}`,
-          source_type: 'gdrive',
-          source_key: `gdrive:${file.id}`,
-          status: 'pending',
-          chunk_count: 0,
-          char_count: content.length,
-        })
-        .select('id')
-        .single();
-
-      if (!doc) throw new Error('Failed to create document record');
-
-      // Send to rag-ingest
-      await fetch(INGEST_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          session_id: targetSessionId,
-          documents: [{ document_id: doc.id, content: content.slice(0, 30_000) }],
-        }),
-      });
-
-      setDriveIngested(prev => new Set([...prev, file.id]));
-      toast.success(`Indexed: ${file.name}`);
-      fetchDocuments();
-    } catch (err) {
-      console.error('[knowledge] Drive ingest failed:', err);
-      toast.error(`Failed to index ${file.name}`);
-    }
-    setDriveIngesting(prev => { const n = new Set(prev); n.delete(file.id); return n; });
+  const handleSyncFolder = async (folder: ConnectedFolder) => {
+    if (!primarySessionId) { toast.error('No session available'); return; }
+    setSyncingFolderId(folder.id);
+    const result = await syncFolder(primarySessionId, folder, (p) => {
+      setFolderSyncProgress(prev => ({ ...prev, [folder.id]: p }));
+    });
+    setSyncingFolderId(null);
+    await fetchFolders();
+    await fetchDocuments();
+    if (result.ingested > 0) toast.success(`Synced ${result.ingested} new documents from "${folder.folder_name}"`);
+    else if (result.error) toast.error(`Sync failed: ${result.error}`);
+    else toast.info(`"${folder.folder_name}" is up to date`);
   };
 
-  // Slack: search for messages about company
+  const handleDisconnect = async (folder: ConnectedFolder) => {
+    setDisconnectingId(folder.id);
+    const ok = await disconnectFolder(folder.id);
+    setDisconnectingId(null);
+    if (ok) { toast.success(`Disconnected "${folder.folder_name}"`); fetchFolders(); }
+    else toast.error('Failed to disconnect');
+  };
+
   const handleSlackSearch = async () => {
     setSlackSearching(true);
     setSlackResults([]);
@@ -238,9 +240,8 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
     setSlackSearching(false);
   };
 
-  // Slack: ingest all results as one knowledge document
   const handleSlackIngest = async () => {
-    if (!sessionIds[0] || slackResults.length === 0) return;
+    if (!primarySessionId || slackResults.length === 0) return;
     setSlackIngesting(true);
     try {
       const content = slackResults.map(msg => {
@@ -248,13 +249,12 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
         return `[${date}] #${msg.channel} @${msg.username}: ${msg.text}`;
       }).join('\n\n');
 
-      const targetSessionId = sessionIds[0];
       const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
 
       const { data: doc } = await supabase
         .from('knowledge_documents')
         .insert({
-          session_id: targetSessionId,
+          session_id: primarySessionId,
           name: `Slack: ${companyName} messages (${slackResults.length})`,
           source_type: 'slack',
           source_key: `slack:${companyName}:${Date.now()}`,
@@ -275,7 +275,7 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          session_id: targetSessionId,
+          session_id: primarySessionId,
           documents: [{ document_id: doc.id, content: content.slice(0, 30_000) }],
         }),
       });
@@ -290,7 +290,6 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
     setSlackIngesting(false);
   };
 
-  // Group documents by site
   const docsBySite = new Map<string, KnowledgeDoc[]>();
   for (const doc of documents) {
     const existing = docsBySite.get(doc.session_id) || [];
@@ -312,28 +311,17 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Database className="h-5 w-5" /> Company Knowledge Base
+            <Database className="h-5 w-5" /> Agency Brain
           </h3>
           <p className="text-sm text-muted-foreground">
-            {documents.length} documents &middot; {totalChunks} chunks &middot; {sites.length} sites indexed
+            {documents.length} documents &middot; {totalChunks} chunks &middot; {sites.length} sites &middot; {folders.length} streams
           </p>
         </div>
-        <Button
-          onClick={handleSyncAll}
-          disabled={syncing || sites.length === 0}
-          variant="outline"
-          size="sm"
-          className="gap-2"
-        >
+        <Button onClick={handleSyncAll} disabled={syncing || sites.length === 0} variant="outline" size="sm" className="gap-2">
           {syncing ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Syncing {syncProgress?.current}/{syncProgress?.total}...
-            </>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Syncing {syncProgress?.current}/{syncProgress?.total}...</>
           ) : (
-            <>
-              <RefreshCw className="h-4 w-4" /> Sync All Sites
-            </>
+            <><RefreshCw className="h-4 w-4" /> Sync All Sites</>
           )}
         </Button>
       </div>
@@ -354,100 +342,126 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
         </div>
       </div>
 
-      {/* External Sources */}
+      {/* Connected Folders (Streams) */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <FolderSync className="h-4 w-4" /> Connected Streams
+          </h4>
+          <Button variant="outline" size="sm" onClick={() => setConnectDialogOpen(true)} className="gap-1.5 text-xs">
+            <Plus className="h-3.5 w-3.5" /> Add Folder
+          </Button>
+        </div>
+
+        {foldersLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading streams...
+          </div>
+        ) : folders.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No folders connected yet</p>
+            <p className="text-xs mt-1">Connect a Google Drive folder to continuously sync documents into Agency Brain</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {folders.map(folder => {
+              const progress = folderSyncProgress[folder.id];
+              const isSyncing = syncingFolderId === folder.id || folder.sync_status === 'syncing';
+              const labelCfg = LABEL_CONFIG[folder.label] || LABEL_CONFIG.general;
+
+              return (
+                <div key={folder.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50">
+                  <HardDrive className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">{folder.folder_name}</span>
+                      <Badge variant="outline" className={`text-[10px] py-0 ${labelCfg.color}`}>
+                        {labelCfg.icon}
+                        <span className="ml-1 capitalize">{folder.label}</span>
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                      {folder.last_synced_at ? (
+                        <>
+                          <Clock className="h-3 w-3" />
+                          {formatDistanceToNow(new Date(folder.last_synced_at), { addSuffix: true })}
+                          <span>&middot;</span>
+                          <span>{folder.last_sync_file_count} files</span>
+                        </>
+                      ) : (
+                        <span>Never synced</span>
+                      )}
+                      {isSyncing && progress && (
+                        <span className="text-primary">
+                          &middot; {progress.phase === 'listing' ? 'Listing files...' :
+                            progress.phase === 'downloading' ? `${progress.filesProcessed}/${progress.filesNew} files` :
+                            progress.phase === 'complete' ? 'Done' : progress.phase}
+                        </span>
+                      )}
+                      {folder.sync_status === 'error' && folder.last_sync_error && (
+                        <span className="text-destructive">&middot; {folder.last_sync_error}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="sm" onClick={() => handleSyncFolder(folder)} disabled={isSyncing} className="h-7 w-7 p-0">
+                      {isSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDisconnect(folder)} disabled={disconnectingId === folder.id} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                      {disconnectingId === folder.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      <ConnectFolderDialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen} onConnect={handleConnectFolder} />
+
+      {/* Slack */}
       <Card className="p-4">
         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Search className="h-4 w-4" /> External Sources
         </h4>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {/* Google Drive */}
-          <div className="border border-border/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Google Drive</span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">Search Drive for docs about "{companyName}" and index them.</p>
-            <Button onClick={handleDriveSearch} disabled={driveSearching} variant="outline" size="sm" className="w-full gap-2">
-              {driveSearching ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...</> : <><Search className="h-3.5 w-3.5" /> Search Drive</>}
-            </Button>
-            {driveResults.length > 0 && (
-              <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
-                {driveResults.map(file => (
-                  <div key={file.id} className="flex items-center gap-2 text-xs">
-                    <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <span className="truncate flex-1">{file.name}</span>
-                    {driveIngested.has(file.id) ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
-                    ) : (
-                      <Button
-                        onClick={() => handleDriveIngest(file)}
-                        disabled={driveIngesting.has(file.id)}
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs shrink-0"
-                      >
-                        {driveIngesting.has(file.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                      </Button>
-                    )}
+        <div className="border border-border/50 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Slack</span>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">Search Slack for messages about "{companyName}" and index them.</p>
+          <Button onClick={handleSlackSearch} disabled={slackSearching} variant="outline" size="sm" className="w-full gap-2">
+            {slackSearching ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...</> : <><Search className="h-3.5 w-3.5" /> Search Slack</>}
+          </Button>
+          {slackResults.length > 0 && (
+            <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
+              {slackResults.slice(0, 10).map((msg, i) => (
+                <div key={msg.id || i} className="text-xs p-1.5 rounded bg-muted/30">
+                  <div className="flex items-center gap-1 text-muted-foreground mb-0.5">
+                    <span className="font-medium">#{msg.channel}</span>
+                    <span>&middot;</span>
+                    <span>@{msg.username}</span>
+                    {msg.date && <span className="ml-auto text-[10px]">{new Date(msg.date).toLocaleDateString()}</span>}
                   </div>
-                ))}
-                <Button
-                  onClick={() => driveResults.filter(f => !driveIngested.has(f.id)).forEach(f => handleDriveIngest(f))}
-                  disabled={driveResults.every(f => driveIngested.has(f.id))}
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-2 text-xs"
-                >
-                  Index All ({driveResults.filter(f => !driveIngested.has(f.id)).length} remaining)
+                  <p className="line-clamp-2">{msg.text}</p>
+                </div>
+              ))}
+              {slackResults.length > 10 && (
+                <p className="text-[10px] text-muted-foreground text-center">+ {slackResults.length - 10} more messages</p>
+              )}
+              {slackIngested ? (
+                <div className="flex items-center justify-center gap-1 text-xs text-green-400 mt-2">
+                  <CheckCircle className="h-3.5 w-3.5" /> Indexed
+                </div>
+              ) : (
+                <Button onClick={handleSlackIngest} disabled={slackIngesting} variant="outline" size="sm" className="w-full mt-2 text-xs">
+                  {slackIngesting ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Indexing...</> : `Index All ${slackResults.length} Messages`}
                 </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Slack */}
-          <div className="border border-border/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Slack</span>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mb-3">Search Slack for messages about "{companyName}" and index them.</p>
-            <Button onClick={handleSlackSearch} disabled={slackSearching} variant="outline" size="sm" className="w-full gap-2">
-              {slackSearching ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...</> : <><Search className="h-3.5 w-3.5" /> Search Slack</>}
-            </Button>
-            {slackResults.length > 0 && (
-              <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
-                {slackResults.slice(0, 10).map((msg, i) => (
-                  <div key={msg.id || i} className="text-xs p-1.5 rounded bg-muted/30">
-                    <div className="flex items-center gap-1 text-muted-foreground mb-0.5">
-                      <span className="font-medium">#{msg.channel}</span>
-                      <span>&middot;</span>
-                      <span>@{msg.username}</span>
-                      {msg.date && <span className="ml-auto text-[10px]">{new Date(msg.date).toLocaleDateString()}</span>}
-                    </div>
-                    <p className="line-clamp-2">{msg.text}</p>
-                  </div>
-                ))}
-                {slackResults.length > 10 && (
-                  <p className="text-[10px] text-muted-foreground text-center">+ {slackResults.length - 10} more messages</p>
-                )}
-                {slackIngested ? (
-                  <div className="flex items-center justify-center gap-1 text-xs text-green-400 mt-2">
-                    <CheckCircle className="h-3.5 w-3.5" /> Indexed
-                  </div>
-                ) : (
-                  <Button
-                    onClick={handleSlackIngest}
-                    disabled={slackIngesting}
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-2 text-xs"
-                  >
-                    {slackIngesting ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Indexing...</> : `Index All ${slackResults.length} Messages`}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </Card>
 
@@ -456,7 +470,6 @@ export function CompanyKnowledgeTab({ companyId, companyName, sites }: Props) {
           No sites linked to this company yet. Analyze a site to start building the knowledge base.
         </div>
       ) : (
-        /* Documents grouped by site */
         <div className="space-y-4">
           {sites.map(site => {
             const siteDocs = docsBySite.get(site.id) || [];

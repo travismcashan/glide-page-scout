@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, MessageSquare, Eye, Zap, Key } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key, Hash, Clock, CheckSquare, Waves, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
 import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
 
@@ -273,6 +274,10 @@ export default function ConnectionsPage() {
   const [hubspotConfigured, setHubspotConfigured] = useState<boolean | null>(null);
   const [apiHealthData, setApiHealthData] = useState<Record<string, boolean | null>>({});
 
+  // Global Sync state
+  const [globalSyncing, setGlobalSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<any>(null);
+
   // Property picker state
   const [pickerProvider, setPickerProvider] = useState<string | null>(null);
   const [pickerProperties, setPickerProperties] = useState<PropertyOption[]>([]);
@@ -296,6 +301,74 @@ export default function ConnectionsPage() {
   }, []);
 
   useEffect(() => { fetchConnections(); }, [fetchConnections]);
+
+  // Handle Slack OAuth redirect callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const slackCode = params.get('code');
+    const slackState = params.get('state');
+    if (!slackCode || slackState !== 'slack-oauth') return;
+
+    // Clean URL immediately
+    window.history.replaceState({}, '', window.location.pathname);
+
+    (async () => {
+      setConnectingProvider('slack');
+      try {
+        // The redirect_uri must match exactly what was sent to Slack
+        const redirectUri = window.location.origin + window.location.pathname;
+        const res = await fetch(SLACK_OAUTH_URL, {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({ action: 'exchange', code: slackCode, redirectUri }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Exchange failed');
+        console.log('Slack connected:', result);
+        await fetchConnections();
+      } catch (err) {
+        console.error('Slack OAuth exchange error:', err);
+      } finally {
+        setConnectingProvider(null);
+      }
+    })();
+  }, [fetchConnections]);
+
+  const connectSlack = async () => {
+    setConnectingProvider('slack');
+    try {
+      const res = await fetch(SLACK_OAUTH_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ action: 'get-config' }),
+      });
+      const { clientId, error } = await res.json();
+      if (!clientId) throw new Error(error || 'Could not get Slack config');
+
+      const redirectUri = window.location.origin + window.location.pathname;
+      const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&user_scope=search:read&redirect_uri=${encodeURIComponent(redirectUri)}&state=slack-oauth`;
+      window.location.href = slackAuthUrl;
+    } catch (err) {
+      console.error('Slack connect error:', err);
+      setConnectingProvider(null);
+    }
+  };
+
+  const disconnectSlack = async (id: string) => {
+    setDisconnecting(id);
+    try {
+      await fetch(SLACK_OAUTH_URL, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ action: 'disconnect', id }),
+      });
+      setConnections(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Slack disconnect error:', err);
+    } finally {
+      setDisconnecting(null);
+    }
+  };
 
   // Check all API key statuses
   useEffect(() => {
@@ -430,66 +503,49 @@ export default function ConnectionsPage() {
     }
   };
 
-  const gmailConnection = connections.find(c => c.provider === 'gmail');
-  const driveConnection = connections.find(c => c.provider === 'google-drive');
-  const notebooklmConnection = connections.find(c => c.provider === 'google-notebooklm');
-  const slackConnection = connections.find(c => c.provider === 'slack');
-
-  // Slack OAuth — redirect flow (popups don't work reliably in Safari)
-  const connectSlack = async () => {
-    setConnectingProvider('slack');
+  const handleGlobalSync = async () => {
+    setGlobalSyncing(true);
+    setSyncResult(null);
     try {
-      const configRes = await fetch(SLACK_OAUTH_URL, {
+      // Get current user ID for the sync
+      const userRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`, {
         method: 'POST',
         headers: apiHeaders,
         body: JSON.stringify({ action: 'get-config' }),
       });
-      const { clientId, error } = await configRes.json();
-      if (!clientId) throw new Error(error || 'SLACK_CLIENT_ID not configured');
+      // We need the actual Supabase user ID
+      const { data: { user } } = await (await import('@/integrations/supabase/client')).supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-      const redirectUri = `${window.location.origin}/connections`;
-      const userScopes = 'search:read';
-      const slackAuthUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=&user_scope=${encodeURIComponent(userScopes)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/global-sync`, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ action: 'sync', userId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
 
-      // Redirect the main page (not popup) — Slack will redirect back with ?code=
-      window.location.href = slackAuthUrl;
+      setSyncResult(data.summary);
+      const { created, updated } = data.summary;
+      if (created > 0 || updated > 0) {
+        toast.success(`Sync complete: ${created} created, ${updated} updated`);
+      } else {
+        toast.info('Everything is already in sync');
+      }
     } catch (err: any) {
-      console.error('Slack connect error:', err);
-      setConnectingProvider(null);
+      console.error('Global sync error:', err);
+      toast.error(`Sync failed: ${err.message}`);
+    } finally {
+      setGlobalSyncing(false);
     }
   };
 
-  // Handle Slack OAuth callback (code in URL params after redirect back)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    if (!code || params.get('state')) return; // state param means it's Google, not Slack
-
-    // Clean the URL
-    window.history.replaceState({}, '', '/connections');
-
-    // Exchange code for token
-    (async () => {
-      try {
-        const redirectUri = `${window.location.origin}/connections`;
-        const exchangeRes = await fetch(SLACK_OAUTH_URL, {
-          method: 'POST',
-          headers: apiHeaders,
-          body: JSON.stringify({ action: 'exchange', code, redirectUri }),
-        });
-        const result = await exchangeRes.json();
-        if (result.success) {
-          await fetchConnections();
-        } else {
-          console.error('Slack exchange failed:', result.error);
-        }
-      } catch (err) {
-        console.error('Slack callback error:', err);
-      }
-    })();
-  }, []);
+  const gmailConnection = connections.find(c => c.provider === 'gmail');
+  const driveConnection = connections.find(c => c.provider === 'google-drive');
+  const notebooklmConnection = connections.find(c => c.provider === 'google-notebooklm');
   const ga4Connection = connections.find(c => c.provider === 'google-analytics');
   const gscConnection = connections.find(c => c.provider === 'google-search-console');
+  const slackConnection = connections.find(c => c.provider === 'slack');
 
   const liveSources: ProviderDef[] = [];
 
@@ -527,28 +583,11 @@ export default function ConnectionsPage() {
       connection: notebooklmConnection,
       hasPropertyPicker: false,
     },
-    {
-      id: 'slack',
-      name: 'Slack',
-      scope: 'search:read',
-      icon: MessageSquare,
-      iconBg: 'bg-purple-500/10',
-      iconColor: 'text-purple-600',
-      description: 'Search Slack messages about companies and index them into the knowledge base',
-      connection: slackConnection,
-      hasPropertyPicker: false,
-    },
   ];
-
-  // Wrap connectProvider to route Slack through its own OAuth flow
-  const connectProviderRouted = async (provider: string, scope: string) => {
-    if (provider === 'slack') { connectSlack(); return; }
-    connectProvider(provider, scope);
-  };
 
   const rowProps = {
     connectingProvider, disconnecting, pickerProvider, pickerProperties,
-    pickerLoading, savingProperty, connectProvider: connectProviderRouted, loadProperties,
+    pickerLoading, savingProperty, connectProvider, loadProperties,
     saveProperty, disconnectConnection, setPickerProvider,
   };
 
@@ -626,6 +665,112 @@ export default function ConnectionsPage() {
             <BrandLoader size={48} />
           </div>
         ) : (<>
+        {/* Global Streams */}
+        <div className="mb-8">
+          <div className="mb-3">
+            <div className="flex items-center gap-2">
+              <Waves className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-foreground tracking-tight">Global Streams</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Platform-level data rivers that feed Agency Brain across all clients. Connected once, shared everywhere.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3 mb-4">
+            {[
+              { id: 'harvest', name: 'Harvest', icon: Clock, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500', healthKey: 'harvest', desc: 'Time tracking, projects, and client billing' },
+              { id: 'asana', name: 'Asana', icon: CheckSquare, iconBg: 'bg-purple-500/10', iconColor: 'text-purple-500', healthKey: 'asana', desc: 'Project management and delivery tracking' },
+              { id: 'hubspot', name: 'HubSpot', icon: Building2, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-600', healthKey: 'hubspot', desc: 'Contacts, deals, pipeline, and engagements' },
+            ].map(stream => {
+              const status = apiStatus(stream.healthKey);
+              return (
+                <Card key={stream.id} className="p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`h-9 w-9 rounded-lg ${stream.iconBg} flex items-center justify-center`}>
+                      <stream.icon className={`h-4.5 w-4.5 ${stream.iconColor}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{stream.name}</span>
+                        {status === 'active' ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-[10px] py-0">
+                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                            Live
+                          </Badge>
+                        ) : status === 'inactive' ? (
+                          <Badge variant="outline" className="text-amber-600 border-amber-600/30 bg-amber-600/10 text-[10px] py-0">
+                            <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                            Offline
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-[10px] py-0">
+                            <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{stream.desc}</p>
+                </Card>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleGlobalSync}
+              disabled={globalSyncing}
+              className="gap-2"
+              size="sm"
+            >
+              {globalSyncing ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Syncing streams...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4" /> Sync &amp; Backfill Clients</>
+              )}
+            </Button>
+            {syncResult && (
+              <span className="text-xs text-muted-foreground">
+                {syncResult.created > 0 && <span className="text-green-500 font-medium">{syncResult.created} created</span>}
+                {syncResult.created > 0 && syncResult.updated > 0 && <span> &middot; </span>}
+                {syncResult.updated > 0 && <span className="text-blue-400 font-medium">{syncResult.updated} updated</span>}
+                {syncResult.matched?.domain > 0 && <span> &middot; {syncResult.matched.domain} matched by domain</span>}
+                {syncResult.matched?.name > 0 && <span> &middot; {syncResult.matched.name} matched by name</span>}
+                {' '}&middot; Sources: {syncResult.sources?.harvest || 0} Harvest, {syncResult.sources?.asana || 0} Asana, {syncResult.sources?.hubspot || 0} HubSpot
+              </span>
+            )}
+          </div>
+          {syncResult?.details?.length > 0 && (
+            <details className="mt-3">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                Show {syncResult.details.length} sync details
+              </summary>
+              <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border divide-y divide-border/50">
+                {syncResult.details.map((d: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium truncate">{d.name}</span>
+                      {d.domain && <span className="text-muted-foreground shrink-0">{d.domain}</span>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      {d.sources?.map((s: string) => (
+                        <Badge key={s} variant="secondary" className="text-[10px] py-0">{s}</Badge>
+                      ))}
+                      {d.action === 'created' ? (
+                        <Badge variant="outline" className="text-green-500 border-green-500/30 text-[10px] py-0">New</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-blue-400 border-blue-400/30 text-[10px] py-0">Updated</Badge>
+                      )}
+                      {d.hasActiveProject && (
+                        <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-[10px] py-0">Active</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+
         {/* Live Sources */}
         <div className="mb-8">
           <div className="mb-3">
@@ -685,6 +830,72 @@ export default function ConnectionsPage() {
           </div>
           <div className="space-y-3">
             {accountAccess.map((p) => <ProviderRow key={p.id} p={p} {...rowProps} />)}
+            {/* Slack — uses its own OAuth, not Google */}
+            <Card className="p-0 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-lg bg-[#4A154B]/10 flex items-center justify-center">
+                    <Hash className="h-5 w-5 text-[#4A154B]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Slack</span>
+                      {slackConnection ? (
+                        <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Not connected
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {slackConnection
+                        ? <>Signed in as {slackConnection.provider_email}{(slackConnection.provider_config as any)?.team_name ? ` in ${(slackConnection.provider_config as any).team_name}` : ''}</>
+                        : 'Search Slack messages and import conversations into the knowledge base'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {slackConnection ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={connectSlack}
+                        disabled={connectingProvider === 'slack'}
+                        className="text-xs"
+                      >
+                        {connectingProvider === 'slack' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                        Reconnect
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => disconnectSlack(slackConnection.id)}
+                        disabled={disconnecting === slackConnection.id}
+                        className="text-destructive hover:text-destructive text-xs"
+                      >
+                        {disconnecting === slackConnection.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                        Disconnect
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={connectSlack}
+                      disabled={connectingProvider === 'slack'}
+                    >
+                      {connectingProvider === 'slack' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Hash className="h-3 w-3 mr-1" />}
+                      Connect Slack
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
 
