@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
+import { syncCompanyBrain, syncHubSpotToCompanyBrain, syncOceanToCompanyBrain } from '@/lib/companyBrain';
 import { PromptLibrary, type PromptTemplate } from '@/components/PromptLibrary';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
@@ -875,6 +876,10 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
         clearError('ocean');
         updateSession({ ocean_data: result } as any);
+        // Sync to company brain
+        syncOceanToCompanyBrain(result, session.id, session.domain).catch(err =>
+          console.error('[ocean] Company brain sync failed:', err)
+        );
       } else { const msg = result.error || 'Ocean.io returned an error'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); }
       setOceanLoading(false);
     }).catch((e) => { const msg = e?.message || 'Ocean.io request failed'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); setOceanLoading(false); });
@@ -921,6 +926,10 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
         updateSession({ hubspot_data: result } as any);
+        // Sync to company brain (companies + contacts + deals + engagements)
+        syncHubSpotToCompanyBrain(result, session.id, session.domain).catch(err =>
+          console.error('[hubspot] Company brain sync failed:', err)
+        );
       } else { const msg = result.error || 'HubSpot returned an error'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); }
       setHubspotLoading(false);
     }).catch((e) => { const msg = e?.message || 'HubSpot request failed'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); setHubspotLoading(false); });
@@ -955,6 +964,10 @@ export default function ResultsPage() {
       setApolloData(result);
       if (result.success && session) {
         await supabase.from('crawl_sessions').update({ apollo_data: result } as any).eq('id', session.id);
+        // Sync to company brain (companies + contacts tables)
+        syncCompanyBrain(result, session.id, session.domain).catch(err =>
+          console.error('[apollo] Company brain sync failed:', err)
+        );
       }
       if (!result.success && result.errorCode !== 'CREDITS_EXHAUSTED') {
         toast.error(result.error || 'Apollo enrichment failed');
