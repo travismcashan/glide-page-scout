@@ -7,7 +7,6 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, ChevronRight, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key, Hash, Clock, CheckSquare, Waves, ArrowRight, ArrowDown, ArrowLeftRight, Radio, Upload, Headphones, Receipt, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
-import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
 import { getPausedIntegrations, toggleIntegrationPause, loadPausedIntegrations } from '@/lib/integrationState';
 import QuickBooksImportDialog from '@/components/connections/QuickBooksImportDialog';
@@ -839,15 +838,11 @@ export default function ConnectionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Connections</h1>
-          <p className="text-muted-foreground mt-1">
-            The nervous system of Agency Brain. Every source of truth wired in and flowing.
-          </p>
+    <div>
+      <main className="px-4 sm:px-6 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">Connections</h1>
+          <p className="text-sm text-muted-foreground mt-1">The nervous system of Agency Brain. Every source of truth wired in and flowing.</p>
         </div>
 
         {loading ? (

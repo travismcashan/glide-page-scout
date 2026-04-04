@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor, FileQuestion } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import AppHeader from '@/components/AppHeader';
 import { PROVIDERS, VERSIONS, MODEL_OPTIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -457,10 +456,12 @@ export default function SettingsPage() {
   const activeModel = versions.find(v => v.id === model);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-
-      <main className="max-w-3xl mx-auto px-6 py-10 space-y-12">
+    <div>
+      <main className="px-4 sm:px-6 py-6 space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-1">Configure AI models, appearance, and account preferences.</p>
+        </div>
         {/* ── AI Model ── */}
         <section className="space-y-6">
           <div>

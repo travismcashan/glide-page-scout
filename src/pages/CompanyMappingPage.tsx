@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArrowLeft, Map, Archive, Trash2, GitMerge } from 'lucide-react';
-import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
 import Phase0Map from '@/components/company/cleanup/Phase0Map';
 import PhaseCleanup from '@/components/company/cleanup/PhaseCleanup';
@@ -16,9 +15,8 @@ export default function CompanyMappingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
-        <main className="mx-auto py-8" style={{ paddingLeft: 20, paddingRight: 20 }}>
+      <div>
+        <main className="px-4 sm:px-6 py-6">
           <div className="flex items-center justify-center py-20">
             <BrandLoader size={48} />
           </div>
@@ -28,9 +26,8 @@ export default function CompanyMappingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto py-8" style={{ paddingLeft: 20, paddingRight: 20 }}>
+    <div>
+      <main className="px-4 sm:px-6 py-6">
         <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/companies')}>
             <ArrowLeft className="h-4 w-4" />

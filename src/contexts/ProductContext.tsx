@@ -58,8 +58,8 @@ export interface Product {
 
 export const PRODUCTS: Product[] = [
   { id: 'growth',   name: 'Growth',   fullName: 'GLIDE® Growth',   discipline: 'Sales Intelligence',    description: 'Walk in knowing. Walk out winning.',      icon: GrowthIcon,   color: 'hsl(var(--primary))', active: true,  bloomAnimation: true },
-  { id: 'delivery', name: 'Delivery', fullName: 'GLIDE® Delivery', discipline: 'Client Delivery',        description: 'The partner that never stops working.',   icon: DeliveryIcon, color: '#2DD4BF',              active: false, settleAngle: 0, settleAngles: [0, 0, Math.PI / 2], startAngles: [0, 0, Math.PI / 2], introAngles: [0, 2 * Math.PI, 2 * Math.PI] },
-  { id: 'admin',    name: 'Admin',    fullName: 'GLIDE® Admin',    discipline: 'Business Operations',    description: 'The business, beautifully in order.',     icon: AdminIcon,    color: '#FB923C',              active: false },
+  { id: 'delivery', name: 'Delivery', fullName: 'GLIDE® Delivery', discipline: 'Client Delivery',        description: 'The partner that never stops working.',   icon: DeliveryIcon, color: '#2DD4BF',              active: true,  settleAngle: 0, settleAngles: [0, 0, Math.PI / 2], startAngles: [0, 0, Math.PI / 2], introAngles: [0, 2 * Math.PI, 2 * Math.PI] },
+  { id: 'admin',    name: 'Admin',    fullName: 'GLIDE® Admin',    discipline: 'Business Operations',    description: 'The business, beautifully in order.',     icon: AdminIcon,    color: '#FB923C',              active: true },
 ];
 
 interface ProductContextValue {

@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppHeader from '@/components/AppHeader';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -164,14 +163,13 @@ export default function UsagePage() {
   }, [data, pricing]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+    <div>
+      <main className="px-4 sm:px-6 py-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Activity className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight">AI Usage</h1>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Usage</h1>
+            <p className="text-sm text-muted-foreground mt-1">AI token consumption and cost tracking.</p>
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
@@ -202,7 +200,7 @@ export default function UsagePage() {
           </div>
         ) : data.length === 0 ? (
           <div className="text-center py-20">
-            <Activity className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+            <Activity className="h-10 w-10 text-muted-foreground/50 mb-3" />
             <p className="text-muted-foreground">No usage data yet. AI calls will appear here once edge functions are deployed with tracking.</p>
           </div>
         ) : (

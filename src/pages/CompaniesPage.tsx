@@ -52,7 +52,6 @@ import {
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
-import AppHeader from '@/components/AppHeader';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -787,14 +786,13 @@ export default function CompaniesPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-7xl px-3 sm:px-6 py-6">
+    <div>
+      <main className="px-4 sm:px-6 py-6">
 
         {/* ── Header + View Presets ── */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-baseline gap-3">
-            <h1 className="text-xl font-bold tracking-tight">Companies</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Companies</h1>
             {!loading && (
               <span className="text-sm text-muted-foreground tabular-nums">
                 {filtered.length === companies.length

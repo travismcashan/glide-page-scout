@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { PILLARS } from "@/data/offerings";
 import { useServiceOfferings } from "@/hooks/useServiceOfferings";
 import { supabase } from "@/integrations/supabase/client";
-import AppHeader from "@/components/AppHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -206,9 +205,8 @@ export default function ServicesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="max-w-5xl mx-auto px-6 py-10 space-y-8">
+    <div>
+      <main className="px-4 sm:px-6 py-6 space-y-8">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Services</h1>

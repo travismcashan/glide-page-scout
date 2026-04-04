@@ -1,4 +1,4 @@
-// GLIDE® Growth App
+// GLIDE® Ascend App
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProductProvider } from "@/contexts/ProductContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BrandLoader } from "@/components/BrandLoader";
+import { AppLayout } from "@/components/AppLayout";
 import CrawlPage from "./pages/CrawlPage";
 import ResultsPage from "./pages/ResultsPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -64,37 +65,41 @@ const App = () => (
             <ErrorBoundary fallback={<div className="min-h-screen flex items-center justify-center"><p>Something went wrong. <a href="/" className="underline">Go home</a></p></div>}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              {/* CrawlPage: full-width, no sidebar */}
               <Route path="/" element={<ProtectedRoute><CrawlPage /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-              <Route path="/sites/:domain/:tab" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-              <Route path="/sites/:domain/crawls/:dateSlug/:tab" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-              <Route path="/sites/:domain/crawls/:dateSlug" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-              <Route path="/sites/:domain" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-              <Route path="/results/:sessionId" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-              <Route path="/results/:domain/:dateSlug" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-              <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-              <Route path="/sites" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-              <Route path="/lists" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
-              <Route path="/lists/:groupId/:tab" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
-              <Route path="/lists/:groupId" element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
               {/* Legacy redirects */}
               <Route path="/groups" element={<Navigate to="/lists" replace />} />
               <Route path="/groups/:groupId" element={<RedirectGroups />} />
               <Route path="/integrations" element={<Navigate to="/connections" replace />} />
-              <Route path="/connections" element={<ProtectedRoute><ConnectionsPage /></ProtectedRoute>} />
-              <Route path="/pipeline" element={<ProtectedRoute><PipelinePage /></ProtectedRoute>} />
-              <Route path="/companies" element={<ProtectedRoute><CompaniesPage /></ProtectedRoute>} />
-              <Route path="/companies/cleanup" element={<ProtectedRoute><CompanyCleanupPage /></ProtectedRoute>} />
-              <Route path="/companies/mapping" element={<ProtectedRoute><CompanyMappingPage /></ProtectedRoute>} />
-              <Route path="/companies/:id" element={<ProtectedRoute><CompanyDetailPage /></ProtectedRoute>} />
-              <Route path="/wishlist" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
-              <Route path="/chat" element={<ProtectedRoute><GlobalChatPage /></ProtectedRoute>} />
-              <Route path="/knowledge" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-              <Route path="/usage" element={<ProtectedRoute><UsagePage /></ProtectedRoute>} />
-              <Route path="/brand" element={<ProtectedRoute><BrandGuidePage /></ProtectedRoute>} />
-              <Route path="/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
-              <Route path="/services/:id" element={<ProtectedRoute><ServiceDetailPage /></ProtectedRoute>} />
+              {/* All other pages: sidebar layout */}
+              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/sites/:domain/:tab" element={<ResultsPage />} />
+                <Route path="/sites/:domain/crawls/:dateSlug/:tab" element={<ResultsPage />} />
+                <Route path="/sites/:domain/crawls/:dateSlug" element={<ResultsPage />} />
+                <Route path="/sites/:domain" element={<ResultsPage />} />
+                <Route path="/results/:sessionId" element={<ResultsPage />} />
+                <Route path="/results/:domain/:dateSlug" element={<ResultsPage />} />
+                <Route path="/history" element={<HistoryPage />} />
+                <Route path="/sites" element={<HistoryPage />} />
+                <Route path="/lists" element={<GroupsPage />} />
+                <Route path="/lists/:groupId/:tab" element={<GroupDetailPage />} />
+                <Route path="/lists/:groupId" element={<GroupDetailPage />} />
+                <Route path="/connections" element={<ConnectionsPage />} />
+                <Route path="/pipeline" element={<PipelinePage />} />
+                <Route path="/companies" element={<CompaniesPage />} />
+                <Route path="/companies/cleanup" element={<CompanyCleanupPage />} />
+                <Route path="/companies/mapping" element={<CompanyMappingPage />} />
+                <Route path="/companies/:id" element={<CompanyDetailPage />} />
+                <Route path="/wishlist" element={<WishlistPage />} />
+                <Route path="/chat" element={<GlobalChatPage />} />
+                <Route path="/knowledge" element={<KnowledgePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/usage" element={<UsagePage />} />
+                <Route path="/brand" element={<BrandGuidePage />} />
+                <Route path="/services" element={<ServicesPage />} />
+                <Route path="/services/:id" element={<ServiceDetailPage />} />
+              </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
             <FeedbackSideTabs />

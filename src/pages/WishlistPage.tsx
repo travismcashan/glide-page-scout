@@ -3,7 +3,6 @@ import { Sparkles } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import AppHeader from '@/components/AppHeader';
 import { withQueryTimeout } from '@/lib/queryTimeout';
 import { KanbanBoard } from '@/components/wishlist/KanbanBoard';
 import { WishlistInput } from '@/components/wishlist/WishlistInput';
@@ -305,16 +304,12 @@ export default function WishlistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
+    <div>
+      <main className="px-4 sm:px-6 py-6">
         {/* Header */}
-        <div className="mb-5">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Wishlist</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Brain dump your ideas and let AI break them into actionable items.
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">Brain dump your ideas and let AI break them into actionable items.</p>
         </div>
 
         {/* Collapsible brain dump input */}
@@ -362,7 +357,7 @@ export default function WishlistPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <Sparkles className="h-8 w-8 mx-auto mb-3 opacity-30" />
+            <Sparkles className="h-8 w-8 mb-3 opacity-30" />
             <p className="text-sm">No items yet. Brain dump your first idea above.</p>
           </div>
         ) : (

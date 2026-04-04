@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import AppHeader from '@/components/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -122,9 +121,8 @@ export default function GroupsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <AppHeader />
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-10 space-y-8">
+    <div className="flex flex-col">
+      <main className="flex-1 w-full px-4 sm:px-6 py-6 space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Site Lists</h1>
@@ -178,7 +176,7 @@ export default function GroupsPage() {
           </div>
         ) : groups.length === 0 ? (
           <div className="text-center py-20 space-y-3">
-            <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40" />
+            <FolderOpen className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-muted-foreground">No lists yet. Create one to get started.</p>
           </div>
         ) : (

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import AppHeader from '@/components/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -196,7 +195,7 @@ function SitesTab({
   if (members.length === 0) {
     return (
       <div className="text-center py-16 space-y-3">
-        <Globe className="h-10 w-10 mx-auto text-muted-foreground/40" />
+        <Globe className="h-10 w-10 text-muted-foreground/40" />
         <p className="text-muted-foreground text-sm">No sites in this list yet. Add one to get started.</p>
       </div>
     );
@@ -1004,8 +1003,7 @@ export default function GroupDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <AppHeader />
+      <div className="flex flex-col">
         <div className="flex-1 flex items-center justify-center"><BrandLoader size={48} /></div>
       </div>
     );
@@ -1013,17 +1011,15 @@ export default function GroupDetailPage() {
 
   if (!group) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <AppHeader />
+      <div className="flex flex-col">
         <div className="flex-1 flex items-center justify-center"><p className="text-muted-foreground">List not found.</p></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <AppHeader />
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-10 space-y-6">
+    <div className="flex flex-col">
+      <main className="flex-1 w-full px-4 sm:px-6 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -1126,7 +1122,7 @@ export default function GroupDetailPage() {
             className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
             style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
           >
-            <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
+            <div className="px-6 h-14 flex items-center">
               <div className="relative flex items-center w-full h-14">
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
                 <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">

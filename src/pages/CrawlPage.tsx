@@ -17,7 +17,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import AppHeader from '@/components/AppHeader';
+import { useProduct } from '@/contexts/ProductContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { getRecentViews, type RecentView } from '@/lib/recentViews';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -100,6 +101,7 @@ function getGreeting(): string {
 export default function CrawlPage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { currentProduct } = useProduct();
   const [url, setUrl] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [recentViews, setRecentViews] = useState<RecentView[]>([]);
@@ -212,7 +214,23 @@ export default function CrawlPage() {
     <div className="min-h-screen bg-background flex flex-col relative overflow-x-hidden">
       {/* Subtle ambient gradient glow */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-full rounded-full bg-primary/[0.04] blur-[120px]" />
-      <AppHeader />
+      {/* Minimal header for full-width home page */}
+      <header className="relative z-10 px-4 sm:px-6 py-3 flex items-center justify-between max-w-6xl mx-auto w-full">
+        <button onClick={() => navigate('/companies')} className="flex items-center gap-2 text-lg font-semibold tracking-tight hover:opacity-80 transition-opacity">
+          {(() => { const Icon = currentProduct.icon; return <div style={{ color: currentProduct.color }} className="w-8 h-8"><Icon className="w-8 h-8" /></div>; })()}
+          {currentProduct.fullName}
+        </button>
+        {user && (
+          <button onClick={() => navigate('/companies')} className="rounded-full">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="text-xs">
+                {(profile?.display_name || user.email || '?')[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </button>
+        )}
+      </header>
 
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-10 sm:pt-16 pb-16 sm:pb-24">
         <div className="max-w-3xl w-full space-y-8 sm:space-y-12">

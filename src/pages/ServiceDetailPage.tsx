@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isPpcOffering, PPC_FLAT_FEE, PPC_FLAT_THRESHOLD, PPC_TIERS, PPC_STARTUP_COST } from "@/lib/ppcPricing";
 import ServiceStepsEditor from "@/components/ServiceStepsEditor";
-import AppHeader from "@/components/AppHeader";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -247,8 +246,7 @@ export default function ServiceDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
+      <div>
         <div className="flex h-[60vh] items-center justify-center animate-in fade-in duration-300">
           <BrandLoader size={96} />
         </div>
@@ -257,9 +255,8 @@ export default function ServiceDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <div className="max-w-2xl mx-auto px-6 py-8">
+    <div>
+      <div className="px-4 sm:px-6 py-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">

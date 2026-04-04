@@ -1,5 +1,3 @@
-import AppHeader from '@/components/AppHeader';
-
 const COLOR_TIERS = [
   {
     tier: 'Primary',
@@ -61,13 +59,12 @@ function ColorSwatch({ cssVar, label, isRainbow }: { cssVar: string; label: stri
 
 export default function BrandGuidePage() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <AppHeader />
-      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-12">
+    <div className="flex flex-col">
+      <main className="flex-1 w-full px-4 sm:px-6 py-6 space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Brand Style Guide</h1>
-          <p className="mt-2 text-muted-foreground text-lg">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Brand Style Guide</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             GLIDE® design system — <span className="italic">"Professional with a spark of craft."</span>
           </p>
         </div>

@@ -17,7 +17,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import AppHeader from '@/components/AppHeader';
+import { useProduct } from '@/contexts/ProductContext';
+import { WORKSPACE_COMPANY_TABS } from '@/config/workspace-nav';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import RoadmapTab from '@/components/roadmap/RoadmapTab';
 import { CompanyKnowledgeTab } from '@/components/CompanyKnowledgeTab';
@@ -111,6 +112,7 @@ const COMPANY_CHAT_PREFIX = '__company_chat_';
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentProduct } = useProduct();
   const [company, setCompany] = useState<Company | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
@@ -309,8 +311,7 @@ export default function CompanyDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
+      <div>
         <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
       </div>
     );
@@ -318,8 +319,7 @@ export default function CompanyDetailPage() {
 
   if (!company) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
+      <div>
         <div className="text-center py-20 text-muted-foreground">Company not found.</div>
       </div>
     );
@@ -331,9 +331,8 @@ export default function CompanyDetailPage() {
   const attachedSites = sites.map(s => ({ session_id: s.id, domain: s.domain }));
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-3 sm:px-6 py-8">
+    <div>
+      <main className="px-4 sm:px-6 py-6">
         {/* Back button */}
         <button
           onClick={() => navigate('/companies')}
@@ -392,53 +391,28 @@ export default function CompanyDetailPage() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 flex-wrap">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="contacts" className="flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Contacts
-              {contacts.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{contacts.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="deals" className="flex items-center gap-1.5">
-              <DollarSign className="h-3.5 w-3.5" /> Deals
-              {deals.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{deals.length}</Badge>}
-            </TabsTrigger>
-            {company.harvest_client_id && (
-              <TabsTrigger value="projects" className="flex items-center gap-1.5">
-                <FolderOpen className="h-3.5 w-3.5" /> Projects
-                {harvestProjects.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{harvestProjects.length}</Badge>}
-              </TabsTrigger>
-            )}
-            {company.harvest_client_id && (
-              <TabsTrigger value="time" className="flex items-center gap-1.5">
-                <Timer className="h-3.5 w-3.5" /> Time
-                {harvestTimeEntries.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{harvestTimeEntries.length}</Badge>}
-              </TabsTrigger>
-            )}
-            {(company as any).quickbooks_invoice_summary && (
-              <TabsTrigger value="invoices" className="flex items-center gap-1.5">
-                <Receipt className="h-3.5 w-3.5" /> Invoices
-                {(company as any).quickbooks_invoice_summary?.count > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{(company as any).quickbooks_invoice_summary.count}</Badge>}
-              </TabsTrigger>
-            )}
-            {company.freshdesk_company_id && (
-              <TabsTrigger value="tickets" className="flex items-center gap-1.5">
-                <Headphones className="h-3.5 w-3.5" /> Tickets
-                {freshdeskTickets.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{freshdeskTickets.length}</Badge>}
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="sites" className="flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5" /> Sites
-              {sites.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{sites.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="knowledge" className="flex items-center gap-1.5">
-              <Database className="h-3.5 w-3.5" /> Knowledge
-            </TabsTrigger>
-            <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-1.5">
-              <Brain className="h-3.5 w-3.5" /> Chat
-            </TabsTrigger>
-            <TabsTrigger value="source-data" className="flex items-center gap-1.5">
-              <FileJson className="h-3.5 w-3.5" /> Source Data
-            </TabsTrigger>
+            {WORKSPACE_COMPANY_TABS[currentProduct.id]
+              .filter(tab => !tab.condition || tab.condition(company))
+              .map(tab => {
+                const badgeCounts: Record<string, number | undefined> = {
+                  contacts: contacts.length || undefined,
+                  deals: deals.length || undefined,
+                  projects: harvestProjects.length || undefined,
+                  time: harvestTimeEntries.length || undefined,
+                  invoices: (company as any).quickbooks_invoice_summary?.count || undefined,
+                  tickets: freshdeskTickets.length || undefined,
+                  sites: sites.length || undefined,
+                };
+                const count = badgeCounts[tab.value];
+                return (
+                  <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5">
+                    {tab.label}
+                    {count != null && count > 0 && (
+                      <Badge variant="secondary" className="text-[10px] py-0 ml-1">{count}</Badge>
+                    )}
+                  </TabsTrigger>
+                );
+              })}
           </TabsList>
 
           {/* Overview Tab — clean summary */}

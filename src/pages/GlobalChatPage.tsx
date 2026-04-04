@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import AppHeader from '@/components/AppHeader';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { BrandLoader } from '@/components/BrandLoader';
@@ -159,8 +158,7 @@ export default function GlobalChatPage() {
 
   if (loading || !globalSession) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <AppHeader />
+      <div className="flex flex-col">
         <div className="flex-1 flex items-center justify-center">
           <BrandLoader size={48} />
         </div>
@@ -169,22 +167,18 @@ export default function GlobalChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <AppHeader />
-
-      {/* Breadcrumb bar — scrolls with page, not sticky */}
-      <div className="border-b border-border/50">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
-          <h1 className="text-[1.5rem] font-semibold tracking-tight leading-none flex items-center gap-1.5">
-            <button onClick={() => navigate('/chat')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">Chat</button>
-            {threadTitle && (
-              <>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                <span className="text-foreground truncate max-w-[400px]">{threadTitle}</span>
-              </>
-            )}
-          </h1>
-        </div>
+    <div className="flex flex-col">
+      <div className="w-full px-4 sm:px-6 pt-6 pb-2">
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+          Chat
+          {threadTitle && (
+            <>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              <span className="text-foreground truncate max-w-[400px]">{threadTitle}</span>
+            </>
+          )}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">AI-powered conversation with full knowledge context.</p>
       </div>
 
       <div className="flex-1">

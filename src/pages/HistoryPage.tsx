@@ -11,7 +11,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import AppHeader from '@/components/AppHeader';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { withQueryTimeout } from '@/lib/queryTimeout';
@@ -420,11 +419,12 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight mb-6">Sites</h1>
+    <div>
+      <main className="px-4 sm:px-6 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">Sites</h1>
+          <p className="text-sm text-muted-foreground mt-1">Previously analyzed websites and crawl history.</p>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20 animate-in fade-in duration-300">
@@ -432,12 +432,12 @@ export default function HistoryPage() {
           </div>
         ) : error ? (
           <div className="py-16 text-center">
-            <Globe className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+            <Globe className="mb-4 h-12 w-12 text-muted-foreground/40" />
             <p className="text-muted-foreground">{error}</p>
           </div>
         ) : sessions.length === 0 ? (
           <div className="text-center py-16">
-            <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
+            <Globe className="h-12 w-12 mb-4 text-muted-foreground/40" />
             <p className="text-muted-foreground">No crawls yet. Start by entering a URL!</p>
           </div>
         ) : (
@@ -540,7 +540,7 @@ export default function HistoryPage() {
                       </button>
                     </TableHead>
                     <TableHead className="text-center">
-                      <button onClick={() => toggleSort('status')} className="flex items-center gap-1 mx-auto hover:text-foreground transition-colors">
+                      <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-foreground transition-colors">
                         Status <SortIcon col="status" />
                       </button>
                     </TableHead>

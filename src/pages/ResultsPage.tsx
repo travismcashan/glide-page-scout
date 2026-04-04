@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { ArrowUp, Menu, Brain, Building2, ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsUpDown, Clock, Copy, Database, DollarSign, Download, ExternalLink, FileText, Lightbulb, Loader2, Zap, Globe, Code, Gauge, Search, Layers, Leaf, Users, Accessibility, Eye, Shield, Lock, Link, LinkIcon, RefreshCw, Phone, UserPlus, Navigation, MapIcon, Share2, Settings, History, BookOpen, MessageCircle, Mail, FileQuestion, Plug, BarChart3 } from 'lucide-react';
-import AppHeader from '@/components/AppHeader';
 import { BrandLoader } from '@/components/BrandLoader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
@@ -2395,12 +2394,10 @@ export default function ResultsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-
+    <div>
       {/* Domain + crawl info — matches header height */}
       <div>
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
+        <div className="px-6 h-14 flex items-center justify-between gap-4">
           <h1 className="text-[1.5rem] font-semibold tracking-tight leading-none flex items-center gap-1.5">
             <button onClick={() => navigate('/sites')} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">Sites</button>
             {groupInfo && (
@@ -2556,7 +2553,7 @@ export default function ResultsPage() {
       {/* Global integration progress bar */}
       {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
 
-      <main className={`max-w-6xl mx-auto px-6 pb-8 space-y-6 w-full`}>
+      <main className={`px-6 pb-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Sticky tab bar - shown when scrolling up and past the original */}
           {!isSharedView && (
@@ -2564,7 +2561,7 @@ export default function ResultsPage() {
             className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-foreground/10 shadow-sm transition-transform duration-300 ease-out ${stickyTabVisible ? 'translate-y-0' : '-translate-y-full'}`}
             style={{ pointerEvents: stickyTabVisible ? 'auto' : 'none' }}
           >
-              <div className="max-w-6xl mx-auto px-6 h-14 flex items-center">
+              <div className="px-6 h-14 flex items-center">
                 <div className="relative flex items-center justify-between w-full h-14">
                   <div className="absolute bottom-0 left-0 right-0 h-px bg-foreground z-0" />
                   <TabsList className="relative h-14 bg-transparent p-0 rounded-none mb-0 gap-0 z-10">

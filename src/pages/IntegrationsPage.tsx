@@ -7,7 +7,6 @@ import { Switch } from '@/components/ui/switch';
 import { X, Clock, Loader2, CreditCard } from 'lucide-react';
 import { getPausedIntegrations, toggleIntegrationPause, loadPausedIntegrations } from '@/lib/integrationState';
 import { supabase } from '@/integrations/supabase/client';
-import AppHeader from '@/components/AppHeader';
 
 type Status = 'active' | 'coming-soon';
 type HealthStatus = 'unknown' | 'checking' | 'ok' | 'down';
@@ -256,10 +255,8 @@ export default function IntegrationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+    <div>
+      <main className="px-4 sm:px-6 py-6 space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Integrations</h1>

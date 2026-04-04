@@ -16,7 +16,6 @@ import {
   Sheet, SheetContent,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import AppHeader from "@/components/AppHeader";
 import { BrandLoader } from "@/components/BrandLoader";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow, format, isPast } from "date-fns";
@@ -512,18 +511,17 @@ export default function PipelinePage() {
     stageDeals.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <AppHeader />
-      <div className="flex-1 flex flex-col max-w-6xl mx-auto px-6 pt-6 w-full overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col px-4 sm:px-6 py-6 w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Pipeline</h1>
+        <div className="flex items-center justify-between mb-6 min-w-0">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Manage leads and deals from HubSpot
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {/* Toggles */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="leading-[1.1] text-right">{showMetrics ? <><span className="block">Hide</span><span className="block">Metrics</span></> : <><span className="block">Show</span><span className="block">Metrics</span></>}</span>

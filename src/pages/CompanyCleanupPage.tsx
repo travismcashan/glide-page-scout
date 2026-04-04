@@ -4,7 +4,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Building2 } from 'lucide-react';
-import AppHeader from '@/components/AppHeader';
 import CleanupStepper, { type PhaseStatus } from '@/components/company/cleanup/CleanupStepper';
 import { useCleanupAnalysis } from '@/components/company/cleanup/useCleanupAnalysis';
 import { BrandLoader } from '@/components/BrandLoader';
@@ -48,9 +47,8 @@ export default function CompanyCleanupPage() {
 
   if (analysis.loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
-        <main className="max-w-6xl mx-auto px-6 py-8">
+      <div>
+        <main className="px-4 sm:px-6 py-6">
           <div className="flex items-center justify-center py-20">
             <BrandLoader size={48} />
           </div>
@@ -60,9 +58,8 @@ export default function CompanyCleanupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="max-w-6xl mx-auto px-6 py-8">
+    <div>
+      <main className="px-4 sm:px-6 py-6">
         <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/companies')}>
             <ArrowLeft className="h-4 w-4" />

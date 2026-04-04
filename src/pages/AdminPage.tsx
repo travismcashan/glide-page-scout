@@ -12,7 +12,6 @@ import {
 import { Shield, Users, Crown, Loader2, UserPlus, Trash2, KeyRound, Mail, Activity, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import AppHeader from '@/components/AppHeader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -264,17 +263,15 @@ export default function AdminPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-
-      <main className="max-w-3xl mx-auto px-6 py-10 space-y-10">
+    <div>
+      <main className="px-4 sm:px-6 py-6 space-y-8">
 
         {/* Page header */}
         <div>

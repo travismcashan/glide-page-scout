@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import AppHeader from '@/components/AppHeader';
 import { DocumentLibrary } from '@/components/DocumentLibrary';
 import { BrandLoader } from '@/components/BrandLoader';
 import { withQueryTimeout } from '@/lib/queryTimeout';
@@ -104,8 +103,7 @@ export default function KnowledgePage() {
 
   if (loading || !globalSession) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <AppHeader />
+      <div className="flex flex-col">
         <div className="flex-1 flex items-center justify-center animate-in fade-in duration-300">
           <BrandLoader size={96} />
         </div>
@@ -114,9 +112,12 @@ export default function KnowledgePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <AppHeader />
-      <div className="flex-1 max-w-5xl mx-auto w-full px-6 py-6">
+    <div className="flex flex-col">
+      <div className="flex-1 w-full px-4 sm:px-6 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">Knowledge</h1>
+          <p className="text-sm text-muted-foreground mt-1">Documents, transcripts, and research across all companies.</p>
+        </div>
         <DocumentLibrary
           sessionId={globalSession.id}
           refreshKey={refreshKey}
