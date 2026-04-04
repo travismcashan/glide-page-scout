@@ -33,6 +33,8 @@ type NavItem = { label: string; url?: string | null; children?: NavItem[] };
 interface Props {
   sessionId: string;
   domain: string;
+  companyId?: string;
+  dealId?: string;
   pageTags: PageTagsMap | null;
   contentTypesData: ContentTypesData | null;
   formsData: any;
@@ -59,7 +61,7 @@ interface Estimate extends EstimateVariables {
   qa_percentage?: number | null;
 }
 
-export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesData, formsData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
+export function EstimateBuilderCard({ sessionId, domain, companyId, dealId, pageTags, contentTypesData, formsData, templateTiers, formsTiers, navStructure, techAnalysisData, integrationTimestamps = {}, integrationDurations = {}, onRerunIntegration, isIntegrationLoading, onTemplatesRerunRequest }: Props) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [tasks, setTasks] = useState<EstimateTask[]>([]);
   const [formulas, setFormulas] = useState<TaskFormula[]>([]);
@@ -141,12 +143,26 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
     const formulasData = await fetchFormulas();
     setFormulas(formulasData);
 
-    const { data: existing } = await supabase
-      .from('project_estimates')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // Company-first lookup, session fallback
+    let existing: any[] | null = null;
+    if (companyId) {
+      const { data } = await supabase
+        .from('project_estimates')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      existing = data;
+    }
+    if ((!existing || existing.length === 0) && sessionId) {
+      const { data } = await supabase
+        .from('project_estimates')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      existing = data;
+    }
 
     if (existing && existing.length > 0) {
       const est = existing[0] as any;
@@ -208,9 +224,12 @@ export function EstimateBuilderCard({ sessionId, domain, pageTags, contentTypesD
         complexity_score: 0,
       };
 
+      const insertData: any = { ...variables, session_id: sessionId, status: 'draft', template_tier: 'M', page_tier: 'M', content_tier: 'M', tech_tier: 'M', forms_tier: 'M' };
+      if (companyId) insertData.company_id = companyId;
+      if (dealId) insertData.deal_id = dealId;
       const { data: newEstimate, error: estError } = await supabase
         .from('project_estimates')
-        .insert({ ...variables, session_id: sessionId, status: 'draft', template_tier: 'M', page_tier: 'M', content_tier: 'M', tech_tier: 'M', forms_tier: 'M' })
+        .insert(insertData)
         .select()
         .single();
 

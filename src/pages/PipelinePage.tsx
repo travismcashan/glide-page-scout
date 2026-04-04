@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
   ChevronDown, X, Loader2, Linkedin, Briefcase,
@@ -81,13 +81,16 @@ const saveSetting = (key: string, value: string) => {
 
 export default function PipelinePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Tab synced with URL ?tab= param (sidebar drives this)
-  const activeTab = searchParams.get("tab") || "deals";
+  // Tab derived from route (/leads, /deals) or ?tab= param for backward compat
+  const activeTab = location.pathname === '/leads' ? 'leads'
+    : location.pathname === '/deals' ? 'deals'
+    : searchParams.get("tab") || "deals";
   const setActiveTab = useCallback((tab: string) => {
-    setSearchParams({ tab }, { replace: true });
-  }, [setSearchParams]);
+    navigate(tab === 'leads' ? '/leads' : '/deals', { replace: true });
+  }, [navigate]);
 
   // Pipeline selection + filters
   const [selectedPipeline, setSelectedPipeline] = useState(() => loadSetting("pipeline", "33bc2a42-c57c-4180-b0e6-77b3d6c7f69f"));
@@ -118,6 +121,38 @@ export default function PipelinePage() {
   const [stagePaging, setStagePaging] = useState<Record<string, { hasMore: boolean; nextCursor: string | null; total: number }>>({});
   const [stageLoadingMore, setStageLoadingMore] = useState<Record<string, boolean>>({});
   const [showOtherOwners, setShowOtherOwners] = useState(false);
+  // Scroll fade state: only show left/right fade when content is scrolled
+  const [leadsFadeLeft, setLeadsFadeLeft] = useState(false);
+  const [leadsFadeRight, setLeadsFadeRight] = useState(true);
+  const [dealsFadeLeft, setDealsFadeLeft] = useState(false);
+  const [dealsFadeRight, setDealsFadeRight] = useState(true);
+  const leadsScrollRef = useRef<HTMLDivElement | null>(null);
+  const dealsScrollRef = useRef<HTMLDivElement | null>(null);
+
+  function handleScrollFade(el: HTMLElement, setLeft: (v: boolean) => void, setRight: (v: boolean) => void) {
+    setLeft(el.scrollLeft > 8);
+    setRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+  }
+
+  // Attach scroll listeners once the ScrollArea viewports mount
+  useEffect(() => {
+    const leadsEl = leadsScrollRef.current;
+    if (leadsEl) {
+      const handler = () => handleScrollFade(leadsEl, setLeadsFadeLeft, setLeadsFadeRight);
+      handler(); // initial check
+      leadsEl.addEventListener('scroll', handler, { passive: true });
+      return () => leadsEl.removeEventListener('scroll', handler);
+    }
+  });
+  useEffect(() => {
+    const dealsEl = dealsScrollRef.current;
+    if (dealsEl) {
+      const handler = () => handleScrollFade(dealsEl, setDealsFadeLeft, setDealsFadeRight);
+      handler();
+      dealsEl.addEventListener('scroll', handler, { passive: true });
+      return () => dealsEl.removeEventListener('scroll', handler);
+    }
+  });
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
@@ -410,11 +445,83 @@ export default function PipelinePage() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col px-4 sm:px-6 py-6 w-full overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{activeTab === "leads" ? "Leads" : "Deals"}</h1>
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Toggles */}
+        {/* Header — title + owner filter + toggles on one row */}
+        <div className="flex items-center justify-between mb-3 min-w-0 gap-3">
+          <h1 className="text-2xl font-bold tracking-tight shrink-0">{activeTab === "leads" ? "Leads" : "Deals"}</h1>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {/* Deals-only: pipeline + date filters */}
+            {activeTab === "deals" && (
+              <>
+                <Select value={selectedPipeline} onValueChange={(v) => { setSelectedPipeline(v); }}>
+                  <SelectTrigger className="w-fit h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pipelineOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.label.replace(/^GLIDE\s*/i, "")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={createDateFilter} onValueChange={setCreateDateFilter}>
+                  <SelectTrigger className="w-fit h-8 text-sm">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                    <SelectValue placeholder="Create date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Create date" : o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={closeDateFilter} onValueChange={setCloseDateFilter}>
+                  <SelectTrigger className="w-fit h-8 text-sm">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                    <SelectValue placeholder="Close date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Close date" : o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+              <SelectTrigger className="w-fit h-8 text-sm">
+                <User className="h-3.5 w-3.5 mr-1.5 shrink-0 text-muted-foreground" />
+                <SelectValue placeholder="All owners" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Owners</SelectItem>
+                {ownersByTeam.map(([team, members], i) => {
+                  const isOther = team === "Others";
+                  return (
+                    <SelectGroup key={team}>
+                      <div className="mx-2 my-1 border-t border-border" />
+                      {isOther ? (
+                        <button
+                          type="button"
+                          className="flex items-center gap-0.5 py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-full cursor-pointer hover:text-foreground transition-colors"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowOtherOwners((v) => !v);
+                          }}
+                        >
+                          <ChevronDown className={`h-3 w-3 stroke-[2.5] transition-transform ${showOtherOwners ? "" : "-rotate-90"}`} />
+                          {team} ({members.length})
+                        </button>
+                      ) : (
+                        <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider">{team}</SelectLabel>
+                      )}
+                      {(!isOther || showOtherOwners) && members.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  );
+                })}
+              </SelectContent>
+            </Select>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="leading-[1.1] text-right">{showMetrics ? <><span className="block">Hide</span><span className="block">Metrics</span></> : <><span className="block">Show</span><span className="block">Metrics</span></>}</span>
               <Switch checked={showMetrics} onCheckedChange={setShowMetrics} />
@@ -425,106 +532,11 @@ export default function PipelinePage() {
                 <Switch checked={showClosed} onCheckedChange={setShowClosed} />
               </div>
             )}
-
-            {/* Refresh */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => activeTab === "deals" ? refetchDeals() : refetchLeads()}
-              disabled={activeTab === "deals" ? dealsLoading : contactsLoading}
-            >
-              <RefreshCw className={`h-4 w-4 ${(dealsLoading || contactsLoading) ? "animate-spin" : ""}`} />
-            </Button>
           </div>
         </div>
 
         {/* Tab content — navigation is in the sidebar */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            {/* Filter controls */}
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* Pipeline selector — deals only */}
-                {activeTab === "deals" && (
-                  <Select value={selectedPipeline} onValueChange={(v) => { setSelectedPipeline(v); }}>
-                    <SelectTrigger className="w-fit h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pipelineOptions.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.label.replace(/^GLIDE\s*/i, "")}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {/* Owner filter — both tabs */}
-                <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-                  <SelectTrigger className="w-fit h-9">
-                    <User className="h-3.5 w-3.5 mr-2 shrink-0 text-muted-foreground" />
-                    <SelectValue placeholder="All owners" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Owners</SelectItem>
-                    {ownersByTeam.map(([team, members], i) => {
-                      const isOther = team === "Others";
-                      return (
-                        <SelectGroup key={team}>
-                          <div className="mx-2 my-1 border-t border-border" />
-                          {isOther ? (
-                            <button
-                              type="button"
-                              className="flex items-center gap-0.5 py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-full cursor-pointer hover:text-foreground transition-colors"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setShowOtherOwners((v) => !v);
-                              }}
-                            >
-                              <ChevronDown className={`h-3 w-3 stroke-[2.5] transition-transform ${showOtherOwners ? "" : "-rotate-90"}`} />
-                              {team} ({members.length})
-                            </button>
-                          ) : (
-                            <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider">{team}</SelectLabel>
-                          )}
-                          {(!isOther || showOtherOwners) && members.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                          ))}
-                        </SelectGroup>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-
-                {/* Date filters — deals only */}
-                {activeTab === "deals" && (
-                  <>
-                    <Select value={createDateFilter} onValueChange={setCreateDateFilter}>
-                      <SelectTrigger className="w-fit h-9">
-                        <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                        <SelectValue placeholder="Create date" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DATE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Create date" : o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={closeDateFilter} onValueChange={setCloseDateFilter}>
-                      <SelectTrigger className="w-fit h-9">
-                        <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                        <SelectValue placeholder="Close date" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DATE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label === "All dates" ? "Close date" : o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </>
-                )}
-              </div>
-          </div>
 
           {/* ---- LEADS TAB ---- */}
           <TabsContent value="leads" className="mt-0 flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden">
@@ -537,13 +549,11 @@ export default function PipelinePage() {
               const thisWeek = filtered.filter((c) => c.createdate && new Date(c.createdate).getTime() > weekAgo).length;
               const ages = filtered.filter((c) => c.createdate).map((c) => (now - new Date(c.createdate!).getTime()) / 86400000);
               const avgAge = ages.length > 0 ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
-              // Avg time to first touch: days between createdate and notes_last_updated
               const touchTimes = filtered
                 .filter((c) => c.createdate && c.notes_last_updated)
                 .map((c) => (new Date(c.notes_last_updated!).getTime() - new Date(c.createdate!).getTime()) / 86400000)
                 .filter((d) => d >= 0);
-              const avgTouch = touchTimes.length > 0 ? Math.round(touchTimes.reduce((a, b) => a + b, 0) / touchTimes.length * 10) / 10 : null;
-              // Unique owners count
+              const avgTouchHours = touchTimes.length > 0 ? Math.round(touchTimes.reduce((a, b) => a + b, 0) / touchTimes.length * 24) : null;
               const uniqueOwners = new Set(filtered.filter((c) => c.hubspot_owner_id).map((c) => c.hubspot_owner_id)).size;
               return (
                 <div className="mb-4 rounded-lg border border-border bg-muted/30 px-6 py-5">
@@ -551,7 +561,7 @@ export default function PipelinePage() {
                     <div>
                       <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Total Leads</p>
                       <p className="text-3xl font-bold mt-1">{total}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">active contacts</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">active leads</p>
                     </div>
                     <div>
                       <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">New This Week</p>
@@ -565,7 +575,7 @@ export default function PipelinePage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Avg First Touch</p>
-                      <p className="text-3xl font-bold mt-1">{avgTouch !== null ? (avgTouch < 1 ? "<1 day" : `${avgTouch} days`) : "—"}</p>
+                      <p className="text-3xl font-bold mt-1">{avgTouchHours !== null ? `${avgTouchHours} hrs` : "—"}</p>
                       <p className="text-sm text-muted-foreground mt-0.5">create to activity</p>
                     </div>
                     <div>
@@ -596,7 +606,10 @@ export default function PipelinePage() {
               </div>
             ) : (
               <>
-              <ScrollArea className="w-full flex-1">
+              <div className="relative w-full flex-1">
+                <div className={`pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-r from-background to-transparent transition-opacity duration-500 ${leadsFadeLeft ? 'opacity-100' : 'opacity-0'}`} />
+                <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-l from-background to-transparent transition-opacity duration-500 ${leadsFadeRight ? 'opacity-100' : 'opacity-0'}`} />
+              <ScrollArea className="w-full h-full" ref={(node) => { if (node) { const viewport = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement; if (viewport) leadsScrollRef.current = viewport; } }}>
                 {/* Stage headers — matching deals style */}
                 <div className="sticky top-0 z-10 bg-background pb-4">
                   <div className="border border-border rounded-lg flex" style={{ width: leadStatuses.length * 300 + (leadStatuses.length - 1) * 16 }}>
@@ -608,7 +621,7 @@ export default function PipelinePage() {
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm font-semibold truncate">{status.label}</span>
                             <Badge variant="secondary" className="text-xs shrink-0">
-                              {statusContacts.length} {statusContacts.length === 1 ? "contact" : "contacts"}
+                              {statusContacts.length} {statusContacts.length === 1 ? "lead" : "leads"}
                             </Badge>
                           </div>
                           {!isLast && (
@@ -631,7 +644,7 @@ export default function PipelinePage() {
                       <div key={status.id} className="shrink-0 flex flex-col relative" style={{ width: 300 + (isLastCol ? 0 : 16) }}>
                         <div className="space-y-4 overflow-y-auto flex-1 w-[300px]">
                           {statusContacts.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-8">No contacts</p>
+                            <p className="text-sm text-muted-foreground text-center py-8">No leads</p>
                           ) : (
                             statusContacts.map((contact) => (
                               <button
@@ -705,6 +718,7 @@ export default function PipelinePage() {
                 </div>
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
+              </div>
               </>
             )}
           </TabsContent>
@@ -762,7 +776,10 @@ export default function PipelinePage() {
               </div>
             ) : (
               <>
-              <ScrollArea className="w-full flex-1">
+              <div className="relative w-full flex-1">
+                <div className={`pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-r from-background to-transparent transition-opacity duration-500 ${dealsFadeLeft ? 'opacity-100' : 'opacity-0'}`} />
+                <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-l from-background to-transparent transition-opacity duration-500 ${dealsFadeRight ? 'opacity-100' : 'opacity-0'}`} />
+              <ScrollArea className="w-full h-full" ref={(node) => { if (node) { const viewport = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement; if (viewport) dealsScrollRef.current = viewport; } }}>
                 {/* Chevron pipeline bar */}
                 {/* Stage headers — bordered outline matching footer style */}
                 {(() => {
@@ -922,6 +939,7 @@ export default function PipelinePage() {
               )}
               <ScrollBar orientation="horizontal" />
               </ScrollArea>
+              </div>
               </>
             )}
           </TabsContent>

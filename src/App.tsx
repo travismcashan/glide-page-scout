@@ -28,6 +28,8 @@ import UsagePage from "./pages/UsagePage";
 import ServicesPage from "./pages/ServicesPage";
 import ServiceDetailPage from "./pages/ServiceDetailPage";
 import PipelinePage from "./pages/PipelinePage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectMappingPage from "./pages/ProjectMappingPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyCleanupPage from "./pages/CompanyCleanupPage";
@@ -95,6 +97,10 @@ const App = () => (
                 <Route path="/lists/:groupId" element={<GroupDetailPage />} />
                 <Route path="/connections" element={<ConnectionsPage />} />
                 <Route path="/pipeline" element={<PipelinePage />} />
+                <Route path="/leads" element={<PipelinePage />} />
+                <Route path="/deals" element={<PipelinePage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/projects/mapping" element={<ProjectMappingPage />} />
                 <Route path="/companies" element={<CompaniesPage />} />
                 <Route path="/companies/cleanup" element={<CompanyCleanupPage />} />
                 <Route path="/companies/mapping" element={<CompanyMappingPage />} />

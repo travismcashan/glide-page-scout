@@ -1,11 +1,12 @@
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   ChevronUp, ChevronsUpDown, LogOut, Shield, PanelLeftClose, PanelLeft,
-  Settings, X,
+  Settings, X, Cable, ListChecks, Layers, BarChart3, GitCompareArrows, Link2, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS, type ProductId } from '@/contexts/ProductContext';
 import { WORKSPACE_NAV, WORKSPACE_COMPANY_TABS, WORKSPACE_DEFAULT_ROUTE, TAB_ICONS } from '@/config/workspace-nav';
+import { useCompany } from '@/hooks/useCompany';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -62,6 +63,9 @@ export function AppSidebar() {
     setCurrentProduct(id);
     navigate(WORKSPACE_DEFAULT_ROUTE[id]);
   };
+
+  // Get company name for contextual section (reads from TanStack cache — no extra fetch)
+  const { company: activeCompany } = useCompany(activeCompanyId || undefined);
 
   // Get company tabs for contextual section
   const companyTabs = activeCompanyId
@@ -142,7 +146,7 @@ export function AppSidebar() {
       {/* ── Global nav (max 3-4 items per workspace) ────── */}
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>{currentProduct.name}</SidebarGroupLabel>
+          {/* Workspace name already in switcher above — no label needed */}
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
@@ -167,7 +171,7 @@ export function AppSidebar() {
             <SidebarSeparator />
             <SidebarGroup>
               <SidebarGroupLabel className="flex items-center justify-between">
-                <span className="truncate">Company</span>
+                <span className="truncate">{activeCompany?.name || 'Company'}</span>
                 <button
                   onClick={() => handleNav('/companies')}
                   className="h-4 w-4 flex items-center justify-center rounded text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
@@ -275,6 +279,35 @@ export function AppSidebar() {
                     <p className="text-sm font-medium truncate">{profile?.display_name || 'User'}</p>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => { navigate('/connections'); setOpenMobile(false); }}>
+                    <Cable className="mr-2 h-4 w-4" />
+                    Connections
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { navigate('/wishlist'); setOpenMobile(false); }}>
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    Wishlist
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { navigate('/services'); setOpenMobile(false); }}>
+                    <Layers className="mr-2 h-4 w-4" />
+                    Services
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { navigate('/usage'); setOpenMobile(false); }}>
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Usage
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { navigate('/projects/mapping'); setOpenMobile(false); }}>
+                    <GitCompareArrows className="mr-2 h-4 w-4" />
+                    Project Mapping
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { navigate('/companies/mapping'); setOpenMobile(false); }}>
+                    <Link2 className="mr-2 h-4 w-4" />
+                    Company Mapping
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { navigate('/companies/cleanup'); setOpenMobile(false); }}>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Cleanup
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => signOut()}>
                     <LogOut className="mr-2 h-4 w-4" />

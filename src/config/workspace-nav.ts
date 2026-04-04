@@ -40,14 +40,14 @@ export interface CompanyTab {
 
 export const WORKSPACE_NAV: Record<ProductId, NavItem[]> = {
   growth: [
-    { label: 'Leads', to: '/pipeline?tab=leads', icon: Building2 },
-    { label: 'Deals', to: '/pipeline?tab=deals', icon: TrendingUp },
+    { label: 'Leads', to: '/leads', icon: Building2 },
+    { label: 'Deals', to: '/deals', icon: TrendingUp },
     { label: 'Companies', to: '/companies', icon: Building2, matchPrefix: '/companies' },
     { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
   ],
   delivery: [
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
-    { label: 'Projects', to: '/pipeline', icon: FolderKanban },
+    { label: 'Projects', to: '/projects', icon: FolderKanban },
   ],
   admin: [
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },

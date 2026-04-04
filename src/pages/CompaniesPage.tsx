@@ -53,6 +53,7 @@ import {
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanies, useInvalidateCompanies } from '@/hooks/useCompanies';
+import { useProduct } from '@/contexts/ProductContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,6 +73,15 @@ type Company = {
   harvest_client_name: string | null;
   asana_project_gids: string[] | null;
   hubspot_company_id: string | null;
+  freshdesk_company_id: string | null;
+  quickbooks_client_name: string | null;
+  quickbooks_invoice_summary: {
+    count?: number;
+    total?: number;
+    lastDate?: string;
+    firstDate?: string;
+    services?: Record<string, { count: number; total: number }>;
+  } | null;
   last_synced_at: string | null;
   created_at: string;
   updated_at: string | null;
@@ -367,20 +377,31 @@ function FilterDropdown({
 export default function CompaniesPage() {
   const navigate = useNavigate();
 
+  // Workspace context — drives defaults, columns, and filtering
+  const { currentProduct } = useProduct();
+  const workspace = currentProduct.id; // 'growth' | 'delivery' | 'admin'
+
+  // Workspace-aware defaults
+  const defaultPreset = workspace === 'growth' ? 'pipeline' : workspace === 'delivery' ? 'active' : 'all';
+  const defaultSort: SortKey = workspace === 'growth' ? 'created_desc' : workspace === 'delivery' ? 'last_invoiced_desc' : 'name_asc';
+
   // Data (cached via TanStack Query)
   const { companies, loading } = useCompanies();
   const invalidateCompanies = useInvalidateCompanies();
 
-  // Search & Filters
+  // Search
   const [search, setSearch] = useState('');
-  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
-  const [sourceFilters, setSourceFilters] = useState<Set<string>>(new Set());
-  const [dataFilters, setDataFilters] = useState<Set<string>>(new Set());
-  const [activePreset, setActivePreset] = useState<string>('active');
 
   // Sort & Group
-  const [sortKey, setSortKey] = useState<SortKey>('last_invoiced_desc');
+  const [sortKey, setSortKey] = useState<SortKey>(defaultSort);
   const [groupKey, setGroupKey] = useState<GroupKey>('none');
+
+  // Reset when workspace changes
+  useEffect(() => {
+    setSortKey(defaultSort);
+    setSearch('');
+    setPage(0);
+  }, [workspace]);
 
   // Pagination
   const [page, setPage] = useState(0);
@@ -410,29 +431,23 @@ export default function CompaniesPage() {
   // Filtering
   // ---------------------------------------------------------------------------
 
-  // Preset filter functions
-  const presetFilter = useCallback((c: Company, preset: string): boolean => {
-    switch (preset) {
-      case 'active':
-        // Status is active — data cleanup ensures only truly active companies have this status
-        return c.status === 'active';
-      case 'pipeline':
-        // Prospects: not active, not past/archived
-        if (c.status === 'active' || c.status === 'past' || c.status === 'archived') return false;
-        return true;
-      case 'inactive':
-        // Past or archived companies
-        return c.status === 'past' || c.status === 'archived';
-      case 'all':
-      default:
-        return true;
-    }
-  }, []);
-
+  // Workspace-driven filtering: workspace determines base set
   const filtered = useMemo(() => {
     return companies.filter((c) => {
-      // Apply preset first
-      if (!presetFilter(c, activePreset)) return false;
+      // Never show archived companies anywhere
+      if (c.status === 'archived') return false;
+
+      // Workspace base filter
+      if (workspace === 'growth') {
+        // Growth = only companies connected to HubSpot (leads/deals pipeline)
+        if (!c.hubspot_company_id) return false;
+        if (c.status === 'active' || c.status === 'past') return false;
+      } else if (workspace === 'delivery') {
+        // Delivery = active clients only
+        if (c.status !== 'active') return false;
+      }
+      // Admin = all non-archived companies
+
       // Text search
       if (search) {
         const q = search.toLowerCase();
@@ -443,23 +458,14 @@ export default function CompaniesPage() {
           (c.location || '').toLowerCase().includes(q);
         if (!match) return false;
       }
-      if (statusFilters.size > 0 && !statusFilters.has(c.status)) return false;
-      if (sourceFilters.size > 0) {
-        const sources = getCompanySources(c);
-        if (![...sourceFilters].some((sf) => sources.includes(sf))) return false;
-      }
-      if (dataFilters.has('has_sites') && c.site_count === 0) return false;
-      if (dataFilters.has('has_contacts') && c.contact_count === 0) return false;
-      if (dataFilters.has('has_domain') && !c.domain) return false;
-      if (dataFilters.has('has_industry') && !c.industry) return false;
       return true;
     });
-  }, [companies, search, statusFilters, sourceFilters, dataFilters, activePreset, presetFilter]);
+  }, [companies, search, workspace]);
 
   const sorted = useMemo(() => sortCompanies(filtered, sortKey), [filtered, sortKey]);
 
   // Reset page when filters/sort/search change
-  useEffect(() => { setPage(0); }, [search, statusFilters, sourceFilters, dataFilters, sortKey, groupKey, pageSize]);
+  useEffect(() => { setPage(0); }, [search, sortKey, groupKey, pageSize, workspace]);
 
   // Pagination
   const totalPages = Math.ceil(sorted.length / pageSize);
@@ -469,12 +475,22 @@ export default function CompaniesPage() {
   );
   const groups = useMemo(() => groupCompanies(paginatedList, groupKey), [paginatedList, groupKey]);
 
-  // Summary stats
-  const activeCount = useMemo(() => filtered.filter((c) => c.status === 'active').length, [filtered]);
-  const withSitesCount = useMemo(() => filtered.filter((c) => c.site_count > 0).length, [filtered]);
-
-  // Total active filter count
-  const totalActiveFilters = statusFilters.size + sourceFilters.size + dataFilters.size;
+  // Workspace-aware summary stats
+  const stats = useMemo(() => {
+    if (workspace === 'growth') {
+      const withDomain = filtered.filter(c => c.domain).length;
+      const withContacts = filtered.filter(c => c.contact_count > 0).length;
+      return { label1: `${withDomain} with domain`, label2: `${withContacts} with contacts` };
+    } else if (workspace === 'delivery') {
+      const withHarvest = filtered.filter(c => c.harvest_client_id).length;
+      const withAsana = filtered.filter(c => c.asana_project_gids?.length).length;
+      return { label1: `${withHarvest} in Harvest`, label2: `${withAsana} in Asana` };
+    } else {
+      const invoiced = filtered.filter(c => c.quickbooks_invoice_summary?.total).length;
+      const totalRevenue = filtered.reduce((s, c) => s + (c.quickbooks_invoice_summary?.total || 0), 0);
+      return { label1: `${invoiced} invoiced`, label2: totalRevenue > 0 ? `$${(totalRevenue / 1000).toFixed(0)}K total` : '' };
+    }
+  }, [filtered, workspace]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -492,10 +508,6 @@ export default function CompaniesPage() {
     [],
   );
 
-  const toggleStatus = toggleSet(setStatusFilters);
-  const toggleSource = toggleSet(setSourceFilters);
-  const toggleData = toggleSet(setDataFilters);
-
   const toggleGroup = useCallback((label: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
@@ -511,23 +523,6 @@ export default function CompaniesPage() {
     setSortKey((prev) => (prev === pair[0] ? pair[1] : pair[0]));
   }, []);
 
-  const clearAllFilters = useCallback(() => {
-    setStatusFilters(new Set());
-    setSourceFilters(new Set());
-    setDataFilters(new Set());
-    setSearch('');
-  }, []);
-
-  const switchPreset = useCallback((preset: string) => {
-    setActivePreset(preset);
-    setStatusFilters(new Set());
-    setSourceFilters(new Set());
-    setDataFilters(new Set());
-    setSearch('');
-    setPage(0);
-    // Default sort: Active → last invoiced, others → name
-    setSortKey(preset === 'active' ? 'last_invoiced_desc' : 'name_asc');
-  }, []);
 
   // ---------------------------------------------------------------------------
   // Sub-components
@@ -594,44 +589,90 @@ export default function CompaniesPage() {
   // ---------------------------------------------------------------------------
 
   function CompanyTableRow({ company }: { company: Company }) {
-    const sources = getCompanySources(company);
+    const qb = company.quickbooks_invoice_summary;
+    const lastActivity = company.updated_at || company.created_at;
+    const services = getCompanySources(company);
+
     return (
       <TableRow className="cursor-pointer hover:bg-accent/5" onClick={() => navigate(`/companies/${company.id}`)}>
+        {/* Name — all workspaces */}
         <TableCell className="max-w-[280px]">
           <div className="flex items-center gap-3">
             <CompanyLogo company={company} />
             <div className="min-w-0">
               <div className="font-medium text-foreground truncate">{company.name}</div>
-              {company.domain && <div className="text-xs text-muted-foreground truncate">{company.domain}</div>}
+              {workspace === 'delivery' && company.domain && <div className="text-xs text-muted-foreground truncate">{company.domain}</div>}
             </div>
           </div>
         </TableCell>
-        <TableCell>
-          <Badge variant="outline" className={`text-xs py-0.5 ${STATUS_COLORS[company.status] || ''}`}>
-            {company.status}
-          </Badge>
-        </TableCell>
-        <TableCell>
-          {sources.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {sources.map((s) => (
-                <Badge key={s} variant="outline" className={`text-xs px-2 py-0.5 ${SOURCE_BADGE_STYLES[s]}`}>
-                  {s}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <span className="text-muted-foreground/40">--</span>
-          )}
-        </TableCell>
-        <TableCell className="text-muted-foreground text-sm truncate max-w-[160px]">
-          {formatIndustry(company.industry) || <span className="text-muted-foreground/40">--</span>}
-        </TableCell>
-        <TableCell className="text-muted-foreground tabular-nums">
-          {company.employee_count || <span className="text-muted-foreground/40">--</span>}
-        </TableCell>
-        <TableCell className="text-muted-foreground tabular-nums">{company.contact_count}</TableCell>
-        <TableCell className="text-muted-foreground tabular-nums">{company.site_count}</TableCell>
+
+        {/* ── Growth columns: Domain, Last Activity, Industry, Contact ── */}
+        {workspace === 'growth' && (
+          <TableCell className="text-muted-foreground text-sm truncate max-w-[160px]">
+            {company.domain || <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+        {workspace === 'growth' && (
+          <TableCell className="text-muted-foreground text-xs">
+            {lastActivity ? timeAgo(lastActivity) : <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+        {workspace === 'growth' && (
+          <TableCell className="text-muted-foreground text-sm truncate max-w-[140px]">
+            {formatIndustry(company.industry) || <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+        {workspace === 'growth' && (
+          <TableCell className="text-muted-foreground tabular-nums text-sm">
+            {company.contact_count || <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+
+        {/* ── Delivery columns: Services, Last Activity, Contacts ── */}
+        {workspace === 'delivery' && (
+          <TableCell>
+            {services.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {services.map((s) => (
+                  <Badge key={s} variant="outline" className={`text-[10px] px-1.5 py-0 ${SOURCE_BADGE_STYLES[s] || ''}`}>
+                    {s}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-muted-foreground/30">--</span>
+            )}
+          </TableCell>
+        )}
+        {workspace === 'delivery' && (
+          <TableCell className="text-muted-foreground text-xs">
+            {lastActivity ? timeAgo(lastActivity) : <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+        {workspace === 'delivery' && (
+          <TableCell className="text-muted-foreground tabular-nums text-sm">
+            {company.contact_count || <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+
+        {/* ── Admin columns: Last Invoice, Revenue, Status ── */}
+        {workspace === 'admin' && (
+          <TableCell className="text-muted-foreground text-xs">
+            {qb?.lastDate ? new Date(qb.lastDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+        {workspace === 'admin' && (
+          <TableCell className="text-muted-foreground tabular-nums text-sm font-medium">
+            {qb?.total ? `$${Math.round(qb.total).toLocaleString()}` : <span className="text-muted-foreground/30">--</span>}
+          </TableCell>
+        )}
+        {workspace === 'admin' && (
+          <TableCell>
+            <Badge variant="outline" className={`text-xs py-0.5 ${STATUS_COLORS[company.status] || ''}`}>
+              {company.status}
+            </Badge>
+          </TableCell>
+        )}
       </TableRow>
     );
   }
@@ -732,200 +773,65 @@ export default function CompaniesPage() {
     <div>
       <main className="px-4 sm:px-6 py-6">
 
-        {/* ── Header + View Presets ── */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">Companies</h1>
-            {!loading && (
-              <span className="text-sm text-muted-foreground tabular-nums">
-                {filtered.length === companies.length
-                  ? companies.length.toLocaleString()
-                  : `${filtered.length.toLocaleString()} of ${companies.length.toLocaleString()}`}
-              </span>
-            )}
-          </div>
-          <Button variant="outline" size="sm" onClick={() => navigate('/companies/mapping')} className="gap-1.5">
-            <Link2 className="h-3.5 w-3.5" />
-            Mapping
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/companies/cleanup')} className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" />
-            Cleanup
-          </Button>
-        </div>
-
-        {/* ── Smart Views ── */}
-        <div className="flex items-center gap-1 mb-4 border-b border-border pb-3">
-          {([
-            { key: 'active', label: 'Active' },
-            { key: 'pipeline', label: 'Pipeline' },
-            { key: 'inactive', label: 'Inactive' },
-            { key: 'all', label: 'All' },
-          ]).map((preset) => (
-            <button
-              key={preset.key}
-              onClick={() => switchPreset(preset.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                activePreset === preset.key
-                  ? 'bg-foreground/10 text-foreground border border-foreground/20'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
-              }`}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Toolbar ── */}
-        <div className="flex items-center gap-2 mb-3">
+        {/* ── Row 1: Title + Count + Search + Sort + View toggle ── */}
+        <div className="flex items-center gap-3 mb-3">
+          <h1 className="text-2xl font-bold tracking-tight shrink-0">
+            {workspace === 'delivery' ? 'Clients' : workspace === 'admin' ? 'Companies' : 'Companies'}
+          </h1>
+          {!loading && (
+            <span className="text-sm text-muted-foreground tabular-nums shrink-0">{filtered.length.toLocaleString()}</span>
+          )}
 
           {/* Search */}
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search companies..."
+              placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9 text-sm"
+              className="pl-8 h-8 text-sm"
             />
             {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
 
-          {/* Divider */}
-          <div className="h-5 w-px bg-border" />
-
-          {/* Filter dropdowns */}
-          <FilterDropdown
-            label="Status"
-            options={STATUS_ORDER.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
-            selected={statusFilters}
-            onToggle={toggleStatus}
-            onClear={() => setStatusFilters(new Set())}
-            dotColors={STATUS_DOT}
-          />
-
-          <FilterDropdown
-            label="Sources"
-            options={[
-              { value: 'Harvest', label: 'Harvest' },
-              { value: 'Asana', label: 'Asana' },
-              { value: 'HubSpot', label: 'HubSpot' },
-            ]}
-            selected={sourceFilters}
-            onToggle={toggleSource}
-            onClear={() => setSourceFilters(new Set())}
-          />
-
-          <FilterDropdown
-            label="Data"
-            icon={<SlidersHorizontal className="h-3 w-3" />}
-            options={[
-              { value: 'has_sites', label: 'Has sites' },
-              { value: 'has_contacts', label: 'Has contacts' },
-              { value: 'has_domain', label: 'Has domain' },
-              { value: 'has_industry', label: 'Has industry' },
-            ]}
-            selected={dataFilters}
-            onToggle={toggleData}
-            onClear={() => setDataFilters(new Set())}
-          />
-
-          {/* Clear all filters */}
-          {totalActiveFilters > 0 && (
-            <button
-              onClick={clearAllFilters}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-            >
-              <X className="h-3.5 w-3.5" />
-              Clear
-            </button>
-          )}
-
-          {/* Spacer */}
           <div className="flex-1" />
+
+          {/* Inline stats */}
+          <div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground">
+            <span>{stats.label1}</span>
+            {stats.label2 && <span>{stats.label2}</span>}
+          </div>
 
           {/* Sort */}
           <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-            <SelectTrigger className="w-[165px] h-9 text-sm">
-              <div className="flex items-center gap-2">
-                <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                <SelectValue />
-              </div>
+            <SelectTrigger className="w-fit h-8 text-sm">
+              <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-50 mr-1.5" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="name_asc">Name (A-Z)</SelectItem>
               <SelectItem value="name_desc">Name (Z-A)</SelectItem>
               <SelectItem value="status">Status</SelectItem>
-              <SelectItem value="employee_count_desc">Employees</SelectItem>
-              <SelectItem value="contacts_desc">Contacts</SelectItem>
-              <SelectItem value="sites_desc">Sites</SelectItem>
-              <SelectItem value="last_synced_desc">Last Synced</SelectItem>
-              <SelectItem value="created_desc">Created</SelectItem>
+              <SelectItem value="created_desc">Newest</SelectItem>
               <SelectItem value="last_invoiced_desc">Last Invoiced</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Group */}
-          <Select
-            value={groupKey}
-            onValueChange={(v) => {
-              setGroupKey(v as GroupKey);
-              setCollapsedGroups(new Set());
-            }}
-          >
-            <SelectTrigger className="w-[145px] h-9 text-sm">
-              <div className="flex items-center gap-2">
-                <Layers className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                <SelectValue />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No Grouping</SelectItem>
-              <SelectItem value="status">Status</SelectItem>
-              <SelectItem value="industry">Industry</SelectItem>
-              <SelectItem value="source">Source</SelectItem>
+              <SelectItem value="contacts_desc">Contacts</SelectItem>
+              <SelectItem value="employee_count_desc">Employees</SelectItem>
             </SelectContent>
           </Select>
 
           {/* View toggle */}
-          <div className="flex items-center border border-border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-9 w-9 rounded-none"
-              onClick={() => setViewMode('table')}
-            >
-              <LayoutList className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-9 w-9 rounded-none"
-              onClick={() => setViewMode('cards')}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center border border-border rounded-md overflow-hidden">
+            <button className={`h-8 w-8 flex items-center justify-center ${viewMode === 'table' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('table')}>
+              <LayoutList className="h-3.5 w-3.5" />
+            </button>
+            <button className={`h-8 w-8 flex items-center justify-center ${viewMode === 'cards' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('cards')}>
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
           </div>
-        </div>
-
-        {/* ── Summary ── */}
-        <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-          <span>{activeCount} active</span>
-          <span>&middot;</span>
-          <span>{withSitesCount} with sites</span>
-          {totalActiveFilters > 0 && (
-            <>
-              <span>&middot;</span>
-              <span>{totalActiveFilters} {totalActiveFilters === 1 ? 'filter' : 'filters'} applied</span>
-            </>
-          )}
         </div>
 
         {/* ── Content ── */}
@@ -935,8 +841,8 @@ export default function CompaniesPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">
-            {totalActiveFilters > 0 || search
-              ? 'No companies match your filters.'
+            {search
+              ? 'No companies match your search.'
               : 'No companies yet. Run a global sync from Connections to populate.'}
           </div>
         ) : viewMode === 'table' ? (
@@ -949,12 +855,16 @@ export default function CompaniesPage() {
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
                         <SortableHeader column="company" label="Name" />
-                        <SortableHeader column="status" label="Status" />
-                        <SortableHeader column="sources" label="Streams" />
-                        <SortableHeader column="industry" label="Industry" />
-                        <SortableHeader column="employees" label="Emp." />
-                        <SortableHeader column="contacts" label="Contacts" />
-                        <SortableHeader column="sites" label="Sites" />
+                        {workspace === 'growth' && <TableHead className="text-muted-foreground">Domain</TableHead>}
+                        {workspace === 'growth' && <TableHead className="text-muted-foreground">Last Activity</TableHead>}
+                        {workspace === 'growth' && <SortableHeader column="industry" label="Industry" />}
+                        {workspace === 'growth' && <SortableHeader column="contacts" label="Contact" />}
+                        {workspace === 'delivery' && <TableHead className="text-muted-foreground">Services</TableHead>}
+                        {workspace === 'delivery' && <TableHead className="text-muted-foreground">Last Activity</TableHead>}
+                        {workspace === 'delivery' && <SortableHeader column="contacts" label="Contacts" />}
+                        {workspace === 'admin' && <TableHead className="text-muted-foreground">Last Invoice</TableHead>}
+                        {workspace === 'admin' && <TableHead className="text-muted-foreground">Revenue</TableHead>}
+                        {workspace === 'admin' && <SortableHeader column="status" label="Status" />}
                       </TableRow>
                     </TableHeader>
                     <TableBody>

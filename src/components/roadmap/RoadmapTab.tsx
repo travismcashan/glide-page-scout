@@ -23,6 +23,7 @@ interface RoadmapTabProps {
   domain?: string;
   companyId?: string;
   companyName?: string;
+  dealId?: string;
 }
 
 function isRecurringOffering(offering: Offering): boolean {
@@ -70,25 +71,41 @@ export default function RoadmapTab({ sessionId, domain, companyId, companyName }
     "Finalizing growth plan recommendations...",
   ];
 
-  // Load or create roadmap for this session
+  // Load or create roadmap — company-first lookup, session as fallback
   useEffect(() => {
-    if (!sessionId || offeringsLoading) return;
+    if ((!sessionId && !companyId) || offeringsLoading) return;
     const init = async () => {
-      // Look for existing roadmap tied to this session
-      const { data: existing } = await supabase
-        .from("roadmaps" as any)
-        .select("*")
-        .eq("session_id", sessionId)
-        .maybeSingle();
+      let roadmap: any = null;
 
-      let roadmap = existing as any;
+      // Prefer company_id lookup (company is the primary parent)
+      if (companyId) {
+        const { data: byCompany } = await supabase
+          .from("roadmaps" as any)
+          .select("*")
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        roadmap = byCompany;
+      }
+
+      // Fallback to session_id for legacy records
+      if (!roadmap && sessionId) {
+        const { data: bySession } = await supabase
+          .from("roadmaps" as any)
+          .select("*")
+          .eq("session_id", sessionId)
+          .maybeSingle();
+        roadmap = bySession;
+      }
 
       if (!roadmap) {
-        // Create one, defaulting client_name to company name or domain
+        // Create one — company_id is the primary parent
         const defaultName = companyName
           || (domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "Client");
-        const insertData: any = { session_id: sessionId, user_id: user?.id ?? null, client_name: defaultName, start_month: new Date().getMonth(), total_months: 12 };
+        const insertData: any = { user_id: user?.id ?? null, client_name: defaultName, start_month: new Date().getMonth(), total_months: 12 };
         if (companyId) insertData.company_id = companyId;
+        if (sessionId) insertData.session_id = sessionId;
         const { data: created } = await supabase
           .from("roadmaps" as any)
           .insert(insertData)
@@ -135,7 +152,7 @@ export default function RoadmapTab({ sessionId, domain, companyId, companyName }
       setLoaded(true);
     };
     init();
-  }, [sessionId, offeringsLoading, offerings, domain]);
+  }, [sessionId, companyId, offeringsLoading, offerings, domain]);
 
   // Auto-save debounced
   const save = useCallback(() => {

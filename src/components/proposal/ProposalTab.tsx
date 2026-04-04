@@ -23,6 +23,9 @@ import NextSteps from "./sections/NextSteps";
 interface ProposalTabProps {
   sessionId: string;
   domain?: string;
+  companyId?: string;
+  initialCompanyName?: string;
+  dealId?: string;
 }
 
 export interface ProposalData {
@@ -53,7 +56,7 @@ function isRecurringOffering(offering: Offering): boolean {
   );
 }
 
-export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
+export default function ProposalTab({ sessionId, domain, companyId, initialCompanyName, dealId }: ProposalTabProps) {
   const { user } = useAuth();
   const { offerings, loading: offeringsLoading } = useServiceOfferings();
   const [proposalData, setProposalData] = useState<ProposalData>(EMPTY_PROPOSAL);
@@ -95,15 +98,29 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
   const [roadmapLoaded, setRoadmapLoaded] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // ── Load roadmap (same logic as RoadmapTab) ─────────────────
+  // ── Load roadmap (company-first, session fallback) ──────────
   useEffect(() => {
-    if (!sessionId || offeringsLoading) return;
+    if ((!sessionId && !companyId) || offeringsLoading) return;
     (async () => {
-      const { data: existing } = await supabase
-        .from("roadmaps" as any)
-        .select("*")
-        .eq("session_id", sessionId)
-        .maybeSingle();
+      let existing: any = null;
+      if (companyId) {
+        const { data } = await supabase
+          .from("roadmaps" as any)
+          .select("*")
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        existing = data;
+      }
+      if (!existing && sessionId) {
+        const { data } = await supabase
+          .from("roadmaps" as any)
+          .select("*")
+          .eq("session_id", sessionId)
+          .maybeSingle();
+        existing = data;
+      }
 
       const roadmap = existing as any;
       if (!roadmap) { setRoadmapLoaded(true); return; }
@@ -274,15 +291,29 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     setOutcomesData(outcomes);
   }, []);
 
-  // ── Load proposal + HubSpot contact ─────────────────────────
+  // ── Load proposal + HubSpot contact (company-first) ─────────
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId && !companyId) return;
     (async () => {
-      const { data } = await supabase
-        .from("proposals" as any)
-        .select("*")
-        .eq("session_id", sessionId)
-        .maybeSingle();
+      let data: any = null;
+      if (companyId) {
+        const { data: byCompany } = await supabase
+          .from("proposals" as any)
+          .select("*")
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        data = byCompany;
+      }
+      if (!data && sessionId) {
+        const { data: bySession } = await supabase
+          .from("proposals" as any)
+          .select("*")
+          .eq("session_id", sessionId)
+          .maybeSingle();
+        data = bySession;
+      }
       if (data) {
         const d = data as any;
         if (d.proposal_data) {
@@ -328,21 +359,28 @@ export default function ProposalTab({ sessionId, domain }: ProposalTabProps) {
     })();
   }, [sessionId]);
 
-  // ── Save proposal ───────────────────────────────────────────
+  // ── Save proposal (company_id is primary parent) ────────────
   const saveProposal = useCallback(async (data: ProposalData) => {
-    await supabase
-      .from("proposals" as any)
-      .upsert({
-        session_id: sessionId,
-        user_id: user?.id ?? null,
-        proposal_data: data,
-        contact_name: contactName,
-        contact_title: contactTitle,
-        contact_email: contactEmail,
-        company_name: companyName,
-        updated_at: new Date().toISOString(),
-      } as any, { onConflict: "session_id" });
-  }, [sessionId, user, contactName, contactTitle, contactEmail, companyName]);
+    const payload: any = {
+      user_id: user?.id ?? null,
+      proposal_data: data,
+      contact_name: contactName,
+      contact_title: contactTitle,
+      contact_email: contactEmail,
+      company_name: companyName,
+      updated_at: new Date().toISOString(),
+    };
+    if (companyId) payload.company_id = companyId;
+    if (sessionId) payload.session_id = sessionId;
+    if (dealId) payload.deal_id = dealId;
+
+    // Upsert by session_id for backward compat (existing records keyed by session)
+    if (sessionId) {
+      await supabase.from("proposals" as any).upsert(payload, { onConflict: "session_id" });
+    } else {
+      await supabase.from("proposals" as any).insert(payload);
+    }
+  }, [sessionId, companyId, dealId, user, contactName, contactTitle, contactEmail, companyName]);
 
   const generateSection = useCallback(async (
     sectionKey: SectionKey,
