@@ -164,6 +164,51 @@ Agency Brain is not a fourth pillar. It's the intelligence layer underneath all 
 
 ---
 
+## Navigation Architecture — Workspaces
+
+The app uses a workspace switcher (in the logo area) to scope the entire UI by pillar. Same brain underneath, different lens on top.
+
+```
+┌──────────────────────────────────────────────┐
+│  GLIDE® [▾ Growth]              Travis ●     │
+│──────────────────────────────────────────────│
+│  [ Companies ] [ Pipeline ] [ Knowledge ]    │
+└──────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────┐
+│  GLIDE® [▾ Delivery]           Travis ●      │
+│──────────────────────────────────────────────│
+│  [ Clients ] [ Projects ] [ Knowledge ]      │
+└──────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────┐
+│  GLIDE® [▾ Admin]              Travis ●      │
+│──────────────────────────────────────────────│
+│  [ Clients ] [ Hours ] [ Invoicing ]         │
+└──────────────────────────────────────────────┘
+```
+
+### What Each Workspace Shows
+
+| | **Growth** | **Delivery** | **Admin** |
+|---|---|---|---|
+| **Who uses it** | Sales, Travis | Strategists, designers, devs | Ops, Travis |
+| **Companies filtered to** | Prospects | Active clients | All (financial view) |
+| **Nav items** | Companies, Pipeline, Knowledge, Proposals | Clients, Projects, Knowledge, Analytics | Clients, Hours, Invoicing, Agreements |
+| **Company detail tabs** | Overview, Contacts, Sites, Knowledge, Chat, Roadmap, Proposal | Overview, Contacts, Deals, Sites, Knowledge, Chat, Roadmap, Analytics | Overview, Hours, Budget, Agreements |
+| **Brain layers emphasized** | Connections → Insights → Actions | All 7 | Connections, KB, Outcomes |
+
+### Key Principles
+
+- **Role-based scoping** — A PM never sees Pipeline. A salesperson never sees Hours. Not "access denied" — just irrelevant tools hidden.
+- **Same data, different view** — Acme Corp exists in all three workspaces with different context surfaced.
+- **Knowledge is shared but filtered** — Growth KB = enrichment, audits, research. Delivery KB = strategy docs, transcripts, patterns. Admin KB = agreements, SOWs, budgets.
+- **Company detail tabs adapt** — Prospect gets Proposal tab. Active client gets Analytics. Past client gets Outcomes.
+- **Maps to Three Lenses** — Growth = Front Stage heavy. Delivery = all three. Admin = House lens.
+- **Scales to teams** — Assign people to workspaces. Travis sees all three. Junior PM = Delivery only. Account exec = Growth only.
+
+---
+
 ## Three Lenses Model
 
 ### Front Stage (End User Lens)
@@ -319,14 +364,31 @@ Vision: Instead of 30-50 hours in strategy, spend 5 elite hours because 25-30 ho
 
 ---
 
-## Technical Architecture (Current State — Apr 3 2026)
+## Technical Architecture (Current State — Apr 4 2026)
 
 ### Company-Centric Data Model (Phase 1 SHIPPED)
 - Company is the north star entity. Site is an artifact of a company.
-- **Tables live:** companies (28), contacts (67), deals (7), engagements (288). All with user-scoped RLS.
-- **Auto-sync pipelines:** Apollo → companies + contacts. HubSpot → companies + contacts + deals + engagements. Ocean.io → companies enrichment.
-- **Company detail page:** 7 tabs (Overview, Contacts, Deals, Sites, Knowledge, Roadmap, Chat).
+- **Tables live:** companies (2102), contacts (67), deals, engagements, company_source_data. All with user-scoped RLS.
+- **External ID mapping:** companies have `hubspot_company_id` (1900), `harvest_client_id` (408), `freshdesk_company_id` (587) for cross-system linking.
+- **Company detail page:** Dynamic tabs (Overview, Contacts, Deals, Projects, Time, Invoices, Tickets, Sites, Knowledge, Roadmap, Chat). Harvest/Freshdesk tabs appear only when external IDs exist.
 - **Company Chat:** Multi-session hybrid RAG across all company sites.
+
+### On-Demand Artifact Fetching (deployed Apr 4 2026)
+- **`company-artifacts` edge function** — fetches external data live per-company when visiting tabs. No global batch sync needed.
+- **Supported artifacts:** tickets (Freshdesk search API), deals + engagements (HubSpot associations API), projects + time_entries + invoices (Harvest client_id filtering).
+- **Architecture:** Tab activation → `fetchArtifact()` → edge function → external API → state update. Cached via `artifactsFetched` ref Set (no re-fetch on tab revisit).
+- **Freshdesk quirk:** Must use `/search/tickets?query="company_id:X"` (not `/tickets?company_id=X` which returns 403).
+
+### Global Sync Engine (Connections)
+- **`global-sync`** — cross-references Harvest, HubSpot, Freshdesk, Asana to build unified company list. Domain-first matching, then name normalization.
+- **Batch sync functions** (freshdesk-sync, hubspot-sync, harvest-sync) — pull all artifacts for all mapped companies. Reference/fallback, not primary path.
+- **Per-source sync** — ConnectionsPage has individual sync buttons per integration.
+- **Raw source data** stored in `company_source_data` table for enrichment.
+
+### Active Clients Management
+- **Active tab** on CompaniesPage shows `status='active'` companies, sorted by last invoice date.
+- **Status lifecycle:** prospect → active (when invoiced) → past (when stale, 12+ months no invoice) → archived.
+- Stale detection is manual currently; wishlist item exists for auto-downgrade.
 
 ### RAG System (deployed Apr 2 2026)
 - Hybrid search: BM25 + vector (70/30 weight) with Reciprocal Rank Fusion
@@ -343,8 +405,14 @@ Vision: Instead of 30-50 hours in strategy, spend 5 elite hours because 25-30 ho
 
 ## Known Issues
 
+### Harvest Token Expired
+HARVEST_ACCESS_TOKEN returns 403 on all API calls. Need to regenerate via Harvest OAuth. Affects company-artifacts Harvest tabs and harvest-sync.
+
 ### Council Chat Bug
 Model council returns "No synthesis available" — API calls failing silently (~135ms response = too fast). Debug: check API keys in Supabase secrets, verify model IDs, add error logging to catch blocks.
+
+### AI Company Matching (Planned)
+`company-match-ai` edge function is deployed but not wired into Phase0Map UI. Plan exists in `kind-baking-mountain.md`.
 
 ---
 
