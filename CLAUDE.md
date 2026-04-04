@@ -474,20 +474,41 @@ Sidebar restructured per design expert analysis (Nielsen, Krug, Ive, Frog).
 
 ---
 
+## What Was Built (Apr 4 2026 — "Asana Port + Workspace Redesign" session)
+
+### Asana↔Harvest Integration (SHIPPED)
+- `project_mappings` + `asana_config` tables live. 47/51 Asana projects AI-matched to Harvest.
+- 3 new edge functions: `asana-clients`, `harvest-project-hours`, `project-mapping` (Claude Haiku AI matching).
+- `/projects` page — company-centric merged view (Asana status + Harvest budget).
+- `/projects/mapping` page — visible mapping table with edit/lock/unlink/Run AI Match.
+
+### CompaniesPage Workspace Redesign (SHIPPED)
+- One-row header: Title + Count + Search + Stats + Sort + View toggle. Killed: smart view tabs, status/sources/data filters, group dropdown, summary row, Mapping/Cleanup buttons.
+- **Growth**: Shows HubSpot-connected prospects. Columns: Name, Domain, Last Activity, Industry, Contact.
+- **Delivery**: Title says "Clients". Shows active only. Columns: Name, Services, Last Activity, Contacts.
+- **Admin**: Shows all non-archived. Columns: Name, Last Invoice, Revenue, Status.
+- Archived companies filtered out globally.
+
+### Other UI Changes (SHIPPED)
+- `/leads` and `/deals` clean routes (replace `/pipeline?tab=`). Filters merged onto title row.
+- Sidebar: removed workspace label, shows company name in contextual section.
+- User dropdown: Connections, Wishlist, Services, Usage, Project Mapping, Company Mapping, Cleanup.
+- Scroll fade edges on leads/deals (500ms, scroll-position-aware).
+- Roadmap/Proposal/Estimate: `company_id` is primary parent, `deal_id` added, `session_id` optional.
+
 ## Next Session Priority
 
-**Port AgencyAtlas (Asana + Harvest merge) into Ascend.** The `agencyatlas` repo (github.com/travismcashan/agencyatlas) has working Asana↔Harvest project mapping with AI-powered matching, budget tracking, team utilization, and a unified clients view. Key pieces to port:
+**#1: Growth companies = pipeline only.** Currently shows 1,489 HubSpot prospects. Must only show companies attached to active leads or deals (~20 companies). Requires persisting lead/deal→company associations during hubspot-pipeline fetch, or cross-referencing at query time.
 
-1. **Data model:** `project_mappings` table (Asana GID → Harvest project ID, confidence scores), `team_members` table (Harvest users with capacity/roles), `asana_config` table (portfolio GIDs, grouping fields, hourly rates)
-2. **Edge functions:** `asana-clients` (portfolio-based project fetch with milestones + task counts), `project-mapping` (AI fuzzy match Asana→Harvest), `harvest-project-hours` (budget tracking), `harvest-time` (team utilization by period)
-3. **UI components:** `ClientsTab` → Delivery "Projects" view (Asana status + Harvest budget merged), `TeamMemberTable` → Agency Team view (utilization, capacity, roles)
-4. **Run Asana mapping** — currently 0 companies have `asana_project_gids` mapped. Need to run global-sync or port the project-mapping function.
+**#2: Page-by-page UI audit.** Travis wants to systematically go through each page and redesign controls to be unified, fit on one line, remove unnecessary elements. Started with CompaniesPage and Leads/Deals — need to continue with company detail page, projects page, etc.
+
+**#3: Expert panel columns need data joins.** The approved design has Growth showing Deal Stage + Deal Amount, Delivery showing Project Status + Budget Health + Owner. These require joining HubSpot deals and Asana/Harvest project data to companies at query time.
 
 **Other priorities:**
-- Workspace-scoped data filtering on CompaniesPage (Growth=prospects, Delivery=active, Admin=all)
 - Re-crawl sites (80+ historical crawls lost)
-- Wire Connections/Wishlist/Services/Usage into Settings page as sub-sections
 - Pattern Library (Brain Pillar 3)
+- Team utilization view (port `harvest-time` from AgencyAtlas)
+- Z_Archive companies have `status=prospect` — need data cleanup to mark as archived
 
 ---
 
