@@ -281,6 +281,9 @@ export default function ConnectionsPage() {
   // Global Sync state
   const [globalSyncing, setGlobalSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [sourceSyncing, setSourceSyncing] = useState<string | null>(null);
+  const [artifactSyncing, setArtifactSyncing] = useState<string | null>(null);
+  const [artifactProgress, setArtifactProgress] = useState<string>('');
 
   // Property picker state
   const [pickerProvider, setPickerProvider] = useState<string | null>(null);
@@ -544,6 +547,134 @@ export default function ConnectionsPage() {
     }
   };
 
+  const handleSourceSync = async (sourceId: string) => {
+    setSourceSyncing(sourceId);
+    try {
+      const { data: { user } } = await (await import('@/integrations/supabase/client')).supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/global-sync`, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ action: 'sync', userId: user.id, sources: [sourceId] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+
+      const { created, updated } = data.summary;
+      const label = { hubspot: 'HubSpot', harvest: 'Harvest', freshdesk: 'Freshdesk' }[sourceId] || sourceId;
+      if (created > 0 || updated > 0) {
+        toast.success(`${label} sync: ${created} created, ${updated} updated`);
+      } else {
+        toast.info(`${label} already in sync`);
+      }
+    } catch (err: any) {
+      console.error(`Source sync error (${sourceId}):`, err);
+      toast.error(`Sync failed: ${err.message}`);
+    } finally {
+      setSourceSyncing(null);
+    }
+  };
+
+  const handleArtifactSync = async (source: string) => {
+    const fnName = `${source}-sync`;
+    const label = { hubspot: 'HubSpot', harvest: 'Harvest', freshdesk: 'Freshdesk' }[source] || source;
+    setArtifactSyncing(source);
+    setArtifactProgress(`Connecting to ${label}...`);
+    try {
+      const { data: { user } } = await (await import('@/integrations/supabase/client')).supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      setArtifactProgress(`Fetching ${label} data from API...`);
+      toast.info(`${label} sync started — pulling data from API...`, { duration: 3000 });
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fnName}`, {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+
+      setArtifactProgress('');
+      const parts: string[] = [];
+      for (const [key, val] of Object.entries(data.results || {})) {
+        const v = typeof val === 'number' ? val : (val as any);
+        const count = typeof v === 'number' ? v : ((v?.created || 0) + (v?.updated || 0) || v || 0);
+        if (count > 0) parts.push(`${key}: ${count}`);
+      }
+      if (parts.length > 0) {
+        toast.success(`✅ ${label} artifacts synced — ${parts.join(', ')}`, { duration: 6000 });
+      } else {
+        toast.info(`${label} — no new artifacts found`);
+      }
+    } catch (err: any) {
+      console.error(`Artifact sync error (${source}):`, err);
+      toast.error(`${label} artifact sync failed: ${err.message}`, { duration: 8000 });
+      setArtifactProgress('');
+    } finally {
+      setArtifactSyncing(null);
+      setArtifactProgress('');
+    }
+  };
+
+  const handleSyncAllArtifacts = async () => {
+    // Split into small per-artifact calls to avoid edge function timeout (150s)
+    const steps = [
+      { fn: 'hubspot-sync', label: 'HubSpot Contacts', artifacts: ['contacts'] },
+      { fn: 'hubspot-sync', label: 'HubSpot Deals', artifacts: ['deals'] },
+      { fn: 'hubspot-sync', label: 'HubSpot Engagements', artifacts: ['engagements'] },
+      { fn: 'harvest-sync', label: 'Harvest Projects', artifacts: ['projects'] },
+      { fn: 'harvest-sync', label: 'Harvest Time Entries', artifacts: ['time_entries'] },
+      { fn: 'harvest-sync', label: 'Harvest Invoices', artifacts: ['invoices'] },
+      { fn: 'harvest-sync', label: 'Harvest Contacts', artifacts: ['contacts'] },
+      { fn: 'freshdesk-sync', label: 'Freshdesk Tickets', artifacts: ['tickets'] },
+      { fn: 'freshdesk-sync', label: 'Freshdesk Contacts', artifacts: ['contacts'] },
+    ];
+    const total = steps.length;
+
+    try {
+      const { data: { user } } = await (await import('@/integrations/supabase/client')).supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        const pct = Math.round(((i) / total) * 100);
+        setArtifactSyncing(step.fn.replace('-sync', ''));
+        setArtifactProgress(`${pct}% — Step ${i + 1}/${total}: ${step.label}...`);
+
+        try {
+          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${step.fn}`, {
+            method: 'POST',
+            headers: apiHeaders,
+            body: JSON.stringify({ userId: user.id, artifacts: step.artifacts }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Sync failed');
+
+          const parts: string[] = [];
+          for (const [key, val] of Object.entries(data.results || {})) {
+            const v = typeof val === 'number' ? val : (val as any);
+            const count = typeof v === 'number' ? v : ((v?.created || 0) + (v?.updated || 0) || v || 0);
+            if (count > 0) parts.push(`${key}: ${count}`);
+          }
+          const detail = parts.length ? ` — ${parts.join(', ')}` : '';
+          toast.success(`[${i + 1}/${total}] ${step.label} done${detail}`, { duration: 4000 });
+        } catch (err: any) {
+          console.error(`Artifact sync error (${step.fn} ${step.artifacts}):`, err);
+          toast.error(`[${i + 1}/${total}] ${step.label} failed: ${err.message}`, { duration: 6000 });
+          // Continue to next step even if one fails
+        }
+      }
+    } catch (err: any) {
+      toast.error(`Sync failed: ${err.message}`);
+    }
+
+    setArtifactSyncing(null);
+    setArtifactProgress('');
+    toast.success('All artifact syncs complete!', { duration: 6000 });
+  };
+
   const gmailConnection = connections.find(c => c.provider === 'gmail');
   const driveConnection = connections.find(c => c.provider === 'google-drive');
   const notebooklmConnection = connections.find(c => c.provider === 'google-notebooklm');
@@ -724,11 +855,25 @@ export default function ConnectionsPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">{stream.desc}</p>
-                  {isQB && (
+                  {isQB ? (
                     <Button size="sm" variant="outline" className="mt-2 w-full text-xs gap-1.5" onClick={() => setQbDialogOpen(true)}>
                       <Upload className="h-3 w-3" /> Import CSV
                     </Button>
-                  )}
+                  ) : ['harvest', 'hubspot', 'freshdesk'].includes(stream.id) && status === 'active' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 w-full text-xs gap-1.5"
+                      disabled={sourceSyncing === stream.id || globalSyncing}
+                      onClick={() => handleSourceSync(stream.id)}
+                    >
+                      {sourceSyncing === stream.id ? (
+                        <><Loader2 className="h-3 w-3 animate-spin" /> Syncing...</>
+                      ) : (
+                        <><RefreshCw className="h-3 w-3" /> Sync {stream.name}</>
+                      )}
+                    </Button>
+                  ) : null}
                 </Card>
               );
             })}
@@ -787,6 +932,52 @@ export default function ConnectionsPage() {
               </div>
             </details>
           )}
+
+          {/* Artifact Sync */}
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <p className="text-xs text-muted-foreground mb-2">Sync artifacts (contacts, deals, tickets, projects, time entries, invoices) for all mapped companies:</p>
+            {artifactProgress && (
+              <div className="mb-2 flex items-center gap-2 text-sm text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-md px-3 py-2">
+                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                <span>{artifactProgress}</span>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="default"
+                disabled={!!artifactSyncing || globalSyncing}
+                onClick={handleSyncAllArtifacts}
+                className="gap-1.5"
+              >
+                {artifactSyncing ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing All...</>
+                ) : (
+                  <><RefreshCw className="h-3.5 w-3.5" /> Sync All Artifacts</>
+                )}
+              </Button>
+              {[
+                { id: 'hubspot', label: 'HubSpot', desc: 'Contacts, Deals, Engagements' },
+                { id: 'harvest', label: 'Harvest', desc: 'Projects, Time, Invoices' },
+                { id: 'freshdesk', label: 'Freshdesk', desc: 'Tickets, Conversations' },
+              ].map(s => (
+                <Button
+                  key={s.id}
+                  size="sm"
+                  variant="outline"
+                  disabled={!!artifactSyncing || globalSyncing}
+                  onClick={() => handleArtifactSync(s.id)}
+                  className="gap-1.5"
+                >
+                  {artifactSyncing === s.id ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {s.label}...</>
+                  ) : (
+                    <><ArrowDown className="h-3.5 w-3.5" /> {s.label}</>
+                  )}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* ── Live Connections ── */}

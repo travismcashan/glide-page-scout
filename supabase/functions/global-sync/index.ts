@@ -43,8 +43,9 @@ function extractDomainFromText(text: string): string | null {
 // ── Harvest API ──
 
 type HarvestClient = { id: number; name: string; isActive: boolean; hasActiveProject: boolean };
+type FetchResult<T> = { items: T[]; rawById: Map<string, any> };
 
-async function fetchHarvestData(token: string, accountId: string): Promise<HarvestClient[]> {
+async function fetchHarvestData(token: string, accountId: string): Promise<FetchResult<HarvestClient>> {
   const headers = {
     Authorization: `Bearer ${token}`,
     'Harvest-Account-Id': accountId,
@@ -53,6 +54,7 @@ async function fetchHarvestData(token: string, accountId: string): Promise<Harve
 
   // Fetch ALL clients (active + archived)
   const clientMap = new Map<number, HarvestClient>();
+  const rawById = new Map<string, any>();
   let page = 1;
   while (page <= 30) {
     const res = await fetch(`https://api.harvestapp.com/v2/clients?per_page=100&page=${page}`, { headers });
@@ -60,6 +62,7 @@ async function fetchHarvestData(token: string, accountId: string): Promise<Harve
     const data = await res.json();
     for (const c of (data.clients || [])) {
       clientMap.set(c.id, { id: c.id, name: c.name, isActive: c.is_active, hasActiveProject: false });
+      rawById.set(String(c.id), c);
     }
     if (!data.next_page) break;
     page++;
@@ -90,7 +93,7 @@ async function fetchHarvestData(token: string, accountId: string): Promise<Harve
 
   const activeCount = Array.from(clientMap.values()).filter(c => c.isActive).length;
   console.log(`[global-sync] Harvest: ${clientMap.size} clients fetched (${activeCount} active, ${clientMap.size - activeCount} archived)`);
-  return Array.from(clientMap.values());
+  return { items: Array.from(clientMap.values()), rawById };
 }
 
 // ── Asana API ──
@@ -189,8 +192,9 @@ type HubSpotCompany = {
   location: string | null; website: string | null;
 };
 
-async function fetchHubSpotData(token: string): Promise<HubSpotCompany[]> {
+async function fetchHubSpotData(token: string): Promise<FetchResult<HubSpotCompany>> {
   const companies: HubSpotCompany[] = [];
+  const rawById = new Map<string, any>();
   let after: string | undefined;
   let page = 0;
   const props = 'name,domain,industry,numberofemployees,annualrevenue,city,state,country,website';
@@ -218,6 +222,7 @@ async function fetchHubSpotData(token: string): Promise<HubSpotCompany[]> {
         location,
         website: p.website || null,
       });
+      rawById.set(c.id, c);
     }
 
     after = data.paging?.next?.after;
@@ -228,14 +233,14 @@ async function fetchHubSpotData(token: string): Promise<HubSpotCompany[]> {
   }
 
   console.log(`[global-sync] HubSpot: ${companies.length} companies fetched (${page + 1} pages)`);
-  return companies;
+  return { items: companies, rawById };
 }
 
 // ── Freshdesk API ──
 
 type FreshdeskCompany = { id: number; name: string; domain: string | null; domains: string[] };
 
-async function fetchFreshdeskData(apiKey: string, domain: string): Promise<FreshdeskCompany[]> {
+async function fetchFreshdeskData(apiKey: string, domain: string): Promise<FetchResult<FreshdeskCompany>> {
   // Support both custom domains (e.g., support.glidedesign.com) and Freshdesk subdomains (e.g., glide)
   const baseUrl = domain.includes('.') ? `https://${domain}/api/v2` : `https://${domain}.freshdesk.com/api/v2`;
   const headers = {
@@ -244,6 +249,7 @@ async function fetchFreshdeskData(apiKey: string, domain: string): Promise<Fresh
   };
 
   const companies: FreshdeskCompany[] = [];
+  const rawById = new Map<string, any>();
   let page = 1;
   while (page <= 300) {
     const res = await fetch(`${baseUrl}/companies?per_page=100&page=${page}`, { headers });
@@ -263,13 +269,14 @@ async function fetchFreshdeskData(apiKey: string, domain: string): Promise<Fresh
         domain: normalizeDomain(c.domains?.[0]) || null,
         domains: (c.domains || []).map((d: string) => normalizeDomain(d)).filter(Boolean),
       });
+      rawById.set(String(c.id), c);
     }
     if (data.length < 100) break;
     page++;
   }
 
   console.log(`[global-sync] Freshdesk: ${companies.length} companies fetched`);
-  return companies;
+  return { items: companies, rawById };
 }
 
 // ── Cross-Reference Engine ──
@@ -460,6 +467,61 @@ function crossReference(
   return Array.from(unified.values());
 }
 
+// ── Raw Source Data Storage ──
+
+async function storeRawSourceData(
+  supabase: any,
+  companyId: string,
+  client: UnifiedClient,
+  rawMaps: { harvest: Map<string, any>; hubspot: Map<string, any>; freshdesk: Map<string, any> }
+) {
+  const now = new Date().toISOString();
+  const upserts: any[] = [];
+
+  if (client.hubspot) {
+    const raw = rawMaps.hubspot.get(client.hubspot.id);
+    if (raw) {
+      upserts.push({
+        company_id: companyId,
+        source: 'hubspot',
+        source_id: client.hubspot.id,
+        raw_data: raw,
+        fetched_at: now,
+      });
+    }
+  }
+  if (client.harvest) {
+    const raw = rawMaps.harvest.get(String(client.harvest.id));
+    if (raw) {
+      upserts.push({
+        company_id: companyId,
+        source: 'harvest',
+        source_id: String(client.harvest.id),
+        raw_data: raw,
+        fetched_at: now,
+      });
+    }
+  }
+  if (client.freshdesk) {
+    const raw = rawMaps.freshdesk.get(String(client.freshdesk.id));
+    if (raw) {
+      upserts.push({
+        company_id: companyId,
+        source: 'freshdesk',
+        source_id: String(client.freshdesk.id),
+        raw_data: raw,
+        fetched_at: now,
+      });
+    }
+  }
+
+  for (const row of upserts) {
+    await supabase
+      .from('company_source_data')
+      .upsert(row, { onConflict: 'company_id,source' });
+  }
+}
+
 // ── Main Handler ──
 
 Deno.serve(async (req) => {
@@ -489,12 +551,21 @@ Deno.serve(async (req) => {
     const fetchAsana = (!sf || sf.includes('asana')) && action !== 'preview';
 
     console.log(`[global-sync] Fetching: HS=${fetchHS} HV=${fetchHV} FD=${fetchFD} Asana=${fetchAsana}`);
-    const [harvestClients, asanaProjects, hubspotCompanies, freshdeskCompanies] = await Promise.all([
-      (fetchHV && harvestToken && harvestAccountId) ? fetchHarvestData(harvestToken, harvestAccountId) : Promise.resolve([]),
+    const emptyResult = <T,>(): FetchResult<T> => ({ items: [], rawById: new Map() });
+    const [harvestResult, asanaProjects, hubspotResult, freshdeskResult] = await Promise.all([
+      (fetchHV && harvestToken && harvestAccountId) ? fetchHarvestData(harvestToken, harvestAccountId) : Promise.resolve(emptyResult<HarvestClient>()),
       (fetchAsana && asanaToken) ? fetchAsanaData(asanaToken) : Promise.resolve([]),
-      (fetchHS && hubspotToken) ? fetchHubSpotData(hubspotToken) : Promise.resolve([]),
-      (fetchFD && freshdeskApiKey && freshdeskDomain) ? fetchFreshdeskData(freshdeskApiKey, freshdeskDomain) : Promise.resolve([]),
+      (fetchHS && hubspotToken) ? fetchHubSpotData(hubspotToken) : Promise.resolve(emptyResult<HubSpotCompany>()),
+      (fetchFD && freshdeskApiKey && freshdeskDomain) ? fetchFreshdeskData(freshdeskApiKey, freshdeskDomain) : Promise.resolve(emptyResult<FreshdeskCompany>()),
     ]);
+    const harvestClients = harvestResult.items;
+    const hubspotCompanies = hubspotResult.items;
+    const freshdeskCompanies = freshdeskResult.items;
+    const rawMaps = {
+      harvest: harvestResult.rawById,
+      hubspot: hubspotResult.rawById,
+      freshdesk: freshdeskResult.rawById,
+    };
 
     // Fetch existing companies (paginate to avoid Supabase 1000-row default limit)
     const allExisting: any[] = [];
@@ -580,6 +651,10 @@ Deno.serve(async (req) => {
             }
 
             await supabase.from('companies').update(updates).eq('id', client.existingId);
+
+            // Store raw source data
+            await storeRawSourceData(supabase, client.existingId, client, rawMaps);
+
             summary.updated++;
             if (client.matchType === 'domain') summary.matched.domain++;
             else if (client.matchType === 'name') summary.matched.name++;
@@ -612,7 +687,10 @@ Deno.serve(async (req) => {
               newCompany.asana_project_gids = client.asanaGids;
             }
 
-            await supabase.from('companies').insert(newCompany);
+            const { data: inserted } = await supabase.from('companies').insert(newCompany).select('id').single();
+            if (inserted) {
+              await storeRawSourceData(supabase, inserted.id, client, rawMaps);
+            }
             summary.created++;
           }
 

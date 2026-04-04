@@ -8,7 +8,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Building2, Users, Globe, MapPin, Mail, Phone, Linkedin, ExternalLink,
   ArrowLeft, Briefcase, Clock, TrendingUp, ChevronRight, DollarSign,
-  MessageSquare, PhoneCall, Calendar, StickyNote, CheckSquare, Brain, Database
+  MessageSquare, PhoneCall, Calendar, StickyNote, CheckSquare, Brain, Database,
+  FileJson, ChevronDown, ChevronUp, RefreshCw, FolderOpen, Receipt, Headphones,
+  Timer
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +42,9 @@ type Company = {
   tags: string[];
   notes: string | null;
   created_at: string;
+  hubspot_company_id: string | null;
+  harvest_client_id: string | null;
+  freshdesk_company_id: string | null;
 };
 
 type Contact = {
@@ -111,8 +116,21 @@ export default function CompanyDetailPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [engagements, setEngagements] = useState<Engagement[]>([]);
+  const [harvestProjects, setHarvestProjects] = useState<any[]>([]);
+  const [harvestTimeEntries, setHarvestTimeEntries] = useState<any[]>([]);
+  const [harvestInvoices, setHarvestInvoices] = useState<any[]>([]);
+  const [freshdeskTickets, setFreshdeskTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Artifact on-demand fetching state
+  const [artifactLoading, setArtifactLoading] = useState<Record<string, boolean>>({});
+  const artifactsFetched = useRef<Set<string>>(new Set());
+
+  // Source data state
+  const [sourceData, setSourceData] = useState<any[]>([]);
+  const [sourceDataLoading, setSourceDataLoading] = useState(false);
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
 
   // Chat state
   const [chatSession, setChatSession] = useState<any>(null);
@@ -149,24 +167,106 @@ export default function CompanyDetailPage() {
     if (!id) return;
 
     async function fetchAll() {
-      const [companyRes, contactsRes, sitesRes, dealsRes, engagementsRes] = await Promise.all([
+      const [companyRes, contactsRes, sitesRes] = await Promise.all([
         supabase.from('companies').select('*').eq('id', id).single(),
         supabase.from('contacts').select('*').eq('company_id', id).order('is_primary', { ascending: false }).order('created_at'),
         supabase.from('crawl_sessions').select('id, domain, base_url, status, created_at').eq('company_id', id).order('created_at', { ascending: false }),
-        supabase.from('deals').select('*').eq('company_id', id).order('created_at', { ascending: false }),
-        supabase.from('engagements').select('*').eq('company_id', id).order('occurred_at', { ascending: false }).limit(30),
       ]);
 
       if (companyRes.data) setCompany(companyRes.data as Company);
       if (contactsRes.data) setContacts(contactsRes.data as Contact[]);
       if (sitesRes.data) setSites(sitesRes.data as Site[]);
-      if (dealsRes.data) setDeals(dealsRes.data as Deal[]);
-      if (engagementsRes.data) setEngagements(engagementsRes.data as Engagement[]);
       setLoading(false);
     }
 
     fetchAll();
   }, [id]);
+
+  // On-demand artifact fetching when tabs are activated
+  const fetchArtifact = useCallback(async (artifactType: string) => {
+    if (!id || artifactsFetched.current.has(artifactType)) return;
+    artifactsFetched.current.add(artifactType);
+    setArtifactLoading(prev => ({ ...prev, [artifactType]: true }));
+
+    try {
+      const { data: result, error } = await supabase.functions.invoke('company-artifacts', {
+        body: { companyId: id, artifact: artifactType },
+      });
+
+      if (error) throw error;
+      const items = result?.data || [];
+
+      switch (artifactType) {
+        case 'deals': setDeals(items); break;
+        case 'engagements': setEngagements(items); break;
+        case 'projects': setHarvestProjects(items); break;
+        case 'time_entries': setHarvestTimeEntries(items); break;
+        case 'invoices': setHarvestInvoices(items); break;
+        case 'tickets': setFreshdeskTickets(items); break;
+      }
+    } catch (err) {
+      console.error(`[CompanyDetail] Failed to fetch ${artifactType}:`, err);
+      toast.error(`Failed to load ${artifactType}`);
+      // Allow retry on error
+      artifactsFetched.current.delete(artifactType);
+    } finally {
+      setArtifactLoading(prev => ({ ...prev, [artifactType]: false }));
+    }
+  }, [id]);
+
+  // Map tabs to artifact types for on-demand fetching
+  useEffect(() => {
+    const tabToArtifact: Record<string, string> = {
+      overview: 'engagements', // overview shows engagements
+      deals: 'deals',
+      projects: 'projects',
+      time: 'time_entries',
+      invoices: 'invoices',
+      tickets: 'tickets',
+    };
+    const artifactType = tabToArtifact[activeTab];
+    if (artifactType && company) {
+      fetchArtifact(artifactType);
+    }
+  }, [activeTab, company, fetchArtifact]);
+
+  // Fetch source data when Source Data tab is opened
+  const sourceDataFetched = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'source-data' || sourceDataFetched.current || !id) return;
+    sourceDataFetched.current = true;
+    setSourceDataLoading(true);
+    (async () => {
+      const { data } = await supabase
+        .from('company_source_data')
+        .select('*')
+        .eq('company_id', id)
+        .order('source');
+      setSourceData(data || []);
+      setSourceDataLoading(false);
+    })();
+  }, [activeTab, id]);
+
+  const refreshSourceData = useCallback(async () => {
+    if (!id) return;
+    setSourceDataLoading(true);
+    const { data } = await supabase
+      .from('company_source_data')
+      .select('*')
+      .eq('company_id', id)
+      .order('source');
+    setSourceData(data || []);
+    setSourceDataLoading(false);
+  }, [id]);
+
+  const toggleSource = useCallback((source: string) => {
+    setExpandedSources(prev => {
+      const next = new Set(prev);
+      if (next.has(source)) next.delete(source);
+      else next.add(source);
+      return next;
+    });
+  }, []);
 
   // Initialize sentinel session when Chat or Roadmap tab is first opened
   useEffect(() => {
@@ -301,9 +401,33 @@ export default function CompanyDetailPage() {
               <DollarSign className="h-3.5 w-3.5" /> Deals
               {deals.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{deals.length}</Badge>}
             </TabsTrigger>
+            {company.harvest_client_id && (
+              <TabsTrigger value="projects" className="flex items-center gap-1.5">
+                <FolderOpen className="h-3.5 w-3.5" /> Projects
+                {harvestProjects.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{harvestProjects.length}</Badge>}
+              </TabsTrigger>
+            )}
+            {company.harvest_client_id && (
+              <TabsTrigger value="time" className="flex items-center gap-1.5">
+                <Timer className="h-3.5 w-3.5" /> Time
+                {harvestTimeEntries.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{harvestTimeEntries.length}</Badge>}
+              </TabsTrigger>
+            )}
+            {company.harvest_client_id && (
+              <TabsTrigger value="invoices" className="flex items-center gap-1.5">
+                <Receipt className="h-3.5 w-3.5" /> Invoices
+                {harvestInvoices.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{harvestInvoices.length}</Badge>}
+              </TabsTrigger>
+            )}
+            {company.freshdesk_company_id && (
+              <TabsTrigger value="tickets" className="flex items-center gap-1.5">
+                <Headphones className="h-3.5 w-3.5" /> Tickets
+                {freshdeskTickets.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{freshdeskTickets.length}</Badge>}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="sites" className="flex items-center gap-1.5">
               <Globe className="h-3.5 w-3.5" /> Sites
-              {sites.length > 0 && <Badge variant="secondary" className="text-[10px] py-0 ml-1">{sites.length}</Badge>}
+              {sites.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{sites.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="knowledge" className="flex items-center gap-1.5">
               <Database className="h-3.5 w-3.5" /> Knowledge
@@ -312,6 +436,9 @@ export default function CompanyDetailPage() {
             <TabsTrigger value="chat" className="flex items-center gap-1.5">
               <Brain className="h-3.5 w-3.5" /> Chat
             </TabsTrigger>
+            <TabsTrigger value="source-data" className="flex items-center gap-1.5">
+              <FileJson className="h-3.5 w-3.5" /> Source Data
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab — clean summary */}
@@ -319,8 +446,8 @@ export default function CompanyDetailPage() {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
               <button onClick={() => setActiveTab('contacts')} className="text-left"><StatCard label="Contacts" value={contacts.length} icon={<Users className="h-4 w-4" />} /></button>
               <button onClick={() => setActiveTab('sites')} className="text-left"><StatCard label="Sites" value={sites.length} icon={<Globe className="h-4 w-4" />} /></button>
-              <button onClick={() => setActiveTab('deals')} className="text-left"><StatCard label="Deals" value={deals.length} icon={<DollarSign className="h-4 w-4" />} /></button>
-              <StatCard label="Engagements" value={engagements.length} icon={<MessageSquare className="h-4 w-4" />} />
+              <button onClick={() => setActiveTab('deals')} className="text-left"><StatCard label="Deals" value={artifactLoading.deals ? '...' : deals.length} icon={<DollarSign className="h-4 w-4" />} /></button>
+              <StatCard label="Engagements" value={artifactLoading.engagements ? '...' : engagements.length} icon={<MessageSquare className="h-4 w-4" />} />
               {deals.length > 0 && (
                 <StatCard
                   label="Pipeline Value"
@@ -343,7 +470,10 @@ export default function CompanyDetailPage() {
             )}
 
             {/* Recent Activity */}
-            {engagements.length > 0 && (
+            {artifactLoading.engagements && (
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
+            )}
+            {!artifactLoading.engagements && engagements.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Recent Activity ({engagements.length})</CardTitle>
@@ -418,8 +548,10 @@ export default function CompanyDetailPage() {
 
           {/* Deals Tab */}
           <TabsContent value="deals">
-            {deals.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No deals yet. Deals sync automatically from HubSpot.</div>
+            {artifactLoading.deals ? (
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
+            ) : deals.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No deals found{company.hubspot_company_id ? ' in HubSpot' : '. Map a HubSpot company ID to fetch deals.'}.</div>
             ) : (
               <div className="space-y-3">
                 {deals.map(deal => (
@@ -440,6 +572,202 @@ export default function CompanyDetailPage() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Projects Tab (Harvest) */}
+          <TabsContent value="projects">
+            {artifactLoading.projects ? (
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
+            ) : harvestProjects.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No Harvest projects found.</div>
+            ) : (
+              <div className="space-y-3">
+                {harvestProjects.map((p: any) => (
+                  <div key={p.id} className="flex items-start gap-4 p-4 rounded-lg border border-border/50 bg-card">
+                    <FolderOpen className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold truncate">{p.name}</span>
+                        {p.code && <span className="text-sm text-muted-foreground">{p.code}</span>}
+                        <Badge variant="outline" className={p.is_active ? 'bg-green-500/15 text-green-400' : 'bg-zinc-500/15 text-zinc-400'}>
+                          {p.is_active ? 'Active' : 'Archived'}
+                        </Badge>
+                        {p.is_billable && <Badge variant="secondary" className="text-xs">Billable</Badge>}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                        {p.budget != null && <span>Budget: {p.budget.toLocaleString()} {p.budget_by === 'project' ? 'hrs' : ''}</span>}
+                        {p.hourly_rate != null && <span>Rate: ${p.hourly_rate}/hr</span>}
+                        {p.fee != null && <span>Fee: ${p.fee.toLocaleString()}</span>}
+                        {p.starts_on && <span>Start: {format(new Date(p.starts_on), 'MMM d, yyyy')}</span>}
+                        {p.ends_on && <span>End: {format(new Date(p.ends_on), 'MMM d, yyyy')}</span>}
+                      </div>
+                      {p.notes && <p className="text-sm text-muted-foreground/60 mt-1 line-clamp-2">{p.notes}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Time Tab (Harvest) */}
+          <TabsContent value="time">
+            {artifactLoading.time_entries ? (
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
+            ) : harvestTimeEntries.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No Harvest time entries found.</div>
+            ) : (() => {
+              const totalHours = harvestTimeEntries.reduce((s: number, t: any) => s + (t.hours || 0), 0);
+              const billableHours = harvestTimeEntries.filter((t: any) => t.billable).reduce((s: number, t: any) => s + (t.hours || 0), 0);
+              return (
+                <div>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Total Hours</p>
+                      <p className="text-2xl font-bold">{totalHours.toFixed(1)}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Billable Hours</p>
+                      <p className="text-2xl font-bold">{billableHours.toFixed(1)}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Entries</p>
+                      <p className="text-2xl font-bold">{harvestTimeEntries.length}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border/50 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30">
+                        <tr>
+                          <th className="text-left py-2 px-3 font-medium">Date</th>
+                          <th className="text-left py-2 px-3 font-medium">Project</th>
+                          <th className="text-left py-2 px-3 font-medium">Task</th>
+                          <th className="text-left py-2 px-3 font-medium">Person</th>
+                          <th className="text-right py-2 px-3 font-medium">Hours</th>
+                          <th className="text-left py-2 px-3 font-medium">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {harvestTimeEntries.slice(0, 100).map((t: any) => (
+                          <tr key={t.id} className="border-t border-border/30">
+                            <td className="py-2 px-3 whitespace-nowrap">{t.spent_date ? format(new Date(t.spent_date), 'MMM d, yyyy') : '—'}</td>
+                            <td className="py-2 px-3 truncate max-w-[160px]">{t.project_name || '—'}</td>
+                            <td className="py-2 px-3 truncate max-w-[140px]">{t.task_name || '—'}</td>
+                            <td className="py-2 px-3 truncate max-w-[120px]">{t.harvest_user_name || '—'}</td>
+                            <td className="py-2 px-3 text-right font-medium">{(t.hours || 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 truncate max-w-[200px] text-muted-foreground">{t.notes || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+          </TabsContent>
+
+          {/* Invoices Tab (Harvest) */}
+          <TabsContent value="invoices">
+            {artifactLoading.invoices ? (
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
+            ) : harvestInvoices.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No Harvest invoices found.</div>
+            ) : (() => {
+              const totalAmount = harvestInvoices.reduce((s: number, inv: any) => s + (inv.amount || 0), 0);
+              const totalDue = harvestInvoices.reduce((s: number, inv: any) => s + (inv.due_amount || 0), 0);
+              const stateColors: Record<string, string> = { paid: 'bg-green-500/15 text-green-400', open: 'bg-blue-500/15 text-blue-400', draft: 'bg-zinc-500/15 text-zinc-400', partial: 'bg-amber-500/15 text-amber-400' };
+              return (
+                <div>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Total Invoiced</p>
+                      <p className="text-2xl font-bold">${totalAmount.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Outstanding</p>
+                      <p className="text-2xl font-bold">${totalDue.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Invoices</p>
+                      <p className="text-2xl font-bold">{harvestInvoices.length}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {harvestInvoices.map((inv: any) => (
+                      <div key={inv.id} className="flex items-center gap-4 p-3 rounded-lg border border-border/50 bg-card">
+                        <Receipt className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">#{inv.number}</span>
+                            {inv.subject && <span className="text-sm text-muted-foreground truncate">{inv.subject}</span>}
+                            <Badge variant="outline" className={stateColors[inv.state] || ''}>{inv.state}</Badge>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold">${(inv.amount || 0).toLocaleString()}</p>
+                          {inv.issue_date && <p className="text-sm text-muted-foreground">{format(new Date(inv.issue_date), 'MMM d, yyyy')}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </TabsContent>
+
+          {/* Tickets Tab (Freshdesk) */}
+          <TabsContent value="tickets">
+            {artifactLoading.tickets ? (
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
+            ) : freshdeskTickets.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No Freshdesk tickets found.</div>
+            ) : (() => {
+              const open = freshdeskTickets.filter((t: any) => t.status === 2 || t.status === 3).length;
+              const resolved = freshdeskTickets.filter((t: any) => t.status === 4 || t.status === 5).length;
+              const priorityColors: Record<string, string> = { Low: 'text-zinc-400', Medium: 'text-blue-400', High: 'text-amber-400', Urgent: 'text-red-400' };
+              return (
+                <div>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Total Tickets</p>
+                      <p className="text-2xl font-bold">{freshdeskTickets.length}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Open / Pending</p>
+                      <p className="text-2xl font-bold">{open}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Resolved / Closed</p>
+                      <p className="text-2xl font-bold">{resolved}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {freshdeskTickets.map((t: any) => (
+                      <div key={t.id} className="flex items-start gap-4 p-3 rounded-lg border border-border/50 bg-card">
+                        <Headphones className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate">{t.subject || 'No subject'}</span>
+                            <Badge variant="outline" className={t.status_label === 'Closed' || t.status_label === 'Resolved' ? 'bg-green-500/15 text-green-400' : 'bg-blue-500/15 text-blue-400'}>
+                              {t.status_label || `Status ${t.status}`}
+                            </Badge>
+                            {t.priority_label && (
+                              <span className={`text-sm font-medium ${priorityColors[t.priority_label] || ''}`}>{t.priority_label}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 mt-1 text-sm text-muted-foreground">
+                            {t.requester_name && <span>{t.requester_name}</span>}
+                            {t.ticket_type && <span>{t.ticket_type}</span>}
+                            {t.source_label && <span>via {t.source_label}</span>}
+                            {t.created_date && <span>{format(new Date(t.created_date), 'MMM d, yyyy')}</span>}
+                          </div>
+                          {t.description_text && <p className="text-sm text-muted-foreground/60 mt-1 line-clamp-2">{t.description_text}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </TabsContent>
 
           {/* Sites Tab */}
@@ -532,6 +860,63 @@ export default function CompanyDetailPage() {
               </ErrorBoundary>
             )}
           </TabsContent>
+
+          {/* Source Data Tab */}
+          <TabsContent value="source-data">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-muted-foreground">
+                Raw API responses from connected systems. Run a global sync to populate.
+              </p>
+              <Button variant="outline" size="sm" onClick={refreshSourceData} disabled={sourceDataLoading}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${sourceDataLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            {sourceDataLoading ? (
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
+            ) : sourceData.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No source data stored yet. Run a global sync to pull raw API data from HubSpot, Harvest, and Freshdesk.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sourceData.map((sd: any) => {
+                  const isExpanded = expandedSources.has(sd.source);
+                  const sourceLabel = { hubspot: 'HubSpot', harvest: 'Harvest', freshdesk: 'Freshdesk' }[sd.source] || sd.source;
+                  const sourceColor = { hubspot: 'text-orange-400', harvest: 'text-amber-400', freshdesk: 'text-green-400' }[sd.source] || '';
+                  const fieldCount = sd.raw_data ? Object.keys(sd.raw_data).length : 0;
+                  return (
+                    <Card key={sd.id}>
+                      <button
+                        onClick={() => toggleSource(sd.source)}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-accent/5 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileJson className={`h-5 w-5 ${sourceColor}`} />
+                          <div>
+                            <span className="font-semibold">{sourceLabel}</span>
+                            <span className="text-xs text-muted-foreground ml-2">ID: {sd.source_id}</span>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">{fieldCount} fields</Badge>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">
+                            {sd.fetched_at ? format(new Date(sd.fetched_at), 'MMM d, yyyy h:mm a') : ''}
+                          </span>
+                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <CardContent className="pt-0 pb-4">
+                          <SourceDataTable data={sd.raw_data} />
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
     </div>
@@ -546,6 +931,153 @@ function StatCard({ label, value, icon }: { label: string; value: string | numbe
         <span className="text-xs">{label}</span>
       </div>
       <p className="text-2xl font-bold">{value}</p>
+    </div>
+  );
+}
+
+function SourceDataTable({ data }: { data: any }) {
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+
+  if (!data || typeof data !== 'object') return null;
+
+  const toggleKey = (key: string) => {
+    setExpandedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const formatKey = (key: string): string => {
+    // Known compound words common in API responses
+    const compounds: Record<string, string> = {
+      numberofemployees: 'Number Of Employees', annualrevenue: 'Annual Revenue',
+      createdate: 'Create Date', lastmodifieddate: 'Last Modified Date',
+      lifecyclestage: 'Lifecycle Stage', hubspot_owner_id: 'HubSpot Owner ID',
+      hs_object_id: 'HubSpot Object ID', firstname: 'First Name', lastname: 'Last Name',
+      closedate: 'Close Date', dealstage: 'Deal Stage', dealname: 'Deal Name',
+      companyname: 'Company Name', phonenumber: 'Phone Number', emailaddress: 'Email Address',
+      webpage: 'Web Page', customfields: 'Custom Fields', displayvalue: 'Display Value',
+    };
+    // Get just the last segment (after last dot or bracket)
+    const last = key.includes('.') ? key.split('.').pop()! : key;
+    // Strip array index brackets like [0]
+    const clean = last.replace(/\[\d+\]/g, '');
+    const lower = clean.toLowerCase();
+    if (compounds[lower]) return compounds[lower];
+    // Split on underscores, camelCase boundaries, and dots
+    return clean
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase → camel Case
+      .replace(/[_.-]+/g, ' ') // underscores/dots/hyphens → spaces
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  const formatValue = (val: any): string => {
+    if (val === null || val === undefined) return '—';
+    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+    if (typeof val === 'string' && val === '') return '(empty)';
+    return String(val);
+  };
+
+  const isExpandable = (val: any): boolean =>
+    val !== null && typeof val === 'object' && (Array.isArray(val) ? val.length > 0 : Object.keys(val).length > 0);
+
+  const renderRows = (obj: any, prefix = ''): React.ReactNode[] => {
+    return Object.entries(obj).map(([key, val]) => {
+      const fullKey = prefix ? `${prefix}.${key}` : key;
+      const expandable = isExpandable(val);
+      const expanded = expandedKeys.has(fullKey);
+
+      // Array of primitives — show inline
+      if (Array.isArray(val) && val.length > 0 && val.every(v => typeof v !== 'object')) {
+        return (
+          <tr key={fullKey} className="border-b border-border/30 last:border-0">
+            <td className="py-2.5 px-3 text-sm text-muted-foreground whitespace-nowrap align-top w-[240px]" title={fullKey}>{formatKey(fullKey)}</td>
+            <td className="py-2.5 px-3 text-sm break-all">{val.join(', ')}</td>
+          </tr>
+        );
+      }
+
+      if (expandable) {
+        return (
+          <tr key={fullKey} className="border-b border-border/30 last:border-0">
+            <td colSpan={2} className="p-0">
+              <button
+                onClick={() => toggleKey(fullKey)}
+                className="w-full flex items-center gap-1.5 py-2.5 px-3 text-sm text-muted-foreground hover:bg-accent/5 transition-colors"
+              >
+                {expanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                <span title={fullKey}>{formatKey(fullKey)}</span>
+                <Badge variant="secondary" className="text-xs py-0 ml-1">
+                  {Array.isArray(val) ? `${(val as any[]).length} items` : `${Object.keys(val as object).length} fields`}
+                </Badge>
+              </button>
+              {expanded && (
+                <table className="w-full ml-4 border-l border-border/20">
+                  <tbody>
+                    {Array.isArray(val)
+                      ? (val as any[]).map((item, i) =>
+                          typeof item === 'object' && item !== null
+                            ? renderRows(item, `${fullKey}[${i}]`)
+                            : (
+                              <tr key={`${fullKey}[${i}]`} className="border-b border-border/30 last:border-0">
+                                <td className="py-2 px-3 text-sm text-muted-foreground w-[240px]">Item {i + 1}</td>
+                                <td className="py-2 px-3 text-sm">{formatValue(item)}</td>
+                              </tr>
+                            )
+                        ).flat()
+                      : renderRows(val as object, fullKey)
+                    }
+                  </tbody>
+                </table>
+              )}
+            </td>
+          </tr>
+        );
+      }
+
+      // Primitive value
+      const display = formatValue(val);
+      const isUrl = typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'));
+      const isDate = typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val);
+
+      return (
+        <tr key={fullKey} className="border-b border-border/30 last:border-0">
+          <td className="py-2.5 px-3 text-sm text-muted-foreground whitespace-nowrap align-top w-[240px]" title={fullKey}>{formatKey(fullKey)}</td>
+          <td className="py-2.5 px-3 text-sm break-all">
+            {isUrl ? (
+              <a href={val as string} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{display}</a>
+            ) : isDate ? (
+              <span title={val as string}>{format(new Date(val as string), 'MMM d, yyyy h:mm a')}</span>
+            ) : val === null || val === undefined ? (
+              <span className="text-muted-foreground/50">{display}</span>
+            ) : (
+              display
+            )}
+          </td>
+        </tr>
+      );
+    });
+  };
+
+  return (
+    <div className="rounded-lg border border-border/50 overflow-hidden max-h-[600px] overflow-y-auto">
+      <table className="w-full">
+        <thead className="bg-muted/30 sticky top-0">
+          <tr>
+            <th className="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left w-[240px]">Field</th>
+            <th className="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {renderRows(data)}
+        </tbody>
+      </table>
     </div>
   );
 }

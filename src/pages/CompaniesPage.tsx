@@ -87,7 +87,8 @@ type SortKey =
   | 'contacts_desc'
   | 'sites_desc'
   | 'last_synced_desc'
-  | 'created_desc';
+  | 'created_desc'
+  | 'last_invoiced_desc';
 
 type GroupKey = 'none' | 'status' | 'industry' | 'source';
 
@@ -200,6 +201,12 @@ function sortCompanies(list: Company[], key: SortKey): Company[] {
       );
     case 'created_desc':
       return sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    case 'last_invoiced_desc':
+      return sorted.sort((a, b) => {
+        const aDate = (a as any).quickbooks_invoice_summary?.lastDate;
+        const bDate = (b as any).quickbooks_invoice_summary?.lastDate;
+        return new Date(bDate || 0).getTime() - new Date(aDate || 0).getTime();
+      });
     default:
       return sorted;
   }
@@ -369,10 +376,10 @@ export default function CompaniesPage() {
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [sourceFilters, setSourceFilters] = useState<Set<string>>(new Set());
   const [dataFilters, setDataFilters] = useState<Set<string>>(new Set());
-  const [activePreset, setActivePreset] = useState<string>('clients');
+  const [activePreset, setActivePreset] = useState<string>('active');
 
   // Sort & Group
-  const [sortKey, setSortKey] = useState<SortKey>('name_asc');
+  const [sortKey, setSortKey] = useState<SortKey>('last_invoiced_desc');
   const [groupKey, setGroupKey] = useState<GroupKey>('none');
 
   // Pagination
@@ -412,7 +419,7 @@ export default function CompaniesPage() {
         const { data: batch, error: batchError } = await supabase
           .from('companies')
           .select(
-            'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, status, harvest_client_id, harvest_client_name, asana_project_gids, hubspot_company_id, freshdesk_company_id, freshdesk_company_name, quickbooks_client_name, last_synced_at, created_at, updated_at',
+            'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, status, harvest_client_id, harvest_client_name, asana_project_gids, hubspot_company_id, freshdesk_company_id, freshdesk_company_name, quickbooks_client_name, quickbooks_invoice_summary, last_synced_at, created_at, updated_at',
           )
           .order('name')
           .range(from, from + pageSize - 1);
@@ -464,17 +471,16 @@ export default function CompaniesPage() {
   // Preset filter functions
   const presetFilter = useCallback((c: Company, preset: string): boolean => {
     switch (preset) {
-      case 'clients':
-        // Companies you actually work/worked with: has Harvest, Asana, or sites
-        return !!(c.harvest_client_id || (c.asana_project_gids && c.asana_project_gids.length > 0) || c.site_count > 0);
       case 'active':
+        // Status is active — data cleanup ensures only truly active companies have this status
         return c.status === 'active';
       case 'pipeline':
-        // Multi-source prospects or those with contacts/sites but not active
-        {
-          const sources = getCompanySources(c);
-          return c.status !== 'active' && (sources.length >= 2 || c.contact_count > 0 || c.site_count > 0);
-        }
+        // Prospects: not active, not past/archived
+        if (c.status === 'active' || c.status === 'past' || c.status === 'archived') return false;
+        return true;
+      case 'inactive':
+        // Past or archived companies
+        return c.status === 'past' || c.status === 'archived';
       case 'all':
       default:
         return true;
@@ -577,6 +583,8 @@ export default function CompaniesPage() {
     setDataFilters(new Set());
     setSearch('');
     setPage(0);
+    // Default sort: Active → last invoiced, others → name
+    setSortKey(preset === 'active' ? 'last_invoiced_desc' : 'name_asc');
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -808,10 +816,10 @@ export default function CompaniesPage() {
         {/* ── Smart Views ── */}
         <div className="flex items-center gap-1 mb-4 border-b border-border pb-3">
           {([
-            { key: 'clients', label: 'My Clients' },
-            { key: 'active', label: 'Active Now' },
+            { key: 'active', label: 'Active' },
             { key: 'pipeline', label: 'Pipeline' },
-            { key: 'all', label: 'All Companies' },
+            { key: 'inactive', label: 'Inactive' },
+            { key: 'all', label: 'All' },
           ]).map((preset) => (
             <button
               key={preset.key}
@@ -919,6 +927,7 @@ export default function CompaniesPage() {
               <SelectItem value="sites_desc">Sites</SelectItem>
               <SelectItem value="last_synced_desc">Last Synced</SelectItem>
               <SelectItem value="created_desc">Created</SelectItem>
+              <SelectItem value="last_invoiced_desc">Last Invoiced</SelectItem>
             </SelectContent>
           </Select>
 
