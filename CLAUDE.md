@@ -164,29 +164,17 @@ Agency Brain is not a fourth pillar. It's the intelligence layer underneath all 
 
 ---
 
-## Navigation Architecture — Workspaces
+## Navigation Architecture — Sidebar + Workspaces (SHIPPED Apr 4 2026)
 
-The app uses a workspace switcher (in the logo area) to scope the entire UI by pillar. Same brain underneath, different lens on top.
+Collapsible sidebar with workspace switcher. All three workspaces active. CrawlPage (/) is full-width with no sidebar.
 
-```
-┌──────────────────────────────────────────────┐
-│  GLIDE® [▾ Growth]              Travis ●     │
-│──────────────────────────────────────────────│
-│  [ Companies ] [ Pipeline ] [ Knowledge ]    │
-└──────────────────────────────────────────────┘
+**Key files:**
+- `src/config/workspace-nav.ts` — single source of truth for per-workspace nav items + company tabs
+- `src/components/AppSidebar.tsx` — sidebar component (workspace switcher, nav, user footer)
+- `src/components/AppLayout.tsx` — layout wrapper (SidebarProvider + AppSidebar + SidebarInset + Outlet)
+- `src/components/ui/sidebar.tsx` — shadcn primitives (collapsible="icon", Cmd+B, cookie persistence)
 
-┌──────────────────────────────────────────────┐
-│  GLIDE® [▾ Delivery]           Travis ●      │
-│──────────────────────────────────────────────│
-│  [ Clients ] [ Projects ] [ Knowledge ]      │
-└──────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────┐
-│  GLIDE® [▾ Admin]              Travis ●      │
-│──────────────────────────────────────────────│
-│  [ Clients ] [ Hours ] [ Invoicing ]         │
-└──────────────────────────────────────────────┘
-```
+**Features:** Collapsible to icon rail, Cmd+B toggle, explicit toggle button, mobile Sheet drawer, shared views bypass sidebar.
 
 ### What Each Workspace Shows
 
@@ -370,7 +358,7 @@ Vision: Instead of 30-50 hours in strategy, spend 5 elite hours because 25-30 ho
 - Company is the north star entity. Site is an artifact of a company.
 - **Tables live:** companies (2102), contacts (67), deals, engagements, company_source_data. All with user-scoped RLS.
 - **External ID mapping:** companies have `hubspot_company_id` (1900), `harvest_client_id` (408), `freshdesk_company_id` (587) for cross-system linking.
-- **Company detail page:** Dynamic tabs (Overview, Contacts, Deals, Projects, Time, Invoices, Tickets, Sites, Knowledge, Roadmap, Chat). Harvest/Freshdesk tabs appear only when external IDs exist.
+- **Company detail page:** Workspace-driven tabs from `WORKSPACE_COMPANY_TABS` config. Growth: Overview, Contacts, Sites, Knowledge, Chat, Roadmap. Delivery: Overview, Contacts, Deals, Projects, Time, Tickets, Sites, Knowledge, Chat, Roadmap. Admin: Overview, Hours, Invoices, Contacts, Source Data. Conditional tabs (Projects/Time/Tickets) still require matching external IDs.
 - **Company Chat:** Multi-session hybrid RAG across all company sites.
 
 ### On-Demand Artifact Fetching (deployed Apr 4 2026)
@@ -408,6 +396,9 @@ Vision: Instead of 30-50 hours in strategy, spend 5 elite hours because 25-30 ho
 ### Council Chat Bug
 Model council returns "No synthesis available" — API calls failing silently (~135ms response = too fast). Debug: check API keys in Supabase secrets, verify model IDs, add error logging to catch blocks.
 
+### Lost Crawl Data (discovered Apr 4 2026)
+All ~80 historical site crawl sessions were lost — `crawl_sessions` and `crawl_pages` tables are empty (only 3 sentinel rows for chat). Cause unknown — possible DB reset or migration. Need to batch re-crawl company domains to rebuild.
+
 ### AI Company Matching (Planned)
 `company-match-ai` edge function is deployed but not wired into Phase0Map UI. Plan exists in `kind-baking-mountain.md`.
 
@@ -426,7 +417,7 @@ Model council returns "No synthesis available" — API calls failing silently (~
 
 ## Next Session Priority
 
-**Sidebar workspace navigation overhaul.** Replace top nav bar with sidebar. Workspace switcher (Growth/Delivery/Admin) in logo area scopes the entire UI — different nav items, company detail tabs, and data emphasis per workspace. Growth = prospects + pipeline. Delivery = active clients + projects. Admin = hours + invoicing. Vision doc: `Agency-Brain-Architecture.docx`. Detailed architecture in memory file `project_workspace_sidebar_nav.md`. Also: lazy-load all company artifact tabs on page load (pre-fetch in background).
+**Workspace-scoped data filtering + Agency Brain doc integration.** Now that sidebar workspaces are shipped, the next steps are: (1) Filter CompaniesPage data by workspace — Growth shows prospects, Delivery shows active clients, Admin shows all with financial columns. (2) Re-crawl sites — all 80+ historical site crawls were lost (crawl_sessions table empty). Batch re-crawl company domains. (3) Wire Gmail and Avoma into company detail tabs (user requested moving these from old site prospecting into company context). (4) Integrate Agency Brain vision doc concepts (Agency Voice, Agency Team) into the product roadmap. (5) Lazy-load all company artifact tabs on page load (pre-fetch in background).
 
 ---
 
