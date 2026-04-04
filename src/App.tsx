@@ -13,7 +13,6 @@ import { BrandLoader } from "@/components/BrandLoader";
 import CrawlPage from "./pages/CrawlPage";
 import ResultsPage from "./pages/ResultsPage";
 import HistoryPage from "./pages/HistoryPage";
-import IntegrationsPage from "./pages/IntegrationsPage";
 import ConnectionsPage from "./pages/ConnectionsPage";
 import WishlistPage from "./pages/WishlistPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -81,7 +80,7 @@ const App = () => (
               {/* Legacy redirects */}
               <Route path="/groups" element={<Navigate to="/lists" replace />} />
               <Route path="/groups/:groupId" element={<RedirectGroups />} />
-              <Route path="/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
+              <Route path="/integrations" element={<Navigate to="/connections" replace />} />
               <Route path="/connections" element={<ProtectedRoute><ConnectionsPage /></ProtectedRoute>} />
               <Route path="/pipeline" element={<ProtectedRoute><PipelinePage /></ProtectedRoute>} />
               <Route path="/companies" element={<ProtectedRoute><CompaniesPage /></ProtectedRoute>} />

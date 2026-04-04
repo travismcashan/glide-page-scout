@@ -377,7 +377,7 @@ Vision: Instead of 30-50 hours in strategy, spend 5 elite hours because 25-30 ho
 - **`company-artifacts` edge function** — fetches external data live per-company when visiting tabs. No global batch sync needed.
 - **Supported artifacts:** tickets (Freshdesk search API), deals + engagements (HubSpot associations API), projects + time_entries + invoices (Harvest client_id filtering).
 - **Architecture:** Tab activation → `fetchArtifact()` → edge function → external API → state update. Cached via `artifactsFetched` ref Set (no re-fetch on tab revisit).
-- **Freshdesk quirk:** Must use `/search/tickets?query="company_id:X"` (not `/tickets?company_id=X` which returns 403).
+- **Freshdesk:** Uses direct `/tickets?company_id=X` endpoint (search API no longer supports company_id filter).
 
 ### Global Sync Engine (Connections)
 - **`global-sync`** — cross-references Harvest, HubSpot, Freshdesk, Asana to build unified company list. Domain-first matching, then name normalization.
@@ -405,14 +405,22 @@ Vision: Instead of 30-50 hours in strategy, spend 5 elite hours because 25-30 ho
 
 ## Known Issues
 
-### Harvest Token Expired
-HARVEST_ACCESS_TOKEN returns 403 on all API calls. Need to regenerate via Harvest OAuth. Affects company-artifacts Harvest tabs and harvest-sync.
-
 ### Council Chat Bug
 Model council returns "No synthesis available" — API calls failing silently (~135ms response = too fast). Debug: check API keys in Supabase secrets, verify model IDs, add error logging to catch blocks.
 
 ### AI Company Matching (Planned)
 `company-match-ai` edge function is deployed but not wired into Phase0Map UI. Plan exists in `kind-baking-mountain.md`.
+
+## Integration Status (verified Apr 4 2026)
+
+| Integration | Health | On-Demand Artifacts | Notes |
+|---|---|---|---|
+| **HubSpot** | OK | Deals, Engagements (emails/calls/meetings/notes/tasks) | deals/engagements tables empty by design — on-demand only, not persisted |
+| **Harvest** | OK (OAuth) | Projects, Time Entries | Invoices not used in Harvest — use QuickBooks. OAuth token expires in 14 days, refresh token stored. |
+| **Freshdesk** | OK | Tickets (direct list API) | Switched from search API to `/tickets?company_id=X` — search API no longer supports company_id filter |
+| **QuickBooks** | CSV Import | Invoice summaries on companies table | `quickbooks_invoice_summary` JSONB on companies (487 companies). Invoices tab reads from this, not Harvest. |
+
+**Linked companies:** HubSpot: 1,900 | Harvest: 408 | Freshdesk: 587 | QuickBooks: 487
 
 ---
 

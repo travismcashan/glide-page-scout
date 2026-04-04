@@ -283,18 +283,17 @@ async function fetchTickets(freshdeskCompanyId: string, config: { baseUrl: strin
   const priorityLabels: Record<number, string> = { 1: 'Low', 2: 'Medium', 3: 'High', 4: 'Urgent' };
   const sourceLabels: Record<number, string> = { 1: 'Email', 2: 'Portal', 3: 'Phone', 7: 'Chat', 9: 'Feedback Widget', 10: 'Outbound Email' };
 
-  // Use Freshdesk search API — /tickets?company_id=X returns 403 on some plans
-  const query = encodeURIComponent(`"company_id:${freshdeskCompanyId}"`);
+  // Use direct ticket list with company_id filter (search API no longer supports company_id field)
   const allTickets: any[] = [];
   let page = 1;
-  const maxPages = 10; // Search API returns max 30 per page, 10 pages = 300 tickets
+  const maxPages = 20; // 100 per page × 20 pages = 2000 tickets max
 
   while (page <= maxPages) {
-    const url = `${config.baseUrl}/search/tickets?query=${query}&page=${page}`;
+    const url = `${config.baseUrl}/tickets?company_id=${freshdeskCompanyId}&per_page=100&page=${page}&include=requester,stats`;
     const data = await freshdeskFetchWithRetry(url, config.headers);
-    const results = data.results || [];
+    const results = Array.isArray(data) ? data : [];
     allTickets.push(...results);
-    if (results.length < 30 || data.total <= allTickets.length) break;
+    if (results.length < 100) break;
     page++;
   }
 

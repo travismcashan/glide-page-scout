@@ -413,10 +413,10 @@ export default function CompanyDetailPage() {
                 {harvestTimeEntries.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{harvestTimeEntries.length}</Badge>}
               </TabsTrigger>
             )}
-            {company.harvest_client_id && (
+            {(company as any).quickbooks_invoice_summary && (
               <TabsTrigger value="invoices" className="flex items-center gap-1.5">
                 <Receipt className="h-3.5 w-3.5" /> Invoices
-                {harvestInvoices.length > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{harvestInvoices.length}</Badge>}
+                {(company as any).quickbooks_invoice_summary?.count > 0 && <Badge variant="secondary" className="text-xs py-0 ml-1">{(company as any).quickbooks_invoice_summary.count}</Badge>}
               </TabsTrigger>
             )}
             {company.freshdesk_company_id && (
@@ -665,50 +665,79 @@ export default function CompanyDetailPage() {
             })()}
           </TabsContent>
 
-          {/* Invoices Tab (Harvest) */}
+          {/* Invoices Tab (QuickBooks) */}
           <TabsContent value="invoices">
-            {artifactLoading.invoices ? (
-              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
-            ) : harvestInvoices.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No Harvest invoices found.</div>
-            ) : (() => {
-              const totalAmount = harvestInvoices.reduce((s: number, inv: any) => s + (inv.amount || 0), 0);
-              const totalDue = harvestInvoices.reduce((s: number, inv: any) => s + (inv.due_amount || 0), 0);
-              const stateColors: Record<string, string> = { paid: 'bg-green-500/15 text-green-400', open: 'bg-blue-500/15 text-blue-400', draft: 'bg-zinc-500/15 text-zinc-400', partial: 'bg-amber-500/15 text-amber-400' };
+            {(() => {
+              const qb = (company as any)?.quickbooks_invoice_summary;
+              if (!qb) return <div className="text-center py-12 text-muted-foreground">No QuickBooks invoice data.</div>;
+              const services = qb.services ? Object.entries(qb.services) as [string, { count: number; total: number }][] : [];
+              const txTypes = qb.transactionTypes ? Object.entries(qb.transactionTypes) as [string, number][] : [];
               return (
                 <div>
-                  <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                     <div className="bg-card border border-border rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground">Total Invoiced</p>
-                      <p className="text-2xl font-bold">${totalAmount.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground">Total Revenue</p>
+                      <p className="text-2xl font-bold">${(qb.total || 0).toLocaleString()}</p>
                     </div>
                     <div className="bg-card border border-border rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground">Outstanding</p>
-                      <p className="text-2xl font-bold">${totalDue.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground">Transactions</p>
+                      <p className="text-2xl font-bold">{qb.count || 0}</p>
                     </div>
                     <div className="bg-card border border-border rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground">Invoices</p>
-                      <p className="text-2xl font-bold">{harvestInvoices.length}</p>
+                      <p className="text-sm text-muted-foreground">First Transaction</p>
+                      <p className="text-lg font-semibold">{qb.firstDate ? format(new Date(qb.firstDate), 'MMM d, yyyy') : '—'}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground">Last Transaction</p>
+                      <p className="text-lg font-semibold">{qb.lastDate ? format(new Date(qb.lastDate), 'MMM d, yyyy') : '—'}</p>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    {harvestInvoices.map((inv: any) => (
-                      <div key={inv.id} className="flex items-center gap-4 p-3 rounded-lg border border-border/50 bg-card">
-                        <Receipt className="h-5 w-5 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">#{inv.number}</span>
-                            {inv.subject && <span className="text-sm text-muted-foreground truncate">{inv.subject}</span>}
-                            <Badge variant="outline" className={stateColors[inv.state] || ''}>{inv.state}</Badge>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-semibold">${(inv.amount || 0).toLocaleString()}</p>
-                          {inv.issue_date && <p className="text-sm text-muted-foreground">{format(new Date(inv.issue_date), 'MMM d, yyyy')}</p>}
-                        </div>
+
+                  {/* Transaction Types */}
+                  {txTypes.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Transaction Types</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {txTypes.sort((a, b) => (b[1] as number) - (a[1] as number)).map(([type, count]) => (
+                          <Badge key={type} variant="outline" className="text-sm py-1 px-3">
+                            {type}: {(count as number).toLocaleString()}
+                          </Badge>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Services Breakdown */}
+                  {services.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Services</h3>
+                      <div className="space-y-2">
+                        {services.sort((a, b) => (b[1] as any).total - (a[1] as any).total).map(([name, data]) => (
+                          <div key={name} className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium">{name.replace(/^[^:]+:/, '').trim()}</span>
+                              <span className="text-xs text-muted-foreground ml-2">({(data as any).count} transactions)</span>
+                            </div>
+                            <span className="font-semibold shrink-0">${((data as any).total || 0).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sample Memos */}
+                  {qb.sampleMemos?.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Recent Memos</h3>
+                      <div className="space-y-1">
+                        {qb.sampleMemos.slice(0, 5).map((memo: string, i: number) => (
+                          <div key={i} className="text-sm text-muted-foreground p-2 rounded bg-muted/30 truncate">
+                            {memo}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}

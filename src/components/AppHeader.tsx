@@ -33,8 +33,6 @@ const NAV_ITEMS = [
   { label: 'Sites', to: '/sites', matchPrefix: '/sites' },
   { label: 'Knowledge', to: '/knowledge' },
   { label: 'Lists', to: '/lists', matchPrefix: '/lists' },
-  { label: 'Services', to: '/services' },
-  { label: 'Integrations', to: '/integrations' },
 ];
 
 export default function AppHeader() {
@@ -245,11 +243,14 @@ export default function AppHeader() {
                     <Shield className="h-4 w-4 mr-2" /> Admin Panel
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => navigate('/wishlist')}>
-                  <Heart className="h-4 w-4 mr-2" /> Wishlist
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/connections')}>
                   <Link2 className="h-4 w-4 mr-2" /> Connections
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/services')}>
+                  <Settings className="h-4 w-4 mr-2" /> Services
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/wishlist')}>
+                  <Heart className="h-4 w-4 mr-2" /> Wishlist
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/usage')}>
                   <Activity className="h-4 w-4 mr-2" /> Usage
@@ -341,16 +342,22 @@ export default function AppHeader() {
                         </button>
                       )}
                       <button
-                        onClick={() => { navigate('/wishlist'); setMobileOpen(false); }}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Heart className="h-4 w-4" /> Wishlist
-                      </button>
-                      <button
                         onClick={() => { navigate('/connections'); setMobileOpen(false); }}
                         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Link2 className="h-4 w-4" /> Connections
+                      </button>
+                      <button
+                        onClick={() => { navigate('/services'); setMobileOpen(false); }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Settings className="h-4 w-4" /> Services
+                      </button>
+                      <button
+                        onClick={() => { navigate('/wishlist'); setMobileOpen(false); }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Heart className="h-4 w-4" /> Wishlist
                       </button>
                       <button
                         onClick={() => { navigate('/usage'); setMobileOpen(false); }}
