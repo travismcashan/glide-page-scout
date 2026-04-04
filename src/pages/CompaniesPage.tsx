@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompanies, useInvalidateCompanies } from '@/hooks/useCompanies';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -366,9 +367,9 @@ function FilterDropdown({
 export default function CompaniesPage() {
   const navigate = useNavigate();
 
-  // Data
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Data (cached via TanStack Query)
+  const { companies, loading } = useCompanies();
+  const invalidateCompanies = useInvalidateCompanies();
 
   // Search & Filters
   const [search, setSearch] = useState('');
@@ -404,64 +405,6 @@ export default function CompaniesPage() {
       localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
     } catch {}
   }, [viewMode]);
-
-  // ---------------------------------------------------------------------------
-  // Data fetching
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    async function fetchCompanies() {
-      let allCompanies: any[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      while (true) {
-        const { data: batch, error: batchError } = await supabase
-          .from('companies')
-          .select(
-            'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, status, harvest_client_id, harvest_client_name, asana_project_gids, hubspot_company_id, freshdesk_company_id, freshdesk_company_name, quickbooks_client_name, quickbooks_invoice_summary, last_synced_at, created_at, updated_at',
-          )
-          .order('name')
-          .range(from, from + pageSize - 1);
-        if (batchError || !batch) break;
-        allCompanies = allCompanies.concat(batch);
-        if (batch.length < pageSize) break;
-        from += pageSize;
-      }
-      const companiesData = allCompanies;
-
-      if (allCompanies.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      const { data: contactCounts } = await supabase.from('contacts').select('company_id');
-      const { data: sessionCounts } = await supabase
-        .from('crawl_sessions')
-        .select('company_id')
-        .not('company_id', 'is', null);
-
-      const contactMap = new Map<string, number>();
-      (contactCounts || []).forEach((c: any) => {
-        if (c.company_id) contactMap.set(c.company_id, (contactMap.get(c.company_id) || 0) + 1);
-      });
-
-      const sessionMap = new Map<string, number>();
-      (sessionCounts || []).forEach((s: any) => {
-        if (s.company_id) sessionMap.set(s.company_id, (sessionMap.get(s.company_id) || 0) + 1);
-      });
-
-      setCompanies(
-        companiesData.map((c: any) => ({
-          ...c,
-          contact_count: contactMap.get(c.id) || 0,
-          site_count: sessionMap.get(c.id) || 0,
-        })),
-      );
-      setLoading(false);
-    }
-
-    fetchCompanies();
-  }, []);
 
   // ---------------------------------------------------------------------------
   // Filtering

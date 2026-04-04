@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
   ChevronDown, X, Loader2, Linkedin, Briefcase,
@@ -7,7 +7,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
@@ -18,6 +18,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { BrandLoader } from "@/components/BrandLoader";
 import { supabase } from "@/integrations/supabase/client";
+import { usePipelineDeals, usePipelineLeads, usePipelineStats, useInvalidatePipeline } from "@/hooks/useCachedQueries";
 import { formatDistanceToNow, format, isPast } from "date-fns";
 
 const HUBSPOT_ACCOUNT = "3457789";
@@ -80,24 +81,42 @@ const saveSetting = (key: string, value: string) => {
 
 export default function PipelinePage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(() => loadSetting("tab", "deals"));
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Deals state
-  const [deals, setDeals] = useState<Deal[]>([]);
+  // Tab synced with URL ?tab= param (sidebar drives this)
+  const activeTab = searchParams.get("tab") || "deals";
+  const setActiveTab = useCallback((tab: string) => {
+    setSearchParams({ tab }, { replace: true });
+  }, [setSearchParams]);
+
+  // Pipeline selection + filters
+  const [selectedPipeline, setSelectedPipeline] = useState(() => loadSetting("pipeline", "33bc2a42-c57c-4180-b0e6-77b3d6c7f69f"));
+  const [ownerFilter, setOwnerFilter] = useState(() => loadSetting("owner", "all"));
+
+  // Deals (cached via TanStack Query)
+  const { deals, owners, ownerTeams: dealOwnerTeams, pipelineInfo, pipelineOptions, loading: dealsLoading, error: dealsError, refetch: refetchDeals } = usePipelineDeals(selectedPipeline);
+
+  // Leads (cached via TanStack Query)
+  const { contacts, leadOwners, leadOwnerTeams, leadStatuses, loading: contactsLoading, error: contactsError, refetch: refetchLeads } = usePipelineLeads();
+
+  // Stats (cached, re-fetches when pipeline or owner filter changes)
+  const { stats: historicalStats } = usePipelineStats(selectedPipeline, ownerFilter);
+
+  const invalidatePipeline = useInvalidatePipeline();
+
+  // Merge ownerTeams from both sources
+  const [ownerTeams, setOwnerTeams] = useState<Record<string, OwnerInfo>>({});
+  useEffect(() => {
+    setOwnerTeams(prev => ({ ...prev, ...dealOwnerTeams, ...leadOwnerTeams }));
+  }, [dealOwnerTeams, leadOwnerTeams]);
+
+  // Deals local state (kept: closed deals, pagination, UI toggles)
   const [closedDeals, setClosedDeals] = useState<Deal[]>([]);
   const [showClosed, setShowClosed] = useState(() => loadSetting("showClosed", "false") === "true");
   const [showMetrics, setShowMetrics] = useState(() => loadSetting("showMetrics", "true") === "true");
   const [closedLoading, setClosedLoading] = useState(false);
   const [stagePaging, setStagePaging] = useState<Record<string, { hasMore: boolean; nextCursor: string | null; total: number }>>({});
   const [stageLoadingMore, setStageLoadingMore] = useState<Record<string, boolean>>({});
-  const [dealsLoading, setDealsLoading] = useState(true);
-  const [dealsError, setDealsError] = useState<string | null>(null);
-  const [pipelineInfo, setPipelineInfo] = useState<PipelineInfo | null>(null);
-  const [pipelineOptions, setPipelineOptions] = useState<PipelineOption[]>([]);
-  const [selectedPipeline, setSelectedPipeline] = useState(() => loadSetting("pipeline", "33bc2a42-c57c-4180-b0e6-77b3d6c7f69f"));
-  const [owners, setOwners] = useState<Record<string, string>>({});
-  const [ownerTeams, setOwnerTeams] = useState<Record<string, OwnerInfo>>({});
-  const [ownerFilter, setOwnerFilter] = useState(() => loadSetting("owner", "all"));
   const [showOtherOwners, setShowOtherOwners] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -141,133 +160,11 @@ export default function PipelinePage() {
   const [createDateFilter, setCreateDateFilter] = useState(() => loadSetting("createDate", "all"));
   const [closeDateFilter, setCloseDateFilter] = useState(() => loadSetting("closeDate", "all"));
 
-  // Leads state
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [contactsLoading, setContactsLoading] = useState(true);
-  const [contactsError, setContactsError] = useState<string | null>(null);
-  const [leadStatuses, setLeadStatuses] = useState<StatusInfo[]>([]);
-  const [leadOwners, setLeadOwners] = useState<Record<string, string>>({});
-
-  // Historical stats (from lightweight closed-deals query)
-  const [historicalStats, setHistoricalStats] = useState<{
-    winRate: number; avgCycle: number; wonRevenue: number;
-    closedWonCount: number; closedTotalCount: number;
-  } | null>(null);
-
-  // ---- Fetch deals ----
-  const fetchDeals = async (pipelineId?: string) => {
-    setDealsLoading(true);
-    setDealsError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
-        body: {
-          action: "deals",
-          pipeline: pipelineId || selectedPipeline,
-        },
-      });
-      if (error) {
-        // Extract readable error from edge function response
-        let msg = "Failed to load deals";
-        try {
-          const body = typeof error === "object" && error?.context?.body
-            ? await new Response(error.context.body).text()
-            : null;
-          if (body) {
-            const parsed = JSON.parse(body);
-            msg = parsed.error || msg;
-          }
-        } catch { /* fallback to generic message */ }
-
-        // Detect common HubSpot errors
-        if (msg.includes("429") || msg.includes("TOO_MANY")) {
-          msg = "HubSpot rate limit reached. Try again in a few minutes.";
-        } else if (msg.includes("401") || msg.includes("UNAUTHORIZED")) {
-          msg = "HubSpot access token expired. Contact admin to refresh.";
-        } else if (msg.includes("403")) {
-          msg = "HubSpot permissions error. The API token may not have deal access.";
-        }
-        setDealsError(msg);
-        console.error("Deals fetch error:", msg, error);
-        setDealsLoading(false);
-        return;
-      }
-      setDeals(data.deals || []);
-      setOwners(data.owners || {});
-      if (data.ownerTeams) setOwnerTeams((prev) => ({ ...prev, ...data.ownerTeams }));
-      if (data.pipeline) setPipelineInfo(data.pipeline);
-      if (data.pipelines) setPipelineOptions(data.pipelines);
-    } catch (err: any) {
-      const msg = err?.message || "Unexpected error loading deals";
-      setDealsError(msg);
-      console.error("Failed to fetch deals:", err);
-    }
-    setDealsLoading(false);
-  };
-
-  // ---- Fetch leads ----
-  const fetchLeads = async () => {
-    setContactsLoading(true);
-    setContactsError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
-        body: { action: "leads" },
-      });
-      if (error) {
-        let msg = "Failed to load leads";
-        try {
-          const body = typeof error === "object" && error?.context?.body
-            ? await new Response(error.context.body).text()
-            : null;
-          if (body) {
-            const parsed = JSON.parse(body);
-            msg = parsed.error || msg;
-          }
-        } catch { /* fallback */ }
-        if (msg.includes("429") || msg.includes("TOO_MANY")) {
-          msg = "HubSpot rate limit reached. Try again in a few minutes.";
-        }
-        setContactsError(msg);
-        console.error("Leads fetch error:", msg);
-        setContactsLoading(false);
-        return;
-      }
-      setContacts(data.contacts || []);
-      setLeadOwners(data.owners || {});
-      if (data.ownerTeams) setOwnerTeams((prev) => ({ ...prev, ...data.ownerTeams }));
-      if (data.statuses) setLeadStatuses(data.statuses);
-    } catch (err: any) {
-      setContactsError(err?.message || "Unexpected error loading leads");
-      console.error("Failed to fetch leads:", err);
-    }
-    setContactsLoading(false);
-  };
-
-  // ---- Fetch historical stats (win rate, avg cycle) ----
-  const fetchStats = async (pipelineId?: string, owner?: string) => {
-    try {
-      const body: any = { action: "stats", pipeline: pipelineId || selectedPipeline };
-      if (owner && owner !== "all") body.ownerFilter = owner;
-      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", { body });
-      if (!error && data) setHistoricalStats(data);
-    } catch { /* non-critical, stats just show — */ }
-  };
-
-  // Stagger API calls to avoid hitting HubSpot rate limits on mount
-  // Deals + stats fire first, leads fires after deals complete
+  // Reset closed deals when pipeline changes
   useEffect(() => {
-    fetchDeals().then(() => fetchStats(undefined, ownerFilter));
     setClosedDeals([]);
     setShowClosed(false);
   }, [selectedPipeline]);
-
-  // Re-fetch stats when owner filter changes
-  useEffect(() => {
-    fetchStats(undefined, ownerFilter);
-  }, [ownerFilter]);
-  useEffect(() => {
-    const t = setTimeout(() => fetchLeads(), 1500);
-    return () => clearTimeout(t);
-  }, []);
 
   // Fetch closed deals on demand when toggle is turned on
   const fetchClosedDeals = async () => {
@@ -310,7 +207,7 @@ export default function PipelinePage() {
   }, [showClosed]);
 
   // ---- Persist settings to localStorage ----
-  useEffect(() => { saveSetting("tab", activeTab); }, [activeTab]);
+  // Tab is now URL-driven, no need to persist to localStorage
   useEffect(() => { saveSetting("pipeline", selectedPipeline); }, [selectedPipeline]);
   useEffect(() => { saveSetting("owner", ownerFilter); }, [ownerFilter]);
   useEffect(() => { saveSetting("createDate", createDateFilter); }, [createDateFilter]);
@@ -514,13 +411,8 @@ export default function PipelinePage() {
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col px-4 sm:px-6 py-6 w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 min-w-0">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage leads and deals from HubSpot
-            </p>
-          </div>
+        <div className="flex items-center justify-between mb-3 min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">{activeTab === "leads" ? "Leads" : "Deals"}</h1>
           <div className="flex items-center gap-3 shrink-0">
             {/* Toggles */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -538,7 +430,7 @@ export default function PipelinePage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => activeTab === "deals" ? fetchDeals() : fetchLeads()}
+              onClick={() => activeTab === "deals" ? refetchDeals() : refetchLeads()}
               disabled={activeTab === "deals" ? dealsLoading : contactsLoading}
             >
               <RefreshCw className={`h-4 w-4 ${(dealsLoading || contactsLoading) ? "animate-spin" : ""}`} />
@@ -546,35 +438,14 @@ export default function PipelinePage() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tab content — navigation is in the sidebar */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <TabsList>
-              <TabsTrigger value="leads" className="gap-2">
-                <Mail className="h-3.5 w-3.5" />
-                Leads
-                {contacts.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                    {contacts.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="deals" className="gap-2">
-                <DollarSign className="h-3.5 w-3.5" />
-                Deals
-                {pipelineStats && pipelineStats.openCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                    {pipelineStats.openCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-
+          <div className="flex items-center justify-between mb-3">
             {/* Filter controls */}
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Pipeline selector — deals only */}
                 {activeTab === "deals" && (
-                  <Select value={selectedPipeline} onValueChange={(v) => { setSelectedPipeline(v); fetchDeals(v); }}>
+                  <Select value={selectedPipeline} onValueChange={(v) => { setSelectedPipeline(v); }}>
                     <SelectTrigger className="w-fit h-9">
                       <SelectValue />
                     </SelectTrigger>
@@ -719,7 +590,7 @@ export default function PipelinePage() {
             ) : contactsError ? (
               <div className="flex flex-col items-center justify-center py-24 gap-3">
                 <div className="text-sm text-destructive font-medium">{contactsError}</div>
-                <Button variant="outline" size="sm" onClick={() => fetchLeads()}>
+                <Button variant="outline" size="sm" onClick={() => refetchLeads()}>
                   <RefreshCw className="h-3.5 w-3.5 mr-2" /> Retry
                 </Button>
               </div>
@@ -885,7 +756,7 @@ export default function PipelinePage() {
             ) : dealsError ? (
               <div className="flex flex-col items-center justify-center py-24 gap-3">
                 <div className="text-sm text-destructive font-medium">{dealsError}</div>
-                <Button variant="outline" size="sm" onClick={() => fetchDeals()}>
+                <Button variant="outline" size="sm" onClick={() => refetchDeals()}>
                   <RefreshCw className="h-3.5 w-3.5 mr-2" /> Retry
                 </Button>
               </div>

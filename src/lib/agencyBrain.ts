@@ -751,3 +751,67 @@ async function upsertEngagementFromHubSpot(
   }
   return newEng.id;
 }
+
+// ============================================================
+// Lazy migration: copy enrichment from crawl_sessions to companies
+// ============================================================
+
+/**
+ * One-time migration: if a company was enriched at the site level (old architecture),
+ * copy apollo_data, ocean_data, avoma_data, gmail_data from the most recent crawl_session
+ * into companies.enrichment_data so it's accessible at the company level.
+ */
+export async function migrateEnrichmentFromSessions(companyId: string): Promise<void> {
+  // Check if already migrated
+  const { data: company } = await supabase
+    .from('companies')
+    .select('enrichment_data')
+    .eq('id', companyId)
+    .single();
+
+  const existing = (company as any)?.enrichment_data || {};
+  if (existing._migrated) return;
+
+  // Find most recent session with enrichment data
+  const { data: sessions } = await supabase
+    .from('crawl_sessions')
+    .select('apollo_data, apollo_team_data, ocean_data, avoma_data, gmail_data' as any)
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (!sessions || sessions.length === 0) {
+    // Mark as migrated even if nothing to migrate
+    await supabase
+      .from('companies')
+      .update({ enrichment_data: { ...existing, _migrated: true } } as any)
+      .eq('id', companyId);
+    return;
+  }
+
+  // Merge enrichment from sessions (prefer most recent non-null values)
+  const merged = { ...existing };
+  for (const s of sessions) {
+    const session = s as any;
+    if (!merged.apollo_team && session.apollo_team_data) {
+      merged.apollo_team = session.apollo_team_data;
+    }
+    if (!merged.ocean && session.ocean_data) {
+      merged.ocean = session.ocean_data;
+    }
+    if (!merged.avoma && session.avoma_data) {
+      merged.avoma = session.avoma_data;
+    }
+    if (!merged.gmail && session.gmail_data) {
+      merged.gmail = session.gmail_data;
+    }
+  }
+  merged._migrated = true;
+
+  await supabase
+    .from('companies')
+    .update({ enrichment_data: merged, updated_at: new Date().toISOString() } as any)
+    .eq('id', companyId);
+
+  console.log(`[agencyBrain] Migrated enrichment for company ${companyId}`);
+}

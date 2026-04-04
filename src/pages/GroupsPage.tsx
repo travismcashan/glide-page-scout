@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useSiteGroups, useInvalidateSiteGroups } from '@/hooks/useCachedQueries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,38 +29,14 @@ interface SiteGroup {
 
 export default function GroupsPage() {
   const navigate = useNavigate();
-  const [groups, setGroups] = useState<SiteGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { groups, loading } = useSiteGroups();
+  const invalidateGroups = useInvalidateSiteGroups();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SiteGroup | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  const fetchGroups = async () => {
-    const { data: groupRows } = await supabase
-      .from('site_groups')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!groupRows) { setLoading(false); return; }
-
-    const { data: members } = await supabase
-      .from('site_group_members')
-      .select('group_id');
-
-    const counts = new Map<string, number>();
-    members?.forEach(m => counts.set(m.group_id, (counts.get(m.group_id) ?? 0) + 1));
-
-    setGroups(groupRows.map(g => ({
-      ...g,
-      member_count: counts.get(g.id) ?? 0,
-    })));
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchGroups(); }, []);
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -83,6 +60,7 @@ export default function GroupsPage() {
         .single();
 
       if (error) throw error;
+      invalidateGroups();
       setDialogOpen(false);
       setName('');
       setDescription('');
@@ -113,7 +91,7 @@ export default function GroupsPage() {
       if (error) throw error;
       toast.success(`Deleted "${deleteTarget.name}"`);
       setDeleteTarget(null);
-      setGroups(prev => prev.filter(g => g.id !== deleteTarget.id));
+      invalidateGroups();
     } catch (err: any) {
       toast.error(err.message ?? 'Failed to delete list');
     }
@@ -124,12 +102,7 @@ export default function GroupsPage() {
     <div className="flex flex-col">
       <main className="flex-1 w-full px-4 sm:px-6 py-6 space-y-8">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Site Lists</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Organize related sites for comparative analysis
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Site Lists</h1>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">

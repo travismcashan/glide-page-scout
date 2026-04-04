@@ -1,16 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   Building2, Users, Globe, MapPin, Mail, Phone, Linkedin, ExternalLink,
   ArrowLeft, Briefcase, Clock, TrendingUp, ChevronRight, DollarSign,
   MessageSquare, PhoneCall, Calendar, StickyNote, CheckSquare, Brain, Database,
   FileJson, ChevronDown, ChevronUp, RefreshCw, FolderOpen, Receipt, Headphones,
-  Timer
+  Timer, Search, Loader2, Sparkles
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +26,12 @@ import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DEFAULT_BEST, DEFAULT_REASONING, persistResolvedChatSelection, resolveStoredChatSelection } from '@/lib/chatPreferences';
 import { withQueryTimeout } from '@/lib/queryTimeout';
+import { CompanyVoiceTab } from '@/components/company/CompanyVoiceTab';
+import { apolloApi, oceanApi } from '@/lib/api/firecrawl';
+import { upsertContactFromApollo } from '@/lib/agencyBrain';
+import { useCompany, useUpdateCompanyCache } from '@/hooks/useCompany';
+import OceanCard from '@/components/OceanCard';
+import { ApolloTeamContacts, type ApolloTeamData } from '@/components/apollo/ApolloTeamContacts';
 
 type Company = {
   id: string;
@@ -112,22 +118,38 @@ const COMPANY_CHAT_PREFIX = '__company_chat_';
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentProduct } = useProduct();
-  const [company, setCompany] = useState<Company | null>(null);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
+
+  // Core data (cached via TanStack Query — instant on revisit)
+  const { company, contacts, sites, loading } = useCompany(id);
+  const companyCache = useUpdateCompanyCache();
+
   const [deals, setDeals] = useState<Deal[]>([]);
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [harvestProjects, setHarvestProjects] = useState<any[]>([]);
   const [harvestTimeEntries, setHarvestTimeEntries] = useState<any[]>([]);
   const [harvestInvoices, setHarvestInvoices] = useState<any[]>([]);
   const [freshdeskTickets, setFreshdeskTickets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+
+  // Tab state synced with URL ?tab= param (so sidebar contextual nav works)
+  const activeTab = searchParams.get('tab') || 'overview';
+  const setActiveTab = useCallback((tab: string) => {
+    setSearchParams(tab === 'overview' ? {} : { tab }, { replace: true });
+  }, [setSearchParams]);
 
   // Artifact on-demand fetching state
   const [artifactLoading, setArtifactLoading] = useState<Record<string, boolean>>({});
   const artifactsFetched = useRef<Set<string>>(new Set());
+
+  // Apollo team search state
+  const [teamData, setTeamData] = useState<ApolloTeamData | null>(null);
+  const [teamSearching, setTeamSearching] = useState(false);
+  const [enrichingContact, setEnrichingContact] = useState<string | null>(null);
+
+  // Ocean enrichment state
+  const [oceanData, setOceanData] = useState<any>(null);
+  const [oceanLoading, setOceanLoading] = useState(false);
 
   // Source data state
   const [sourceData, setSourceData] = useState<any[]>([]);
@@ -165,24 +187,7 @@ export default function CompanyDetailPage() {
     persistResolvedChatSelection({ mode: chatProvider === 'council' ? 'council' : 'individual', provider: chatProvider, model: chatModel, reasoning: r });
   }, [chatModel, chatProvider]);
 
-  useEffect(() => {
-    if (!id) return;
-
-    async function fetchAll() {
-      const [companyRes, contactsRes, sitesRes] = await Promise.all([
-        supabase.from('companies').select('*').eq('id', id).single(),
-        supabase.from('contacts').select('*').eq('company_id', id).order('is_primary', { ascending: false }).order('created_at'),
-        supabase.from('crawl_sessions').select('id, domain, base_url, status, created_at').eq('company_id', id).order('created_at', { ascending: false }),
-      ]);
-
-      if (companyRes.data) setCompany(companyRes.data as Company);
-      if (contactsRes.data) setContacts(contactsRes.data as Contact[]);
-      if (sitesRes.data) setSites(sitesRes.data as Site[]);
-      setLoading(false);
-    }
-
-    fetchAll();
-  }, [id]);
+  // Note: company/contacts/sites are fetched by useCompany hook (cached via TanStack Query)
 
   // On-demand artifact fetching when tabs are activated
   const fetchArtifact = useCallback(async (artifactType: string) => {
@@ -269,6 +274,96 @@ export default function CompanyDetailPage() {
       return next;
     });
   }, []);
+
+  // Apollo team search handler
+  const handleTeamSearch = useCallback(async () => {
+    if (!company?.domain) { toast.error('No domain set for this company.'); return; }
+    setTeamSearching(true);
+    try {
+      const result = await apolloApi.teamSearch(company.domain);
+      if (result.success) {
+        setTeamData(result);
+        // Sync each team contact into the contacts table
+        const allTeam = [...(result.marketing || []), ...(result.c_suite || [])];
+        for (const tc of allTeam) {
+          if (tc.email) {
+            await upsertContactFromApollo({ ...tc, success: true, found: true } as any, company.id);
+          }
+        }
+        // Refresh contacts list
+        const { data: refreshed } = await supabase
+          .from('contacts')
+          .select('*')
+          .eq('company_id', company.id)
+          .order('is_primary', { ascending: false })
+          .order('created_at');
+        if (refreshed) companyCache.setContacts(company.id, refreshed as Contact[]);
+        // Cache in enrichment_data
+        const { data: current } = await supabase.from('companies').select('enrichment_data').eq('id', company.id).single();
+        const existing = (current as any)?.enrichment_data || {};
+        await supabase.from('companies').update({ enrichment_data: { ...existing, apollo_team: result }, updated_at: new Date().toISOString() } as any).eq('id', company.id);
+        toast.success(`Found ${result.totalFound} team contacts`);
+      } else {
+        toast.error(result.error || 'Apollo team search failed');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Team search failed');
+    }
+    setTeamSearching(false);
+  }, [company]);
+
+  // Apollo individual contact enrichment
+  const handleEnrichContact = useCallback(async (contact: Contact) => {
+    if (!contact.email) { toast.error('Contact has no email.'); return; }
+    setEnrichingContact(contact.id);
+    try {
+      const result = await apolloApi.enrich(contact.email, contact.first_name || undefined, contact.last_name || undefined, company?.domain || undefined);
+      if (result.success && result.found) {
+        await upsertContactFromApollo({ ...result, success: true, found: true } as any, company?.id || null);
+        // Refresh this contact
+        const { data: updated } = await supabase.from('contacts').select('*').eq('id', contact.id).single();
+        if (updated) companyCache.setContacts(company!.id, contacts.map(c => c.id === contact.id ? (updated as Contact) : c));
+        toast.success(`Enriched ${result.firstName || contact.first_name} ${result.lastName || contact.last_name}`);
+      } else {
+        toast.info('No Apollo match found for this contact.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Enrichment failed');
+    }
+    setEnrichingContact(null);
+  }, [company]);
+
+  // Ocean.io company enrichment
+  const handleOceanEnrich = useCallback(async () => {
+    if (!company?.domain) { toast.error('No domain set for this company.'); return; }
+    setOceanLoading(true);
+    try {
+      const result = await oceanApi.enrich(company.domain);
+      if (result.success) {
+        setOceanData(result);
+        // Save to enrichment_data
+        const { data: current } = await supabase.from('companies').select('enrichment_data').eq('id', company.id).single();
+        const existing = (current as any)?.enrichment_data || {};
+        await supabase.from('companies').update({ enrichment_data: { ...existing, ocean: result }, updated_at: new Date().toISOString() } as any).eq('id', company.id);
+        toast.success('Company enriched with Ocean.io data');
+      } else {
+        toast.error(result.error || 'Ocean.io enrichment failed');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Ocean enrichment failed');
+    }
+    setOceanLoading(false);
+  }, [company]);
+
+  // Load cached Ocean data from enrichment_data on mount
+  useEffect(() => {
+    if (company?.enrichment_data?.ocean) {
+      setOceanData(company.enrichment_data.ocean);
+    }
+    if (company?.enrichment_data?.apollo_team) {
+      setTeamData(company.enrichment_data.apollo_team);
+    }
+  }, [company?.id]);
 
   // Initialize sentinel session when Chat or Roadmap tab is first opened
   useEffect(() => {
@@ -357,7 +452,7 @@ export default function CompanyDetailPage() {
                 value={company.status}
                 onValueChange={async (value) => {
                   await supabase.from('companies').update({ status: value, updated_at: new Date().toISOString() }).eq('id', company.id);
-                  setCompany({ ...company, status: value });
+                  companyCache.patch(company.id, { status: value });
                 }}
               >
                 <SelectTrigger className={`w-auto h-7 text-xs border ${STATUS_COLORS[company.status] || ''}`}>
@@ -388,51 +483,104 @@ export default function CompanyDetailPage() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tab content — navigation is in the sidebar, no page-level tab bar */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 flex-wrap">
-            {WORKSPACE_COMPANY_TABS[currentProduct.id]
-              .filter(tab => !tab.condition || tab.condition(company))
-              .map(tab => {
-                const badgeCounts: Record<string, number | undefined> = {
-                  contacts: contacts.length || undefined,
-                  deals: deals.length || undefined,
-                  projects: harvestProjects.length || undefined,
-                  time: harvestTimeEntries.length || undefined,
-                  invoices: (company as any).quickbooks_invoice_summary?.count || undefined,
-                  tickets: freshdeskTickets.length || undefined,
-                  sites: sites.length || undefined,
-                };
-                const count = badgeCounts[tab.value];
-                return (
-                  <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5">
-                    {tab.label}
-                    {count != null && count > 0 && (
-                      <Badge variant="secondary" className="text-[10px] py-0 ml-1">{count}</Badge>
-                    )}
-                  </TabsTrigger>
-                );
-              })}
-          </TabsList>
-
-          {/* Overview Tab — clean summary */}
+          {/* Overview Tab — company intelligence hub */}
           <TabsContent value="overview">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
-              <button onClick={() => setActiveTab('contacts')} className="text-left"><StatCard label="Contacts" value={contacts.length} icon={<Users className="h-4 w-4" />} /></button>
-              <button onClick={() => setActiveTab('sites')} className="text-left"><StatCard label="Sites" value={sites.length} icon={<Globe className="h-4 w-4" />} /></button>
-              <button onClick={() => setActiveTab('deals')} className="text-left"><StatCard label="Deals" value={artifactLoading.deals ? '...' : deals.length} icon={<DollarSign className="h-4 w-4" />} /></button>
-              <StatCard label="Engagements" value={artifactLoading.engagements ? '...' : engagements.length} icon={<MessageSquare className="h-4 w-4" />} />
-              {deals.length > 0 && (
-                <StatCard
-                  label="Pipeline Value"
-                  value={`$${deals.filter(d => d.status === 'open').reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString()}`}
-                  icon={<TrendingUp className="h-4 w-4" />}
-                />
-              )}
-            </div>
+            {/* Key People */}
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Key People{contacts.length > 0 && ` (${contacts.length})`}</CardTitle>
+                  {company.domain && (
+                    <Button variant="ghost" size="sm" onClick={handleTeamSearch} disabled={teamSearching} className="gap-1.5 h-7 text-xs">
+                      {teamSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+                      Find Team
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {contacts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No contacts yet. Use "Find Team" to discover key people.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {contacts.map(contact => (
+                      <div key={contact.id} className="flex items-start gap-2.5 p-3 rounded-lg border border-border/50 hover:border-border transition-colors bg-background">
+                        <div className="shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                          {contact.photo_url ? (
+                            <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold truncate">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
+                            {contact.is_primary && <Badge variant="outline" className="text-[9px] py-0 shrink-0">Primary</Badge>}
+                          </div>
+                          {contact.title && <p className="text-xs text-muted-foreground truncate">{contact.title}</p>}
+                          <div className="flex items-center gap-2 mt-1.5">
+                            {contact.email && <a href={`mailto:${contact.email}`} className="text-muted-foreground hover:text-foreground"><Mail className="h-3 w-3" /></a>}
+                            {contact.phone && <span className="text-muted-foreground"><Phone className="h-3 w-3" /></span>}
+                            {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground"><Linkedin className="h-3 w-3" /></a>}
+                            {contact.email && (
+                              <button onClick={() => handleEnrichContact(contact)} disabled={enrichingContact === contact.id} className="text-muted-foreground hover:text-foreground">
+                                {enrichingContact === contact.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-            {/* Technologies */}
-            {technologies.length > 0 && (
+            {/* Sites */}
+            {sites.length > 0 && (
+              <Card className="mb-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" /> Sites ({sites.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {sites.map(site => (
+                      <button key={site.id} onClick={() => navigate(buildSitePath(site.domain, site.created_at, 'raw-data'))} className="text-left p-3 rounded-lg border border-border/50 hover:border-border hover:bg-accent/5 transition-all group flex items-center gap-3 bg-background">
+                        <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate">{site.domain}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(site.created_at), 'MMM d, yyyy')}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Ocean.io Company Intelligence */}
+            {oceanData ? (
+              <div className="mb-6">
+                <OceanCard data={oceanData} />
+              </div>
+            ) : company.domain ? (
+              <Card className="mb-6">
+                <CardContent className="py-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-3">Enrich this company with Ocean.io intelligence (demographics, technologies, headcount)</p>
+                  <Button variant="outline" size="sm" onClick={handleOceanEnrich} disabled={oceanLoading} className="gap-2">
+                    {oceanLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Enriching...</> : <><Sparkles className="h-3.5 w-3.5" /> Enrich with Ocean.io</>}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/* Technologies (from Apollo org — only if no Ocean data) */}
+            {technologies.length > 0 && !oceanData && (
               <Card className="mb-6">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Technologies ({technologies.length})</CardTitle></CardHeader>
                 <CardContent>
@@ -448,7 +596,7 @@ export default function CompanyDetailPage() {
               <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             )}
             {!artifactLoading.engagements && engagements.length > 0 && (
-              <Card>
+              <Card className="mb-6">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Recent Activity ({engagements.length})</CardTitle>
                 </CardHeader>
@@ -477,46 +625,10 @@ export default function CompanyDetailPage() {
             )}
 
             {company.notes && (
-              <Card className="mt-6">
+              <Card>
                 <CardHeader className="pb-3"><CardTitle className="text-base">Notes</CardTitle></CardHeader>
                 <CardContent><p className="text-sm text-muted-foreground whitespace-pre-wrap">{company.notes}</p></CardContent>
               </Card>
-            )}
-          </TabsContent>
-
-          {/* Contacts Tab */}
-          <TabsContent value="contacts">
-            {contacts.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No contacts yet. Enrich a contact via Apollo to add one.</div>
-            ) : (
-              <div className="space-y-3">
-                {contacts.map(contact => (
-                  <div key={contact.id} className="flex items-start gap-3 p-4 rounded-lg border border-border/50 hover:border-border transition-colors bg-card">
-                    <div className="shrink-0 w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                      {contact.photo_url ? (
-                        <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
-                        {contact.is_primary && <Badge variant="outline" className="text-[10px] py-0">Primary</Badge>}
-                        {contact.seniority && <Badge variant="secondary" className={`text-[10px] py-0 ${SENIORITY_COLORS[contact.seniority] || ''}`}>{contact.seniority.replace('_', ' ')}</Badge>}
-                      </div>
-                      {contact.title && <p className="text-sm text-muted-foreground mt-0.5">{contact.title}</p>}
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
-                        {contact.email && <a href={`mailto:${contact.email}`} className="flex items-center gap-1 hover:text-foreground"><Mail className="h-3.5 w-3.5" /> {contact.email}</a>}
-                        {contact.phone && <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {contact.phone}</span>}
-                        {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><Linkedin className="h-3.5 w-3.5" /> LinkedIn</a>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
           </TabsContent>
 
@@ -773,24 +885,15 @@ export default function CompanyDetailPage() {
             })()}
           </TabsContent>
 
-          {/* Sites Tab */}
-          <TabsContent value="sites">
-            {sites.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No sites linked to this company yet. Analyze a site to link it.</div>
-            ) : (
-              <div className="space-y-3">
-                {sites.map(site => (
-                  <button key={site.id} onClick={() => navigate(buildSitePath(site.domain, site.created_at, 'raw-data'))} className="w-full text-left p-4 rounded-lg border border-border/50 hover:border-border hover:bg-accent/5 transition-all group flex items-center gap-4 bg-card">
-                    <Globe className="h-5 w-5 text-muted-foreground shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold">{site.domain}</p>
-                      <p className="text-sm text-muted-foreground">{format(new Date(site.created_at), 'MMM d, yyyy')} &middot; {site.status}</p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-foreground/50 shrink-0" />
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* Voice Tab (Agency Voice — Meetings, Emails, Messages) */}
+          <TabsContent value="voice">
+            <CompanyVoiceTab
+              companyId={company.id}
+              companyName={company.name}
+              companyDomain={company.domain}
+              contactEmails={contacts.filter(c => c.email).map(c => c.email!)}
+              sessionId={chatSession?.id}
+            />
           </TabsContent>
 
           {/* Knowledge Tab */}

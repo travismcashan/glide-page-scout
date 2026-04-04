@@ -14,8 +14,8 @@ import { BrandLoader } from '@/components/BrandLoader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, oceanApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, avomaApi, apolloApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
-import { syncCompanyBrain, syncHubSpotToCompanyBrain, syncOceanToCompanyBrain } from '@/lib/agencyBrain';
+import { firecrawlApi, aiApi, gtmetrixApi, builtwithApi, semrushApi, pagespeedApi, detectzestackApi, techAnalysisApi, websiteCarbonApi, cruxApi, waveApi, observatoryApi, ssllabsApi, httpstatusApi, linkCheckerApi, w3cApi, schemaApi, readableApi, yellowlabApi, navExtractApi, contentTypesApi, autoTagPagesApi, sitemapApi, formsDetectApi, hubspotApi, ga4Api, searchConsoleApi } from '@/lib/api/firecrawl';
+
 import { PromptLibrary, type PromptTemplate } from '@/components/PromptLibrary';
 import { GtmetrixCard } from '@/components/GtmetrixCard';
 import { BuiltWithCard } from '@/components/BuiltWithCard';
@@ -28,7 +28,7 @@ import { CruxCard } from '@/components/CruxCard';
 import { LighthouseAccessibilityCard, extractPsiAccessibility } from '@/components/LighthouseAccessibilityCard';
 import { WaveCard } from '@/components/WaveCard';
 import { ObservatoryCard } from '@/components/ObservatoryCard';
-import OceanCard from '@/components/OceanCard';
+
 import SslLabsCard from '@/components/SslLabsCard';
 import { HttpStatusCard } from '@/components/HttpStatusCard';
 
@@ -68,10 +68,7 @@ function shouldShowIntegration(key: string, hasData: boolean, showAll: boolean, 
   if (freezeVisibilityForCompletedSession) return true;
   return !isIntegrationPaused(key);
 }
-import { AvomaCard } from '@/components/AvomaCard';
 import { HubSpotCard } from '@/components/HubSpotCard';
-import { ApolloCard } from '@/components/ApolloCard';
-import { GmailCard, type GmailCardHandle } from '@/components/GmailCard';
 import { SectionCard } from '@/components/SectionCard';
 import { SortedIntegrationList } from '@/components/SortedIntegrationList';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
@@ -426,8 +423,6 @@ export default function ResultsPage() {
   };
 
   const navRef = useRef<NavStructureCardHandle>(null);
-  const gmailRef = useRef<GmailCardHandle>(null);
-  const [gmailState, setGmailState] = useState<{ canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }>({ canIngest: false, isIngesting: false, emailCount: 0, isRefreshing: false, lastFetched: null, durationSec: null });
   const [navInnerExpand, setNavInnerExpand] = useState<boolean | null>(null);
   const [sitemapInnerExpand, setSitemapInnerExpand] = useState<boolean | null>(null);
   const [contentTypesInnerExpand, setContentTypesInnerExpand] = useState<boolean | null>(null);
@@ -511,7 +506,6 @@ export default function ResultsPage() {
         ['crux_data', setCruxFailed, 'crux'],
         ['wave_data', setWaveFailed, 'wave'],
         ['observatory_data', setObservatoryFailed, 'observatory'],
-        ['ocean_data', setOceanFailed, 'ocean'],
         ['ssllabs_data', setSsllabsFailed, 'ssllabs'],
         ['httpstatus_data', setHttpstatusFailed, 'httpstatus'],
         ['w3c_data', setW3cFailed, 'w3c'],
@@ -521,7 +515,6 @@ export default function ResultsPage() {
         ['linkcheck_data', setLinkcheckFailed, 'linkcheck'],
         ['nav_structure', setNavFailed, 'nav-structure'],
         ['content_types_data', setContentTypesFailed, 'content-types'],
-        ['avoma_data', setAvomaFailed, 'avoma'],
         ['hubspot_data', setHubspotFailed, 'hubspot'],
         ['tech_analysis_data', setTechAnalysisFailed, 'tech-analysis'],
         ['ga4_data', setGa4Failed, 'ga4'],
@@ -662,7 +655,7 @@ export default function ResultsPage() {
      waveTriggeredRef, observatoryTriggeredRef, httpstatusTriggeredRef, w3cTriggeredRef,
      schemaTriggeredRef, readableTriggeredRef, navTriggeredRef, sitemapTriggeredRef,
      contentTypesTriggeredRef,
-     oceanTriggeredRef, avomaTriggeredRef, hubspotTriggeredRef,
+     hubspotTriggeredRef,
      yellowlabPollingRef, linkcheckRunningRef, formsAutoRunRef, autoTagTriedRef,
      navAutoCrawlTriggeredRef,
     ].forEach(ref => { ref.current = true; });
@@ -903,56 +896,6 @@ export default function ResultsPage() {
       setObservatoryLoading(false);
     }).catch((e) => { const msg = e?.message || 'Observatory request failed'; setObservatoryFailed(true); setError('observatory', msg); persistFailure('observatory_data', msg); setObservatoryLoading(false); });
   }, [session, observatoryLoading, observatoryFailed, pauseVersion]);
-  // Ocean.io
-  const [oceanLoading, setOceanLoading] = useState(false);
-  const [oceanFailed, setOceanFailed] = useState(false);
-  const oceanTriggeredRef = useRef(false);
-  useEffect(() => {
-    if (!session || !isRealSite || serverCompleted || session.ocean_data || oceanLoading || oceanFailed || isIntegrationPaused('ocean')) return;
-    if (oceanTriggeredRef.current) return;
-    oceanTriggeredRef.current = true;
-    setOceanLoading(true);
-    oceanApi.enrich(prospectingDomain).then(async (result) => {
-      if (result.success) {
-        await supabase.from('crawl_sessions').update({ ocean_data: result } as any).eq('id', session.id);
-        clearError('ocean');
-        updateSession({ ocean_data: result } as any);
-        // Sync to agency brain
-        syncOceanToCompanyBrain(result, session.id, session.domain).catch(err =>
-          console.error('[ocean] Agency brain sync failed:', err)
-        );
-      } else { const msg = result.error || 'Ocean.io returned an error'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); }
-      setOceanLoading(false);
-    }).catch((e) => { const msg = e?.message || 'Ocean.io request failed'; setOceanFailed(true); setError('ocean', msg); persistFailure('ocean_data', msg); setOceanLoading(false); });
-  }, [session, oceanLoading, oceanFailed, pauseVersion]);
-  // Avoma
-  const [avomaLoading, setAvomaLoading] = useState(false);
-  const [avomaFailed, setAvomaFailed] = useState(false);
-  const [avomaProgress, setAvomaProgress] = useState<{ page: number; meetingsScanned: number; totalMeetings: number; matchesFound: number; phase: string } | null>(null);
-  const avomaTriggeredRef = useRef(false);
-  useEffect(() => {
-    if (!session || !isRealSite || serverCompleted || (session as any).avoma_data || avomaLoading || avomaFailed || isIntegrationPaused('avoma')) return;
-    if (avomaTriggeredRef.current) return;
-    avomaTriggeredRef.current = true;
-    setAvomaLoading(true);
-    setAvomaProgress(null);
-    // Prefer Apollo contact email for Avoma search, fallback to domain
-    const apolloEmail = session.apollo_data?.email;
-    const searchDomain = apolloEmail
-      ? apolloEmail.split('@').pop()?.toLowerCase() || prospectingDomain
-      : prospectingDomain;
-    avomaApi.lookupStreaming(searchDomain, lookbackDays, (progress) => {
-      setAvomaProgress(progress);
-    }).then(async (result) => {
-      if (result.success) {
-        await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session.id);
-        clearError('avoma');
-        updateSession({ avoma_data: result } as any);
-      } else { const msg = result.error || 'Avoma returned an error'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); }
-      setAvomaLoading(false);
-      setAvomaProgress(null);
-    }).catch((e) => { const msg = e?.message || 'Avoma request failed'; setAvomaFailed(true); setError('avoma', msg); persistFailure('avoma_data', msg); setAvomaLoading(false); setAvomaProgress(null); });
-  }, [session, avomaLoading, avomaFailed, pauseVersion]);
   // HubSpot CRM lookup
   const [hubspotLoading, setHubspotLoading] = useState(false);
   const [hubspotFailed, setHubspotFailed] = useState(false);
@@ -967,120 +910,10 @@ export default function ResultsPage() {
         await supabase.from('crawl_sessions').update({ hubspot_data: result } as any).eq('id', session.id);
         clearError('hubspot');
         updateSession({ hubspot_data: result } as any);
-        // Sync to agency brain (companies + contacts + deals + engagements)
-        syncHubSpotToCompanyBrain(result, session.id, session.domain).catch(err =>
-          console.error('[hubspot] Agency brain sync failed:', err)
-        );
       } else { const msg = result.error || 'HubSpot returned an error'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); }
       setHubspotLoading(false);
     }).catch((e) => { const msg = e?.message || 'HubSpot request failed'; setHubspotFailed(true); setError('hubspot', msg); persistFailure('hubspot_data', msg); setHubspotLoading(false); });
   }, [session, hubspotLoading, hubspotFailed, pauseVersion]);
-  // Apollo.io contact enrichment (manual search, persisted)
-  const [apolloData, setApolloData] = useState<any>(session?.apollo_data || null);
-  const [apolloLoading, setApolloLoading] = useState(false);
-  const apolloAutoTriggered = useRef(false);
-
-  // Apollo team search state
-  const [apolloTeamData, setApolloTeamData] = useState<any>((session as any)?.apollo_team_data || null);
-  const [apolloTeamLoading, setApolloTeamLoading] = useState(false);
-  const apolloTeamAutoTriggered = useRef(false);
-
-  // Sync apolloData from session when session loads/changes
-  useEffect(() => {
-    if (session?.apollo_data && !apolloData) {
-      setApolloData(session.apollo_data);
-    }
-  }, [session?.apollo_data]);
-
-  useEffect(() => {
-    if ((session as any)?.apollo_team_data && !apolloTeamData) {
-      setApolloTeamData((session as any).apollo_team_data);
-    }
-  }, [(session as any)?.apollo_team_data]);
-
-  const handleApolloSearch = async (email: string, firstName?: string, lastName?: string, isManual = false) => {
-    setApolloLoading(true);
-    try {
-      const result = await apolloApi.enrich(email, firstName, lastName, session?.domain);
-      // Always save to DB when the user manually searched (even found:false so their intent persists)
-      // For auto-enrich, only save when we actually found someone (don't block future manual entry)
-      const shouldSave = result.success && session && (isManual || result.found);
-      const savedResult = isManual ? { ...result, _manualSearch: true } : result;
-      setApolloData(savedResult);
-      if (shouldSave) {
-        await supabase.from('crawl_sessions').update({ apollo_data: savedResult } as any).eq('id', session.id);
-        // Sync to agency brain (companies + contacts tables)
-        syncCompanyBrain(result, session.id, session.domain).catch(err =>
-          console.error('[apollo] Agency brain sync failed:', err)
-        );
-      }
-      if (!result.success && result.errorCode !== 'CREDITS_EXHAUSTED') {
-        toast.error(result.error || 'Apollo enrichment failed');
-      }
-    } catch (e: any) {
-      toast.error(e?.message || 'Apollo request failed');
-    }
-    setApolloLoading(false);
-  };
-
-  const handleApolloTeamSearch = async () => {
-    const domain = prospectingDomain || apolloData?.organizationDomain || session?.domain;
-    if (!domain) { toast.error('No domain available for team search'); return; }
-    setApolloTeamLoading(true);
-    try {
-      const result = await apolloApi.teamSearch(domain);
-      setApolloTeamData(result);
-      if (result.success && session) {
-        await supabase.from('crawl_sessions').update({ apollo_team_data: result } as any).eq('id', session.id);
-      }
-      if (!result.success && result.errorCode !== 'CREDITS_EXHAUSTED') toast.error(result.error || 'Apollo team search failed');
-      else if (result.totalFound > 0) toast.success(`Found ${result.totalFound} team contacts`);
-    } catch (e: any) {
-      toast.error(e?.message || 'Apollo team search failed');
-    }
-    setApolloTeamLoading(false);
-  };
-
-  // Auto-enrich Apollo using primary HubSpot contact
-  useEffect(() => {
-    if (serverCompleted || apolloAutoTriggered.current) return;
-    if (apolloLoading || apolloData) return;
-    // Never overwrite a manual search or a previously found contact
-    const existing = session?.apollo_data as any;
-    if (existing && (existing._manualSearch || existing.found)) return;
-    if (isIntegrationPaused('apollo')) return;
-    const hubspot = (session as any)?.hubspot_data;
-    if (!hubspot?.success || !hubspot?.contacts?.length) return;
-
-    // Find primary contact (same logic as HubSpotCard: job title first, then most recent)
-    const sorted = [...hubspot.contacts].sort((a: any, b: any) => {
-      const aHasTitle = a.jobtitle ? 1 : 0;
-      const bHasTitle = b.jobtitle ? 1 : 0;
-      if (bHasTitle !== aHasTitle) return bHasTitle - aHasTitle;
-      const aDate = a.lastmodifieddate ? new Date(a.lastmodifieddate).getTime() : 0;
-      const bDate = b.lastmodifieddate ? new Date(b.lastmodifieddate).getTime() : 0;
-      return bDate - aDate;
-    });
-    const primary = sorted[0];
-    if (!primary?.email) return;
-
-    apolloAutoTriggered.current = true;
-    console.log(`[apollo] Auto-enriching primary HubSpot contact: ${primary.email}`);
-    handleApolloSearch(primary.email, primary.firstname || undefined, primary.lastname || undefined);
-  }, [(session as any)?.hubspot_data, apolloData, apolloLoading, pauseVersion]);
-
-  // Auto-trigger team search once Apollo enrichment completes with org domain
-  useEffect(() => {
-    if (serverCompleted || apolloTeamAutoTriggered.current) return;
-    if (apolloTeamLoading || apolloTeamData || (session as any)?.apollo_team_data) return;
-    if (isIntegrationPaused('apollo')) return;
-    const domain = apolloData?.organizationDomain || prospectingDomain;
-    if (!domain || !apolloData?.found) return;
-    apolloTeamAutoTriggered.current = true;
-    console.log(`[apollo] Auto-searching team contacts at: ${domain}`);
-    handleApolloTeamSearch();
-  }, [apolloData, apolloTeamData, apolloTeamLoading, prospectingDomain, pauseVersion]);
-
   // Unique Templates rerun support
   const [templatesRerunning, setTemplatesRerunning] = useState(false);
   const templatesRerunFnRef = useRef<(() => void) | null>(null);
@@ -1948,8 +1781,7 @@ export default function ResultsPage() {
     wave: setWaveLoading, observatory: setObservatoryLoading, ga4: setGa4Loading,
     gsc: setGscLoading, httpstatus: setHttpstatusLoading, w3c: setW3cLoading,
     schema: setSchemaLoading, readable: setReadableLoading, yellowlab: setYellowlabLoading,
-    ocean: setOceanLoading, hubspot: setHubspotLoading, apollo: setApolloLoading,
-    'apollo-team': setApolloTeamLoading, avoma: setAvomaLoading, sitemap: setSitemapLoading,
+    hubspot: setHubspotLoading, sitemap: setSitemapLoading,
     'nav-structure': setNavLoading, 'link-checker': setLinkcheckLoading,
     forms: setFormsLoading, 'content-types': setContentTypesLoading,
     'tech-analysis': setTechAnalysisLoading,
@@ -2027,11 +1859,9 @@ export default function ResultsPage() {
     { key: 'w3c', dbColumn: 'w3c_data' },
     { key: 'schema', dbColumn: 'schema_data' },
     { key: 'carbon', dbColumn: 'carbon_data' },
-    { key: 'ocean', dbColumn: 'ocean_data' },
     { key: 'semrush', dbColumn: 'semrush_data' },
     { key: 'nav-structure', dbColumn: 'nav_structure' },
     { key: 'content-types', dbColumn: 'content_types_data' },
-    { key: 'avoma', dbColumn: 'avoma_data' },
     { key: 'hubspot', dbColumn: 'hubspot_data' },
     { key: 'ga4', dbColumn: 'ga4_data' },
     { key: 'search-console', dbColumn: 'search_console_data' },
@@ -2063,7 +1893,6 @@ export default function ResultsPage() {
     setCruxFailed(false); setCruxNoData(false); setCruxLoading(false); cruxTriggeredRef.current = false;
     setWaveFailed(false); setWaveLoading(false); waveTriggeredRef.current = false;
     setObservatoryFailed(false); setObservatoryLoading(false); observatoryTriggeredRef.current = false;
-    setOceanFailed(false); setOceanLoading(false); oceanTriggeredRef.current = false;
     setSsllabsFailed(false); setSsllabsLoading(false); ssllabsPollingRef.current = false;
     setHttpstatusFailed(false); setHttpstatusLoading(false); httpstatusTriggeredRef.current = false;
     setW3cFailed(false); setW3cLoading(false); w3cTriggeredRef.current = false;
@@ -2071,7 +1900,6 @@ export default function ResultsPage() {
     setReadableFailed(false); setReadableLoading(false); readableTriggeredRef.current = false;
     setYellowlabFailed(false); setYellowlabLoading(false); yellowlabPollingRef.current = false;
     setLinkcheckFailed(false); setLinkcheckLoading(false); linkcheckRunningRef.current = false;
-    setAvomaFailed(false); setAvomaLoading(false); avomaTriggeredRef.current = false;
     setHubspotFailed(false); setHubspotLoading(false); hubspotTriggeredRef.current = false;
     setNavFailed(false); setNavLoading(false); navTriggeredRef.current = false;
     setSitemapFailed(false); setSitemapLoading(false); sitemapTriggeredRef.current = false;
@@ -2101,13 +1929,12 @@ export default function ResultsPage() {
   const loadingMap: Record<string, boolean> = {
     builtwith: builtwithLoading, semrush: semrushLoading, psi: psiLoading,
     detectzestack: detectzestackLoading, carbon: carbonLoading, crux: cruxLoading,
-    wave: waveLoading, observatory: observatoryLoading, ocean: oceanLoading,
+    wave: waveLoading, observatory: observatoryLoading,
     ssllabs: ssllabsLoading, httpstatus: httpstatusLoading, w3c: w3cLoading,
     schema: schemaLoading, readable: readableLoading, yellowlab: yellowlabLoading,
     'link-checker': linkcheckLoading, 'nav-structure': navLoading,
     sitemap: sitemapLoading, 'content-types': contentTypesLoading,
-    gtmetrix: runningGtmetrix, avoma: avomaLoading, hubspot: hubspotLoading,
-    apollo: apolloLoading,
+    gtmetrix: runningGtmetrix, hubspot: hubspotLoading,
     forms: formsLoading, templates: templatesRerunning,
     'tech-analysis': techAnalysisLoading, 'page-tags': autoTagging,
   };
@@ -2179,14 +2006,10 @@ export default function ResultsPage() {
     { key: 'readable', label: 'Readable', loading: readableLoading, failed: readableFailed, data: (session as any).readable_data, paused: isIntegrationPaused('readable') },
     { key: 'observatory', label: 'Observatory', loading: observatoryLoading, failed: observatoryFailed, data: session.observatory_data, paused: isIntegrationPaused('observatory') },
     { key: 'yellowlab', label: 'Yellow Lab', loading: yellowlabLoading, failed: yellowlabFailed, data: (session as any).yellowlab_data, paused: isIntegrationPaused('yellowlab') },
-    { key: 'ocean', label: 'Ocean.io', loading: oceanLoading, failed: oceanFailed, data: session.ocean_data, paused: isIntegrationPaused('ocean') },
     { key: 'content-types', label: 'Content Types', loading: contentTypesLoading, failed: contentTypesFailed, data: (session as any).content_types_data, paused: isIntegrationPaused('content-types') },
     { key: 'forms', label: 'Forms', loading: formsLoading, failed: formsFailed, data: (session as any).forms_data, paused: isIntegrationPaused('forms') },
     { key: 'link-checker', label: 'Link Checker', loading: linkcheckLoading, failed: linkcheckFailed, data: (session as any).linkcheck_data, paused: isIntegrationPaused('link-checker') },
     { key: 'page-tags', label: 'Page Tagging', loading: autoTagging, failed: false, data: (session as any).page_tags, paused: false },
-    { key: 'apollo', label: 'Apollo.io', loading: apolloLoading, failed: false, data: apolloData || session.apollo_data, paused: isIntegrationPaused('apollo') },
-    { key: 'apollo-team', label: 'Apollo Team', loading: apolloTeamLoading, failed: false, data: apolloTeamData || (session as any).apollo_team_data, paused: isIntegrationPaused('apollo-team') },
-    { key: 'avoma', label: 'Avoma', loading: avomaLoading, failed: avomaFailed, data: (session as any).avoma_data, paused: isIntegrationPaused('avoma') },
     { key: 'hubspot', label: 'HubSpot', loading: hubspotLoading, failed: hubspotFailed, data: (session as any).hubspot_data, paused: isIntegrationPaused('hubspot') },
   ].map(s => {
     // When server-completed, use integration_runs status as source of truth
@@ -2363,7 +2186,7 @@ export default function ResultsPage() {
       ? { borderBottomColor: 'transparent', marginBottom: '-1px', borderBottom: 'none', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
       : undefined;
   const tabTriggerClass = "relative h-14 inline-flex items-center text-base font-medium px-5 rounded-none border border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:rounded-t-md data-[state=active]:border-foreground data-[state=active]:border-b-transparent data-[state=active]:bg-background data-[state=active]:text-foreground";
-  const showProspecting = shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession);
+  const showProspecting = shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession);
 
   const tabTriggers = (
     <>
@@ -3042,7 +2865,7 @@ export default function ResultsPage() {
           </TabsContent>
 
 
-          {(shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) || shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession)) && (
+          {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
             <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
               {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <ErrorBoundary><div className="animate-fade-in space-y-6">
               {/* Agency Brain link */}
@@ -3059,16 +2882,6 @@ export default function ResultsPage() {
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </button>
               )}
-              {shouldShowIntegration('ocean', !!session?.ocean_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="ocean" persistedCollapsed={isSectionCollapsed("ocean")} onCollapseChange={toggleSection} title="Ocean.io" icon={<Building2 className="h-5 w-5 text-foreground" />} loading={oceanLoading && !session?.ocean_data} loadingText="Enriching company firmographics via Ocean.io..." error={oceanFailed} errorText={integrationErrors.ocean} headerExtra={rerunButton('ocean', 'ocean_data', oceanLoading)} paused={isIntegrationPaused('ocean') && !session?.ocean_data} onTogglePause={() => handleTogglePause('ocean')}>
-                  {session?.ocean_data && !session.ocean_data._error ? <OceanCard data={session.ocean_data} /> : null}
-                </SectionCard></ErrorBoundary>
-              )}
-              {shouldShowIntegration('apollo', !!session?.apollo_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <ErrorBoundary><SectionCard collapsed={allCollapsed} sectionId="apollo" persistedCollapsed={isSectionCollapsed("apollo")} onCollapseChange={toggleSection} title="Apollo.io" icon={<UserPlus className="h-5 w-5 text-foreground" />} headerExtra={rerunButton('apollo', 'apollo_data', apolloLoading)} paused={isIntegrationPaused('apollo') && !session?.apollo_data} onTogglePause={() => handleTogglePause('apollo')}>
-                  <ApolloCard data={apolloData} isLoading={apolloLoading} onSearch={(email, fn, ln) => handleApolloSearch(email, fn, ln, true)} teamData={apolloTeamData} teamLoading={apolloTeamLoading} onTeamSearch={handleApolloTeamSearch} prospectDomain={prospectingDomain} />
-                </SectionCard></ErrorBoundary>
-              )}
               {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
                 <ErrorBoundary><SectionCard
                   sectionId="hubspot" persistedCollapsed={isSectionCollapsed("hubspot")} onCollapseChange={toggleSection} title="HubSpot CRM"
@@ -3082,113 +2895,7 @@ export default function ResultsPage() {
                   paused={isIntegrationPaused('hubspot') && !(session as any)?.hubspot_data}
                   onTogglePause={() => handleTogglePause('hubspot')}
                 >
-                  {(session as any)?.hubspot_data && (session as any).hubspot_data.success ? <HubSpotCard data={(session as any).hubspot_data} onEnrichWithApollo={(email, fn, ln) => handleApolloSearch(email, fn, ln, true)} /> : null}
-                </SectionCard></ErrorBoundary>
-              )}
-              <ErrorBoundary><SectionCard
-                sectionId="gmail" persistedCollapsed={isSectionCollapsed("gmail")} onCollapseChange={toggleSection} title="Gmail"
-                icon={<Mail className="h-5 w-5 text-foreground" />}
-                collapsed={allCollapsed}
-                headerExtra={
-                  <div className="flex items-center gap-1.5">
-                    {gmailState.canIngest && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 gap-1.5 text-xs"
-                        disabled={gmailState.isIngesting}
-                        onClick={() => gmailRef.current?.ingestAllEmails()}
-                      >
-                        {gmailState.isIngesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
-                        Ingest All Emails
-                      </Button>
-                    )}
-                    {gmailState.lastFetched && !gmailState.isRefreshing && (
-                      <span className="text-[10px] text-muted-foreground tabular-nums" title={`Last run: ${format(new Date(gmailState.lastFetched), 'MMM d, yyyy h:mm a')}`}>
-                        {format(new Date(gmailState.lastFetched), 'MMM d, h:mm a')}
-                      </span>
-                    )}
-                    {gmailState.durationSec != null && !gmailState.isRefreshing && (
-                      <span className="text-[10px] text-muted-foreground tabular-nums">({gmailState.durationSec}s)</span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
-                      disabled={gmailState.isRefreshing}
-                      onClick={() => gmailRef.current?.refreshEmails()}
-                      title="Refresh emails"
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${gmailState.isRefreshing ? 'animate-spin' : ''}`} />
-                    </Button>
-                  </div>
-                }
-              >
-                <GmailCard
-                  sessionId={sessionId ?? undefined}
-                  ref={gmailRef}
-                  domain={prospectingDomain}
-                  lookbackDays={lookbackDays}
-                  onStateChange={setGmailState}
-                  contactEmails={
-                    (session as any)?.hubspot_data?.contacts
-                      ?.map((c: any) => c.email?.toLowerCase())
-                      .filter(Boolean) || []
-                  }
-                />
-              </SectionCard></ErrorBoundary>
-              {shouldShowIntegration('avoma', !!(session as any)?.avoma_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <ErrorBoundary><SectionCard
-                  sectionId="avoma" persistedCollapsed={isSectionCollapsed("avoma")} onCollapseChange={toggleSection} title="Avoma"
-                  icon={<Phone className="h-5 w-5 text-foreground" />}
-                  loading={avomaLoading && !(session as any)?.avoma_data}
-                  loadingText={avomaProgress
-                    ? avomaProgress.phase === 'enriching'
-                      ? `Found ${avomaProgress.matchesFound} meetings — loading transcripts & insights…`
-                      : `Scanning page ${avomaProgress.page} · ${avomaProgress.meetingsScanned.toLocaleString()} of ${avomaProgress.totalMeetings.toLocaleString()} meetings checked · ${avomaProgress.matchesFound} match${avomaProgress.matchesFound !== 1 ? 'es' : ''} so far`
-                    : 'Searching Avoma for meetings with @domain attendees...'}
-                  error={avomaFailed}
-                  errorText={integrationErrors.avoma}
-                  headerExtra={rerunButton('avoma', 'avoma_data', avomaLoading)}
-                  collapsed={allCollapsed}
-                  paused={isIntegrationPaused('avoma') && !(session as any)?.avoma_data}
-                  onTogglePause={() => handleTogglePause('avoma')}
-                >
-                  {(session as any)?.avoma_data && !(session as any).avoma_data._error ? <AvomaCard
-                    data={(session as any).avoma_data}
-                    apolloEmail={(session as any)?.apollo_data?.email || null}
-                    onSearchDomain={async (domain) => {
-                      setAvomaLoading(true);
-                      setAvomaFailed(false);
-                      setAvomaProgress(null);
-                      try {
-                        const result = await avomaApi.lookupStreaming(domain, lookbackDays, (progress) => {
-                          setAvomaProgress(progress);
-                        });
-                        if (result.success) {
-                          await supabase.from('crawl_sessions').update({ avoma_data: result } as any).eq('id', session!.id);
-                          clearError('avoma');
-                          updateSession({ avoma_data: result } as any);
-                        } else {
-                          setError('avoma', result.error || 'No results');
-                          const noResultData = { ...result, domain, totalMatches: 0, meetings: [] };
-                          await supabase.from('crawl_sessions').update({ avoma_data: noResultData } as any).eq('id', session!.id);
-                          updateSession({ avoma_data: noResultData } as any);
-                        }
-                      } catch (e: any) {
-                        setError('avoma', e?.message || 'Search failed');
-                      }
-                      setAvomaLoading(false);
-                      setAvomaProgress(null);
-                    }}
-                    onExcludedChange={async (excludedUuids) => {
-                      const current = (session as any).avoma_data;
-                      if (!current) return;
-                      const updated = { ...current, excludedMeetings: excludedUuids };
-                      await supabase.from('crawl_sessions').update({ avoma_data: updated } as any).eq('id', session!.id);
-                      updateSession({ avoma_data: updated } as any);
-                    }}
-                  /> : null}
+                  {(session as any)?.hubspot_data && (session as any).hubspot_data.success ? <HubSpotCard data={(session as any).hubspot_data} /> : null}
                 </SectionCard></ErrorBoundary>
               )}
               </div></ErrorBoundary>}

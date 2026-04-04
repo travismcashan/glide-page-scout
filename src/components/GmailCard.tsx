@@ -311,15 +311,19 @@ export interface GmailCardHandle {
 export interface GmailCardProps {
   domain: string;
   sessionId?: string;
+  /** When provided (and no sessionId), cache emails in companies.enrichment_data.gmail */
+  companyId?: string;
   contactEmails?: string[];
   lookbackDays?: number;
   onStateChange?: (state: { canIngest: boolean; isIngesting: boolean; emailCount: number; isRefreshing: boolean; lastFetched: string | null; durationSec: number | null }) => void;
   onRefresh?: () => void;
 }
 
-export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, sessionId: sessionIdProp, contactEmails, lookbackDays, onStateChange }, ref) {
+export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function GmailCard({ domain, sessionId: sessionIdProp, companyId, contactEmails, lookbackDays, onStateChange }, ref) {
   const params = useParams<{ id?: string; sessionId?: string }>();
   const sessionId = sessionIdProp || params.sessionId || params.id;
+  // When companyId is set (and no sessionId), use company-level storage
+  const useCompanyStorage = !!companyId && !sessionId;
   const { isConnected, isLoading, emails: liveEmails, error, connect, searchEmails, getAttachment, disconnect } = useGmail();
   const [cachedEmails, setCachedEmails] = useState<GmailEmail[]>([]);
   const [loadedFromDb, setLoadedFromDb] = useState(false);
@@ -337,14 +341,25 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
 
   // Load cached emails from DB on mount
   useEffect(() => {
-    if (!sessionId || loadedFromDb) return;
+    if (loadedFromDb) return;
+    if (!sessionId && !useCompanyStorage) return;
     (async () => {
-      const { data } = await supabase
-        .from('crawl_sessions')
-        .select('gmail_data' as any)
-        .eq('id', sessionId)
-        .single();
-      const gmailData = (data as any)?.gmail_data;
+      let gmailData: any = null;
+      if (useCompanyStorage) {
+        const { data: row } = await supabase
+          .from('companies')
+          .select('enrichment_data')
+          .eq('id', companyId!)
+          .single();
+        gmailData = (row as any)?.enrichment_data?.gmail;
+      } else {
+        const { data } = await supabase
+          .from('crawl_sessions')
+          .select('gmail_data' as any)
+          .eq('id', sessionId!)
+          .single();
+        gmailData = (data as any)?.gmail_data;
+      }
       if (gmailData && Array.isArray(gmailData?.emails)) {
         setCachedEmails(gmailData.emails);
         setHasSearched(true);
@@ -353,26 +368,47 @@ export const GmailCard = forwardRef<GmailCardHandle, GmailCardProps>(function Gm
       }
       setLoadedFromDb(true);
     })();
-  }, [sessionId, loadedFromDb]);
+  }, [sessionId, companyId, useCompanyStorage, loadedFromDb]);
 
   // Save emails to DB whenever live emails or fetch metadata update
   useEffect(() => {
-    if (!sessionId || liveEmails.length === 0) return;
+    if (liveEmails.length === 0) return;
+    if (!sessionId && !useCompanyStorage) return;
     setCachedEmails(liveEmails);
-    supabase
-      .from('crawl_sessions')
-      .update({
-        gmail_data: {
-          emails: liveEmails,
-          updatedAt: lastFetched || new Date().toISOString(),
-          durationSec,
-        } as any,
-      })
-      .eq('id', sessionId)
-      .then(({ error }) => {
-        if (error) console.error('Failed to save gmail data:', error);
-      });
-  }, [sessionId, liveEmails, lastFetched, durationSec]);
+    const gmailPayload = {
+      emails: liveEmails,
+      updatedAt: lastFetched || new Date().toISOString(),
+      durationSec,
+    };
+
+    if (useCompanyStorage) {
+      // Save to companies.enrichment_data.gmail via JSONB merge
+      (async () => {
+        const { data: current } = await supabase
+          .from('companies')
+          .select('enrichment_data')
+          .eq('id', companyId!)
+          .single();
+        const existing = (current as any)?.enrichment_data || {};
+        const { error } = await supabase
+          .from('companies')
+          .update({
+            enrichment_data: { ...existing, gmail: gmailPayload },
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq('id', companyId!);
+        if (error) console.error('Failed to save gmail data to company:', error);
+      })();
+    } else if (sessionId) {
+      supabase
+        .from('crawl_sessions')
+        .update({ gmail_data: gmailPayload as any })
+        .eq('id', sessionId)
+        .then(({ error }) => {
+          if (error) console.error('Failed to save gmail data:', error);
+        });
+    }
+  }, [sessionId, companyId, useCompanyStorage, liveEmails, lastFetched, durationSec]);
 
   const doSearch = useCallback(async () => {
     setHasSearched(true);

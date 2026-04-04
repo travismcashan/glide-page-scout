@@ -415,9 +415,88 @@ All ~80 historical site crawl sessions were lost — `crawl_sessions` and `crawl
 
 ---
 
+## Company-Centric Architecture + Agency Voice (shipped Apr 4 2026)
+
+Moved from site-centric to company-centric architecture. All enrichment and communication now lives on CompanyDetailPage instead of ResultsPage.
+
+**Agency Voice tab** added to Growth and Delivery workspaces with three sub-tabs:
+- **Meetings** (Avoma) — company-level meeting search, cached in `companies.enrichment_data.avoma`
+- **Emails** (Gmail) — GmailCard supports dual storage (site-level via sessionId OR company-level via companyId)
+- **Messages** (Slack) — standalone SlackMessagesCard extracted from CompanyKnowledgeTab
+
+**Contacts tab enhanced:**
+- "Find Team via Apollo" button — searches by company domain, syncs results into contacts table
+- Per-contact "Enrich" button — individual Apollo enrichment
+
+**Overview tab enhanced:**
+- Ocean.io company intelligence card — auto-displays if cached, "Enrich" button if not
+
+**ResultsPage stripped** — removed Apollo, Ocean, Avoma, Gmail (293 lines). Now audit-only (PageSpeed, SEO, accessibility, security, tech stack).
+
+**Lazy migration** — `migrateEnrichmentFromSessions()` copies legacy site-level enrichment data to `companies.enrichment_data` on first company page visit.
+
+**Key files:**
+- `src/components/company/CompanyVoiceTab.tsx` — unified Voice shell
+- `src/hooks/useCompanyAvoma.ts` — company-level Avoma fetch hook
+- `src/components/company/SlackMessagesCard.tsx` — standalone Slack search
+- `src/config/workspace-nav.ts` — Voice tab added to Growth + Delivery
+
+### TanStack Query Caching (shipped Apr 4 2026)
+
+All major data fetches now cached via TanStack Query. First load hits Supabase/APIs, subsequent visits within stale window are instant from memory.
+
+**Cached hooks:**
+- `useCompanies()` / `useCompany(id)` — companies list + detail (5 min stale)
+- `useSessions()` — crawl history (5 min stale)
+- `useSiteGroups()` — site groups (5 min stale)
+- `useWishlistItems()` — wishlist (5 min stale)
+- `usePipelineDeals(pipelineId)` / `usePipelineLeads()` / `usePipelineStats()` — HubSpot pipeline (5 min stale)
+- `useServiceOfferings()` — service catalog (30 min stale)
+- `useModelPricing()` — model pricing (1 hr stale)
+- `useChatThreads(sessionId)` — chat threads (5 min stale)
+
+**Pattern:** `useInvalidateX()` hooks for mutations. All in `src/hooks/useCachedQueries.ts` + `src/hooks/useCompanies.ts` + `src/hooks/useCompany.ts`.
+
+### Sidebar Redesign — Global → Contextual → Utility (shipped Apr 4 2026)
+
+Sidebar restructured per design expert analysis (Nielsen, Krug, Ive, Frog).
+
+**Global section (top):** Max 3-4 items per workspace.
+- Growth: Leads, Deals, Companies, Crawl
+- Delivery: Clients, Projects
+- Admin: Clients, Invoicing
+
+**Contextual section (middle):** Appears when inside `/companies/:id`. Shows company tabs (Overview, Voice, Knowledge, Chat, Roadmap) as sidebar nav items synced with page via `?tab=` URL param.
+
+**Utility section (bottom):** Single "Settings" item (absorbs Connections, Wishlist, Services, Usage). Admin link if admin user.
+
+**Page tabs killed** — CompanyDetailPage and PipelinePage no longer have page-level tab bars. Sidebar owns all navigation. Page titles are dynamic (Leads/Deals based on active tab).
+
+**CrawlPage merged into HistoryPage** — `/` now shows crawl input bar + full crawl history. No standalone CrawlPage. One page, one workflow.
+
+**All page headers compressed** — removed subtitle descriptions, tightened filter rows into title rows.
+
+**Key files:**
+- `src/components/AppSidebar.tsx` — Global + Contextual + Utility structure
+- `src/components/AppLayout.tsx` — `overflow-hidden` on SidebarInset fixes pipeline width blowout
+- `src/config/workspace-nav.ts` — `TAB_ICONS` export, `CompanyTab.icon` field
+
+---
+
 ## Next Session Priority
 
-**Workspace-scoped data filtering + Agency Brain doc integration.** Now that sidebar workspaces are shipped, the next steps are: (1) Filter CompaniesPage data by workspace — Growth shows prospects, Delivery shows active clients, Admin shows all with financial columns. (2) Re-crawl sites — all 80+ historical site crawls were lost (crawl_sessions table empty). Batch re-crawl company domains. (3) Wire Gmail and Avoma into company detail tabs (user requested moving these from old site prospecting into company context). (4) Integrate Agency Brain vision doc concepts (Agency Voice, Agency Team) into the product roadmap. (5) Lazy-load all company artifact tabs on page load (pre-fetch in background).
+**Port AgencyAtlas (Asana + Harvest merge) into Ascend.** The `agencyatlas` repo (github.com/travismcashan/agencyatlas) has working Asana↔Harvest project mapping with AI-powered matching, budget tracking, team utilization, and a unified clients view. Key pieces to port:
+
+1. **Data model:** `project_mappings` table (Asana GID → Harvest project ID, confidence scores), `team_members` table (Harvest users with capacity/roles), `asana_config` table (portfolio GIDs, grouping fields, hourly rates)
+2. **Edge functions:** `asana-clients` (portfolio-based project fetch with milestones + task counts), `project-mapping` (AI fuzzy match Asana→Harvest), `harvest-project-hours` (budget tracking), `harvest-time` (team utilization by period)
+3. **UI components:** `ClientsTab` → Delivery "Projects" view (Asana status + Harvest budget merged), `TeamMemberTable` → Agency Team view (utilization, capacity, roles)
+4. **Run Asana mapping** — currently 0 companies have `asana_project_gids` mapped. Need to run global-sync or port the project-mapping function.
+
+**Other priorities:**
+- Workspace-scoped data filtering on CompaniesPage (Growth=prospects, Delivery=active, Admin=all)
+- Re-crawl sites (80+ historical crawls lost)
+- Wire Connections/Wishlist/Services/Usage into Settings page as sub-sections
+- Pattern Library (Brain Pillar 3)
 
 ---
 

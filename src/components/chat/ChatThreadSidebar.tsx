@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useChatThreads, useInvalidateChatThreads } from '@/hooks/useCachedQueries';
 import { Plus, MessageSquare, MoreHorizontal, Trash2, Pencil, Pin, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -33,8 +34,8 @@ const COLLAPSED_WIDTH = 40;
 const SIDEBAR_WIDTH_KEY = 'chat-sidebar-width';
 
 export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, onNewThread, onDeleteThread, refreshKey, onWidthChange, stickyTabVisible }: Props) {
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { threads, loading } = useChatThreads(sessionId, refreshKey);
+  const invalidateThreads = useInvalidateChatThreads();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedWidth, setExpandedWidth] = useState(() => {
     try {
@@ -51,20 +52,6 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const [isResizing, setIsResizing] = useState(false);
-
-  const loadThreads = useCallback(async () => {
-    const { data } = await supabase
-      .from('chat_threads')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('updated_at', { ascending: false });
-    if (data) setThreads(data as ChatThread[]);
-    setLoading(false);
-  }, [sessionId]);
-
-  useEffect(() => {
-    loadThreads();
-  }, [loadThreads, refreshKey]);
 
   useEffect(() => {
     onWidthChange?.(collapsed ? COLLAPSED_WIDTH : expandedWidth);
@@ -117,16 +104,16 @@ export function ChatThreadSidebar({ sessionId, activeThreadId, onSelectThread, o
       return;
     }
     await supabase.from('chat_threads').update({ title: trimmed } as any).eq('id', threadId);
-    setThreads(prev => prev.map(t => t.id === threadId ? { ...t, title: trimmed } : t));
+    invalidateThreads(sessionId);
     setRenamingId(null);
-  }, [renameValue]);
+  }, [renameValue, invalidateThreads, sessionId]);
 
   const handlePin = useCallback(async (threadId: string) => {
     // Move to top by setting updated_at to far future
     const pinTime = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10).toISOString();
     await supabase.from('chat_threads').update({ updated_at: pinTime } as any).eq('id', threadId);
-    loadThreads();
-  }, [loadThreads]);
+    invalidateThreads(sessionId);
+  }, [invalidateThreads, sessionId]);
 
   const currentWidth = collapsed ? COLLAPSED_WIDTH : expandedWidth;
 

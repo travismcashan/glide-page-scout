@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModelPricing } from '@/hooks/useCachedQueries';
 import { toast } from 'sonner';
 import { Activity, Zap, Hash, Clock, AlertTriangle, DollarSign } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
@@ -65,23 +66,11 @@ function formatTokens(n: number): string {
 export default function UsagePage() {
   const navigate = useNavigate();
   const { user, isAdmin, loading: authLoading } = useAuth();
+  const { pricing } = useModelPricing();
   const [data, setData] = useState<UsageRow[]>([]);
-  const [pricing, setPricing] = useState<PricingMap>({});
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState(30);
   const [viewAll, setViewAll] = useState(false);
-
-  // Fetch pricing once on mount
-  useEffect(() => {
-    (async () => {
-      const { data: rows } = await supabase.from('model_pricing').select('model, input_per_1m, output_per_1m');
-      if (rows) {
-        const map: PricingMap = {};
-        for (const r of rows) map[r.model] = [Number(r.input_per_1m), Number(r.output_per_1m)];
-        setPricing(map);
-      }
-    })();
-  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -167,10 +156,7 @@ export default function UsagePage() {
       <main className="px-4 sm:px-6 py-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Usage</h1>
-            <p className="text-sm text-muted-foreground mt-1">AI token consumption and cost tracking.</p>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Usage</h1>
           <div className="flex items-center gap-2">
             {isAdmin && (
               <button

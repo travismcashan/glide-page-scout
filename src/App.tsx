@@ -11,7 +11,7 @@ import { ProductProvider } from "@/contexts/ProductContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BrandLoader } from "@/components/BrandLoader";
 import { AppLayout } from "@/components/AppLayout";
-import CrawlPage from "./pages/CrawlPage";
+// CrawlPage merged into HistoryPage — crawl input + history list in one page
 import ResultsPage from "./pages/ResultsPage";
 import HistoryPage from "./pages/HistoryPage";
 import ConnectionsPage from "./pages/ConnectionsPage";
@@ -51,7 +51,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,   // 5 min — data is fresh, no background refetch
+      gcTime: 30 * 60 * 1000,     // 30 min — cache lives after last use
+      refetchOnWindowFocus: false, // don't refetch on tab switch
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -65,14 +74,13 @@ const App = () => (
             <ErrorBoundary fallback={<div className="min-h-screen flex items-center justify-center"><p>Something went wrong. <a href="/" className="underline">Go home</a></p></div>}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              {/* CrawlPage: full-width, no sidebar */}
-              <Route path="/" element={<ProtectedRoute><CrawlPage /></ProtectedRoute>} />
               {/* Legacy redirects */}
               <Route path="/groups" element={<Navigate to="/lists" replace />} />
               <Route path="/groups/:groupId" element={<RedirectGroups />} />
               <Route path="/integrations" element={<Navigate to="/connections" replace />} />
-              {/* All other pages: sidebar layout */}
+              {/* All pages: sidebar layout */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                <Route path="/" element={<HistoryPage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/sites/:domain/:tab" element={<ResultsPage />} />
                 <Route path="/sites/:domain/crawls/:dateSlug/:tab" element={<ResultsPage />} />

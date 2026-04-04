@@ -206,14 +206,9 @@ export default function ServicesPage() {
 
   return (
     <div>
-      <main className="px-4 sm:px-6 py-6 space-y-8">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Services</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Service catalog — click any row to view or edit service details.
-            </p>
-          </div>
+      <main className="px-4 sm:px-6 py-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">Services</h1>
           <Button className="gap-1.5" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />
             Add Service

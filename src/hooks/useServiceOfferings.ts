@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { PillarCode } from "@/data/offerings";
 import type { ServiceStep } from "@/types/roadmap";
@@ -40,77 +40,79 @@ const PHASE_VARIANTS: Offering[] = [
 /**
  * Fetches services from the database and merges them with local phase variants.
  * Also fetches service_steps for each service and attaches them.
+ * Cached via TanStack Query — service catalog rarely changes.
  */
+async function fetchServiceOfferings(): Promise<Offering[]> {
+  const [servicesRes, stepsRes] = await Promise.all([
+    supabase
+      .from("services" as any)
+      .select("id, sku, name, default_duration_months, pillar, roadmap_grade, billing_type, min_fixed, max_fixed, min_retainer, max_retainer, min_hourly, max_hourly, hourly_rate_external")
+      .not("sku", "is", null)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("service_steps" as any)
+      .select("id, service_id, code, name, step_type, frequency, sort_order, is_onramp")
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  if (servicesRes.error || !servicesRes.data) return PHASE_VARIANTS;
+
+  const stepsMap = new Map<string, ServiceStep[]>();
+  if (!stepsRes.error && stepsRes.data) {
+    for (const s of stepsRes.data as any[]) {
+      const step: ServiceStep = {
+        id: s.id,
+        serviceId: s.service_id,
+        code: s.code,
+        name: s.name,
+        stepType: s.step_type,
+        frequency: s.frequency,
+        sortOrder: s.sort_order,
+        isOnramp: s.is_onramp,
+      };
+      if (!stepsMap.has(s.service_id)) stepsMap.set(s.service_id, []);
+      stepsMap.get(s.service_id)!.push(step);
+    }
+  }
+
+  const dbOfferings: Offering[] = (servicesRes.data as any[])
+    .filter((s) => s.sku != null && s.pillar != null)
+    .map((s) => ({
+      id: s.id,
+      sku: s.sku,
+      name: s.name,
+      defaultDuration: s.default_duration_months ?? 1,
+      pillar: s.pillar as PillarCode,
+      roadmapGrade: s.roadmap_grade,
+      billingType: s.billing_type,
+      minFixed: s.min_fixed,
+      maxFixed: s.max_fixed,
+      minRetainer: s.min_retainer,
+      maxRetainer: s.max_retainer,
+      minHourly: s.min_hourly,
+      maxHourly: s.max_hourly,
+      hourlyRateExternal: s.hourly_rate_external,
+      steps: stepsMap.get(s.id) || [],
+    }));
+
+  const phaseSkus = new Set(PHASE_VARIANTS.map((p) => p.sku));
+  return [
+    ...dbOfferings.filter((o) => !phaseSkus.has(o.sku)),
+    ...PHASE_VARIANTS,
+  ];
+}
+
 export function useServiceOfferings() {
-  const [offerings, setOfferings] = useState<Offering[]>(PHASE_VARIANTS);
-  const [loading, setLoading] = useState(true);
-  const [tick, setTick] = useState(0);
-  const refetch = () => setTick((t) => t + 1);
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ['service-offerings'],
+    queryFn: fetchServiceOfferings,
+    staleTime: 30 * 60 * 1000, // services rarely change — 30 min stale
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const [servicesRes, stepsRes] = await Promise.all([
-        supabase
-          .from("services" as any)
-          .select("id, sku, name, default_duration_months, pillar, roadmap_grade, billing_type, min_fixed, max_fixed, min_retainer, max_retainer, min_hourly, max_hourly, hourly_rate_external")
-          .not("sku", "is", null)
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("service_steps" as any)
-          .select("id, service_id, code, name, step_type, frequency, sort_order, is_onramp")
-          .order("sort_order", { ascending: true }),
-      ]);
-
-      if (!servicesRes.error && servicesRes.data) {
-        const stepsMap = new Map<string, ServiceStep[]>();
-        if (!stepsRes.error && stepsRes.data) {
-          for (const s of stepsRes.data as any[]) {
-            const step: ServiceStep = {
-              id: s.id,
-              serviceId: s.service_id,
-              code: s.code,
-              name: s.name,
-              stepType: s.step_type,
-              frequency: s.frequency,
-              sortOrder: s.sort_order,
-              isOnramp: s.is_onramp,
-            };
-            if (!stepsMap.has(s.service_id)) stepsMap.set(s.service_id, []);
-            stepsMap.get(s.service_id)!.push(step);
-          }
-        }
-
-        const dbOfferings: Offering[] = (servicesRes.data as any[])
-          .filter((s) => s.sku != null && s.pillar != null)
-          .map((s) => ({
-            id: s.id,
-            sku: s.sku,
-            name: s.name,
-            defaultDuration: s.default_duration_months ?? 1,
-            pillar: s.pillar as PillarCode,
-            roadmapGrade: s.roadmap_grade,
-            billingType: s.billing_type,
-            minFixed: s.min_fixed,
-            maxFixed: s.max_fixed,
-            minRetainer: s.min_retainer,
-            maxRetainer: s.max_retainer,
-            minHourly: s.min_hourly,
-            maxHourly: s.max_hourly,
-            hourlyRateExternal: s.hourly_rate_external,
-            steps: stepsMap.get(s.id) || [],
-          }));
-
-        const phaseSkus = new Set(PHASE_VARIANTS.map((p) => p.sku));
-        const merged = [
-          ...dbOfferings.filter((o) => !phaseSkus.has(o.sku)),
-          ...PHASE_VARIANTS,
-        ];
-        setOfferings(merged);
-      }
-      setLoading(false);
-    };
-    fetchData();
-  }, [tick]);
-
-  return { offerings, loading, refetch };
+  return {
+    offerings: query.data ?? PHASE_VARIANTS,
+    loading: query.isLoading,
+    refetch: () => qc.invalidateQueries({ queryKey: ['service-offerings'] }),
+  };
 }

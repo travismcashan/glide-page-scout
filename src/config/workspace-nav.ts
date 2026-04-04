@@ -5,17 +5,18 @@ import {
   Globe,
   BookOpen,
   MessageSquare,
-  LayoutList,
   FolderKanban,
   Clock,
   Receipt,
   FileText,
-  Link2,
-  Heart,
-  Wrench,
-  Activity,
   Settings,
-  BarChart3,
+  AudioLines,
+  LayoutDashboard,
+  Briefcase,
+  Headphones,
+  Map as MapIcon,
+  Database,
+  Shield,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ProductId } from '@/contexts/ProductContext';
@@ -30,34 +31,27 @@ export interface NavItem {
 export interface CompanyTab {
   value: string;
   label: string;
+  icon?: LucideIcon;
   /** Tab only renders if condition returns true (checked against company record) */
   condition?: (company: any) => boolean;
 }
 
-// ── Primary nav items per workspace ────────────────────────────────
+// ── Global nav items per workspace (top section — max 4) ─────────
 
 export const WORKSPACE_NAV: Record<ProductId, NavItem[]> = {
   growth: [
-    { label: 'New Search', to: '/', icon: Search },
+    { label: 'Leads', to: '/pipeline?tab=leads', icon: Building2 },
+    { label: 'Deals', to: '/pipeline?tab=deals', icon: TrendingUp },
     { label: 'Companies', to: '/companies', icon: Building2, matchPrefix: '/companies' },
-    { label: 'Pipeline', to: '/pipeline', icon: TrendingUp },
-    { label: 'Sites', to: '/sites', icon: Globe, matchPrefix: '/sites' },
-    { label: 'Knowledge', to: '/knowledge', icon: BookOpen },
-    { label: 'Chat', to: '/chat', icon: MessageSquare },
-    { label: 'Lists', to: '/lists', icon: LayoutList, matchPrefix: '/lists' },
+    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
   ],
   delivery: [
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
     { label: 'Projects', to: '/pipeline', icon: FolderKanban },
-    { label: 'Knowledge', to: '/knowledge', icon: BookOpen },
-    { label: 'Chat', to: '/chat', icon: MessageSquare },
-    { label: 'Sites', to: '/sites', icon: Globe, matchPrefix: '/sites' },
   ],
   admin: [
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
-    { label: 'Hours', to: '/pipeline', icon: Clock },
-    { label: 'Invoicing', to: '/knowledge', icon: Receipt },
-    { label: 'Agreements', to: '/sites', icon: FileText },
+    { label: 'Invoicing', to: '/pipeline', icon: Receipt },
   ],
 };
 
@@ -65,31 +59,28 @@ export const WORKSPACE_NAV: Record<ProductId, NavItem[]> = {
 
 export const WORKSPACE_COMPANY_TABS: Record<ProductId, CompanyTab[]> = {
   growth: [
-    { value: 'overview', label: 'Overview' },
-    { value: 'contacts', label: 'Contacts' },
-    { value: 'sites', label: 'Sites' },
-    { value: 'knowledge', label: 'Knowledge' },
-    { value: 'chat', label: 'Chat' },
-    { value: 'roadmap', label: 'Roadmap' },
+    { value: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { value: 'voice', label: 'Voice', icon: AudioLines },
+    { value: 'knowledge', label: 'Knowledge', icon: BookOpen },
+    { value: 'chat', label: 'Chat', icon: MessageSquare },
+    { value: 'roadmap', label: 'Roadmap', icon: MapIcon },
   ],
   delivery: [
-    { value: 'overview', label: 'Overview' },
-    { value: 'contacts', label: 'Contacts' },
-    { value: 'deals', label: 'Deals' },
-    { value: 'projects', label: 'Projects', condition: (c) => !!c?.harvest_client_id },
-    { value: 'time', label: 'Time', condition: (c) => !!c?.harvest_client_id },
-    { value: 'tickets', label: 'Tickets', condition: (c) => !!c?.freshdesk_company_id },
-    { value: 'sites', label: 'Sites' },
-    { value: 'knowledge', label: 'Knowledge' },
-    { value: 'chat', label: 'Chat' },
-    { value: 'roadmap', label: 'Roadmap' },
+    { value: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { value: 'voice', label: 'Voice', icon: AudioLines },
+    { value: 'deals', label: 'Deals', icon: Briefcase },
+    { value: 'projects', label: 'Projects', icon: FolderKanban, condition: (c) => !!c?.harvest_client_id },
+    { value: 'time', label: 'Time', icon: Clock, condition: (c) => !!c?.harvest_client_id },
+    { value: 'tickets', label: 'Tickets', icon: Headphones, condition: (c) => !!c?.freshdesk_company_id },
+    { value: 'knowledge', label: 'Knowledge', icon: BookOpen },
+    { value: 'chat', label: 'Chat', icon: MessageSquare },
+    { value: 'roadmap', label: 'Roadmap', icon: MapIcon },
   ],
   admin: [
-    { value: 'overview', label: 'Overview' },
-    { value: 'time', label: 'Hours', condition: (c) => !!c?.harvest_client_id },
-    { value: 'invoices', label: 'Invoices' },
-    { value: 'contacts', label: 'Contacts' },
-    { value: 'source-data', label: 'Source Data' },
+    { value: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { value: 'time', label: 'Hours', icon: Clock, condition: (c) => !!c?.harvest_client_id },
+    { value: 'invoices', label: 'Invoices', icon: Receipt },
+    { value: 'source-data', label: 'Source Data', icon: Database },
   ],
 };
 
@@ -101,12 +92,20 @@ export const WORKSPACE_DEFAULT_ROUTE: Record<ProductId, string> = {
   admin: '/companies',
 };
 
-// ── Secondary nav (shared across workspaces) ───────────────────────
+// ── Tab icon map (for sidebar contextual section + company page tabs) ──
 
-export const SECONDARY_NAV: NavItem[] = [
-  { label: 'Connections', to: '/connections', icon: Link2 },
-  { label: 'Wishlist', to: '/wishlist', icon: Heart },
-  { label: 'Services', to: '/services', icon: Wrench },
-  { label: 'Usage', to: '/usage', icon: Activity },
-  { label: 'Settings', to: '/settings', icon: Settings },
-];
+export const TAB_ICONS: Record<string, LucideIcon> = {
+  overview: LayoutDashboard,
+  contacts: Building2,
+  deals: Briefcase,
+  projects: FolderKanban,
+  time: Clock,
+  tickets: Headphones,
+  sites: Globe,
+  voice: AudioLines,
+  knowledge: BookOpen,
+  chat: MessageSquare,
+  roadmap: MapIcon,
+  invoices: Receipt,
+  'source-data': Database,
+};

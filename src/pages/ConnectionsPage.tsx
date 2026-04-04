@@ -840,9 +840,8 @@ export default function ConnectionsPage() {
   return (
     <div>
       <main className="px-4 sm:px-6 py-6">
-        <div className="mb-6">
+        <div className="mb-4">
           <h1 className="text-2xl font-bold tracking-tight">Connections</h1>
-          <p className="text-sm text-muted-foreground mt-1">The nervous system of Agency Brain. Every source of truth wired in and flowing.</p>
         </div>
 
         {loading ? (

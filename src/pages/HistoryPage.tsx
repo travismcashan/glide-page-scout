@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSessions, useInvalidateSessions } from '@/hooks/useCachedQueries';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users } from 'lucide-react';
+import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -13,7 +14,6 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { withQueryTimeout } from '@/lib/queryTimeout';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,15 +51,51 @@ function resolveStatus(session: CrawlSession, integrationCount?: number): string
 
 export default function HistoryPage() {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<CrawlSession[]>([]);
-  const [multiDomains, setMultiDomains] = useState<Map<string, number>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { sessions, domainCounts, docCounts, sessionGroups, loading, error } = useSessions();
+  const invalidateSessions = useInvalidateSessions();
+
+  // New crawl state
+  const [crawlUrl, setCrawlUrl] = useState('');
+  const [isStarting, setIsStarting] = useState(false);
+
+  const handleStartCrawl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!crawlUrl.trim()) return;
+    setIsStarting(true);
+    try {
+      const formattedUrl = crawlUrl.trim().startsWith('http') ? crawlUrl.trim() : `https://${crawlUrl.trim()}`;
+      const domain = new URL(formattedUrl).hostname.replace(/^www\./i, '');
+
+      const { data: session, error: insertError } = await supabase
+        .from('crawl_sessions')
+        .insert({ domain, base_url: formattedUrl, status: 'analyzing' } as any)
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Fire server-side orchestrator
+      supabase.functions.invoke('crawl-start', {
+        body: { session_id: session.id },
+      }).catch(err => console.error('crawl-start invoke error:', err));
+
+      const { count } = await supabase
+        .from('crawl_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('domain', domain);
+
+      invalidateSessions();
+      navigate(buildSitePath(domain, session.created_at, (count ?? 0) > 1));
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to start analysis');
+      setIsStarting(false);
+    }
+  };
+
   const [deleteTarget, setDeleteTarget] = useState<CrawlSession | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [integrationCounts, setIntegrationCounts] = useState<Map<string, number>>(new Map());
-  const [docCounts, setDocCounts] = useState<Map<string, number>>(new Map());
-  const [sessionGroups, setSessionGroups] = useState<Map<string, { id: string; name: string }[]>>(new Map());
 
   // Bulk delete state
   const [bulkMode, setBulkMode] = useState(false);
@@ -74,120 +110,6 @@ export default function HistoryPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-
-  const fetchSessions = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { data, error } = await withQueryTimeout(
-        supabase
-          .from('crawl_sessions')
-          .select('id, domain, base_url, status, created_at')
-          .not('domain', 'like', '_\\_%')
-          .order('created_at', { ascending: false }),
-        12000,
-        'Loading sites timed out'
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      const data_ = (data ?? []) as CrawlSession[];
-      setSessions(data_);
-
-      const domainCounts = new Map<string, number>();
-      data_.forEach(s => {
-        domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1);
-      });
-      setMultiDomains(domainCounts);
-      setIntegrationCounts(new Map());
-      setDocCounts(new Map(data_.map((session) => [session.id, 0] as const)));
-      setLoading(false);
-
-      const sessionIds = data_.map(d => d.id);
-      if (sessionIds.length > 0) {
-        void (async () => {
-          try {
-            const { data: docs, error: docsError } = await withQueryTimeout(
-              supabase
-                .from('knowledge_documents')
-                .select('session_id')
-                .in('session_id', sessionIds),
-              12000,
-              'Loading file counts timed out'
-            );
-
-            if (docsError) {
-              throw docsError;
-            }
-
-            const dCounts = new Map<string, number>(data_.map((session) => [session.id, 0] as const));
-            (docs ?? []).forEach(d => dCounts.set(d.session_id, (dCounts.get(d.session_id) ?? 0) + 1));
-            setDocCounts(dCounts);
-          } catch (docsError) {
-            console.error('Failed to load knowledge file counts:', docsError);
-          }
-        })();
-
-        // Load group memberships
-        void (async () => {
-          try {
-            const { data: members } = await supabase
-              .from('site_group_members')
-              .select('session_id, group_id, site_groups(id, name)')
-              .in('session_id', sessionIds);
-            if (members) {
-              const groupMap = new Map<string, { id: string; name: string }[]>();
-              for (const m of members as any[]) {
-                const group = m.site_groups;
-                if (!group) continue;
-                const existing = groupMap.get(m.session_id) || [];
-                existing.push({ id: group.id, name: group.name });
-                groupMap.set(m.session_id, existing);
-              }
-              setSessionGroups(groupMap);
-            }
-          } catch { /* optional */ }
-        })();
-
-        void (async () => {
-          try {
-            const { data: counts, error: countError } = await withQueryTimeout(
-              (supabase.rpc as any)('count_integrations', { session_ids: sessionIds }),
-              12000,
-              'Loading integration counts timed out'
-            );
-
-            if (countError) {
-              throw countError;
-            }
-
-            const intCounts = new Map<string, number>();
-            ((counts ?? []) as unknown as Array<{ session_id: string; integration_count: number }>).forEach(r => {
-              intCounts.set(r.session_id, r.integration_count);
-            });
-            setIntegrationCounts(intCounts);
-          } catch (err) {
-            console.error('Integration count RPC failed:', err);
-          }
-        })();
-      }
-    } catch (error) {
-      console.error('Failed to load crawl history:', error);
-      setError('Failed to load crawl history. Please refresh and try again.');
-      setSessions([]);
-      setIntegrationCounts(new Map());
-      setDocCounts(new Map());
-      setMultiDomains(new Map());
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSessions();
-  }, []);
 
   // Unique statuses for filter
   const statuses = useMemo(() => {
@@ -288,13 +210,7 @@ export default function HistoryPage() {
       console.error('Failed to delete session:', sessionError);
       toast.error('Failed to delete crawl session.');
     } else {
-      setSessions(prev => {
-        const next = prev.filter(s => s.id !== sid);
-        const domainCounts = new Map<string, number>();
-        next.forEach(s => domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1));
-        setMultiDomains(domainCounts);
-        return next;
-      });
+      invalidateSessions();
       toast.success(`Deleted crawl for ${deleteTarget.domain}`);
     }
     setDeleting(false);
@@ -318,7 +234,7 @@ export default function HistoryPage() {
     setBulkMode(false);
     setBulkDeleteOpen(false);
     setBulkDeleting(false);
-    fetchSessions();
+    invalidateSessions();
   };
 
   const toggleBulkSelect = (id: string) => {
@@ -342,7 +258,7 @@ export default function HistoryPage() {
         if (bulkMode) {
           toggleBulkSelect(session.id);
         } else {
-          navigate(buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1));
+          navigate(buildSitePath(session.domain, session.created_at, (domainCounts.get(session.domain) ?? 0) > 1));
         }
       }}
     >
@@ -392,7 +308,7 @@ export default function HistoryPage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const path = buildSitePath(session.domain, session.created_at, (multiDomains.get(session.domain) ?? 0) > 1);
+                const path = buildSitePath(session.domain, session.created_at, (domainCounts.get(session.domain) ?? 0) > 1);
                 const url = `${window.location.origin}${path}?view=shared`;
                 navigator.clipboard.writeText(url);
                 toast.success('View-only link copied to clipboard');
@@ -421,9 +337,34 @@ export default function HistoryPage() {
   return (
     <div>
       <main className="px-4 sm:px-6 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Sites</h1>
-          <p className="text-sm text-muted-foreground mt-1">Previously analyzed websites and crawl history.</p>
+        {/* Crawl input */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold tracking-tight mb-3">Crawls</h1>
+          <form onSubmit={handleStartCrawl}>
+            <div className="flex items-center gap-2 px-3 h-12 rounded-xl bg-card border border-border/40 shadow-sm hover:border-primary/25 transition-all">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                type="text"
+                value={crawlUrl}
+                onChange={(e) => setCrawlUrl(e.target.value)}
+                placeholder="Enter a URL to crawl…"
+                className="h-full border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+                disabled={isStarting}
+              />
+              <Button
+                type="submit"
+                disabled={isStarting || !crawlUrl.trim()}
+                size="sm"
+                className="rounded-lg px-4 gap-1.5 shrink-0"
+              >
+                {isStarting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <><span>Crawl</span><ArrowRight className="h-3.5 w-3.5" /></>
+                )}
+              </Button>
+            </div>
+          </form>
         </div>
 
         {loading ? (
