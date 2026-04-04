@@ -6,7 +6,7 @@ const MATCH_COLUMNS = `
   hubspot_company_id, harvest_client_id, harvest_client_name,
   freshdesk_company_id, freshdesk_company_name,
   quickbooks_client_name, quickbooks_invoice_summary,
-  asana_project_gids
+  asana_project_gids, industry, employee_count, enrichment_data, created_at
 `;
 
 export function useCompaniesForMatching() {

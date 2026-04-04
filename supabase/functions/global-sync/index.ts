@@ -23,6 +23,7 @@ function normalizeDomain(input: string | null | undefined): string | null {
 function normalizeCompanyName(name: string): string {
   return name
     .toLowerCase()
+    .replace(/^z_archive_/i, '') // Strip Freshdesk archive prefix
     .replace(/[,.]\\s*(inc|llc|ltd|corp|co|company|corporation|group|enterprises|lp|llp|pllc|pc)\b\.?/gi, '')
     .replace(/\s+(inc|llc|ltd|corp|co|company|corporation|group|enterprises|lp|llp|pllc|pc)\s*$/gi, '')
     .replace(/[^a-z0-9\s]/g, '')
@@ -622,6 +623,7 @@ Deno.serve(async (req) => {
             sources: sourceList,
             action: client.existingId ? 'updated' : 'created',
             hasActiveProject: client.hasActiveProject,
+            harvestIsActive: client.harvest?.isActive ?? null,
           });
         } catch (err: any) {
           console.error(`[global-sync] Error processing ${client.name}:`, err.message);
@@ -652,6 +654,7 @@ Deno.serve(async (req) => {
           sources: sourceList,
           action: client.existingId ? 'would_update' : 'would_create',
           hasActiveProject: client.hasActiveProject,
+          harvestIsActive: client.harvest?.isActive ?? null,
           hubspotId: client.hubspot?.id || null,
           hubspotName: client.hubspot?.name || null,
           harvestId: client.harvest ? String(client.harvest.id) : null,

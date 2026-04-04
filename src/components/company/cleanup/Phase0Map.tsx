@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,10 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
-import { CheckCircle2, Search, Lock, LockOpen, Loader2, Filter, Trash2, RefreshCw, ChevronsUpDown } from 'lucide-react';
+import { CheckCircle2, Search, Lock, LockOpen, Loader2, Filter, Trash2, RefreshCw, ChevronsUpDown, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { normalizeCompanyName, computeSimilarity, type CompanyRecord } from '@/lib/companyNormalization';
+import { computeSimilarity, stripArchivePrefix, type CompanyRecord } from '@/lib/companyNormalization';
 
 type Props = {
   companies: CompanyRecord[];
@@ -27,7 +27,7 @@ type SourceData = {
   freshdesk: SourceRecord[];
 };
 
-type MatchCandidate = { id: string; name: string; score: number; domain?: string | null };
+type MatchCandidate = { id: string; name: string; score: number; domain?: string | null; reason?: string };
 type CompanyMatches = {
   hubspot: MatchCandidate[];
   harvest: MatchCandidate[];
@@ -35,6 +35,7 @@ type CompanyMatches = {
 };
 
 type FilterMode = 'all' | 'needs_mapping' | 'fully_mapped' | 'partially_mapped';
+type MatchCountFilter = 0 | 1 | 2 | 3;
 
 const STORAGE_KEY = 'phase0map_settings';
 
@@ -58,12 +59,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   });
   const [page, setPage] = useState(0);
   const [wrapText, setWrapText] = useState(true);
-  const [sortBy, setSortBy] = useState<'confidence' | 'name' | 'matches'>('confidence');
+  const [sortBy, setSortBy] = useState<'confidence' | 'name' | 'matches' | 'revenue' | 'recent'>('confidence');
   const [sourceData, setSourceData] = useState<SourceData | null>(null);
   const [loadingSources, setLoadingSources] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confidenceMin, setConfidenceMin] = useState<number>(0);
+  const [matchCountFilter, setMatchCountFilter] = useState<MatchCountFilter>(0);
   // Track user overrides: companyId -> { hubspot?: id, harvest?: id, freshdesk?: id }
   const [overrides, setOverrides] = useState<Map<string, Record<string, string>>>(new Map());
   // Rows explicitly locked by clicking Lock button (visual state only)
@@ -127,8 +129,16 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
       const freshdesk = await fetchOneSource('freshdesk', 'Freshdesk');
       setLoadingStatus('');
 
-      setSourceData({ hubspot, harvest, freshdesk });
+      const sources = { hubspot, harvest, freshdesk };
+      setSourceData(sources);
       toast.success(`Loaded ${hubspot.length} HS, ${harvest.length} HV, ${freshdesk.length} FD`);
+
+      // Step 1: Instant fuzzy matching (renders immediately)
+      const fuzzyMap = runFuzzyMatching(sources);
+      setAllMatches(fuzzyMap);
+
+      // Step 2: AI enhancement for unmatched companies (runs in background)
+      runAiMatching(sources, fuzzyMap);
     } catch (err: any) {
       toast.error(`Failed: ${err.message}`);
       setLoadingStatus('');
@@ -137,9 +147,13 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     }
   };
 
-  // Compute best matches for each company from each source
-  const allMatches = useMemo(() => {
-    if (!sourceData) return new Map<string, CompanyMatches>();
+  // Matching state: fuzzy runs instantly, AI enhances after
+  const [allMatches, setAllMatches] = useState<Map<string, CompanyMatches>>(new Map());
+  const [aiMatchingStatus, setAiMatchingStatus] = useState<string>('');
+  const [aiMatching, setAiMatching] = useState(false);
+
+  // Step 1: Instant fuzzy matching (runs client-side, populates immediately)
+  const runFuzzyMatching = useCallback((sources: SourceData): Map<string, CompanyMatches> => {
     const map = new Map<string, CompanyMatches>();
 
     for (const c of companies) {
@@ -158,19 +172,131 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
       };
 
       map.set(c.id, {
-        hubspot: c.hubspot_company_id ? [] : findMatches(sourceData.hubspot),
-        harvest: c.harvest_client_id ? [] : findMatches(sourceData.harvest),
-        freshdesk: c.freshdesk_company_id ? [] : findMatches(sourceData.freshdesk),
+        hubspot: c.hubspot_company_id ? [] : findMatches(sources.hubspot),
+        harvest: c.harvest_client_id ? [] : findMatches(sources.harvest),
+        freshdesk: c.freshdesk_company_id ? [] : findMatches(sources.freshdesk),
       });
     }
     return map;
-  }, [companies, sourceData]);
+  }, [companies]);
 
-  // Helper: best match score for a company
+  // Step 2: AI enhancement — finds matches that fuzzy missed
+  const runAiMatching = useCallback(async (sources: SourceData, fuzzyMap: Map<string, CompanyMatches>) => {
+    setAiMatching(true);
+
+    const enhanceSource = async (
+      sourceKey: 'hubspot' | 'harvest' | 'freshdesk',
+      label: string,
+      records: SourceRecord[],
+      idField: 'hubspot_company_id' | 'harvest_client_id' | 'freshdesk_company_id'
+    ) => {
+      // Only AI-match companies that fuzzy didn't find ANY match for
+      const unmatched = companies.filter(c => {
+        if (c[idField] || !c.name) return false;
+        const existing = fuzzyMap.get(c.id);
+        return !existing?.[sourceKey]?.length;
+      });
+      if (unmatched.length === 0 || records.length === 0) return;
+
+      setAiMatchingStatus(`AI matching ${unmatched.length} unmatched in ${label}...`);
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/company-match-ai`, {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({
+            companies: unmatched.map(c => ({ id: c.id, name: c.name, domain: c.domain })),
+            candidates: records.map(r => ({ id: r.id, name: r.name, domain: r.domain })),
+            source: label,
+          }),
+        });
+
+        if (!res.ok) throw new Error(`${label} AI matching failed (${res.status})`);
+        const data = await res.json();
+        const matches = data.matches || [];
+
+        const candidateMap = new Map(records.map(r => [r.id, r]));
+
+        let added = 0;
+        for (const m of matches) {
+          const entry = fuzzyMap.get(m.company_id);
+          const candidate = candidateMap.get(m.candidate_id);
+          if (!entry || !candidate) continue;
+
+          const score = m.confidence === 'high' ? 0.95 : m.confidence === 'medium' ? 0.85 : 0.75;
+          entry[sourceKey] = [{
+            id: candidate.id,
+            name: candidate.name,
+            score,
+            domain: candidate.domain,
+            reason: m.reason,
+          }];
+          added++;
+        }
+        if (added > 0) console.log(`[AI] ${label}: found ${added} additional matches`);
+      } catch (err: any) {
+        console.error(`AI matching ${label} failed:`, err);
+        // Fuzzy results already in place, no fallback needed
+      }
+    };
+
+    try {
+      await Promise.all([
+        enhanceSource('hubspot', 'HubSpot', sources.hubspot, 'hubspot_company_id'),
+        enhanceSource('harvest', 'Harvest', sources.harvest, 'harvest_client_id'),
+        enhanceSource('freshdesk', 'Freshdesk', sources.freshdesk, 'freshdesk_company_id'),
+      ]);
+
+      // Re-set the map to trigger re-render with AI additions
+      setAllMatches(new Map(fuzzyMap));
+      setAiMatchingStatus('');
+      toast.success('AI matching complete');
+    } catch (err: any) {
+      toast.error(`AI matching error: ${err.message}`);
+    } finally {
+      setAiMatching(false);
+      setAiMatchingStatus('');
+    }
+  }, [companies]);
+
+  // Helper: worst match score across unmapped sources (weakest link determines confidence)
   const bestScore = (c: CompanyRecord): number => {
     const m = allMatches.get(c.id);
     if (!m) return 0;
-    return Math.max(m.hubspot[0]?.score || 0, m.harvest[0]?.score || 0, m.freshdesk[0]?.score || 0);
+    const eff = getEffective(c);
+    const scores: number[] = [];
+    if (!eff.hubspot_company_id) scores.push(m.hubspot[0]?.score || 0);
+    if (!eff.harvest_client_id) scores.push(m.harvest[0]?.score || 0);
+    if (!eff.freshdesk_company_id) scores.push(m.freshdesk[0]?.score || 0);
+    if (scores.length === 0) return 1; // all mapped
+    return Math.min(...scores);
+  };
+
+  // Track which source IDs are already claimed (locked or saved) — prevent double-mapping
+  const claimedIds = useMemo(() => {
+    const hs = new Set<string>();
+    const hv = new Set<string>();
+    const fd = new Set<string>();
+    for (const c of companies) {
+      const eff = getEffective(c);
+      if (eff.hubspot_company_id) hs.add(eff.hubspot_company_id);
+      if (eff.harvest_client_id) hv.add(eff.harvest_client_id);
+      if (eff.freshdesk_company_id) fd.add(eff.freshdesk_company_id);
+    }
+    return { hubspot: hs, harvest: hv, freshdesk: fd };
+  }, [companies, localLocks]);
+
+  // Helper: count how many UNMAPPED sources have an available (unclaimed) fuzzy match
+  const suggestedMatchCount = (c: CompanyRecord): number => {
+    const eff = getEffective(c);
+    const m = allMatches.get(c.id);
+    if (!m) return 0;
+    let count = 0;
+    // Only count sources that are NOT already mapped and have an unclaimed candidate with score >= 0.75
+    if (!eff.hubspot_company_id && m.hubspot.some(x => x.score >= 0.75 && !claimedIds.hubspot.has(x.id))) count++;
+    if (!eff.harvest_client_id && m.harvest.some(x => x.score >= 0.75 && !claimedIds.harvest.has(x.id))) count++;
+    if (!eff.freshdesk_company_id && m.freshdesk.some(x => x.score >= 0.75 && !claimedIds.freshdesk.has(x.id))) count++;
+    return count;
   };
 
   // Filter
@@ -185,17 +311,20 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
       result = result.filter(c => { const n = mappedCount(getEffective(c)); return n > 0 && n < 3; });
     }
 
-    // Confidence threshold filter
-    if (confidenceMin === 100) {
-      // Ultra: all 3 sources at 100%
-      result = result.filter(c => {
-        const m = allMatches.get(c.id);
-        if (!m) return false;
-        return (m.hubspot[0]?.score || 0) >= 1 && (m.harvest[0]?.score || 0) >= 1 && (m.freshdesk[0]?.score || 0) >= 1;
-      });
-    } else if (confidenceMin > 0) {
-      const minScore = confidenceMin / 100;
-      result = result.filter(c => mappedCount(getEffective(c)) === 3 || bestScore(c) >= minScore);
+    // Confidence tier filter
+    if (confidenceMin === -1) {
+      result = result.filter(c => bestScore(c) < 0.75 && mappedCount(getEffective(c)) < 3);
+    } else if (confidenceMin === 95) {
+      result = result.filter(c => bestScore(c) >= 0.95);
+    } else if (confidenceMin === 85) {
+      result = result.filter(c => { const s = bestScore(c); return s >= 0.85 && s < 0.95; });
+    } else if (confidenceMin === 75) {
+      result = result.filter(c => { const s = bestScore(c); return s >= 0.75 && s < 0.85; });
+    }
+
+    // Match count filter
+    if (matchCountFilter > 0) {
+      result = result.filter(c => suggestedMatchCount(c) >= matchCountFilter);
     }
 
     if (search.trim()) {
@@ -216,29 +345,53 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         if (aCount !== bCount) return bCount - aCount;
         return a.name.localeCompare(b.name);
       }
+      if (sortBy === 'revenue') {
+        const aRev = a.quickbooks_invoice_summary?.total || 0;
+        const bRev = b.quickbooks_invoice_summary?.total || 0;
+        if (aRev !== bRev) return bRev - aRev;
+        return a.name.localeCompare(b.name);
+      }
+      if (sortBy === 'recent') {
+        const aDate = a.quickbooks_invoice_summary?.lastDate || '';
+        const bDate = b.quickbooks_invoice_summary?.lastDate || '';
+        if (aDate !== bDate) return bDate > aDate ? 1 : -1;
+        return a.name.localeCompare(b.name);
+      }
       return a.name.localeCompare(b.name);
     });
 
     return result;
-  }, [companies, filter, search, allMatches, confidenceMin, sortBy, localLocks]);
+  }, [companies, filter, search, allMatches, confidenceMin, matchCountFilter, sortBy, localLocks]);
 
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.ceil(filtered.length / pageSize);
 
-  const stats = useMemo(() => ({
-    total: companies.length,
-    fullyMapped: companies.filter(c => mappedCount(getEffective(c)) === 3).length,
-    partial: companies.filter(c => { const n = mappedCount(getEffective(c)); return n > 0 && n < 3; }).length,
-    needsMapping: companies.filter(c => mappedCount(getEffective(c)) === 0).length,
-    ultraConf: companies.filter(c => {
-      const m = allMatches.get(c.id);
-      if (!m) return false;
-      return (m.hubspot[0]?.score || 0) >= 1 && (m.harvest[0]?.score || 0) >= 1 && (m.freshdesk[0]?.score || 0) >= 1;
-    }).length,
-    highConf: companies.filter(c => bestScore(c) >= 0.95).length,
-    medConf: companies.filter(c => bestScore(c) >= 0.85 && bestScore(c) < 0.95).length,
-    lowConf: companies.filter(c => bestScore(c) >= 0.75 && bestScore(c) < 0.85).length,
-  }), [companies, allMatches, localLocks]);
+  const stats = useMemo(() => {
+    const matchCounts = { 1: 0, 2: 0, 3: 0 };
+    let highConf = 0, medConf = 0, lowConf = 0, noMatch = 0;
+
+    for (const c of companies) {
+      const score = bestScore(c);
+      if (score >= 0.95) highConf++;
+      else if (score >= 0.85) medConf++;
+      else if (score >= 0.75) lowConf++;
+      else if (mappedCount(getEffective(c)) < 3) noMatch++;
+
+      const mc = suggestedMatchCount(c);
+      if (mc >= 1) matchCounts[1]++;
+      if (mc >= 2) matchCounts[2]++;
+      if (mc >= 3) matchCounts[3]++;
+    }
+
+    return {
+      total: companies.length,
+      fullyMapped: companies.filter(c => mappedCount(getEffective(c)) === 3).length,
+      partial: companies.filter(c => { const n = mappedCount(getEffective(c)); return n > 0 && n < 3; }).length,
+      needsMapping: companies.filter(c => mappedCount(getEffective(c)) === 0).length,
+      highConf, medConf, lowConf, noMatch,
+      matchCounts,
+    };
+  }, [companies, allMatches, localLocks]);
 
   // Build updates object for a company from its matches + manual overrides
   const buildUpdates = (companyId: string) => {
@@ -320,19 +473,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
     setSelected(new Set());
   };
 
-  // Track which source IDs are already claimed (locked or saved) — prevent double-mapping
-  const claimedIds = useMemo(() => {
-    const hs = new Set<string>();
-    const hv = new Set<string>();
-    const fd = new Set<string>();
-    for (const c of companies) {
-      const eff = getEffective(c);
-      if (eff.hubspot_company_id) hs.add(eff.hubspot_company_id);
-      if (eff.harvest_client_id) hv.add(eff.harvest_client_id);
-      if (eff.freshdesk_company_id) fd.add(eff.freshdesk_company_id);
-    }
-    return { hubspot: hs, harvest: hv, freshdesk: fd };
-  }, [companies, localLocks]);
+  // claimedIds moved above suggestedMatchCount
 
   // Mark for deletion (local)
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
@@ -406,7 +547,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         >
           <div className="flex items-center gap-1">
             <Lock className="h-3 w-3 text-green-600 shrink-0 group-hover:text-amber-500" />
-            <span className="text-xs text-green-700 truncate max-w-full group-hover:text-amber-600">{lockedName || lockedId}</span>
+            <span className="text-xs text-green-700 truncate max-w-full group-hover:text-amber-600">{stripArchivePrefix(lockedName || lockedId)}</span>
           </div>
           <span className="text-xs text-muted-foreground/60 truncate max-w-full">ID: {lockedId}</span>
         </button>
@@ -468,7 +609,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
         <Popover open={openPopover === `${company.id}:${source}`} onOpenChange={(open) => setOpenPopover(open ? `${company.id}:${source}` : null)}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className={`h-7 text-xs justify-between flex-1 min-w-0 font-normal hover:text-foreground ${!selectedRecord ? 'bg-red-500/10 border-red-500/30' : ''}`}>
-              <span className="truncate">{selectedRecord?.name || 'No match'}</span>
+              <span className="truncate">{selectedRecord ? stripArchivePrefix(selectedRecord.name) : 'No match'}</span>
               <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50 ml-1" />
             </Button>
           </PopoverTrigger>
@@ -484,9 +625,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 {candidates.length > 0 && (
                   <CommandGroup heading="Suggested">
                     {candidates.map(c => (
-                      <CommandItem key={c.id} value={c.name} onSelect={() => { setSourceOverride(c.id); setOpenPopover(null); }} className={`text-xs ${selectedId === c.id ? 'font-bold' : ''}`}>
+                      <CommandItem key={c.id} value={stripArchivePrefix(c.name)} onSelect={() => { setSourceOverride(c.id); setOpenPopover(null); }} className={`text-xs ${selectedId === c.id ? 'font-bold' : ''}`} title={c.reason || ''}>
                         {selectedId === c.id && <CheckCircle2 className="h-3 w-3 mr-1.5 text-green-600" />}
-                        {c.name}
+                        {stripArchivePrefix(c.name)}
                         <span className={`ml-auto text-xs font-bold ${c.score >= 0.95 ? 'text-green-600' : c.score >= 0.85 ? 'text-amber-500' : 'text-orange-500'}`}>{Math.round(c.score * 100)}%</span>
                       </CommandItem>
                     ))}
@@ -494,9 +635,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                 )}
                 <CommandGroup heading={`All ${source} (${allSourceRecords.length})`}>
                   {allSourceRecords.map(r => (
-                    <CommandItem key={r.id} value={r.name} onSelect={() => { setSourceOverride(r.id); setOpenPopover(null); }} className={`text-xs ${selectedId === r.id ? 'font-bold' : ''}`}>
+                    <CommandItem key={r.id} value={stripArchivePrefix(r.name)} onSelect={() => { setSourceOverride(r.id); setOpenPopover(null); }} className={`text-xs ${selectedId === r.id ? 'font-bold' : ''}`}>
                       {selectedId === r.id && <CheckCircle2 className="h-3 w-3 mr-1.5 text-green-600" />}
-                      {r.name}
+                      {stripArchivePrefix(r.name)}
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -509,7 +650,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-4">
       <div className="flex items-center justify-end mb-4">
         <div className="flex gap-2">
           {unsavedCount > 0 && (
@@ -554,9 +695,15 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
           <span className="text-muted-foreground text-xs">
             Sources: {sourceData.hubspot.length} HS, {sourceData.harvest.length} HV, {sourceData.freshdesk.length} FD
           </span>
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={fetchSources} disabled={loadingSources}>
-            <RefreshCw className={`h-3 w-3 ${loadingSources ? 'animate-spin' : ''}`} /> Reload
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={fetchSources} disabled={loadingSources || aiMatching}>
+            <RefreshCw className={`h-3 w-3 ${loadingSources || aiMatching ? 'animate-spin' : ''}`} /> Reload
           </Button>
+          {aiMatching && (
+            <div className="flex items-center gap-1.5 text-xs text-purple-600 animate-pulse">
+              <Sparkles className="h-3 w-3" />
+              {aiMatchingStatus || 'AI enhancing...'}
+            </div>
+          )}
         </div>
 
         {/* Search + Filter + Page Size */}
@@ -583,15 +730,26 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
             </SelectContent>
           </Select>
           <Select value={String(confidenceMin)} onValueChange={(v) => { setConfidenceMin(Number(v)); setPage(0); }}>
-            <SelectTrigger className="w-56 h-9 text-sm">
+            <SelectTrigger className="w-48 h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">All Confidence ({stats.total})</SelectItem>
-              <SelectItem value="100">Ultra Confidence ({stats.ultraConf})</SelectItem>
-              <SelectItem value="95">High Confidence ({stats.highConf})</SelectItem>
-              <SelectItem value="85">Medium Confidence ({stats.medConf})</SelectItem>
-              <SelectItem value="75">Low Confidence ({stats.lowConf})</SelectItem>
+              <SelectItem value="95">High ({stats.highConf})</SelectItem>
+              <SelectItem value="85">Medium ({stats.medConf})</SelectItem>
+              <SelectItem value="75">Low ({stats.lowConf})</SelectItem>
+              <SelectItem value="-1">No Match ({stats.noMatch})</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={String(matchCountFilter)} onValueChange={(v) => { setMatchCountFilter(Number(v) as MatchCountFilter); setPage(0); }}>
+            <SelectTrigger className="w-40 h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Any Matches</SelectItem>
+              <SelectItem value="1">1+ match ({stats.matchCounts[1]})</SelectItem>
+              <SelectItem value="2">2+ matches ({stats.matchCounts[2]})</SelectItem>
+              <SelectItem value="3">3 matches ({stats.matchCounts[3]})</SelectItem>
             </SelectContent>
           </Select>
           <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(0); }}>
@@ -605,7 +763,7 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <SelectItem value="100">100 / pg</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sortBy} onValueChange={(v: 'confidence' | 'name' | 'matches') => { setSortBy(v); setPage(0); }}>
+          <Select value={sortBy} onValueChange={(v: 'confidence' | 'name' | 'matches' | 'revenue' | 'recent') => { setSortBy(v); setPage(0); }}>
             <SelectTrigger className="w-40 h-9 text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -613,6 +771,8 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
               <SelectItem value="confidence">Sort: Confidence</SelectItem>
               <SelectItem value="name">Sort: Name (A-Z)</SelectItem>
               <SelectItem value="matches">Sort: Most Matched</SelectItem>
+              <SelectItem value="revenue">Sort: Total Revenue</SelectItem>
+              <SelectItem value="recent">Sort: Most Recent Invoice</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => setWrapText(w => !w)}>
@@ -655,13 +815,12 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                     }}
                   />
                 </TableHead>
-                <TableHead className="text-xs" style={{ width: '17%' }}>QuickBooks Client</TableHead>
-                <TableHead className="text-xs" style={{ width: '9%' }}>Domain</TableHead>
-                <TableHead className="text-xs" style={{ width: '15%' }}>HubSpot Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '15%' }}>Harvest Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '15%' }}>Freshdesk Match</TableHead>
-                <TableHead className="text-xs" style={{ width: '9%' }}>Matches</TableHead>
-                <TableHead className="text-xs" style={{ width: '10%' }}></TableHead>
+                <TableHead className="text-xs" style={{ width: '20%' }}>QuickBooks Client</TableHead>
+                <TableHead className="text-xs" style={{ width: '20%' }}>HubSpot Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '20%' }}>Harvest Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '20%' }}>Freshdesk Match</TableHead>
+                <TableHead className="text-xs" style={{ width: '8%' }}>Matches</TableHead>
+                <TableHead className="text-xs" style={{ width: '8%' }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -691,16 +850,9 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                       <div className="text-sm font-medium">{c.name}</div>
                       {c.quickbooks_invoice_summary && (
                         <div className="text-xs text-muted-foreground">
-                          {(c.quickbooks_invoice_summary as any)?.count || 0} txns
-                          {(c.quickbooks_invoice_summary as any)?.total ? ` · $${Math.round((c.quickbooks_invoice_summary as any).total).toLocaleString()}` : ''}
+                          {c.quickbooks_invoice_summary?.count || 0} txns
+                          {c.quickbooks_invoice_summary?.total ? ` · $${Math.round(c.quickbooks_invoice_summary.total).toLocaleString()}` : ''}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      {c.domain ? (
-                        <span className="text-xs text-muted-foreground">{c.domain}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/40">—</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2">
@@ -716,7 +868,11 @@ export default function Phase0Map({ companies, onComplete, onSkip, onRefetch }: 
                       {(() => {
                         const isLocked = lockedRows.has(c.id);
                         const m = allMatches.get(c.id);
-                        const foundCount = m ? (m.hubspot.length > 0 ? 1 : 0) + (m.harvest.length > 0 ? 1 : 0) + (m.freshdesk.length > 0 ? 1 : 0) : 0;
+                        // Count only sources with unclaimed candidates (matches not already mapped to other companies)
+                        const hsAvail = m ? m.hubspot.filter(x => !claimedIds.hubspot.has(x.id)).length > 0 : false;
+                        const hvAvail = m ? m.harvest.filter(x => !claimedIds.harvest.has(x.id)).length > 0 : false;
+                        const fdAvail = m ? m.freshdesk.filter(x => !claimedIds.freshdesk.has(x.id)).length > 0 : false;
+                        const foundCount = (hsAvail ? 1 : 0) + (hvAvail ? 1 : 0) + (fdAvail ? 1 : 0);
                         if (isLocked) {
                           const lockData = localLocks.get(c.id) || {};
                           const lockedCount = (lockData.hubspot_company_id ? 1 : 0) + (lockData.harvest_client_id ? 1 : 0) + (lockData.freshdesk_company_id ? 1 : 0);

@@ -14,11 +14,17 @@ export function normalizeDomain(input: string | null | undefined): string | null
 export function normalizeCompanyName(name: string): string {
   return name
     .toLowerCase()
+    .replace(/^z_archive_/i, '') // Strip Freshdesk archive prefix
     .replace(/[,.]?\s*(inc|llc|ltd|corp|co|company|corporation|group|enterprises|lp|llp|pllc|pc)\b\.?/gi, '')
     .replace(/\s+(inc|llc|ltd|corp|co|company|corporation|group|enterprises|lp|llp|pllc|pc)\s*$/gi, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Strip archive prefix for display (preserves original casing of the name portion) */
+export function stripArchivePrefix(name: string): string {
+  return name.replace(/^z_archive_/i, '');
 }
 
 /** Check if a string looks like a domain (e.g. "brokengrill.com") */
@@ -177,6 +183,14 @@ export type CompanyRecord = {
   freshdesk_company_id: string | null;
   freshdesk_company_name: string | null;
   quickbooks_client_name: string | null;
+  quickbooks_invoice_summary: {
+    total?: number;
+    count?: number;
+    firstDate?: string;
+    lastDate?: string;
+    transactionTypes?: Record<string, number>;
+    hasSupportTickets?: boolean;
+  } | null;
   asana_project_gids: string[] | null;
   industry: string | null;
   employee_count: string | null;

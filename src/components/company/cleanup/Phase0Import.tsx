@@ -499,8 +499,15 @@ export default function Phase0Import({ companies: companiesProp, onComplete, onS
       existing.count++;
       const dateVal = getField(row, 'date');
       if (dateVal) {
-        if (!existing.firstDate || dateVal < existing.firstDate) existing.firstDate = dateVal;
-        if (!existing.lastDate || dateVal > existing.lastDate) existing.lastDate = dateVal;
+        // Normalize to ISO for correct comparison (handles MM/DD/YYYY, YYYY-MM-DD, etc.)
+        const parseDate = (d: string): string => {
+          const parsed = new Date(d);
+          if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+          return d; // fallback to raw string
+        };
+        const isoDate = parseDate(dateVal);
+        if (!existing.firstDate || isoDate < existing.firstDate) existing.firstDate = isoDate;
+        if (!existing.lastDate || isoDate > existing.lastDate) existing.lastDate = isoDate;
       }
       const txType = getField(row, 'transactionType');
       if (txType) {
