@@ -4,15 +4,6 @@
 
 Hosted on Vercel with auto-deploy on push to `main`.
 
-## Session Startup
-
-At the start of every session, before starting the dev server:
-
-1. `git fetch origin main && git rebase origin/main` (in the worktree)
-2. `cd /Users/travismcashan/glide-page-scout && export PATH="/opt/homebrew/bin:$PATH" && npm install --silent` (main repo root — worktrees share its node_modules)
-
-This ensures dependencies are always up to date. Do not skip this.
-
 ## Tech Stack
 
 Vite + React + TypeScript, Tailwind + shadcn/ui, Supabase (auth/DB/edge functions), TanStack Query, deployed on Vercel. 78+ integrations for prospect research, website auditing, and client intelligence.
