@@ -424,6 +424,12 @@ Model council returns "No synthesis available" — API calls failing silently (~
 
 ---
 
+## Next Session Priority
+
+**Sidebar workspace navigation overhaul.** Replace top nav bar with sidebar. Workspace switcher (Growth/Delivery/Admin) in logo area scopes the entire UI — different nav items, company detail tabs, and data emphasis per workspace. Growth = prospects + pipeline. Delivery = active clients + projects. Admin = hours + invoicing. Vision doc: `Agency-Brain-Architecture.docx`. Detailed architecture in memory file `project_workspace_sidebar_nav.md`. Also: lazy-load all company artifact tabs on page load (pre-fetch in background).
+
+---
+
 ## 3E Methodology
 1. **Effective** — solving the problem (most important)
 2. **Efficient** — solving it with the least effort
