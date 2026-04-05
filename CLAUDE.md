@@ -496,19 +496,67 @@ Sidebar restructured per design expert analysis (Nielsen, Krug, Ive, Frog).
 - Scroll fade edges on leads/deals (500ms, scroll-position-aware).
 - Roadmap/Proposal/Estimate: `company_id` is primary parent, `deal_id` added, `session_id` optional.
 
+## Data-First Architecture (SHIPPED Apr 4 2026)
+
+### Principle
+Every page reads from local Supabase tables. External APIs feed sync functions. No exceptions (except AI Chat Live connections).
+
+### Sync Pipeline (all deployed + running)
+- `hubspot-deals-sync` — 1,128 deals from 3 pipelines → `deals` table. Auto-creates missing companies + syncs deal contacts to `contacts` table.
+- `hubspot-contacts-sync` — lead contacts → `contacts` table with lead_status/lifecycle_stage. Auto-creates missing companies.
+- `enrich-contacts` — batch Apollo enrichment, stores full raw response in contacts.enrichment_data.apollo
+- `enrich-companies` — batch Ocean.io enrichment, stores full raw response in companies.enrichment_data.ocean
+- Auto-enrichment wired into both sync functions.
+
+### Pages Reading from DB (DONE)
+- Growth Companies → `deals` + `contacts` tables for pipeline company IDs, scoped query
+- Deals page → `deals` table (was: HubSpot API live every page load)
+- Leads page → `contacts` table (was: HubSpot API live every page load)
+- Company detail Deals/Time/Tickets tabs → local tables (was: company-artifacts edge fn)
+- Delivery/Admin Companies → scoped queries by status
+
+### Pages Still Hitting External APIs (TO FIX)
+- Projects page → Asana + Harvest APIs live (Phase 4 of plan)
+- Company detail Projects tab → company-artifacts edge fn
+- Company detail Engagements (overview) → company-artifacts edge fn
+
+### 13 Architecture Rules
+Saved in memory. Key ones:
+1. Every entity = own row in correct table. Never store as string on another row.
+2. Store ENTIRE raw API response. Never cherry-pick fields.
+3. When creating companies, also create child entities (contacts, deals).
+4. Pages NEVER call external APIs (except AI Chat Live connections / future MCP).
+5. Every query scoped to what's displayed. Never load all rows and filter in browser.
+
+### Connection Types (from Agency Brain vision)
+- **Static** — one-way read, cached (PageSpeed, Lighthouse)
+- **Synced** — scheduled sync to local tables (HubSpot, Harvest, Asana, Freshdesk)
+- **Live** — real-time AI queries during Chat (edge functions now, MCP eventually)
+- **Backfill** — bulk import (CSV, PDF, URL)
+
+### Band-aid Columns to Remove
+- `companies.hubspot_lifecycle_stage` — superseded by contacts.lifecycle_stage
+- `companies.hubspot_has_active_deal` — superseded by deals table JOIN
+- `hubspot-lifecycle-sync` edge function — superseded
+
 ## Next Session Priority
 
-**#1: Growth companies = pipeline only.** Currently shows 1,489 HubSpot prospects. Must only show companies attached to active leads or deals (~20 companies). Requires persisting lead/deal→company associations during hubspot-pipeline fetch, or cross-referencing at query time.
+**#1: Contact + Site detail drawers.** No contact detail page exists. Need pull drawer for quick view (Apollo data, deals, emails) and full detail page. Same for sites.
 
-**#2: Page-by-page UI audit.** Travis wants to systematically go through each page and redesign controls to be unified, fit on one line, remove unnecessary elements. Started with CompaniesPage and Leads/Deals — need to continue with company detail page, projects page, etc.
+**#2: Projects page reads from DB.** Phase 4 of data-first plan — sync Asana project data locally, rewrite ProjectsPage to query local tables.
 
-**#3: Expert panel columns need data joins.** The approved design has Growth showing Deal Stage + Deal Amount, Delivery showing Project Status + Budget Health + Owner. These require joining HubSpot deals and Asana/Harvest project data to companies at query time.
+**#3: Page-by-page UI audit.** Continue with company detail page, projects page — unified controls, tighter layouts.
+
+**#4: Fix "HubSpot Company" names.** Companies created by deals sync with no HubSpot name show as "HubSpot Company {id}". Should use domain or contact's company field as fallback.
+
+**#5: Collapsible company rows.** Travis wants expandable rows showing contextual sub-content (Growth: lead/deal details, Delivery: projects/services). Was built then removed — needs design rethink.
 
 **Other priorities:**
 - Re-crawl sites (80+ historical crawls lost)
 - Pattern Library (Brain Pillar 3)
 - Team utilization view (port `harvest-time` from AgencyAtlas)
-- Z_Archive companies have `status=prospect` — need data cleanup to mark as archived
+- Scheduled sync (every 30 min deals/contacts, every 6 hrs companies/harvest/freshdesk)
+- MCP integration for Chat Live connections
 
 ---
 
