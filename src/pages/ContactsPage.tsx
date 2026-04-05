@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -10,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import {
   Search, Phone, Linkedin, ArrowUpDown, ArrowUp, ArrowDown,
-  LayoutList, LayoutGrid, X, SlidersHorizontal,
+  LayoutList, LayoutGrid, X, SlidersHorizontal, Sparkles, Loader2,
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { useProduct } from '@/contexts/ProductContext';
@@ -18,6 +19,29 @@ import { useContacts, type ContactListRow } from '@/hooks/useContacts';
 import type { GrowthFilter } from '@/hooks/useCompanies';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { LEAD_STATUS_BORDER_COLORS as LEAD_STATUS_COLORS } from '@/config/badge-styles';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+function isEnriched(contact: ContactListRow): boolean {
+  const ed = contact.enrichment_data;
+  return !!(ed && (ed.apollo || ed.apollo_profile || ed.id));
+}
+
+function enrichedPhoto(contact: ContactListRow): string | null {
+  return contact.photo_url
+    || contact.enrichment_data?.apollo?.photo_url
+    || contact.enrichment_data?.apollo_profile?.photo_url
+    || contact.enrichment_data?.photo_url
+    || null;
+}
+
+function enrichedTitle(contact: ContactListRow): string | null {
+  return contact.title
+    || contact.enrichment_data?.apollo?.title
+    || contact.enrichment_data?.apollo_profile?.title
+    || contact.enrichment_data?.title
+    || null;
+}
 
 type SortKey = 'name_asc' | 'name_desc' | 'company_asc' | 'company_desc' | 'title_asc' | 'title_desc' | 'updated_desc';
 
@@ -64,6 +88,32 @@ export default function ContactsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('name_asc');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [selectedContact, setSelectedContact] = useState<ContactListRow | null>(null);
+  const [bulkEnriching, setBulkEnriching] = useState(false);
+
+  const enrichmentStats = useMemo(() => {
+    const enriched = contacts.filter(isEnriched).length;
+    return { enriched, unenriched: contacts.length - enriched };
+  }, [contacts]);
+
+  const handleBulkEnrich = useCallback(async () => {
+    const unenrichedIds = contacts.filter(c => !isEnriched(c) && c.email).map(c => c.id);
+    if (unenrichedIds.length === 0) {
+      toast.info('All contacts with email addresses are already enriched.');
+      return;
+    }
+    setBulkEnriching(true);
+    try {
+      const { error } = await supabase.functions.invoke('enrich-contacts', {
+        body: { contact_ids: unenrichedIds },
+      });
+      if (error) throw error;
+      toast.success(`Enrichment started for ${unenrichedIds.length} contacts. Refresh in a minute to see results.`);
+    } catch (e: any) {
+      toast.error(`Bulk enrich failed: ${e.message}`);
+    } finally {
+      setBulkEnriching(false);
+    }
+  }, [contacts]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -144,6 +194,31 @@ export default function ContactsPage() {
             )}
           </div>
 
+          {/* Enrichment stats */}
+          {contacts.length > 0 && (
+            <span className="hidden sm:inline text-xs text-muted-foreground tabular-nums">
+              {enrichmentStats.enriched}/{contacts.length} enriched
+            </span>
+          )}
+
+          {/* Bulk Enrich */}
+          {enrichmentStats.unenriched > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              disabled={bulkEnriching}
+              onClick={handleBulkEnrich}
+            >
+              {bulkEnriching ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+              )}
+              Bulk Enrich ({enrichmentStats.unenriched})
+            </Button>
+          )}
+
           <div className="flex-1" />
 
           {/* Growth filter */}
@@ -209,6 +284,9 @@ export default function ContactsPage() {
               <TableBody>
                 {filtered.map(contact => {
                   const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown';
+                  const photo = enrichedPhoto(contact);
+                  const title = enrichedTitle(contact);
+                  const enriched = isEnriched(contact);
                   return (
                     <TableRow
                       key={contact.id}
@@ -218,8 +296,8 @@ export default function ContactsPage() {
                       <TableCell className="max-w-[280px]">
                         <div className="flex items-center gap-2.5">
                           <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                            {contact.photo_url ? (
-                              <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
+                            {photo ? (
+                              <img src={photo} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <span className="text-[10px] font-medium text-muted-foreground">
                                 {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
@@ -233,7 +311,7 @@ export default function ContactsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm truncate max-w-[200px]">
-                        {contact.title || <span className="text-muted-foreground/30">--</span>}
+                        {title || <span className="text-muted-foreground/30">--</span>}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm truncate max-w-[200px]">
                         <div className="flex items-center gap-2">
@@ -261,13 +339,16 @@ export default function ContactsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {contact.lead_status ? (
-                          <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
-                            {contact.lead_status}
+                        <div className="flex items-center gap-1.5">
+                          {contact.lead_status && (
+                            <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
+                              {contact.lead_status}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className={`text-xs px-2 py-0.5 ${enriched ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400' : 'border-border text-muted-foreground/50'}`}>
+                            {enriched ? 'Enriched' : 'Not enriched'}
                           </Badge>
-                        ) : (
-                          <span className="text-muted-foreground/30">--</span>
-                        )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -280,6 +361,9 @@ export default function ContactsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filtered.map(contact => {
               const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown';
+              const photo = enrichedPhoto(contact);
+              const title = enrichedTitle(contact);
+              const enriched = isEnriched(contact);
               return (
                 <div
                   key={contact.id}
@@ -288,8 +372,8 @@ export default function ContactsPage() {
                 >
                   <div className="flex items-start gap-3">
                     <div className="shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                      {contact.photo_url ? (
-                        <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
+                      {photo ? (
+                        <img src={photo} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-xs font-medium text-muted-foreground">
                           {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
@@ -298,7 +382,7 @@ export default function ContactsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm truncate">{name}</div>
-                      {contact.title && <div className="text-xs text-muted-foreground truncate">{contact.title}</div>}
+                      {title && <div className="text-xs text-muted-foreground truncate">{title}</div>}
                       {contact.company_name && (
                         <button
                           onClick={e => { e.stopPropagation(); navigate(`/companies/${contact.company_id}`); }}
@@ -309,16 +393,17 @@ export default function ContactsPage() {
                       )}
                     </div>
                   </div>
-                  {(contact.lead_status || contact.email) && (
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      {contact.lead_status && (
-                        <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
-                          {contact.lead_status}
-                        </Badge>
-                      )}
-                      {contact.email && <span className="text-xs text-muted-foreground truncate">{contact.email}</span>}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    {contact.lead_status && (
+                      <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
+                        {contact.lead_status}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className={`text-xs px-2 py-0.5 ${enriched ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400' : 'border-border text-muted-foreground/50'}`}>
+                      {enriched ? 'Enriched' : 'Not enriched'}
+                    </Badge>
+                    {contact.email && <span className="text-xs text-muted-foreground truncate">{contact.email}</span>}
+                  </div>
                 </div>
               );
             })}
