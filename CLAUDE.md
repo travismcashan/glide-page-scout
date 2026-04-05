@@ -574,6 +574,36 @@ Shared `_shared/company-resolution.ts` used by all sync functions.
 - **Pipeline footer**: fixed to viewport bottom with stage totals
 - **Sidebar/content alignment**: separator `mb-1` for pixel-perfect baseline alignment
 
+### Async Crawl Reliability (shipped Apr 5 2026)
+Hardened the 3-phase crawl pipeline for reliability, cancellation, and progress reporting.
+
+**Session lifecycle:**
+- Sessions start as `pending`, `crawl-start` sets `analyzing` after `integration_runs` created
+- Client awaits `crawl-start` (no longer fire-and-forget) — shows error toast on failure, marks session `failed`
+- `cancelled` status: Stop button writes to DB, all phase functions check before running/dispatching
+- Phase dispatch retry: `dispatchNextPhase()` retries once after 2s on failure
+- Phase 3 force-complete scoped to only `apollo-team` and `page-tags` keys (was blanket all running)
+
+**Watchdog:**
+- `crawl-recover` edge function (new): marks zombie `integration_runs` as failed, completes stuck sessions
+- Client-side timer: auto-calls `crawl-recover` if session `pending` >2min or `analyzing` >10min
+- Can also be called by pg_cron for server-side watchdog (not yet wired)
+
+**Progress:**
+- `useCrawlProgress(sessionId)` hook: computes `{ total, done, failed, percent, currentPhase, phaseLabel }` from realtime `integration_runs`
+- ResultsPage: "Initializing..." banner for `pending`, error banner for `failed`, realtime session status subscription
+- `use-active-crawl` includes `pending` in active check
+
+**Crawls list:**
+- Company column in HistoryPage (FK join + domain fallback for unlinked sessions)
+- Domain fallback lookup for sessions without `company_id`
+
+**Key files:**
+- `supabase/functions/_shared/phase-runner.ts` — `isSessionCancelled()`, retry dispatch
+- `supabase/functions/crawl-recover/index.ts` — zombie watchdog (new)
+- `src/hooks/useCrawlProgress.ts` — progress computation hook (new)
+- `src/pages/ResultsPage.tsx` — pending/failed/cancelled UI, client watchdog timer, server-side cancel
+
 ## Next Session Priority
 
 **#1: Projects page reads from DB.** Phase 4 of data-first plan — sync Asana project data locally, rewrite ProjectsPage to query local tables.
@@ -584,7 +614,9 @@ Shared `_shared/company-resolution.ts` used by all sync functions.
 
 **#4: Pipeline page horizontal scroll sync.** The fixed footer bar doesn't scroll left/right with the kanban columns — needs scroll position sync with the ScrollArea viewport.
 
-**#5: Crawl page /crawls route.** The route works but the preview server had caching issues — verify in production after deploy.
+**#5: Consolidate integration registry.** Integration list duplicated in 6 files (crawl-start, phase1-3, crawl-worker, ResultsPage). Move to `_shared/integration-registry.ts`.
+
+**#6: pg_cron for crawl-recover.** Wire `crawl-recover` to run every 5 minutes via pg_cron for fully server-side zombie recovery (currently client-side only).
 
 **Other priorities:**
 - Re-crawl sites (80+ historical crawls lost)
