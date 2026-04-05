@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { BrandLoader } from '@/components/BrandLoader';
 import { getPausedIntegrations, toggleIntegrationPause, loadPausedIntegrations } from '@/lib/integrationState';
 import QuickBooksImportDialog from '@/components/connections/QuickBooksImportDialog';
+import { INTEGRATION_REGISTRY, INTEGRATION_CATEGORIES } from '@/config/integrations';
 
 const OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 const SLACK_OAUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/slack-oauth-exchange`;
@@ -108,59 +109,16 @@ function ApiRow({ name, description, icon: Icon, iconBg, iconColor, status }: {
   );
 }
 
-// ── Crawl Integrations (Static connections) ─────────────────────────────
-type CrawlIntegration = {
-  name: string;
-  id: string;
-  description: string;
-  category: string;
-  tier: 'free' | 'premium';
-  hasCredits?: boolean;
-};
+// CRAWL_INTEGRATIONS derived from canonical registry (src/config/integrations.ts)
+const CRAWL_INTEGRATIONS = INTEGRATION_REGISTRY.map(i => ({
+  id: i.key,
+  name: i.label,
+  description: i.description,
+  category: i.category,
+  tier: (i.cost === 'free' ? 'free' : 'premium') as 'free' | 'premium',
+}));
 
-const CRAWL_INTEGRATIONS: CrawlIntegration[] = [
-  // URL Analysis
-  { name: 'XML Sitemaps', id: 'sitemap', description: 'Parse XML sitemaps — discover indexed URLs and lastmod dates', category: 'URL Analysis', tier: 'free' },
-  { name: 'URL Discovery', id: 'url-discovery', description: 'Firecrawl-powered sitemap mapping — discovers all pages on a domain', category: 'URL Analysis', tier: 'premium' },
-  { name: 'httpstatus.io', id: 'httpstatus', description: 'HTTP redirect chain analysis — status codes, latency, TLS validity', category: 'URL Analysis', tier: 'premium' },
-  // Content Analysis
-  { name: 'Content Types', id: 'content-types', description: 'AI classifies URLs into content types (Blog, Product, Case Study, etc.)', category: 'Content Analysis', tier: 'free' },
-  { name: 'Site Navigation', id: 'nav-structure', description: 'AI extraction of header navigation — hierarchical sitemap from the menu', category: 'Content Analysis', tier: 'free' },
-  { name: 'Content Scraping', id: 'content', description: 'Extract markdown content from all business-relevant pages', category: 'Content Analysis', tier: 'premium' },
-  { name: 'Readable.com', id: 'readable', description: 'Flesch-Kincaid readability scoring and grade-level analysis', category: 'Content Analysis', tier: 'premium' },
-  // Design Analysis
-  { name: 'Page Templates', id: 'auto-tag-pages', description: 'AI template classification — Custom, Template, or Toolkit badges', category: 'Design Analysis', tier: 'free' },
-  { name: 'Screenshots', id: 'screenshots', description: 'Full-page screenshots of key template pages (5–15 layouts)', category: 'Design Analysis', tier: 'free' },
-  // Technology Detection
-  { name: 'BuiltWith', id: 'builtwith', description: 'Technology stack detection with historical data', category: 'Technology', tier: 'premium', hasCredits: true },
-  { name: 'DetectZeStack', id: 'detectzestack', description: 'Technology detection via RapidAPI — 100 free lookups/month', category: 'Technology', tier: 'premium' },
-  { name: 'AI Tech Analysis', id: 'tech-analysis', description: 'Merged analysis of all tech sources — platform, risks, redesign recommendations', category: 'Technology', tier: 'free' },
-  // Performance & Sustainability
-  { name: 'GTmetrix', id: 'gtmetrix', description: 'Lighthouse performance audits and Web Vitals', category: 'Performance', tier: 'premium' },
-  { name: 'Google PageSpeed Insights', id: 'psi', description: 'Mobile & desktop Lighthouse scores and Core Web Vitals', category: 'Performance', tier: 'free' },
-  { name: 'Chrome UX Report (CrUX)', id: 'crux', description: 'Real-user 28-day rolling Core Web Vitals from Chrome browsers', category: 'Performance', tier: 'free' },
-  { name: 'Yellow Lab Tools', id: 'yellowlab', description: 'Front-end quality audit — page weight, DOM, JS, CSS, fonts', category: 'Performance', tier: 'free' },
-  { name: 'Website Carbon', id: 'carbon', description: 'CO₂ footprint per page load', category: 'Performance', tier: 'free' },
-  // SEO & Search
-  { name: 'SEMrush', id: 'semrush', description: 'Domain overview, organic keywords, and backlinks', category: 'SEO', tier: 'premium' },
-  { name: 'Schema.org Validator', id: 'schema', description: 'Structured data analysis (JSON-LD, Microdata, RDFa)', category: 'SEO', tier: 'free' },
-  // UX & Accessibility
-  { name: 'Lighthouse Accessibility', id: 'psi-accessibility', description: 'Accessibility score and audits from Lighthouse', category: 'Accessibility', tier: 'free' },
-  { name: 'WAVE (WebAIM)', id: 'wave', description: 'WCAG accessibility audit — errors, contrast, ARIA', category: 'Accessibility', tier: 'premium' },
-  { name: 'W3C Validator', id: 'w3c', description: 'HTML & CSS validation against W3C standards', category: 'Accessibility', tier: 'free' },
-  // Security & Compliance
-  { name: 'Mozilla Observatory', id: 'observatory', description: 'Security header analysis — CSP, HSTS, X-Frame-Options', category: 'Security', tier: 'free' },
-  { name: 'SSL Labs', id: 'ssllabs', description: 'Deep SSL/TLS assessment — certificate chain, protocol support', category: 'Security', tier: 'free' },
-  // Competitive Intelligence
-  { name: 'Gemini Deep Research', id: 'deep-research', description: 'Autonomous multi-step research agent — competitive analysis and reports', category: 'Intelligence', tier: 'premium' },
-  { name: 'Avoma', id: 'avoma', description: 'Call intelligence — match meetings by attendee email domain', category: 'Intelligence', tier: 'premium' },
-  // Enrichment & Prospecting
-  { name: 'HubSpot Lookup', id: 'hubspot', description: 'Pull contacts, companies, and deals during domain crawl', category: 'Enrichment', tier: 'premium' },
-  { name: 'Ocean.io', id: 'ocean', description: 'Company firmographics and lookalike search', category: 'Enrichment', tier: 'premium' },
-  { name: 'Apollo.io', id: 'apollo', description: 'Contact enrichment — LinkedIn, titles, phone numbers (275M+ contacts)', category: 'Enrichment', tier: 'premium' },
-];
-
-const CRAWL_CATEGORIES = ['URL Analysis', 'Content Analysis', 'Design Analysis', 'Technology', 'Performance', 'SEO', 'Accessibility', 'Security', 'Intelligence', 'Enrichment'];
+const CRAWL_CATEGORIES = INTEGRATION_CATEGORIES;
 
 function ProviderRow({ p, connectingProvider, disconnecting, pickerProvider, pickerProperties, pickerLoading, savingProperty, connectProvider, loadProperties, saveProperty, disconnectConnection, setPickerProvider }: {
   p: ProviderDef;

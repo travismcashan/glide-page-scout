@@ -3,6 +3,7 @@
  * When done, dispatches crawl-phase2. Single DB connection, no polling.
  */
 import { getSupabase, runIntegration, runPool, dispatchNextPhase, isSessionCancelled, syncEnrichmentToCompany, type Integration } from "../_shared/phase-runner.ts";
+import { getBatchIntegrations } from "../_shared/integration-registry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,30 +44,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // All batch 1 integrations (independent, no dependencies)
+    // All batch 1 integrations from registry (independent, no dependencies)
     // firecrawl-map already ran in crawl-start, so skip it here
-    const integrations: Integration[] = [
-      { key: "builtwith", fn: "builtwith-lookup", column: "builtwith_data", buildBody: (s) => ({ domain: s.domain }) },
-      { key: "semrush", fn: "semrush-domain", column: "semrush_data", buildBody: (s) => ({ domain: s.domain }) },
-      { key: "psi", fn: "pagespeed-insights", column: "psi_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "detectzestack", fn: "detectzestack-lookup", column: "detectzestack_data", buildBody: (s) => ({ domain: s.domain }) },
-      { key: "gtmetrix", fn: "gtmetrix-test", column: "gtmetrix_scores", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "carbon", fn: "website-carbon", column: "carbon_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "crux", fn: "crux-lookup", column: "crux_data", buildBody: (s) => ({ origin: new URL(s.base_url).origin }) },
-      { key: "wave", fn: "wave-lookup", column: "wave_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "observatory", fn: "observatory-scan", column: "observatory_data", buildBody: (s) => ({ host: new URL(s.base_url).hostname }) },
-      { key: "httpstatus", fn: "httpstatus-check", column: "httpstatus_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "w3c", fn: "w3c-validate", column: "w3c_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "schema", fn: "schema-validate", column: "schema_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "readable", fn: "readable-score", column: "readable_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "yellowlab", fn: "yellowlab-scan", column: "yellowlab_data", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "ocean", fn: "ocean-enrich", column: "ocean_data", buildBody: (s) => ({ domain: s.domain }) },
-      { key: "hubspot", fn: "hubspot-lookup", column: "hubspot_data", buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-      { key: "sitemap", fn: "sitemap-parse", column: "sitemap_data", buildBody: (s) => ({ baseUrl: s.base_url }) },
-      { key: "nav-structure", fn: "nav-extract", column: "nav_structure", buildBody: (s) => ({ url: s.base_url }) },
-      { key: "avoma", fn: "avoma-lookup", column: "avoma_data", buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-      { key: "apollo", fn: "apollo-enrich", column: "apollo_data", buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-    ];
+    const BUILD_BODY: Record<string, (s: any) => Record<string, unknown>> = {
+      psi: (s) => ({ url: s.base_url }),
+      gtmetrix: (s) => ({ url: s.base_url }),
+      crux: (s) => ({ origin: new URL(s.base_url).origin }),
+      yellowlab: (s) => ({ url: s.base_url }),
+      carbon: (s) => ({ url: s.base_url }),
+      semrush: (s) => ({ domain: s.domain }),
+      schema: (s) => ({ url: s.base_url }),
+      sitemap: (s) => ({ baseUrl: s.base_url }),
+      wave: (s) => ({ url: s.base_url }),
+      w3c: (s) => ({ url: s.base_url }),
+      observatory: (s) => ({ host: new URL(s.base_url).hostname }),
+      "nav-structure": (s) => ({ url: s.base_url }),
+      readable: (s) => ({ url: s.base_url }),
+      httpstatus: (s) => ({ url: s.base_url }),
+      builtwith: (s) => ({ domain: s.domain }),
+      detectzestack: (s) => ({ domain: s.domain }),
+      ocean: (s) => ({ domain: s.domain }),
+      hubspot: (s) => ({ domain: s.prospect_domain || s.domain }),
+      avoma: (s) => ({ domain: s.prospect_domain || s.domain }),
+      apollo: (s) => ({ domain: s.prospect_domain || s.domain }),
+      "content-audit": (s) => ({ session_id: s.id }),
+    };
+
+    const integrations: Integration[] = getBatchIntegrations(1)
+      .filter(def => def.key !== "firecrawl-map") // already ran in crawl-start
+      .map(def => ({
+        key: def.key,
+        fn: def.fn,
+        column: def.column,
+        buildBody: BUILD_BODY[def.key] || ((s: any) => ({ domain: s.domain })),
+      }));
 
     // Filter to only integrations that have pending runs (respect paused/skipped)
     const { data: runs } = await sb.from("integration_runs")

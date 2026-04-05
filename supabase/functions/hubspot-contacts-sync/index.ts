@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCompany } from "../_shared/company-resolution.ts";
+import { resolveUserId } from "../_shared/resolve-user.ts";
+import { startSyncRun, completeSyncRun, failSyncRun } from "../_shared/sync-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,16 +37,23 @@ const CONTACT_PROPS = [
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  let syncRunId = "";
+  let syncRunStartedAt = 0;
+  let supabase: any;
+
   try {
     const TOKEN = Deno.env.get("HUBSPOT_ACCESS_TOKEN");
     if (!TOKEN) throw new Error("HUBSPOT_ACCESS_TOKEN not set");
     const SB_URL = Deno.env.get("SUPABASE_URL")!;
     const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+    supabase = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 
-    const { data: firstCompany } = await supabase.from("companies").select("user_id").limit(1).single();
-    if (!firstCompany) throw new Error("No companies found");
-    const userId = firstCompany.user_id;
+    // Resolve user_id via shared priority chain (JWT > body > sync_config > fallback)
+    const userId = await resolveUserId(supabase, req);
+
+    const syncRun = await startSyncRun(supabase, "hubspot-contacts-sync");
+    syncRunId = syncRun.id;
+    syncRunStartedAt = syncRun.startedAt;
 
     // ── Step 1: Fetch all contacts with lead status from HubSpot ──
     const allContacts: any[] = [];
@@ -204,30 +213,41 @@ serve(async (req) => {
       const batch = allRows.slice(i, i + 100);
       const { error } = await supabase.from("contacts").upsert(batch, { onConflict: "hubspot_contact_id" });
       if (error) {
-        console.error(`[hubspot-contacts-sync] Batch upsert error at offset ${i}: ${JSON.stringify(error)}`);
-        skipped += batch.length;
+        console.warn(`[hubspot-contacts-sync] Batch upsert error at offset ${i}, retrying in 2s: ${JSON.stringify(error)}`);
+        await new Promise((r) => setTimeout(r, 2000));
+        const { error: retryError } = await supabase.from("contacts").upsert(batch, { onConflict: "hubspot_contact_id" });
+        if (retryError) {
+          console.error(`[hubspot-contacts-sync] Batch upsert retry failed at offset ${i}: ${JSON.stringify(retryError)}`);
+          skipped += batch.length;
+        } else {
+          synced += batch.length;
+        }
       } else {
         synced += batch.length;
       }
     }
 
-    // Remove stale lead contacts (deleted/demoted in HubSpot) — scoped to lead contacts only
+    // Remove stale lead contacts (deleted/demoted in HubSpot) — only if ALL upsert batches succeeded
     let staleDeleted = 0;
-    const { data: localLeadContacts } = await supabase
-      .from("contacts")
-      .select("id, hubspot_contact_id")
-      .not("hubspot_contact_id", "is", null)
-      .not("lead_status", "is", null);
-    const staleIds = (localLeadContacts || [])
-      .filter((c) => !fetchedHsContactIds.has(c.hubspot_contact_id))
-      .map((c) => c.id);
-    for (let i = 0; i < staleIds.length; i += 100) {
-      const batch = staleIds.slice(i, i + 100);
-      const { error } = await supabase.from("contacts").delete().in("id", batch);
-      if (!error) staleDeleted += batch.length;
-      else console.error(`[hubspot-contacts-sync] Stale delete error: ${JSON.stringify(error)}`);
+    if (skipped > 0) {
+      console.warn(`[hubspot-contacts-sync] Skipping stale deletion — ${skipped} records failed to upsert`);
+    } else {
+      const { data: localLeadContacts } = await supabase
+        .from("contacts")
+        .select("id, hubspot_contact_id")
+        .not("hubspot_contact_id", "is", null)
+        .not("lead_status", "is", null);
+      const staleIds = (localLeadContacts || [])
+        .filter((c: any) => !fetchedHsContactIds.has(c.hubspot_contact_id))
+        .map((c: any) => c.id);
+      for (let i = 0; i < staleIds.length; i += 100) {
+        const batch = staleIds.slice(i, i + 100);
+        const { error } = await supabase.from("contacts").delete().in("id", batch);
+        if (!error) staleDeleted += batch.length;
+        else console.error(`[hubspot-contacts-sync] Stale delete error: ${JSON.stringify(error)}`);
+      }
+      if (staleDeleted > 0) console.log(`[hubspot-contacts-sync] Removed ${staleDeleted} stale lead contacts`);
     }
-    if (staleDeleted > 0) console.log(`[hubspot-contacts-sync] Removed ${staleDeleted} stale lead contacts`);
 
     // ── Step 7: Auto-enrich lead contacts + their companies ──
     if (synced > 0) {
@@ -299,6 +319,13 @@ serve(async (req) => {
       statusDist[s] = (statusDist[s] || 0) + 1;
     }
 
+    await completeSyncRun(supabase, syncRunId, {
+      recordsUpserted: synced,
+      recordsDeleted: staleDeleted,
+      recordsSkipped: skipped,
+      metadata: { contacts_fetched: allContacts.length, companies_created: companiesCreated },
+    }, syncRunStartedAt);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -314,6 +341,9 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error(`[hubspot-contacts-sync] Fatal: ${e.message}`);
+    if (syncRunId && supabase) {
+      try { await failSyncRun(supabase, syncRunId, e); } catch {}
+    }
     return new Response(
       JSON.stringify({ error: e.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

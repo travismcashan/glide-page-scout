@@ -4,6 +4,7 @@
  * This is the final phase — no further dispatch.
  */
 import { getSupabase, runIntegration, runPool, isSessionCancelled, syncEnrichmentToCompany, type Integration } from "../_shared/phase-runner.ts";
+import { getBatchIntegrations } from "../_shared/integration-registry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,11 +43,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Batch 3 integrations — depend on phase 2 results
-    const integrations: Integration[] = [
-      { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-      { key: "page-tags", fn: "page-tag-orchestrate", column: "page_tags", buildBody: (s) => ({ session_id: s.id }) },
-    ];
+    // Batch 3 integrations from registry — depend on phase 2 results
+    const BUILD_BODY: Record<string, (s: any) => Record<string, unknown>> = {
+      "apollo-team": (s) => ({ domain: s.prospect_domain || s.domain }),
+      "page-tags": (s) => ({ session_id: s.id }),
+    };
+
+    const integrations: Integration[] = getBatchIntegrations(3).map(def => ({
+      key: def.key,
+      fn: def.fn,
+      column: def.column,
+      buildBody: BUILD_BODY[def.key] || ((s: any) => ({ domain: s.domain })),
+    }));
 
     // Filter to only pending runs
     const { data: runs } = await sb.from("integration_runs")

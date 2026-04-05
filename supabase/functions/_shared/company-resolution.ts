@@ -9,6 +9,10 @@
 export interface CompanyCandidate {
   user_id: string;
   hubspot_company_id?: string | null;
+  harvest_client_id?: string | null;
+  freshdesk_company_id?: string | null;
+  harvest_client_name?: string | null;
+  freshdesk_company_name?: string | null;
   domain?: string | null;
   name?: string | null;
   industry?: string | null;
@@ -19,10 +23,18 @@ export interface CompanyCandidate {
   status?: string;
 }
 
+export type MatchType =
+  | "hubspot_id"
+  | "harvest_id"
+  | "freshdesk_id"
+  | "domain"
+  | "name"
+  | "created";
+
 export interface ResolvedCompany {
   companyId: string;
   created: boolean;
-  matchType: "external_id" | "domain" | "created";
+  matchType: MatchType;
   nameUpgraded: boolean;
 }
 
@@ -135,55 +147,213 @@ export function resolveCompanyName(sources: NameSources): string {
   return "Unknown Company";
 }
 
+// ── Resolution Logging ──
+
+interface ResolutionLog {
+  step: MatchType;
+  matched: boolean;
+  companyId?: string;
+  detail?: string;
+}
+
+function logResolution(candidateName: string | null | undefined, steps: ResolutionLog[]): void {
+  const tag = candidateName || "(unnamed)";
+  const matched = steps.find((s) => s.matched);
+  if (matched) {
+    console.log(
+      `[company-resolution] "${tag}" → matched by ${matched.step} (id: ${matched.companyId})` +
+        (matched.detail ? ` — ${matched.detail}` : "")
+    );
+  } else {
+    console.log(`[company-resolution] "${tag}" → no match, created new company`);
+  }
+  for (const s of steps) {
+    if (!s.matched) {
+      console.log(`[company-resolution]   ✗ ${s.step}${s.detail ? ` — ${s.detail}` : ""}`);
+    }
+  }
+}
+
+// ── Opportunistic External ID Linking ──
+
+const EXTERNAL_ID_FIELDS = [
+  "hubspot_company_id",
+  "harvest_client_id",
+  "freshdesk_company_id",
+] as const;
+
+async function opportunisticallyLink(
+  supabase: any,
+  existing: Record<string, any>,
+  candidate: CompanyCandidate
+): Promise<void> {
+  const updates: Record<string, any> = {};
+
+  for (const field of EXTERNAL_ID_FIELDS) {
+    const candidateValue = candidate[field];
+    if (candidateValue && !existing[field]) {
+      updates[field] = candidateValue;
+    }
+  }
+
+  // Also link source names if available
+  if (candidate.harvest_client_name && !existing.harvest_client_name) {
+    updates.harvest_client_name = candidate.harvest_client_name;
+  }
+  if (candidate.freshdesk_company_name && !existing.freshdesk_company_name) {
+    updates.freshdesk_company_name = candidate.freshdesk_company_name;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.updated_at = new Date().toISOString();
+    await supabase.from("companies").update(updates).eq("id", existing.id);
+  }
+}
+
 // ── Main Resolution Function ──
+
+const COMPANY_SELECT =
+  "id, name, domain, hubspot_company_id, harvest_client_id, freshdesk_company_id, harvest_client_name, freshdesk_company_name, enrichment_data";
 
 export async function resolveCompany(
   supabase: any,
   candidate: CompanyCandidate
 ): Promise<ResolvedCompany> {
   const normalizedDomain = normalizeDomain(candidate.domain);
+  const steps: ResolutionLog[] = [];
 
-  // ── Step 1: Look up by external ID ──
+  // ── Step 1: Look up by hubspot_company_id ──
   if (candidate.hubspot_company_id) {
-    const { data: byId } = await supabase
+    const { data: byHubspot } = await supabase
       .from("companies")
-      .select("id, name, domain, enrichment_data, harvest_client_name, freshdesk_company_name")
+      .select(COMPANY_SELECT)
       .eq("hubspot_company_id", candidate.hubspot_company_id)
       .maybeSingle();
 
-    if (byId) {
-      const nameUpgraded = await maybeUpgradeName(supabase, byId, candidate);
-      return { companyId: byId.id, created: false, matchType: "external_id", nameUpgraded };
+    if (byHubspot) {
+      steps.push({ step: "hubspot_id", matched: true, companyId: byHubspot.id });
+      logResolution(candidate.name, steps);
+      await opportunisticallyLink(supabase, byHubspot, candidate);
+      const nameUpgraded = await maybeUpgradeName(supabase, byHubspot, candidate);
+      return { companyId: byHubspot.id, created: false, matchType: "hubspot_id", nameUpgraded };
     }
+    steps.push({ step: "hubspot_id", matched: false, detail: `id=${candidate.hubspot_company_id}` });
+  } else {
+    steps.push({ step: "hubspot_id", matched: false, detail: "no candidate ID" });
   }
 
-  // ── Step 2: Look up by domain ──
+  // ── Step 2: Look up by harvest_client_id ──
+  if (candidate.harvest_client_id) {
+    const { data: byHarvest } = await supabase
+      .from("companies")
+      .select(COMPANY_SELECT)
+      .eq("harvest_client_id", candidate.harvest_client_id)
+      .maybeSingle();
+
+    if (byHarvest) {
+      steps.push({ step: "harvest_id", matched: true, companyId: byHarvest.id });
+      logResolution(candidate.name, steps);
+      await opportunisticallyLink(supabase, byHarvest, candidate);
+      const nameUpgraded = await maybeUpgradeName(supabase, byHarvest, candidate);
+      return { companyId: byHarvest.id, created: false, matchType: "harvest_id", nameUpgraded };
+    }
+    steps.push({ step: "harvest_id", matched: false, detail: `id=${candidate.harvest_client_id}` });
+  } else {
+    steps.push({ step: "harvest_id", matched: false, detail: "no candidate ID" });
+  }
+
+  // ── Step 3: Look up by freshdesk_company_id ──
+  if (candidate.freshdesk_company_id) {
+    const { data: byFreshdesk } = await supabase
+      .from("companies")
+      .select(COMPANY_SELECT)
+      .eq("freshdesk_company_id", candidate.freshdesk_company_id)
+      .maybeSingle();
+
+    if (byFreshdesk) {
+      steps.push({ step: "freshdesk_id", matched: true, companyId: byFreshdesk.id });
+      logResolution(candidate.name, steps);
+      await opportunisticallyLink(supabase, byFreshdesk, candidate);
+      const nameUpgraded = await maybeUpgradeName(supabase, byFreshdesk, candidate);
+      return { companyId: byFreshdesk.id, created: false, matchType: "freshdesk_id", nameUpgraded };
+    }
+    steps.push({ step: "freshdesk_id", matched: false, detail: `id=${candidate.freshdesk_company_id}` });
+  } else {
+    steps.push({ step: "freshdesk_id", matched: false, detail: "no candidate ID" });
+  }
+
+  // ── Step 4: Look up by domain ──
   if (normalizedDomain && normalizedDomain !== "na") {
     const { data: byDomain } = await supabase
       .from("companies")
-      .select("id, name, domain, hubspot_company_id, enrichment_data, harvest_client_name, freshdesk_company_name")
+      .select(COMPANY_SELECT)
       .eq("domain", normalizedDomain)
       .limit(1)
       .maybeSingle();
 
     if (byDomain) {
-      // Link the hubspot_company_id to this existing company
-      const updates: Record<string, any> = {};
-      if (candidate.hubspot_company_id && !byDomain.hubspot_company_id) {
-        updates.hubspot_company_id = candidate.hubspot_company_id;
-      }
-      if (Object.keys(updates).length > 0) {
-        updates.updated_at = new Date().toISOString();
-        await supabase.from("companies").update(updates).eq("id", byDomain.id);
-      }
+      steps.push({ step: "domain", matched: true, companyId: byDomain.id, detail: normalizedDomain });
+      logResolution(candidate.name, steps);
+      await opportunisticallyLink(supabase, byDomain, candidate);
       const nameUpgraded = await maybeUpgradeName(supabase, byDomain, candidate);
       return { companyId: byDomain.id, created: false, matchType: "domain", nameUpgraded };
     }
+    steps.push({ step: "domain", matched: false, detail: normalizedDomain });
+  } else {
+    steps.push({ step: "domain", matched: false, detail: "no candidate domain" });
   }
 
-  // ── Step 3: Create new company ──
+  // ── Step 5: Look up by normalized name ──
+  if (candidate.name && !isPlaceholderName(candidate.name)) {
+    const candidateNormalized = normalizeCompanyName(candidate.name);
+    if (candidateNormalized.length >= 2) {
+      // Load companies for this user and compare normalized names in JS
+      // (SQL can't easily do suffix-stripping + normalization)
+      const { data: userCompanies } = await supabase
+        .from("companies")
+        .select(COMPANY_SELECT)
+        .eq("user_id", candidate.user_id)
+        .not("name", "is", null);
+
+      if (userCompanies?.length) {
+        const nameMatch = userCompanies.find(
+          (c: any) => c.name && normalizeCompanyName(c.name) === candidateNormalized
+        );
+
+        if (nameMatch) {
+          // Domain-conflict guard: if both have domains and they differ, don't merge
+          const existingDomain = normalizeDomain(nameMatch.domain);
+          if (existingDomain && normalizedDomain && existingDomain !== normalizedDomain) {
+            steps.push({
+              step: "name",
+              matched: false,
+              detail: `name "${candidateNormalized}" matched but domains differ (${normalizedDomain} vs ${existingDomain})`,
+            });
+          } else {
+            steps.push({ step: "name", matched: true, companyId: nameMatch.id, detail: `"${candidateNormalized}"` });
+            logResolution(candidate.name, steps);
+            await opportunisticallyLink(supabase, nameMatch, candidate);
+            const nameUpgraded = await maybeUpgradeName(supabase, nameMatch, candidate);
+            return { companyId: nameMatch.id, created: false, matchType: "name", nameUpgraded };
+          }
+        } else {
+          steps.push({ step: "name", matched: false, detail: `"${candidateNormalized}" not found` });
+        }
+      } else {
+        steps.push({ step: "name", matched: false, detail: "no user companies to compare" });
+      }
+    } else {
+      steps.push({ step: "name", matched: false, detail: "normalized name too short" });
+    }
+  } else {
+    steps.push({ step: "name", matched: false, detail: "no candidate name or placeholder" });
+  }
+
+  // ── Step 6: Create new company ──
   const bestName = resolveCompanyName({
     hubspotName: candidate.name,
+    harvestName: candidate.harvest_client_name,
+    freshdeskName: candidate.freshdesk_company_name,
     domain: normalizedDomain,
   });
 
@@ -199,6 +369,10 @@ export async function resolveCompany(
       location: candidate.location || null,
       website_url: candidate.website_url || null,
       hubspot_company_id: candidate.hubspot_company_id || null,
+      harvest_client_id: candidate.harvest_client_id || null,
+      freshdesk_company_id: candidate.freshdesk_company_id || null,
+      harvest_client_name: candidate.harvest_client_name || null,
+      freshdesk_company_name: candidate.freshdesk_company_name || null,
       status: candidate.status || "prospect",
       last_synced_at: new Date().toISOString(),
     })
@@ -208,6 +382,9 @@ export async function resolveCompany(
   if (error) {
     throw new Error(`Failed to create company "${bestName}": ${JSON.stringify(error)}`);
   }
+
+  steps.push({ step: "created", matched: false });
+  logResolution(candidate.name, steps);
 
   return { companyId: created.id, created: true, matchType: "created", nameUpgraded: false };
 }

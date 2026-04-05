@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X, AlertTriangle, Zap } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
+import { AUTO_INTEGRATION_COUNT } from '@/config/integrations';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
 import { format } from 'date-fns';
@@ -38,7 +39,7 @@ type SortKey = 'domain' | 'date' | 'status';
 type SortDir = 'asc' | 'desc';
 type GroupBy = 'none' | 'domain' | 'status';
 
-const TOTAL_INTEGRATIONS = 27;
+const TOTAL_INTEGRATIONS = AUTO_INTEGRATION_COUNT;
 
 function resolveStatus(session: CrawlSession, integrationCount?: number): string {
   if (integrationCount !== undefined && integrationCount >= TOTAL_INTEGRATIONS) {

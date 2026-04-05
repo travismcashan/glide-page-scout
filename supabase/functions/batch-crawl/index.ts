@@ -7,6 +7,7 @@
  * 4. Throttles to 3 concurrent crawls with 5s delay between batches
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveUserId } from "../_shared/resolve-user.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +33,9 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
     const functionsUrl = `${supabaseUrl}/functions/v1`;
+
+    // Resolve user_id for new crawl session inserts
+    const userId = await resolveUserId(sb, req);
 
     // 1. Get all company IDs from leads + open deals
     const { data: leadCompanies } = await sb
@@ -138,6 +142,7 @@ Deno.serve(async (req) => {
             base_url: `https://${domain}`,
             status: "pending",
             company_id: companyId,
+            user_id: userId,
           } as any)
           .select("id")
           .single();

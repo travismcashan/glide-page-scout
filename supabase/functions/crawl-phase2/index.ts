@@ -4,6 +4,7 @@
  * When done, dispatches crawl-phase3.
  */
 import { getSupabase, runIntegration, runPool, dispatchNextPhase, extractUrls, isSessionCancelled, type Integration } from "../_shared/phase-runner.ts";
+import { getBatchIntegrations } from "../_shared/integration-registry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,22 +43,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Batch 2 integrations — depend on discovered_urls and/or builtwith_data
-    const integrations: Integration[] = [
-      { key: "tech-analysis", fn: "tech-analysis", column: "tech_analysis_data", buildBody: (s) => ({ domain: s.domain, session_id: s.id }) },
-      { key: "content-types", fn: "content-types", column: "content_types_data", buildBody: (s) => {
+    // Batch 2 integrations from registry — depend on discovered_urls and/or builtwith_data
+    const BUILD_BODY: Record<string, (s: any) => Record<string, unknown>> = {
+      "tech-analysis": (s) => ({ domain: s.domain, session_id: s.id }),
+      "content-types": (s) => {
         const urls = extractUrls(s);
         return { urls, baseUrl: s.base_url, phase: "classify", session_id: s.id };
-      }},
-      { key: "forms", fn: "forms-detect", column: "forms_data", buildBody: (s) => {
+      },
+      forms: (s) => {
         const urls = extractUrls(s);
         return { urls, domain: s.domain };
-      }},
-      { key: "link-checker", fn: "link-checker", column: "linkcheck_data", buildBody: (s) => {
+      },
+      "link-checker": (s) => {
         const urls = extractUrls(s);
         return { urls };
-      }},
-    ];
+      },
+    };
+
+    const integrations: Integration[] = getBatchIntegrations(2).map(def => ({
+      key: def.key,
+      fn: def.fn,
+      column: def.column,
+      buildBody: BUILD_BODY[def.key] || ((s: any) => ({ domain: s.domain })),
+    }));
 
     // Filter to only pending runs
     const { data: runs } = await sb.from("integration_runs")

@@ -9,6 +9,7 @@
  * marks their zombie integration_runs as failed, and completes the session.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { startSyncRun, completeSyncRun, failSyncRun } from "../_shared/sync-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,10 +26,18 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let syncRunId = "";
+  let syncRunStartedAt = 0;
+  let sb: any;
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sb = createClient(supabaseUrl, serviceKey);
+    sb = createClient(supabaseUrl, serviceKey);
+
+    const syncRun = await startSyncRun(sb, "crawl-recover");
+    syncRunId = syncRun.id;
+    syncRunStartedAt = syncRun.startedAt;
 
     let sessionIds: string[] = [];
 
@@ -114,12 +123,20 @@ Deno.serve(async (req) => {
       recovered++;
     }
 
+    await completeSyncRun(sb, syncRunId, {
+      recordsUpserted: recovered,
+      metadata: { sessionIds },
+    }, syncRunStartedAt);
+
     return new Response(
       JSON.stringify({ success: true, recovered, sessionIds }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
     console.error("crawl-recover error:", error);
+    if (syncRunId && sb) {
+      try { await failSyncRun(sb, syncRunId, error); } catch {}
+    }
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Recovery failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },

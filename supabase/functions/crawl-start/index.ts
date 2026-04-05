@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { INTEGRATION_REGISTRY, getAutoIntegrations, type IntegrationDef } from "../_shared/integration-registry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/** Extract URL list from session's discovered_urls (handles array or {links:[...]} or {urls:[...]} formats) */
+/** Extract URL list from session's discovered_urls */
 function extractUrls(session: any): string[] {
   const d = session.discovered_urls;
   if (Array.isArray(d)) return d;
@@ -15,61 +16,55 @@ function extractUrls(session: any): string[] {
   return [];
 }
 
-/* ── Integration registry ──
- * Maps integration_key → { fn, column, batch, buildBody }
- * batch 1 = independent (fire immediately)
- * batch 2 = depends on discovered_urls from batch 1
- * batch 3 = depends on batch 2 (apollo_data)
+/* ── buildBody map ──
+ * Runtime-specific payload builders keyed by integration key.
+ * These reference session data and URL constructors, so they stay here.
  */
-const INTEGRATIONS: {
-  key: string;
-  fn: string;
-  column: string;
-  batch: number;
-  waitFor?: string; // column to poll for before calling the function
-  buildBody: (session: any) => Record<string, unknown>;
-}[] = [
-  // ── Batch 1: independent ──
-  { key: "builtwith", fn: "builtwith-lookup", column: "builtwith_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
-  { key: "semrush", fn: "semrush-domain", column: "semrush_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
-  { key: "psi", fn: "pagespeed-insights", column: "psi_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "detectzestack", fn: "detectzestack-lookup", column: "detectzestack_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
-  { key: "gtmetrix", fn: "gtmetrix-test", column: "gtmetrix_scores", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "carbon", fn: "website-carbon", column: "carbon_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "crux", fn: "crux-lookup", column: "crux_data", batch: 1, buildBody: (s) => ({ origin: new URL(s.base_url).origin }) },
-  { key: "wave", fn: "wave-lookup", column: "wave_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "observatory", fn: "observatory-scan", column: "observatory_data", batch: 1, buildBody: (s) => ({ host: new URL(s.base_url).hostname }) },
-  { key: "httpstatus", fn: "httpstatus-check", column: "httpstatus_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "w3c", fn: "w3c-validate", column: "w3c_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "schema", fn: "schema-validate", column: "schema_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "readable", fn: "readable-score", column: "readable_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "yellowlab", fn: "yellowlab-scan", column: "yellowlab_data", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "ocean", fn: "ocean-enrich", column: "ocean_data", batch: 1, buildBody: (s) => ({ domain: s.domain }) },
-  { key: "hubspot", fn: "hubspot-lookup", column: "hubspot_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  { key: "sitemap", fn: "sitemap-parse", column: "sitemap_data", batch: 1, buildBody: (s) => ({ baseUrl: s.base_url }) },
-  { key: "nav-structure", fn: "nav-extract", column: "nav_structure", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  { key: "firecrawl-map", fn: "firecrawl-map", column: "discovered_urls", batch: 1, buildBody: (s) => ({ url: s.base_url }) },
-  // ── Batch 1 (moved from batch 2 — these don't actually depend on batch 1) ──
-  { key: "tech-analysis", fn: "tech-analysis", column: "tech_analysis_data", batch: 2, waitFor: "builtwith_data", buildBody: (s) => ({ domain: s.domain, session_id: s.id }) },
-  { key: "avoma", fn: "avoma-lookup", column: "avoma_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  { key: "apollo", fn: "apollo-enrich", column: "apollo_data", batch: 1, buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  // ── Batch 2: depends on discovered_urls ──
-  { key: "content-types", fn: "content-types", column: "content_types_data", batch: 2, buildBody: (s) => {
+const BUILD_BODY: Record<string, (s: any) => Record<string, unknown>> = {
+  psi: (s) => ({ url: s.base_url }),
+  gtmetrix: (s) => ({ url: s.base_url }),
+  crux: (s) => ({ origin: new URL(s.base_url).origin }),
+  yellowlab: (s) => ({ url: s.base_url }),
+  carbon: (s) => ({ url: s.base_url }),
+  semrush: (s) => ({ domain: s.domain }),
+  schema: (s) => ({ url: s.base_url }),
+  sitemap: (s) => ({ baseUrl: s.base_url }),
+  wave: (s) => ({ url: s.base_url }),
+  w3c: (s) => ({ url: s.base_url }),
+  observatory: (s) => ({ host: new URL(s.base_url).hostname }),
+  "nav-structure": (s) => ({ url: s.base_url }),
+  readable: (s) => ({ url: s.base_url }),
+  httpstatus: (s) => ({ url: s.base_url }),
+  builtwith: (s) => ({ domain: s.domain }),
+  detectzestack: (s) => ({ domain: s.domain }),
+  "tech-analysis": (s) => ({ domain: s.domain, session_id: s.id }),
+  apollo: (s) => ({ domain: s.prospect_domain || s.domain }),
+  "apollo-team": (s) => ({ domain: s.prospect_domain || s.domain }),
+  ocean: (s) => ({ domain: s.domain }),
+  hubspot: (s) => ({ domain: s.prospect_domain || s.domain }),
+  avoma: (s) => ({ domain: s.prospect_domain || s.domain }),
+  "firecrawl-map": (s) => ({ url: s.base_url }),
+  "content-types": (s) => {
     const urls = extractUrls(s);
     return { urls, baseUrl: s.base_url, phase: "classify", session_id: s.id };
-  }},
-  { key: "forms", fn: "forms-detect", column: "forms_data", batch: 2, buildBody: (s) => {
+  },
+  forms: (s) => {
     const urls = extractUrls(s);
     return { urls, domain: s.domain };
-  }},
-  { key: "link-checker", fn: "link-checker", column: "linkcheck_data", batch: 2, buildBody: (s) => {
+  },
+  "link-checker": (s) => {
     const urls = extractUrls(s);
     return { urls };
-  }},
-  // ── Batch 3: depends on other batch 2 results ──
-  { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", batch: 3, waitFor: "apollo_data", buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
-  { key: "page-tags", fn: "page-tag-orchestrate", column: "page_tags", batch: 3, waitFor: "content_types_data", buildBody: (s) => ({ session_id: s.id }) },
-];
+  },
+  "page-tags": (s) => ({ session_id: s.id }),
+  "content-audit": (s) => ({ session_id: s.id }),
+};
+
+// Build the runtime integration list from the canonical registry + local buildBody map
+const INTEGRATIONS = getAutoIntegrations().map(def => ({
+  ...def,
+  buildBody: BUILD_BODY[def.key] || ((s: any) => ({ domain: s.domain })),
+}));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

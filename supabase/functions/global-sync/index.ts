@@ -5,6 +5,8 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeDomain, normalizeCompanyName, extractDomainFromText } from "../_shared/company-resolution.ts";
+import { resolveUserId } from "../_shared/resolve-user.ts";
+import { startSyncRun, completeSyncRun, failSyncRun } from "../_shared/sync-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -509,8 +511,12 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let syncRunId = "";
+  let syncRunStartedAt = 0;
+  let supabase: any;
+
   try {
-    const { action = 'preview', userId, sources: sourcesFilter } = await req.json();
+    const { action = 'preview', userId: bodyUserId, sources: sourcesFilter } = await req.json();
 
     const harvestToken = Deno.env.get('HARVEST_ACCESS_TOKEN');
     const harvestAccountId = Deno.env.get('HARVEST_ACCOUNT_ID');
@@ -521,7 +527,14 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Resolve user_id via shared priority chain (JWT > body > sync_config > fallback)
+    const userId = await resolveUserId(supabase, req, bodyUserId);
+
+    const syncRun = await startSyncRun(supabase, "global-sync");
+    syncRunId = syncRun.id;
+    syncRunStartedAt = syncRun.startedAt;
 
     // Fetch from sources — supports filtering to a single source via `sources` param
     const sf = sourcesFilter as string[] | undefined;
@@ -590,7 +603,7 @@ Deno.serve(async (req) => {
       details: [] as any[],
     };
 
-    if (action === 'sync' && userId) {
+    if (action === 'sync') {
       // Upsert to companies table
       for (const client of unified) {
         const sourceList: string[] = [];
@@ -725,6 +738,12 @@ Deno.serve(async (req) => {
 
     console.log(`[global-sync] Complete: ${summary.created} created, ${summary.updated} updated, ${summary.skipped} skipped`);
 
+    await completeSyncRun(supabase, syncRunId, {
+      recordsUpserted: summary.created + summary.updated,
+      recordsSkipped: summary.skipped,
+      metadata: { action, sources: summary.sources },
+    }, syncRunStartedAt);
+
     return new Response(JSON.stringify({
       success: true,
       action,
@@ -734,6 +753,9 @@ Deno.serve(async (req) => {
     });
   } catch (error: any) {
     console.error('[global-sync] Error:', error);
+    if (syncRunId && supabase) {
+      try { await failSyncRun(supabase, syncRunId, error); } catch {}
+    }
     return new Response(JSON.stringify({ error: error.message || String(error) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -5,7 +5,7 @@ import { Loader2, AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from 'lu
 import { Switch } from '@/components/ui/switch';
 import { GradeBadge } from '@/components/GradeBadge';
 import type { LetterGrade } from '@/lib/siteScore';
-import { getIntegrationMeta } from '@/lib/integrationRegistry';
+import { getIntegrationMeta } from '@/config/integrations';
 
 type SectionCardProps = {
   title: string;
