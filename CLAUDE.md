@@ -534,22 +534,57 @@ Saved in memory. Key ones:
 - **Live** — real-time AI queries during Chat (edge functions now, MCP eventually)
 - **Backfill** — bulk import (CSV, PDF, URL)
 
-### Band-aid Columns to Remove
-- `companies.hubspot_lifecycle_stage` — superseded by contacts.lifecycle_stage
-- `companies.hubspot_has_active_deal` — superseded by deals table JOIN
-- `hubspot-lifecycle-sync` edge function — superseded
+### Schema Cleanup (shipped Apr 5 2026)
+13 denormalized string columns dropped. All entity names now come from JOINs, not copied strings.
+- **deals**: dropped `contact_name`, `contact_email`, `contact_photo_url`, `company_name` → use `contact_id`/`company_id` JOINs
+- **companies**: dropped `hubspot_lifecycle_stage`, `hubspot_has_active_deal` → superseded by contacts/deals tables
+- **proposals**: dropped `company_name`, `contact_name`, `contact_email`, `contact_title` → use `company_id` JOIN
+- **roadmaps**: dropped `client_name` → use `company_id` JOIN
+- **project_estimates**: dropped `client_name` → use `company_id` JOIN
+- **deals.contact_id** backfilled (892/1128 matched by email)
+- **proposals.contact_id** and **project_mappings.company_id** FKs added
+- **hubspot-lifecycle-sync** edge function deleted (dead code)
+
+### Company Resolution Layer (shipped Apr 5 2026)
+Shared `_shared/company-resolution.ts` used by all sync functions.
+- `resolveCompany()`: external ID → domain match → create with best name
+- Name fallback: HubSpot → existing → Ocean.io → Harvest → Freshdesk → domain-derived
+- Self-healing: every sync run checks/upgrades placeholder names
+- 16 "HubSpot Company {id}" names repaired
+
+### Contact & Site Detail Drawers (shipped Apr 5 2026)
+- **ContactDetailDrawer**: click contact → right Sheet with Apollo data, employment, org intel, company deals
+- **SiteDetailDrawer**: click site → right Sheet with audit scores, tech stack, "View Full Audit" link
+- **ContactDetailPage** at `/contacts/:contactId`
+- **ContactsPage** at `/contacts` with table/card views, search, Pipeline/Active/Inactive/All filter
+
+### Crawl Auto-Link + ResultsPage Audit-Only (shipped Apr 5 2026)
+- Crawl sessions auto-linked to companies via domain on creation (find or create company)
+- **ensureCrawl** utility: shared find-or-create crawl for domain links across all pages
+- **DomainLink** component: Globe (crawled, purple) / Search (uncrawled, grey), click → ensure crawl → navigate
+- **ResultsPage** stripped to audit-only (removed Prospecting, Knowledge, Chat, Estimates, Roadmap, Proposal tabs)
+- **Estimates + Proposal tabs** added to CompanyDetailPage
+- Auto-crawl on `hubspot-deals-sync` and `hubspot-contacts-sync` for new pipeline/lead companies
+
+### Navigation Architecture (shipped Apr 5 2026)
+- **Growth sidebar**: Leads → Deals → Crawls → Contacts → Companies
+- **Default route**: `/leads` (was `/`)
+- **Crawls** at `/crawls` (was `/`)
+- **All list pages**: consistent header (Title + capsule count + search + filter/sort dropdowns)
+- **Pipeline footer**: fixed to viewport bottom with stage totals
+- **Sidebar/content alignment**: separator `mb-1` for pixel-perfect baseline alignment
 
 ## Next Session Priority
 
-**#1: Contact + Site detail drawers.** No contact detail page exists. Need pull drawer for quick view (Apollo data, deals, emails) and full detail page. Same for sites.
+**#1: Projects page reads from DB.** Phase 4 of data-first plan — sync Asana project data locally, rewrite ProjectsPage to query local tables.
 
-**#2: Projects page reads from DB.** Phase 4 of data-first plan — sync Asana project data locally, rewrite ProjectsPage to query local tables.
+**#2: Collapsible company rows.** Travis wants expandable rows showing contextual sub-content (Growth: lead/deal details, Delivery: projects/services). Was built then removed — needs design rethink.
 
 **#3: Page-by-page UI audit.** Continue with company detail page, projects page — unified controls, tighter layouts.
 
-**#4: Fix "HubSpot Company" names.** Companies created by deals sync with no HubSpot name show as "HubSpot Company {id}". Should use domain or contact's company field as fallback.
+**#4: Pipeline page horizontal scroll sync.** The fixed footer bar doesn't scroll left/right with the kanban columns — needs scroll position sync with the ScrollArea viewport.
 
-**#5: Collapsible company rows.** Travis wants expandable rows showing contextual sub-content (Growth: lead/deal details, Delivery: projects/services). Was built then removed — needs design rethink.
+**#5: Crawl page /crawls route.** The route works but the preview server had caching issues — verify in production after deploy.
 
 **Other priorities:**
 - Re-crawl sites (80+ historical crawls lost)
@@ -557,6 +592,7 @@ Saved in memory. Key ones:
 - Team utilization view (port `harvest-time` from AgencyAtlas)
 - Scheduled sync (every 30 min deals/contacts, every 6 hrs companies/harvest/freshdesk)
 - MCP integration for Chat Live connections
+- Supabase types regeneration (schema changed, types.ts is stale)
 
 ---
 
