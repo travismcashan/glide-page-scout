@@ -675,6 +675,11 @@ New card component at `src/components/apollo/ApolloOrgCard.tsx`:
 - Supabase types regeneration (schema changed, types.ts is stale)
 - `company_source_data` table referenced in global-sync but doesn't exist — needs schema or cleanup
 
+### Custom Skills (shipped Apr 5 2026)
+- `/startup` and `/shutdown` session lifecycle skills at `~/.claude/skills/` (user-level)
+- Desktop machine needs manual copy of `~/.claude/skills/startup/` and `~/.claude/skills/shutdown/`
+- Project-level copies exist in `.claude/skills/` but worktree autocomplete discovery was unreliable
+
 ---
 
 ## 3E Methodology
