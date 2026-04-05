@@ -37,7 +37,7 @@ import ContactsPage from "./pages/ContactsPage";
 import ContactDetailPage from "./pages/ContactDetailPage";
 import PlansPage from "./pages/PlansPage";
 import PlanDetailPage from "./pages/PlanDetailPage";
-import PatternsPage from "./pages/PatternsPage";
+import PatternsPage from "./pages/PatternLibraryPage";
 import PatternDetailPage from "./pages/PatternDetailPage";
 import NotFound from "./pages/NotFound";
 import FeedbackSideTabs from "./components/feedback/FeedbackSideTabs";

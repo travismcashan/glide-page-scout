@@ -1153,6 +1153,15 @@ export default function CompanyDetailPage() {
             )}
           </TabsContent>
 
+          {/* Patterns Tab */}
+          <TabsContent value="patterns">
+            <CompanyPatternsTab
+              companyId={company.id}
+              companyIndustry={company.industry}
+              enrichmentData={company.enrichment_data}
+            />
+          </TabsContent>
+
           {/* Source Data Tab */}
           <TabsContent value="source-data">
             <div className="flex items-center justify-between mb-4">
