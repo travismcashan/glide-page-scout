@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { migrateEnrichmentFromSessions } from '@/lib/agencyBrain';
 
 type CompanyRow = {
   id: string;
@@ -46,12 +45,14 @@ type SiteRow = {
   created_at: string;
 };
 
+const COMPANY_DETAIL_COLUMNS = 'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, description, website_url, status, enrichment_data, tags, notes, created_at, hubspot_company_id, harvest_client_id, freshdesk_company_id, quickbooks_client_name, quickbooks_invoice_summary, last_synced_at, updated_at';
+
 async function fetchCompanyBundle(id: string) {
   const [companyRes, contactsRes, sitesRes] = await Promise.all([
-    supabase.from('companies').select('*').eq('id', id).single(),
+    supabase.from('companies').select(COMPANY_DETAIL_COLUMNS).eq('id', id).single(),
     supabase
       .from('contacts')
-      .select('*')
+      .select('id, first_name, last_name, email, phone, title, linkedin_url, photo_url, seniority, role_type, is_primary, enrichment_data, created_at')
       .eq('company_id', id)
       .order('is_primary', { ascending: false })
       .order('created_at'),
@@ -62,23 +63,11 @@ async function fetchCompanyBundle(id: string) {
       .order('created_at', { ascending: false }),
   ]);
 
-  const company = companyRes.data as CompanyRow | null;
-  const contacts = (contactsRes.data ?? []) as ContactRow[];
-  const sites = (sitesRes.data ?? []) as SiteRow[];
-
-  // Lazy migration: copy enrichment from site-level sessions to company
-  if (company && !company.enrichment_data?._migrated) {
-    await migrateEnrichmentFromSessions(company.id);
-    // Re-fetch company to pick up migrated data
-    const { data: refreshed } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (refreshed) return { company: refreshed as CompanyRow, contacts, sites };
-  }
-
-  return { company, contacts, sites };
+  return {
+    company: companyRes.data as CompanyRow | null,
+    contacts: (contactsRes.data ?? []) as ContactRow[],
+    sites: (sitesRes.data ?? []) as SiteRow[],
+  };
 }
 
 /**

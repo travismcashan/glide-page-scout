@@ -40,16 +40,18 @@ export interface CompanyTab {
 
 export const WORKSPACE_NAV: Record<ProductId, NavItem[]> = {
   growth: [
+    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
     { label: 'Leads', to: '/leads', icon: Building2 },
     { label: 'Deals', to: '/deals', icon: TrendingUp },
     { label: 'Companies', to: '/companies', icon: Building2, matchPrefix: '/companies' },
-    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
   ],
   delivery: [
+    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
     { label: 'Projects', to: '/projects', icon: FolderKanban },
   ],
   admin: [
+    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
     { label: 'Invoicing', to: '/pipeline', icon: Receipt },
   ],
@@ -64,6 +66,7 @@ export const WORKSPACE_COMPANY_TABS: Record<ProductId, CompanyTab[]> = {
     { value: 'knowledge', label: 'Knowledge', icon: BookOpen },
     { value: 'chat', label: 'Chat', icon: MessageSquare },
     { value: 'roadmap', label: 'Roadmap', icon: MapIcon },
+    { value: 'source-data', label: 'Source Data', icon: Database },
   ],
   delivery: [
     { value: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -75,6 +78,7 @@ export const WORKSPACE_COMPANY_TABS: Record<ProductId, CompanyTab[]> = {
     { value: 'knowledge', label: 'Knowledge', icon: BookOpen },
     { value: 'chat', label: 'Chat', icon: MessageSquare },
     { value: 'roadmap', label: 'Roadmap', icon: MapIcon },
+    { value: 'source-data', label: 'Source Data', icon: Database },
   ],
   admin: [
     { value: 'overview', label: 'Overview', icon: LayoutDashboard },

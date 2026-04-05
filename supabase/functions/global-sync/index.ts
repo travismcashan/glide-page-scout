@@ -190,6 +190,7 @@ type HubSpotCompany = {
   id: string; name: string; domain: string | null;
   industry: string | null; employees: string | null; revenue: string | null;
   location: string | null; website: string | null;
+  lifecycleStage: string | null;
 };
 
 async function fetchHubSpotData(token: string): Promise<FetchResult<HubSpotCompany>> {
@@ -197,7 +198,7 @@ async function fetchHubSpotData(token: string): Promise<FetchResult<HubSpotCompa
   const rawById = new Map<string, any>();
   let after: string | undefined;
   let page = 0;
-  const props = 'name,domain,industry,numberofemployees,annualrevenue,city,state,country,website';
+  const props = 'name,domain,industry,numberofemployees,annualrevenue,city,state,country,website,lifecyclestage';
 
   // Use list API (not search) to avoid the search endpoint's ~1000 result cap
   while (page < 50) {
@@ -221,6 +222,7 @@ async function fetchHubSpotData(token: string): Promise<FetchResult<HubSpotCompa
         revenue: p.annualrevenue || null,
         location,
         website: p.website || null,
+        lifecycleStage: p.lifecyclestage || null,
       });
       rawById.set(c.id, c);
     }
@@ -573,7 +575,7 @@ Deno.serve(async (req) => {
     for (let offset = 0; ; offset += PAGE_SIZE) {
       const { data: batch } = await supabase
         .from('companies')
-        .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, freshdesk_company_id, freshdesk_company_name, status')
+        .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, freshdesk_company_id, freshdesk_company_name, status, hubspot_lifecycle_stage')
         .range(offset, offset + PAGE_SIZE - 1);
       if (!batch || batch.length === 0) break;
       allExisting.push(...batch);
@@ -637,6 +639,7 @@ Deno.serve(async (req) => {
               if (client.hubspot.location) updates.location = client.hubspot.location;
               if (client.hubspot.domain) updates.domain = client.hubspot.domain;
               if (client.hubspot.website) updates.website_url = client.hubspot.website;
+              updates.hubspot_lifecycle_stage = client.hubspot.lifecycleStage;
             }
             if (client.freshdesk) {
               updates.freshdesk_company_id = String(client.freshdesk.id);
@@ -678,6 +681,7 @@ Deno.serve(async (req) => {
               newCompany.annual_revenue = client.hubspot.revenue;
               newCompany.location = client.hubspot.location;
               newCompany.website_url = client.hubspot.website;
+              newCompany.hubspot_lifecycle_stage = client.hubspot.lifecycleStage;
             }
             if (client.freshdesk) {
               newCompany.freshdesk_company_id = String(client.freshdesk.id);

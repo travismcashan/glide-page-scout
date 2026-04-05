@@ -98,7 +98,17 @@ type SortKey =
   | 'sites_desc'
   | 'last_synced_desc'
   | 'created_desc'
-  | 'last_invoiced_desc';
+  | 'last_invoiced_desc'
+  | 'stage_asc'
+  | 'stage_desc'
+  | 'domain_asc'
+  | 'domain_desc'
+  | 'contact_asc'
+  | 'contact_desc'
+  | 'last_activity_desc'
+  | 'last_activity_asc'
+  | 'revenue_desc'
+  | 'revenue_asc';
 
 type GroupKey = 'none' | 'status' | 'industry' | 'source';
 
@@ -109,6 +119,34 @@ type ViewMode = 'table' | 'cards';
 // ---------------------------------------------------------------------------
 
 const STATUS_ORDER = ['active', 'prospect', 'past', 'archived'] as const;
+
+// Stage order: leads first (L→R), then deals (L→R), then no stage last
+const STAGE_ORDER: Record<string, number> = {
+  // Lead statuses (earliest to latest)
+  'Inbound': 0,
+  'Contacting': 1,
+  'Scheduled': 2,
+  'Future Follow-Up': 3,
+  // Deal stages — Projects Pipeline (earliest to latest)
+  'Follow-Up / Scheduling': 10,
+  'Discovery Call': 11,
+  'Needs Analysis': 12,
+  'Proposal Due': 13,
+  'Open Deal': 14,
+  // Deal stages — Services Pipeline
+  'First-Time Appointment': 15,
+  'Eval / Audit / Prep': 16,
+  'Needs Analysis Scheduled': 17,
+  // Deal stages — RFP Pipeline
+  'RFP Identified / Qualification': 20,
+  'Intent to Bid': 21,
+  'Questions Submitted': 22,
+  'Proposal Development': 23,
+  'Proposal Submitted': 24,
+  'Waiting on Response': 25,
+  'Presentation / Finalist': 26,
+  'Negotiation & Contracting': 27,
+};
 
 const STATUS_COLORS: Record<string, string> = {
   prospect: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
@@ -217,6 +255,42 @@ function sortCompanies(list: Company[], key: SortKey): Company[] {
         const bDate = (b as any).quickbooks_invoice_summary?.lastDate;
         return new Date(bDate || 0).getTime() - new Date(aDate || 0).getTime();
       });
+    case 'domain_asc':
+      return sorted.sort((a, b) => (a.domain || '').localeCompare(b.domain || ''));
+    case 'domain_desc':
+      return sorted.sort((a, b) => (b.domain || '').localeCompare(a.domain || ''));
+    case 'last_activity_desc':
+      return sorted.sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+    case 'last_activity_asc':
+      return sorted.sort((a, b) => new Date(a.updated_at || 0).getTime() - new Date(b.updated_at || 0).getTime());
+    case 'revenue_desc':
+      return sorted.sort((a, b) => {
+        const aRev = (a as any).quickbooks_invoice_summary?.total || 0;
+        const bRev = (b as any).quickbooks_invoice_summary?.total || 0;
+        return bRev - aRev;
+      });
+    case 'revenue_asc':
+      return sorted.sort((a, b) => {
+        const aRev = (a as any).quickbooks_invoice_summary?.total || 0;
+        const bRev = (b as any).quickbooks_invoice_summary?.total || 0;
+        return aRev - bRev;
+      });
+    case 'contact_asc':
+      return sorted.sort((a, b) => ((a as any).primary_contact_name || '').localeCompare((b as any).primary_contact_name || ''));
+    case 'contact_desc':
+      return sorted.sort((a, b) => ((b as any).primary_contact_name || '').localeCompare((a as any).primary_contact_name || ''));
+    case 'stage_asc':
+    case 'stage_desc': {
+      const dir = key === 'stage_asc' ? 1 : -1;
+      return sorted.sort((a, b) => {
+        const aStage = (a as any).deal_stage_label || (a as any).lead_status || '';
+        const bStage = (b as any).deal_stage_label || (b as any).lead_status || '';
+        const aOrder = STAGE_ORDER[aStage] ?? 99;
+        const bOrder = STAGE_ORDER[bStage] ?? 99;
+        if (aOrder !== bOrder) return (aOrder - bOrder) * dir;
+        return a.name.localeCompare(b.name);
+      });
+    }
     default:
       return sorted;
   }
@@ -225,6 +299,12 @@ function sortCompanies(list: Company[], key: SortKey): Company[] {
 const COLUMN_SORT_MAP: Record<string, [SortKey, SortKey]> = {
   company: ['name_asc', 'name_desc'],
   status: ['status', 'status'],
+  stage: ['stage_asc', 'stage_desc'],
+  domain: ['domain_asc', 'domain_desc'],
+  contact: ['contact_asc', 'contact_desc'],
+  last_activity: ['last_activity_desc', 'last_activity_asc'],
+  last_invoiced: ['last_invoiced_desc', 'name_asc'],
+  revenue: ['revenue_desc', 'revenue_asc'],
   industry: ['name_asc', 'name_desc'],
   employees: ['employee_count_desc', 'name_asc'],
   location: ['name_asc', 'name_desc'],
@@ -383,22 +463,29 @@ export default function CompaniesPage() {
 
   // Workspace-aware defaults
   const defaultPreset = workspace === 'growth' ? 'pipeline' : workspace === 'delivery' ? 'active' : 'all';
-  const defaultSort: SortKey = workspace === 'growth' ? 'created_desc' : workspace === 'delivery' ? 'last_invoiced_desc' : 'name_asc';
+  const defaultSort: SortKey = workspace === 'growth' ? 'stage_asc' : workspace === 'delivery' ? 'last_invoiced_desc' : 'name_asc';
 
-  // Data (cached via TanStack Query)
-  const { companies, loading } = useCompanies();
+  // Data (cached via TanStack Query, scoped by workspace)
+  const { companies, loading } = useCompanies(workspace);
   const invalidateCompanies = useInvalidateCompanies();
 
   // Search
   const [search, setSearch] = useState('');
 
   // Sort & Group
-  const [sortKey, setSortKey] = useState<SortKey>(defaultSort);
+  const [sortKey, setSortKey] = useState<SortKey>(() => {
+    const saved = localStorage.getItem(`companies-sort-${workspace}`);
+    return (saved as SortKey) || defaultSort;
+  });
+  const setSortKeyPersist = useCallback((key: SortKey) => {
+    setSortKey(key);
+    localStorage.setItem(`companies-sort-${workspace}`, key);
+  }, [workspace]);
   const [groupKey, setGroupKey] = useState<GroupKey>('none');
 
   // Reset when workspace changes
   useEffect(() => {
-    setSortKey(defaultSort);
+    setSortKeyPersist(defaultSort);
     setSearch('');
     setPage(0);
   }, [workspace]);
@@ -438,12 +525,8 @@ export default function CompaniesPage() {
       if (c.status === 'archived') return false;
 
       // Workspace base filter
-      if (workspace === 'growth') {
-        // Growth = only companies connected to HubSpot (leads/deals pipeline)
-        if (!c.hubspot_company_id) return false;
-        if (c.status === 'active' || c.status === 'past') return false;
-      } else if (workspace === 'delivery') {
-        // Delivery = active clients only
+      // Growth filtering is handled by useCompanies(workspace) — only pipeline companies are fetched
+      if (workspace === 'delivery') {
         if (c.status !== 'active') return false;
       }
       // Admin = all non-archived companies
@@ -520,8 +603,8 @@ export default function CompaniesPage() {
   const handleColumnSort = useCallback((column: string) => {
     const pair = COLUMN_SORT_MAP[column];
     if (!pair) return;
-    setSortKey((prev) => (prev === pair[0] ? pair[1] : pair[0]));
-  }, []);
+    setSortKeyPersist(sortKey === pair[0] ? pair[1] : pair[0]);
+  }, [sortKey, setSortKeyPersist]);
 
 
   // ---------------------------------------------------------------------------
@@ -590,41 +673,42 @@ export default function CompaniesPage() {
 
   function CompanyTableRow({ company }: { company: Company }) {
     const qb = company.quickbooks_invoice_summary;
-    const lastActivity = company.updated_at || company.created_at;
+    const lastActivity = (company as any).deal_close_date || (company as any).lead_updated_at || company.last_synced_at || company.updated_at || company.created_at;
     const services = getCompanySources(company);
 
     return (
-      <TableRow className="cursor-pointer hover:bg-accent/5" onClick={() => navigate(`/companies/${company.id}`)}>
+      <TableRow className="cursor-pointer hover:bg-accent/5 [&>td]:py-1.5" onClick={() => navigate(`/companies/${company.id}`)}>
         {/* Name — all workspaces */}
         <TableCell className="max-w-[280px]">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <CompanyLogo company={company} />
             <div className="min-w-0">
-              <div className="font-medium text-foreground truncate">{company.name}</div>
+              <div className="font-medium text-foreground truncate text-sm">{company.name}</div>
               {workspace === 'delivery' && company.domain && <div className="text-xs text-muted-foreground truncate">{company.domain}</div>}
             </div>
           </div>
         </TableCell>
 
-        {/* ── Growth columns: Domain, Last Activity, Industry, Contact ── */}
+        {/* ── Growth columns: Domain, Stage, Amount, Contact ── */}
         {workspace === 'growth' && (
           <TableCell className="text-muted-foreground text-sm truncate max-w-[160px]">
             {company.domain || <span className="text-muted-foreground/30">--</span>}
           </TableCell>
         )}
         {workspace === 'growth' && (
-          <TableCell className="text-muted-foreground text-xs">
-            {lastActivity ? timeAgo(lastActivity) : <span className="text-muted-foreground/30">--</span>}
+          <TableCell className="text-sm">
+            {(company as any).deal_stage_label ? (
+              <Badge variant="outline" className="text-xs px-2 py-0.5">{(company as any).deal_stage_label}</Badge>
+            ) : (company as any).lead_status ? (
+              <Badge variant="outline" className="text-xs px-2 py-0.5 border-blue-500/30 text-blue-500">{(company as any).lead_status}</Badge>
+            ) : (
+              <span className="text-muted-foreground/30">--</span>
+            )}
           </TableCell>
         )}
         {workspace === 'growth' && (
           <TableCell className="text-muted-foreground text-sm truncate max-w-[140px]">
-            {formatIndustry(company.industry) || <span className="text-muted-foreground/30">--</span>}
-          </TableCell>
-        )}
-        {workspace === 'growth' && (
-          <TableCell className="text-muted-foreground tabular-nums text-sm">
-            {company.contact_count || <span className="text-muted-foreground/30">--</span>}
+            {(company as any).primary_contact_name || <span className="text-muted-foreground/30">--</span>}
           </TableCell>
         )}
 
@@ -668,7 +752,7 @@ export default function CompaniesPage() {
         )}
         {workspace === 'admin' && (
           <TableCell>
-            <Badge variant="outline" className={`text-xs py-0.5 ${STATUS_COLORS[company.status] || ''}`}>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[company.status] || ''}`}>
               {company.status}
             </Badge>
           </TableCell>
@@ -807,7 +891,7 @@ export default function CompaniesPage() {
           </div>
 
           {/* Sort */}
-          <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+          <Select value={sortKey} onValueChange={(v) => setSortKeyPersist(v as SortKey)}>
             <SelectTrigger className="w-fit h-8 text-sm">
               <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-50 mr-1.5" />
               <SelectValue />
@@ -815,6 +899,8 @@ export default function CompaniesPage() {
             <SelectContent>
               <SelectItem value="name_asc">Name (A-Z)</SelectItem>
               <SelectItem value="name_desc">Name (Z-A)</SelectItem>
+              <SelectItem value="stage_asc">Stage (earliest)</SelectItem>
+              <SelectItem value="stage_desc">Stage (latest)</SelectItem>
               <SelectItem value="status">Status</SelectItem>
               <SelectItem value="created_desc">Newest</SelectItem>
               <SelectItem value="last_invoiced_desc">Last Invoiced</SelectItem>
@@ -855,15 +941,14 @@ export default function CompaniesPage() {
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
                         <SortableHeader column="company" label="Name" />
-                        {workspace === 'growth' && <TableHead className="text-muted-foreground">Domain</TableHead>}
-                        {workspace === 'growth' && <TableHead className="text-muted-foreground">Last Activity</TableHead>}
-                        {workspace === 'growth' && <SortableHeader column="industry" label="Industry" />}
-                        {workspace === 'growth' && <SortableHeader column="contacts" label="Contact" />}
-                        {workspace === 'delivery' && <TableHead className="text-muted-foreground">Services</TableHead>}
-                        {workspace === 'delivery' && <TableHead className="text-muted-foreground">Last Activity</TableHead>}
+                        {workspace === 'growth' && <SortableHeader column="domain" label="Domain" />}
+                        {workspace === 'growth' && <SortableHeader column="stage" label="Stage" />}
+                        {workspace === 'growth' && <SortableHeader column="contact" label="Contact" />}
+                        {workspace === 'delivery' && <SortableHeader column="sources" label="Services" />}
+                        {workspace === 'delivery' && <SortableHeader column="last_activity" label="Last Activity" />}
                         {workspace === 'delivery' && <SortableHeader column="contacts" label="Contacts" />}
-                        {workspace === 'admin' && <TableHead className="text-muted-foreground">Last Invoice</TableHead>}
-                        {workspace === 'admin' && <TableHead className="text-muted-foreground">Revenue</TableHead>}
+                        {workspace === 'admin' && <SortableHeader column="last_invoiced" label="Last Invoice" />}
+                        {workspace === 'admin' && <SortableHeader column="revenue" label="Revenue" />}
                         {workspace === 'admin' && <SortableHeader column="status" label="Status" />}
                       </TableRow>
                     </TableHeader>

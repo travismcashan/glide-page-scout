@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompanies } from '@/hooks/useCompanies';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BrandLoader } from '@/components/BrandLoader';
@@ -89,6 +90,7 @@ interface UnifiedProject {
   budgetSpent?: number | null;
   budgetBy?: string;
   portfolioName?: string;
+  harvestClientId?: number;
 }
 
 // Client group: all projects for one client
@@ -98,6 +100,7 @@ interface ClientGroup {
   worstStatus: string; // green, yellow, red, none
   totalBudget: number;
   totalSpent: number;
+  companyId: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -177,6 +180,7 @@ function TaskProgress({ completed, total }: { completed: number; total: number }
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
+  const { companies } = useCompanies();
   const [loading, setLoading] = useState(true);
   const [portfolios, setPortfolios] = useState<PortfolioGroup[]>([]);
   const [budgets, setBudgets] = useState<ProjectBudget[]>([]);
@@ -184,6 +188,17 @@ export default function ProjectsPage() {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
+
+  // Company lookup maps for linking projects → companies
+  const { companyByHarvestId, companyByName } = useMemo(() => {
+    const byHarvestId = new Map<string, { id: string; name: string }>();
+    const byName = new Map<string, { id: string; name: string }>();
+    for (const c of companies) {
+      if (c.harvest_client_id) byHarvestId.set(String(c.harvest_client_id), { id: c.id, name: c.name });
+      byName.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name });
+    }
+    return { companyByHarvestId: byHarvestId, companyByName: byName };
+  }, [companies]);
 
   // Fetch all three data sources in parallel
   useEffect(() => {
@@ -258,6 +273,7 @@ export default function ProjectsPage() {
             budgetSpent: budget?.budget_spent,
             budgetBy: budget?.budget_by,
             portfolioName: pf.displayName || pf.name,
+            harvestClientId: budget?.client_id,
           };
 
           const existing = clientMap.get(clientName) || [];
@@ -282,7 +298,17 @@ export default function ProjectsPage() {
         if (p.budgetSpent != null) totalSpent += p.budgetSpent;
       }
 
-      groups.push({ clientName, projects, worstStatus, totalBudget, totalSpent });
+      // Resolve company ID: try Harvest client_id first, then fuzzy name match
+      let companyId: string | null = null;
+      const firstHarvestId = projects.find(p => p.harvestClientId)?.harvestClientId;
+      if (firstHarvestId) {
+        companyId = companyByHarvestId.get(String(firstHarvestId))?.id || null;
+      }
+      if (!companyId) {
+        companyId = companyByName.get(clientName.toLowerCase().trim())?.id || null;
+      }
+
+      groups.push({ clientName, projects, worstStatus, totalBudget, totalSpent, companyId });
     }
 
     // Sort: problems first (red > yellow > blue > green > none), then alphabetical
@@ -293,7 +319,7 @@ export default function ProjectsPage() {
     });
 
     return groups;
-  }, [portfolios, mappingByAsanaGid, budgetByHarvestId]);
+  }, [portfolios, mappingByAsanaGid, budgetByHarvestId, companyByHarvestId, companyByName]);
 
   // Filtered groups
   const filteredGroups = useMemo(() => {
@@ -413,15 +439,16 @@ export default function ProjectsPage() {
                 return (
                   <div
                     key={group.clientName}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent/5 cursor-pointer transition-colors"
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent/5 transition-colors ${group.companyId ? 'cursor-pointer' : ''}`}
                     onClick={() => {
-                      // TODO: navigate to company when we have the mapping
+                      if (group.companyId) navigate(`/companies/${group.companyId}`);
                     }}
                   >
                     <Circle className={`h-2.5 w-2.5 shrink-0 fill-current ${statusDotColors[p.statusColor]}`} />
                     <div className="flex-1 min-w-0">
                       <span className="font-medium">{group.clientName}</span>
                       <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 font-normal">{p.serviceType}</Badge>
+                      {!group.companyId && <span className="text-xs text-muted-foreground/40 ml-1">(unlinked)</span>}
                     </div>
                     <div className="hidden sm:block w-20 text-right">
                       {p.numTasks != null && p.numCompletedTasks != null && (
@@ -455,6 +482,22 @@ export default function ProjectsPage() {
                         <Badge key={p.id} variant="outline" className="text-[10px] px-1.5 py-0 font-normal">{p.serviceType}</Badge>
                       ))}
                     </div>
+                    {group.companyId && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/companies/${group.companyId}`);
+                        }}
+                      >
+                        <Building2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {!group.companyId && (
+                      <span className="text-xs text-muted-foreground/40">(unlinked)</span>
+                    )}
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
@@ -462,7 +505,10 @@ export default function ProjectsPage() {
                       {group.projects.map(p => (
                         <div
                           key={p.id}
-                          className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent/5 cursor-pointer transition-colors"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent/5 transition-colors ${group.companyId ? 'cursor-pointer' : ''}`}
+                          onClick={() => {
+                            if (group.companyId) navigate(`/companies/${group.companyId}`);
+                          }}
                         >
                           <Circle className={`h-2 w-2 shrink-0 fill-current ${statusDotColors[p.statusColor]}`} />
                           <div className="flex-1 min-w-0">

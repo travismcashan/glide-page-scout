@@ -189,32 +189,42 @@ export default function CompanyDetailPage() {
 
   // Note: company/contacts/sites are fetched by useCompany hook (cached via TanStack Query)
 
-  // On-demand artifact fetching when tabs are activated
+  // On-demand artifact fetching — reads from local DB where synced, edge function for the rest
   const fetchArtifact = useCallback(async (artifactType: string) => {
     if (!id || artifactsFetched.current.has(artifactType)) return;
     artifactsFetched.current.add(artifactType);
     setArtifactLoading(prev => ({ ...prev, [artifactType]: true }));
 
     try {
-      const { data: result, error } = await supabase.functions.invoke('company-artifacts', {
-        body: { companyId: id, artifact: artifactType },
-      });
-
-      if (error) throw error;
-      const items = result?.data || [];
-
-      switch (artifactType) {
-        case 'deals': setDeals(items); break;
-        case 'engagements': setEngagements(items); break;
-        case 'projects': setHarvestProjects(items); break;
-        case 'time_entries': setHarvestTimeEntries(items); break;
-        case 'invoices': setHarvestInvoices(items); break;
-        case 'tickets': setFreshdeskTickets(items); break;
+      // Local DB queries for synced entities
+      if (artifactType === 'deals') {
+        const { data, error } = await supabase.from('deals').select('id, name, amount, stage, pipeline, close_date, status, created_at').eq('company_id', id).order('close_date', { ascending: false });
+        if (error) throw error;
+        setDeals(data || []);
+      } else if (artifactType === 'time_entries') {
+        const { data, error } = await supabase.from('harvest_time_entries').select('*').eq('company_id', id).order('spent_date', { ascending: false });
+        if (error) throw error;
+        setHarvestTimeEntries(data || []);
+      } else if (artifactType === 'tickets') {
+        const { data, error } = await supabase.from('freshdesk_tickets').select('*').eq('company_id', id).order('created_at', { ascending: false });
+        if (error) throw error;
+        setFreshdeskTickets(data || []);
+      } else {
+        // Edge function for entities not yet synced locally (engagements, projects, invoices)
+        const { data: result, error } = await supabase.functions.invoke('company-artifacts', {
+          body: { companyId: id, artifact: artifactType },
+        });
+        if (error) throw error;
+        const items = result?.data || [];
+        switch (artifactType) {
+          case 'engagements': setEngagements(items); break;
+          case 'projects': setHarvestProjects(items); break;
+          case 'invoices': setHarvestInvoices(items); break;
+        }
       }
     } catch (err) {
       console.error(`[CompanyDetail] Failed to fetch ${artifactType}:`, err);
       toast.error(`Failed to load ${artifactType}`);
-      // Allow retry on error
       artifactsFetched.current.delete(artifactType);
     } finally {
       setArtifactLoading(prev => ({ ...prev, [artifactType]: false }));
@@ -971,7 +981,7 @@ export default function CompanyDetailPage() {
           <TabsContent value="source-data">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">
-                Raw API responses from connected systems. Run a global sync to populate.
+                Raw data from all connected systems — enrichment, sync, and API responses.
               </p>
               <Button variant="outline" size="sm" onClick={refreshSourceData} disabled={sourceDataLoading}>
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${sourceDataLoading ? 'animate-spin' : ''}`} />
@@ -980,12 +990,76 @@ export default function CompanyDetailPage() {
             </div>
             {sourceDataLoading ? (
               <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
-            ) : sourceData.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                No source data stored yet. Run a global sync to pull raw API data from HubSpot, Harvest, and Freshdesk.
-              </div>
             ) : (
               <div className="space-y-3">
+                {/* Enrichment data (Apollo, Ocean.io) from enrichment_data JSONB */}
+                {company?.enrichment_data && Object.entries(company.enrichment_data as Record<string, any>)
+                  .filter(([key]) => key !== '_migrated')
+                  .map(([key, value]) => {
+                    const isExpanded = expandedSources.has(key);
+                    const label = { apollo_team: 'Apollo Team', apollo_org: 'Apollo Org', ocean: 'Ocean.io', avoma: 'Avoma' }[key] || key;
+                    const color = { apollo_team: 'text-purple-400', apollo_org: 'text-purple-400', ocean: 'text-blue-400', avoma: 'text-cyan-400' }[key] || 'text-muted-foreground';
+                    const fieldCount = value && typeof value === 'object' ? Object.keys(value).length : 0;
+                    return (
+                      <Card key={key}>
+                        <button
+                          onClick={() => toggleSource(key)}
+                          className="w-full flex items-center justify-between p-4 text-left hover:bg-accent/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FileJson className={`h-5 w-5 ${color}`} />
+                            <span className="font-semibold">{label}</span>
+                            <Badge variant="secondary" className="text-xs">{fieldCount} fields</Badge>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">enrichment_data</span>
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </div>
+                        </button>
+                        {isExpanded && (
+                          <CardContent className="pt-0 pb-4">
+                            <SourceDataTable data={value} />
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })
+                }
+                {/* Per-contact Apollo enrichment data */}
+                {contacts.filter((c: any) => c.enrichment_data?.apollo).map((c: any) => {
+                  const key = `apollo-${c.id}`;
+                  const isExpanded = expandedSources.has(key);
+                  const contactName = [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'Unknown';
+                  const fieldCount = c.enrichment_data.apollo ? Object.keys(c.enrichment_data.apollo).length : 0;
+                  return (
+                    <Card key={key}>
+                      <button
+                        onClick={() => toggleSource(key)}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-accent/5 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileJson className="h-5 w-5 text-purple-400" />
+                          <div>
+                            <span className="font-semibold">Apollo</span>
+                            <span className="text-xs text-muted-foreground ml-2">{contactName}</span>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">{fieldCount} fields</Badge>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">contact enrichment</span>
+                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <CardContent className="pt-0 pb-4">
+                          <SourceDataTable data={c.enrichment_data.apollo} />
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+
+                {/* Source data from company_source_data table (HubSpot, Harvest, Freshdesk raw sync) */}
                 {sourceData.map((sd: any) => {
                   const isExpanded = expandedSources.has(sd.source);
                   const sourceLabel = { hubspot: 'HubSpot', harvest: 'Harvest', freshdesk: 'Freshdesk' }[sd.source] || sd.source;

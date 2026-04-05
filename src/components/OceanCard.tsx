@@ -321,7 +321,7 @@ function KeywordsTab({ keywords }: { keywords: string[] }) {
 
 /* ── Main Card ── */
 export default function OceanCard({ data }: { data: OceanData }) {
-  if (!data?.success) {
+  if (!data?.success && !data?.name && !data?.domain) {
     return (
       <div className="text-sm text-muted-foreground">
         {data?.error || 'No firmographic data available.'}
