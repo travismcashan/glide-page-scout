@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Sparkles, Bug, Lightbulb, Trash2, Loader2, Paperclip, MessageCircle, Copy, Check } from 'lucide-react';
+import { Sparkles, Bug, Lightbulb, FileText, Trash2, Loader2, Paperclip, MessageCircle, Copy, Check } from 'lucide-react';
 
 export type WishlistItem = {
   id: string;
@@ -20,12 +20,14 @@ export type WishlistItem = {
   attachment_count?: number;
   comment_count?: number;
   cover_image_url?: string | null;
+  plan_content?: { research: string; steps: { text: string; done: boolean }[]; affected_files: string[]; dependencies: string[] } | null;
 };
 
 const CATEGORY_TAG: Record<string, { label: string; icon: typeof Sparkles; bg: string; text: string }> = {
   feature: { label: 'Feature', icon: Sparkles, bg: 'bg-primary/10', text: 'text-primary' },
   bug: { label: 'Bug', icon: Bug, bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400' },
   idea: { label: 'Idea', icon: Lightbulb, bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400' },
+  plan: { label: 'Plan', icon: FileText, bg: 'bg-indigo-50 dark:bg-indigo-900/20', text: 'text-indigo-600 dark:text-indigo-400' },
 };
 
 const EFFORT_TAG: Record<string, { label: string; bg: string; text: string }> = {

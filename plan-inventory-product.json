@@ -1,0 +1,247 @@
+[
+  {
+    "title": "Login page branding — rename GLIDE Growth to Ascend",
+    "description": "LoginPage.tsx still says 'Sign in to GLIDE® Growth' and 'Sales prep, powered by AI'. Per brand architecture, the product is Ascend, not GLIDE Growth. Update headline, tagline, and meta tags to reflect Ascend branding for all client/prospect-facing surfaces.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Unify badge styling across all pages",
+    "description": "Badge patterns are inconsistent: CompanyDetailPage uses 'bg-green-500/15 text-green-400' inline, CompaniesPage uses 'text-foreground border-green-500' variant, PipelinePage uses Badge variant='secondary'. Create a shared badge config (status colors, lead status colors, deal status colors, seniority colors) imported by all pages instead of ~6 independent color maps.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Settings page restructure — add sections/tabs for discoverability",
+    "description": "SettingsPage.tsx is 76KB, one long scrolling page with AI Model Defaults, Style & Tone, RAG tuning, About Me, Custom Instructions, and more. Users can't find settings without scrolling. Add sidebar tabs or collapsible sections with a sticky nav so users can jump to AI, Profile, Preferences, and Advanced sections.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Sidebar user menu — consolidate utility nav items",
+    "description": "The sidebar footer user dropdown has 7 items (Connections, Wishlist, Services, Usage, Project Mapping, Company Mapping, Cleanup) that feel like dev tools mixed with user features. Plan a reorganization: move mapping/cleanup tools under Settings or Admin, surface Wishlist more prominently, and add clear grouping labels to the dropdown.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Pipeline page horizontal scroll UX for kanban columns",
+    "description": "PipelinePage.tsx has scroll fade detection (leadsFadeLeft/Right, dealsFadeLeft/Right) but the kanban columns need better mobile/tablet handling. Plan: add touch-friendly horizontal scroll indicators, keyboard navigation between stages, and ensure the fixed footer/metrics bar scrolls in sync with columns.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Company detail page — loading/empty states per tab",
+    "description": "CompanyDetailPage.tsx uses on-demand artifact fetching (fetchArtifact) per tab, but individual tabs lack proper empty states. When a company has no deals, no time entries, or no tickets, the user sees nothing. Add informative empty states per tab explaining what data would appear and how to populate it (e.g., 'No deals yet. Deals sync automatically from HubSpot.').",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Wishlist kanban — drag and drop feedback and mobile support",
+    "description": "KanbanBoard uses @dnd-kit PointerSensor with distance:5 activation. On mobile, dragging is unreliable. Plan: add TouchSensor for mobile, improve drag overlay styling (currently uses raw DragOverlay), add visual drop zone highlighting, and show a status toast after successful drops.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Wishlist toolbar — responsive collapse on small screens",
+    "description": "KanbanToolbar renders Add, AI Prioritize, AI Recommend buttons + search + 3 filter dropdowns + sort in a single flex row. On small screens this wraps awkwardly. Plan: collapse filters into a single 'Filters' popover on mobile, stack action buttons, and ensure the search input is always accessible.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "CardDetailModal — rich text editor for plan descriptions",
+    "description": "CardDetailModal.tsx uses a plain Textarea for descriptions. Plan items especially need rich text (markdown preview, code blocks, links). Research adding a lightweight markdown editor (e.g., @uiw/react-md-editor) to the modal for plan-type items, with preview toggle.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "PlanDetailPage — add edit capabilities and status transitions",
+    "description": "PlanDetailPage.tsx is read-only except for step checkbox toggling. Users can't edit research notes, add new steps, modify affected files, or change plan status/priority from this page. Add inline editing for all plan fields and a status transition button (planned → in-progress → done).",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "NotFound page — brand-aligned 404 with navigation suggestions",
+    "description": "NotFound.tsx is minimal (generic 404 text, unstyled link). Replace with branded 404 using AnimatedLogo, suggest common pages based on workspace, and add a search bar or recent pages list to help users recover.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Companies page — card view needs polish",
+    "description": "CompaniesPage supports table and cards view modes but the card view was left incomplete. Plan: design proper company cards showing logo, name, domain, status badge, contact count, site count, and enrichment indicators. Ensure cards are responsive (1/2/3 columns) and match the table view's sort/filter capabilities.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Contacts page — add enrichment status indicators",
+    "description": "ContactsPage.tsx shows basic contact info but doesn't indicate whether contacts have been enriched (Apollo data). Add visual indicators (enrichment badge, photo from enrichment_data) and a bulk-enrich action button for contacts missing enrichment.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Global chat — thread management and conversation history",
+    "description": "GlobalChatPage.tsx creates a single sentinel session for all global chat. Users can't browse past conversations, rename threads, or start fresh threads. Plan: add thread list sidebar (like company chat), thread naming/renaming, and a 'New conversation' button.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Chat input — add voice input and slash commands",
+    "description": "ChatInput.tsx is text-only with Enter-to-send. For a non-developer founder user: add voice input button (Web Speech API), slash command suggestions (e.g., /summarize, /compare, /export), and @-mention for attaching sites or companies to the conversation context.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Crawl history — bulk actions and batch management",
+    "description": "HistoryPage.tsx supports individual delete with confirmation dialog, but managing many crawl sessions is tedious. Add bulk select, bulk delete, bulk re-crawl, and a 'clear completed' action. Also add inline status refresh without full page reload.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Crawl input — URL validation and domain preview",
+    "description": "HistoryPage crawl input does basic URL formatting but no validation. Plan: validate URL format, check if domain already has recent crawl (suggest viewing existing results), show domain favicon/preview, and auto-suggest company association before starting the crawl.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "ResultsPage — progressive loading and section navigation",
+    "description": "ResultsPage.tsx is 174KB with dozens of integration cards. The page loads all cards at once. Plan: implement virtual scrolling or lazy-loaded sections, add a sticky section nav/TOC for jumping between audit categories (Performance, Accessibility, SEO, etc.), and show a mini-map progress indicator.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Error boundary — add retry and error reporting",
+    "description": "ErrorBoundary.tsx shows a generic 'Something went wrong' message with no recovery path. Plan: add a 'Try Again' button that resets the error state, include error details in a collapsible section for advanced users, and optionally report errors to a monitoring service.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Connections page — search and filter for integration list",
+    "description": "ConnectionsPage.tsx lists all integrations (OAuth providers + API keys) in a long scrolling list. Users must scroll to find a specific connection. Add search/filter by provider name, status (active/inactive/expired), and type (OAuth/API key). Group by category (Google, CRM, Analytics, etc.).",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Projects page — loading states and error handling",
+    "description": "ProjectsPage.tsx fetches from Asana live API and merges with Harvest budgets. If either API fails, user sees incomplete data with no explanation. Add proper error states per data source, retry buttons, and a 'last synced' indicator showing data freshness.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Workspace switcher — visual feedback and keyboard shortcut",
+    "description": "The workspace switcher in the sidebar header uses a dropdown menu but lacks keyboard shortcuts for power users. Plan: add Cmd+1/2/3 shortcuts for Growth/Delivery/Admin, add a transition animation when switching, and show a brief confirmation toast on switch.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Company detail — overview tab data density optimization",
+    "description": "CompanyDetailPage overview tab loads engagements and deals but renders them in simple lists. The overview should be a dashboard-like summary: key metrics cards (total deal value, open deals count, last activity, enrichment completeness), recent activity timeline, and quick-action buttons (enrich, crawl, chat).",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Pipeline deal/contact detail sheet — consistent drawer pattern",
+    "description": "PipelinePage uses Sheet for deal/contact detail views, CompaniesPage uses ContactDetailDrawer, and CompanyDetailPage has its own drawer. These should share a common drawer pattern. Plan: unify the detail drawer component, ensure consistent header/close button placement, and add swipe-to-close on mobile.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Keyboard navigation — global shortcuts and focus management",
+    "description": "The app lacks keyboard navigation support. A non-developer founder still benefits from: Cmd+K for global search/command palette, Escape to close modals/drawers, arrow keys in tables/lists. Plan: add a command palette (cmdk library already implied by shadcn/ui command component), wire up global shortcuts.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Toast notification consistency — sonner vs shadcn/ui toaster",
+    "description": "The app uses BOTH sonner (toast from 'sonner') and shadcn/ui Toaster (useToast from '@/hooks/use-toast'). Some pages use one, some the other. Plan: standardize on one toast system, remove the unused one, and ensure consistent positioning and styling.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Mobile responsive audit — sidebar behavior and page layouts",
+    "description": "AppSidebar uses setOpenMobile for mobile close behavior but individual pages use varying padding (px-4 sm:px-6). The sidebar may overlap content on tablet sizes. Plan: audit all breakpoints, ensure consistent mobile padding, test sidebar collapse/expand on tablet, and verify all modals/drawers work on mobile viewports.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Loading state consistency — BrandLoader vs skeleton patterns",
+    "description": "Some pages use BrandLoader (centered spinner), others use no loading state at all. Plan: define a loading pattern hierarchy (skeleton for content areas, BrandLoader for full-page loads, inline spinners for button actions) and apply consistently across all pages.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Wishlist WIP limit — user-configurable and visible feedback",
+    "description": "KanbanBoard.tsx has a hardcoded WIP_LIMIT of 3 for the in-progress column. Users can't see this limit until they hit it (destructive toast). Plan: show the limit visually on the column header (e.g., '2/3'), make it configurable in settings, and use a warning state (yellow) when approaching the limit.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Company tab conditional rendering — show disabled tabs with tooltips",
+    "description": "WORKSPACE_COMPANY_TABS uses condition functions to hide tabs entirely (e.g., Projects tab hidden without harvest_client_id). Users don't know the tab exists. Plan: show conditional tabs in a disabled state with a tooltip explaining why they're unavailable (e.g., 'Connect Harvest to see Projects').",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Crawl results sharing — public view polish",
+    "description": "The app supports ?view=shared for ResultsPage (bypasses auth in ProtectedRoute). The shared view needs a polished read-only experience: remove edit controls, add Ascend branding watermark, and include a CTA for non-users to learn more about the platform.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Settings About Me — handle enrichment failures gracefully",
+    "description": "SettingsPage auto-enriches the user profile on first visit (useEffect calls enrichProfile). If Apollo has no data or credits are exhausted, user sees an error toast but the About Me section stays empty with no guidance. Plan: show a manual entry form as fallback, explain what enrichment does, and offer retry with different email.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Pipeline page — lead card consistency with deal cards",
+    "description": "PipelinePage renders leads and deals with different card structures (leads as contact cards, deals as deal cards). The visual language should be consistent: both should show company name, key person, stage, and age. Plan: unify the card component, differentiate via a subtle type indicator rather than completely different layouts.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Dark mode audit — ensure all custom color classes work in dark mode",
+    "description": "Many pages use custom Tailwind color classes (bg-green-500/15, text-amber-600) that may not adapt well to dark mode. The app uses ThemeProvider with system preference. Plan: audit all custom color usage, ensure dark: variants are present, and test high-contrast scenarios.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "product"
+  },
+  {
+    "title": "Onboarding flow — first-time user experience",
+    "description": "New users land on /leads with no data and no guidance. There's no onboarding, no empty state tutorial, no 'get started' wizard. Plan: design a first-time flow that guides users through connecting HubSpot, running their first crawl, and understanding the workspace model. Show contextual hints on first visit to each major page.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "product"
+  }
+]

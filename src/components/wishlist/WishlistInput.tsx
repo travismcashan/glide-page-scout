@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Sparkles, Bug, Lightbulb, Loader2, X, Wand2 } from 'lucide-react';
+import { Plus, Sparkles, Bug, Lightbulb, FileText, Loader2, X, Wand2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,6 +22,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Sparkles; co
   feature: { label: 'Feature', icon: Sparkles, color: 'bg-primary/10 text-primary border-primary/20' },
   bug: { label: 'Bug', icon: Bug, color: 'bg-destructive/10 text-destructive border-destructive/20' },
   idea: { label: 'Idea', icon: Lightbulb, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  plan: { label: 'Plan', icon: FileText, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
 };
 
 type WishlistInputProps = {
@@ -168,6 +169,7 @@ export function WishlistInput({ onItemsAdded, onClose }: WishlistInputProps) {
                   <SelectItem value="feature">Feature</SelectItem>
                   <SelectItem value="bug">Bug</SelectItem>
                   <SelectItem value="idea">Idea</SelectItem>
+                  <SelectItem value="plan">Plan</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={priority} onValueChange={setPriority}>
@@ -241,6 +243,7 @@ export function WishlistInput({ onItemsAdded, onClose }: WishlistInputProps) {
                           <SelectItem value="feature">Feature</SelectItem>
                           <SelectItem value="bug">Bug</SelectItem>
                           <SelectItem value="idea">Idea</SelectItem>
+                          <SelectItem value="plan">Plan</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={item.priority} onValueChange={(v) => updateParsedItem(idx, 'priority', v)}>

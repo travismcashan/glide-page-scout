@@ -21,6 +21,7 @@ const CATEGORY_OPTIONS = [
   { value: 'feature', label: 'Feature' },
   { value: 'bug', label: 'Bug' },
   { value: 'idea', label: 'Idea' },
+  { value: 'plan', label: 'Plan' },
 ];
 
 const PRIORITY_OPTIONS = [

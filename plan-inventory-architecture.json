@@ -1,0 +1,240 @@
+[
+  {
+    "title": "Fix deals status CHECK constraint mismatch with sync code",
+    "description": "The deals table has CHECK (status IN ('open', 'won', 'lost', 'archived')) but hubspot-deals-sync writes status: 'closed'. Either the constraint was silently dropped or service_role bypasses it. Plan should: verify current DB constraint state, align the constraint with actual usage (add 'closed' or map to 'won'/'lost'), and update the sync code to write semantically correct statuses (won/lost instead of generic 'closed').",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Create company_source_data table or remove references",
+    "description": "global-sync/index.ts writes to company_source_data (upsert with onConflict: 'company_id,source') and CompanyDetailPage.tsx reads from it, but no migration creates this table. Plan should: check if the table exists in production, create a migration if missing (with RLS, indexes on company_id+source), or remove dead references if the feature was abandoned.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Consolidate integration registry into single shared module",
+    "description": "Integration definitions (key, fn, column, buildBody) are duplicated across at least 4 files: crawl-start/index.ts (full registry with batches), crawl-phase1/index.ts (batch 1 integrations), crawl-phase2/index.ts (batch 2), crawl-phase3/index.ts (batch 3). Plus CrawlPage.tsx and ConnectionsPage.tsx have their own integration lists on the frontend. Plan should: create supabase/functions/_shared/integration-registry.ts as single source of truth, refactor all phase functions to import from it, and create a matching src/config/integrations.ts for the frontend.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Consolidate HubSpot pipeline definitions into single source of truth",
+    "description": "Pipeline IDs, stage IDs, and labels are duplicated in: hubspot-deals-sync/index.ts (PIPELINES const), useCachedQueries.ts (identical PIPELINES const + LEAD_STATUSES), and hubspot-pipeline/index.ts. Any stage change requires editing 3+ files. Plan should: create a shared pipeline-config module used by both edge functions and frontend, with a single update point for pipeline/stage changes.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Extract shared hubspotFetch utility from duplicated implementations",
+    "description": "hubspotFetch() with rate-limit retry is independently defined in hubspot-deals-sync, hubspot-contacts-sync, hubspot-pipeline, company-artifacts, and hubspot-lookup — 5 separate implementations. Plan should: create supabase/functions/_shared/hubspot-client.ts with the shared fetch utility including rate-limit handling, pagination helpers, and batch-read helpers.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Extract shared CORS headers into _shared module",
+    "description": "corsHeaders object is defined independently in 96 edge functions, with slight variations in allowed headers across files. Plan should: create supabase/functions/_shared/cors.ts exporting a single canonical corsHeaders object and a withCors() response helper, then update all functions to import it.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add retry logic with exponential backoff to hubspot-deals-sync for rate-limited responses",
+    "description": "hubspot-deals-sync has basic rate-limit handling (wait Retry-After seconds and retry once via recursion) but no max retry limit — infinite recursion possible if permanently rate-limited. Also no exponential backoff for non-429 transient errors. Plan should: add max retry count (3), exponential backoff for 5xx errors, and circuit-breaker pattern to stop after N consecutive failures.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Replace delete-all-then-insert pattern in deals/contacts sync with upsert",
+    "description": "hubspot-deals-sync deletes ALL deals then re-inserts (line 331: delete().not('hubspot_deal_id', 'is', null)). hubspot-contacts-sync does the same for lead contacts. This creates a brief window where the deals/contacts tables are empty, breaking any concurrent reads. Plan should: switch to upsert on hubspot_deal_id/hubspot_contact_id, with a cleanup pass for deals no longer in HubSpot.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add transaction safety to sync functions that do multi-step DB operations",
+    "description": "hubspot-deals-sync performs ~8 sequential DB operations (delete deals, insert deals, insert contacts, create companies, trigger enrichment, trigger crawls) without transactions. A failure mid-way leaves partial state. Plan should: wrap critical multi-step operations in Supabase RPC transactions, or implement idempotent checkpoint-based recovery.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add user_id scoping to sync edge functions instead of hardcoding from first company",
+    "description": "Both hubspot-deals-sync and hubspot-contacts-sync get user_id by querying the first company row (line 108: 'No companies found — run global-sync first'). This breaks for multi-tenant or if companies table is empty. Plan should: pass user_id in the request body or extract from auth token, add it as a required parameter for all sync functions.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Implement scheduled sync via pg_cron for deals, contacts, and companies",
+    "description": "Per CLAUDE.md priorities, sync is currently manual-trigger only. Plan should: set up pg_cron jobs for hubspot-deals-sync (every 30 min), hubspot-contacts-sync (every 30 min), and global-sync (every 6 hours). Include health monitoring, failure alerting, and a sync_runs log table to track execution history.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Move crawl-recover from client-side watchdog to server-side pg_cron",
+    "description": "Per CLAUDE.md priority #6, crawl-recover is currently triggered by client-side watchdog (auto-calls if session stuck >2min pending or >10min analyzing). This only works if a browser tab is open. Plan should: create a pg_cron job calling crawl-recover every 5 minutes, remove client-side watchdog dependency, and add monitoring for zombie session frequency.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add edge function timeout protection for long-running crawl phases",
+    "description": "Supabase edge functions have a 60s default timeout (or up to 5min for Pro). crawl-phase1 runs up to 20 integrations at concurrency 4, each with 120s timeout — total wall time could exceed edge function limits. Plan should: audit actual execution times, consider splitting large phases into sub-invocations, add progressive status updates, and handle edge function timeout gracefully.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add idempotency to crawl-start to prevent duplicate crawl sessions",
+    "description": "crawl-start doesn't check if a crawl is already in progress for the same domain. If triggered twice (e.g., by auto-crawl in deals-sync AND contacts-sync running concurrently), it creates duplicate sessions. Plan should: add a lock/check for existing pending/analyzing sessions for the same domain before creating new ones.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Regenerate Supabase TypeScript types from current schema",
+    "description": "Per CLAUDE.md known issues, supabase types are stale. The schema has evolved significantly (companies, contacts, deals, engagements, wishlist tables, plan_content column). Plan should: run supabase gen types typescript, update src/integrations/supabase/types.ts, fix any type errors that surface, and set up a pre-commit hook or CI step to keep types in sync.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add missing staleTime/gcTime to hooks with no explicit cache configuration",
+    "description": "useSessions(), useSiteGroups(), useWishlistItems(), usePipelineDeals(), usePipelineLeads(), usePipelineStats(), useChatThreads(), useCompanies(), useCompany() all rely on the global default (5min stale, 30min gc from App.tsx). Some of these need different timers — e.g., pipeline deals should refetch more frequently during active sales work, while chat threads include a refreshKey hack. Plan should: audit each hook's optimal staleTime, remove the refreshKey workaround for chat threads, and document caching strategy.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add RLS policies to tables missing coverage",
+    "description": "The RLS migration covers crawl_sessions, crawl_pages, crawl_screenshots, integration_runs, companies, contacts, deals, engagements. But other tables referenced in the code may lack RLS: integration_settings, site_groups, site_group_members, wishlist_items, wishlist_attachments, wishlist_comments, chat_threads, profiles, contact_photos, model_pricing, ai_usage_log, roadmaps, proposals, project_estimates. Plan should: audit every table for RLS status and add user-scoped policies where missing.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add database indexes for common query patterns missing coverage",
+    "description": "Several query patterns lack supporting indexes: deals.pipeline + deals.status (pipeline page filters), contacts.lead_status (leads query), crawl_sessions.domain (domain-based lookups in batch-crawl), crawl_sessions.status + updated_at (zombie recovery), integration_runs.session_id + status (phase runner queries). Plan should: analyze slow query logs, add composite indexes for these access patterns.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add validation for enrichment_data JSONB structure",
+    "description": "companies.enrichment_data is an untyped JSONB blob that accumulates data from Apollo, Ocean.io, Avoma, SEMrush, HubSpot. Different sync paths write different structures. syncEnrichmentToCompany() does shallow merge which can lose nested data. Plan should: define a TypeScript interface for enrichment_data shape, add runtime validation in sync functions, use deep merge instead of shallow spread, and add a migration to clean inconsistent existing data.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Fix syncEnrichmentToCompany reading stale session data after phase 1",
+    "description": "In crawl-phase1, syncEnrichmentToCompany(session, sb) is called with the original session object loaded at the start of the phase. But runIntegration() updates the session cache in-memory (line 90 of phase-runner.ts: session[int.column] = data). However, this only works for non-self-persisted results. Self-persisted integrations update the DB directly but don't update the local session object, so syncEnrichmentToCompany may miss their data. Plan should: re-fetch the session from DB before calling syncEnrichmentToCompany.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add error boundaries and structured error logging across edge functions",
+    "description": "Most edge functions catch errors and return JSON with { error: e.message }, but there's no structured logging, no error categorization (retryable vs fatal), no correlation IDs, and no centralized error tracking. Plan should: create a _shared/error-handler.ts with structured error responses, add request correlation IDs, integrate with Supabase logs for monitoring, and standardize error response shapes.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add usage logging to all AI-calling edge functions",
+    "description": "usage-logger.ts exists but needs to be verified as actually imported by all AI-calling functions (council-chat, knowledge-chat, ai-outline, ai-group-scope, beautiful-ai, deep-research, generate-proposal, generate-growth-plan, etc.). Plan should: audit all AI-calling functions for usage logging, add it where missing, and create a dashboard query for cost tracking.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Wire company-match-ai edge function into UI",
+    "description": "Per CLAUDE.md known issues, company-match-ai is deployed but not connected to any UI. Plan should: design the integration point (likely in global-sync or as a manual action in CompanyDetailPage), add UI for reviewing and approving AI-suggested company matches, and handle merge/link operations.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add Harvest OAuth token refresh automation",
+    "description": "Per integration status, Harvest OAuth token expires every 14 days with refresh stored. But there's no automated refresh mechanism — if the token expires during a sync, it fails silently. Plan should: add token refresh logic to harvest-sync and global-sync, store refresh_token and expiry in a secure location, and add monitoring for upcoming expirations.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Split large page files for better code maintainability and bundle size",
+    "description": "ResultsPage.tsx (174KB), SettingsPage.tsx (76KB), CompanyDetailPage.tsx (70KB), and ConnectionsPage.tsx (54KB) are massive single files. Plan should: extract tab content into separate components, use React.lazy() for code splitting on tab-level, and add route-based code splitting for these heavy pages.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add integration health monitoring dashboard",
+    "description": "integration-health edge function exists but there's no visible dashboard for monitoring sync health over time. Plan should: create a health monitoring view in Settings showing last sync time per integration, success/failure rates, average duration, and alerting for stale syncs (e.g., deals not synced in >2 hours).",
+    "priority": "low",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add batch-crawl throttling awareness for Supabase edge function concurrency limits",
+    "description": "batch-crawl fires up to 3 concurrent crawl-start calls, each of which dispatches crawl-phase1 (which runs 20 integrations at concurrency 4). This means batch-crawl can have 3 × 20 = 60 edge function invocations in flight. Plan should: add awareness of Supabase's concurrent function limits, implement backpressure, and add a queue system for large batch operations.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add data retention and archival strategy for crawl_sessions",
+    "description": "crawl_sessions stores full audit data (PSI, WAVE, W3C, etc.) as JSONB columns — each session can be several hundred KB. With batch-crawl creating sessions for all pipeline companies, the table will grow rapidly. Plan should: add archival strategy (move old sessions to cold storage or compress), add retention policies, and consider moving large JSONB payloads to Supabase Storage.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Fix global-sync N+1 query pattern in company upsert loop",
+    "description": "global-sync iterates over unified clients and does individual supabase.from('companies').update() or .insert() calls per company — up to 2000+ sequential DB calls. Plan should: batch the upserts using .upsert() with arrays, process in chunks of 100, and use Promise.all for concurrent batches.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add contact deduplication strategy across sync sources",
+    "description": "hubspot-deals-sync creates contacts from deal associations. hubspot-contacts-sync creates contacts from lead status. Both can create the same contact with different data. The dedup is email-based within a single sync run but not across runs. Plan should: add a contact resolution layer (similar to company resolution) that deduplicates by email + hubspot_contact_id, merges data from multiple sources, and handles conflicts.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add observability for TanStack Query cache hit rates and fetch timing",
+    "description": "The app has extensive TanStack Query caching but no visibility into whether caching is actually helping. Plan should: add query timing instrumentation, cache hit/miss tracking, and a developer panel showing query performance metrics to guide staleTime tuning.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Strengthen company-resolution.ts with Harvest and Freshdesk external ID matching",
+    "description": "resolveCompany() currently only matches by hubspot_company_id and domain. It doesn't check harvest_client_id or freshdesk_company_id. This means a company known by Harvest but not HubSpot can be created as a duplicate. Plan should: extend resolveCompany() to accept and match on all external IDs (hubspot, harvest, freshdesk), and add fuzzy name matching as a fallback.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add webhook-based sync for HubSpot instead of polling",
+    "description": "Current sync pulls all deals/contacts on each run (1000+ deals). HubSpot supports webhooks for real-time updates. Plan should: set up HubSpot webhook subscriptions for deal/contact/company changes, create a webhook receiver edge function, process incremental updates instead of full resyncs, and keep the full sync as a fallback/reconciliation job.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "architecture"
+  },
+  {
+    "title": "Add migration squashing to reduce 76+ migration files",
+    "description": "There are 76+ migration files, many with UUID-based names from early rapid development. This makes it hard to understand the current schema state. Plan should: create a single baseline migration representing the current production schema, archive historical migrations, and establish naming conventions for future migrations.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "architecture"
+  }
+]

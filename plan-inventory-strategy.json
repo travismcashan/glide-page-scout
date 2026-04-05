@@ -1,0 +1,240 @@
+[
+  {
+    "title": "Design pattern schema and seed patterns table from existing client verticals",
+    "description": "Define the database schema for the Pattern Library (Brain Pillar 3): industry, vertical, block_type, conversion_data, persona_mapping, sample_size, confidence_score. Create the patterns table with seed data from 5 existing GLIDE client verticals (e.g., healthcare, legal, SaaS, nonprofit, home services). Include migration, RLS policies, and a TanStack Query hook.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Build Pattern Library browse/search UI with vertical filtering",
+    "description": "Design and implement the Pattern Library page — the 'key differentiator' that turns agency experience into compounding advantage. Vertical-specific goals, block-level conversion patterns with performance data, persona-mapped user flows. Filterable by industry, block type, and persona. This is the UI layer on top of the patterns table.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Pattern Library feedback loop — connect crawl/audit outcomes back to patterns",
+    "description": "Design the closed loop where crawl results, site scores, and GA4/Search Console data feed back into pattern confidence scores. When a pattern is applied to a client site and outcomes improve, the pattern's confidence score increases. This is Brain Pillars 6 (Outcomes) and 7 (Learning) applied to patterns.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Implement CIRT alignment scoring on company records",
+    "description": "CIRT (Context→Intent→Relevance→Trust) is documented in CLAUDE.md but not implemented anywhere in the product. Design a CIRT scoring model that evaluates each company/prospect across the 4 dimensions using enrichment data (Apollo org, Ocean demographics, crawl results, engagement history). Store scores on companies.enrichment_data.cirt. Surface in Growth workspace company overview.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Build 5 Pillars of Strategic Context diagnostic for prospects",
+    "description": "The 5C framework (Climate, Competition, Customers, Company, Culture) exists in the proposal StrategicFoundation section as AI-generated content but is not a standalone diagnostic tool. Build an interactive 5C assessment that combines enrichment data, crawl results, and RAG knowledge into a structured diagnostic. Output feeds into CIRT Context scoring and proposal generation.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Implement Stakeholder Intent Matrix for deal contacts",
+    "description": "CIRT's Intent dimension requires mapping stakeholder intents across the buying committee. Design a UI within the deal/company context that maps each contact to their intent type (Informational, Commercial, Transactional, Navigational) and tracks progression. Uses existing contacts + deal associations from HubSpot sync.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design ARISE engagement framework as a deal workflow template",
+    "description": "ARISE (Alignment→Research→Innovation→Strategy→Execution) is documented but not reflected in any UI or workflow. Design it as a deal progression framework — each ARISE stage maps to deal activities, required deliverables, and completion criteria. Could overlay on the existing deal pipeline as a methodology lens.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Build Measurement Spine tracker — Goal→Objective→KPI→Metrics→IVs",
+    "description": "The Measurement Spine is documented extensively but only appears as a static MeasurementPlan section in AI-generated proposals. Build an interactive measurement configuration tool: define Goals, map Objectives, set KPIs (max 4), define Metrics (4-6 per KPI), and identify IVs (10-30 per metric). Store per-company. Connect to GA4/Search Console actuals.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Implement Move/Surface/Signal execution tracking",
+    "description": "The Move/Surface/Signal model (Move = atomic shipped change, Surface = where it lives, Signal = how it's observed) has no implementation. Design the data model and UI for tracking Moves against Surfaces and Signals. Enforce the rule: no IVs → no deploy, no Signals → no credit. This is how the Measurement Spine connects to actual execution.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Implement NMA scoring and BHAG progress dashboard",
+    "description": "The BHAG (100M Meaningful Actions by 2030) and NMA formula (Σ wi × (Posti − Prei)) are documented but not implemented. Build: (1) NMA calculation from GA4 Key Events data, (2) BRI (Beauty × Results Index) = CVR uplift × Craft Score, (3) a dashboard showing progress toward 100M with per-client contribution breakdowns.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Three Lenses crosswalk enforcement in the product",
+    "description": "The Three Lenses (Front Stage/Back Stage/House) and crosswalk rules (JTBD↔Goal, Moment↔Pattern, Signal↔Event, etc.) are documented but have zero product implementation. Design how the no-orphan rule would be enforced: no Goal without JTBD, no Moment without Pattern, no Signal without tracked Event. Start with the company roadmap/proposal tabs where these concepts naturally surface.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "StoryBrand audit — align proposal and client-facing surfaces to BrandScript structure",
+    "description": "The StoryBrand framework (Audience→Conflict→Guide→Plan→Proof→Purpose→CTA) is documented with a homepage wireframe but the existing proposal sections don't fully follow the prescribed narrative arc. Audit ProposalTab sections against StoryBrand structure. Design a BrandScript template that can be generated per-company and drive both proposals and client website recommendations.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design client-facing portal for Phase 2 (Ascend brand, read-only dashboards)",
+    "description": "Growth Trajectory Phase 2 = client-facing portal. Currently the entire app is internal GLIDE-branded. Plan the client portal: separate auth flow (invite-based), Ascend branding throughout, read-only views of their company's roadmap/measurement/proposal, project status from Delivery workspace, and knowledge base access. Requires role-based access control beyond current user-scoped RLS.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Ascend brand system for client-facing surfaces",
+    "description": "The brand architecture says all client/prospect-facing UI should be branded as 'Ascend' but the current app is GLIDE-branded throughout (login, sidebar, proposals reference GLIDE). Plan the Ascend brand identity: logo, color palette extension, typography choices, and which surfaces switch from GLIDE to Ascend branding. The BrandGuidePage exists but is GLIDE-focused.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Build Agency Brain Pillar 3: Patterns — recognition engine from enrichment data",
+    "description": "Patterns is the next Brain pillar after Connections and Knowledge Base. Design the recognition engine: what patterns does the system detect? (e.g., 'healthcare companies with 50-200 employees convert 3x when shown compliance-focused messaging'). Sources: enrichment_data across all companies, crawl results, deal outcomes. Output: structured pattern records with confidence scores.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Agency Brain Pillar 4: Insights — meaning extraction from patterns",
+    "description": "Insights = 'what it means.' Design the system that synthesizes patterns into actionable insights. E.g., 'Your SaaS vertical is 2.3x more profitable than healthcare — consider vertical specialization.' Insights should surface proactively on company overviews and in the Growth workspace. Define insight types, generation triggers, and display locations.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Agency Brain Pillar 5: Actions — recommendation engine",
+    "description": "Actions = 'what to do.' Design the recommendation engine that converts Insights into specific next-step recommendations. E.g., 'Run Apollo team search for VP Marketing contacts at Acme Corp based on deal stage + CIRT score.' Actions should be dismissable, completable, and feed back into Outcomes (Pillar 6).",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Agency Brain Pillars 6-7: Outcomes and Learning feedback loop",
+    "description": "Outcomes (did it work?) + Learning (what we learned) complete the compounding intelligence loop. Design: (1) how outcomes are captured (deal won/lost, project delivered on time, NMA score), (2) how Learning feeds back to improve Patterns, Insights, and Actions over time. This is the self-improving engine that makes the platform a category creator.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Audit and complete Growth workspace — missing Contacts and Companies pages",
+    "description": "Growth workspace nav has Leads, Deals, Crawls, Contacts, Companies — but assess completeness. Leads/Deals are pipeline views. Contacts page exists but may not be Growth-optimized (enrichment-focused views, Apollo data prominence). Companies page exists but may duplicate Delivery view. Plan Growth-specific views emphasizing prospecting, enrichment quality, and deal velocity.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Delivery workspace completeness — project tracking, time, tickets integration",
+    "description": "Delivery workspace has Clients, Projects, Crawls. Projects page reads from DB (per CLAUDE.md priority #1 — may still hit Asana/Harvest APIs). Assess: is time tracking visible per-project? Are Freshdesk tickets surfaced contextually? Is the Delivery workspace truly usable for day-to-day client delivery work, or is it still a shell with conditional tabs?",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Admin workspace completeness — invoicing, utilization, financial reporting",
+    "description": "Admin workspace has Clients, Invoicing, Crawls. Invoicing routes to /pipeline (Receipt icon) — is this the right abstraction? QuickBooks data is CSV-imported. Plan: proper invoice tracking from QuickBooks, team utilization view (CLAUDE.md priority #8), financial dashboards, and margin analysis per client/vertical.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design multi-tenancy architecture for Phase 3 (other agencies adopt)",
+    "description": "Phase 3 = other agencies adopt Ascend. Currently zero multi-tenancy: all data is user-scoped RLS to a single team. Plan: org/tenant model, tenant-scoped RLS, per-tenant branding/settings, shared vs. tenant-specific Pattern Library, billing/subscription model, onboarding flow for new agencies. This is the biggest architectural shift in the growth trajectory.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design agency onboarding experience for Phase 3 adoption",
+    "description": "When another agency signs up for Ascend, what's the experience? Plan: integration connection wizard (HubSpot, Harvest equivalents), initial data sync, Pattern Library access (shared industry patterns), workspace configuration, team member invitations, and guided first-week workflow that demonstrates value before requiring full setup.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Build plan inventory and session queue infrastructure",
+    "description": "The plan-first workflow needs infrastructure: (1) plans table in Supabase with status/priority/dependencies, (2) Plans page for browsing/filtering/prioritizing (PlanDetailPage.tsx exists but may be incomplete), (3) session queue that orders plans by priority and dependency, (4) plan-to-wishlist integration (plan is already a wishlist category). This enables the Code Council concept.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Code Council — AI-driven plan review and prioritization",
+    "description": "The Code Council concept: multiple AI perspectives (architecture, product, strategy, security) review and score plans before implementation. Design: (1) council composition (which perspectives), (2) scoring rubric per perspective, (3) synthesis into final priority/recommendation, (4) UI for reviewing council output. Builds on the existing model council chat infrastructure (currently broken per known issues).",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Service Hierarchy as a navigable catalog tied to roadmaps",
+    "description": "The GLIDE Ladder (Activities→Workflows→Phases/Cycles→Offerings→Stages→Roadmap) and service catalog (100s-500s) exist in documentation. ServiceDetailPage and ServicesPage exist in code. Plan: make the service hierarchy interactive — browse by stage (Define/Deliver/Grow), filter by service code, link offerings to roadmap items, and connect to estimate generation.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Digital Roadmap as a productized offering with self-serve generation",
+    "description": "The RoadmapTab exists with a rich component set (TimelineCanvas, ServiceCatalog, InvestmentOptions, FeatureMatrix). Plan: evolve this from a per-company internal tool to a productized 'Digital Roadmap' offering that can be partially self-serve for prospects. A prospect provides their URL, gets a crawl + enrichment, and receives a draft roadmap — this is the Phase 2 wedge product.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Implement ICP definition and persona management system",
+    "description": "CIRT's Customers pillar references ICP→Personas→Journey but there's no ICP/persona management in the product. Design: (1) ICP definition tool using enrichment data patterns (Apollo org data, Ocean demographics across won deals), (2) persona templates with JTBD mapping, (3) persona-to-content recommendation engine that leverages the Pattern Library.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design competitive intelligence view using enrichment data",
+    "description": "CIRT's Context dimension and the 5C framework both require competitive analysis. Apollo and Ocean data include tech stack, keywords, and industry positioning. Plan: (1) per-company competitor identification from enrichment data, (2) competitive landscape visualization per vertical, (3) competitive gap analysis that feeds into proposal positioning and Pattern Library refinement.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design knowledge-to-proposal pipeline — RAG feeding AI proposal generation",
+    "description": "The RAG system (hybrid search, reranker, inline citations) and proposal generation (ProposalTab with section-by-section AI) exist independently. Plan the explicit pipeline: when generating a proposal, the AI should pull from company-specific knowledge (Avoma transcripts, engagement history, crawl results) via RAG to produce contextually rich proposals rather than generic ones.",
+    "priority": "high",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design brand consistency audit — Ascend vs GLIDE surface inventory",
+    "description": "Document every UI surface that references 'GLIDE' vs 'Ascend' and plan the separation. Current state: login page uses AnimatedLogo (likely GLIDE), proposals say 'Why GLIDE', sidebar shows 'GLIDE® Growth/Delivery/Admin', BrandGuidePage is GLIDE-focused. Map which surfaces remain GLIDE (internal) vs switch to Ascend (client-facing) per the brand architecture.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design trust scoring system — CIRT Trust Spiral implementation",
+    "description": "CIRT's Trust dimension is 'both prerequisite and outcome (recursive).' Design: (1) T0 threshold calculation (minimum trust signals needed before outreach), (2) T1 earned trust tracking (engagement depth, response rates, meeting outcomes from Avoma), (3) Trust Spiral visualization showing trust compounding over the relationship lifecycle.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Design Growth workspace deal velocity analytics",
+    "description": "Growth workspace needs analytics beyond pipeline boards: deal velocity (time in each stage), conversion rates by vertical/source/size, forecast accuracy, and win/loss analysis tied to enrichment quality. Uses deal data already synced from HubSpot. Connects Measurement Spine (Metrics level) to Growth activities.",
+    "priority": "medium",
+    "category": "plan",
+    "domain": "strategy"
+  },
+  {
+    "title": "Plan Prompt Library evolution into reusable AI workflow templates",
+    "description": "PromptLibrary component exists in ResultsPage and SettingsPage. Plan: evolve from a static prompt collection into reusable AI workflow templates that combine prompts with data sources (enrichment fields, RAG queries, crawl context). Templates should be shareable across the team and eventually across agencies in Phase 3.",
+    "priority": "low",
+    "category": "plan",
+    "domain": "strategy"
+  }
+]

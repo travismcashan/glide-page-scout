@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,7 @@ import type { WishlistItem } from '@/components/wishlist/KanbanCard';
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export default function WishlistPage() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { items, loading, refetch } = useWishlistItems();
   const invalidateWishlist = useInvalidateWishlist();
@@ -301,7 +303,10 @@ export default function WishlistPage() {
             items={filteredItems}
             onStatusChange={updateStatus}
             onDelete={deleteItem}
-            onCardClick={(item) => { setSelectedItem(item); setModalOpen(true); }}
+            onCardClick={(item) => {
+              if (item.category === 'plan') { navigate(`/plans/${item.id}`); return; }
+              setSelectedItem(item); setModalOpen(true);
+            }}
             deleting={deleting}
           />
         )}

@@ -112,6 +112,7 @@ export function KanbanToolbar({
             <SelectItem value="feature">Features</SelectItem>
             <SelectItem value="bug">Bugs</SelectItem>
             <SelectItem value="idea">Ideas</SelectItem>
+            <SelectItem value="plan">Plans</SelectItem>
           </SelectContent>
         </Select>
 
