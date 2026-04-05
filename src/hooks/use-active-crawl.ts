@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-/** Returns true if any crawl session is currently running (status = 'analyzing') */
+/** Returns true if any crawl session is currently running (status = 'pending' or 'analyzing') */
 export function useActiveCrawl(): boolean {
   const [active, setActive] = useState(false);
 
@@ -12,7 +12,7 @@ export function useActiveCrawl(): boolean {
       const { count } = await supabase
         .from('crawl_sessions')
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'analyzing');
+        .in('status', ['pending', 'analyzing']);
       if (mounted) setActive((count ?? 0) > 0);
     };
 

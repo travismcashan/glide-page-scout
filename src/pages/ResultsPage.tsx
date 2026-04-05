@@ -292,8 +292,8 @@ export default function ResultsPage() {
     if (!tags || typeof tags !== 'object') return false;
     return Object.keys(tags).some(k => k.startsWith('http'));
   }, [(session as any)?.page_tags]);
-  // Guard: don't re-trigger integrations if server-side crawl already completed
-  const serverCompleted = session?.status === 'completed' || session?.status === 'completed_with_errors';
+  // Guard: don't re-trigger integrations if server-side crawl already completed or cancelled
+  const serverCompleted = session?.status === 'completed' || session?.status === 'completed_with_errors' || session?.status === 'cancelled';
 
   // Prospect domain override for prospecting integrations
   const [prospectDomainInput, setProspectDomainInput] = useState('');
@@ -642,11 +642,63 @@ export default function ResultsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [sessionId, updateSession]);
 
+  // ── Realtime subscription to crawl_sessions status changes ──
+  // Detects pending→analyzing, pending→failed transitions so UI updates without refresh
+  useEffect(() => {
+    if (!sessionId) return;
+    const channel = supabase
+      .channel(`session-status-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'crawl_sessions',
+          filter: `id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as any)?.status;
+          if (newStatus && session?.status !== newStatus) {
+            updateSession({ status: newStatus } as any);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [sessionId, session?.status, updateSession]);
+
+  // ── Client-side watchdog: recover stuck sessions ──
+  useEffect(() => {
+    if (!sessionId || !session) return;
+    const status = session.status;
+    if (status !== 'pending' && status !== 'analyzing') return;
+
+    const timeoutMs = status === 'pending' ? 2 * 60_000 : 10 * 60_000;
+    const createdAt = new Date(session.created_at).getTime();
+    const elapsed = Date.now() - createdAt;
+    const remaining = timeoutMs - elapsed;
+
+    if (remaining <= 0) {
+      // Already past timeout — trigger recovery now
+      supabase.functions.invoke('crawl-recover', { body: { session_id: sessionId } })
+        .catch(err => console.error('crawl-recover failed:', err));
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      supabase.functions.invoke('crawl-recover', { body: { session_id: sessionId } })
+        .catch(err => console.error('crawl-recover failed:', err));
+    }, remaining);
+
+    return () => clearTimeout(timer);
+  }, [sessionId, session?.status, session?.created_at]);
+
   // ── Analysis stop control ──
   const [analysisStopped, setAnalysisStopped] = useState(false);
   const analysisStoppedRef = useRef(false);
 
-  const handleStopAnalysis = useCallback(() => {
+  const handleStopAnalysis = useCallback(async () => {
     analysisStoppedRef.current = true;
     setAnalysisStopped(true);
     // Set all trigger refs to prevent any new effects from firing
@@ -661,8 +713,13 @@ export default function ResultsPage() {
     ].forEach(ref => { ref.current = true; });
     // Abort link checker if running
     if (linkcheckAbortRef.current) linkcheckAbortRef.current.abort();
+    // Cancel server-side pipeline — phase functions will check this and stop
+    if (session?.id) {
+      await supabase.from('crawl_sessions').update({ status: 'cancelled' } as any).eq('id', session.id);
+      updateSession({ status: 'cancelled' } as any);
+    }
     toast.info('Analysis stopped — completed integrations are preserved.');
-  }, []);
+  }, [session?.id, updateSession]);
 
   // ── Integration trigger refs (prevent duplicate API calls during React re-renders) ──
   const builtwithTriggeredRef = useRef(false);
@@ -1800,8 +1857,8 @@ export default function ResultsPage() {
     // 1. Clear data in DB
     await supabase.from('crawl_sessions').update({ [dbColumn]: null } as any).eq('id', session.id);
 
-    // 2. Reset session status if it was completed
-    if (session.status === 'completed' || session.status === 'completed_with_errors') {
+    // 2. Reset session status if it was completed/cancelled
+    if (session.status === 'completed' || session.status === 'completed_with_errors' || session.status === 'cancelled') {
       await supabase.from('crawl_sessions').update({ status: 'analyzing' }).eq('id', session.id);
       updateSession({ status: 'analyzing' } as any);
     }
@@ -2363,8 +2420,33 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Global integration progress bar */}
-      {session && !isSharedView && <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped} />}
+      {/* Session status banner: pending/failed/cancelled states + progress bar */}
+      {session && !isSharedView && session.status === 'pending' && (
+        <div className="bg-muted/30 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[4px] bg-border overflow-hidden">
+            <div className="h-full w-full bg-primary/40 animate-pulse" />
+          </div>
+          <div className="max-w-6xl mx-auto px-6 pt-5 py-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Initializing analysis pipeline...
+            </div>
+          </div>
+        </div>
+      )}
+      {session && !isSharedView && (session.status as string) === 'failed' && (
+        <div className="bg-destructive/5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[4px] bg-destructive/30" />
+          <div className="max-w-6xl mx-auto px-6 pt-5 py-3">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              Failed to start analysis pipeline. Try crawling this site again.
+            </div>
+          </div>
+        </div>
+      )}
+      {session && !isSharedView && session.status !== 'pending' && (session.status as string) !== 'failed' && (
+        <GlobalProgressBar steps={integrationSteps} onStop={handleStopAnalysis} stopped={analysisStopped || session.status === 'cancelled'} />
+      )}
 
       <main className={`px-6 pb-8 space-y-6 w-full`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

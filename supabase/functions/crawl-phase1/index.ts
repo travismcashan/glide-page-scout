@@ -2,7 +2,7 @@
  * crawl-phase1: Runs all batch 1 (independent) integrations with concurrency limit of 8.
  * When done, dispatches crawl-phase2. Single DB connection, no polling.
  */
-import { getSupabase, runIntegration, runPool, dispatchNextPhase, type Integration } from "../_shared/phase-runner.ts";
+import { getSupabase, runIntegration, runPool, dispatchNextPhase, isSessionCancelled, type Integration } from "../_shared/phase-runner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +33,15 @@ Deno.serve(async (req) => {
     }
 
     console.log(`crawl-phase1: starting ${session.domain} (${session_id})`);
+
+    // Check for cancellation before running
+    if (await isSessionCancelled(sb, session_id)) {
+      console.log(`crawl-phase1: session ${session_id} cancelled, skipping`);
+      return new Response(
+        JSON.stringify({ success: true, phase: 1, cancelled: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // All batch 1 integrations (independent, no dependencies)
     // firecrawl-map already ran in crawl-start, so skip it here
@@ -78,8 +87,17 @@ Deno.serve(async (req) => {
 
     console.log(`crawl-phase1: complete for ${session.domain}, dispatching phase 2`);
 
+    // Check for cancellation before dispatching next phase
+    if (await isSessionCancelled(sb, session_id)) {
+      console.log(`crawl-phase1: session ${session_id} cancelled after run, not dispatching phase 2`);
+      return new Response(
+        JSON.stringify({ success: true, phase: 1, ran: toRun.length, cancelled: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Dispatch phase 2
-    dispatchNextPhase("crawl-phase2", session_id, supabaseUrl, anonKey);
+    await dispatchNextPhase("crawl-phase2", session_id, supabaseUrl, anonKey);
 
     return new Response(
       JSON.stringify({ success: true, phase: 1, ran: toRun.length }),

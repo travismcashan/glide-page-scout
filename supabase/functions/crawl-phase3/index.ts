@@ -3,7 +3,7 @@
  * and marks the session as completed/completed_with_errors.
  * This is the final phase — no further dispatch.
  */
-import { getSupabase, runIntegration, runPool, type Integration } from "../_shared/phase-runner.ts";
+import { getSupabase, runIntegration, runPool, isSessionCancelled, type Integration } from "../_shared/phase-runner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +33,15 @@ Deno.serve(async (req) => {
 
     console.log(`crawl-phase3: starting ${session.domain} (${session_id})`);
 
+    // Check for cancellation before running
+    if (await isSessionCancelled(sb, session_id)) {
+      console.log(`crawl-phase3: session ${session_id} cancelled, skipping`);
+      return new Response(
+        JSON.stringify({ success: true, phase: 3, cancelled: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Batch 3 integrations — depend on phase 2 results
     const integrations: Integration[] = [
       { key: "apollo-team", fn: "apollo-team-search", column: "apollo_team_data", buildBody: (s) => ({ domain: s.prospect_domain || s.domain }) },
@@ -60,11 +69,14 @@ Deno.serve(async (req) => {
     // Wait for self-persisting functions to flush their DB writes
     await new Promise(r => setTimeout(r, 2000));
 
-    // Force any phase 3 runs that are still "running" to "done" (they completed via runPool)
+    // Force phase 3 runs that are still "running" to "done" (they completed via runPool)
+    // Only target phase 3 keys — don't blanket-update all running integrations
+    const phase3Keys = integrations.map(i => i.key);
     await sb.from("integration_runs")
       .update({ status: "done", completed_at: new Date().toISOString() })
       .eq("session_id", session_id)
-      .eq("status", "running");
+      .eq("status", "running")
+      .in("integration_key", phase3Keys);
 
     // Now check all runs
     const { data: allRuns } = await sb.from("integration_runs")

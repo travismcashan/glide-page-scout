@@ -154,6 +154,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 5b. Transition session from 'pending' to 'analyzing' now that integration_runs are created
+    await sb.from("crawl_sessions").update({ status: "analyzing" }).eq("id", session_id);
+
     // 6. Run firecrawl-map directly (~2s) — batch 2 needs discovered_urls.
     const functionsUrl = `${supabaseUrl}/functions/v1`;
     const firecrawlInt = toRun.find(i => i.key === "firecrawl-map");

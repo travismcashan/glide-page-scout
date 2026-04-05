@@ -21,6 +21,15 @@ export function getSupabase() {
 }
 
 /**
+ * Check if session has been cancelled. Returns true if cancelled.
+ * Phase functions should call this before running integrations and before dispatching next phase.
+ */
+export async function isSessionCancelled(sb: any, sessionId: string): Promise<boolean> {
+  const { data } = await sb.from("crawl_sessions").select("status").eq("id", sessionId).single();
+  return data?.status === "cancelled";
+}
+
+/**
  * Run a single integration: call its edge function, persist result, update status.
  * Returns true if data was successfully written, false otherwise.
  */
@@ -33,6 +42,17 @@ export async function runIntegration(
 ): Promise<boolean> {
   const sessionId = session.id;
   try {
+    // Check for cancellation before starting
+    if (await isSessionCancelled(sb, sessionId)) {
+      console.log(`  ⊘ ${int.key} skipped (session cancelled)`);
+      await sb.from("integration_runs").update({
+        status: "failed",
+        error_message: "session cancelled",
+        completed_at: new Date().toISOString(),
+      }).eq("session_id", sessionId).eq("integration_key", int.key);
+      return false;
+    }
+
     // Mark as running
     await sb.from("integration_runs").update({ status: "running", started_at: new Date().toISOString() })
       .eq("session_id", sessionId).eq("integration_key", int.key);
@@ -134,19 +154,34 @@ export async function runPool<T>(
 }
 
 /**
- * Dispatch the next phase edge function (fire-and-forget).
+ * Dispatch the next phase edge function with retry.
+ * Tries once, waits 2s, tries again on failure.
  */
-export function dispatchNextPhase(
+export async function dispatchNextPhase(
   phaseFn: string,
   sessionId: string,
   supabaseUrl: string,
   anonKey: string,
 ) {
-  fetch(`${supabaseUrl}/functions/v1/${phaseFn}`, {
+  const doFetch = () => fetch(`${supabaseUrl}/functions/v1/${phaseFn}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
     body: JSON.stringify({ session_id: sessionId }),
-  }).catch((e) => console.error(`Failed to dispatch ${phaseFn}:`, e));
+  });
+
+  try {
+    const resp = await doFetch();
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  } catch (e) {
+    console.error(`Failed to dispatch ${phaseFn} (attempt 1):`, e);
+    // Retry after 2s
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      await doFetch();
+    } catch (e2) {
+      console.error(`Failed to dispatch ${phaseFn} (attempt 2):`, e2);
+    }
+  }
 }
 
 /** Extract URL list from session's discovered_urls */

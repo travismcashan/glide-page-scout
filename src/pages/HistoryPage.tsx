@@ -31,6 +31,7 @@ type CrawlSession = {
   base_url: string;
   status: string;
   created_at: string;
+  company_name?: string | null;
 };
 
 type SortKey = 'domain' | 'date' | 'status';
@@ -45,6 +46,10 @@ function resolveStatus(session: CrawlSession, integrationCount?: number): string
   }
   if (session.status === 'analyzing' && Date.now() - new Date(session.created_at).getTime() > 10 * 60 * 1000) {
     return 'completed';
+  }
+  // Show pending/cancelled/failed as-is
+  if (session.status === 'pending' || session.status === 'cancelled' || (session.status as string) === 'failed') {
+    return session.status;
   }
   return session.status;
 }
@@ -87,18 +92,14 @@ export default function HistoryPage() {
         if (newCompany) companyId = newCompany.id;
       }
 
+      // Create session as 'pending' — crawl-start will set 'analyzing' once pipeline is ready
       const { data: session, error: insertError } = await supabase
         .from('crawl_sessions')
-        .insert({ domain, base_url: formattedUrl, status: 'analyzing', company_id: companyId } as any)
+        .insert({ domain, base_url: formattedUrl, status: 'pending', company_id: companyId } as any)
         .select()
         .single();
 
       if (insertError) throw insertError;
-
-      // Fire server-side orchestrator
-      supabase.functions.invoke('crawl-start', {
-        body: { session_id: session.id },
-      }).catch(err => console.error('crawl-start invoke error:', err));
 
       const { count } = await supabase
         .from('crawl_sessions')
@@ -107,6 +108,17 @@ export default function HistoryPage() {
 
       invalidateSessions();
       navigate(buildSitePath(domain, session.created_at, (count ?? 0) > 1));
+
+      // Await crawl-start — if it fails, user gets a toast and session stays 'pending'
+      const { error: startError } = await supabase.functions.invoke('crawl-start', {
+        body: { session_id: session.id },
+      });
+
+      if (startError) {
+        console.error('crawl-start invoke error:', startError);
+        await supabase.from('crawl_sessions').update({ status: 'failed' } as any).eq('id', session.id);
+        toast.error('Failed to start analysis pipeline — please try again');
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to start analysis');

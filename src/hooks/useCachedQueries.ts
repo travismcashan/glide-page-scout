@@ -21,6 +21,24 @@ async function fetchSessions() {
     company_name: s.companies?.name || null,
   })) as any[];
 
+  // For sessions without company_id, try to match by domain
+  const unmatched = sessions.filter(s => !s.company_name);
+  if (unmatched.length > 0) {
+    const domains = [...new Set(unmatched.map(s => s.domain))];
+    const { data: companiesByDomain } = await supabase
+      .from('companies')
+      .select('name, domain')
+      .in('domain', domains);
+    if (companiesByDomain) {
+      const domainMap = new Map(companiesByDomain.map((c: any) => [c.domain, c.name]));
+      for (const s of sessions) {
+        if (!s.company_name && domainMap.has(s.domain)) {
+          s.company_name = domainMap.get(s.domain);
+        }
+      }
+    }
+  }
+
   const domainCounts = new Map<string, number>();
   sessions.forEach(s => domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1));
 

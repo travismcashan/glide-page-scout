@@ -172,25 +172,33 @@ export default function CrawlPage() {
       const formattedUrl = url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`;
       const domain = new URL(formattedUrl).hostname.replace(/^www\./i, '');
 
+      // Create session as 'pending' — crawl-start will set 'analyzing' once pipeline is ready
       const { data: session, error } = await supabase
         .from('crawl_sessions')
-        .insert({ domain, base_url: formattedUrl, status: 'analyzing' } as any)
+        .insert({ domain, base_url: formattedUrl, status: 'pending' } as any)
         .select()
         .single();
 
       if (error) throw error;
 
-      // Fire server-side orchestrator (fire-and-forget)
-      supabase.functions.invoke('crawl-start', {
-        body: { session_id: session.id },
-      }).catch(err => console.error('crawl-start invoke error:', err));
-
+      // Navigate immediately so user sees the results page
       const { count } = await supabase
         .from('crawl_sessions')
         .select('id', { count: 'exact', head: true })
         .eq('domain', domain);
       const needsTimestamp = (count ?? 0) > 1;
       navigate(buildSitePath(domain, session.created_at, needsTimestamp));
+
+      // Await crawl-start — if it fails, user gets a toast and session stays 'pending'
+      const { error: startError } = await supabase.functions.invoke('crawl-start', {
+        body: { session_id: session.id },
+      });
+
+      if (startError) {
+        console.error('crawl-start invoke error:', startError);
+        await supabase.from('crawl_sessions').update({ status: 'failed' } as any).eq('id', session.id);
+        toast.error('Failed to start analysis pipeline — please try again');
+      }
     } catch (error) {
       console.error(error);
       toast.error('Failed to start analysis');
