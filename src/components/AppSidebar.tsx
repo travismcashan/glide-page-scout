@@ -1,7 +1,7 @@
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   ChevronUp, ChevronsUpDown, LogOut, Shield, PanelLeftClose, PanelLeft,
-  Settings, X, Cable, ListChecks, Layers, BarChart3, GitCompareArrows, Link2, Sparkles,
+  Settings, X, Cable, ListChecks, Layers, BarChart3, GitCompareArrows, Link2, Sparkles, ScrollText,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS, type ProductId } from '@/contexts/ProductContext';
@@ -221,7 +221,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Settings"
-                  isActive={location.pathname.startsWith('/settings') || location.pathname === '/connections' || location.pathname === '/wishlist' || location.pathname === '/services' || location.pathname === '/usage'}
+                  isActive={location.pathname.startsWith('/settings') || location.pathname === '/connections' || location.pathname === '/wishlist' || location.pathname.startsWith('/plans') || location.pathname === '/services' || location.pathname === '/usage'}
                   onClick={() => handleNav('/settings')}
                 >
                   <Settings />
@@ -287,6 +287,10 @@ export function AppSidebar() {
                   <DropdownMenuItem onClick={() => { navigate('/wishlist'); setOpenMobile(false); }}>
                     <ListChecks className="mr-2 h-4 w-4" />
                     Wishlist
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { navigate('/plans'); setOpenMobile(false); }}>
+                    <ScrollText className="mr-2 h-4 w-4" />
+                    Plans
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => { navigate('/services'); setOpenMobile(false); }}>
                     <Layers className="mr-2 h-4 w-4" />

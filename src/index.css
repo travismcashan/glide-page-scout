@@ -441,6 +441,60 @@ body[data-scroll-locked] {
   border-radius: 4px;
 }
 
+/* SUPER CRAWL — card entrance animation */
+@keyframes card-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-card-entrance {
+  animation: card-entrance 0.3s ease-out both;
+}
+
+/* SUPER CRAWL — hero section fade in */
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-hero-fade {
+  animation: hero-fade 0.4s ease-out both;
+}
+
+/* SUPER CRAWL — category pill stagger (use with animation-delay) */
+@keyframes pill-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-pill-pop {
+  animation: pill-pop 0.2s ease-out both;
+}
+
+/* SUPER CRAWL — A-grade shimmer celebration */
+@keyframes grade-shimmer {
+  0%, 100% { filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.3)); }
+  50% { filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.5)); }
+}
+.animate-grade-shimmer {
+  animation: grade-shimmer 3s ease-in-out infinite;
+}
+
 /* Print styles for PDF export */
 @media print {
   body {

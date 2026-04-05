@@ -1,21 +1,20 @@
-import { useMemo } from 'react';
-import { Card } from '@/components/ui/card';
 import {
   type OverallScore,
   type CategoryScore,
+  type ScoreSignal,
   gradeToColor,
   gradeToBgColor,
 } from '@/lib/siteScore';
-import { Gauge, Shield, Search, Accessibility, FileText, Code, Zap, Link, Loader2 } from 'lucide-react';
+import { Shield, Search, Accessibility, FileText, Zap, Link, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   performance: <Zap className="h-4 w-4" />,
   seo: <Search className="h-4 w-4" />,
   accessibility: <Accessibility className="h-4 w-4" />,
   security: <Shield className="h-4 w-4" />,
-  content: <FileText className="h-4 w-4" />,
-  technology: <Code className="h-4 w-4" />,
-  'url-analysis': <Link className="h-4 w-4" />,
+  'content-ux': <FileText className="h-4 w-4" />,
+  'url-health': <Link className="h-4 w-4" />,
 };
 
 function ScoreRing({ score, grade, size = 120, placeholder, progressPercent }: { score: number; grade: string; size?: number; placeholder?: boolean; progressPercent?: number }) {
@@ -128,6 +127,19 @@ function CategoryPillPlaceholder({ label, iconKey }: { label: string; iconKey: s
   );
 }
 
+function SignalItem({ signal, type }: { signal: ScoreSignal; type: 'strength' | 'gap' }) {
+  return (
+    <div className="flex items-start gap-2 py-1">
+      {type === 'strength' ? (
+        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+      ) : (
+        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+      )}
+      <span className="text-xs text-muted-foreground leading-relaxed">{signal.summary}</span>
+    </div>
+  );
+}
+
 type Props = {
   overallScore: OverallScore;
   analyzing?: boolean;
@@ -135,6 +147,8 @@ type Props = {
 };
 
 export function ScoreOverview({ overallScore, analyzing, progressPercent }: Props) {
+  const hasSignals = !analyzing && (overallScore.topStrengths.length > 0 || overallScore.topGaps.length > 0);
+
   return (
     <Card className="p-6 mb-8">
       <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -161,11 +175,47 @@ export function ScoreOverview({ overallScore, analyzing, progressPercent }: Prop
           <p className="text-[11px] text-muted-foreground mt-3">
             {analyzing
               ? 'Scores will appear once all integrations complete.'
-              : `Based on ${overallScore.categories.reduce((sum, c) => sum + c.integrations.length, 0)} integrations across ${overallScore.categories.length} categories. Missing integrations are excluded, not penalized.`
+              : `SUPER CRAWL v1.0 — ${overallScore.categories.reduce((sum, c) => sum + c.integrations.length, 0)} integrations across ${overallScore.categories.length} health categories. Missing integrations are excluded, not penalized.`
             }
           </p>
         </div>
       </div>
+
+      {/* Strengths & Gaps */}
+      {hasSignals && (
+        <div className="mt-5 pt-5 border-t border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Strengths */}
+            {overallScore.topStrengths.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  What's Working
+                </h4>
+                <div className="space-y-0.5">
+                  {overallScore.topStrengths.map((s) => (
+                    <SignalItem key={s.key} signal={s} type="strength" />
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Gaps */}
+            {overallScore.topGaps.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Needs Attention
+                </h4>
+                <div className="space-y-0.5">
+                  {overallScore.topGaps.map((s) => (
+                    <SignalItem key={s.key} signal={s} type="gap" />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

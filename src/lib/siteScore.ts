@@ -1,8 +1,10 @@
 /**
- * Unified Scoring System for Site Analysis
- * 
- * Normalizes all integration outputs to 0-100 scores, rolls them up into
- * category scores, and produces an overall site grade.
+ * SUPER CRAWL v1.0 — Unified Site Health Scoring System
+ *
+ * 6 weighted health categories with authority-weighted integrations.
+ * Produces strengths/gaps analysis alongside numeric scores.
+ * Technology category removed (descriptive, not prescriptive).
+ * Business intelligence integrations excluded from scoring.
  */
 
 // ── Grade helpers ──────────────────────────────────────────────
@@ -52,7 +54,13 @@ function letterToScore(letter: string | null | undefined): number | null {
   return LETTER_MAP[letter.toUpperCase().trim()] ?? null;
 }
 
-// ── Integration score extractors ───────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────
+
+function clamp(n: number): number {
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+// ── Types ──────────────────────────────────────────────────────
 
 export type IntegrationScore = {
   key: string;
@@ -60,9 +68,45 @@ export type IntegrationScore = {
   score: number;
 };
 
-function clamp(n: number): number {
-  return Math.max(0, Math.min(100, Math.round(n)));
-}
+export type ScoreSignal = {
+  key: string;
+  label: string;
+  score: number;
+  type: 'strength' | 'gap' | 'neutral';
+  summary: string;
+};
+
+export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content-ux' | 'url-health';
+
+export type CategoryScore = {
+  key: CategoryKey;
+  label: string;
+  score: number;
+  grade: LetterGrade;
+  weight: number;
+  integrations: IntegrationScore[];
+  strengths: ScoreSignal[];
+  gaps: ScoreSignal[];
+};
+
+export type OverallScore = {
+  score: number;
+  grade: LetterGrade;
+  categories: CategoryScore[];
+  topStrengths: ScoreSignal[];
+  topGaps: ScoreSignal[];
+  version: string;
+};
+
+type IntegrationDef = {
+  key: string;
+  label: string;
+  weight: number;
+  extract: (session: any) => number | null;
+  summarize: (session: any, score: number) => string;
+};
+
+// ── Integration score extractors ───────────────────────────────
 
 function extractGtmetrix(session: any): number | null {
   const scores = session.gtmetrix_scores;
@@ -73,18 +117,17 @@ function extractGtmetrix(session: any): number | null {
 function extractPsiCategory(session: any, category: string): number | null {
   const psi = session.psi_data;
   if (!psi) return null;
-  // Support both pre-processed format (categories.performance = 50) and raw Lighthouse format
   const mobileRaw = psi.mobile?.lighthouseResult?.categories?.[category]?.score;
   const desktopRaw = psi.desktop?.lighthouseResult?.categories?.[category]?.score;
   const mobilePre = psi.mobile?.categories?.[category];
   const desktopPre = psi.desktop?.categories?.[category];
-  
+
   const scores: number[] = [];
   if (mobileRaw != null) scores.push(mobileRaw * 100);
   else if (typeof mobilePre === 'number') scores.push(mobilePre);
   if (desktopRaw != null) scores.push(desktopRaw * 100);
   else if (typeof desktopPre === 'number') scores.push(desktopPre);
-  
+
   return scores.length ? clamp(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 }
 
@@ -109,10 +152,9 @@ function extractCrux(session: any): number | null {
   if (!crux?.record?.metrics) return null;
   const metrics = crux.record.metrics;
   const metricScores: number[] = [];
-  
+
   for (const metric of Object.values(metrics) as any[]) {
     if (!metric?.percentiles?.p75 || !metric?.histogram) continue;
-    // Use the "good" percentage from histogram
     const goodPct = metric.histogram?.[0]?.density;
     if (goodPct != null) metricScores.push(goodPct * 100);
   }
@@ -153,7 +195,6 @@ function extractSchema(session: any): number | null {
 function extractWave(session: any): number | null {
   const wave = session.wave_data;
   if (!wave) return null;
-  // Support both formats: wave.categories.error.count and wave.summary.errors
   const errors = wave.categories?.error?.count ?? wave.summary?.errors ?? 0;
   const contrast = wave.categories?.contrast?.count ?? wave.summary?.contrast ?? 0;
   const alerts = wave.categories?.alert?.count ?? wave.summary?.alerts ?? 0;
@@ -164,7 +205,6 @@ function extractWave(session: any): number | null {
 function extractW3c(session: any): number | null {
   const w3c = session.w3c_data;
   if (!w3c) return null;
-  // Support both formats: w3c.messages array and w3c.html/css structure
   if (w3c.messages) {
     const errors = w3c.messages.filter((m: any) => m.type === 'error').length;
     const warnings = w3c.messages.filter((m: any) => m.type === 'info' && m.subType === 'warning').length;
@@ -195,21 +235,11 @@ function extractSslLabs(session: any): number | null {
 function extractReadable(session: any): number | null {
   const readable = session.readable_data;
   if (!readable) return null;
-  // Flesch reading ease: 0-100, higher = easier to read
   if (readable.fleschReadingEase != null) return clamp(readable.fleschReadingEase);
   if (readable.score != null) return clamp(readable.score);
-  // grade_level: lower is simpler. Map 1-16 to 100-0
   if (readable.grade_level != null) return clamp(100 - ((readable.grade_level - 1) / 15) * 100);
   return null;
 }
-
-function extractHttpStatus(session: any): number | null {
-  const hs = session.httpstatus_data;
-  if (!hs || !Array.isArray(hs) || hs.length === 0) return null;
-  const ok = hs.filter((r: any) => r.statusCode >= 200 && r.statusCode < 300).length;
-  return clamp((ok / hs.length) * 100);
-}
-
 
 // ── XML Sitemap scoring ────────────────────────────────────────
 
@@ -233,17 +263,16 @@ function extractSitemap(session: any): number | null {
     const coverageRatio = Math.min(1, stats.totalUrls / discoveredCount);
     score += Math.round(coverageRatio * 25);
   } else {
-    // No discovered URLs to compare — give benefit of doubt
     score += 20;
   }
 
   // 3. Sitemap index structure (15 pts)
   if (groups.length > 2) {
-    score += 15; // Well-organized sitemap index
+    score += 15;
   } else if (groups.length === 2) {
     score += 10;
   } else {
-    score += 8; // Single flat sitemap
+    score += 8;
   }
 
   // 4. Content type segmentation (15 pts)
@@ -256,7 +285,7 @@ function extractSitemap(session: any): number | null {
     score += 3;
   }
 
-  // 5. URL count health — no sitemap should exceed 50k (10 pts)
+  // 5. URL count health (10 pts)
   const hasOversized = groups.some((g: any) => g.urls?.length > 50000);
   const hasEmpty = groups.some((g: any) => !g.urls?.length);
   if (!hasOversized && !hasEmpty) {
@@ -265,12 +294,11 @@ function extractSitemap(session: any): number | null {
     score += 5;
   }
 
-  // 6. URL health bonus (15 pts — no link check data, give benefit of doubt)
+  // 6. URL health bonus (15 pts)
   score += 12;
 
   return clamp(score);
 }
-
 
 // ── HTTP Status scoring ────────────────────────────────────────
 
@@ -278,7 +306,6 @@ function extractHttpStatusDetailed(session: any): number | null {
   const hs = session.httpstatus_data;
   if (!hs) return null;
 
-  // httpstatus_data is a single URL check result with hops array
   const hops: any[] = hs.hops || [];
   if (hops.length === 0) return null;
 
@@ -291,9 +318,8 @@ function extractHttpStatusDetailed(session: any): number | null {
   if (finalStatusCode >= 200 && finalStatusCode < 300) {
     score += 35;
   } else if (finalStatusCode >= 300 && finalStatusCode < 400) {
-    score += 15; // Ends on redirect — not great
+    score += 15;
   }
-  // 5xx or 4xx = 0 pts
 
   // 2. No 5xx in chain (25 pts)
   const has5xx = hops.some((h: any) => h.statusCode >= 500);
@@ -303,7 +329,7 @@ function extractHttpStatusDetailed(session: any): number | null {
   const has4xx = hops.some((h: any) => h.statusCode >= 400 && h.statusCode < 500);
   if (!has4xx) score += 20;
 
-  // 4. Redirect efficiency (10 pts) — single hop = 10, 2 hops = 7, 3+ = 2
+  // 4. Redirect efficiency (10 pts)
   if (redirectCount === 0) {
     score += 10;
   } else if (redirectCount === 1) {
@@ -314,7 +340,7 @@ function extractHttpStatusDetailed(session: any): number | null {
     score += 1;
   }
 
-  // 5. Response time health (10 pts) — based on first byte timing
+  // 5. Response time health (10 pts)
   const finalHop = hops[hops.length - 1];
   const ttfb = finalHop?.timings?.firstByte ?? finalHop?.latency;
   if (ttfb != null) {
@@ -323,7 +349,7 @@ function extractHttpStatusDetailed(session: any): number | null {
     else if (ttfb < 1000) score += 4;
     else score += 1;
   } else {
-    score += 5; // No timing data — neutral
+    score += 5;
   }
 
   return clamp(score);
@@ -335,14 +361,12 @@ function extractNavigation(session: any): number | null {
   const nav = session.nav_structure;
   if (!nav) return null;
 
-  // Combine all nav sections
   const primary: any[] = nav.primary || nav.items || [];
   const secondary: any[] = nav.secondary || [];
   const footer: any[] = nav.footer || [];
 
   if (primary.length === 0 && secondary.length === 0 && footer.length === 0) return null;
 
-  // Helper: compute max depth of a nav tree
   function maxDepth(items: any[], depth = 1): number {
     let max = depth;
     for (const item of items) {
@@ -353,7 +377,6 @@ function extractNavigation(session: any): number | null {
     return max;
   }
 
-  // Helper: count all links
   function countLinks(items: any[]): number {
     let count = 0;
     for (const item of items) {
@@ -363,12 +386,10 @@ function extractNavigation(session: any): number | null {
     return count;
   }
 
-  // Helper: count items with children
   function countWithChildren(items: any[]): number {
     return items.filter((i: any) => i.children?.length).length;
   }
 
-  // Helper: collect all labels
   function collectLabels(items: any[]): string[] {
     const labels: string[] = [];
     for (const item of items) {
@@ -391,7 +412,7 @@ function extractNavigation(session: any): number | null {
   else if (depth === 4) score += 10;
   else score += 5;
 
-  // 2. Breadth balance (20 pts) — top-level item count
+  // 2. Breadth balance (20 pts)
   if (topLevel >= 4 && topLevel <= 8) score += 20;
   else if (topLevel === 3 || (topLevel >= 9 && topLevel <= 10)) score += 15;
   else if (topLevel === 2 || (topLevel >= 11 && topLevel <= 12)) score += 8;
@@ -402,7 +423,7 @@ function extractNavigation(session: any): number | null {
   else if (totalLinks >= 51 && totalLinks <= 80) score += 10;
   else if (totalLinks >= 81 && totalLinks <= 120) score += 6;
   else if (totalLinks > 120) score += 2;
-  else score += 3; // < 5
+  else score += 3;
 
   // 4. Hierarchy coverage (15 pts)
   if (topLevel > 0) {
@@ -418,11 +439,11 @@ function extractNavigation(session: any): number | null {
 
     let labelScore = 15;
     if (avgLen < 2 || avgLen > 40) labelScore = 5;
-    labelScore -= Math.round(dupeRatio * 8); // Penalize duplicates
+    labelScore -= Math.round(dupeRatio * 8);
     score += Math.max(0, labelScore);
   }
 
-  // 6. Key pages present (15 pts) — 3 pts each
+  // 6. Key pages present (15 pts)
   const labelStr = allLabels.map(l => l.toLowerCase()).join(' ');
   const keyPages = [
     /about/i, /contact/i, /service|product|solution/i, /blog|resource|news|insight/i, /home|^$/i,
@@ -434,41 +455,130 @@ function extractNavigation(session: any): number | null {
   return clamp(score);
 }
 
-function extractTechCoverage(session: any): number | null {
-  let points = 0;
-  let checks = 0;
+// ── Link Checker scoring (NEW) ─────────────────────────────────
 
-  const allTechs: string[] = [];
-  
-  // Gather tech names from all detection sources
-  const bw = session.builtwith_data;
-  if (bw?.technologies) {
-    bw.technologies.forEach((t: any) => allTechs.push(t.name?.toLowerCase() || ''));
-  }
-
-  if (allTechs.length === 0) return null;
-
-  const techStr = allTechs.join(' ');
-  
-  // Check for key infrastructure categories
-  const categories = [
-    { name: 'analytics', keywords: ['analytics', 'google analytics', 'gtm', 'tag manager', 'hotjar', 'mixpanel', 'segment'] },
-    { name: 'cdn', keywords: ['cdn', 'cloudflare', 'cloudfront', 'fastly', 'akamai', 'vercel'] },
-    { name: 'cms', keywords: ['wordpress', 'drupal', 'webflow', 'contentful', 'sanity', 'strapi', 'hubspot cms'] },
-    { name: 'security', keywords: ['ssl', 'hsts', 'waf', 'security', 'recaptcha', 'cloudflare'] },
-    { name: 'performance', keywords: ['lazy', 'minif', 'compress', 'cache', 'http/2', 'http/3', 'brotli', 'gzip'] },
-    { name: 'marketing', keywords: ['hubspot', 'marketo', 'mailchimp', 'intercom', 'drift', 'crisp'] },
-  ];
-
-  for (const cat of categories) {
-    checks++;
-    if (cat.keywords.some((kw) => techStr.includes(kw))) points++;
-  }
-
-  return checks > 0 ? clamp((points / checks) * 100) : null;
+function extractLinkChecker(session: any): number | null {
+  const lc = session.linkcheck_data;
+  if (!lc?.summary || !lc.summary.total) return null;
+  const { total, ok, redirects, clientErrors, serverErrors, failures } = lc.summary;
+  const healthy = (ok || 0) + (redirects || 0);
+  const healthyRatio = healthy / total;
+  const errorPenalty = (((clientErrors || 0) * 3) + ((serverErrors || 0) * 5) + ((failures || 0) * 2)) / total;
+  return clamp(healthyRatio * 100 - errorPenalty * 10);
 }
 
-// ── Google Analytics (GA4) scoring ─────────────────────────────
+// ── Forms scoring (NEW) ───────────────────────────────────────
+
+function extractForms(session: any): number | null {
+  const fd = session.forms_data;
+  if (!fd) return null;
+  const forms = fd.forms || [];
+  const summary = fd.summary || {};
+  const uniqueForms = summary.uniqueForms ?? forms.length;
+
+  if (uniqueForms === 0) return 30; // No forms = gap, not failure
+
+  let score = 0;
+
+  // Has forms at all (25 pts)
+  score += 25;
+
+  // Form coverage ratio (20 pts)
+  const pagesScraped = summary.pagesScraped || 1;
+  const pagesWithForms = summary.pagesWithForms || 0;
+  if (pagesScraped > 0) {
+    const coverageRatio = Math.min(pagesWithForms / pagesScraped, 0.5) / 0.5;
+    score += Math.round(coverageRatio * 20);
+  }
+
+  // Uses a recognized platform (20 pts)
+  const platforms = summary.platforms || {};
+  const platformCount = Object.keys(platforms).filter(p => p !== 'Native' && p !== 'native').length;
+  if (platformCount > 0) score += 20;
+  else score += 5;
+
+  // Has captcha (10 pts)
+  const hasCaptcha = forms.some((f: any) => f.hasCaptcha);
+  if (hasCaptcha) score += 10;
+
+  // Diversity of form types (15 pts)
+  const formTypes = summary.formTypes || {};
+  const typeCount = Object.keys(formTypes).length;
+  score += Math.min(typeCount, 3) * 5;
+
+  // Contact form exists (10 pts)
+  const hasContact = forms.some((f: any) =>
+    /contact|inquiry|get.in.touch/i.test(f.formType || '') || /contact/i.test(f.description || '')
+  );
+  if (hasContact) score += 10;
+
+  return clamp(score);
+}
+
+// ── Content Types scoring (NEW) ────────────────────────────────
+
+function extractContentTypes(session: any): number | null {
+  const ct = session.content_types_data;
+  if (!ct) return null;
+
+  const summary: any[] = ct.summary || [];
+  const classified: any[] = ct.classified || [];
+  if (summary.length === 0 && classified.length === 0) return null;
+
+  const types = summary.length > 0 ? summary : [];
+  const totalUrls = types.reduce((sum: number, t: any) => sum + (t.count || 0), 0) || classified.length;
+
+  let score = 0;
+
+  // Has multiple content types (30 pts)
+  if (types.length >= 4) score += 30;
+  else if (types.length >= 2) score += 20;
+  else if (types.length >= 1) score += 10;
+  else score += 5;
+
+  // Has blog/post type content (20 pts)
+  const hasPosts = types.some((t: any) => t.baseType === 'Post' || /post|blog|article/i.test(t.name || ''));
+  if (hasPosts) score += 20;
+
+  // Has structured/custom post types (20 pts)
+  const hasCPT = types.some((t: any) => t.baseType === 'CPT' || /case.stud|portfolio|testimonial|team/i.test(t.name || ''));
+  if (hasCPT) score += 20;
+
+  // Content volume (20 pts)
+  if (totalUrls >= 50) score += 20;
+  else if (totalUrls >= 20) score += 15;
+  else if (totalUrls >= 10) score += 10;
+  else score += 5;
+
+  // Classification confidence (10 pts)
+  if (classified.length > 0) {
+    const highConf = classified.filter((c: any) => c.confidence === 'high' || (c.confidence_score && c.confidence_score > 0.8)).length;
+    score += Math.round((highConf / classified.length) * 10);
+  } else {
+    score += 5;
+  }
+
+  return clamp(score);
+}
+
+// ── Sitemap Coverage scoring (NEW) ─────────────────────────────
+
+function extractSitemapCoverage(session: any): number | null {
+  const sm = session.sitemap_data;
+  const discovered = session.discovered_urls;
+  if (!sm?.found || !Array.isArray(discovered) || !discovered.length) return null;
+
+  const sitemapCount = sm.stats?.totalUrls || 0;
+  if (sitemapCount === 0) return 20;
+
+  const coverageRatio = sitemapCount / discovered.length;
+  // Ideal: 80-120% coverage
+  if (coverageRatio >= 0.8 && coverageRatio <= 1.2) return clamp(90 + (coverageRatio - 0.8) * 25);
+  if (coverageRatio >= 0.5) return clamp(60 + (coverageRatio - 0.5) * 100);
+  return clamp(coverageRatio * 120);
+}
+
+// ── GA4 scoring ────────────────────────────────────────────────
 
 function extractGa4(session: any): number | null {
   const ga4 = session.ga4_data;
@@ -477,25 +587,21 @@ function extractGa4(session: any): number | null {
   let score = 0;
   let factors = 0;
 
-  // Engagement rate (0-1, higher is better) → scale to 0-100
   if (ga4.engagementRate != null) {
     score += clamp(ga4.engagementRate * 100);
     factors++;
   }
 
-  // Bounce rate (0-1, lower is better) → invert
   if (ga4.bounceRate != null) {
     score += clamp((1 - ga4.bounceRate) * 100);
     factors++;
   }
 
-  // Sessions per user (1-10 range → normalize)
   if (ga4.sessionsPerUser != null) {
     score += clamp(Math.min(ga4.sessionsPerUser / 5, 1) * 100);
     factors++;
   }
 
-  // Average session duration (seconds → normalize, 120s+ = good)
   if (ga4.avgSessionDuration != null) {
     score += clamp(Math.min(ga4.avgSessionDuration / 180, 1) * 100);
     factors++;
@@ -504,7 +610,7 @@ function extractGa4(session: any): number | null {
   return factors > 0 ? clamp(score / factors) : null;
 }
 
-// ── Google Search Console scoring ──────────────────────────────
+// ── Search Console scoring ─────────────────────────────────────
 
 function extractSearchConsole(session: any): number | null {
   const gsc = session.search_console_data;
@@ -513,27 +619,22 @@ function extractSearchConsole(session: any): number | null {
   let score = 0;
   let factors = 0;
 
-  // CTR (0-1, higher is better) — 5%+ is good for most sites
   if (gsc.ctr != null) {
     score += clamp(Math.min(gsc.ctr / 0.08, 1) * 100);
     factors++;
   }
 
-  // Average position (1-100, lower is better) — position 1 = 100, 50+ = 0
   if (gsc.position != null) {
     score += clamp(Math.max(0, (1 - (gsc.position - 1) / 49)) * 100);
     factors++;
   }
 
-  // Indexed pages ratio (if available)
   if (gsc.indexedPages != null && gsc.totalPages != null && gsc.totalPages > 0) {
     score += clamp((gsc.indexedPages / gsc.totalPages) * 100);
     factors++;
   }
 
-  // Impressions as a signal (having any is positive)
   if (gsc.impressions != null && gsc.impressions > 0) {
-    // Log scale: 100 impressions = ~50, 10000+ = ~100
     score += clamp(Math.min(Math.log10(gsc.impressions) / 4, 1) * 100);
     factors++;
   }
@@ -541,104 +642,154 @@ function extractSearchConsole(session: any): number | null {
   return factors > 0 ? clamp(score / factors) : null;
 }
 
+// ── Summarize helpers ──────────────────────────────────────────
+
+function summarizeByScore(label: string, score: number): string {
+  if (score >= 90) return `${label} score of ${score} — excellent`;
+  if (score >= 80) return `${label} score of ${score} — good`;
+  if (score >= 70) return `${label} score of ${score} — needs improvement`;
+  if (score >= 60) return `${label} score of ${score} — below average`;
+  return `${label} score of ${score} — poor`;
+}
+
 // ── Category definitions ───────────────────────────────────────
 
-export type CategoryKey = 'performance' | 'seo' | 'accessibility' | 'security' | 'content' | 'technology' | 'url-analysis';
-
-export type CategoryScore = {
-  key: CategoryKey;
-  label: string;
-  score: number;
-  grade: LetterGrade;
-  weight: number;
-  integrations: IntegrationScore[];
-};
-
-export type OverallScore = {
-  score: number;
-  grade: LetterGrade;
-  categories: CategoryScore[];
-};
-
-type IntegrationDef = {
-  key: string;
-  label: string;
-  extract: (session: any) => number | null;
-};
-
-const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrations: IntegrationDef[] }[] = [
+export const CATEGORY_DEFS: { key: CategoryKey; label: string; weight: number; integrations: IntegrationDef[] }[] = [
   {
     key: 'performance',
     label: 'Performance',
-    weight: 27,
+    weight: 25,
     integrations: [
-      { key: 'gtmetrix', label: 'GTmetrix', extract: extractGtmetrix },
-      { key: 'psi-performance', label: 'PageSpeed Performance', extract: extractPsiPerformance },
-      { key: 'psi-best-practices', label: 'Best Practices', extract: extractPsiBestPractices },
-      { key: 'crux', label: 'CrUX', extract: extractCrux },
-      { key: 'yellowlab', label: 'YellowLab', extract: extractYellowLab },
-      { key: 'carbon', label: 'Website Carbon', extract: extractCarbon },
+      { key: 'gtmetrix', label: 'GTmetrix', weight: 30, extract: extractGtmetrix,
+        summarize: (s, sc) => summarizeByScore('GTmetrix performance', sc) },
+      { key: 'psi-performance', label: 'PageSpeed', weight: 30, extract: extractPsiPerformance,
+        summarize: (s, sc) => summarizeByScore('Lighthouse performance', sc) },
+      { key: 'crux', label: 'CrUX', weight: 20, extract: extractCrux,
+        summarize: (s, sc) => sc >= 75 ? `${sc}% of real users have good Core Web Vitals` : `Only ${sc}% of real users have good Core Web Vitals` },
+      { key: 'yellowlab', label: 'YellowLab', weight: 10, extract: extractYellowLab,
+        summarize: (s, sc) => summarizeByScore('Code quality', sc) },
+      { key: 'psi-best-practices', label: 'Best Practices', weight: 5, extract: extractPsiBestPractices,
+        summarize: (s, sc) => summarizeByScore('Best practices', sc) },
+      { key: 'carbon', label: 'Website Carbon', weight: 5, extract: extractCarbon,
+        summarize: (s, sc) => `Cleaner than ${sc}% of websites tested` },
     ],
   },
   {
     key: 'seo',
     label: 'SEO & Search',
-    weight: 20,
+    weight: 22,
     integrations: [
-      { key: 'semrush', label: 'SEMrush', extract: extractSemrush },
-      { key: 'psi-seo', label: 'PageSpeed SEO', extract: extractPsiSeo },
-      { key: 'schema', label: 'Schema.org', extract: extractSchema },
-      { key: 'sitemap', label: 'XML Sitemap', extract: extractSitemap },
-      { key: 'search-console', label: 'Search Console', extract: extractSearchConsole },
+      { key: 'psi-seo', label: 'Lighthouse SEO', weight: 30, extract: extractPsiSeo,
+        summarize: (s, sc) => summarizeByScore('On-page SEO', sc) },
+      { key: 'semrush', label: 'SEMrush', weight: 25, extract: extractSemrush,
+        summarize: (s, sc) => `Domain authority score of ${sc}` },
+      { key: 'search-console', label: 'Search Console', weight: 20, extract: extractSearchConsole,
+        summarize: (s, sc) => summarizeByScore('Search performance', sc) },
+      { key: 'schema', label: 'Schema.org', weight: 15, extract: extractSchema,
+        summarize: (s, sc) => {
+          const errors = (s.schema_data?.errors?.length ?? 0) + (s.schema_data?.invalidSchemas?.length ?? 0);
+          return errors === 0 ? 'Clean structured data with no errors' : `${errors} structured data error${errors > 1 ? 's' : ''} detected`;
+        }},
+      { key: 'sitemap', label: 'XML Sitemap', weight: 10, extract: extractSitemap,
+        summarize: (s, sc) => s.sitemap_data?.found ? `XML sitemap found with ${s.sitemap_data?.stats?.totalUrls || 0} URLs` : 'No XML sitemap found' },
     ],
   },
   {
     key: 'accessibility',
     label: 'Accessibility',
-    weight: 18,
+    weight: 15,
     integrations: [
-      { key: 'psi-accessibility', label: 'Lighthouse', extract: extractPsiAccessibility },
-      { key: 'wave', label: 'WAVE', extract: extractWave },
-      { key: 'w3c', label: 'W3C', extract: extractW3c },
+      { key: 'psi-accessibility', label: 'Lighthouse', weight: 40, extract: extractPsiAccessibility,
+        summarize: (s, sc) => summarizeByScore('Lighthouse accessibility', sc) },
+      { key: 'wave', label: 'WAVE', weight: 40, extract: extractWave,
+        summarize: (s, sc) => {
+          const errors = s.wave_data?.categories?.error?.count ?? s.wave_data?.summary?.errors ?? 0;
+          return errors === 0 ? 'No WAVE accessibility errors detected' : `${errors} accessibility error${errors > 1 ? 's' : ''} detected by WAVE`;
+        }},
+      { key: 'w3c', label: 'W3C', weight: 20, extract: extractW3c,
+        summarize: (s, sc) => summarizeByScore('W3C validation', sc) },
     ],
   },
   {
     key: 'security',
     label: 'Security',
-    weight: 14,
+    weight: 13,
     integrations: [
-      { key: 'observatory', label: 'Observatory', extract: extractObservatory },
-      { key: 'ssllabs', label: 'SSL Labs', extract: extractSslLabs },
+      { key: 'observatory', label: 'Observatory', weight: 55, extract: extractObservatory,
+        summarize: (s, sc) => {
+          const grade = s.observatory_data?.grade || scoreToGrade(sc);
+          return `Mozilla Observatory grade: ${grade}`;
+        }},
+      { key: 'ssllabs', label: 'SSL Labs', weight: 45, extract: extractSslLabs,
+        summarize: (s, sc) => {
+          const grade = s.ssllabs_data?.endpoints?.[0]?.grade || s.ssllabs_data?.grade || scoreToGrade(sc);
+          return `SSL/TLS grade: ${grade}`;
+        }},
     ],
   },
   {
-    key: 'content',
-    label: 'Content',
-    weight: 12,
+    key: 'content-ux',
+    label: 'Content & UX',
+    weight: 15,
     integrations: [
-      { key: 'readable', label: 'Readability', extract: extractReadable },
-      { key: 'ga4', label: 'GA4 Engagement', extract: extractGa4 },
+      { key: 'navigation', label: 'Navigation', weight: 25, extract: extractNavigation,
+        summarize: (s, sc) => {
+          const nav = s.nav_structure;
+          const topLevel = (nav?.primary || nav?.items || []).length;
+          return sc >= 75 ? `Well-structured navigation with ${topLevel} top-level items` : `Navigation structure needs improvement (${topLevel} top-level items)`;
+        }},
+      { key: 'readable', label: 'Readability', weight: 20, extract: extractReadable,
+        summarize: (s, sc) => sc >= 60 ? `Content is readable (Flesch score: ${sc})` : `Content readability is low (Flesch score: ${sc})` },
+      { key: 'forms', label: 'Forms', weight: 20, extract: extractForms,
+        summarize: (s, sc) => {
+          const count = s.forms_data?.summary?.uniqueForms ?? s.forms_data?.forms?.length ?? 0;
+          return count === 0 ? 'No forms detected — consider adding contact or lead capture' : `${count} form${count > 1 ? 's' : ''} detected across the site`;
+        }},
+      { key: 'content-types', label: 'Content Types', weight: 20, extract: extractContentTypes,
+        summarize: (s, sc) => {
+          const types = s.content_types_data?.summary?.length ?? 0;
+          return types >= 3 ? `${types} content types — good content diversity` : types > 0 ? `${types} content type${types > 1 ? 's' : ''} — limited diversity` : 'Content type classification unavailable';
+        }},
+      { key: 'ga4', label: 'GA4 Engagement', weight: 15, extract: extractGa4,
+        summarize: (s, sc) => summarizeByScore('User engagement', sc) },
     ],
   },
   {
-    key: 'url-analysis',
+    key: 'url-health',
     label: 'URL Health',
-    weight: 8,
+    weight: 10,
     integrations: [
-      { key: 'httpstatus', label: 'HTTP Status', extract: extractHttpStatusDetailed },
-    ],
-  },
-  {
-    key: 'technology',
-    label: 'Technology',
-    weight: 5,
-    integrations: [
-      { key: 'tech-coverage', label: 'Tech Coverage', extract: extractTechCoverage },
+      { key: 'link-checker', label: 'Link Checker', weight: 60, extract: extractLinkChecker,
+        summarize: (s, sc) => {
+          const lc = s.linkcheck_data?.summary;
+          if (!lc) return 'Link check data unavailable';
+          const broken = (lc.clientErrors || 0) + (lc.serverErrors || 0) + (lc.failures || 0);
+          return broken === 0 ? `All ${lc.total} links are healthy` : `${broken} broken link${broken > 1 ? 's' : ''} out of ${lc.total} checked`;
+        }},
+      { key: 'httpstatus', label: 'HTTP Status', weight: 25, extract: extractHttpStatusDetailed,
+        summarize: (s, sc) => {
+          const hs = s.httpstatus_data;
+          const redirects = hs?.redirectCount ?? 0;
+          return redirects === 0 ? 'Direct access with no redirects' : `${redirects} redirect${redirects > 1 ? 's' : ''} in chain`;
+        }},
+      { key: 'sitemap-coverage', label: 'Sitemap Coverage', weight: 15, extract: extractSitemapCoverage,
+        summarize: (s, sc) => {
+          const sm = s.sitemap_data?.stats?.totalUrls || 0;
+          const disc = Array.isArray(s.discovered_urls) ? s.discovered_urls.length : 0;
+          return disc > 0 ? `Sitemap covers ${Math.round((sm / disc) * 100)}% of discovered URLs` : 'Sitemap coverage check unavailable';
+        }},
     ],
   },
 ];
 
 // ── Main computation ───────────────────────────────────────────
+
+function classifySignal(key: string, label: string, score: number, summary: string): ScoreSignal {
+  return {
+    key, label, score, summary,
+    type: score >= 80 ? 'strength' : score <= 50 ? 'gap' : 'neutral',
+  };
+}
 
 export function computeOverallScore(session: any): OverallScore | null {
   if (!session) return null;
@@ -647,16 +798,27 @@ export function computeOverallScore(session: any): OverallScore | null {
 
   for (const catDef of CATEGORY_DEFS) {
     const integrations: IntegrationScore[] = [];
+    const strengths: ScoreSignal[] = [];
+    const gaps: ScoreSignal[] = [];
+    let weightedSum = 0;
+    let totalWeight = 0;
 
     for (const intDef of catDef.integrations) {
       const score = intDef.extract(session);
       if (score != null) {
         integrations.push({ key: intDef.key, label: intDef.label, score });
+        weightedSum += score * intDef.weight;
+        totalWeight += intDef.weight;
+
+        const summary = intDef.summarize(session, score);
+        const signal = classifySignal(intDef.key, intDef.label, score, summary);
+        if (signal.type === 'strength') strengths.push(signal);
+        else if (signal.type === 'gap') gaps.push(signal);
       }
     }
 
     if (integrations.length > 0) {
-      const avg = integrations.reduce((sum, i) => sum + i.score, 0) / integrations.length;
+      const avg = totalWeight > 0 ? weightedSum / totalWeight : 0;
       categories.push({
         key: catDef.key,
         label: catDef.label,
@@ -664,6 +826,8 @@ export function computeOverallScore(session: any): OverallScore | null {
         grade: scoreToGrade(avg),
         weight: catDef.weight,
         integrations,
+        strengths: strengths.sort((a, b) => b.score - a.score),
+        gaps: gaps.sort((a, b) => a.score - b.score),
       });
     }
   }
@@ -675,10 +839,17 @@ export function computeOverallScore(session: any): OverallScore | null {
   const weightedSum = categories.reduce((sum, c) => sum + c.score * (c.weight / totalWeight), 0);
   const overall = Math.round(weightedSum);
 
+  // Aggregate top signals
+  const allStrengths = categories.flatMap(c => c.strengths).sort((a, b) => b.score - a.score);
+  const allGaps = categories.flatMap(c => c.gaps).sort((a, b) => a.score - b.score);
+
   return {
     score: overall,
     grade: scoreToGrade(overall),
     categories,
+    topStrengths: allStrengths.slice(0, 5),
+    topGaps: allGaps.slice(0, 5),
+    version: '1.0',
   };
 }
 
@@ -702,12 +873,12 @@ export function getCategoryScore(overall: OverallScore | null, categoryKey: Cate
 
 /** Map section IDs from ResultsPage to category keys */
 export const SECTION_TO_CATEGORY: Record<string, CategoryKey> = {
-  'section-url-analysis': 'url-analysis',
+  'section-url-analysis': 'url-health',
   'section-performance': 'performance',
   'section-seo': 'seo',
   'section-ux-accessibility': 'accessibility',
   'section-security': 'security',
-  'section-content-analysis': 'content',
-  'section-tech-detection': 'technology',
-  
+  'section-content-analysis': 'content-ux',
+  // 'section-tech-detection' — no longer scored (descriptive only)
+  // 'section-design-analysis' — never scored
 };

@@ -36,6 +36,8 @@ import CompanyCleanupPage from "./pages/CompanyCleanupPage";
 import CompanyMappingPage from "./pages/CompanyMappingPage";
 import ContactsPage from "./pages/ContactsPage";
 import ContactDetailPage from "./pages/ContactDetailPage";
+import PlansPage from "./pages/PlansPage";
+import PlanDetailPage from "./pages/PlanDetailPage";
 import NotFound from "./pages/NotFound";
 import FeedbackSideTabs from "./components/feedback/FeedbackSideTabs";
 
@@ -111,6 +113,8 @@ const App = () => (
                 <Route path="/contacts" element={<ContactsPage />} />
                 <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
                 <Route path="/wishlist" element={<WishlistPage />} />
+                <Route path="/plans" element={<PlansPage />} />
+                <Route path="/plans/:id" element={<PlanDetailPage />} />
                 <Route path="/chat" element={<GlobalChatPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
                 <Route path="/settings" element={<SettingsPage />} />

@@ -653,27 +653,84 @@ New card component at `src/components/apollo/ApolloOrgCard.tsx`:
 - Reads from `companies.enrichment_data.apollo_org` — no crawl session dependency
 - Purple "Apollo" source badge in header
 
+## What Was Built (Apr 5 2026 — "SUPER CRAWL" session)
+
+### SUPER CRAWL v1.0 Scoring Engine (SHIPPED)
+- `src/lib/siteScore.ts` rewritten: 6 weighted categories (Technology removed), authority-weighted integrations within categories
+- 4 new extractors: `extractLinkChecker`, `extractForms`, `extractContentTypes`, `extractSitemapCoverage`
+- Navigation extractor wired (was disconnected)
+- Strengths/gaps model: each integration classified as strength (≥80) / gap (≤50) / neutral with human-readable summaries
+- `OverallScore` includes `topStrengths[5]`, `topGaps[5]`, `version: '1.0'`
+- Category weights: Performance 25%, SEO 22%, Content & UX 15%, Accessibility 15%, Security 13%, URL Health 10%
+
+### Plans Page (SHIPPED)
+- `claude_code_plans` Supabase table with RLS + updated_at trigger
+- `/plans` list page + `/plans/:id` detail page with rendered markdown
+- `usePlans.ts` TanStack Query hooks (CRUD)
+- Sidebar user dropdown entry (ScrollText icon)
+- "save to plans" command convention for future sessions
+
+### SUPER CRAWL Visual Overhaul (SHIPPED)
+- `ExecutiveSummaryHero.tsx` — 140px score ring with grade-dependent glow, AI narrative, clickable category mini cards with grade-dependent left borders, "What's Working" + "Priority Actions" panels
+- `CategoryQuickNav.tsx` — sticky horizontal pill navigation with scroll tracking
+- `CollapsibleSection.tsx` enhanced — inline strengths/gaps badges, AI category insight text
+- `SectionCard.tsx` enhanced — card descriptions from registry, grade-dependent border accents (top for hero, left for supporting), cost badges (paid/freemium), hero/supporting variant prop
+- Sections reordered by scoring weight: Performance → SEO → Content & UX → A11y → Security → URL Health → Tech Detection
+- Section titles modernized: `text-2xl font-semibold tracking-tight` (was `text-4xl font-light`)
+- Animations: hero-fade (400ms), pill-pop stagger (60ms apart), card-entrance (300ms), A-grade shimmer (3s infinite)
+
+### Three Lanes Architecture (SHIPPED)
+- Two-tab ResultsPage: "Site Audit" + "Knowledge"
+- Site Audit tab: 6 scored health categories + Premium section + Technology Detection (collapsed)
+- Knowledge tab: URL Discovery, Page Content, Design & Templates (screenshots + content audit + template analysis)
+- Premium section at bottom of Site Audit: SSL Labs (manual), GA4 (OAuth), Search Console (OAuth) with CTAs
+- `PremiumInsightsSection.tsx` component
+
+### Integration Cost Registry (SHIPPED)
+- `src/lib/integrationRegistry.ts` — every integration tagged free/freemium/paid, lane (audit/intel/knowledge/premium), auto, description
+- Cost badges on SectionCard headers: "paid" (amber) / "credits" (blue) for non-free integrations
+- Crawl profile selector on Crawls page: Free Only / Standard / Full (localStorage persisted, passed to crawl-start)
+
+### AI Insights System (SHIPPED)
+- `ai_insights` JSONB column on `crawl_sessions`
+- `generate-crawl-insights` edge function (Gemini 2.0 Flash) — generates executive summary, per-category insights, priority actions
+- `useCrawlInsights` hook — auto-generates on crawl completion, caches in DB, template fallback when AI unavailable
+
+### Key Files
+- `src/lib/siteScore.ts` — scoring engine (CATEGORY_DEFS exported)
+- `src/lib/integrationRegistry.ts` — cost/lane/auto registry
+- `src/lib/cardDescriptions.ts` — legacy (descriptions now in registry)
+- `src/components/crawl/ExecutiveSummaryHero.tsx` — Tier 1 hero
+- `src/components/crawl/CategoryQuickNav.tsx` — sticky nav
+- `src/components/crawl/PremiumInsightsSection.tsx` — Premium unlock cards
+- `src/components/CollapsibleSection.tsx` — enhanced with signals
+- `src/components/SectionCard.tsx` — enhanced with cost/variant/description
+- `src/components/ScoreOverview.tsx` — still exists but replaced by ExecutiveSummaryHero in ResultsPage
+- `src/hooks/useCrawlInsights.ts` — AI insights hook
+- `src/hooks/usePlans.ts` — Plans CRUD
+- `src/pages/PlansPage.tsx` + `src/pages/PlanDetailPage.tsx`
+- `src/lib/sessionSlug.ts` — updated for Knowledge tab URL support
+- `supabase/functions/generate-crawl-insights/index.ts` — AI edge function
+
 ## Next Session Priority
 
-**#1: Projects page reads from DB.** Phase 4 of data-first plan — sync Asana project data locally, rewrite ProjectsPage to query local tables.
+**#1: SUPER CRAWL cleanup.** Remove SSL Labs/GA4/Search Console from their original scored sections (they're still duplicated in SEO/Security sections AND in Premium section). Wire `crawl_profile` reading in `crawl-start` edge function to actually skip paid integrations. Delete `cardDescriptions.ts` (superseded by registry).
 
-**#2: Company detail page UI audit.** Unify remaining badge styles (DEAL_STATUS_COLORS, LEAD_STATUS_COLORS, SENIORITY_COLORS on CompanyDetailPage still use old patterns). Technologies card and Recent Activity card still use old Card wrapper. Design the company overview layout holistically.
+**#2: Projects page reads from DB.** Phase 4 of data-first plan.
 
-**#3: Collapsible company rows.** Travis wants expandable rows showing contextual sub-content (Growth: lead/deal details, Delivery: projects/services). Was built then removed — needs design rethink.
+**#3: Company detail page UI audit.** Unify badge styles, design overview layout holistically.
 
-**#4: Pipeline page horizontal scroll sync.** The fixed footer bar doesn't scroll left/right with the kanban columns — needs scroll position sync with the ScrollArea viewport.
+**#4: Crawl profile in Settings page.** Add dedicated Crawl Profile section to SettingsPage with profile selector + Custom per-integration toggles.
 
-**#5: Consolidate integration registry.** Integration list duplicated in 6 files (crawl-start, phase1-3, crawl-worker, ResultsPage). Move to `_shared/integration-registry.ts`.
-
-**#6: pg_cron for crawl-recover.** Wire `crawl-recover` to run every 5 minutes via pg_cron for fully server-side zombie recovery (currently client-side only).
+**#5: Consolidate integration registry server-side.** Port `integrationRegistry.ts` concepts to `_shared/integration-registry.ts` for crawl-start/phase functions.
 
 **Other priorities:**
 - Pattern Library (Brain Pillar 3)
-- Team utilization view (port `harvest-time` from AgencyAtlas)
-- Scheduled sync (every 30 min deals/contacts, every 6 hrs companies/harvest/freshdesk)
-- MCP integration for Chat Live connections
-- Supabase types regeneration (schema changed, types.ts is stale)
-- `company_source_data` table referenced in global-sync but doesn't exist — needs schema or cleanup
+- Pipeline page horizontal scroll sync
+- pg_cron for crawl-recover
+- Team utilization view
+- Scheduled sync
+- Supabase types regeneration
 
 ### Custom Skills (shipped Apr 5 2026)
 - `/startup` and `/shutdown` session lifecycle skills at `~/.claude/skills/` (user-level)

@@ -5,6 +5,7 @@ import { Loader2, AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from 'lu
 import { Switch } from '@/components/ui/switch';
 import { GradeBadge } from '@/components/GradeBadge';
 import type { LetterGrade } from '@/lib/siteScore';
+import { getIntegrationMeta } from '@/lib/integrationRegistry';
 
 type SectionCardProps = {
   title: string;
@@ -29,9 +30,11 @@ type SectionCardProps = {
   /** Integration grade (0-100 normalized) */
   integrationGrade?: LetterGrade;
   integrationScore?: number;
+  /** Card variant — hero cards are full-width primary, supporting are compact */
+  variant?: 'hero' | 'supporting';
 };
 
-export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed, reportUrl, integrationGrade, integrationScore }: SectionCardProps) {
+export function SectionCard({ title, icon, children, loading, loadingText, error, errorText, paused, onTogglePause, headerExtra, titleExtra, collapsed: controlledCollapsed, onToggleCollapse, sectionId, onCollapseChange, persistedCollapsed, reportUrl, integrationGrade, integrationScore, variant }: SectionCardProps) {
   const hasPersistedValue = persistedCollapsed !== undefined;
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
     if (hasPersistedValue) return persistedCollapsed;
@@ -68,14 +71,42 @@ export function SectionCard({ title, icon, children, loading, loadingText, error
     }
   };
 
+  // Grade-dependent border accent
+  const gradeAccent = integrationGrade && !paused
+    ? variant === 'hero'
+      ? integrationGrade === 'A' || integrationGrade === 'B' ? 'border-t-2 border-t-emerald-500/50'
+      : integrationGrade === 'C' ? 'border-t-2 border-t-yellow-500/50'
+      : 'border-t-2 border-t-red-500/50'
+    : integrationGrade === 'A' || integrationGrade === 'B' ? 'border-l-2 border-l-emerald-500/40'
+    : integrationGrade === 'C' ? 'border-l-2 border-l-yellow-500/40'
+    : 'border-l-2 border-l-red-500/40'
+    : '';
+
+  const meta = sectionId ? getIntegrationMeta(sectionId) : undefined;
+  const description = meta?.description;
+  const costBadge = meta?.cost;
+
   return (
-    <Card className={`overflow-hidden ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-50' : ''}`} data-section-id={sectionId}>
+    <Card className={`overflow-hidden animate-card-entrance ${gradeAccent} ${error ? 'border-destructive/40' : ''} ${paused ? 'opacity-50' : ''}`} data-section-id={sectionId}>
       <div
         className={`px-4 py-2.5 border-b border-border flex items-center gap-2.5 select-none transition-colors ${paused ? 'cursor-default' : 'cursor-pointer hover:bg-muted/30'}`}
         onClick={handleToggle}
       >
         <div className="p-1.5 rounded-md bg-muted">{icon}</div>
-        <h2 className="text-base font-semibold">{title}</h2>
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-base font-semibold">{title}</h2>
+            {costBadge === 'paid' && !paused && (
+              <span className="text-[9px] font-medium uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70 bg-amber-500/8 border border-amber-500/15 rounded px-1 py-0">paid</span>
+            )}
+            {costBadge === 'freemium' && !paused && (
+              <span className="text-[9px] font-medium uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70 bg-blue-500/8 border border-blue-500/15 rounded px-1 py-0">credits</span>
+            )}
+          </div>
+          {description && !isCollapsed && !paused && (
+            <p className="text-[11px] text-muted-foreground/60 leading-tight truncate">{description}</p>
+          )}
+        </div>
         {integrationGrade != null && integrationScore != null && !paused && (
           <GradeBadge grade={integrationGrade} score={integrationScore} />
         )}
