@@ -184,6 +184,66 @@ export async function dispatchNextPhase(
   }
 }
 
+/**
+ * Sync company-level enrichment data from a crawl session to the company.
+ * Extracts company intelligence (Apollo org, Ocean, Avoma, SEMrush, HubSpot)
+ * from crawl_sessions columns and merges into companies.enrichment_data.
+ * Site-specific audit data (PSI, WAVE, W3C, etc.) stays on crawl_sessions.
+ */
+export async function syncEnrichmentToCompany(session: any, sb: any): Promise<void> {
+  if (!session.company_id) return;
+
+  const patch: Record<string, any> = {};
+
+  // Apollo org: extract organization-prefixed fields from mixed person+org response
+  if (session.apollo_data && typeof session.apollo_data === 'object' && !session.apollo_data._error) {
+    const orgFields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(session.apollo_data)) {
+      if (k.startsWith('organization')) orgFields[k] = v;
+    }
+    if (Object.keys(orgFields).length > 0) patch.apollo_org = orgFields;
+  }
+
+  // Apollo team: full response
+  if (session.apollo_team_data && typeof session.apollo_team_data === 'object' && !session.apollo_team_data._error) {
+    patch.apollo_team = session.apollo_team_data;
+  }
+
+  // Ocean.io: full response
+  if (session.ocean_data && typeof session.ocean_data === 'object' && !session.ocean_data._error) {
+    patch.ocean = session.ocean_data;
+  }
+
+  // Avoma: full response
+  if (session.avoma_data && typeof session.avoma_data === 'object' && !session.avoma_data._error) {
+    patch.avoma = session.avoma_data;
+  }
+
+  // SEMrush: full response
+  if (session.semrush_data && typeof session.semrush_data === 'object' && !session.semrush_data._error) {
+    patch.semrush = session.semrush_data;
+  }
+
+  // HubSpot: full response
+  if (session.hubspot_data && typeof session.hubspot_data === 'object' && !session.hubspot_data._error) {
+    patch.hubspot = session.hubspot_data;
+  }
+
+  if (Object.keys(patch).length === 0) return;
+
+  // Merge into existing enrichment_data (existing keys preserved, new keys added)
+  const { data: company } = await sb.from("companies").select("enrichment_data").eq("id", session.company_id).single();
+  const existing = company?.enrichment_data || {};
+  const merged = { ...existing, ...patch };
+
+  await sb.from("companies").update({
+    enrichment_data: merged,
+    updated_at: new Date().toISOString(),
+  }).eq("id", session.company_id);
+
+  console.log(`  ⟶ synced ${Object.keys(patch).join(', ')} to company ${session.company_id}`);
+}
+
 /** Extract URL list from session's discovered_urls */
 export function extractUrls(session: any): string[] {
   const d = session.discovered_urls;

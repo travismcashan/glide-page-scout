@@ -151,10 +151,10 @@ const STAGE_ORDER: Record<string, number> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  prospect: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
-  active: 'bg-green-500/15 text-green-400 border-green-500/20',
-  past: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
-  archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20',
+  prospect: 'text-foreground border-blue-500',
+  active: 'text-foreground border-green-500',
+  past: 'text-foreground border-yellow-500',
+  archived: 'text-foreground border-zinc-500',
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -165,9 +165,9 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 const SOURCE_BADGE_STYLES: Record<string, string> = {
-  Harvest: 'bg-orange-500/15 text-orange-400 border-orange-500/20',
-  Asana: 'bg-purple-500/15 text-purple-400 border-purple-500/20',
-  HubSpot: 'bg-red-500/15 text-red-400 border-red-500/20',
+  Harvest: 'text-foreground border-orange-500',
+  Asana: 'text-foreground border-purple-500',
+  HubSpot: 'text-foreground border-red-500',
 };
 
 const VIEW_STORAGE_KEY = 'companies-view-mode';
@@ -647,7 +647,7 @@ export default function CompaniesPage() {
           <TooltipProvider key={s} delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 leading-4 ${SOURCE_BADGE_STYLES[s]}`}>
+                <Badge variant="outline" className={`text-xs px-2 py-0.5 ${SOURCE_BADGE_STYLES[s]}`}>
                   {sourceAbbrev(s)}
                 </Badge>
               </TooltipTrigger>
@@ -729,9 +729,9 @@ export default function CompaniesPage() {
         {workspace === 'growth' && (
           <TableCell className="text-sm">
             {(company as any).deal_stage_label ? (
-              <Badge variant="outline" className="text-xs px-2 py-0.5">{(company as any).deal_stage_label}</Badge>
+              <Badge variant="outline" className="text-xs px-2 py-0.5 capitalize text-foreground border-orange-500">{(company as any).deal_stage_label}</Badge>
             ) : (company as any).lead_status ? (
-              <Badge variant="outline" className="text-xs px-2 py-0.5 border-blue-500/30 text-blue-500">{(company as any).lead_status}</Badge>
+              <Badge variant="outline" className="text-xs px-2 py-0.5 capitalize text-foreground border-blue-500">{(company as any).lead_status}</Badge>
             ) : (
               <span className="text-muted-foreground/30">--</span>
             )}
@@ -744,7 +744,7 @@ export default function CompaniesPage() {
             {services.length > 0 ? (
               <div className="flex flex-wrap gap-1">
                 {services.map((s) => (
-                  <Badge key={s} variant="outline" className={`text-[10px] px-1.5 py-0 ${SOURCE_BADGE_STYLES[s] || ''}`}>
+                  <Badge key={s} variant="outline" className={`text-xs px-2 py-0.5 ${SOURCE_BADGE_STYLES[s] || ''}`}>
                     {s}
                   </Badge>
                 ))}
@@ -778,7 +778,7 @@ export default function CompaniesPage() {
         )}
         {workspace === 'admin' && (
           <TableCell>
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[company.status] || ''}`}>
+            <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${STATUS_COLORS[company.status] || ''}`}>
               {company.status}
             </Badge>
           </TableCell>
@@ -803,7 +803,7 @@ export default function CompaniesPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-semibold text-foreground truncate">{company.name}</span>
-              <Badge variant="outline" className={STATUS_COLORS[company.status] || ''}>
+              <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${STATUS_COLORS[company.status] || ''}`}>
                 {company.status}
               </Badge>
             </div>
@@ -836,7 +836,7 @@ export default function CompaniesPage() {
               {sources.length > 0 && (
                 <div className="flex gap-1">
                   {sources.map((s) => (
-                    <Badge key={s} variant="outline" className={`text-[10px] px-1.5 py-0 leading-4 ${SOURCE_BADGE_STYLES[s]}`}>
+                    <Badge key={s} variant="outline" className={`text-xs px-2 py-0.5 ${SOURCE_BADGE_STYLES[s]}`}>
                       {sourceAbbrev(s)}
                     </Badge>
                   ))}
@@ -868,7 +868,7 @@ export default function CompaniesPage() {
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         <span>{label}</span>
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 leading-4">
+        <Badge variant="secondary" className="text-xs px-2 py-0.5">
           {count}
         </Badge>
       </button>
@@ -948,11 +948,11 @@ export default function CompaniesPage() {
           </Select>
 
           {/* View toggle */}
-          <div className="flex items-center border border-border rounded-md overflow-hidden">
-            <button className={`h-8 w-8 flex items-center justify-center ${viewMode === 'table' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('table')}>
+          <div className="flex items-center h-8 border border-border rounded-md overflow-hidden">
+            <button className={`h-full w-8 flex items-center justify-center ${viewMode === 'table' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('table')}>
               <LayoutList className="h-3.5 w-3.5" />
             </button>
-            <button className={`h-8 w-8 flex items-center justify-center ${viewMode === 'cards' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('cards')}>
+            <button className={`h-full w-8 flex items-center justify-center ${viewMode === 'cards' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('cards')}>
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
           </div>

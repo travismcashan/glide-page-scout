@@ -19,10 +19,10 @@ import type { GrowthFilter } from '@/hooks/useCompanies';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 
 const LEAD_STATUS_COLORS: Record<string, string> = {
-  'Inbound': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-  'Contacting': 'bg-blue-500/15 text-blue-400 border-blue-500/20',
-  'Scheduled': 'bg-violet-500/15 text-violet-400 border-violet-500/20',
-  'Future Follow-Up': 'bg-amber-500/15 text-amber-400 border-amber-500/20',
+  'Inbound': 'text-foreground border-emerald-500',
+  'Contacting': 'text-foreground border-blue-500',
+  'Scheduled': 'text-foreground border-violet-500',
+  'Future Follow-Up': 'text-foreground border-amber-500',
 };
 
 type SortKey = 'name_asc' | 'name_desc' | 'company_asc' | 'company_desc' | 'title_asc' | 'title_desc' | 'updated_desc';
@@ -185,11 +185,11 @@ export default function ContactsPage() {
           </Select>
 
           {/* View toggle */}
-          <div className="flex items-center border border-border rounded-md overflow-hidden">
-            <button className={`h-8 w-8 flex items-center justify-center ${viewMode === 'table' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('table')}>
+          <div className="flex items-center h-8 border border-border rounded-md overflow-hidden">
+            <button className={`h-full w-8 flex items-center justify-center ${viewMode === 'table' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('table')}>
               <LayoutList className="h-3.5 w-3.5" />
             </button>
-            <button className={`h-8 w-8 flex items-center justify-center ${viewMode === 'cards' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('cards')}>
+            <button className={`h-full w-8 flex items-center justify-center ${viewMode === 'cards' ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} onClick={() => setViewMode('cards')}>
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -234,7 +234,7 @@ export default function ContactsPage() {
                           </div>
                           <div className="min-w-0">
                             <div className="font-medium text-foreground truncate text-sm">{name}</div>
-                            {contact.is_primary && <Badge variant="outline" className="text-[9px] py-0 mt-0.5">Primary</Badge>}
+                            {contact.is_primary && <Badge variant="outline" className="text-xs px-2 py-0.5 mt-0.5 text-foreground border-violet-500">Primary</Badge>}
                           </div>
                         </div>
                       </TableCell>
@@ -268,7 +268,7 @@ export default function ContactsPage() {
                       </TableCell>
                       <TableCell>
                         {contact.lead_status ? (
-                          <Badge variant="outline" className={`text-xs px-2 py-0.5 ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
+                          <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
                             {contact.lead_status}
                           </Badge>
                         ) : (
@@ -318,7 +318,7 @@ export default function ContactsPage() {
                   {(contact.lead_status || contact.email) && (
                     <div className="flex items-center gap-2 mt-3 flex-wrap">
                       {contact.lead_status && (
-                        <Badge variant="outline" className={`text-[10px] py-0 ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
+                        <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>
                           {contact.lead_status}
                         </Badge>
                       )}

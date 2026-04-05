@@ -2,7 +2,7 @@
  * crawl-phase1: Runs all batch 1 (independent) integrations with concurrency limit of 8.
  * When done, dispatches crawl-phase2. Single DB connection, no polling.
  */
-import { getSupabase, runIntegration, runPool, dispatchNextPhase, isSessionCancelled, type Integration } from "../_shared/phase-runner.ts";
+import { getSupabase, runIntegration, runPool, dispatchNextPhase, isSessionCancelled, syncEnrichmentToCompany, type Integration } from "../_shared/phase-runner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,6 +84,9 @@ Deno.serve(async (req) => {
     // Run with concurrency pool
     const tasks = toRun.map(int => () => runIntegration(int, session, sb, supabaseUrl, anonKey));
     await runPool(tasks, CONCURRENCY);
+
+    // Sync company-level enrichment data to the company
+    await syncEnrichmentToCompany(session, sb);
 
     console.log(`crawl-phase1: complete for ${session.domain}, dispatching phase 2`);
 

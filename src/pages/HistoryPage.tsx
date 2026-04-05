@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X } from 'lucide-react';
+import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X, AlertTriangle } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -311,6 +311,19 @@ export default function HistoryPage() {
           <div className="font-medium text-foreground truncate text-sm">{session.domain.replace(/^www\./, '')}</div>
         </div>
       </TableCell>
+      <TableCell className="text-muted-foreground text-sm">
+        {format(new Date(session.created_at), 'MMM d, yyyy')}
+      </TableCell>
+      <TableCell className="text-sm tabular-nums">
+        {(() => {
+          const psi = (session as any).psi_data;
+          if (!psi?.categories) return <span className="text-muted-foreground/30">--</span>;
+          const perf = psi.categories.performance?.score;
+          if (perf == null) return <span className="text-muted-foreground/30">--</span>;
+          const score = Math.round(perf * 100);
+          return <span className={score >= 90 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400'}>{score}</span>;
+        })()}
+      </TableCell>
       <TableCell className="text-sm truncate max-w-[180px]">
         {(session as any).company_name ? (
           <span
@@ -324,23 +337,23 @@ export default function HistoryPage() {
           <span className="text-muted-foreground/30">--</span>
         )}
       </TableCell>
-      <TableCell className="text-muted-foreground text-sm">
-        {format(new Date(session.created_at), 'MMM d, yyyy')}
-      </TableCell>
       <TableCell className="text-sm whitespace-nowrap">
-        <Badge variant={session.status === 'completed' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 capitalize">
-          {session.status === 'completed_with_errors' ? 'Partial' : session.status}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-sm tabular-nums">
-        {(() => {
-          const psi = (session as any).psi_data;
-          if (!psi?.categories) return <span className="text-muted-foreground/30">--</span>;
-          const perf = psi.categories.performance?.score;
-          if (perf == null) return <span className="text-muted-foreground/30">--</span>;
-          const score = Math.round(perf * 100);
-          return <span className={score >= 90 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400'}>{score}</span>;
-        })()}
+        <span className="inline-flex items-center gap-1.5">
+          <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${
+            session.status === 'completed' || session.status === 'completed_with_errors' ? 'text-foreground border-green-500'
+            : session.status === 'analyzing' ? 'text-foreground border-blue-500'
+            : session.status === 'failed' ? 'text-foreground border-red-500'
+            : 'text-foreground border-zinc-500'
+          }`}>
+            {session.status === 'completed_with_errors' ? 'Completed' : session.status}
+          </Badge>
+          {session.status === 'completed_with_errors' && (
+            <span className="inline-flex items-center gap-1 text-xs text-red-400">
+              <AlertTriangle className="h-3 w-3" />
+              with errors
+            </span>
+          )}
+        </span>
       </TableCell>
     </TableRow>
   );
@@ -458,16 +471,17 @@ export default function HistoryPage() {
                         {sortKey === 'domain' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                       </span>
                     </TableHead>
-                    <TableHead>Company</TableHead>
                     <TableHead
                       className="cursor-pointer select-none hover:text-foreground transition-colors"
                       onClick={() => toggleSort('date')}
                     >
                       <span className="inline-flex items-center gap-1">
-                        Date
+                        Crawl Date
                         {sortKey === 'date' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                       </span>
                     </TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Company</TableHead>
                     <TableHead
                       className="cursor-pointer select-none hover:text-foreground transition-colors"
                       onClick={() => toggleSort('status')}
@@ -477,7 +491,6 @@ export default function HistoryPage() {
                         {sortKey === 'status' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                       </span>
                     </TableHead>
-                    <TableHead>Score</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -503,7 +516,7 @@ export default function HistoryPage() {
                                 : <ChevronDown className="h-3.5 w-3.5" />
                               }
                               {groupKey}
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{items.length}</Badge>
+                              <Badge variant="outline" className="text-xs px-2 py-0.5">{items.length}</Badge>
                             </button>
                           </TableCell>
                         </TableRow>

@@ -775,7 +775,7 @@ export async function migrateEnrichmentFromSessions(companyId: string): Promise<
   // Find most recent session with enrichment data
   const { data: sessions } = await supabase
     .from('crawl_sessions')
-    .select('apollo_data, apollo_team_data, ocean_data, avoma_data, gmail_data' as any)
+    .select('apollo_data, apollo_team_data, ocean_data, avoma_data, gmail_data, semrush_data, hubspot_data' as any)
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
     .limit(5);
@@ -793,6 +793,14 @@ export async function migrateEnrichmentFromSessions(companyId: string): Promise<
   const merged = { ...existing };
   for (const s of sessions) {
     const session = s as any;
+    // Apollo org: extract organization-prefixed fields from mixed person+org response
+    if (!merged.apollo_org && session.apollo_data && typeof session.apollo_data === 'object' && !session.apollo_data._error) {
+      const orgFields: Record<string, any> = {};
+      for (const [k, v] of Object.entries(session.apollo_data as Record<string, any>)) {
+        if (k.startsWith('organization')) orgFields[k] = v;
+      }
+      if (Object.keys(orgFields).length > 0) merged.apollo_org = orgFields;
+    }
     if (!merged.apollo_team && session.apollo_team_data) {
       merged.apollo_team = session.apollo_team_data;
     }
@@ -804,6 +812,12 @@ export async function migrateEnrichmentFromSessions(companyId: string): Promise<
     }
     if (!merged.gmail && session.gmail_data) {
       merged.gmail = session.gmail_data;
+    }
+    if (!merged.semrush && session.semrush_data && typeof session.semrush_data === 'object' && !session.semrush_data._error) {
+      merged.semrush = session.semrush_data;
+    }
+    if (!merged.hubspot && session.hubspot_data && typeof session.hubspot_data === 'object' && !session.hubspot_data._error) {
+      merged.hubspot = session.hubspot_data;
     }
   }
   merged._migrated = true;

@@ -604,13 +604,62 @@ Hardened the 3-phase crawl pipeline for reliability, cancellation, and progress 
 - `src/hooks/useCrawlProgress.ts` — progress computation hook (new)
 - `src/pages/ResultsPage.tsx` — pending/failed/cancelled UI, client watchdog timer, server-side cancel
 
+## Company Enrichment Architecture (shipped Apr 5 2026)
+
+Company intelligence data now lives on `companies.enrichment_data` — the single source of truth. Previously scattered across `crawl_sessions` columns.
+
+**What moved to `companies.enrichment_data`:**
+- `apollo_org` — org fields (industry, revenue, headcount, technologies, keywords, growth)
+- `apollo_team` — team search results
+- `ocean` — Ocean.io demographics, traffic, departments, tech stack
+- `avoma` — sales meeting intelligence
+- `semrush` — domain rankings, keywords, traffic (currently empty — out of credits, paused)
+- `hubspot` — HubSpot company record
+
+**What stays on `crawl_sessions` (site-specific audits):**
+PSI, WAVE, W3C, Observatory, Carbon, GTmetrix, CrUX, HTTP Status, Link Check, SSL Labs, Schema, Sitemap, Forms, Readable, Content Types, Yellow Lab, GA4, Search Console.
+
+**Forward sync:** `syncEnrichmentToCompany()` in `phase-runner.ts` auto-syncs company intelligence after crawl-phase1 and crawl-phase3 complete.
+
+**Key files:**
+- `supabase/functions/_shared/phase-runner.ts` — `syncEnrichmentToCompany()` function
+- `supabase/functions/crawl-phase1/index.ts` — calls sync after runPool
+- `supabase/functions/crawl-phase3/index.ts` — calls sync for apollo_team
+- `src/lib/agencyBrain.ts` — `migrateEnrichmentFromSessions()` handles all 7 enrichment keys
+- `src/components/apollo/ApolloOrgCard.tsx` — Apollo org intelligence card with tabbed layout
+
+### Batch Crawl & Retry (shipped Apr 5 2026)
+
+- `batch-crawl` edge function — crawls all lead/deal domains in throttled batches (3 concurrent, 5s delay)
+- `crawl-retry` edge function — retries only failed integrations on `completed_with_errors` sessions. Clears error sentinels, deletes failed runs, re-invokes crawl-start.
+- SEMrush paused in `integration_settings` (out of credits). Unpause when credits restored.
+- Auto-crawl on `hubspot-deals-sync` and `hubspot-contacts-sync` handles future leads/deals.
+
+### UI Consistency (shipped Apr 5 2026)
+
+- **Status badges unified**: `text-xs px-2 py-0.5`, `variant="outline"`, colored borders at full opacity, `text-foreground`. Applied across Crawls, Contacts, Companies pages.
+- **Crawls page**: columns reordered to Domain → Crawl Date → Score → Company → Status. "Completed (with errors)" shows green "Completed" capsule + red "⚠ with errors" outside.
+- **View toggle height fix**: `h-8` on wrapper + `h-full` on buttons eliminates 2px alignment shift between pages.
+- **ResultsPage loader**: replaced frozen BrandLoader (Lottie) with CSS `Loader2` spinner + "Loading site audit..." text.
+- **Company detail sections**: Deals/Contacts/Sites removed outer Card wrapper — section title + item cards directly, no box-in-box.
+
+### ApolloOrgCard (shipped Apr 5 2026)
+
+New card component at `src/components/apollo/ApolloOrgCard.tsx`:
+- **Overview tab**: Industry, employees, revenue, founded, location, phone, Alexa rank, ticker, headcount growth (6/12/24mo with trend indicators), social links
+- **Industries tab**: Primary + secondary industries, SIC/NAICS codes
+- **Tech Stack tab**: Technologies as badges
+- **Keywords tab**: All Apollo keywords
+- Reads from `companies.enrichment_data.apollo_org` — no crawl session dependency
+- Purple "Apollo" source badge in header
+
 ## Next Session Priority
 
 **#1: Projects page reads from DB.** Phase 4 of data-first plan — sync Asana project data locally, rewrite ProjectsPage to query local tables.
 
-**#2: Collapsible company rows.** Travis wants expandable rows showing contextual sub-content (Growth: lead/deal details, Delivery: projects/services). Was built then removed — needs design rethink.
+**#2: Company detail page UI audit.** Unify remaining badge styles (DEAL_STATUS_COLORS, LEAD_STATUS_COLORS, SENIORITY_COLORS on CompanyDetailPage still use old patterns). Technologies card and Recent Activity card still use old Card wrapper. Design the company overview layout holistically.
 
-**#3: Page-by-page UI audit.** Continue with company detail page, projects page — unified controls, tighter layouts.
+**#3: Collapsible company rows.** Travis wants expandable rows showing contextual sub-content (Growth: lead/deal details, Delivery: projects/services). Was built then removed — needs design rethink.
 
 **#4: Pipeline page horizontal scroll sync.** The fixed footer bar doesn't scroll left/right with the kanban columns — needs scroll position sync with the ScrollArea viewport.
 
@@ -619,12 +668,12 @@ Hardened the 3-phase crawl pipeline for reliability, cancellation, and progress 
 **#6: pg_cron for crawl-recover.** Wire `crawl-recover` to run every 5 minutes via pg_cron for fully server-side zombie recovery (currently client-side only).
 
 **Other priorities:**
-- Re-crawl sites (80+ historical crawls lost)
 - Pattern Library (Brain Pillar 3)
 - Team utilization view (port `harvest-time` from AgencyAtlas)
 - Scheduled sync (every 30 min deals/contacts, every 6 hrs companies/harvest/freshdesk)
 - MCP integration for Chat Live connections
 - Supabase types regeneration (schema changed, types.ts is stale)
+- `company_source_data` table referenced in global-sync but doesn't exist — needs schema or cleanup
 
 ---
 

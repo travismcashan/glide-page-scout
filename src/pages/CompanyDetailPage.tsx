@@ -35,6 +35,7 @@ import { DomainLink } from '@/components/DomainLink';
 import { useCompany, useUpdateCompanyCache } from '@/hooks/useCompany';
 import OceanCard from '@/components/OceanCard';
 import { ApolloTeamContacts, type ApolloTeamData } from '@/components/apollo/ApolloTeamContacts';
+import { ApolloOrgCard, type ApolloOrgData } from '@/components/apollo/ApolloOrgCard';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
 
@@ -458,6 +459,8 @@ export default function CompanyDetailPage() {
 
   const enrichment = company.enrichment_data?.apollo_org || {};
   const technologies = enrichment.organizationTechnologies || [];
+  // Apollo org data: read from company enrichment_data (synced from crawl pipeline)
+  const apolloOrgData: ApolloOrgData | null = (enrichment.organizationName || enrichment.organizationDomain) ? enrichment : null;
   const attachedSessionIds = sites.map(s => s.id);
   const attachedSites = sites.map(s => ({ session_id: s.id, domain: s.domain }));
 
@@ -521,125 +524,115 @@ export default function CompanyDetailPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Overview Tab — company intelligence hub */}
           <TabsContent value="overview">
-            {/* Deals Card */}
+            {/* Deals */}
             {(deals.length > 0 || artifactLoading.deals) && (
-              <Card className="mb-6">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2"><Briefcase className="h-4 w-4" /> Deals{deals.length > 0 && ` (${deals.length})`}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {artifactLoading.deals ? (
-                    <div className="flex items-center justify-center py-6"><BrandLoader size={24} /></div>
-                  ) : (
-                    <div className="space-y-2">
-                      {deals.map(deal => (
-                        <div key={deal.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-background">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold truncate">{deal.name}</span>
-                              <Badge variant="outline" className={`text-[10px] py-0 ${DEAL_STATUS_COLORS[deal.status] || ''}`}>{deal.status}</Badge>
-                            </div>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-                              {deal.amount != null && <span className="font-semibold text-foreground">${deal.amount.toLocaleString()}</span>}
-                              {deal.close_date && <span>Close: {format(new Date(deal.close_date), 'MMM d, yyyy')}</span>}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Key People / Leads */}
-            <Card className="mb-6">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Contacts{contacts.length > 0 && ` (${contacts.length})`}</CardTitle>
-                  {company.domain && (
-                    <Button variant="ghost" size="sm" onClick={handleTeamSearch} disabled={teamSearching} className="gap-1.5 h-7 text-xs">
-                      {teamSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
-                      Find Team
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {contacts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No contacts yet. Use "Find Team" to discover key people.</p>
+              <div className="mb-6">
+                <h3 className="text-base font-semibold flex items-center gap-2 mb-3"><Briefcase className="h-4 w-4" /> Deals{deals.length > 0 && ` (${deals.length})`}</h3>
+                {artifactLoading.deals ? (
+                  <div className="flex items-center justify-center py-6"><BrandLoader size={24} /></div>
                 ) : (
                   <div className="space-y-2">
-                    {contacts.map(contact => (
-                      <div key={contact.id} onClick={() => setSelectedContact(contact)} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors bg-background cursor-pointer">
-                        <div className="shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden mt-0.5">
-                          {contact.photo_url ? (
-                            <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
-                            </span>
-                          )}
-                        </div>
+                    {deals.map(deal => (
+                      <div key={deal.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-sm font-semibold truncate">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
-                            {contact.is_primary && <Badge variant="outline" className="text-[9px] py-0 shrink-0">Primary</Badge>}
-                            {contact.lead_status && <Badge variant="outline" className={`text-[9px] py-0 shrink-0 ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>{contact.lead_status}</Badge>}
-                            {contact.seniority && <Badge variant="secondary" className={`text-[9px] py-0 shrink-0 ${SENIORITY_COLORS[contact.seniority] || ''}`}>{contact.seniority.replace('_', ' ')}</Badge>}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold truncate">{deal.name}</span>
+                            <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${DEAL_STATUS_COLORS[deal.status] || ''}`}>{deal.status}</Badge>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {contact.title && <p className="text-xs text-muted-foreground truncate">{contact.title}</p>}
-                            {contact.title && contact.department && <span className="text-xs text-muted-foreground/40">·</span>}
-                            {contact.department && <p className="text-xs text-muted-foreground/60 truncate">{contact.department}</p>}
-                          </div>
-                          {contact.email && <p className="text-xs text-muted-foreground/50 truncate mt-0.5">{contact.email}</p>}
-                          <div className="flex items-center gap-2 mt-1.5">
-                            {contact.email && <a href={`mailto:${contact.email}`} className="text-muted-foreground hover:text-foreground"><Mail className="h-3 w-3" /></a>}
-                            {contact.phone && <a href={`tel:${contact.phone}`} className="text-muted-foreground hover:text-foreground"><Phone className="h-3 w-3" /></a>}
-                            {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground"><Linkedin className="h-3 w-3" /></a>}
-                            {contact.email && (
-                              <button onClick={() => handleEnrichContact(contact)} disabled={enrichingContact === contact.id} className="text-muted-foreground hover:text-foreground">
-                                {enrichingContact === contact.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                              </button>
-                            )}
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
+                            {deal.amount != null && <span className="font-semibold text-foreground">${deal.amount.toLocaleString()}</span>}
+                            {deal.close_date && <span>Close: {format(new Date(deal.close_date), 'MMM d, yyyy')}</span>}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            )}
+
+            {/* Contacts */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Contacts{contacts.length > 0 && ` (${contacts.length})`}</h3>
+                {company.domain && (
+                  <Button variant="ghost" size="sm" onClick={handleTeamSearch} disabled={teamSearching} className="gap-1.5 h-7 text-xs">
+                    {teamSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+                    Find Team
+                  </Button>
+                )}
+              </div>
+              {contacts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No contacts yet. Use "Find Team" to discover key people.</p>
+              ) : (
+                <div className="space-y-2">
+                  {contacts.map(contact => (
+                    <div key={contact.id} onClick={() => setSelectedContact(contact)} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors bg-card cursor-pointer">
+                      <div className="shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden mt-0.5">
+                        {contact.photo_url ? (
+                          <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {(contact.first_name?.[0] || '') + (contact.last_name?.[0] || '') || '?'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-semibold truncate">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
+                          {contact.is_primary && <Badge variant="outline" className="text-xs px-2 py-0.5 text-foreground border-violet-500">Primary</Badge>}
+                          {contact.lead_status && <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>{contact.lead_status}</Badge>}
+                          {contact.seniority && <Badge variant="secondary" className="text-xs px-2 py-0.5 capitalize">{contact.seniority.replace('_', ' ')}</Badge>}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {contact.title && <p className="text-xs text-muted-foreground truncate">{contact.title}</p>}
+                          {contact.title && contact.department && <span className="text-xs text-muted-foreground/40">·</span>}
+                          {contact.department && <p className="text-xs text-muted-foreground/60 truncate">{contact.department}</p>}
+                        </div>
+                        {contact.email && <p className="text-xs text-muted-foreground/50 truncate mt-0.5">{contact.email}</p>}
+                        <div className="flex items-center gap-2 mt-1.5">
+                          {contact.email && <a href={`mailto:${contact.email}`} className="text-muted-foreground hover:text-foreground"><Mail className="h-3 w-3" /></a>}
+                          {contact.phone && <a href={`tel:${contact.phone}`} className="text-muted-foreground hover:text-foreground"><Phone className="h-3 w-3" /></a>}
+                          {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground"><Linkedin className="h-3 w-3" /></a>}
+                          {contact.email && (
+                            <button onClick={() => handleEnrichContact(contact)} disabled={enrichingContact === contact.id} className="text-muted-foreground hover:text-foreground">
+                              {enrichingContact === contact.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Sites */}
             {sites.length > 0 && (
-              <Card className="mb-6">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" /> Sites ({sites.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {sites.map(site => (
-                      <button key={site.id} onClick={() => setSelectedSite({ id: site.id, domain: site.domain, created_at: site.created_at })} className="text-left p-3 rounded-lg border border-border/50 hover:border-border hover:bg-accent/5 transition-all group flex items-center gap-3 bg-background">
-                        <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{site.domain}</p>
-                          <p className="text-xs text-muted-foreground">{format(new Date(site.created_at), 'MMM d, yyyy')}</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="mb-6">
+                <h3 className="text-base font-semibold flex items-center gap-2 mb-3"><Globe className="h-4 w-4" /> Sites ({sites.length})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {sites.map(site => (
+                    <button key={site.id} onClick={() => setSelectedSite({ id: site.id, domain: site.domain, created_at: site.created_at })} className="text-left p-3 rounded-lg border border-border hover:border-foreground/20 hover:bg-accent/5 transition-all group flex items-center gap-3 bg-card">
+                      <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{site.domain}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(site.created_at), 'MMM d, yyyy')}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-foreground/50 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Ocean.io Company Intelligence */}
             {oceanData ? (
-              <div className="mb-6">
-                <OceanCard data={oceanData} />
-              </div>
+              <Card className="mb-6">
+                <CardContent className="pt-6">
+                  <OceanCard data={oceanData} />
+                </CardContent>
+              </Card>
             ) : company.domain ? (
               <Card className="mb-6">
                 <CardContent className="py-6 text-center">
@@ -650,6 +643,15 @@ export default function CompanyDetailPage() {
                 </CardContent>
               </Card>
             ) : null}
+
+            {/* Apollo Company Intelligence */}
+            {apolloOrgData && (
+              <Card className="mb-6">
+                <CardContent className="pt-6">
+                  <ApolloOrgCard data={apolloOrgData} />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Technologies (from Apollo org — only if no Ocean data) */}
             {technologies.length > 0 && !oceanData && (

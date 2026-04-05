@@ -3,7 +3,7 @@
  * and marks the session as completed/completed_with_errors.
  * This is the final phase — no further dispatch.
  */
-import { getSupabase, runIntegration, runPool, isSessionCancelled, type Integration } from "../_shared/phase-runner.ts";
+import { getSupabase, runIntegration, runPool, isSessionCancelled, syncEnrichmentToCompany, type Integration } from "../_shared/phase-runner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,6 +64,9 @@ Deno.serve(async (req) => {
     // Run in parallel (only 2 integrations)
     const tasks = toRun.map(int => () => runIntegration(int, session, sb, supabaseUrl, anonKey));
     await runPool(tasks, 2);
+
+    // Sync company-level enrichment (apollo_team from this phase)
+    await syncEnrichmentToCompany(session, sb);
 
     // ── Mark session complete ──
     // Wait for self-persisting functions to flush their DB writes
