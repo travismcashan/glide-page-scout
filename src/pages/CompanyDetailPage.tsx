@@ -497,6 +497,71 @@ export default function CompanyDetailPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Overview Tab — company intelligence hub */}
           <TabsContent value="overview">
+            {/* Key Metrics */}
+            {(() => {
+              const totalDealValue = deals.reduce((sum, d) => sum + (d.amount || 0), 0);
+              const openDeals = deals.filter(d => d.status === 'open' || d.status === 'active' || d.status === 'pending').length;
+              const enrichmentSources = ['apollo_org', 'ocean', 'avoma', 'apollo_team', 'hubspot', 'semrush'] as const;
+              const enrichedCount = enrichmentSources.filter(k => (company.enrichment_data as any)?.[k]).length;
+              const allDates = [
+                ...engagements.map(e => e.occurred_at).filter(Boolean),
+                ...deals.map(d => d.close_date).filter(Boolean),
+              ];
+              const lastActivity = allDates.length > 0
+                ? format(new Date(Math.max(...allDates.map(d => new Date(d!).getTime()))), 'MMM d, yyyy')
+                : null;
+
+              return (
+                <>
+                  {/* Metrics row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">Deal Value</p>
+                      <p className="text-xl font-bold mt-1">{totalDealValue > 0 ? `$${totalDealValue.toLocaleString()}` : '—'}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">Open Deals</p>
+                      <p className="text-xl font-bold mt-1">{deals.length > 0 ? openDeals : '—'}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">Last Activity</p>
+                      <p className="text-xl font-bold mt-1 text-sm">{lastActivity || '—'}</p>
+                    </div>
+                    <div className="bg-card border border-border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">Enrichment</p>
+                      <p className="text-xl font-bold mt-1">{enrichedCount}/{enrichmentSources.length}</p>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {!oceanData && company.domain && (
+                      <Button variant="outline" size="sm" onClick={handleOceanEnrich} disabled={oceanLoading} className="gap-1.5 h-8 text-xs">
+                        {oceanLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                        Enrich Company
+                      </Button>
+                    )}
+                    {company.domain && (
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/crawls`)} className="gap-1.5 h-8 text-xs">
+                        <Globe className="h-3.5 w-3.5" />
+                        Run Crawl
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab('chat')} className="gap-1.5 h-8 text-xs">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Start Chat
+                    </Button>
+                    {company.domain && (
+                      <Button variant="ghost" size="sm" onClick={handleTeamSearch} disabled={teamSearching} className="gap-1.5 h-8 text-xs">
+                        {teamSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                        Find Team
+                      </Button>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+
             {/* Deals */}
             {(deals.length > 0 || artifactLoading.deals) && (
               <div className="mb-6">

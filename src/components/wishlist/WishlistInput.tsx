@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Sparkles, Bug, Lightbulb, FileText, Loader2, X, Wand2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 type ParsedItem = {
   title: string;
@@ -31,7 +31,6 @@ type WishlistInputProps = {
 };
 
 export function WishlistInput({ onItemsAdded, onClose }: WishlistInputProps) {
-  const { toast } = useToast();
   const [rawInput, setRawInput] = useState('');
   const [parsing, setParsing] = useState(false);
   const [parsedItems, setParsedItems] = useState<ParsedItem[] | null>(null);
@@ -51,14 +50,14 @@ export function WishlistInput({ onItemsAdded, onClose }: WishlistInputProps) {
       });
       if (error) throw error;
       if (data?.error) {
-        toast({ title: 'AI Error', description: data.error, variant: 'destructive' });
+        toast.error('AI Error', { description: data.error });
         setParsing(false);
         return;
       }
       const items = (data?.items || []).map((item: any) => ({ ...item, selected: true }));
       setParsedItems(items);
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message || 'Failed to parse ideas', variant: 'destructive' });
+      toast.error('Error', { description: e.message || 'Failed to parse ideas' });
     }
     setParsing(false);
   };
@@ -80,7 +79,7 @@ export function WishlistInput({ onItemsAdded, onClose }: WishlistInputProps) {
     setRawInput('');
     setSaving(false);
     onItemsAdded();
-    toast({ title: `${selected.length} item${selected.length > 1 ? 's' : ''} added` });
+    toast.success(`${selected.length} item${selected.length > 1 ? 's' : ''} added`);
   };
 
   const addManualItem = async () => {

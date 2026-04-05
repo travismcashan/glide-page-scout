@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { type OverallScore, type CategoryScore, gradeToColor } from '@/lib/siteScore';
-import { Shield, Search, Accessibility, FileText, Zap, Link, Layers, Code } from 'lucide-react';
+import { type OverallScore, gradeToColor } from '@/lib/siteScore';
+import { Shield, Search, Accessibility, FileText, Zap, Link, Code } from 'lucide-react';
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   performance: <Zap className="h-3.5 w-3.5" />,
@@ -11,7 +11,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'url-health': <Link className="h-3.5 w-3.5" />,
 };
 
-// Map category keys to section IDs in the DOM
+// Map category keys to CollapsibleSection DOM ids
 const CATEGORY_TO_SECTION: Record<string, string> = {
   'performance': 'section-performance',
   'seo': 'section-seo',
@@ -23,7 +23,6 @@ const CATEGORY_TO_SECTION: Record<string, string> = {
 
 // Unscored sections
 const UNSCORED_SECTIONS = [
-  { key: 'design', label: 'Design', sectionId: 'section-design-analysis', icon: <Layers className="h-3.5 w-3.5" /> },
   { key: 'tech', label: 'Technology', sectionId: 'section-tech-detection', icon: <Code className="h-3.5 w-3.5" /> },
 ];
 
@@ -36,65 +35,41 @@ export function CategoryQuickNav({ overallScore, analyzing }: Props) {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Track which section is in viewport
-  useEffect(() => {
-    const allSectionIds = [
-      ...Object.values(CATEGORY_TO_SECTION),
-      ...UNSCORED_SECTIONS.map(s => s.sectionId),
-    ];
+  // All section IDs for observation
+  const allSectionIds = [
+    ...Object.values(CATEGORY_TO_SECTION),
+    ...UNSCORED_SECTIONS.map(s => s.sectionId),
+  ];
 
+  // Track which section is in viewport via IntersectionObserver on DOM ids
+  useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            // Find the button element's closest collapsible section
-            const el = entry.target as HTMLElement;
-            const sectionId = allSectionIds.find(id => {
-              const sectionEl = document.querySelector(`[class*="${id}"]`) || el;
-              return sectionEl === el;
-            });
-            if (sectionId) setActiveSection(sectionId);
-          }
+        // Find the topmost visible section
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          setActiveSection(visible[0].target.id);
         }
       },
-      { rootMargin: '-80px 0px -60% 0px', threshold: 0 }
+      { rootMargin: '-80px 0px -50% 0px', threshold: 0 }
     );
 
-    // Observe section headings by looking for CollapsibleSection buttons
-    const headings = document.querySelectorAll('button:has(> h2)');
-    headings.forEach(h => observerRef.current?.observe(h));
+    // Observe each section by its DOM id
+    for (const id of allSectionIds) {
+      const el = document.getElementById(id);
+      if (el) observerRef.current.observe(el);
+    }
 
     return () => observerRef.current?.disconnect();
   }, [overallScore]);
 
   const scrollToSection = (sectionId: string) => {
-    // Find the heading button for this section
-    const headings = document.querySelectorAll('button:has(> h2)');
-    for (const h of headings) {
-      const parent = h.closest('div');
-      if (parent) {
-        // Check if this section's collapse toggle matches
-        const heading = h.querySelector('h2');
-        if (heading) {
-          const text = heading.textContent || '';
-          const matchMap: Record<string, string[]> = {
-            'section-performance': ['Performance'],
-            'section-seo': ['SEO'],
-            'section-content-analysis': ['Content'],
-            'section-ux-accessibility': ['Accessibility', 'UX'],
-            'section-security': ['Security'],
-            'section-url-analysis': ['URL Analysis'],
-            'section-design-analysis': ['Design'],
-            'section-tech-detection': ['Technology'],
-          };
-          const patterns = matchMap[sectionId] || [];
-          if (patterns.some(p => text.includes(p))) {
-            h.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            setActiveSection(sectionId);
-            return;
-          }
-        }
-      }
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveSection(sectionId);
     }
   };
 

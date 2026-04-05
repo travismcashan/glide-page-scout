@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessions, useInvalidateSessions } from '@/hooks/useCachedQueries';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X, AlertTriangle, Zap } from 'lucide-react';
+import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X, AlertTriangle, Zap, Building2, ExternalLink } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { AUTO_INTEGRATION_COUNT } from '@/config/integrations';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,6 +64,64 @@ export default function HistoryPage() {
   const [crawlUrl, setCrawlUrl] = useState('');
   const [isStarting, setIsStarting] = useState(false);
   const [crawlProfile, setCrawlProfile] = useState<string>(() => localStorage.getItem('crawl_profile') || 'full');
+
+  // Domain preview: recent crawl detection + company association
+  const [domainPreview, setDomainPreview] = useState<{
+    domain: string;
+    recentCrawl?: { id: string; created_at: string; domain: string } | null;
+    company?: { id: string; name: string } | null;
+  } | null>(null);
+
+  const parseDomain = useCallback((input: string): string | null => {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    try {
+      const url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+      const hostname = new URL(url).hostname.replace(/^www\./i, '');
+      if (!hostname.includes('.')) return null;
+      return hostname;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Debounced domain lookup when input looks like a URL
+  useEffect(() => {
+    const domain = parseDomain(crawlUrl);
+    if (!domain) {
+      setDomainPreview(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const [crawlResult, companyResult] = await Promise.all([
+        supabase
+          .from('crawl_sessions')
+          .select('id, created_at, domain')
+          .eq('domain', domain)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('companies')
+          .select('id, name')
+          .eq('domain', domain)
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      const recentCrawl = crawlResult.data;
+      const isRecent = recentCrawl && (Date.now() - new Date(recentCrawl.created_at).getTime()) < 24 * 60 * 60 * 1000;
+
+      setDomainPreview({
+        domain,
+        recentCrawl: isRecent ? recentCrawl : null,
+        company: companyResult.data,
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [crawlUrl, parseDomain]);
 
   const handleStartCrawl = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -372,36 +430,81 @@ export default function HistoryPage() {
             </Badge>
           )}
 
-          <form onSubmit={(e) => { e.preventDefault(); if (looksLikeUrl) handleStartCrawl(e); }} className="relative flex-1 max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              type="text"
-              value={crawlUrl}
-              onChange={(e) => { setCrawlUrl(e.target.value); setSearch(e.target.value); }}
-              placeholder="Search or enter URL to crawl..."
-              className="pl-8 pr-20 h-8 text-sm"
-              disabled={isStarting}
-            />
-            {looksLikeUrl && crawlUrl.trim() && (
-              <Button
-                type="submit"
-                disabled={isStarting || !crawlUrl.trim()}
-                size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 rounded px-3 gap-1 text-xs shrink-0"
-              >
-                {isStarting ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <><span>Crawl</span><ArrowRight className="h-3 w-3" /></>
+          <div className="relative flex-1 max-w-xs">
+            <form onSubmit={(e) => { e.preventDefault(); if (looksLikeUrl) handleStartCrawl(e); }} className="relative">
+              {domainPreview?.domain ? (
+                <img
+                  src={`https://www.google.com/s2/favicons?domain=${domainPreview.domain}&sz=16`}
+                  alt=""
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-sm"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              )}
+              <Input
+                type="text"
+                value={crawlUrl}
+                onChange={(e) => { setCrawlUrl(e.target.value); setSearch(e.target.value); }}
+                placeholder="Search or enter URL to crawl..."
+                className={`pl-8 pr-20 h-8 text-sm ${crawlUrl.trim() && !looksLikeUrl ? 'border-destructive/50 focus-visible:ring-destructive/30' : ''}`}
+                disabled={isStarting}
+              />
+              {looksLikeUrl && crawlUrl.trim() && (
+                <Button
+                  type="submit"
+                  disabled={isStarting || !crawlUrl.trim()}
+                  size="sm"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 rounded px-3 gap-1 text-xs shrink-0"
+                >
+                  {isStarting ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <><span>Crawl</span><ArrowRight className="h-3 w-3" /></>
+                  )}
+                </Button>
+              )}
+              {crawlUrl && !looksLikeUrl && (
+                <button type="button" onClick={() => { setCrawlUrl(''); setSearch(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </form>
+
+            {/* Domain preview: recent crawl notice + company association */}
+            {domainPreview && looksLikeUrl && (
+              <div className="absolute z-10 top-full mt-1 w-full rounded-md border border-border bg-popover p-2 shadow-md space-y-1.5 text-xs">
+                {domainPreview.recentCrawl && (
+                  <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    <span>Crawled {format(new Date(domainPreview.recentCrawl.created_at), 'MMM d, h:mm a')}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rc = domainPreview.recentCrawl!;
+                        navigate(buildSitePath(rc.domain, rc.created_at, true));
+                      }}
+                      className="ml-auto inline-flex items-center gap-0.5 text-primary hover:underline"
+                    >
+                      View <ExternalLink className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
                 )}
-              </Button>
+                {domainPreview.company && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Building2 className="h-3 w-3 shrink-0" />
+                    <span>{domainPreview.company.name}</span>
+                  </div>
+                )}
+                {!domainPreview.recentCrawl && !domainPreview.company && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Globe className="h-3 w-3 shrink-0" />
+                    <span>New domain — will create company on crawl</span>
+                  </div>
+                )}
+              </div>
             )}
-            {crawlUrl && !looksLikeUrl && (
-              <button type="button" onClick={() => { setCrawlUrl(''); setSearch(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </form>
+          </div>
 
           <div className="flex-1" />
 

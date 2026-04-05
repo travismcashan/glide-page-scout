@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Trash2, Send, MessageCircle, Paperclip, X, FileText, Image as ImageIcon, Wand2, Copy, Check, Link2, ExternalLink, HardDrive } from 'lucide-react';
 import { GoogleDrivePicker } from '@/components/drive/GoogleDrivePicker';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import type { WishlistItem } from './KanbanCard';
 
 const STATUS_OPTIONS = [
@@ -62,7 +62,6 @@ type CardDetailModalProps = {
 };
 
 export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }: CardDetailModalProps) {
-  const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('feature');
@@ -151,7 +150,7 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
         .upload(path, file);
 
       if (uploadError) {
-        toast({ title: 'Upload failed', description: uploadError.message, variant: 'destructive' });
+        toast.error('Upload failed', { description: uploadError.message });
         continue;
       }
 
@@ -197,13 +196,13 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
         body: { item_id: item.id, title: title || item.title, description: description || item.description },
       });
       if (error) throw error;
-      if (data?.error) { toast({ title: 'Image generation failed', description: data.error, variant: 'destructive' }); return; }
+      if (data?.error) { toast.error('Image generation failed', { description: data.error }); return; }
       if (data?.cover_image_url) {
         onUpdate({ ...item, cover_image_url: data.cover_image_url });
-        toast({ title: 'Cover image generated' });
+        toast.success('Cover image generated');
       }
     } catch (e: any) {
-      toast({ title: 'Failed', description: e.message || 'Try again', variant: 'destructive' });
+      toast.error('Failed', { description: e.message || 'Try again' });
     } finally {
       setGeneratingCover(false);
     }
@@ -254,7 +253,7 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
     }
     await loadAttachments(item.id);
     onUpdate({ ...item, attachment_count: (item.attachment_count || 0) + driveFiles.length });
-    toast({ title: `${driveFiles.length} file${driveFiles.length > 1 ? 's' : ''} linked from Google Drive` });
+    toast.success(`${driveFiles.length} file${driveFiles.length > 1 ? 's' : ''} linked from Google Drive`);
   }
 
   async function handleSendComment() {
@@ -297,7 +296,7 @@ export function CardDetailModal({ item, open, onOpenChange, onUpdate, onDelete }
     await supabase.from('wishlist_items').update(updates as any).eq('id', item!.id);
     onUpdate({ ...item!, ...updates });
     setSaving(false);
-    toast({ title: 'Card updated' });
+    toast.success('Card updated');
     onOpenChange(false);
   }
 

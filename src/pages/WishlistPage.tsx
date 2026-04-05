@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useWishlistItems, useInvalidateWishlist } from '@/hooks/useCachedQueries';
 import { KanbanBoard } from '@/components/wishlist/KanbanBoard';
 import { WishlistInput } from '@/components/wishlist/WishlistInput';
@@ -17,7 +17,6 @@ const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export default function WishlistPage() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { items, loading, refetch } = useWishlistItems();
   const invalidateWishlist = useInvalidateWishlist();
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -110,7 +109,7 @@ export default function WishlistPage() {
         body: { items: items.map(({ id, title, category, priority, effort_estimate, status, created_at }) => ({ id, title, category, priority, effort_estimate, status, created_at })) },
       });
       if (error) throw error;
-      if (data?.error) { toast({ title: 'AI Error', description: data.error, variant: 'destructive' }); return; }
+      if (data?.error) { toast.error('AI Error', { description: data.error }); return; }
 
       let changeCount = 0;
       const updates: Record<string, any> = {};
@@ -157,14 +156,13 @@ export default function WishlistPage() {
         setRecommendSummary('');
         setRecommendModalOpen(true);
       } else {
-        toast({
-          title: 'Backlog analyzed',
+        toast.success('Backlog analyzed', {
           description: data.next_item_reason + (changeCount ? ` (${changeCount} fields updated)` : ''),
         });
       }
 
       if (changeCount) {
-        toast({ title: `${changeCount} field${changeCount > 1 ? 's' : ''} updated` });
+        toast.success(`${changeCount} field${changeCount > 1 ? 's' : ''} updated`);
       }
 
       // Auto-generate cover images for large-effort items without one
@@ -186,12 +184,12 @@ export default function WishlistPage() {
         ).then((results) => {
           const generated = results.filter((r) => r.status === 'fulfilled').length;
           if (generated > 0) {
-            toast({ title: `Generated ${generated} cover image${generated > 1 ? 's' : ''}` });
+            toast.success(`Generated ${generated} cover image${generated > 1 ? 's' : ''}`);
           }
         });
       }
     } catch (e: any) {
-      toast({ title: 'Prioritize failed', description: e.message || 'Try again', variant: 'destructive' });
+      toast.error('Prioritize failed', { description: e.message || 'Try again' });
     } finally {
       setPrioritizing(false);
     }
@@ -206,7 +204,7 @@ export default function WishlistPage() {
           ({ id, title, category, priority, effort_estimate, status, created_at }));
 
       if (backlogItems.length < 2) {
-        toast({ title: 'Not enough items', description: 'Need at least 2 items in wishlist or planned to recommend a sprint.' });
+        toast('Not enough items', { description: 'Need at least 2 items in wishlist or planned to recommend a sprint.' });
         return;
       }
 
@@ -214,7 +212,7 @@ export default function WishlistPage() {
         body: { items: backlogItems },
       });
       if (error) throw error;
-      if (data?.error) { toast({ title: 'AI Error', description: data.error, variant: 'destructive' }); return; }
+      if (data?.error) { toast.error('AI Error', { description: data.error }); return; }
 
       const recs: RecommendedItem[] = (data.recommendations || [])
         .map((r: any) => {
@@ -233,10 +231,10 @@ export default function WishlistPage() {
         setRecommendSummary(data.sprint_summary || '');
         setRecommendModalOpen(true);
       } else {
-        toast({ title: 'No recommendations', description: 'AI could not find suitable items.' });
+        toast('No recommendations', { description: 'AI could not find suitable items.' });
       }
     } catch (e: any) {
-      toast({ title: 'Recommend failed', description: e.message || 'Try again', variant: 'destructive' });
+      toast.error('Recommend failed', { description: e.message || 'Try again' });
     } finally {
       setRecommending(false);
     }
@@ -324,7 +322,7 @@ export default function WishlistPage() {
               setRecommendModalOpen(false);
               const count = recommendedItems.length;
               setRecommendedItems([]);
-              toast({ title: `${count} item${count > 1 ? 's' : ''} moved to Planned` });
+              toast.success(`${count} item${count > 1 ? 's' : ''} moved to Planned`);
             }}
             onDismiss={() => setRecommendModalOpen(false)}
           />

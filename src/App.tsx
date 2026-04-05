@@ -1,5 +1,4 @@
 // GLIDE® Ascend App
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -74,10 +73,9 @@ const App = () => (
       <AuthProvider>
         <ProductProvider>
           <TooltipProvider>
-          <Toaster />
           <Sonner />
           <BrowserRouter>
-            <ErrorBoundary fallback={<div className="min-h-screen flex items-center justify-center"><p>Something went wrong. <a href="/" className="underline">Go home</a></p></div>}>
+            <ErrorBoundary>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               {/* Legacy redirects */}

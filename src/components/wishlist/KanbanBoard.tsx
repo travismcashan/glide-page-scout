@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCardOverlay, type WishlistItem } from './KanbanCard';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const STATUSES = ['wishlist', 'planned', 'in-progress', 'done'] as const;
 
@@ -19,7 +19,6 @@ const WIP_LIMIT = 3;
 export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, deleting }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragHeight, setDragHeight] = useState<number>(80);
-  const { toast } = useToast();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -50,7 +49,7 @@ export function KanbanBoard({ items, onStatusChange, onDelete, onCardClick, dele
       if (newStatus === 'in-progress') {
         const inProgressCount = items.filter((i) => i.status === 'in-progress').length;
         if (inProgressCount >= WIP_LIMIT) {
-          toast({ title: `WIP limit reached (${WIP_LIMIT})`, description: 'Finish something in progress before starting new work.', variant: 'destructive' });
+          toast.error(`WIP limit reached (${WIP_LIMIT})`, { description: 'Finish something in progress before starting new work.' });
           return;
         }
       }

@@ -9,6 +9,8 @@ type Props = {
   collapsed?: boolean;
   onToggle?: (collapsed: boolean) => void;
   className?: string;
+  /** DOM id for scroll-to and IntersectionObserver targeting */
+  id?: string;
   grade?: LetterGrade;
   score?: number;
   /** AI-generated or template insight for this category */
@@ -18,7 +20,7 @@ type Props = {
   gaps?: ScoreSignal[];
 };
 
-export function CollapsibleSection({ title, children, collapsed: controlledCollapsed, onToggle, className, grade, score, categoryInsight, strengths, gaps }: Props) {
+export function CollapsibleSection({ title, children, collapsed: controlledCollapsed, onToggle, className, id, grade, score, categoryInsight, strengths, gaps }: Props) {
   const [internal, setInternal] = useState(false);
   const isCollapsed = controlledCollapsed ?? internal;
 
@@ -32,7 +34,7 @@ export function CollapsibleSection({ title, children, collapsed: controlledColla
   const isScored = grade != null && score != null;
 
   return (
-    <div className={className}>
+    <div className={className} id={id}>
       {/* Section header */}
       <div className="mt-14 mb-6 first:mt-0">
         <button
