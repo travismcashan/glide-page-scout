@@ -1,8 +1,11 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   ChevronUp, ChevronsUpDown, LogOut, Shield, PanelLeftClose, PanelLeft,
   Settings, X, Cable, ListChecks, Layers, BarChart3, GitCompareArrows, Link2, Sparkles, ScrollText,
+  Search,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProduct, PRODUCTS, type ProductId } from '@/contexts/ProductContext';
 import { WORKSPACE_NAV, WORKSPACE_COMPANY_TABS, WORKSPACE_DEFAULT_ROUTE, TAB_ICONS } from '@/config/workspace-nav';
@@ -59,10 +62,26 @@ export function AppSidebar() {
     setOpenMobile(false);
   };
 
-  const handleWorkspaceSwitch = (id: ProductId) => {
+  const handleWorkspaceSwitch = useCallback((id: ProductId) => {
     setCurrentProduct(id);
     navigate(WORKSPACE_DEFAULT_ROUTE[id]);
-  };
+    toast.success(`Switched to ${PRODUCTS.find(p => p.id === id)?.name || id}`);
+  }, [setCurrentProduct, navigate]);
+
+  // Cmd+1/2/3 workspace shortcuts
+  useEffect(() => {
+    const WORKSPACE_KEYS: Record<string, ProductId> = { '1': 'growth', '2': 'delivery', '3': 'admin' };
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const wsId = WORKSPACE_KEYS[e.key];
+      if (wsId) {
+        e.preventDefault();
+        handleWorkspaceSwitch(wsId);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleWorkspaceSwitch]);
 
   // Get company name for contextual section (reads from TanStack cache — no extra fetch)
   const { company: activeCompany } = useCompany(activeCompanyId || undefined);
@@ -107,7 +126,7 @@ export function AppSidebar() {
                   align="start"
                   sideOffset={4}
                 >
-                  {PRODUCTS.map((product) => {
+                  {PRODUCTS.map((product, idx) => {
                     const Icon = product.icon;
                     const isCurrent = product.id === currentProduct.id;
                     return (
@@ -123,7 +142,10 @@ export function AppSidebar() {
                           <span className="font-medium">{product.fullName}</span>
                           <p className="text-xs text-muted-foreground">{product.discipline}</p>
                         </div>
-                        {isCurrent && <span className="text-xs text-primary">Active</span>}
+                        {isCurrent
+                          ? <span className="text-xs text-primary">Active</span>
+                          : <kbd className="ml-auto text-[10px] text-muted-foreground/60 font-mono">⌘{idx + 1}</kbd>
+                        }
                       </DropdownMenuItem>
                     );
                   })}
@@ -253,6 +275,18 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* ── Cmd+K hint ── */}
+        <div className="px-3 pb-2 group-data-[collapsible=icon]:hidden">
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 transition-colors text-xs"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span>Search</span>
+            <kbd className="ml-auto font-mono text-[10px] border border-border/50 rounded px-1 py-0.5">⌘K</kbd>
+          </button>
+        </div>
       </SidebarContent>
 
       {/* ── User footer ──────────────────────────────────── */}

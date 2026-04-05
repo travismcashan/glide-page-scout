@@ -55,10 +55,13 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Sign in to <span className="tracking-widest">GLIDE</span><sup className="text-xs align-super">®</sup> Growth
+              Sign in to Ascend
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sales prep, powered by AI
+              Growth intelligence, powered by AI
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground/50">
+              by <span className="tracking-widest">GLIDE</span><sup className="text-[8px] align-super">®</sup>
             </p>
           </div>
         </div>
