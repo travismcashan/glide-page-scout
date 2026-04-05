@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 
 /** Valid tab slugs for deep-linking (audit-only — company features moved to CompanyDetailPage) */
-export const TAB_SLUGS = ['analysis'] as const;
+export const TAB_SLUGS = ['analysis', 'knowledge'] as const;
 export type TabSlug = typeof TAB_SLUGS[number];
 
 /** Map URL tab slugs ↔ internal tab values */
@@ -10,14 +10,14 @@ const SLUG_TO_TAB: Record<string, string> = {
   // backward compat: old URLs → analysis
   prompts: 'raw-data',
   prospecting: 'raw-data',
-  knowledge: 'raw-data',
+  knowledge: 'knowledge',
   chat: 'raw-data',
   estimates: 'raw-data',
   roadmap: 'raw-data',
   proposal: 'raw-data',
 };
 
-const TAB_TO_SLUG: Record<string, string> = { 'raw-data': 'analysis' };
+const TAB_TO_SLUG: Record<string, string> = { 'raw-data': 'analysis', 'knowledge': 'knowledge' };
 
 export function tabSlugToValue(slug: string | undefined): string {
   if (!slug) return 'raw-data';
@@ -43,6 +43,13 @@ export function buildSitePath(
   if (needsTimestamp && createdAt) {
     const dateSlug = format(new Date(createdAt), "MMM-dd-yyyy").toLowerCase();
     path += `/crawls/${dateSlug}`;
+  }
+
+  if (tab) {
+    const tabSlug = TAB_TO_SLUG[tab] ?? tab;
+    if (tabSlug && tabSlug !== 'analysis') {
+      path += `/${tabSlug}`;
+    }
   }
 
   return path;

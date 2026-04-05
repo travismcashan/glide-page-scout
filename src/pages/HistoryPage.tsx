@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X, AlertTriangle } from 'lucide-react';
+import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X, AlertTriangle, Zap } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -62,6 +62,7 @@ export default function HistoryPage() {
   // New crawl state
   const [crawlUrl, setCrawlUrl] = useState('');
   const [isStarting, setIsStarting] = useState(false);
+  const [crawlProfile, setCrawlProfile] = useState<string>(() => localStorage.getItem('crawl_profile') || 'full');
 
   const handleStartCrawl = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +112,7 @@ export default function HistoryPage() {
 
       // Await crawl-start — if it fails, user gets a toast and session stays 'pending'
       const { error: startError } = await supabase.functions.invoke('crawl-start', {
-        body: { session_id: session.id },
+        body: { session_id: session.id, crawl_profile: crawlProfile },
       });
 
       if (startError) {
@@ -402,6 +403,18 @@ export default function HistoryPage() {
           </form>
 
           <div className="flex-1" />
+
+          <Select value={crawlProfile} onValueChange={(v) => { setCrawlProfile(v); localStorage.setItem('crawl_profile', v); }}>
+            <SelectTrigger className="h-8 w-[110px] text-xs gap-1">
+              <Zap className="h-3 w-3 shrink-0" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="free">Free Only</SelectItem>
+              <SelectItem value="standard">Standard</SelectItem>
+              <SelectItem value="full">Full</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Select value={`${sortKey}_${sortDir}`} onValueChange={(v) => {
             const [k, d] = v.split('_') as [SortKey, SortDir];
