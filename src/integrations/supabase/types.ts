@@ -62,6 +62,39 @@ export type Database = {
         }
         Relationships: []
       }
+      asana_config: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          group_by_field: string
+          hourly_rate: number | null
+          hours_field_name: string | null
+          id: string
+          portfolio_gid: string
+          portfolio_name: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          group_by_field?: string
+          hourly_rate?: number | null
+          hours_field_name?: string | null
+          id?: string
+          portfolio_gid: string
+          portfolio_name: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          group_by_field?: string
+          hourly_rate?: number | null
+          hours_field_name?: string | null
+          id?: string
+          portfolio_gid?: string
+          portfolio_name?: string
+        }
+        Relationships: []
+      }
       chat_threads: {
         Row: {
           created_at: string
@@ -94,21 +127,89 @@ export type Database = {
           },
         ]
       }
+      claude_code_plans: {
+        Row: {
+          category: string
+          computer_name: string | null
+          created_at: string
+          effort_estimate: string | null
+          id: string
+          plan_content: string | null
+          priority: string
+          related_files: Json | null
+          research_notes: string | null
+          session_id: string | null
+          shipped_at: string | null
+          status: string
+          summary: string | null
+          tags: Json | null
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string
+          computer_name?: string | null
+          created_at?: string
+          effort_estimate?: string | null
+          id?: string
+          plan_content?: string | null
+          priority?: string
+          related_files?: Json | null
+          research_notes?: string | null
+          session_id?: string | null
+          shipped_at?: string | null
+          status?: string
+          summary?: string | null
+          tags?: Json | null
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          computer_name?: string | null
+          created_at?: string
+          effort_estimate?: string | null
+          id?: string
+          plan_content?: string | null
+          priority?: string
+          related_files?: Json | null
+          research_notes?: string | null
+          session_id?: string | null
+          shipped_at?: string | null
+          status?: string
+          summary?: string | null
+          tags?: Json | null
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           annual_revenue: string | null
+          asana_project_gids: string[] | null
           created_at: string
           description: string | null
           domain: string | null
           employee_count: string | null
           enrichment_data: Json | null
+          freshdesk_company_id: string | null
+          freshdesk_company_name: string | null
+          harvest_client_id: string | null
+          harvest_client_name: string | null
           hubspot_company_id: string | null
           id: string
           industry: string | null
+          last_synced_at: string | null
           location: string | null
           logo_url: string | null
           name: string
           notes: string | null
+          quickbooks_client_name: string | null
+          quickbooks_invoice_summary: Json | null
           status: string
           tags: string[] | null
           updated_at: string
@@ -117,18 +218,26 @@ export type Database = {
         }
         Insert: {
           annual_revenue?: string | null
+          asana_project_gids?: string[] | null
           created_at?: string
           description?: string | null
           domain?: string | null
           employee_count?: string | null
           enrichment_data?: Json | null
+          freshdesk_company_id?: string | null
+          freshdesk_company_name?: string | null
+          harvest_client_id?: string | null
+          harvest_client_name?: string | null
           hubspot_company_id?: string | null
           id?: string
           industry?: string | null
+          last_synced_at?: string | null
           location?: string | null
           logo_url?: string | null
           name: string
           notes?: string | null
+          quickbooks_client_name?: string | null
+          quickbooks_invoice_summary?: Json | null
           status?: string
           tags?: string[] | null
           updated_at?: string
@@ -137,18 +246,26 @@ export type Database = {
         }
         Update: {
           annual_revenue?: string | null
+          asana_project_gids?: string[] | null
           created_at?: string
           description?: string | null
           domain?: string | null
           employee_count?: string | null
           enrichment_data?: Json | null
+          freshdesk_company_id?: string | null
+          freshdesk_company_name?: string | null
+          harvest_client_id?: string | null
+          harvest_client_name?: string | null
           hubspot_company_id?: string | null
           id?: string
           industry?: string | null
+          last_synced_at?: string | null
           location?: string | null
           logo_url?: string | null
           name?: string
           notes?: string | null
+          quickbooks_client_name?: string | null
+          quickbooks_invoice_summary?: Json | null
           status?: string
           tags?: string[] | null
           updated_at?: string
@@ -156,6 +273,139 @@ export type Database = {
           website_url?: string | null
         }
         Relationships: []
+      }
+      company_cleanup_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          phase: string
+          source_id: string | null
+          target_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          phase: string
+          source_id?: string | null
+          target_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          phase?: string
+          source_id?: string | null
+          target_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      company_source_data: {
+        Row: {
+          company_id: string
+          created_at: string
+          fetched_at: string
+          id: string
+          raw_data: Json
+          source: string
+          source_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          raw_data?: Json
+          source: string
+          source_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          raw_data?: Json
+          source?: string
+          source_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_source_data_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      connected_drive_folders: {
+        Row: {
+          company_id: string
+          created_at: string
+          folder_id: string
+          folder_name: string
+          folder_path: string | null
+          id: string
+          is_enabled: boolean
+          label: string | null
+          last_sync_error: string | null
+          last_sync_file_count: number | null
+          last_synced_at: string | null
+          sync_status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          folder_id: string
+          folder_name: string
+          folder_path?: string | null
+          id?: string
+          is_enabled?: boolean
+          label?: string | null
+          last_sync_error?: string | null
+          last_sync_file_count?: number | null
+          last_synced_at?: string | null
+          sync_status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          folder_id?: string
+          folder_name?: string
+          folder_path?: string | null
+          id?: string
+          is_enabled?: boolean
+          label?: string | null
+          last_sync_error?: string | null
+          last_sync_file_count?: number | null
+          last_synced_at?: string | null
+          sync_status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connected_drive_folders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contact_photos: {
         Row: {
@@ -200,9 +450,12 @@ export type Database = {
           enrichment_data: Json | null
           first_name: string | null
           hubspot_contact_id: string | null
+          hubspot_owner_id: string | null
           id: string
           is_primary: boolean
           last_name: string | null
+          lead_status: string | null
+          lifecycle_stage: string | null
           linkedin_url: string | null
           notes: string | null
           phone: string | null
@@ -223,9 +476,12 @@ export type Database = {
           enrichment_data?: Json | null
           first_name?: string | null
           hubspot_contact_id?: string | null
+          hubspot_owner_id?: string | null
           id?: string
           is_primary?: boolean
           last_name?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
           linkedin_url?: string | null
           notes?: string | null
           phone?: string | null
@@ -246,9 +502,12 @@ export type Database = {
           enrichment_data?: Json | null
           first_name?: string | null
           hubspot_contact_id?: string | null
+          hubspot_owner_id?: string | null
           id?: string
           is_primary?: boolean
           last_name?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
           linkedin_url?: string | null
           notes?: string | null
           phone?: string | null
@@ -363,6 +622,7 @@ export type Database = {
       }
       crawl_sessions: {
         Row: {
+          ai_insights: Json | null
           apollo_data: Json | null
           apollo_team_data: Json | null
           avoma_data: Json | null
@@ -414,6 +674,7 @@ export type Database = {
           yellowlab_data: Json | null
         }
         Insert: {
+          ai_insights?: Json | null
           apollo_data?: Json | null
           apollo_team_data?: Json | null
           avoma_data?: Json | null
@@ -465,6 +726,7 @@ export type Database = {
           yellowlab_data?: Json | null
         }
         Update: {
+          ai_insights?: Json | null
           apollo_data?: Json | null
           apollo_team_data?: Json | null
           avoma_data?: Json | null
@@ -534,6 +796,7 @@ export type Database = {
           created_at: string
           deal_type: string | null
           hubspot_deal_id: string | null
+          hubspot_owner_id: string | null
           id: string
           name: string
           pipeline: string | null
@@ -552,6 +815,7 @@ export type Database = {
           created_at?: string
           deal_type?: string | null
           hubspot_deal_id?: string | null
+          hubspot_owner_id?: string | null
           id?: string
           name: string
           pipeline?: string | null
@@ -570,6 +834,7 @@ export type Database = {
           created_at?: string
           deal_type?: string | null
           hubspot_deal_id?: string | null
+          hubspot_owner_id?: string | null
           id?: string
           name?: string
           pipeline?: string | null
@@ -751,6 +1016,155 @@ export type Database = {
           },
         ]
       }
+      freshdesk_ticket_conversations: {
+        Row: {
+          body_text: string | null
+          created_at: string
+          created_date: string | null
+          freshdesk_conversation_id: string
+          freshdesk_ticket_id: string
+          from_email: string | null
+          id: string
+          incoming: boolean | null
+          private_note: boolean | null
+          raw_data: Json | null
+          source: number | null
+          support_email: string | null
+          to_emails: string[] | null
+        }
+        Insert: {
+          body_text?: string | null
+          created_at?: string
+          created_date?: string | null
+          freshdesk_conversation_id: string
+          freshdesk_ticket_id: string
+          from_email?: string | null
+          id?: string
+          incoming?: boolean | null
+          private_note?: boolean | null
+          raw_data?: Json | null
+          source?: number | null
+          support_email?: string | null
+          to_emails?: string[] | null
+        }
+        Update: {
+          body_text?: string | null
+          created_at?: string
+          created_date?: string | null
+          freshdesk_conversation_id?: string
+          freshdesk_ticket_id?: string
+          from_email?: string | null
+          id?: string
+          incoming?: boolean | null
+          private_note?: boolean | null
+          raw_data?: Json | null
+          source?: number | null
+          support_email?: string | null
+          to_emails?: string[] | null
+        }
+        Relationships: []
+      }
+      freshdesk_tickets: {
+        Row: {
+          agent_name: string | null
+          closed_at: string | null
+          company_id: string
+          created_at: string
+          created_date: string | null
+          description_text: string | null
+          due_by: string | null
+          first_responded_at: string | null
+          freshdesk_company_id: string | null
+          freshdesk_ticket_id: string
+          group_name: string | null
+          id: string
+          priority: number | null
+          priority_label: string | null
+          raw_data: Json | null
+          requester_email: string | null
+          requester_name: string | null
+          resolved_at: string | null
+          satisfaction_rating: Json | null
+          source: number | null
+          source_label: string | null
+          status: number | null
+          status_label: string | null
+          subject: string | null
+          tags: string[] | null
+          ticket_type: string | null
+          updated_date: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_name?: string | null
+          closed_at?: string | null
+          company_id: string
+          created_at?: string
+          created_date?: string | null
+          description_text?: string | null
+          due_by?: string | null
+          first_responded_at?: string | null
+          freshdesk_company_id?: string | null
+          freshdesk_ticket_id: string
+          group_name?: string | null
+          id?: string
+          priority?: number | null
+          priority_label?: string | null
+          raw_data?: Json | null
+          requester_email?: string | null
+          requester_name?: string | null
+          resolved_at?: string | null
+          satisfaction_rating?: Json | null
+          source?: number | null
+          source_label?: string | null
+          status?: number | null
+          status_label?: string | null
+          subject?: string | null
+          tags?: string[] | null
+          ticket_type?: string | null
+          updated_date?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_name?: string | null
+          closed_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_date?: string | null
+          description_text?: string | null
+          due_by?: string | null
+          first_responded_at?: string | null
+          freshdesk_company_id?: string | null
+          freshdesk_ticket_id?: string
+          group_name?: string | null
+          id?: string
+          priority?: number | null
+          priority_label?: string | null
+          raw_data?: Json | null
+          requester_email?: string | null
+          requester_name?: string | null
+          resolved_at?: string | null
+          satisfaction_rating?: Json | null
+          source?: number | null
+          source_label?: string | null
+          status?: number | null
+          status_label?: string | null
+          subject?: string | null
+          tags?: string[] | null
+          ticket_type?: string | null
+          updated_date?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freshdesk_tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       global_chat_messages: {
         Row: {
           content: string
@@ -834,20 +1248,356 @@ export type Database = {
           id: string
           title: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           title?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           title?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
+      }
+      harvest_invoice_payments: {
+        Row: {
+          amount: number | null
+          created_at: string
+          harvest_invoice_id: string
+          harvest_payment_id: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          paid_date: string | null
+          payment_gateway_id: string | null
+          raw_data: Json | null
+          recorded_by: string | null
+          recorded_by_email: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          harvest_invoice_id: string
+          harvest_payment_id: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_date?: string | null
+          payment_gateway_id?: string | null
+          raw_data?: Json | null
+          recorded_by?: string | null
+          recorded_by_email?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          harvest_invoice_id?: string
+          harvest_payment_id?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_date?: string | null
+          payment_gateway_id?: string | null
+          raw_data?: Json | null
+          recorded_by?: string | null
+          recorded_by_email?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: []
+      }
+      harvest_invoices: {
+        Row: {
+          amount: number | null
+          company_id: string
+          created_at: string
+          currency: string | null
+          discount: number | null
+          discount_amount: number | null
+          due_amount: number | null
+          due_date: string | null
+          harvest_client_id: string | null
+          harvest_invoice_id: string
+          id: string
+          issue_date: string | null
+          notes: string | null
+          number: string | null
+          paid_at: string | null
+          paid_date: string | null
+          payment_term: string | null
+          period_end: string | null
+          period_start: string | null
+          purchase_order: string | null
+          raw_data: Json | null
+          sent_at: string | null
+          state: string | null
+          subject: string | null
+          tax: number | null
+          tax_amount: number | null
+          tax2: number | null
+          tax2_amount: number | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          company_id: string
+          created_at?: string
+          currency?: string | null
+          discount?: number | null
+          discount_amount?: number | null
+          due_amount?: number | null
+          due_date?: string | null
+          harvest_client_id?: string | null
+          harvest_invoice_id: string
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          number?: string | null
+          paid_at?: string | null
+          paid_date?: string | null
+          payment_term?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          purchase_order?: string | null
+          raw_data?: Json | null
+          sent_at?: string | null
+          state?: string | null
+          subject?: string | null
+          tax?: number | null
+          tax_amount?: number | null
+          tax2?: number | null
+          tax2_amount?: number | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          company_id?: string
+          created_at?: string
+          currency?: string | null
+          discount?: number | null
+          discount_amount?: number | null
+          due_amount?: number | null
+          due_date?: string | null
+          harvest_client_id?: string | null
+          harvest_invoice_id?: string
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          number?: string | null
+          paid_at?: string | null
+          paid_date?: string | null
+          payment_term?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          purchase_order?: string | null
+          raw_data?: Json | null
+          sent_at?: string | null
+          state?: string | null
+          subject?: string | null
+          tax?: number | null
+          tax_amount?: number | null
+          tax2?: number | null
+          tax2_amount?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "harvest_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      harvest_projects: {
+        Row: {
+          bill_by: string | null
+          budget: number | null
+          budget_by: string | null
+          budget_is_monthly: boolean | null
+          code: string | null
+          company_id: string
+          cost_budget: number | null
+          cost_budget_include_expenses: boolean | null
+          created_at: string
+          ends_on: string | null
+          fee: number | null
+          harvest_client_id: string | null
+          harvest_project_id: string
+          hourly_rate: number | null
+          id: string
+          is_active: boolean | null
+          is_billable: boolean | null
+          name: string
+          notes: string | null
+          notify_when_over_budget: boolean | null
+          over_budget_notification_percentage: number | null
+          raw_data: Json | null
+          starts_on: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bill_by?: string | null
+          budget?: number | null
+          budget_by?: string | null
+          budget_is_monthly?: boolean | null
+          code?: string | null
+          company_id: string
+          cost_budget?: number | null
+          cost_budget_include_expenses?: boolean | null
+          created_at?: string
+          ends_on?: string | null
+          fee?: number | null
+          harvest_client_id?: string | null
+          harvest_project_id: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_billable?: boolean | null
+          name: string
+          notes?: string | null
+          notify_when_over_budget?: boolean | null
+          over_budget_notification_percentage?: number | null
+          raw_data?: Json | null
+          starts_on?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bill_by?: string | null
+          budget?: number | null
+          budget_by?: string | null
+          budget_is_monthly?: boolean | null
+          code?: string | null
+          company_id?: string
+          cost_budget?: number | null
+          cost_budget_include_expenses?: boolean | null
+          created_at?: string
+          ends_on?: string | null
+          fee?: number | null
+          harvest_client_id?: string | null
+          harvest_project_id?: string
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_billable?: boolean | null
+          name?: string
+          notes?: string | null
+          notify_when_over_budget?: boolean | null
+          over_budget_notification_percentage?: number | null
+          raw_data?: Json | null
+          starts_on?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "harvest_projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      harvest_time_entries: {
+        Row: {
+          billable: boolean | null
+          billable_rate: number | null
+          budgeted: boolean | null
+          company_id: string
+          cost_rate: number | null
+          created_at: string
+          harvest_project_id: string | null
+          harvest_task_id: string | null
+          harvest_time_entry_id: string
+          harvest_user_id: string | null
+          harvest_user_name: string | null
+          hours: number
+          id: string
+          is_billed: boolean | null
+          is_closed: boolean | null
+          is_locked: boolean | null
+          is_running: boolean | null
+          notes: string | null
+          project_name: string | null
+          raw_data: Json | null
+          rounded_hours: number | null
+          spent_date: string | null
+          task_name: string | null
+          user_id: string
+        }
+        Insert: {
+          billable?: boolean | null
+          billable_rate?: number | null
+          budgeted?: boolean | null
+          company_id: string
+          cost_rate?: number | null
+          created_at?: string
+          harvest_project_id?: string | null
+          harvest_task_id?: string | null
+          harvest_time_entry_id: string
+          harvest_user_id?: string | null
+          harvest_user_name?: string | null
+          hours?: number
+          id?: string
+          is_billed?: boolean | null
+          is_closed?: boolean | null
+          is_locked?: boolean | null
+          is_running?: boolean | null
+          notes?: string | null
+          project_name?: string | null
+          raw_data?: Json | null
+          rounded_hours?: number | null
+          spent_date?: string | null
+          task_name?: string | null
+          user_id: string
+        }
+        Update: {
+          billable?: boolean | null
+          billable_rate?: number | null
+          budgeted?: boolean | null
+          company_id?: string
+          cost_rate?: number | null
+          created_at?: string
+          harvest_project_id?: string | null
+          harvest_task_id?: string | null
+          harvest_time_entry_id?: string
+          harvest_user_id?: string | null
+          harvest_user_name?: string | null
+          hours?: number
+          id?: string
+          is_billed?: boolean | null
+          is_closed?: boolean | null
+          is_locked?: boolean | null
+          is_running?: boolean | null
+          notes?: string | null
+          project_name?: string | null
+          raw_data?: Json | null
+          rounded_hours?: number | null
+          spent_date?: string | null
+          task_name?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "harvest_time_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integration_runs: {
         Row: {
@@ -1213,6 +1963,7 @@ export type Database = {
           scopes: string | null
           token_expires_at: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           access_token: string
@@ -1225,6 +1976,7 @@ export type Database = {
           scopes?: string | null
           token_expires_at?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           access_token?: string
@@ -1237,6 +1989,7 @@ export type Database = {
           scopes?: string | null
           token_expires_at?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1267,13 +2020,13 @@ export type Database = {
       project_estimates: {
         Row: {
           bulk_import_amount: string | null
-          client_name: string | null
           company_id: string | null
           complexity_score: number | null
           content_pages: number | null
           content_tier: string | null
           created_at: string
           custom_posts: number | null
+          deal_id: string | null
           description: string | null
           design_layouts: number | null
           form_count: number | null
@@ -1303,13 +2056,13 @@ export type Database = {
         }
         Insert: {
           bulk_import_amount?: string | null
-          client_name?: string | null
           company_id?: string | null
           complexity_score?: number | null
           content_pages?: number | null
           content_tier?: string | null
           created_at?: string
           custom_posts?: number | null
+          deal_id?: string | null
           description?: string | null
           design_layouts?: number | null
           form_count?: number | null
@@ -1339,13 +2092,13 @@ export type Database = {
         }
         Update: {
           bulk_import_amount?: string | null
-          client_name?: string | null
           company_id?: string | null
           complexity_score?: number | null
           content_pages?: number | null
           content_tier?: string | null
           created_at?: string
           custom_posts?: number | null
+          deal_id?: string | null
           description?: string | null
           design_layouts?: number | null
           form_count?: number | null
@@ -1386,6 +2139,59 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "crawl_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_mappings: {
+        Row: {
+          asana_project_gid: string
+          asana_project_name: string
+          client_display_name: string | null
+          company_id: string | null
+          created_at: string
+          harvest_project_id: number | null
+          harvest_project_name: string | null
+          id: string
+          is_auto_matched: boolean
+          match_confidence: number | null
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          asana_project_gid: string
+          asana_project_name: string
+          client_display_name?: string | null
+          company_id?: string | null
+          created_at?: string
+          harvest_project_id?: number | null
+          harvest_project_name?: string | null
+          id?: string
+          is_auto_matched?: boolean
+          match_confidence?: number | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asana_project_gid?: string
+          asana_project_name?: string
+          client_display_name?: string | null
+          company_id?: string | null
+          created_at?: string
+          harvest_project_id?: number | null
+          harvest_project_name?: string | null
+          id?: string
+          is_auto_matched?: boolean
+          match_confidence?: number | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1470,40 +2276,34 @@ export type Database = {
       proposals: {
         Row: {
           company_id: string | null
-          company_name: string | null
-          contact_email: string | null
-          contact_name: string | null
-          contact_title: string | null
+          contact_id: string | null
           created_at: string | null
+          deal_id: string | null
           id: string
           proposal_data: Json | null
-          session_id: string
+          session_id: string | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           company_id?: string | null
-          company_name?: string | null
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_title?: string | null
+          contact_id?: string | null
           created_at?: string | null
+          deal_id?: string | null
           id?: string
           proposal_data?: Json | null
-          session_id: string
+          session_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           company_id?: string | null
-          company_name?: string | null
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_title?: string | null
+          contact_id?: string | null
           created_at?: string | null
+          deal_id?: string | null
           id?: string
           proposal_data?: Json | null
-          session_id?: string
+          session_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1513,6 +2313,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -1585,42 +2392,42 @@ export type Database = {
       }
       roadmaps: {
         Row: {
-          client_name: string
           company_id: string | null
           created_at: string
+          deal_id: string | null
           id: string
           ideal_end_date: string | null
           ideal_start_date: string | null
           outcomes_data: Json | null
-          session_id: string
+          session_id: string | null
           start_month: number
           total_months: number
           updated_at: string
           user_id: string | null
         }
         Insert: {
-          client_name?: string
           company_id?: string | null
           created_at?: string
+          deal_id?: string | null
           id?: string
           ideal_end_date?: string | null
           ideal_start_date?: string | null
           outcomes_data?: Json | null
-          session_id: string
+          session_id?: string | null
           start_month?: number
           total_months?: number
           updated_at?: string
           user_id?: string | null
         }
         Update: {
-          client_name?: string
           company_id?: string | null
           created_at?: string
+          deal_id?: string | null
           id?: string
           ideal_end_date?: string | null
           ideal_start_date?: string | null
           outcomes_data?: Json | null
-          session_id?: string
+          session_id?: string | null
           start_month?: number
           total_months?: number
           updated_at?: string
@@ -1878,6 +2685,7 @@ export type Database = {
           name: string
           slug: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1887,6 +2695,7 @@ export type Database = {
           name: string
           slug: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1896,6 +2705,76 @@ export type Database = {
           name?: string
           slug?: string
           updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sync_config: {
+        Row: {
+          created_at: string | null
+          default_user_id: string | null
+          id: string
+          integration_key: string
+          is_active: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_user_id?: string | null
+          id?: string
+          integration_key: string
+          is_active?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          default_user_id?: string | null
+          id?: string
+          integration_key?: string
+          is_active?: boolean | null
+        }
+        Relationships: []
+      }
+      sync_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          function_name: string
+          id: string
+          metadata: Json | null
+          records_deleted: number | null
+          records_skipped: number | null
+          records_upserted: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          function_name: string
+          id?: string
+          metadata?: Json | null
+          records_deleted?: number | null
+          records_skipped?: number | null
+          records_upserted?: number | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          function_name?: string
+          id?: string
+          metadata?: Json | null
+          records_deleted?: number | null
+          records_skipped?: number | null
+          records_upserted?: number | null
+          started_at?: string
+          status?: string
         }
         Relationships: []
       }
@@ -2108,6 +2987,7 @@ export type Database = {
           submitted_by: string | null
           title: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           category?: string
@@ -2124,6 +3004,7 @@ export type Database = {
           submitted_by?: string | null
           title: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           category?: string
@@ -2140,6 +3021,7 @@ export type Database = {
           submitted_by?: string | null
           title?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

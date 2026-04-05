@@ -27,8 +27,8 @@ export function useCrawlInsights(sessionId: string | null, overallScore: Overall
         .select('ai_insights')
         .eq('id', sessionId)
         .single();
-      if ((data as any)?.ai_insights) {
-        setInsights((data as any).ai_insights as CrawlInsights);
+      if (data?.ai_insights) {
+        setInsights(data.ai_insights as CrawlInsights);
       }
     })();
   }, [sessionId]);
@@ -52,7 +52,7 @@ export function useCrawlInsights(sessionId: string | null, overallScore: Overall
           // Persist to session
           await supabase
             .from('crawl_sessions')
-            .update({ ai_insights: data.insights } as any)
+            .update({ ai_insights: data.insights })
             .eq('id', sessionId);
         }
       } catch (e) {

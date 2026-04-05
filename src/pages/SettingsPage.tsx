@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor, FileQuestion, Settings2, Plug, Wrench } from 'lucide-react';
+import { SyncHealthPanel } from '@/components/settings/SyncHealthPanel';
 import { useTheme } from 'next-themes';
 import { PROVIDERS, VERSIONS, MODEL_OPTIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1517,7 +1518,9 @@ export default function SettingsPage() {
               ═══════════════════════════════════════════════════════════════ */}
           <TabsContent value="advanced" className="space-y-8 mt-6">
 
-        <section className="space-y-6">
+        <SyncHealthPanel />
+
+        <section className="space-y-6 mt-8">
           <div>
             <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><Wrench className="h-5 w-5" /> Data Management</h2>
             <p className="text-sm text-muted-foreground mt-1">Cleanup tools, data export, and advanced configuration.</p>
@@ -1525,7 +1528,7 @@ export default function SettingsPage() {
 
           <div className="rounded-lg border border-border p-6 text-center">
             <Wrench className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Advanced tools coming soon.</p>
+            <p className="text-sm text-muted-foreground">Additional tools coming soon.</p>
             <p className="text-xs text-muted-foreground/60 mt-1">Company cleanup, data export, crawl profile configuration, and more.</p>
           </div>
         </section>

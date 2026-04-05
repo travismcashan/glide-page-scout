@@ -26,7 +26,7 @@ export type PlanUpdate = Partial<Plan> & { id: string };
 
 async function fetchPlans(): Promise<Plan[]> {
   const { data, error } = await supabase
-    .from('claude_code_plans' as any)
+    .from('claude_code_plans')
     .select('*')
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -35,7 +35,7 @@ async function fetchPlans(): Promise<Plan[]> {
 
 async function fetchPlan(id: string): Promise<Plan | null> {
   const { data, error } = await supabase
-    .from('claude_code_plans' as any)
+    .from('claude_code_plans')
     .select('*')
     .eq('id', id)
     .maybeSingle();
@@ -74,8 +74,8 @@ export function useCreatePlan() {
   return useMutation({
     mutationFn: async (plan: PlanInsert) => {
       const { data, error } = await supabase
-        .from('claude_code_plans' as any)
-        .insert(plan as any)
+        .from('claude_code_plans')
+        .insert(plan)
         .select()
         .single();
       if (error) throw error;
@@ -90,8 +90,8 @@ export function useUpdatePlan() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: PlanUpdate) => {
       const { data, error } = await supabase
-        .from('claude_code_plans' as any)
-        .update(updates as any)
+        .from('claude_code_plans')
+        .update(updates)
         .eq('id', id)
         .select()
         .single();
@@ -110,7 +110,7 @@ export function useDeletePlan() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('claude_code_plans' as any)
+        .from('claude_code_plans')
         .delete()
         .eq('id', id);
       if (error) throw error;

@@ -31,7 +31,7 @@ export async function ensureCrawl(
       base_url: `https://${normalized}`,
       status: 'analyzing',
       company_id: companyId || null,
-    } as any)
+    })
     .select('id, domain, created_at')
     .single();
 

@@ -19,6 +19,7 @@ import {
   Shield,
   Users,
   DollarSign,
+  Layers,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ProductId } from '@/contexts/ProductContext';
@@ -47,6 +48,7 @@ export const WORKSPACE_NAV: Record<ProductId, NavItem[]> = {
     { label: 'Crawls', to: '/crawls', icon: Search, matchPrefix: '/sites' },
     { label: 'Contacts', to: '/contacts', icon: Users, matchPrefix: '/contacts' },
     { label: 'Companies', to: '/companies', icon: Building2, matchPrefix: '/companies' },
+    { label: 'Patterns', to: '/patterns', icon: Layers, matchPrefix: '/patterns' },
   ],
   delivery: [
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
@@ -70,6 +72,7 @@ export const WORKSPACE_COMPANY_TABS: Record<ProductId, CompanyTab[]> = {
     { value: 'chat', label: 'Chat', icon: MessageSquare },
     { value: 'estimates', label: 'Estimates', icon: DollarSign },
     { value: 'roadmap', label: 'Roadmap', icon: MapIcon },
+    { value: 'patterns', label: 'Patterns', icon: Layers },
     { value: 'proposal', label: 'Proposal', icon: FileText },
     { value: 'source-data', label: 'Source Data', icon: Database },
   ],
@@ -116,5 +119,6 @@ export const TAB_ICONS: Record<string, LucideIcon> = {
   chat: MessageSquare,
   roadmap: MapIcon,
   invoices: Receipt,
+  patterns: Layers,
   'source-data': Database,
 };

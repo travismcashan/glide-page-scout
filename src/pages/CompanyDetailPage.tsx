@@ -39,6 +39,7 @@ import { ApolloOrgCard, type ApolloOrgData } from '@/components/apollo/ApolloOrg
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
 import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS } from '@/config/badge-styles';
+import { CompanyPatternsTab } from '@/components/company/CompanyPatternsTab';
 
 type Company = {
   id: string;

@@ -45,12 +45,12 @@ const PHASE_VARIANTS: Offering[] = [
 async function fetchServiceOfferings(): Promise<Offering[]> {
   const [servicesRes, stepsRes] = await Promise.all([
     supabase
-      .from("services" as any)
+      .from("services")
       .select("id, sku, name, default_duration_months, pillar, roadmap_grade, billing_type, min_fixed, max_fixed, min_retainer, max_retainer, min_hourly, max_hourly, hourly_rate_external")
       .not("sku", "is", null)
       .order("sort_order", { ascending: true }),
     supabase
-      .from("service_steps" as any)
+      .from("service_steps")
       .select("id, service_id, code, name, step_type, frequency, sort_order, is_onramp")
       .order("sort_order", { ascending: true }),
   ]);
@@ -59,7 +59,7 @@ async function fetchServiceOfferings(): Promise<Offering[]> {
 
   const stepsMap = new Map<string, ServiceStep[]>();
   if (!stepsRes.error && stepsRes.data) {
-    for (const s of stepsRes.data as any[]) {
+    for (const s of stepsRes.data) {
       const step: ServiceStep = {
         id: s.id,
         serviceId: s.service_id,
@@ -75,7 +75,7 @@ async function fetchServiceOfferings(): Promise<Offering[]> {
     }
   }
 
-  const dbOfferings: Offering[] = (servicesRes.data as any[])
+  const dbOfferings: Offering[] = servicesRes.data
     .filter((s) => s.sku != null && s.pillar != null)
     .map((s) => ({
       id: s.id,
