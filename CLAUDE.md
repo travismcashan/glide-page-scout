@@ -626,6 +626,11 @@ Hardened the 3-phase crawl pipeline for reliability, cancellation, and progress 
 - MCP integration for Chat Live connections
 - Supabase types regeneration (schema changed, types.ts is stale)
 
+### Custom Skills (shipped Apr 5 2026)
+- `/startup` and `/shutdown` session lifecycle skills at `~/.claude/skills/` (user-level)
+- Desktop machine needs manual copy of `~/.claude/skills/startup/` and `~/.claude/skills/shutdown/`
+- Project-level copies exist in `.claude/skills/` but worktree autocomplete discovery was unreliable
+
 ---
 
 ## 3E Methodology
