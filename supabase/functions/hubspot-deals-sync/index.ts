@@ -24,7 +24,7 @@ async function hubspotFetch(path: string, token: string, method = "GET", body?: 
 }
 
 // All 3 pipelines with stage definitions
-const PIPELINES: Record<string, { label: string; stages: { id: string; label: string; closed?: boolean }[] }> = {
+const PIPELINES: Record<string, { label: string; stages: { id: string; label: string; closed?: boolean; outcome?: 'won' | 'lost' | 'archived' }[] }> = {
   "33bc2a42-c57c-4180-b0e6-77b3d6c7f69f": {
     label: "GLIDE Projects Pipeline",
     stages: [
@@ -33,12 +33,12 @@ const PIPELINES: Record<string, { label: string; stages: { id: string; label: st
       { id: "132303", label: "Needs Analysis" },
       { id: "132304", label: "Proposal Due" },
       { id: "132305", label: "Open Deal" },
-      { id: "30306367", label: "Closed: In Contract", closed: true },
-      { id: "132306", label: "Closed: Won!", closed: true },
-      { id: "1ffb1ec7-1fad-4241-bb0e-88d0a85dcdab", label: "Closed: Drip", closed: true },
-      { id: "5f36c04a-b283-484c-b50e-032fbeda332d", label: "Closed: Unresponsive", closed: true },
-      { id: "3053691", label: "Closed: Unqualified", closed: true },
-      { id: "132307", label: "Closed: Lost", closed: true },
+      { id: "30306367", label: "Closed: In Contract", closed: true, outcome: "won" },
+      { id: "132306", label: "Closed: Won!", closed: true, outcome: "won" },
+      { id: "1ffb1ec7-1fad-4241-bb0e-88d0a85dcdab", label: "Closed: Drip", closed: true, outcome: "archived" },
+      { id: "5f36c04a-b283-484c-b50e-032fbeda332d", label: "Closed: Unresponsive", closed: true, outcome: "archived" },
+      { id: "3053691", label: "Closed: Unqualified", closed: true, outcome: "archived" },
+      { id: "132307", label: "Closed: Lost", closed: true, outcome: "lost" },
     ],
   },
   "29735570": {
@@ -50,12 +50,12 @@ const PIPELINES: Record<string, { label: string; stages: { id: string; label: st
       { id: "67943342", label: "Needs Analysis Scheduled" },
       { id: "67943343", label: "Proposal Due" },
       { id: "67958172", label: "Open Deal" },
-      { id: "67958173", label: "Closed: In Contract", closed: true },
-      { id: "67943344", label: "Closed: Won!", closed: true },
-      { id: "67958174", label: "Closed: Drip", closed: true },
-      { id: "67958175", label: "Closed: Unresponsive", closed: true },
-      { id: "67958176", label: "Closed: Unqualified", closed: true },
-      { id: "67943345", label: "Closed: Lost", closed: true },
+      { id: "67958173", label: "Closed: In Contract", closed: true, outcome: "won" },
+      { id: "67943344", label: "Closed: Won!", closed: true, outcome: "won" },
+      { id: "67958174", label: "Closed: Drip", closed: true, outcome: "archived" },
+      { id: "67958175", label: "Closed: Unresponsive", closed: true, outcome: "archived" },
+      { id: "67958176", label: "Closed: Unqualified", closed: true, outcome: "archived" },
+      { id: "67943345", label: "Closed: Lost", closed: true, outcome: "lost" },
     ],
   },
   "758296729": {
@@ -69,22 +69,22 @@ const PIPELINES: Record<string, { label: string; stages: { id: string; label: st
       { id: "1269247232", label: "Waiting on Response" },
       { id: "1103540135", label: "Presentation / Finalist" },
       { id: "1103625803", label: "Negotiation & Contracting" },
-      { id: "1103625804", label: "Closed: Won", closed: true },
-      { id: "1103625805", label: "Closed: Lost", closed: true },
-      { id: "1113717867", label: "Closed: Drip", closed: true },
-      { id: "1103625806", label: "Closed: Declined", closed: true },
+      { id: "1103625804", label: "Closed: Won", closed: true, outcome: "won" },
+      { id: "1103625805", label: "Closed: Lost", closed: true, outcome: "lost" },
+      { id: "1113717867", label: "Closed: Drip", closed: true, outcome: "archived" },
+      { id: "1103625806", label: "Closed: Declined", closed: true, outcome: "lost" },
     ],
   },
 };
 
-// Build stage label lookup
+// Build stage label lookup + semantic outcome map
 const stageLabelMap: Record<string, string> = {};
+const stageOutcomeMap: Record<string, 'won' | 'lost' | 'archived'> = {};
 for (const p of Object.values(PIPELINES)) {
-  for (const s of p.stages) stageLabelMap[s.id] = s.label;
-}
-const closedStageIds = new Set<string>();
-for (const p of Object.values(PIPELINES)) {
-  for (const s of p.stages) if (s.closed) closedStageIds.add(s.id);
+  for (const s of p.stages) {
+    stageLabelMap[s.id] = s.label;
+    if (s.closed && s.outcome) stageOutcomeMap[s.id] = s.outcome;
+  }
 }
 
 const DEAL_PROPS = [
@@ -326,9 +326,8 @@ serve(async (req) => {
       ownerNames[String(o.id)] = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email || "Unknown";
     }
 
-    // ── Step 6: Delete existing and batch insert ──
-    // Clean slate approach — delete all existing synced deals, then bulk insert
-    await supabase.from("deals").delete().not("hubspot_deal_id", "is", null);
+    // ── Step 6: Upsert deals (no delete-all — preserves FK links) ──
+    const fetchedHsDealIds = new Set(allDeals.map((d) => d.id));
 
     const rows = allDeals.map((deal) => {
       const hsCompanyId = dealToCompanyHsId[deal.id];
@@ -350,7 +349,7 @@ serve(async (req) => {
         deal_type: deal.dealtype || null,
         priority: deal.hs_priority || null,
         close_date: deal.closedate || null,
-        status: closedStageIds.has(stageId) ? "closed" : "open",
+        status: stageOutcomeMap[stageId] || "open",
         hubspot_owner_id: deal.hubspot_owner_id || null,
         properties: {
           createdate: deal.createdate,
@@ -366,19 +365,36 @@ serve(async (req) => {
       };
     });
 
-    // Batch insert in chunks of 100
+    // Batch upsert in chunks of 100
     let synced = 0;
     let skipped = 0;
     for (let i = 0; i < rows.length; i += 100) {
       const batch = rows.slice(i, i + 100);
-      const { error } = await supabase.from("deals").insert(batch);
+      const { error } = await supabase.from("deals").upsert(batch, { onConflict: "hubspot_deal_id" });
       if (error) {
-        console.error(`[hubspot-deals-sync] Batch insert error at offset ${i}: ${JSON.stringify(error)}`);
+        console.error(`[hubspot-deals-sync] Batch upsert error at offset ${i}: ${JSON.stringify(error)}`);
         skipped += batch.length;
       } else {
         synced += batch.length;
       }
     }
+
+    // Remove stale deals (deleted in HubSpot) — compute diff in JS to avoid URL length limits
+    let staleDeleted = 0;
+    const { data: localDeals } = await supabase
+      .from("deals")
+      .select("id, hubspot_deal_id")
+      .not("hubspot_deal_id", "is", null);
+    const staleIds = (localDeals || [])
+      .filter((d) => !fetchedHsDealIds.has(d.hubspot_deal_id))
+      .map((d) => d.id);
+    for (let i = 0; i < staleIds.length; i += 100) {
+      const batch = staleIds.slice(i, i + 100);
+      const { error } = await supabase.from("deals").delete().in("id", batch);
+      if (!error) staleDeleted += batch.length;
+      else console.error(`[hubspot-deals-sync] Stale delete error: ${JSON.stringify(error)}`);
+    }
+    if (staleDeleted > 0) console.log(`[hubspot-deals-sync] Removed ${staleDeleted} stale deals`);
 
     // ── Step 7: Auto-enrich newly created companies (pipeline companies only) ──
     if (companiesCreated > 0) {
@@ -448,12 +464,13 @@ serve(async (req) => {
       .select("status, pipeline")
       .order("pipeline");
 
-    const summary: Record<string, { open: number; closed: number }> = {};
+    const summary: Record<string, { open: number; won: number; lost: number; archived: number }> = {};
     for (const row of counts || []) {
       const p = PIPELINES[row.pipeline]?.label || row.pipeline;
-      if (!summary[p]) summary[p] = { open: 0, closed: 0 };
-      if (row.status === "open") summary[p].open++;
-      else summary[p].closed++;
+      if (!summary[p]) summary[p] = { open: 0, won: 0, lost: 0, archived: 0 };
+      const s = row.status as keyof typeof summary[string];
+      if (s in summary[p]) summary[p][s]++;
+      else summary[p].open++;
     }
 
     return new Response(

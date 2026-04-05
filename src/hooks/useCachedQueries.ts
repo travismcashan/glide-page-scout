@@ -439,7 +439,7 @@ async function fetchPipelineStats(pipelineId: string, ownerFilter?: string) {
     .from('deals')
     .select('amount, stage, close_date, created_at, hubspot_owner_id')
     .eq('pipeline', pipelineId)
-    .eq('status', 'closed');
+    .in('status', ['won', 'lost', 'archived']);
 
   if (ownerFilter && ownerFilter !== 'all') {
     query = query.eq('hubspot_owner_id', ownerFilter);

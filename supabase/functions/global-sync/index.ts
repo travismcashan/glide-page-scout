@@ -445,6 +445,7 @@ function crossReference(
 async function storeRawSourceData(
   supabase: any,
   companyId: string,
+  userId: string,
   client: UnifiedClient,
   rawMaps: { harvest: Map<string, any>; hubspot: Map<string, any>; freshdesk: Map<string, any> }
 ) {
@@ -455,6 +456,7 @@ async function storeRawSourceData(
     const raw = rawMaps.hubspot.get(client.hubspot.id);
     if (raw) {
       upserts.push({
+        user_id: userId,
         company_id: companyId,
         source: 'hubspot',
         source_id: client.hubspot.id,
@@ -467,6 +469,7 @@ async function storeRawSourceData(
     const raw = rawMaps.harvest.get(String(client.harvest.id));
     if (raw) {
       upserts.push({
+        user_id: userId,
         company_id: companyId,
         source: 'harvest',
         source_id: String(client.harvest.id),
@@ -479,6 +482,7 @@ async function storeRawSourceData(
     const raw = rawMaps.freshdesk.get(String(client.freshdesk.id));
     if (raw) {
       upserts.push({
+        user_id: userId,
         company_id: companyId,
         source: 'freshdesk',
         source_id: String(client.freshdesk.id),
@@ -489,9 +493,12 @@ async function storeRawSourceData(
   }
 
   for (const row of upserts) {
-    await supabase
+    const { error } = await supabase
       .from('company_source_data')
       .upsert(row, { onConflict: 'company_id,source' });
+    if (error) {
+      console.error(`[company_source_data] Failed to upsert ${row.source} for company ${row.company_id}:`, error.message);
+    }
   }
 }
 
@@ -626,7 +633,7 @@ Deno.serve(async (req) => {
             await supabase.from('companies').update(updates).eq('id', client.existingId);
 
             // Store raw source data
-            await storeRawSourceData(supabase, client.existingId, client, rawMaps);
+            await storeRawSourceData(supabase, client.existingId, userId, client, rawMaps);
 
             summary.updated++;
             if (client.matchType === 'domain') summary.matched.domain++;
@@ -662,7 +669,7 @@ Deno.serve(async (req) => {
 
             const { data: inserted } = await supabase.from('companies').insert(newCompany).select('id').single();
             if (inserted) {
-              await storeRawSourceData(supabase, inserted.id, client, rawMaps);
+              await storeRawSourceData(supabase, inserted.id, userId, client, rawMaps);
             }
             summary.created++;
           }

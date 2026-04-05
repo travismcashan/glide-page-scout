@@ -126,6 +126,8 @@ const DEAL_STATUS_COLORS: Record<string, string> = {
   won: 'bg-green-500/15 text-green-400',
   lost: 'bg-red-500/15 text-red-400',
   open: 'bg-blue-500/15 text-blue-400',
+  archived: 'bg-gray-500/15 text-gray-400',
+  closed: 'bg-gray-500/15 text-gray-400',
 };
 
 const SENIORITY_COLORS: Record<string, string> = {

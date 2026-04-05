@@ -38,9 +38,9 @@ async function fetchPlan(id: string): Promise<Plan | null> {
     .from('claude_code_plans' as any)
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (error) throw error;
-  return data as unknown as Plan;
+  return (data as unknown as Plan) ?? null;
 }
 
 export function usePlans() {

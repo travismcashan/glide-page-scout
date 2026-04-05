@@ -165,8 +165,8 @@ serve(async (req) => {
       for (const p of photos || []) if (p.photo_url) photoMap[p.email] = p.photo_url;
     }
 
-    // ── Step 6: Delete existing lead contacts and batch insert ──
-    await supabase.from("contacts").delete().not("hubspot_contact_id", "is", null).not("lead_status", "is", null);
+    // ── Step 6: Upsert lead contacts (no delete-all — preserves FK links) ──
+    const fetchedHsContactIds = new Set(allContacts.map((c) => c.id));
 
     const allRows: any[] = [];
     for (const contact of allContacts) {
@@ -202,14 +202,32 @@ serve(async (req) => {
     let skipped = 0;
     for (let i = 0; i < allRows.length; i += 100) {
       const batch = allRows.slice(i, i + 100);
-      const { error } = await supabase.from("contacts").insert(batch);
+      const { error } = await supabase.from("contacts").upsert(batch, { onConflict: "hubspot_contact_id" });
       if (error) {
-        console.error(`[hubspot-contacts-sync] Batch insert error at offset ${i}: ${JSON.stringify(error)}`);
+        console.error(`[hubspot-contacts-sync] Batch upsert error at offset ${i}: ${JSON.stringify(error)}`);
         skipped += batch.length;
       } else {
         synced += batch.length;
       }
     }
+
+    // Remove stale lead contacts (deleted/demoted in HubSpot) — scoped to lead contacts only
+    let staleDeleted = 0;
+    const { data: localLeadContacts } = await supabase
+      .from("contacts")
+      .select("id, hubspot_contact_id")
+      .not("hubspot_contact_id", "is", null)
+      .not("lead_status", "is", null);
+    const staleIds = (localLeadContacts || [])
+      .filter((c) => !fetchedHsContactIds.has(c.hubspot_contact_id))
+      .map((c) => c.id);
+    for (let i = 0; i < staleIds.length; i += 100) {
+      const batch = staleIds.slice(i, i + 100);
+      const { error } = await supabase.from("contacts").delete().in("id", batch);
+      if (!error) staleDeleted += batch.length;
+      else console.error(`[hubspot-contacts-sync] Stale delete error: ${JSON.stringify(error)}`);
+    }
+    if (staleDeleted > 0) console.log(`[hubspot-contacts-sync] Removed ${staleDeleted} stale lead contacts`);
 
     // ── Step 7: Auto-enrich lead contacts + their companies ──
     if (synced > 0) {
