@@ -17,13 +17,7 @@ import { useProduct } from '@/contexts/ProductContext';
 import { useContacts, type ContactListRow } from '@/hooks/useContacts';
 import type { GrowthFilter } from '@/hooks/useCompanies';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
-
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  'Inbound': 'text-foreground border-emerald-500',
-  'Contacting': 'text-foreground border-blue-500',
-  'Scheduled': 'text-foreground border-violet-500',
-  'Future Follow-Up': 'text-foreground border-amber-500',
-};
+import { LEAD_STATUS_BORDER_COLORS as LEAD_STATUS_COLORS } from '@/config/badge-styles';
 
 type SortKey = 'name_asc' | 'name_desc' | 'company_asc' | 'company_desc' | 'title_asc' | 'title_desc' | 'updated_desc';
 

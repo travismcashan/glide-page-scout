@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlans, useCreatePlan, useDeletePlan, useUpdatePlan, type Plan, type PlanInsert } from '@/hooks/usePlans';
 import { BrandLoader } from '@/components/BrandLoader';
@@ -7,6 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -27,8 +33,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ScrollText, Plus, Search, MoreVertical, Trash2, Archive, Rocket, Check, Calendar, Monitor, Terminal } from 'lucide-react';
+import { ScrollText, Plus, Search, MoreVertical, Trash2, Archive, Rocket, Check, Calendar, Monitor, Terminal, ChevronRight, ChevronDown, Zap, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import { PLAN_STATUS_COLORS, PRIORITY_COLORS, EFFORT_LABELS } from '@/config/badge-styles';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
@@ -55,27 +62,15 @@ const PRIORITY_OPTIONS = [
   { value: 'p3', label: 'P3' },
 ] as const;
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
-  ready: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-  'in-progress': 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-  shipped: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-  archived: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-};
+const DOMAIN_OPTIONS = [
+  { value: 'all', label: 'All Domains' },
+  { value: 'architecture', label: 'Architecture' },
+  { value: 'product', label: 'Product' },
+  { value: 'strategy', label: 'Strategy' },
+] as const;
 
-const PRIORITY_COLORS: Record<string, string> = {
-  p0: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-  p1: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
-  p2: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-  p3: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20',
-};
-
-const EFFORT_LABELS: Record<string, string> = {
-  small: 'S',
-  medium: 'M',
-  large: 'L',
-  xl: 'XL',
-};
+const PRIORITY_ORDER: Record<string, number> = { p0: 0, p1: 1, p2: 2, p3: 3 };
+const STATUS_ORDER: Record<string, number> = { 'in-progress': 0, ready: 1, draft: 2, shipped: 3, archived: 4 };
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -83,6 +78,31 @@ function formatDate(dateStr: string) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+/** Extract tier number from tags array (e.g., "Tier 0" → 0). Returns -1 if no tier tag. */
+function extractTier(tags: string[]): number {
+  for (const tag of tags) {
+    const m = tag.match(/^tier\s*(\d+)$/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return -1;
+}
+
+/** Extract domain tags (architecture, product, strategy) from tags array */
+function extractDomains(tags: string[]): string[] {
+  const domains = ['architecture', 'product', 'strategy'];
+  return tags.filter(t => domains.includes(t.toLowerCase())).map(t => t.toLowerCase());
+}
+
+/** Sort plans: priority first (p0 first), then status (in-progress first) */
+function sortPlans(a: Plan, b: Plan): number {
+  const pa = PRIORITY_ORDER[a.priority] ?? 9;
+  const pb = PRIORITY_ORDER[b.priority] ?? 9;
+  if (pa !== pb) return pa - pb;
+  const sa = STATUS_ORDER[a.status] ?? 9;
+  const sb = STATUS_ORDER[b.status] ?? 9;
+  return sa - sb;
 }
 
 export default function PlansPage() {
@@ -96,7 +116,10 @@ export default function PlansPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [domainFilter, setDomainFilter] = useState('all');
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [collapsedTiers, setCollapsedTiers] = useState<Set<number>>(new Set());
 
   // New plan form state
   const [newTitle, setNewTitle] = useState('');
@@ -107,10 +130,14 @@ export default function PlansPage() {
   const [newComputerName, setNewComputerName] = useState('');
   const [newSessionId, setNewSessionId] = useState('');
 
-  const filtered = plans.filter((p) => {
+  const filtered = useMemo(() => plans.filter((p) => {
     if (statusFilter !== 'all' && p.status !== statusFilter) return false;
     if (categoryFilter !== 'all' && p.category !== categoryFilter) return false;
     if (priorityFilter !== 'all' && p.priority !== priorityFilter) return false;
+    if (domainFilter !== 'all') {
+      const domains = extractDomains(p.tags || []);
+      if (!domains.includes(domainFilter)) return false;
+    }
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -120,7 +147,35 @@ export default function PlansPage() {
       );
     }
     return true;
-  });
+  }), [plans, statusFilter, categoryFilter, priorityFilter, domainFilter, search]);
+
+  // Group filtered plans by tier
+  const tierGroups = useMemo(() => {
+    const groups = new Map<number, Plan[]>();
+    for (const plan of filtered) {
+      const tier = extractTier(plan.tags || []);
+      if (!groups.has(tier)) groups.set(tier, []);
+      groups.get(tier)!.push(plan);
+    }
+    // Sort plans within each tier
+    for (const plans of groups.values()) {
+      plans.sort(sortPlans);
+    }
+    // Sort tiers: -1 (untagged) goes last
+    const sortedTiers = [...groups.keys()].sort((a, b) => {
+      if (a === -1) return 1;
+      if (b === -1) return -1;
+      return a - b;
+    });
+    return sortedTiers.map(tier => ({ tier, plans: groups.get(tier)! }));
+  }, [filtered]);
+
+  // Find highest-priority non-completed plan for "Next Up"
+  const nextUp = useMemo(() => {
+    const active = plans.filter(p => p.status !== 'shipped' && p.status !== 'archived');
+    active.sort(sortPlans);
+    return active[0] || null;
+  }, [plans]);
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
@@ -152,6 +207,7 @@ export default function PlansPage() {
     try {
       await deletePlan.mutateAsync(id);
       toast.success('Plan deleted');
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -168,6 +224,40 @@ export default function PlansPage() {
     } catch (e: any) {
       toast.error(e.message);
     }
+  };
+
+  const handleBulkStatus = async (status: Plan['status']) => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    try {
+      await Promise.all(ids.map(id => updatePlan.mutateAsync({
+        id,
+        status,
+        ...(status === 'shipped' ? { shipped_at: new Date().toISOString() } : {}),
+      })));
+      toast.success(`${ids.length} plan${ids.length > 1 ? 's' : ''} updated to ${status}`);
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleTier = (tier: number) => {
+    setCollapsedTiers(prev => {
+      const next = new Set(prev);
+      if (next.has(tier)) next.delete(tier);
+      else next.add(tier);
+      return next;
+    });
   };
 
   if (loading) {
@@ -193,6 +283,32 @@ export default function PlansPage() {
           New Plan
         </Button>
       </div>
+
+      {/* Next Up card */}
+      {nextUp && (
+        <Card
+          className="px-5 py-4 mb-4 border-primary/30 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
+          onClick={() => navigate(`/plans/${nextUp.id}`)}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Zap className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold text-primary uppercase tracking-wider">Next Up</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-sm">{nextUp.title}</span>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PLAN_STATUS_COLORS[nextUp.status]}`}>
+              {nextUp.status}
+            </Badge>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[nextUp.priority]}`}>
+              {nextUp.priority.toUpperCase()}
+            </Badge>
+            {(() => { const t = extractTier(nextUp.tags || []); return t >= 0 ? <Badge variant="outline" className="text-[10px] px-1.5 py-0">Tier {t}</Badge> : null; })()}
+          </div>
+          {nextUp.summary && (
+            <p className="text-[13px] text-muted-foreground mt-1 line-clamp-1">{nextUp.summary}</p>
+          )}
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -235,107 +351,91 @@ export default function PlansPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={domainFilter} onValueChange={setDomainFilter}>
+          <SelectTrigger className="h-8 w-[130px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DOMAIN_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Plans list */}
+      {/* Bulk actions bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-muted/50 rounded-lg border">
+          <CheckSquare className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium">{selectedIds.size} selected</span>
+          <div className="flex-1" />
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleBulkStatus('ready')}>
+            Ready
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleBulkStatus('in-progress')}>
+            In Progress
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleBulkStatus('shipped')}>
+            Shipped
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleBulkStatus('archived')}>
+            Archive
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
+
+      {/* Plans grouped by tier */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <ScrollText className="h-10 w-10 mb-3 opacity-40" />
           <p className="text-sm">{plans.length === 0 ? 'No plans yet. Create your first one.' : 'No plans match your filters.'}</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((plan) => (
-            <Card
-              key={plan.id}
-              className="px-5 py-4 cursor-pointer hover:bg-accent/40 transition-colors group"
-              onClick={() => navigate(`/plans/${plan.id}`)}
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  {/* Title + badges row */}
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <span className="font-semibold text-sm">{plan.title}</span>
-                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[plan.status]}`}>
-                      {plan.status}
-                    </Badge>
-                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[plan.priority]}`}>
-                      {plan.priority.toUpperCase()}
-                    </Badge>
-                    {plan.effort_estimate && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {EFFORT_LABELS[plan.effort_estimate] || plan.effort_estimate}
-                      </Badge>
-                    )}
-                  </div>
+        <div className="space-y-4">
+          {tierGroups.map(({ tier, plans: tierPlans }) => {
+            const shippedCount = tierPlans.filter(p => p.status === 'shipped').length;
+            const totalCount = tierPlans.length;
+            const isCollapsed = collapsedTiers.has(tier);
+            const tierLabel = tier >= 0 ? `Tier ${tier}` : 'Untagged';
 
-                  {/* Summary */}
-                  {plan.summary && (
-                    <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2 mb-2">{plan.summary}</p>
+            return (
+              <Collapsible key={tier} open={!isCollapsed} onOpenChange={() => toggleTier(tier)}>
+                <CollapsibleTrigger className="w-full flex items-center gap-2 py-2 group cursor-pointer text-left">
+                  {isCollapsed
+                    ? <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  }
+                  <span className="font-semibold text-sm">{tierLabel}</span>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 tabular-nums">
+                    {shippedCount}/{totalCount} shipped
+                  </Badge>
+                  {tierPlans.some(p => p.status === 'in-progress') && (
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PLAN_STATUS_COLORS['in-progress']}`}>
+                      active
+                    </Badge>
                   )}
-
-                  {/* Metadata row with icons */}
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground/70">
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {formatDate(plan.created_at)}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      {plan.category}
-                    </span>
-                    {plan.computer_name && (
-                      <span className="inline-flex items-center gap-1">
-                        <Monitor className="h-3 w-3" />
-                        {plan.computer_name}
-                      </span>
-                    )}
-                    {plan.session_id && (
-                      <span className="inline-flex items-center gap-1">
-                        <Terminal className="h-3 w-3" />
-                        <code className="font-mono">{plan.session_id}</code>
-                      </span>
-                    )}
-                    {plan.shipped_at && (
-                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                        <Check className="h-3 w-3" />
-                        Shipped {formatDate(plan.shipped_at)}
-                      </span>
-                    )}
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-2 mt-1">
+                    {tierPlans.map((plan) => (
+                      <PlanCard
+                        key={plan.id}
+                        plan={plan}
+                        selected={selectedIds.has(plan.id)}
+                        onToggleSelect={() => toggleSelect(plan.id)}
+                        onClick={() => navigate(`/plans/${plan.id}`)}
+                        onStatusChange={handleStatusChange}
+                        onDelete={handleDelete}
+                      />
+                    ))}
                   </div>
-                </div>
-
-                {/* Actions */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenuItem onClick={() => handleStatusChange(plan.id, 'in-progress')}>
-                      <Rocket className="mr-2 h-4 w-4" />
-                      Start Work
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusChange(plan.id, 'shipped')}>
-                      <Check className="mr-2 h-4 w-4" />
-                      Mark Shipped
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusChange(plan.id, 'archived')}>
-                      <Archive className="mr-2 h-4 w-4" />
-                      Archive
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => handleDelete(plan.id, plan.title)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </Card>
-          ))}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
       )}
 
@@ -414,5 +514,123 @@ export default function PlansPage() {
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+// ── Plan Card (extracted for checkbox support) ─────────────────────────
+
+function PlanCard({
+  plan,
+  selected,
+  onToggleSelect,
+  onClick,
+  onStatusChange,
+  onDelete,
+}: {
+  plan: Plan;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onClick: () => void;
+  onStatusChange: (id: string, status: Plan['status']) => void;
+  onDelete: (id: string, title: string) => void;
+}) {
+  return (
+    <Card
+      className="px-5 py-4 cursor-pointer hover:bg-accent/40 transition-colors group"
+      onClick={onClick}
+    >
+      <div className="flex items-start gap-3">
+        {/* Checkbox */}
+        <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selected}
+            onCheckedChange={onToggleSelect}
+            className="h-4 w-4"
+          />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {/* Title + badges row */}
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="font-semibold text-sm">{plan.title}</span>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PLAN_STATUS_COLORS[plan.status]}`}>
+              {plan.status}
+            </Badge>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[plan.priority]}`}>
+              {plan.priority.toUpperCase()}
+            </Badge>
+            {plan.effort_estimate && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {EFFORT_LABELS[plan.effort_estimate] || plan.effort_estimate}
+              </Badge>
+            )}
+          </div>
+
+          {/* Summary */}
+          {plan.summary && (
+            <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2 mb-2">{plan.summary}</p>
+          )}
+
+          {/* Metadata row with icons */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground/70">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDate(plan.created_at)}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              {plan.category}
+            </span>
+            {plan.computer_name && (
+              <span className="inline-flex items-center gap-1">
+                <Monitor className="h-3 w-3" />
+                {plan.computer_name}
+              </span>
+            )}
+            {plan.session_id && (
+              <span className="inline-flex items-center gap-1">
+                <Terminal className="h-3 w-3" />
+                <code className="font-mono">{plan.session_id}</code>
+              </span>
+            )}
+            {plan.shipped_at && (
+              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <Check className="h-3 w-3" />
+                Shipped {formatDate(plan.shipped_at)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => onStatusChange(plan.id, 'in-progress')}>
+              <Rocket className="mr-2 h-4 w-4" />
+              Start Work
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(plan.id, 'shipped')}>
+              <Check className="mr-2 h-4 w-4" />
+              Mark Shipped
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(plan.id, 'archived')}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archive
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => onDelete(plan.id, plan.title)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </Card>
   );
 }

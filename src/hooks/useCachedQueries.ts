@@ -6,6 +6,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withQueryTimeout } from '@/lib/queryTimeout';
+import { PIPELINES, DEFAULT_PIPELINE, LEAD_STATUSES } from '@/config/pipeline';
 
 // ─── Sites (HistoryPage) ─────────────────────────────────────────────────────
 
@@ -217,67 +218,7 @@ export function useInvalidateChatThreads() {
 
 // ─── Pipeline Definitions (local, matches HubSpot pipeline/stage IDs) ────────
 
-const PIPELINES: Record<string, { label: string; stages: { id: string; label: string; closed?: boolean }[] }> = {
-  '33bc2a42-c57c-4180-b0e6-77b3d6c7f69f': {
-    label: 'GLIDE Projects Pipeline',
-    stages: [
-      { id: '753958', label: 'Follow-Up / Scheduling' },
-      { id: '132302', label: 'Discovery Call' },
-      { id: '132303', label: 'Needs Analysis' },
-      { id: '132304', label: 'Proposal Due' },
-      { id: '132305', label: 'Open Deal' },
-      { id: '30306367', label: 'Closed: In Contract', closed: true },
-      { id: '132306', label: 'Closed: Won!', closed: true },
-      { id: '1ffb1ec7-1fad-4241-bb0e-88d0a85dcdab', label: 'Closed: Drip', closed: true },
-      { id: '5f36c04a-b283-484c-b50e-032fbeda332d', label: 'Closed: Unresponsive', closed: true },
-      { id: '3053691', label: 'Closed: Unqualified', closed: true },
-      { id: '132307', label: 'Closed: Lost', closed: true },
-    ],
-  },
-  '29735570': {
-    label: 'GLIDE Services Pipeline',
-    stages: [
-      { id: '67943339', label: 'Follow-Up / Scheduling' },
-      { id: '67943340', label: 'First-Time Appointment' },
-      { id: '67918443', label: 'Eval / Audit / Prep' },
-      { id: '67943342', label: 'Needs Analysis Scheduled' },
-      { id: '67943343', label: 'Proposal Due' },
-      { id: '67958172', label: 'Open Deal' },
-      { id: '67958173', label: 'Closed: In Contract', closed: true },
-      { id: '67943344', label: 'Closed: Won!', closed: true },
-      { id: '67958174', label: 'Closed: Drip', closed: true },
-      { id: '67958175', label: 'Closed: Unresponsive', closed: true },
-      { id: '67958176', label: 'Closed: Unqualified', closed: true },
-      { id: '67943345', label: 'Closed: Lost', closed: true },
-    ],
-  },
-  '758296729': {
-    label: 'GLIDE RFP Pipeline',
-    stages: [
-      { id: '1103540129', label: 'RFP Identified / Qualification' },
-      { id: '1103540130', label: 'Intent to Bid' },
-      { id: '1103540132', label: 'Questions Submitted' },
-      { id: '1103540133', label: 'Proposal Development' },
-      { id: '1103540134', label: 'Proposal Submitted' },
-      { id: '1269247232', label: 'Waiting on Response' },
-      { id: '1103540135', label: 'Presentation / Finalist' },
-      { id: '1103625803', label: 'Negotiation & Contracting' },
-      { id: '1103625804', label: 'Closed: Won', closed: true },
-      { id: '1103625805', label: 'Closed: Lost', closed: true },
-      { id: '1113717867', label: 'Closed: Drip', closed: true },
-      { id: '1103625806', label: 'Closed: Declined', closed: true },
-    ],
-  },
-};
-
-const LEAD_STATUSES = [
-  { id: 'Inbound', label: 'New' },
-  { id: 'Contacting', label: 'Contacted' },
-  { id: 'Scheduled', label: 'Scheduled' },
-  { id: 'Future Follow-Up', label: 'Follow-Up' },
-];
-
-const DEFAULT_PIPELINE = '33bc2a42-c57c-4180-b0e6-77b3d6c7f69f';
+// Pipeline definitions imported from @/config/pipeline
 
 // ─── Pipeline Deals (reads from local deals table) ──────────────────────────
 

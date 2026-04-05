@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { usePlan, useUpdatePlan, useDeletePlan } from '@/hooks/usePlans';
+import { usePlan, usePlans, useUpdatePlan, useDeletePlan } from '@/hooks/usePlans';
 import { BrandLoader } from '@/components/BrandLoader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,24 +20,20 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ArrowLeft, ChevronDown, ChevronRight, Copy, Pencil, Trash2, Check, Calendar, Monitor, Terminal, FileCode2 } from 'lucide-react';
+import {
+  ArrowLeft, ChevronDown, ChevronRight, Copy, Pencil, Trash2,
+  Check, Calendar, Monitor, Terminal, FileCode2, X, Plus,
+  Eye, Code2, Tag, ArrowRight, Layers,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { PLAN_STATUS_COLORS, PRIORITY_COLORS, TIER_COLORS } from '@/config/badge-styles';
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
-  ready: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-  'in-progress': 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-  shipped: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-  archived: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  p0: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-  p1: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
-  p2: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-  p3: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20',
+const STATUS_FLOW: Record<string, { next: string; label: string }> = {
+  draft: { next: 'ready', label: 'Mark Ready' },
+  ready: { next: 'in-progress', label: 'Start Work' },
+  'in-progress': { next: 'shipped', label: 'Ship It' },
 };
 
 function formatDate(dateStr: string) {
@@ -48,10 +44,42 @@ function formatDate(dateStr: string) {
   });
 }
 
+/** Extract tier number from tags or summary. Returns null if none found. */
+function extractTier(plan: { tags?: string[]; summary?: string | null; title?: string }): string | null {
+  // Check tags first: "tier-0", "tier-1", "Tier 0", etc.
+  for (const tag of plan.tags || []) {
+    const m = tag.match(/tier[\s-]*(\d+)/i);
+    if (m) return m[1];
+  }
+  // Check title
+  const titleMatch = plan.title?.match(/\[tier[\s-]*(\d+)\]/i) || plan.title?.match(/tier[\s-]*(\d+)/i);
+  if (titleMatch) return titleMatch[1];
+  // Check summary
+  const summaryMatch = plan.summary?.match(/tier[\s-]*(\d+)/i);
+  if (summaryMatch) return summaryMatch[1];
+  return null;
+}
+
+const PROSE_CLASSES = `prose prose-sm dark:prose-invert max-w-none
+  prose-headings:font-semibold prose-headings:tracking-tight
+  prose-h2:text-base prose-h2:mt-8 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border
+  prose-h3:text-sm prose-h3:mt-6 prose-h3:mb-2
+  prose-h4:text-sm prose-h4:mt-4 prose-h4:mb-1 prose-h4:text-muted-foreground
+  prose-p:text-[13px] prose-p:leading-relaxed prose-p:text-foreground/85
+  prose-li:text-[13px] prose-li:leading-relaxed prose-li:text-foreground/85
+  prose-strong:text-foreground prose-strong:font-semibold
+  prose-table:text-xs
+  prose-th:text-left prose-th:font-semibold prose-th:text-muted-foreground prose-th:pb-2 prose-th:border-b prose-th:border-border
+  prose-td:py-1.5 prose-td:pr-4 prose-td:border-b prose-td:border-border/50
+  prose-code:text-[12px] prose-code:font-mono prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:bg-muted prose-code:text-foreground/80 prose-code:before:content-none prose-code:after:content-none
+  prose-hr:border-border prose-hr:my-6
+  prose-a:text-primary prose-a:no-underline hover:prose-a:underline`;
+
 export default function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { plan, loading, error } = usePlan(id);
+  const { plans: allPlans } = usePlans();
   const updatePlan = useUpdatePlan();
   const deletePlan = useDeletePlan();
 
@@ -66,9 +94,23 @@ export default function PlanDetailPage() {
   const [editSessionId, setEditSessionId] = useState('');
   const [editPlanContent, setEditPlanContent] = useState('');
   const [editResearchNotes, setEditResearchNotes] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
 
   const [researchOpen, setResearchOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'edit' | 'preview' | 'split'>('split');
+
+  const tier = plan ? extractTier(plan) : null;
+
+  // Related plans: share at least one tag (excluding this plan)
+  const relatedPlans = useMemo(() => {
+    if (!plan?.tags?.length) return [];
+    const myTags = new Set(plan.tags.map(t => t.toLowerCase()));
+    return allPlans
+      .filter(p => p.id !== plan.id && p.tags?.some(t => myTags.has(t.toLowerCase())))
+      .slice(0, 8);
+  }, [plan, allPlans]);
 
   const startEdit = () => {
     if (!plan) return;
@@ -82,7 +124,20 @@ export default function PlanDetailPage() {
     setEditSessionId(plan.session_id || '');
     setEditPlanContent(plan.plan_content || '');
     setEditResearchNotes(plan.research_notes || '');
+    setEditTags(plan.tags || []);
+    setNewTag('');
     setEditing(true);
+  };
+
+  const handleAddTag = () => {
+    const tag = newTag.trim().toLowerCase();
+    if (!tag || editTags.includes(tag)) return;
+    setEditTags([...editTags, tag]);
+    setNewTag('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setEditTags(editTags.filter(t => t !== tag));
   };
 
   const handleSave = async () => {
@@ -100,10 +155,25 @@ export default function PlanDetailPage() {
         session_id: editSessionId.trim() || null,
         plan_content: editPlanContent || null,
         research_notes: editResearchNotes || null,
+        tags: editTags,
         ...(editStatus === 'shipped' && !plan.shipped_at ? { shipped_at: new Date().toISOString() } : {}),
       });
       setEditing(false);
       toast.success('Plan updated');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleStatusTransition = async (newStatus: string) => {
+    if (!plan) return;
+    try {
+      await updatePlan.mutateAsync({
+        id: plan.id,
+        status: newStatus as any,
+        ...(newStatus === 'shipped' ? { shipped_at: new Date().toISOString() } : {}),
+      });
+      toast.success(`Status updated to ${newStatus}`);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -153,9 +223,89 @@ export default function PlanDetailPage() {
     );
   }
 
+  // ── EDIT MODE ──
   if (editing) {
+    const renderMarkdownEditor = (
+      label: string,
+      value: string,
+      onChange: (v: string) => void,
+      placeholder: string,
+    ) => (
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-medium text-muted-foreground">{label}</label>
+          <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+            <Button
+              variant={previewMode === 'edit' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={() => setPreviewMode('edit')}
+            >
+              <Code2 className="h-3 w-3 mr-1" /> Edit
+            </Button>
+            <Button
+              variant={previewMode === 'split' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={() => setPreviewMode('split')}
+            >
+              Split
+            </Button>
+            <Button
+              variant={previewMode === 'preview' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={() => setPreviewMode('preview')}
+            >
+              <Eye className="h-3 w-3 mr-1" /> Preview
+            </Button>
+          </div>
+        </div>
+        {previewMode === 'edit' && (
+          <Textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            rows={20}
+            className="font-mono text-xs"
+          />
+        )}
+        {previewMode === 'preview' && (
+          <Card className="p-6 min-h-[300px]">
+            {value ? (
+              <article className={PROSE_CLASSES}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+              </article>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Nothing to preview</p>
+            )}
+          </Card>
+        )}
+        {previewMode === 'split' && (
+          <div className="grid grid-cols-2 gap-3">
+            <Textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              rows={20}
+              className="font-mono text-xs"
+            />
+            <Card className="p-4 overflow-auto max-h-[500px]">
+              {value ? (
+                <article className={PROSE_CLASSES}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+                </article>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Preview appears here</p>
+              )}
+            </Card>
+          </div>
+        )}
+      </div>
+    );
+
     return (
-      <main className="px-4 sm:px-6 py-6 max-w-4xl mx-auto">
+      <main className="px-4 sm:px-6 py-6 max-w-6xl mx-auto">
         <Button variant="ghost" size="sm" onClick={() => setEditing(false)} className="mb-4 -ml-2">
           <ArrowLeft className="h-4 w-4 mr-1" /> Cancel
         </Button>
@@ -206,26 +356,39 @@ export default function PlanDetailPage() {
             <Input value={editComputerName} onChange={(e) => setEditComputerName(e.target.value)} placeholder="Computer name" />
             <Input value={editSessionId} onChange={(e) => setEditSessionId(e.target.value)} placeholder="Session ID" />
           </div>
+
+          {/* Tags editor */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Plan Content (Markdown)</label>
-            <Textarea
-              value={editPlanContent}
-              onChange={(e) => setEditPlanContent(e.target.value)}
-              placeholder="Full plan content..."
-              rows={20}
-              className="font-mono text-xs"
-            />
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tags</label>
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              {editTags.map((tag) => (
+                <Badge key={tag} variant="outline" className="text-[11px] gap-1 pr-1">
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-0.5 rounded-full hover:bg-muted p-0.5"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-1.5">
+              <Input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="Add tag..."
+                className="h-7 text-xs max-w-[200px]"
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }}
+              />
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleAddTag} disabled={!newTag.trim()}>
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Research Notes (Markdown)</label>
-            <Textarea
-              value={editResearchNotes}
-              onChange={(e) => setEditResearchNotes(e.target.value)}
-              placeholder="Agent research notes..."
-              rows={20}
-              className="font-mono text-xs"
-            />
-          </div>
+
+          {renderMarkdownEditor('Plan Content (Markdown)', editPlanContent, setEditPlanContent, 'Full plan content...')}
+          {renderMarkdownEditor('Research Notes (Markdown)', editResearchNotes, setEditResearchNotes, 'Agent research notes...')}
           <div className="flex gap-2">
             <Button onClick={handleSave} disabled={updatePlan.isPending}>Save</Button>
             <Button variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
@@ -234,6 +397,9 @@ export default function PlanDetailPage() {
       </main>
     );
   }
+
+  // ── VIEW MODE ──
+  const nextStatus = STATUS_FLOW[plan.status];
 
   return (
     <main className="px-4 sm:px-6 py-6 max-w-4xl mx-auto">
@@ -247,7 +413,15 @@ export default function PlanDetailPage() {
       {/* Header card */}
       <Card className="p-5 mb-6">
         <div className="flex items-start justify-between gap-4 mb-3">
-          <h1 className="text-xl font-semibold leading-tight">{plan.title}</h1>
+          <div className="flex items-center gap-3 min-w-0">
+            {tier && (
+              <Badge variant="outline" className={`text-xs font-semibold shrink-0 ${TIER_COLORS[tier] || TIER_COLORS['6']}`}>
+                <Layers className="h-3 w-3 mr-1" />
+                Tier {tier}
+              </Badge>
+            )}
+            <h1 className="text-xl font-semibold leading-tight">{plan.title}</h1>
+          </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <Button variant="ghost" size="sm" className="h-8 px-2.5 text-muted-foreground" onClick={handleCopy}>
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -261,13 +435,40 @@ export default function PlanDetailPage() {
           </div>
         </div>
 
-        {/* Badges */}
+        {/* Badges + Status Transition */}
         <div className="flex flex-wrap items-center gap-1.5 mb-4">
-          <Badge variant="outline" className={`text-[11px] ${STATUS_COLORS[plan.status]}`}>{plan.status}</Badge>
+          <Badge variant="outline" className={`text-[11px] ${PLAN_STATUS_COLORS[plan.status]}`}>{plan.status}</Badge>
           <Badge variant="outline" className="text-[11px]">{plan.category}</Badge>
           <Badge variant="outline" className={`text-[11px] ${PRIORITY_COLORS[plan.priority]}`}>{plan.priority.toUpperCase()}</Badge>
           {plan.effort_estimate && <Badge variant="outline" className="text-[11px]">{plan.effort_estimate}</Badge>}
+
+          {/* Status transition button */}
+          {nextStatus && (
+            <>
+              <div className="w-px h-4 bg-border mx-1" />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2.5 text-[11px] gap-1"
+                onClick={() => handleStatusTransition(nextStatus.next)}
+                disabled={updatePlan.isPending}
+              >
+                {nextStatus.label}
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </>
+          )}
         </div>
+
+        {/* Tags */}
+        {plan.tags && plan.tags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-4">
+            <Tag className="h-3 w-3 text-muted-foreground" />
+            {plan.tags.map((tag, i) => (
+              <Badge key={i} variant="secondary" className="text-[10px] font-normal">{tag}</Badge>
+            ))}
+          </div>
+        )}
 
         {/* Metadata row */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -324,21 +525,7 @@ export default function PlanDetailPage() {
         <div className="mb-6">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Plan</h2>
           <Card className="p-6">
-            <article className="prose prose-sm dark:prose-invert max-w-none
-              prose-headings:font-semibold prose-headings:tracking-tight
-              prose-h2:text-base prose-h2:mt-8 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border
-              prose-h3:text-sm prose-h3:mt-6 prose-h3:mb-2
-              prose-h4:text-sm prose-h4:mt-4 prose-h4:mb-1 prose-h4:text-muted-foreground
-              prose-p:text-[13px] prose-p:leading-relaxed prose-p:text-foreground/85
-              prose-li:text-[13px] prose-li:leading-relaxed prose-li:text-foreground/85
-              prose-strong:text-foreground prose-strong:font-semibold
-              prose-table:text-xs
-              prose-th:text-left prose-th:font-semibold prose-th:text-muted-foreground prose-th:pb-2 prose-th:border-b prose-th:border-border
-              prose-td:py-1.5 prose-td:pr-4 prose-td:border-b prose-td:border-border/50
-              prose-code:text-[12px] prose-code:font-mono prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:bg-muted prose-code:text-foreground/80 prose-code:before:content-none prose-code:after:content-none
-              prose-hr:border-border prose-hr:my-6
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-            ">
+            <article className={PROSE_CLASSES}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{plan.plan_content}</ReactMarkdown>
             </article>
           </Card>
@@ -358,20 +545,7 @@ export default function PlanDetailPage() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <Card className="p-6 border-dashed">
-                <article className="prose prose-sm dark:prose-invert max-w-none
-                  prose-headings:font-semibold prose-headings:tracking-tight
-                  prose-h2:text-base prose-h2:mt-8 prose-h2:mb-3 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border
-                  prose-h3:text-sm prose-h3:mt-6 prose-h3:mb-2
-                  prose-h4:text-sm prose-h4:mt-4 prose-h4:mb-1 prose-h4:text-muted-foreground
-                  prose-p:text-[13px] prose-p:leading-relaxed prose-p:text-foreground/85
-                  prose-li:text-[13px] prose-li:leading-relaxed prose-li:text-foreground/85
-                  prose-strong:text-foreground prose-strong:font-semibold
-                  prose-table:text-xs
-                  prose-th:text-left prose-th:font-semibold prose-th:text-muted-foreground prose-th:pb-2 prose-th:border-b prose-th:border-border
-                  prose-td:py-1.5 prose-td:pr-4 prose-td:border-b prose-td:border-border/50
-                  prose-code:text-[12px] prose-code:font-mono prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:bg-muted prose-code:text-foreground/80 prose-code:before:content-none prose-code:after:content-none
-                  prose-hr:border-border prose-hr:my-6
-                ">
+                <article className={`${PROSE_CLASSES} prose-hr:border-border prose-hr:my-6`}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{plan.research_notes}</ReactMarkdown>
                 </article>
               </Card>
@@ -385,6 +559,47 @@ export default function PlanDetailPage() {
         <Card className="p-12 text-center">
           <p className="text-sm text-muted-foreground">No content yet. Click <Pencil className="h-3 w-3 inline mx-0.5" /> to add plan details and research notes.</p>
         </Card>
+      )}
+
+      {/* Related Plans */}
+      {relatedPlans.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Related Plans</h2>
+          <div className="space-y-1.5">
+            {relatedPlans.map((rp) => {
+              const rpTier = extractTier(rp);
+              return (
+                <Card
+                  key={rp.id}
+                  className="px-4 py-3 cursor-pointer hover:bg-accent/40 transition-colors"
+                  onClick={() => navigate(`/plans/${rp.id}`)}
+                >
+                  <div className="flex items-center gap-2">
+                    {rpTier && (
+                      <Badge variant="outline" className={`text-[10px] shrink-0 ${TIER_COLORS[rpTier] || TIER_COLORS['6']}`}>
+                        T{rpTier}
+                      </Badge>
+                    )}
+                    <span className="text-sm font-medium truncate">{rp.title}</span>
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ml-auto shrink-0 ${PLAN_STATUS_COLORS[rp.status]}`}>
+                      {rp.status}
+                    </Badge>
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${PRIORITY_COLORS[rp.priority]}`}>
+                      {rp.priority.toUpperCase()}
+                    </Badge>
+                  </div>
+                  {rp.tags && rp.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5 ml-0">
+                      {rp.tags.filter(t => plan.tags?.map(tt => tt.toLowerCase()).includes(t.toLowerCase())).map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="text-[9px] font-normal px-1 py-0">{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       )}
     </main>
   );

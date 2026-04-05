@@ -38,6 +38,7 @@ import { ApolloTeamContacts, type ApolloTeamData } from '@/components/apollo/Apo
 import { ApolloOrgCard, type ApolloOrgData } from '@/components/apollo/ApolloOrgCard';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
+import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS } from '@/config/badge-styles';
 
 type Company = {
   id: string;
@@ -106,36 +107,6 @@ type Engagement = {
   direction: string | null;
   occurred_at: string | null;
   created_at: string;
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  prospect: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
-  active: 'bg-green-500/15 text-green-400 border-green-500/20',
-  past: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
-  archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20',
-};
-
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  'Inbound': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-  'Contacting': 'bg-blue-500/15 text-blue-400 border-blue-500/20',
-  'Scheduled': 'bg-violet-500/15 text-violet-400 border-violet-500/20',
-  'Future Follow-Up': 'bg-amber-500/15 text-amber-400 border-amber-500/20',
-};
-
-const DEAL_STATUS_COLORS: Record<string, string> = {
-  won: 'bg-green-500/15 text-green-400',
-  lost: 'bg-red-500/15 text-red-400',
-  open: 'bg-blue-500/15 text-blue-400',
-  archived: 'bg-gray-500/15 text-gray-400',
-  closed: 'bg-gray-500/15 text-gray-400',
-};
-
-const SENIORITY_COLORS: Record<string, string> = {
-  c_suite: 'bg-purple-500/15 text-purple-400',
-  vp: 'bg-indigo-500/15 text-indigo-400',
-  director: 'bg-blue-500/15 text-blue-400',
-  manager: 'bg-teal-500/15 text-teal-400',
-  senior: 'bg-green-500/15 text-green-400',
 };
 
 const COMPANY_CHAT_PREFIX = '__company_chat_';
@@ -496,7 +467,7 @@ export default function CompanyDetailPage() {
                   companyCache.patch(company.id, { status: value });
                 }}
               >
-                <SelectTrigger className={`w-auto h-7 text-xs border ${STATUS_COLORS[company.status] || ''}`}>
+                <SelectTrigger className={`w-auto h-7 text-xs border ${COMPANY_STATUS_COLORS[company.status] || ''}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -713,7 +684,15 @@ export default function CompanyDetailPage() {
             {artifactLoading.deals ? (
               <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : deals.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No deals found{company.hubspot_company_id ? ' in HubSpot' : '. Map a HubSpot company ID to fetch deals.'}.</div>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Briefcase className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No deals yet</p>
+                <p className="text-xs mt-1 max-w-xs text-center">
+                  {company.hubspot_company_id
+                    ? 'Deals sync automatically from HubSpot every 30 minutes.'
+                    : 'Map a HubSpot company ID to fetch deals.'}
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {deals.map(deal => (
@@ -741,7 +720,15 @@ export default function CompanyDetailPage() {
             {artifactLoading.projects ? (
               <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : harvestProjects.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No Harvest projects found.</div>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <FolderOpen className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No projects found</p>
+                <p className="text-xs mt-1 max-w-xs text-center">
+                  {company.harvest_client_id
+                    ? 'No Harvest projects linked to this client.'
+                    : 'Connect Harvest to track projects and budgets.'}
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {harvestProjects.map((p: any) => (
@@ -776,7 +763,15 @@ export default function CompanyDetailPage() {
             {artifactLoading.time_entries ? (
               <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : harvestTimeEntries.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No Harvest time entries found.</div>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Timer className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No time entries</p>
+                <p className="text-xs mt-1 max-w-xs text-center">
+                  {company.harvest_client_id
+                    ? 'No time has been logged against this client in Harvest yet.'
+                    : 'Connect Harvest to track project hours.'}
+                </p>
+              </div>
             ) : (() => {
               const totalHours = harvestTimeEntries.reduce((s: number, t: any) => s + (t.hours || 0), 0);
               const billableHours = harvestTimeEntries.filter((t: any) => t.billable).reduce((s: number, t: any) => s + (t.hours || 0), 0);
@@ -831,7 +826,13 @@ export default function CompanyDetailPage() {
           <TabsContent value="invoices">
             {(() => {
               const qb = (company as any)?.quickbooks_invoice_summary;
-              if (!qb) return <div className="text-center py-12 text-muted-foreground">No QuickBooks invoice data.</div>;
+              if (!qb) return (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Receipt className="h-10 w-10 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No invoice data</p>
+                  <p className="text-xs mt-1 max-w-xs text-center">Import a QuickBooks CSV to see invoice history for this company.</p>
+                </div>
+              );
               const services = qb.services ? Object.entries(qb.services) as [string, { count: number; total: number }][] : [];
               const txTypes = qb.transactionTypes ? Object.entries(qb.transactionTypes) as [string, number][] : [];
               return (
@@ -910,7 +911,15 @@ export default function CompanyDetailPage() {
             {artifactLoading.tickets ? (
               <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : freshdeskTickets.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No Freshdesk tickets found.</div>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Headphones className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No support tickets</p>
+                <p className="text-xs mt-1 max-w-xs text-center">
+                  {company.freshdesk_company_id
+                    ? 'No tickets found in Freshdesk for this company.'
+                    : 'Connect Freshdesk to see ticket history.'}
+                </p>
+              </div>
             ) : (() => {
               const open = freshdeskTickets.filter((t: any) => t.status === 2 || t.status === 3).length;
               const resolved = freshdeskTickets.filter((t: any) => t.status === 4 || t.status === 5).length;
@@ -1091,12 +1100,23 @@ export default function CompanyDetailPage() {
             </div>
             {sourceDataLoading ? (
               <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
-            ) : (
+            ) : (() => {
+              const enrichmentEntries = company?.enrichment_data
+                ? Object.entries(company.enrichment_data as Record<string, any>).filter(([key]) => key !== '_migrated')
+                : [];
+              const contactsWithEnrichment = contacts.filter((c: any) => c.enrichment_data?.apollo);
+              const hasData = enrichmentEntries.length > 0 || contactsWithEnrichment.length > 0 || sourceData.length > 0;
+              if (!hasData) return (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Database className="h-10 w-10 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No source data yet</p>
+                  <p className="text-xs mt-1 max-w-xs text-center">Run a global sync or crawl to populate raw data from connected systems.</p>
+                </div>
+              );
+              return (
               <div className="space-y-3">
                 {/* Enrichment data (Apollo, Ocean.io) from enrichment_data JSONB */}
-                {company?.enrichment_data && Object.entries(company.enrichment_data as Record<string, any>)
-                  .filter(([key]) => key !== '_migrated')
-                  .map(([key, value]) => {
+                {enrichmentEntries.map(([key, value]) => {
                     const isExpanded = expandedSources.has(key);
                     const label = { apollo_team: 'Apollo Team', apollo_org: 'Apollo Org', ocean: 'Ocean.io', avoma: 'Avoma' }[key] || key;
                     const color = { apollo_team: 'text-purple-400', apollo_org: 'text-purple-400', ocean: 'text-blue-400', avoma: 'text-cyan-400' }[key] || 'text-muted-foreground';
@@ -1196,7 +1216,8 @@ export default function CompanyDetailPage() {
                   );
                 })}
               </div>
-            )}
+              );
+            })()}
           </TabsContent>
         </Tabs>
       </main>

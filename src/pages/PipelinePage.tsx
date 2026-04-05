@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { DEFAULT_PIPELINE } from "@/config/pipeline";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
@@ -95,7 +96,7 @@ export default function PipelinePage() {
   }, [navigate]);
 
   // Pipeline selection + filters
-  const [selectedPipeline, setSelectedPipeline] = useState(() => loadSetting("pipeline", "33bc2a42-c57c-4180-b0e6-77b3d6c7f69f"));
+  const [selectedPipeline, setSelectedPipeline] = useState(() => loadSetting("pipeline", DEFAULT_PIPELINE));
   const [ownerFilter, setOwnerFilter] = useState(() => loadSetting("owner", "all"));
 
   const [pipelineSearch, setPipelineSearch] = useState('');

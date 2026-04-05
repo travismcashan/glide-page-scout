@@ -247,8 +247,8 @@ export default function ServiceDetailPage() {
   if (loading) {
     return (
       <div>
-        <div className="flex h-[60vh] items-center justify-center animate-in fade-in duration-300">
-          <BrandLoader size={96} />
+        <div className="flex items-center justify-center py-20">
+          <BrandLoader size={48} />
         </div>
       </div>
     );

@@ -56,6 +56,7 @@ import { useCompanies, useInvalidateCompanies } from '@/hooks/useCompanies';
 import { useProduct } from '@/contexts/ProductContext';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { DomainLink } from '@/components/DomainLink';
+import { COMPANY_STATUS_BORDER_COLORS } from '@/config/badge-styles';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -150,12 +151,7 @@ const STAGE_ORDER: Record<string, number> = {
   'Negotiation & Contracting': 27,
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  prospect: 'text-foreground border-blue-500',
-  active: 'text-foreground border-green-500',
-  past: 'text-foreground border-yellow-500',
-  archived: 'text-foreground border-zinc-500',
-};
+const STATUS_COLORS = COMPANY_STATUS_BORDER_COLORS;
 
 const STATUS_DOT: Record<string, string> = {
   active: 'bg-green-400',

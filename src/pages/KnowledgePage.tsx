@@ -104,8 +104,8 @@ export default function KnowledgePage() {
   if (loading || !globalSession) {
     return (
       <div className="flex flex-col">
-        <div className="flex-1 flex items-center justify-center animate-in fade-in duration-300">
-          <BrandLoader size={96} />
+        <div className="flex-1 flex items-center justify-center py-20">
+          <BrandLoader size={48} />
         </div>
       </div>
     );

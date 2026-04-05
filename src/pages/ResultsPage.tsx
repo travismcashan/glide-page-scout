@@ -2275,7 +2275,7 @@ export default function ResultsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center animate-in fade-in duration-300 gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <BrandLoader size={48} />
         <p className="text-sm text-muted-foreground">Loading site audit...</p>
       </div>
     );

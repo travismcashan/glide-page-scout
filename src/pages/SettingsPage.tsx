@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -7,7 +7,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor, FileQuestion } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Brain, Sparkles, Zap, LogOut, Shield, FileText, MessageSquare, User as UserIcon, Loader2, RefreshCw, Building2, Briefcase, MapPin, Globe, Sun, Moon, Monitor, FileQuestion, Settings2, Plug, Wrench } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { PROVIDERS, VERSIONS, MODEL_OPTIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,8 +25,17 @@ const TIER_DOT: Record<string, string> = {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile, isAdmin, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+
+  const VALID_TABS = ['ai', 'profile', 'integrations', 'advanced'] as const;
+  type SettingsTab = typeof VALID_TABS[number];
+  const tabParam = searchParams.get('tab') as SettingsTab | null;
+  const activeTab: SettingsTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'ai';
+  const handleTabChange = (tab: string) => {
+    setSearchParams({ tab }, { replace: true });
+  };
 
   // Chat mode: 'individual' or 'council'
   const [chatMode, setChatModeRaw] = useState<'individual' | 'council'>(
@@ -457,10 +467,36 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <main className="px-4 sm:px-6 py-6 space-y-8">
+      <main className="px-4 sm:px-6 py-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         </div>
+
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="ai" className="gap-1.5">
+              <Settings2 className="h-3.5 w-3.5" />
+              AI Settings
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="gap-1.5">
+              <UserIcon className="h-3.5 w-3.5" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="gap-1.5">
+              <Plug className="h-3.5 w-3.5" />
+              Integrations
+            </TabsTrigger>
+            <TabsTrigger value="advanced" className="gap-1.5">
+              <Wrench className="h-3.5 w-3.5" />
+              Advanced
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              TAB: AI Settings
+              ═══════════════════════════════════════════════════════════════ */}
+          <TabsContent value="ai" className="space-y-8 mt-6">
+
         {/* ── AI Model ── */}
         <section className="space-y-6">
           <div>
@@ -1004,7 +1040,12 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <div className="border-t border-border" />
+          </TabsContent>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              TAB: Profile
+              ═══════════════════════════════════════════════════════════════ */}
+          <TabsContent value="profile" className="space-y-8 mt-6">
 
         {/* ── About Me ── */}
         <section className="space-y-6">
@@ -1325,6 +1366,75 @@ export default function SettingsPage() {
 
         <div className="border-t border-border" />
 
+        {/* ── Appearance ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><Sun className="h-5 w-5" /> Appearance</h2>
+            <p className="text-sm text-muted-foreground mt-1">Choose your preferred color mode.</p>
+          </div>
+
+          <div className="flex gap-2">
+            {([
+              { value: 'light', label: 'Light', icon: Sun },
+              { value: 'dark', label: 'Dark', icon: Moon },
+              { value: 'system', label: 'Auto', icon: Monitor },
+            ] as const).map(({ value, label, icon: Icon }) => (
+              <Button
+                key={value}
+                variant={theme === value ? 'default' : 'outline'}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setTheme(value)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </Button>
+            ))}
+          </div>
+        </section>
+
+        <div className="border-t border-border" />
+
+        {/* ── Account ── */}
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Account</h2>
+            <p className="text-sm text-muted-foreground mt-1">Manage your profile and access.</p>
+          </div>
+
+          {user ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 rounded-lg border border-border">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback>{(profile?.display_name || '?')[0]?.toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium truncate">{profile?.display_name || 'User'}</p>
+                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                </div>
+                {isAdmin && (
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/admin')}>
+                    <Shield className="h-3.5 w-3.5" /> Admin Panel
+                  </Button>
+                )}
+              </div>
+              <Button variant="outline" className="gap-2" onClick={() => signOut()}>
+                <LogOut className="h-4 w-4" /> Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={() => navigate('/login')}>Sign In with Google</Button>
+          )}
+        </section>
+
+          </TabsContent>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              TAB: Integrations
+              ═══════════════════════════════════════════════════════════════ */}
+          <TabsContent value="integrations" className="space-y-8 mt-6">
+
         {/* ── Google Docs Import ── */}
         <section className="space-y-6">
           <div>
@@ -1383,35 +1493,6 @@ export default function SettingsPage() {
 
         <div className="border-t border-border" />
 
-        {/* ── Appearance ── */}
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><Sun className="h-5 w-5" /> Appearance</h2>
-            <p className="text-sm text-muted-foreground mt-1">Choose your preferred color mode.</p>
-          </div>
-
-          <div className="flex gap-2">
-            {([
-              { value: 'light', label: 'Light', icon: Sun },
-              { value: 'dark', label: 'Dark', icon: Moon },
-              { value: 'system', label: 'Auto', icon: Monitor },
-            ] as const).map(({ value, label, icon: Icon }) => (
-              <Button
-                key={value}
-                variant={theme === value ? 'default' : 'outline'}
-                size="sm"
-                className="gap-1.5"
-                onClick={() => setTheme(value)}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </Button>
-            ))}
-          </div>
-        </section>
-
-        <div className="border-t border-border" />
-
         {/* ── Prompt Library ── */}
         <section className="space-y-6">
           <div>
@@ -1429,40 +1510,29 @@ export default function SettingsPage() {
           />
         </section>
 
-        <div className="border-t border-border" />
+          </TabsContent>
 
-        {/* ── Account ── */}
+          {/* ═══════════════════════════════════════════════════════════════
+              TAB: Advanced
+              ═══════════════════════════════════════════════════════════════ */}
+          <TabsContent value="advanced" className="space-y-8 mt-6">
+
         <section className="space-y-6">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Account</h2>
-            <p className="text-sm text-muted-foreground mt-1">Manage your profile and access.</p>
+            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2"><Wrench className="h-5 w-5" /> Data Management</h2>
+            <p className="text-sm text-muted-foreground mt-1">Cleanup tools, data export, and advanced configuration.</p>
           </div>
 
-          {user ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 rounded-lg border border-border">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback>{(profile?.display_name || '?')[0]?.toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{profile?.display_name || 'User'}</p>
-                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                </div>
-                {isAdmin && (
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/admin')}>
-                    <Shield className="h-3.5 w-3.5" /> Admin Panel
-                  </Button>
-                )}
-              </div>
-              <Button variant="outline" className="gap-2" onClick={() => signOut()}>
-                <LogOut className="h-4 w-4" /> Sign Out
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={() => navigate('/login')}>Sign In with Google</Button>
-          )}
+          <div className="rounded-lg border border-border p-6 text-center">
+            <Wrench className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Advanced tools coming soon.</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Company cleanup, data export, crawl profile configuration, and more.</p>
+          </div>
         </section>
+
+          </TabsContent>
+
+        </Tabs>
       </main>
     </div>
   );

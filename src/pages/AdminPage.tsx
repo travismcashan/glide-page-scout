@@ -12,6 +12,7 @@ import {
 import { Shield, Users, Crown, Loader2, UserPlus, Trash2, KeyRound, Mail, Activity, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { BrandLoader } from '@/components/BrandLoader';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -263,8 +264,8 @@ export default function AdminPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-20">
+        <BrandLoader size={48} />
       </div>
     );
   }

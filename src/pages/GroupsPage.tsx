@@ -144,8 +144,8 @@ export default function GroupsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 animate-in fade-in duration-300">
-            <BrandLoader size={96} />
+          <div className="flex items-center justify-center py-20">
+            <BrandLoader size={48} />
           </div>
         ) : groups.length === 0 ? (
           <div className="text-center py-20 space-y-3">

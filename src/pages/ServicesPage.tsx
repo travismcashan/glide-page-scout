@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PILLARS } from "@/data/offerings";
 import { useServiceOfferings } from "@/hooks/useServiceOfferings";
+import { BrandLoader } from "@/components/BrandLoader";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -256,8 +257,8 @@ export default function ServicesPage() {
 
         {/* Table */}
         {loading ? (
-          <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-            Loading services…
+          <div className="flex items-center justify-center py-20">
+            <BrandLoader size={48} />
           </div>
         ) : (
           <div className="rounded-xl border border-border overflow-hidden">

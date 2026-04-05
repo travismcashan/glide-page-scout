@@ -1187,7 +1187,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="scores" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : (
               <GroupScoreGrid sessions={fullSessions} />
             )}
@@ -1195,7 +1195,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="technology" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : (
               <div className="space-y-12">
                 <GroupTechSummary sessions={fullSessions} minPct={techMinPct} onMinPctChange={setTechMinPct} />
@@ -1206,7 +1206,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="performance" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : (
               <GroupPerformanceChart sessions={fullSessions} />
             )}
@@ -1214,7 +1214,7 @@ export default function GroupDetailPage() {
 
           <TabsContent value="comparison" className="mt-6">
             {loadingSessions ? (
-              <div className="flex justify-center py-16 animate-in fade-in duration-300"><BrandLoader size={96} /></div>
+              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
             ) : (
               <div className="space-y-12">
                 <GroupReusabilitySummary sessions={fullSessions} minPct={comparisonMinPct} onMinPctChange={setComparisonMinPct} onAiRecommend={handleAiRecommend} aiLoading={aiScopeLoading} aiReasoning={aiScopeReasoning} />

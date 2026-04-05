@@ -6,6 +6,7 @@ import { ApolloEmploymentSection } from '@/components/apollo/ApolloEmploymentSec
 import { ApolloOrgSection } from '@/components/apollo/ApolloOrgSection';
 import { format } from 'date-fns';
 import type { ApolloData } from '@/components/apollo/types';
+import { LEAD_STATUS_COLORS, SENIORITY_COLORS, DEAL_STATUS_COLORS } from '@/config/badge-styles';
 
 type Contact = {
   id: string;
@@ -33,30 +34,6 @@ type Deal = {
   stage: string | null;
   status: string;
   close_date: string | null;
-};
-
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  'Inbound': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-  'Contacting': 'bg-blue-500/15 text-blue-400 border-blue-500/20',
-  'Scheduled': 'bg-violet-500/15 text-violet-400 border-violet-500/20',
-  'Future Follow-Up': 'bg-amber-500/15 text-amber-400 border-amber-500/20',
-};
-
-const SENIORITY_COLORS: Record<string, string> = {
-  c_suite: 'bg-purple-500/15 text-purple-400',
-  vp: 'bg-indigo-500/15 text-indigo-400',
-  director: 'bg-blue-500/15 text-blue-400',
-  manager: 'bg-teal-500/15 text-teal-400',
-  senior: 'bg-green-500/15 text-green-400',
-  owner: 'bg-orange-500/15 text-orange-400',
-};
-
-const DEAL_STATUS_COLORS: Record<string, string> = {
-  won: 'bg-green-500/15 text-green-400',
-  lost: 'bg-red-500/15 text-red-400',
-  open: 'bg-blue-500/15 text-blue-400',
-  archived: 'bg-gray-500/15 text-gray-400',
-  closed: 'bg-gray-500/15 text-gray-400',
 };
 
 export function ContactDetailContent({

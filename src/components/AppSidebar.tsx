@@ -214,14 +214,24 @@ export function AppSidebar() {
         {/* Spacer to push settings to bottom */}
         <div className="flex-1" />
 
-        {/* ── Utility: Settings (absorbs Connections, Wishlist, Services, Usage) ── */}
+        {/* ── Utility: Plans + Settings ── */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  tooltip="Plans"
+                  isActive={location.pathname.startsWith('/plans')}
+                  onClick={() => handleNav('/plans')}
+                >
+                  <ScrollText />
+                  <span>Plans</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
                   tooltip="Settings"
-                  isActive={location.pathname.startsWith('/settings') || location.pathname === '/connections' || location.pathname === '/wishlist' || location.pathname.startsWith('/plans') || location.pathname === '/services' || location.pathname === '/usage'}
+                  isActive={location.pathname.startsWith('/settings') || location.pathname === '/connections' || location.pathname === '/wishlist' || location.pathname === '/services' || location.pathname === '/usage'}
                   onClick={() => handleNav('/settings')}
                 >
                   <Settings />
@@ -288,10 +298,6 @@ export function AppSidebar() {
                     <ListChecks className="mr-2 h-4 w-4" />
                     Wishlist
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { navigate('/plans'); setOpenMobile(false); }}>
-                    <ScrollText className="mr-2 h-4 w-4" />
-                    Plans
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => { navigate('/services'); setOpenMobile(false); }}>
                     <Layers className="mr-2 h-4 w-4" />
                     Services
@@ -300,6 +306,10 @@ export function AppSidebar() {
                     <BarChart3 className="mr-2 h-4 w-4" />
                     Usage
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Tools</p>
+                  </div>
                   <DropdownMenuItem onClick={() => { navigate('/projects/mapping'); setOpenMobile(false); }}>
                     <GitCompareArrows className="mr-2 h-4 w-4" />
                     Project Mapping
