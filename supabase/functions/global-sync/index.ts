@@ -4,41 +4,12 @@
  * Cross-references all four sources to build a unified client list.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizeDomain, normalizeCompanyName, extractDomainFromText } from "../_shared/company-resolution.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
-
-// ── Normalization Utilities ──
-
-function normalizeDomain(input: string | null | undefined): string | null {
-  if (!input) return null;
-  let d = input.toLowerCase().trim();
-  d = d.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
-  if (!d || !d.includes('.')) return null;
-  return d;
-}
-
-function normalizeCompanyName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/^z_archive_/i, '') // Strip Freshdesk archive prefix
-    .replace(/[,.]\\s*(inc|llc|ltd|corp|co|company|corporation|group|enterprises|lp|llp|pllc|pc)\b\.?/gi, '')
-    .replace(/\s+(inc|llc|ltd|corp|co|company|corporation|group|enterprises|lp|llp|pllc|pc)\s*$/gi, '')
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function extractDomainFromText(text: string): string | null {
-  // Match URLs or domain-like patterns
-  const urlMatch = text.match(/https?:\/\/([^\s\/]+)/i);
-  if (urlMatch) return normalizeDomain(urlMatch[1]);
-  const domainMatch = text.match(/\b([a-z0-9][a-z0-9-]*\.[a-z]{2,})\b/i);
-  if (domainMatch) return normalizeDomain(domainMatch[1]);
-  return null;
-}
 
 // ── Harvest API ──
 
@@ -575,7 +546,7 @@ Deno.serve(async (req) => {
     for (let offset = 0; ; offset += PAGE_SIZE) {
       const { data: batch } = await supabase
         .from('companies')
-        .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, freshdesk_company_id, freshdesk_company_name, status, hubspot_lifecycle_stage')
+        .select('id, name, domain, hubspot_company_id, harvest_client_id, harvest_client_name, asana_project_gids, freshdesk_company_id, freshdesk_company_name, status')
         .range(offset, offset + PAGE_SIZE - 1);
       if (!batch || batch.length === 0) break;
       allExisting.push(...batch);
@@ -639,7 +610,6 @@ Deno.serve(async (req) => {
               if (client.hubspot.location) updates.location = client.hubspot.location;
               if (client.hubspot.domain) updates.domain = client.hubspot.domain;
               if (client.hubspot.website) updates.website_url = client.hubspot.website;
-              updates.hubspot_lifecycle_stage = client.hubspot.lifecycleStage;
             }
             if (client.freshdesk) {
               updates.freshdesk_company_id = String(client.freshdesk.id);
@@ -681,7 +651,6 @@ Deno.serve(async (req) => {
               newCompany.annual_revenue = client.hubspot.revenue;
               newCompany.location = client.hubspot.location;
               newCompany.website_url = client.hubspot.website;
-              newCompany.hubspot_lifecycle_stage = client.hubspot.lifecycleStage;
             }
             if (client.freshdesk) {
               newCompany.freshdesk_company_id = String(client.freshdesk.id);

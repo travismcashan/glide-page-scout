@@ -3,10 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Column list for the companies list page (lightweight, no enrichment_data)
 const LIST_COLUMNS =
-  'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, status, harvest_client_id, harvest_client_name, asana_project_gids, hubspot_company_id, freshdesk_company_id, freshdesk_company_name, quickbooks_client_name, quickbooks_invoice_summary, hubspot_lifecycle_stage, hubspot_has_active_deal, last_synced_at, created_at, updated_at';
+  'id, name, domain, industry, employee_count, annual_revenue, location, logo_url, status, harvest_client_id, harvest_client_name, asana_project_gids, hubspot_company_id, freshdesk_company_id, freshdesk_company_name, quickbooks_client_name, quickbooks_invoice_summary, last_synced_at, created_at, updated_at';
+
+export type GrowthFilter = 'pipeline' | 'all' | 'active' | 'inactive';
 
 /** Fetch companies scoped by workspace to avoid loading 2,600+ rows when only 23 are needed */
-async function fetchCompanies(workspace?: string) {
+async function fetchCompanies(workspace?: string, growthFilter: GrowthFilter = 'pipeline') {
   let companyIds: string[] | null = null;
 
   // Growth: only fetch companies with open deals or active leads
@@ -14,10 +16,10 @@ async function fetchCompanies(workspace?: string) {
   const dealsByCompany = new Map<string, { stage_label: string; amount: number | null; close_date: string | null }>();
   const leadsByCompany = new Map<string, { lead_status: string; updated_at: string | null }>();
 
-  if (workspace === 'growth') {
+  if (workspace === 'growth' && growthFilter === 'pipeline') {
     const ids = new Set<string>();
     const [{ data: dealRows }, { data: leadRows }] = await Promise.all([
-      supabase.from('deals').select('company_id, amount, close_date, contact_name, properties, updated_at').eq('status', 'open').not('company_id', 'is', null),
+      supabase.from('deals').select('company_id, amount, close_date, properties, updated_at').eq('status', 'open').not('company_id', 'is', null),
       supabase.from('contacts').select('company_id, lead_status, first_name, last_name, updated_at').not('lead_status', 'is', null).not('company_id', 'is', null),
     ]);
     for (const r of dealRows || []) {
@@ -28,7 +30,6 @@ async function fetchCompanies(workspace?: string) {
           stage_label: r.properties?.stage_label || 'Open',
           amount: r.amount ? parseFloat(r.amount) : null,
           close_date: r.close_date,
-          contact_name: r.contact_name || null,
         });
       }
     }
@@ -39,7 +40,6 @@ async function fetchCompanies(workspace?: string) {
         leadsByCompany.set(r.company_id, {
           lead_status: r.lead_status,
           updated_at: r.updated_at,
-          contact_name: [r.first_name, r.last_name].filter(Boolean).join(' ') || null,
         });
       }
     }
@@ -50,11 +50,32 @@ async function fetchCompanies(workspace?: string) {
   let all: any[] = [];
 
   if (companyIds) {
-    // Targeted fetch — only the companies we need
+    // Targeted fetch — only the companies we need (pipeline filter)
     const { data, error } = await supabase
       .from('companies')
       .select(LIST_COLUMNS)
       .in('id', companyIds)
+      .order('name');
+    if (!error && data) all = data;
+  } else if (workspace === 'growth' && growthFilter === 'active') {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(LIST_COLUMNS)
+      .eq('status', 'active')
+      .order('name');
+    if (!error && data) all = data;
+  } else if (workspace === 'growth' && growthFilter === 'inactive') {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(LIST_COLUMNS)
+      .eq('status', 'past')
+      .order('name');
+    if (!error && data) all = data;
+  } else if (workspace === 'growth' && growthFilter === 'all') {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(LIST_COLUMNS)
+      .neq('status', 'archived')
       .order('name');
     if (!error && data) all = data;
   } else if (workspace === 'delivery') {
@@ -92,17 +113,29 @@ async function fetchCompanies(workspace?: string) {
 
   if (all.length === 0) return [];
 
-  // Fetch counts — only for the companies we loaded
+  // Fetch counts + primary contacts — only for the companies we loaded
   const ids = all.map((c) => c.id);
-  const [{ data: contactRows }, { data: sessionRows }] = await Promise.all([
+  const [{ data: contactRows }, { data: sessionRows }, { data: primaryContacts }] = await Promise.all([
     supabase.from('contacts').select('company_id').in('company_id', ids),
     supabase.from('crawl_sessions').select('company_id').in('company_id', ids),
+    supabase.from('contacts').select('id, company_id, first_name, last_name, is_primary').in('company_id', ids).order('is_primary', { ascending: false }).order('created_at'),
   ]);
 
   const contactMap = new Map<string, number>();
   (contactRows || []).forEach((c: any) => {
     if (c.company_id) contactMap.set(c.company_id, (contactMap.get(c.company_id) || 0) + 1);
   });
+
+  // Map company → first/primary contact
+  const primaryContactMap = new Map<string, { id: string; name: string }>();
+  for (const c of primaryContacts || []) {
+    if (c.company_id && !primaryContactMap.has(c.company_id)) {
+      primaryContactMap.set(c.company_id, {
+        id: c.id,
+        name: [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Unknown',
+      });
+    }
+  }
 
   const sessionMap = new Map<string, number>();
   (sessionRows || []).forEach((s: any) => {
@@ -119,7 +152,8 @@ async function fetchCompanies(workspace?: string) {
     deal_close_date: dealsByCompany.get(c.id)?.close_date || null,
     lead_status: leadsByCompany.get(c.id)?.lead_status || null,
     lead_updated_at: leadsByCompany.get(c.id)?.updated_at || null,
-    primary_contact_name: dealsByCompany.get(c.id)?.contact_name || leadsByCompany.get(c.id)?.contact_name || null,
+    primary_contact_name: primaryContactMap.get(c.id)?.name || null,
+    primary_contact_id: primaryContactMap.get(c.id)?.id || null,
   }));
 }
 
@@ -128,10 +162,10 @@ async function fetchCompanies(workspace?: string) {
  * Growth: fetches only pipeline companies (~20-50 rows).
  * Delivery/Admin: fetches all companies.
  */
-export function useCompanies(workspace?: string) {
+export function useCompanies(workspace?: string, growthFilter: GrowthFilter = 'pipeline') {
   const query = useQuery({
-    queryKey: ['companies', workspace || 'all'],
-    queryFn: () => fetchCompanies(workspace),
+    queryKey: ['companies', workspace || 'all', growthFilter],
+    queryFn: () => fetchCompanies(workspace, growthFilter),
   });
 
   return {

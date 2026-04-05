@@ -2188,30 +2188,11 @@ export default function ResultsPage() {
   const tabTriggerClass = "relative h-14 inline-flex items-center text-base font-medium px-5 rounded-none border border-transparent bg-transparent text-muted-foreground transition-all !shadow-none !ring-0 data-[state=active]:rounded-t-md data-[state=active]:border-foreground data-[state=active]:border-b-transparent data-[state=active]:bg-background data-[state=active]:text-foreground";
   const showProspecting = shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession);
 
+  // Audit-only — no tab bar needed (company features moved to CompanyDetailPage)
   const tabTriggers = (
     <>
       <TabsTrigger value="raw-data" style={tabTriggerStyle('raw-data')} className={tabTriggerClass}>
         <Globe className="h-4 w-4 mr-2" />Analysis
-      </TabsTrigger>
-      {showProspecting && (
-        <TabsTrigger value="prospecting" style={tabTriggerStyle('prospecting')} className={tabTriggerClass}>
-          <UserPlus className="h-4 w-4 mr-2" />Prospecting
-        </TabsTrigger>
-      )}
-      <TabsTrigger value="knowledge" style={tabTriggerStyle('knowledge')} className={tabTriggerClass}>
-        <BookOpen className="h-4 w-4 mr-2" />Knowledge
-      </TabsTrigger>
-      <TabsTrigger value="chat" style={tabTriggerStyle('chat')} className={tabTriggerClass}>
-        <MessageCircle className="h-4 w-4 mr-2" />Chat
-      </TabsTrigger>
-      <TabsTrigger value="estimates" style={tabTriggerStyle('estimates')} className={tabTriggerClass}>
-        <DollarSign className="h-4 w-4 mr-2" />Estimates
-      </TabsTrigger>
-      <TabsTrigger value="roadmap" style={tabTriggerStyle('roadmap')} className={tabTriggerClass}>
-        <MapIcon className="h-4 w-4 mr-2" />Roadmap
-      </TabsTrigger>
-      <TabsTrigger value="proposal" style={tabTriggerStyle('proposal')} className={tabTriggerClass}>
-        <FileText className="h-4 w-4 mr-2" />Proposal
       </TabsTrigger>
     </>
   );
@@ -2233,6 +2214,15 @@ export default function ResultsPage() {
             <span className="text-foreground">{session?.domain?.replace(/^www\./i, '')}</span>
           </h1>
           <div className="flex items-center gap-4 shrink-0">
+            {(session as any)?.company_id && (
+              <button
+                onClick={() => navigate(`/companies/${(session as any).company_id}`)}
+                className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                View Company
+              </button>
+            )}
             {session?.created_at && (
               <div className="flex items-center gap-4 text-xs text-muted-foreground tabular-nums">
                 <span className="flex items-center gap-1">
@@ -2865,142 +2855,10 @@ export default function ResultsPage() {
           </TabsContent>
 
 
-          {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-            <TabsContent value="prospecting" className="mt-8 space-y-6" forceMount={activeTab === 'prospecting' ? true : undefined}>
-              {activeTab === 'prospecting' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'prospecting' ? null : <ErrorBoundary><div className="animate-fade-in space-y-6">
-              {/* Agency Brain link */}
-              {(session as any)?.company_id && (
-                <button
-                  onClick={() => navigate(`/companies/${(session as any).company_id}`)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
-                >
-                  <Building2 className="h-5 w-5 text-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">View in Agency Brain</p>
-                    <p className="text-xs text-muted-foreground">See all contacts, deals, engagements, and enrichment for this company</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </button>
-              )}
-              {shouldShowIntegration('hubspot', !!(session as any)?.hubspot_data, showAllIntegrations, undefined, freezeVisibilityForCompletedSession) && (
-                <ErrorBoundary><SectionCard
-                  sectionId="hubspot" persistedCollapsed={isSectionCollapsed("hubspot")} onCollapseChange={toggleSection} title="HubSpot CRM"
-                  icon={<Building2 className="h-5 w-5 text-foreground" />}
-                  loading={hubspotLoading && !(session as any)?.hubspot_data}
-                  loadingText="Searching HubSpot for contacts, companies & deals..."
-                  error={hubspotFailed}
-                  errorText={integrationErrors.hubspot}
-                  headerExtra={rerunButton('hubspot', 'hubspot_data', hubspotLoading)}
-                  collapsed={allCollapsed}
-                  paused={isIntegrationPaused('hubspot') && !(session as any)?.hubspot_data}
-                  onTogglePause={() => handleTogglePause('hubspot')}
-                >
-                  {(session as any)?.hubspot_data && (session as any).hubspot_data.success ? <HubSpotCard data={(session as any).hubspot_data} /> : null}
-                </SectionCard></ErrorBoundary>
-              )}
-              </div></ErrorBoundary>}
-            </TabsContent>
-          )}
-
-          <TabsContent value="knowledge" className="mt-8" forceMount={activeTab === 'knowledge' ? true : undefined}>
-            {activeTab === 'knowledge' && !tabReady ? <TabSkeleton variant="knowledge" /> : activeTab !== 'knowledge' ? null : <div className="animate-fade-in">
-            {session && (
-              <KnowledgeTabContent
-                session={session}
-                scrapedPages={scrapedPages}
-              />
-            )}
-            </div>}
-          </TabsContent>
-
-          <TabsContent value="chat" className="mt-0" forceMount={activeTab === 'chat' ? true : undefined}>
-            {activeTab === 'chat' && !tabReady ? <TabSkeleton variant="chat" /> : activeTab !== 'chat' ? null : <div className="animate-fade-in">
-            {session && (
-              <KnowledgeChatCard
-                session={session}
-                pages={scrapedPages}
-                selectedModel={chatModel}
-                provider={chatProvider}
-                reasoning={chatReasoning}
-                onProviderChange={setChatProvider}
-                onModelChange={setChatModel}
-                onReasoningChange={setChatReasoning}
-                stickyTabVisible={stickyTabVisible}
-                pendingPrompt={pendingPrompt}
-                onPendingPromptConsumed={() => setPendingPrompt(null)}
-              />
-            )}
-            </div>}
-          </TabsContent>
-
-          <TabsContent value="estimates" className="mt-8 space-y-6" forceMount={activeTab === 'estimates' ? true : undefined}>
-            {activeTab === 'estimates' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'estimates' ? null : <div className="animate-fade-in">
-            {session && (
-              <EstimateBuilderCard
-                sessionId={session.id}
-                domain={session.domain}
-                pageTags={session.page_tags as any}
-                contentTypesData={session.content_types_data as any}
-                formsData={visibleFormsData}
-                templateTiers={(session as any).template_tiers}
-                formsTiers={(session as any).forms_tiers}
-                navStructure={(session as any).nav_structure || null}
-                techAnalysisData={(session as any).tech_analysis_data}
-                integrationTimestamps={integrationTimestamps}
-                integrationDurations={integrationDurations}
-                onTemplatesRerunRequest={(fn) => { templatesRerunFnRef.current = fn; }}
-                onRerunIntegration={(key, dbColumn) => {
-                  if (key === 'templates') {
-                    templatesRerunFnRef.current?.();
-                    rerunIntegration(key, dbColumn);
-                  } else if (key === 'forms') {
-                    formsRerunFnRef.current?.();
-                    rerunIntegration(key, dbColumn);
-                  } else {
-                    rerunIntegration(key, dbColumn);
-                  }
-                }}
-                isIntegrationLoading={(key) => {
-                  const map: Record<string, boolean> = {
-                    templates: templatesRerunning,
-                    forms: formsLoading,
-                    'tech-analysis': techAnalysisLoading,
-                    'content-types': contentTypesLoading,
-                  };
-                  return map[key] ?? false;
-                }}
-              />
-            )}
-            </div>}
-          </TabsContent>
-
-          <TabsContent value="roadmap" className="mt-8 space-y-6" forceMount={activeTab === 'roadmap' ? true : undefined}>
-            {activeTab === 'roadmap' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'roadmap' ? null : <div className="animate-fade-in">
-              {sessionId ? (
-                <RoadmapTab sessionId={sessionId} domain={session?.domain} />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                    <MapIcon className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm text-muted-foreground max-w-md">Loading session…</p>
-                </div>
-              )}
-            </div>}
-          </TabsContent>
-
-          <TabsContent value="proposal" className="mt-8 space-y-6" forceMount={activeTab === 'proposal' ? true : undefined}>
-            {activeTab === 'proposal' && !tabReady ? <TabSkeleton variant="cards" /> : activeTab !== 'proposal' ? null : <div className="animate-fade-in">
-              {sessionId ? (
-                <ProposalTab sessionId={sessionId} domain={session?.domain} />
-              ) : null}
-            </div>}
-          </TabsContent>
         </Tabs>
       </main>
 
-      {/* Back to top button — hidden on Chat tab which has its own scroll-to-top */}
-      {activeTab !== 'chat' && <BackToTopButton />}
+      <BackToTopButton />
     </div>
   );
 }

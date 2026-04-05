@@ -54,6 +54,8 @@ import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompanies, useInvalidateCompanies } from '@/hooks/useCompanies';
 import { useProduct } from '@/contexts/ProductContext';
+import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
+import { DomainLink } from '@/components/DomainLink';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -463,14 +465,18 @@ export default function CompaniesPage() {
 
   // Workspace-aware defaults
   const defaultPreset = workspace === 'growth' ? 'pipeline' : workspace === 'delivery' ? 'active' : 'all';
-  const defaultSort: SortKey = workspace === 'growth' ? 'stage_asc' : workspace === 'delivery' ? 'last_invoiced_desc' : 'name_asc';
+  const defaultSort: SortKey = workspace === 'growth' ? 'name_asc' : workspace === 'delivery' ? 'last_invoiced_desc' : 'name_asc';
+
+  // Growth filter
+  const [growthFilter, setGrowthFilter] = useState<import('@/hooks/useCompanies').GrowthFilter>('pipeline');
 
   // Data (cached via TanStack Query, scoped by workspace)
-  const { companies, loading } = useCompanies(workspace);
+  const { companies, loading } = useCompanies(workspace, growthFilter);
   const invalidateCompanies = useInvalidateCompanies();
 
   // Search
   const [search, setSearch] = useState('');
+  const [selectedContactForDrawer, setSelectedContactForDrawer] = useState<any>(null);
 
   // Sort & Group
   const [sortKey, setSortKey] = useState<SortKey>(() => {
@@ -689,10 +695,35 @@ export default function CompaniesPage() {
           </div>
         </TableCell>
 
-        {/* ── Growth columns: Domain, Stage, Amount, Contact ── */}
+        {/* ── Growth columns: Domain, Contact, Stage ── */}
         {workspace === 'growth' && (
-          <TableCell className="text-muted-foreground text-sm truncate max-w-[160px]">
-            {company.domain || <span className="text-muted-foreground/30">--</span>}
+          <TableCell className="text-sm truncate max-w-[160px]">
+            {company.domain ? (
+              <DomainLink domain={company.domain} companyId={company.id} hasCrawl={(company as any).site_count > 0} />
+            ) : (
+              <span className="text-muted-foreground/30">--</span>
+            )}
+          </TableCell>
+        )}
+        {workspace === 'growth' && (
+          <TableCell className="text-sm truncate max-w-[140px]">
+            {(company as any).primary_contact_name ? (
+              <span
+                role="link"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const contactId = (company as any).primary_contact_id;
+                  if (!contactId) return;
+                  const { data } = await supabase.from('contacts').select('*').eq('id', contactId).single();
+                  if (data) setSelectedContactForDrawer(data);
+                }}
+                className="text-primary hover:underline cursor-pointer"
+              >
+                {(company as any).primary_contact_name}
+              </span>
+            ) : (
+              <span className="text-muted-foreground/30">--</span>
+            )}
           </TableCell>
         )}
         {workspace === 'growth' && (
@@ -704,11 +735,6 @@ export default function CompaniesPage() {
             ) : (
               <span className="text-muted-foreground/30">--</span>
             )}
-          </TableCell>
-        )}
-        {workspace === 'growth' && (
-          <TableCell className="text-muted-foreground text-sm truncate max-w-[140px]">
-            {(company as any).primary_contact_name || <span className="text-muted-foreground/30">--</span>}
           </TableCell>
         )}
 
@@ -863,7 +889,9 @@ export default function CompaniesPage() {
             {workspace === 'delivery' ? 'Clients' : workspace === 'admin' ? 'Companies' : 'Companies'}
           </h1>
           {!loading && (
-            <span className="text-sm text-muted-foreground tabular-nums shrink-0">{filtered.length.toLocaleString()}</span>
+            <Badge variant="secondary" className="text-sm px-2.5 py-0.5 tabular-nums shrink-0">
+              {filtered.length.toLocaleString()}
+            </Badge>
           )}
 
           {/* Search */}
@@ -884,11 +912,21 @@ export default function CompaniesPage() {
 
           <div className="flex-1" />
 
-          {/* Inline stats */}
-          <div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground">
-            <span>{stats.label1}</span>
-            {stats.label2 && <span>{stats.label2}</span>}
-          </div>
+          {/* Growth filter */}
+          {workspace === 'growth' && (
+            <Select value={growthFilter} onValueChange={(v) => setGrowthFilter(v as import('@/hooks/useCompanies').GrowthFilter)}>
+              <SelectTrigger className="w-fit h-8 text-sm">
+                <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 opacity-50 mr-1.5" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pipeline">Pipeline</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Sort */}
           <Select value={sortKey} onValueChange={(v) => setSortKeyPersist(v as SortKey)}>
@@ -942,8 +980,8 @@ export default function CompaniesPage() {
                       <TableRow className="hover:bg-transparent">
                         <SortableHeader column="company" label="Name" />
                         {workspace === 'growth' && <SortableHeader column="domain" label="Domain" />}
-                        {workspace === 'growth' && <SortableHeader column="stage" label="Stage" />}
                         {workspace === 'growth' && <SortableHeader column="contact" label="Contact" />}
+                        {workspace === 'growth' && <SortableHeader column="stage" label="Stage" />}
                         {workspace === 'delivery' && <SortableHeader column="sources" label="Services" />}
                         {workspace === 'delivery' && <SortableHeader column="last_activity" label="Last Activity" />}
                         {workspace === 'delivery' && <SortableHeader column="contacts" label="Contacts" />}
@@ -1046,6 +1084,11 @@ export default function CompaniesPage() {
           </div>
         )}
       </main>
+
+      <ContactDetailDrawer
+        contact={selectedContactForDrawer}
+        onClose={() => setSelectedContactForDrawer(null)}
+      />
     </div>
   );
 }

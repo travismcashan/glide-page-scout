@@ -357,7 +357,7 @@ export function EstimateBuilderCard({ sessionId, domain, companyId, dealId, page
           const { error: estimateError } = await supabase
             .from('project_estimates')
             .update({
-              name: estimate.name, client_name: estimate.client_name, description: estimate.description,
+              name: estimate.name, description: estimate.description,
               project_size: estimate.project_size, project_complexity: estimate.project_complexity,
               user_personas: estimate.user_personas, content_pages: estimate.content_pages,
               design_layouts: estimate.design_layouts, form_count: estimate.form_count,

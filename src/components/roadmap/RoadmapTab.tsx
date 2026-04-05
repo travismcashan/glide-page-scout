@@ -101,9 +101,7 @@ export default function RoadmapTab({ sessionId, domain, companyId, companyName }
 
       if (!roadmap) {
         // Create one — company_id is the primary parent
-        const defaultName = companyName
-          || (domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "Client");
-        const insertData: any = { user_id: user?.id ?? null, client_name: defaultName, start_month: new Date().getMonth(), total_months: 12 };
+        const insertData: any = { user_id: user?.id ?? null, start_month: new Date().getMonth(), total_months: 12 };
         if (companyId) insertData.company_id = companyId;
         if (sessionId) insertData.session_id = sessionId;
         const { data: created } = await supabase

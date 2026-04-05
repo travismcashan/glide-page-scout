@@ -10,53 +10,21 @@ import { withQueryTimeout } from '@/lib/queryTimeout';
 // ─── Sites (HistoryPage) ─────────────────────────────────────────────────────
 
 async function fetchSessions() {
-  const { data, error } = await withQueryTimeout(
-    supabase
-      .from('crawl_sessions')
-      .select('id, domain, base_url, status, created_at')
-      .not('domain', 'like', '_\\_%')
-      .order('created_at', { ascending: false }),
-    12000,
-    'Loading sites timed out',
-  );
+  const { data, error } = await supabase
+    .from('crawl_sessions')
+    .select('id, domain, base_url, status, created_at, company_id, psi_data, companies!company_id(id, name)')
+    .not('domain', 'like', '_\\_%')
+    .order('created_at', { ascending: false });
   if (error) throw error;
-  const sessions = (data ?? []) as any[];
+  const sessions = (data ?? []).map((s: any) => ({
+    ...s,
+    company_name: s.companies?.name || null,
+  })) as any[];
 
-  // Domain counts
   const domainCounts = new Map<string, number>();
   sessions.forEach(s => domainCounts.set(s.domain, (domainCounts.get(s.domain) ?? 0) + 1));
 
-  // Doc counts + group memberships (fire in parallel)
-  const sessionIds = sessions.map(d => d.id);
-  let docCounts = new Map<string, number>(sessions.map(s => [s.id, 0]));
-  let sessionGroups = new Map<string, { id: string; name: string }[]>();
-
-  if (sessionIds.length > 0) {
-    const [docsRes, membersRes] = await Promise.all([
-      withQueryTimeout(
-        supabase.from('knowledge_documents').select('session_id').in('session_id', sessionIds),
-        12000, 'Loading file counts timed out',
-      ),
-      supabase.from('site_group_members').select('session_id, group_id, site_groups(id, name)').in('session_id', sessionIds),
-    ]);
-
-    if (docsRes.data) {
-      docCounts = new Map(sessions.map(s => [s.id, 0]));
-      docsRes.data.forEach((d: any) => docCounts.set(d.session_id, (docCounts.get(d.session_id) ?? 0) + 1));
-    }
-
-    if (membersRes.data) {
-      for (const m of membersRes.data as any[]) {
-        const group = m.site_groups;
-        if (!group) continue;
-        const existing = sessionGroups.get(m.session_id) || [];
-        existing.push({ id: group.id, name: group.name });
-        sessionGroups.set(m.session_id, existing);
-      }
-    }
-  }
-
-  return { sessions, domainCounts, docCounts, sessionGroups };
+  return { sessions, domainCounts };
 }
 
 export function useSessions() {
@@ -68,8 +36,6 @@ export function useSessions() {
   return {
     sessions: query.data?.sessions ?? [],
     domainCounts: query.data?.domainCounts ?? new Map<string, number>(),
-    docCounts: query.data?.docCounts ?? new Map<string, number>(),
-    sessionGroups: query.data?.sessionGroups ?? new Map<string, { id: string; name: string }[]>(),
     loading: query.isLoading,
     error: query.error?.message ?? null,
     refetch: query.refetch,
@@ -300,34 +266,40 @@ const DEFAULT_PIPELINE = '33bc2a42-c57c-4180-b0e6-77b3d6c7f69f';
 async function fetchPipelineDeals(pipelineId: string) {
   const { data: rows, error } = await supabase
     .from('deals')
-    .select('*')
+    .select('*, contacts(id, first_name, last_name, email, photo_url, title), companies!company_id(id, name, domain)')
     .eq('pipeline', pipelineId)
     .order('close_date', { ascending: false });
 
   if (error) throw new Error(`Failed to load deals: ${error.message}`);
 
   // Reshape to match the PipelinePage's expected Deal type
-  const deals = (rows || []).map((d: any) => ({
-    id: d.hubspot_deal_id || d.id,
-    dealname: d.name,
-    amount: d.amount != null ? String(d.amount) : null,
-    dealstage: d.stage,
-    pipeline: d.pipeline,
-    closedate: d.close_date,
-    createdate: d.properties?.createdate || d.created_at,
-    hs_lastmodifieddate: d.properties?.hs_lastmodifieddate || d.updated_at,
-    hubspot_owner_id: d.hubspot_owner_id,
-    companyName: d.company_name || '',
-    contactName: d.contact_name || null,
-    contactTitle: null,
-    contactPhotoUrl: d.contact_photo_url || null,
-    contactEmail: d.contact_email || null,
-    dealtype: d.deal_type,
-    hs_priority: d.priority,
-    deal_source_details: d.properties?.deal_source_details || null,
-    hs_forecast_probability: d.properties?.hs_forecast_probability || null,
-    notes_last_contacted: d.properties?.notes_last_contacted || null,
-  }));
+  const deals = (rows || []).map((d: any) => {
+    const contact = d.contacts;
+    const company = d.companies;
+    return {
+      id: d.hubspot_deal_id || d.id,
+      dealname: d.name,
+      amount: d.amount != null ? String(d.amount) : null,
+      dealstage: d.stage,
+      pipeline: d.pipeline,
+      closedate: d.close_date,
+      createdate: d.properties?.createdate || d.created_at,
+      hs_lastmodifieddate: d.properties?.hs_lastmodifieddate || d.updated_at,
+      hubspot_owner_id: d.hubspot_owner_id,
+      companyName: company?.name || '',
+      companyDomain: company?.domain || null,
+      companyId: company?.id || null,
+      contactName: contact ? [contact.first_name, contact.last_name].filter(Boolean).join(' ') : null,
+      contactTitle: contact?.title || null,
+      contactPhotoUrl: contact?.photo_url || null,
+      contactEmail: contact?.email || null,
+      dealtype: d.deal_type,
+      hs_priority: d.priority,
+      deal_source_details: d.properties?.deal_source_details || null,
+      hs_forecast_probability: d.properties?.hs_forecast_probability || null,
+      notes_last_contacted: d.properties?.notes_last_contacted || null,
+    };
+  });
 
   // Build owner maps from deal properties
   const owners: Record<string, string> = {};
@@ -377,7 +349,7 @@ export function usePipelineDeals(pipelineId: string) {
 async function fetchPipelineLeads() {
   const { data: rows, error } = await supabase
     .from('contacts')
-    .select('*')
+    .select('*, companies!company_id(id, name, domain)')
     .not('lead_status', 'is', null)
     .order('updated_at', { ascending: false });
 
@@ -389,7 +361,9 @@ async function fetchPipelineLeads() {
     firstname: c.first_name,
     lastname: c.last_name,
     email: c.email,
-    company: c.enrichment_data?.company_name || null,
+    company: c.companies?.name || c.enrichment_data?.company_name || null,
+    companyDomain: c.companies?.domain || null,
+    companyId: c.companies?.id || c.company_id || null,
     jobtitle: c.title,
     phone: c.phone,
     lifecyclestage: c.lifecycle_stage,

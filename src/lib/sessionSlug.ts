@@ -1,25 +1,23 @@
 import { format } from 'date-fns';
 
-/** Valid tab slugs for deep-linking */
-export const TAB_SLUGS = ['analysis', 'prospecting', 'knowledge', 'chat', 'estimates', 'roadmap', 'proposal'] as const;
+/** Valid tab slugs for deep-linking (audit-only — company features moved to CompanyDetailPage) */
+export const TAB_SLUGS = ['analysis'] as const;
 export type TabSlug = typeof TAB_SLUGS[number];
 
 /** Map URL tab slugs ↔ internal tab values */
 const SLUG_TO_TAB: Record<string, string> = {
   analysis: 'raw-data',
-  prospecting: 'prospecting',
-  knowledge: 'knowledge',
-  chat: 'chat',
-  estimates: 'estimates',
-  roadmap: 'roadmap',
-  proposal: 'proposal',
-  // backward compat: old /prompts URLs → analysis
+  // backward compat: old URLs → analysis
   prompts: 'raw-data',
+  prospecting: 'raw-data',
+  knowledge: 'raw-data',
+  chat: 'raw-data',
+  estimates: 'raw-data',
+  roadmap: 'raw-data',
+  proposal: 'raw-data',
 };
 
-const TAB_TO_SLUG: Record<string, string> = Object.fromEntries(
-  Object.entries(SLUG_TO_TAB).map(([k, v]) => [v, k])
-);
+const TAB_TO_SLUG: Record<string, string> = { 'raw-data': 'analysis' };
 
 export function tabSlugToValue(slug: string | undefined): string {
   if (!slug) return 'raw-data';
@@ -32,7 +30,6 @@ export function tabValueToSlug(value: string): string {
 
 /**
  * Build a friendly path: /sites/example.com or /sites/example.com/crawls/mar-27-2026
- * Optionally append a tab: /sites/example.com/crawls/mar-27-2026/knowledge
  */
 export function buildSitePath(
   domain: string,
@@ -46,13 +43,6 @@ export function buildSitePath(
   if (needsTimestamp && createdAt) {
     const dateSlug = format(new Date(createdAt), "MMM-dd-yyyy").toLowerCase();
     path += `/crawls/${dateSlug}`;
-  }
-
-  if (tab && tab !== 'raw-data') {
-    const tabSlug = tabValueToSlug(tab);
-    if (tabSlug !== 'analysis') {
-      path += `/${tabSlug}`;
-    }
   }
 
   return path;

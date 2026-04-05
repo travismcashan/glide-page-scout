@@ -34,6 +34,8 @@ import CompaniesPage from "./pages/CompaniesPage";
 import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyCleanupPage from "./pages/CompanyCleanupPage";
 import CompanyMappingPage from "./pages/CompanyMappingPage";
+import ContactsPage from "./pages/ContactsPage";
+import ContactDetailPage from "./pages/ContactDetailPage";
 import NotFound from "./pages/NotFound";
 import FeedbackSideTabs from "./components/feedback/FeedbackSideTabs";
 
@@ -82,7 +84,8 @@ const App = () => (
               <Route path="/integrations" element={<Navigate to="/connections" replace />} />
               {/* All pages: sidebar layout */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route path="/" element={<HistoryPage />} />
+                <Route path="/" element={<Navigate to="/leads" replace />} />
+                <Route path="/crawls" element={<HistoryPage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/sites/:domain/:tab" element={<ResultsPage />} />
                 <Route path="/sites/:domain/crawls/:dateSlug/:tab" element={<ResultsPage />} />
@@ -105,6 +108,8 @@ const App = () => (
                 <Route path="/companies/cleanup" element={<CompanyCleanupPage />} />
                 <Route path="/companies/mapping" element={<CompanyMappingPage />} />
                 <Route path="/companies/:id" element={<CompanyDetailPage />} />
+                <Route path="/contacts" element={<ContactsPage />} />
+                <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
                 <Route path="/wishlist" element={<WishlistPage />} />
                 <Route path="/chat" element={<GlobalChatPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />

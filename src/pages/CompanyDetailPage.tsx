@@ -21,6 +21,8 @@ import { useProduct } from '@/contexts/ProductContext';
 import { WORKSPACE_COMPANY_TABS } from '@/config/workspace-nav';
 import { KnowledgeChatCard } from '@/components/KnowledgeChatCard';
 import RoadmapTab from '@/components/roadmap/RoadmapTab';
+import ProposalTab from '@/components/proposal/ProposalTab';
+import { EstimateBuilderCard } from '@/components/estimate/EstimateBuilderCard';
 import { CompanyKnowledgeTab } from '@/components/CompanyKnowledgeTab';
 import { VERSIONS, type ModelProvider, type ReasoningEffort } from '@/components/chat/ChatModelSelector';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -29,9 +31,12 @@ import { withQueryTimeout } from '@/lib/queryTimeout';
 import { CompanyVoiceTab } from '@/components/company/CompanyVoiceTab';
 import { apolloApi, oceanApi } from '@/lib/api/firecrawl';
 import { upsertContactFromApollo } from '@/lib/agencyBrain';
+import { DomainLink } from '@/components/DomainLink';
 import { useCompany, useUpdateCompanyCache } from '@/hooks/useCompany';
 import OceanCard from '@/components/OceanCard';
 import { ApolloTeamContacts, type ApolloTeamData } from '@/components/apollo/ApolloTeamContacts';
+import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
+import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
 
 type Company = {
   id: string;
@@ -61,11 +66,15 @@ type Contact = {
   email: string | null;
   phone: string | null;
   title: string | null;
+  department: string | null;
   linkedin_url: string | null;
   photo_url: string | null;
   seniority: string | null;
   role_type: string | null;
   is_primary: boolean;
+  lead_status: string | null;
+  lifecycle_stage: string | null;
+  enrichment_data: any;
   created_at: string;
 };
 
@@ -105,6 +114,19 @@ const STATUS_COLORS: Record<string, string> = {
   archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20',
 };
 
+const LEAD_STATUS_COLORS: Record<string, string> = {
+  'Inbound': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
+  'Contacting': 'bg-blue-500/15 text-blue-400 border-blue-500/20',
+  'Scheduled': 'bg-violet-500/15 text-violet-400 border-violet-500/20',
+  'Future Follow-Up': 'bg-amber-500/15 text-amber-400 border-amber-500/20',
+};
+
+const DEAL_STATUS_COLORS: Record<string, string> = {
+  won: 'bg-green-500/15 text-green-400',
+  lost: 'bg-red-500/15 text-red-400',
+  open: 'bg-blue-500/15 text-blue-400',
+};
+
 const SENIORITY_COLORS: Record<string, string> = {
   c_suite: 'bg-purple-500/15 text-purple-400',
   vp: 'bg-indigo-500/15 text-indigo-400',
@@ -131,6 +153,10 @@ export default function CompanyDetailPage() {
   const [harvestTimeEntries, setHarvestTimeEntries] = useState<any[]>([]);
   const [harvestInvoices, setHarvestInvoices] = useState<any[]>([]);
   const [freshdeskTickets, setFreshdeskTickets] = useState<any[]>([]);
+
+  // Drawer state for contact and site detail
+  const [selectedContact, setSelectedContact] = useState<typeof contacts[number] | null>(null);
+  const [selectedSite, setSelectedSite] = useState<{ id: string; domain: string; created_at: string } | null>(null);
 
   // Tab state synced with URL ?tab= param (so sidebar contextual nav works)
   const activeTab = searchParams.get('tab') || 'overview';
@@ -233,17 +259,17 @@ export default function CompanyDetailPage() {
 
   // Map tabs to artifact types for on-demand fetching
   useEffect(() => {
-    const tabToArtifact: Record<string, string> = {
-      overview: 'engagements', // overview shows engagements
-      deals: 'deals',
-      projects: 'projects',
-      time: 'time_entries',
-      invoices: 'invoices',
-      tickets: 'tickets',
+    const tabToArtifacts: Record<string, string[]> = {
+      overview: ['engagements', 'deals'], // overview shows both
+      deals: ['deals'],
+      projects: ['projects'],
+      time: ['time_entries'],
+      invoices: ['invoices'],
+      tickets: ['tickets'],
     };
-    const artifactType = tabToArtifact[activeTab];
-    if (artifactType && company) {
-      fetchArtifact(artifactType);
+    const artifactTypes = tabToArtifacts[activeTab];
+    if (artifactTypes && company) {
+      for (const type of artifactTypes) fetchArtifact(type);
     }
   }, [activeTab, company, fetchArtifact]);
 
@@ -481,9 +507,7 @@ export default function CompanyDetailPage() {
             )}
             <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
               {company.domain && (
-                <a href={company.website_url || `https://${company.domain}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
-                  <Globe className="h-3.5 w-3.5" /> {company.domain} <ExternalLink className="h-3 w-3" />
-                </a>
+                <DomainLink domain={company.domain} companyId={company.id} hasCrawl={sites.length > 0} />
               )}
               {company.industry && <span className="capitalize">{company.industry}</span>}
               {company.employee_count && <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {company.employee_count} employees</span>}
@@ -497,11 +521,42 @@ export default function CompanyDetailPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Overview Tab — company intelligence hub */}
           <TabsContent value="overview">
-            {/* Key People */}
+            {/* Deals Card */}
+            {(deals.length > 0 || artifactLoading.deals) && (
+              <Card className="mb-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2"><Briefcase className="h-4 w-4" /> Deals{deals.length > 0 && ` (${deals.length})`}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {artifactLoading.deals ? (
+                    <div className="flex items-center justify-center py-6"><BrandLoader size={24} /></div>
+                  ) : (
+                    <div className="space-y-2">
+                      {deals.map(deal => (
+                        <div key={deal.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-background">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold truncate">{deal.name}</span>
+                              <Badge variant="outline" className={`text-[10px] py-0 ${DEAL_STATUS_COLORS[deal.status] || ''}`}>{deal.status}</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
+                              {deal.amount != null && <span className="font-semibold text-foreground">${deal.amount.toLocaleString()}</span>}
+                              {deal.close_date && <span>Close: {format(new Date(deal.close_date), 'MMM d, yyyy')}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Key People / Leads */}
             <Card className="mb-6">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Key People{contacts.length > 0 && ` (${contacts.length})`}</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Contacts{contacts.length > 0 && ` (${contacts.length})`}</CardTitle>
                   {company.domain && (
                     <Button variant="ghost" size="sm" onClick={handleTeamSearch} disabled={teamSearching} className="gap-1.5 h-7 text-xs">
                       {teamSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
@@ -514,10 +569,10 @@ export default function CompanyDetailPage() {
                 {contacts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No contacts yet. Use "Find Team" to discover key people.</p>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="space-y-2">
                     {contacts.map(contact => (
-                      <div key={contact.id} className="flex items-start gap-2.5 p-3 rounded-lg border border-border/50 hover:border-border transition-colors bg-background">
-                        <div className="shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                      <div key={contact.id} onClick={() => setSelectedContact(contact)} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors bg-background cursor-pointer">
+                        <div className="shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden mt-0.5">
                           {contact.photo_url ? (
                             <img src={contact.photo_url} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -527,14 +582,21 @@ export default function CompanyDetailPage() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-semibold truncate">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
                             {contact.is_primary && <Badge variant="outline" className="text-[9px] py-0 shrink-0">Primary</Badge>}
+                            {contact.lead_status && <Badge variant="outline" className={`text-[9px] py-0 shrink-0 ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>{contact.lead_status}</Badge>}
+                            {contact.seniority && <Badge variant="secondary" className={`text-[9px] py-0 shrink-0 ${SENIORITY_COLORS[contact.seniority] || ''}`}>{contact.seniority.replace('_', ' ')}</Badge>}
                           </div>
-                          {contact.title && <p className="text-xs text-muted-foreground truncate">{contact.title}</p>}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {contact.title && <p className="text-xs text-muted-foreground truncate">{contact.title}</p>}
+                            {contact.title && contact.department && <span className="text-xs text-muted-foreground/40">·</span>}
+                            {contact.department && <p className="text-xs text-muted-foreground/60 truncate">{contact.department}</p>}
+                          </div>
+                          {contact.email && <p className="text-xs text-muted-foreground/50 truncate mt-0.5">{contact.email}</p>}
                           <div className="flex items-center gap-2 mt-1.5">
                             {contact.email && <a href={`mailto:${contact.email}`} className="text-muted-foreground hover:text-foreground"><Mail className="h-3 w-3" /></a>}
-                            {contact.phone && <span className="text-muted-foreground"><Phone className="h-3 w-3" /></span>}
+                            {contact.phone && <a href={`tel:${contact.phone}`} className="text-muted-foreground hover:text-foreground"><Phone className="h-3 w-3" /></a>}
                             {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground"><Linkedin className="h-3 w-3" /></a>}
                             {contact.email && (
                               <button onClick={() => handleEnrichContact(contact)} disabled={enrichingContact === contact.id} className="text-muted-foreground hover:text-foreground">
@@ -559,7 +621,7 @@ export default function CompanyDetailPage() {
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {sites.map(site => (
-                      <button key={site.id} onClick={() => navigate(buildSitePath(site.domain, site.created_at, 'raw-data'))} className="text-left p-3 rounded-lg border border-border/50 hover:border-border hover:bg-accent/5 transition-all group flex items-center gap-3 bg-background">
+                      <button key={site.id} onClick={() => setSelectedSite({ id: site.id, domain: site.domain, created_at: site.created_at })} className="text-left p-3 rounded-lg border border-border/50 hover:border-border hover:bg-accent/5 transition-all group flex items-center gap-3 bg-background">
                         <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{site.domain}</p>
@@ -940,6 +1002,41 @@ export default function CompanyDetailPage() {
             )}
           </TabsContent>
 
+          {/* Estimates Tab */}
+          <TabsContent value="estimates" className="min-h-[600px]">
+            {chatLoading ? (
+              <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
+            ) : !chatSession ? (
+              <div className="text-center py-20 text-muted-foreground">No site linked yet. Crawl a site to enable estimates.</div>
+            ) : (
+              <ErrorBoundary>
+                <EstimateBuilderCard
+                  sessionId={chatSession.id}
+                  domain={company.domain || ''}
+                  companyId={company.id}
+                />
+              </ErrorBoundary>
+            )}
+          </TabsContent>
+
+          {/* Proposal Tab */}
+          <TabsContent value="proposal" className="min-h-[600px]">
+            {chatLoading ? (
+              <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
+            ) : !chatSession ? (
+              <div className="text-center py-20 text-muted-foreground">No site linked yet. Crawl a site to enable proposals.</div>
+            ) : (
+              <ErrorBoundary>
+                <ProposalTab
+                  sessionId={chatSession.id}
+                  domain={company.domain || undefined}
+                  companyId={company.id}
+                  initialCompanyName={company.name}
+                />
+              </ErrorBoundary>
+            )}
+          </TabsContent>
+
           {/* Chat Tab */}
           <TabsContent value="chat" className="min-h-[600px]">
             {chatLoading ? (
@@ -1099,6 +1196,19 @@ export default function CompanyDetailPage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Detail Drawers */}
+      <ContactDetailDrawer
+        contact={selectedContact}
+        onClose={() => setSelectedContact(null)}
+        companyName={company.name}
+        companyId={company.id}
+        onEnrich={(c) => { setSelectedContact(null); handleEnrichContact(c); }}
+      />
+      <SiteDetailDrawer
+        site={selectedSite}
+        onClose={() => setSelectedSite(null)}
+      />
     </div>
   );
 }

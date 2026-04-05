@@ -141,7 +141,7 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="mb-1" />
 
       {/* ── Global nav (max 3-4 items per workspace) ────── */}
       <SidebarContent>

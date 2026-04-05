@@ -364,10 +364,6 @@ export default function ProposalTab({ sessionId, domain, companyId, initialCompa
     const payload: any = {
       user_id: user?.id ?? null,
       proposal_data: data,
-      contact_name: contactName,
-      contact_title: contactTitle,
-      contact_email: contactEmail,
-      company_name: companyName,
       updated_at: new Date().toISOString(),
     };
     if (companyId) payload.company_id = companyId;

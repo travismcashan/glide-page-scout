@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCompany } from "../_shared/company-resolution.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -225,45 +226,37 @@ serve(async (req) => {
       }
     }
 
-    // ── Step 4b: Create missing companies for unmatched HubSpot companies ──
+    // ── Step 4b: Resolve missing companies via shared resolution layer ──
     let companiesCreated = 0;
+    let companiesMatched = 0;
+    let namesUpgraded = 0;
     const unmatchedHsIds = hsCompanyIds.filter((id) => !companyIdMap[id] && hsCompanyDetails[id]);
-    if (unmatchedHsIds.length > 0) {
-      const newCompanies = unmatchedHsIds.map((hsId) => {
-        const p = hsCompanyDetails[hsId];
-        const location = [p.city, p.state, p.country].filter(Boolean).join(", ") || null;
-        return {
+    for (const hsId of unmatchedHsIds) {
+      const p = hsCompanyDetails[hsId];
+      const location = [p.city, p.state, p.country].filter(Boolean).join(", ") || null;
+      try {
+        const result = await resolveCompany(supabase, {
           user_id: userId,
-          name: p.name || `HubSpot Company ${hsId}`,
+          hubspot_company_id: hsId,
+          name: p.name || null,
           domain: p.domain || null,
           industry: p.industry || null,
           employee_count: p.numberofemployees || null,
           annual_revenue: p.annualrevenue || null,
           location,
           website_url: p.website || null,
-          hubspot_company_id: hsId,
-          hubspot_lifecycle_stage: p.lifecyclestage || null,
           status: "prospect",
-          last_synced_at: new Date().toISOString(),
-        };
-      });
-
-      for (let i = 0; i < newCompanies.length; i += 100) {
-        const batch = newCompanies.slice(i, i + 100);
-        const { data: inserted, error } = await supabase
-          .from("companies")
-          .insert(batch)
-          .select("id, hubspot_company_id");
-        if (error) {
-          console.error(`[hubspot-deals-sync] Company create batch error: ${JSON.stringify(error)}`);
-        } else {
-          for (const c of inserted || []) {
-            if (c.hubspot_company_id) companyIdMap[c.hubspot_company_id] = c.id;
-            companiesCreated++;
-          }
-        }
+        });
+        companyIdMap[hsId] = result.companyId;
+        if (result.created) companiesCreated++;
+        else companiesMatched++;
+        if (result.nameUpgraded) namesUpgraded++;
+      } catch (e) {
+        console.error(`[hubspot-deals-sync] Company resolve error for ${hsId}: ${e.message}`);
       }
-      console.log(`[hubspot-deals-sync] Created ${companiesCreated} missing companies`);
+    }
+    if (unmatchedHsIds.length > 0) {
+      console.log(`[hubspot-deals-sync] Resolved ${unmatchedHsIds.length} companies: ${companiesCreated} created, ${companiesMatched} matched existing, ${namesUpgraded} names upgraded`);
     }
 
     // ── Step 4c: Upsert deal contacts into contacts table ──
@@ -290,9 +283,9 @@ serve(async (req) => {
       });
     }
     let contactsSynced = 0;
+    const hsContactToLocalId: Record<string, string> = {}; // hubspot_contact_id → local UUID
     for (let i = 0; i < contactRows.length; i += 100) {
       const batch = contactRows.slice(i, i + 100);
-      // Use individual upserts to avoid conflicts with existing contacts
       for (const row of batch) {
         const { data: existing } = await supabase
           .from("contacts")
@@ -308,13 +301,15 @@ serve(async (req) => {
             title: row.title,
             updated_at: row.updated_at,
           }).eq("id", existing[0].id);
+          hsContactToLocalId[row.hubspot_contact_id] = existing[0].id;
         } else {
-          await supabase.from("contacts").insert(row);
+          const { data: inserted } = await supabase.from("contacts").insert(row).select("id").single();
+          if (inserted) hsContactToLocalId[row.hubspot_contact_id] = inserted.id;
         }
         contactsSynced++;
       }
     }
-    console.log(`[hubspot-deals-sync] Synced ${contactsSynced} deal contacts to contacts table`);
+    console.log(`[hubspot-deals-sync] Synced ${contactsSynced} deal contacts, mapped ${Object.keys(hsContactToLocalId).length} to local IDs`);
 
     // Fetch contact photos from local cache
     const allEmails = Object.values(contactDetails).map((c) => c.email).filter(Boolean);
@@ -338,13 +333,16 @@ serve(async (req) => {
     const rows = allDeals.map((deal) => {
       const hsCompanyId = dealToCompanyHsId[deal.id];
       const localCompanyId = hsCompanyId ? companyIdMap[hsCompanyId] : null;
-      const contact = dealToContactHsId[deal.id] ? contactDetails[dealToContactHsId[deal.id]] : null;
+      const hsContactId = dealToContactHsId[deal.id];
+      const contact = hsContactId ? contactDetails[hsContactId] : null;
+      const localContactId = contact?.hubspot_id ? hsContactToLocalId[contact.hubspot_id] : null;
       const stageId = deal.dealstage;
 
       return {
         user_id: userId,
         hubspot_deal_id: deal.id,
         company_id: localCompanyId || null,
+        contact_id: localContactId || null,
         name: deal.dealname || "Untitled Deal",
         amount: deal.amount ? parseFloat(deal.amount) : null,
         stage: stageId || null,
@@ -354,10 +352,6 @@ serve(async (req) => {
         close_date: deal.closedate || null,
         status: closedStageIds.has(stageId) ? "closed" : "open",
         hubspot_owner_id: deal.hubspot_owner_id || null,
-        contact_name: contact?.name || null,
-        contact_email: contact?.email || null,
-        contact_photo_url: contact?.email ? photoMap[contact.email] || null : null,
-        company_name: hsCompanyId ? companyNames[hsCompanyId] || null : null,
         properties: {
           createdate: deal.createdate,
           hs_lastmodifieddate: deal.hs_lastmodifieddate,
@@ -405,6 +399,47 @@ serve(async (req) => {
       } catch (e) {
         console.error(`[hubspot-deals-sync] Enrichment trigger failed: ${e.message}`);
       }
+    }
+
+    // ── Step 7c: Auto-crawl new pipeline companies with domains ──
+    try {
+      const openDealCompanyIds = [...new Set(
+        rows.filter(r => r.status === 'open' && r.company_id).map(r => r.company_id)
+      )];
+      if (openDealCompanyIds.length > 0) {
+        // Get domains for pipeline companies
+        const { data: pipelineCompanies } = await supabase
+          .from("companies")
+          .select("id, domain")
+          .in("id", openDealCompanyIds)
+          .not("domain", "is", null);
+
+        // Check which already have crawls
+        const domains = (pipelineCompanies || []).filter(c => c.domain).map(c => c.domain);
+        const { data: existingCrawls } = await supabase
+          .from("crawl_sessions")
+          .select("domain")
+          .in("domain", domains);
+        const crawledDomains = new Set((existingCrawls || []).map(c => c.domain));
+
+        // Create crawls for uncrawled domains
+        let crawlsCreated = 0;
+        for (const company of pipelineCompanies || []) {
+          if (!company.domain || crawledDomains.has(company.domain)) continue;
+          const { data: session } = await supabase
+            .from("crawl_sessions")
+            .insert({ domain: company.domain, base_url: `https://${company.domain}`, status: "analyzing", company_id: company.id, user_id: userId })
+            .select("id")
+            .single();
+          if (session) {
+            supabase.functions.invoke("crawl-start", { body: { session_id: session.id } }).catch(() => {});
+            crawlsCreated++;
+          }
+        }
+        if (crawlsCreated > 0) console.log(`[hubspot-deals-sync] Auto-crawled ${crawlsCreated} pipeline company domains`);
+      }
+    } catch (e) {
+      console.error(`[hubspot-deals-sync] Auto-crawl failed: ${e.message}`);
     }
 
     // ── Step 8: Summary ──

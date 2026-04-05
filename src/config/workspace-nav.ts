@@ -17,6 +17,8 @@ import {
   Map as MapIcon,
   Database,
   Shield,
+  Users,
+  DollarSign,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ProductId } from '@/contexts/ProductContext';
@@ -40,20 +42,21 @@ export interface CompanyTab {
 
 export const WORKSPACE_NAV: Record<ProductId, NavItem[]> = {
   growth: [
-    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
     { label: 'Leads', to: '/leads', icon: Building2 },
     { label: 'Deals', to: '/deals', icon: TrendingUp },
+    { label: 'Crawls', to: '/crawls', icon: Search, matchPrefix: '/sites' },
+    { label: 'Contacts', to: '/contacts', icon: Users, matchPrefix: '/contacts' },
     { label: 'Companies', to: '/companies', icon: Building2, matchPrefix: '/companies' },
   ],
   delivery: [
-    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
     { label: 'Projects', to: '/projects', icon: FolderKanban },
+    { label: 'Crawls', to: '/crawls', icon: Search, matchPrefix: '/sites' },
   ],
   admin: [
-    { label: 'Crawl', to: '/', icon: Search, matchPrefix: '/sites' },
     { label: 'Clients', to: '/companies', icon: Building2, matchPrefix: '/companies' },
     { label: 'Invoicing', to: '/pipeline', icon: Receipt },
+    { label: 'Crawls', to: '/crawls', icon: Search, matchPrefix: '/sites' },
   ],
 };
 
@@ -65,7 +68,9 @@ export const WORKSPACE_COMPANY_TABS: Record<ProductId, CompanyTab[]> = {
     { value: 'voice', label: 'Voice', icon: AudioLines },
     { value: 'knowledge', label: 'Knowledge', icon: BookOpen },
     { value: 'chat', label: 'Chat', icon: MessageSquare },
+    { value: 'estimates', label: 'Estimates', icon: DollarSign },
     { value: 'roadmap', label: 'Roadmap', icon: MapIcon },
+    { value: 'proposal', label: 'Proposal', icon: FileText },
     { value: 'source-data', label: 'Source Data', icon: Database },
   ],
   delivery: [
@@ -91,7 +96,7 @@ export const WORKSPACE_COMPANY_TABS: Record<ProductId, CompanyTab[]> = {
 // ── Default route per workspace ────────────────────────────────────
 
 export const WORKSPACE_DEFAULT_ROUTE: Record<ProductId, string> = {
-  growth: '/companies',
+  growth: '/leads',
   delivery: '/companies',
   admin: '/companies',
 };

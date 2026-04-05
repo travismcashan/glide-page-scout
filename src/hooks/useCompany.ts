@@ -29,11 +29,15 @@ type ContactRow = {
   email: string | null;
   phone: string | null;
   title: string | null;
+  department: string | null;
   linkedin_url: string | null;
   photo_url: string | null;
   seniority: string | null;
   role_type: string | null;
   is_primary: boolean;
+  lead_status: string | null;
+  lifecycle_stage: string | null;
+  enrichment_data: any;
   created_at: string;
 };
 
@@ -52,7 +56,7 @@ async function fetchCompanyBundle(id: string) {
     supabase.from('companies').select(COMPANY_DETAIL_COLUMNS).eq('id', id).single(),
     supabase
       .from('contacts')
-      .select('id, first_name, last_name, email, phone, title, linkedin_url, photo_url, seniority, role_type, is_primary, enrichment_data, created_at')
+      .select('id, first_name, last_name, email, phone, title, department, linkedin_url, photo_url, seniority, role_type, is_primary, lead_status, lifecycle_stage, enrichment_data, created_at')
       .eq('company_id', id)
       .order('is_primary', { ascending: false })
       .order('created_at'),

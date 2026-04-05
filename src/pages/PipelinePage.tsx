@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   DollarSign, Calendar, Building2, ExternalLink, RefreshCw, Mail, Phone, User,
-  ChevronDown, X, Loader2, Linkedin, Briefcase,
+  ChevronDown, X, Loader2, Linkedin, Briefcase, Globe, Search,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +16,12 @@ import {
   Sheet, SheetContent,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { BrandLoader } from "@/components/BrandLoader";
 import { supabase } from "@/integrations/supabase/client";
 import { usePipelineDeals, usePipelineLeads, usePipelineStats, useInvalidatePipeline } from "@/hooks/useCachedQueries";
 import { formatDistanceToNow, format, isPast } from "date-fns";
+import { DomainLink } from "@/components/DomainLink";
 
 const HUBSPOT_ACCOUNT = "3457789";
 
@@ -96,6 +98,8 @@ export default function PipelinePage() {
   const [selectedPipeline, setSelectedPipeline] = useState(() => loadSetting("pipeline", "33bc2a42-c57c-4180-b0e6-77b3d6c7f69f"));
   const [ownerFilter, setOwnerFilter] = useState(() => loadSetting("owner", "all"));
 
+  const [pipelineSearch, setPipelineSearch] = useState('');
+
   // Deals (cached via TanStack Query)
   const { deals, owners, ownerTeams: dealOwnerTeams, pipelineInfo, pipelineOptions, loading: dealsLoading, error: dealsError, refetch: refetchDeals } = usePipelineDeals(selectedPipeline);
 
@@ -120,7 +124,7 @@ export default function PipelinePage() {
   const [closedLoading, setClosedLoading] = useState(false);
   const [stagePaging, setStagePaging] = useState<Record<string, { hasMore: boolean; nextCursor: string | null; total: number }>>({});
   const [stageLoadingMore, setStageLoadingMore] = useState<Record<string, boolean>>({});
-  const [showOtherOwners, setShowOtherOwners] = useState(false);
+  const [showOtherOwners, setShowOtherOwners] = useState(true);
   // Scroll fade state: only show left/right fade when content is scrolled
   const [leadsFadeLeft, setLeadsFadeLeft] = useState(false);
   const [leadsFadeRight, setLeadsFadeRight] = useState(true);
@@ -347,13 +351,20 @@ export default function PipelinePage() {
     for (const s of leadStatuses) {
       map[s.id] = [];
     }
-    const filtered = ownerFilter === "all" ? contacts : contacts.filter((c) => c.hubspot_owner_id === ownerFilter);
+    let filtered = ownerFilter === "all" ? contacts : contacts.filter((c) => c.hubspot_owner_id === ownerFilter);
+    if (pipelineSearch) {
+      const q = pipelineSearch.toLowerCase();
+      filtered = filtered.filter((c) => {
+        const name = [c.firstname, c.lastname].filter(Boolean).join(' ').toLowerCase();
+        return name.includes(q) || (c.email?.toLowerCase().includes(q)) || (c.company?.toLowerCase().includes(q)) || (c.companyDomain?.toLowerCase().includes(q));
+      });
+    }
     for (const c of filtered) {
       const status = c.hs_lead_status || "Inbound";
       if (map[status]) map[status].push(c);
     }
     return map;
-  }, [contacts, leadStatuses, ownerFilter]);
+  }, [contacts, leadStatuses, ownerFilter, pipelineSearch]);
 
   // ---- Stage probability for weighted pipeline ----
   const STAGE_PROBABILITY: Record<string, number> = {
@@ -446,8 +457,18 @@ export default function PipelinePage() {
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col px-4 sm:px-6 py-6 w-full overflow-hidden">
         {/* Header — title + owner filter + toggles on one row */}
-        <div className="flex items-center justify-between mb-3 min-w-0 gap-3">
+        <div className="flex items-center mb-3 min-w-0 gap-3">
           <h1 className="text-2xl font-bold tracking-tight shrink-0">{activeTab === "leads" ? "Leads" : "Deals"}</h1>
+          {activeTab === "leads" && !contactsLoading && (
+            <Badge variant="secondary" className="text-sm px-2.5 py-0.5 tabular-nums shrink-0">{contacts.length}</Badge>
+          )}
+          {activeTab === "deals" && !dealsLoading && (() => {
+            const closedStageIds = new Set(pipelineInfo?.stages?.filter((s: any) => s.closed).map((s: any) => s.id) || []);
+            const openCount = deals.filter(d => !closedStageIds.has(d.dealstage)).length;
+            return <Badge variant="secondary" className="text-sm px-2.5 py-0.5 tabular-nums shrink-0">{openCount} Open</Badge>;
+          })()}
+
+          <div className="flex-1" />
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
             {/* Deals-only: pipeline + date filters */}
             {activeTab === "deals" && (
@@ -493,33 +514,9 @@ export default function PipelinePage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Owners</SelectItem>
-                {ownersByTeam.map(([team, members], i) => {
-                  const isOther = team === "Others";
-                  return (
-                    <SelectGroup key={team}>
-                      <div className="mx-2 my-1 border-t border-border" />
-                      {isOther ? (
-                        <button
-                          type="button"
-                          className="flex items-center gap-0.5 py-1.5 pl-8 pr-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-full cursor-pointer hover:text-foreground transition-colors"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setShowOtherOwners((v) => !v);
-                          }}
-                        >
-                          <ChevronDown className={`h-3 w-3 stroke-[2.5] transition-transform ${showOtherOwners ? "" : "-rotate-90"}`} />
-                          {team} ({members.length})
-                        </button>
-                      ) : (
-                        <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider">{team}</SelectLabel>
-                      )}
-                      {(!isOther || showOtherOwners) && members.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  );
-                })}
+                {ownersByTeam.flatMap(([, members]) => members).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -606,7 +603,7 @@ export default function PipelinePage() {
               </div>
             ) : (
               <>
-              <div className="relative w-full flex-1">
+              <div className="relative w-full flex-1 min-h-0 flex flex-col">
                 <div className={`pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-r from-background to-transparent transition-opacity duration-500 ${leadsFadeLeft ? 'opacity-100' : 'opacity-0'}`} />
                 <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-l from-background to-transparent transition-opacity duration-500 ${leadsFadeRight ? 'opacity-100' : 'opacity-0'}`} />
               <ScrollArea className="w-full h-full" ref={(node) => { if (node) { const viewport = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement; if (viewport) leadsScrollRef.current = viewport; } }}>
@@ -654,7 +651,20 @@ export default function PipelinePage() {
                               >
                                 <Card className="p-3 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
                                   {contact.company && (
-                                    <p className="text-sm font-semibold text-primary leading-snug">{contact.company}</p>
+                                    contact.companyId ? (
+                                      <span
+                                        role="link"
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/companies/${contact.companyId}`); }}
+                                        className="text-sm font-semibold text-primary leading-snug hover:underline cursor-pointer block"
+                                      >
+                                        {contact.company}
+                                      </span>
+                                    ) : (
+                                      <p className="text-sm font-semibold text-primary leading-snug">{contact.company}</p>
+                                    )
+                                  )}
+                                  {contact.companyDomain && (
+                                    <DomainLink domain={contact.companyDomain} companyId={contact.companyId} className="text-sm mt-0.5" />
                                   )}
                                   <div className="flex items-center gap-2 mt-2">
                                     {contact.contactPhotoUrl ? (
@@ -694,29 +704,7 @@ export default function PipelinePage() {
                   })}
                 </div>
 
-                {/* Sticky bottom bar — column counts */}
-                <div className="sticky bottom-0 z-20">
-                  <div className="border border-border border-b-0 rounded-t-lg bg-background/95 backdrop-blur-sm">
-                    <div className="flex" style={{ width: leadStatuses.length * 300 + (leadStatuses.length - 1) * 16 }}>
-                      {leadStatuses.map((status, idx) => {
-                        const sc = contactsByStatus[status.id] || [];
-                        const isLast = idx === leadStatuses.length - 1;
-                        return (
-                          <div key={`footer-${status.id}`} className="relative flex items-center justify-center h-12" style={{ width: 300 + (isLast ? 0 : 16) }}>
-                            <span className="text-sm text-muted-foreground">Count: </span>
-                            <span className="text-sm font-semibold ml-1">{sc.length}</span>
-                            {!isLast && (
-                              <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
-                                <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
-                              </svg>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-                <ScrollBar orientation="horizontal" />
+              <ScrollBar orientation="horizontal" />
               </ScrollArea>
               </div>
               </>
@@ -776,7 +764,7 @@ export default function PipelinePage() {
               </div>
             ) : (
               <>
-              <div className="relative w-full flex-1">
+              <div className="relative w-full flex-1 min-h-0 flex flex-col">
                 <div className={`pointer-events-none absolute left-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-r from-background to-transparent transition-opacity duration-500 ${dealsFadeLeft ? 'opacity-100' : 'opacity-0'}`} />
                 <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-8 z-20 bg-gradient-to-l from-background to-transparent transition-opacity duration-500 ${dealsFadeRight ? 'opacity-100' : 'opacity-0'}`} />
               <ScrollArea className="w-full h-full" ref={(node) => { if (node) { const viewport = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement; if (viewport) dealsScrollRef.current = viewport; } }}>
@@ -837,10 +825,23 @@ export default function PipelinePage() {
                                   className="block w-full text-left"
                                 >
                                   <Card className="p-3 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
-                                    {/* Company name as title */}
-                                    <p className="text-sm font-semibold text-primary leading-snug">
-                                      {deal.companyName || deal.dealname || "Untitled Deal"}
-                                    </p>
+                                    {/* Company name + domain */}
+                                    {deal.companyId ? (
+                                      <span
+                                        role="link"
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/companies/${deal.companyId}`); }}
+                                        className="text-sm font-semibold text-primary leading-snug hover:underline cursor-pointer block"
+                                      >
+                                        {deal.companyName || deal.dealname || "Untitled Deal"}
+                                      </span>
+                                    ) : (
+                                      <p className="text-sm font-semibold text-primary leading-snug">
+                                        {deal.companyName || deal.dealname || "Untitled Deal"}
+                                      </p>
+                                    )}
+                                    {deal.companyDomain && (
+                                      <DomainLink domain={deal.companyDomain} companyId={deal.companyId} className="text-sm mt-0.5" />
+                                    )}
 
                                     {/* Contact photo + name + title */}
                                     {deal.contactName && (
@@ -907,36 +908,6 @@ export default function PipelinePage() {
                       );
                     })}
                 </div>
-                {/* Sticky bottom bar — column totals */}
-                {pipelineInfo && (
-                  <div className="sticky bottom-0 z-20">
-                    <div className="border border-border border-b-0 rounded-t-lg bg-background/95 backdrop-blur-sm">
-                  {(() => {
-                    const footerStages = pipelineInfo.stages.filter((s) => showClosed || !s.closed);
-                    return (
-                    <div className="flex" style={{ width: footerStages.length * 300 + (footerStages.length - 1) * 16 }}>
-                    {footerStages.map((stage, idx) => {
-                        const sd = dealsByStage[stage.id] || [];
-                        const total = stageTotal(sd);
-                        const isLast = idx === footerStages.length - 1;
-                        return (
-                          <div key={`footer-${stage.id}`} className="relative flex items-center justify-center h-12" style={{ width: 300 + (isLast ? 0 : 16) }}>
-                            <span className="text-sm text-muted-foreground">Total: </span>
-                            <span className="text-sm font-semibold ml-1">${total.toLocaleString()}</span>
-                            {!isLast && (
-                              <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
-                                <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
-                              </svg>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                    );
-                  })()}
-                  </div>
-                </div>
-              )}
               <ScrollBar orientation="horizontal" />
               </ScrollArea>
               </div>
@@ -944,6 +915,59 @@ export default function PipelinePage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* ---- Fixed Bottom Footer Bar ---- */}
+        {activeTab === "deals" && pipelineInfo && (
+          <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+            <div className="pointer-events-auto border-t border-border bg-background/95 backdrop-blur-sm" style={{ marginLeft: 'var(--sidebar-width, 16rem)' }}>
+              <div className="px-4 sm:px-6 overflow-hidden">
+                <div className="flex" style={{ width: (() => { const fs = pipelineInfo.stages.filter((s: any) => showClosed || !s.closed); return fs.length * 300 + (fs.length - 1) * 16; })() }}>
+                  {pipelineInfo.stages.filter((s: any) => showClosed || !s.closed).map((stage: any, idx: number, arr: any[]) => {
+                    const sd = dealsByStage[stage.id] || [];
+                    const total = stageTotal(sd);
+                    const isLast = idx === arr.length - 1;
+                    return (
+                      <div key={`footer-${stage.id}`} className="relative flex items-center justify-center h-10" style={{ width: 300 + (isLast ? 0 : 16) }}>
+                        <span className="text-sm text-muted-foreground">Total: </span>
+                        <span className="text-sm font-semibold ml-1">${total.toLocaleString()}</span>
+                        {!isLast && (
+                          <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
+                            <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeTab === "leads" && leadStatuses.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+            <div className="pointer-events-auto border-t border-border bg-background/95 backdrop-blur-sm" style={{ marginLeft: 'var(--sidebar-width, 16rem)' }}>
+              <div className="px-4 sm:px-6 overflow-hidden">
+                <div className="flex" style={{ width: leadStatuses.length * 300 + (leadStatuses.length - 1) * 16 }}>
+                  {leadStatuses.map((status, idx) => {
+                    const sc = contactsByStatus[status.id] || [];
+                    const isLast = idx === leadStatuses.length - 1;
+                    return (
+                      <div key={`footer-${status.id}`} className="relative flex items-center justify-center h-10" style={{ width: 300 + (isLast ? 0 : 16) }}>
+                        <span className="text-sm text-muted-foreground">Count: </span>
+                        <span className="text-sm font-semibold ml-1">{sc.length}</span>
+                        {!isLast && (
+                          <svg className="absolute top-0 bottom-0 h-full w-[16px] z-[5]" style={{ right: -8 }} preserveAspectRatio="none" viewBox="0 0 16 48">
+                            <path d="M0 0 L16 24 L0 48" fill="none" stroke="hsl(var(--border))" strokeWidth="1" />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ---- Deal Detail Drawer ---- */}
         <Sheet open={!!selectedDeal} onOpenChange={(o) => !o && setSelectedDeal(null)}>

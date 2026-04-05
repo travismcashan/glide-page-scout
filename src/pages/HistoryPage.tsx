@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight } from 'lucide-react';
+import { Globe, Clock, Trash2, Share2, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Loader2, Users, ArrowRight, X } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { buildSitePath } from '@/lib/sessionSlug';
@@ -51,7 +51,7 @@ function resolveStatus(session: CrawlSession, integrationCount?: number): string
 
 export default function HistoryPage() {
   const navigate = useNavigate();
-  const { sessions, domainCounts, docCounts, sessionGroups, loading, error } = useSessions();
+  const { sessions, domainCounts, loading, error } = useSessions();
   const invalidateSessions = useInvalidateSessions();
 
   // New crawl state
@@ -66,9 +66,30 @@ export default function HistoryPage() {
       const formattedUrl = crawlUrl.trim().startsWith('http') ? crawlUrl.trim() : `https://${crawlUrl.trim()}`;
       const domain = new URL(formattedUrl).hostname.replace(/^www\./i, '');
 
+      // Auto-link to company: find or create by domain
+      let companyId: string | null = null;
+      const { data: existingCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('domain', domain)
+        .limit(1)
+        .maybeSingle();
+      if (existingCompany) {
+        companyId = existingCompany.id;
+      } else {
+        // Create a new company from the domain
+        const name = domain.split('.')[0].replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const { data: newCompany } = await supabase
+          .from('companies')
+          .insert({ name, domain, status: 'prospect' } as any)
+          .select('id')
+          .single();
+        if (newCompany) companyId = newCompany.id;
+      }
+
       const { data: session, error: insertError } = await supabase
         .from('crawl_sessions')
-        .insert({ domain, base_url: formattedUrl, status: 'analyzing' } as any)
+        .insert({ domain, base_url: formattedUrl, status: 'analyzing', company_id: companyId } as any)
         .select()
         .single();
 
@@ -105,6 +126,7 @@ export default function HistoryPage() {
 
   // Search, sort, filter, group state
   const [search, setSearch] = useState('');
+  const looksLikeUrl = /[a-z0-9][-a-z0-9]*\.[a-z]{2,}/i.test(crawlUrl.trim());
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -145,7 +167,7 @@ export default function HistoryPage() {
     });
 
     return list;
-  }, [sessions, search, statusFilter, sortKey, sortDir, integrationCounts, docCounts]);
+  }, [sessions, search, statusFilter, sortKey, sortDir, integrationCounts]);
 
   // Grouped sessions
   const groupedSessions = useMemo(() => {
@@ -253,7 +275,7 @@ export default function HistoryPage() {
   const renderRow = (session: CrawlSession) => (
     <TableRow
       key={session.id}
-      className={`cursor-pointer hover:bg-muted/50 transition-colors${bulkMode && bulkSelected.has(session.id) ? ' bg-primary/5' : ''}`}
+      className={`cursor-pointer hover:bg-accent/5 [&>td]:py-1.5 [&>td]:whitespace-nowrap${bulkMode && bulkSelected.has(session.id) ? ' bg-primary/5' : ''}`}
       onClick={() => {
         if (bulkMode) {
           toggleBulkSelect(session.id);
@@ -271,65 +293,42 @@ export default function HistoryPage() {
           />
         </TableCell>
       )}
-      <TableCell>
-        <div className="flex items-center gap-2 min-w-0">
+      <TableCell className="max-w-[280px]">
+        <div className="flex items-center gap-2.5 min-w-0 h-8">
           <Globe className="h-4 w-4 shrink-0 text-primary" />
-          <span className="truncate font-medium">{session.domain.replace(/^www\./, '')}</span>
+          <div className="font-medium text-foreground truncate text-sm">{session.domain.replace(/^www\./, '')}</div>
         </div>
       </TableCell>
-      <TableCell>
-        {sessionGroups.get(session.id)?.map(g => (
-          <Badge
-            key={g.id}
-            variant="outline"
-            className="text-[10px] px-1.5 py-0 cursor-pointer hover:bg-muted/50"
-            onClick={(e) => { e.stopPropagation(); navigate(`/lists/${g.id}`); }}
+      <TableCell className="text-sm truncate max-w-[180px]">
+        {(session as any).company_name ? (
+          <span
+            role="link"
+            onClick={(e) => { e.stopPropagation(); navigate(`/companies/${session.company_id}`); }}
+            className="text-primary hover:underline cursor-pointer truncate block"
           >
-            {g.name}
-          </Badge>
-        ))}
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
-          <Clock className="h-3 w-3" />
-          {format(new Date(session.created_at), 'MMM d, yyyy h:mm a')}
-        </div>
-      </TableCell>
-      <TableCell className="text-center">
-        {resolveStatus(session, integrationCounts.get(session.id)) === 'completed' ? (
-          <Badge variant="default">completed</Badge>
+            {(session as any).company_name}
+          </span>
         ) : (
-          <Badge variant="secondary">{integrationCounts.get(session.id) ? Math.round((integrationCounts.get(session.id)! / TOTAL_INTEGRATIONS) * 100) : 0}%</Badge>
+          <span className="text-muted-foreground/30">--</span>
         )}
       </TableCell>
-      <TableCell className="text-right">
-        {!bulkMode && (
-          <div className="flex items-center justify-end gap-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const path = buildSitePath(session.domain, session.created_at, (domainCounts.get(session.domain) ?? 0) > 1);
-                const url = `${window.location.origin}${path}?view=shared`;
-                navigator.clipboard.writeText(url);
-                toast.success('View-only link copied to clipboard');
-              }}
-              className="p-1.5 rounded-md text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Copy share link"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteTarget(session);
-              }}
-              className="p-1.5 rounded-md text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
-              title="Delete crawl"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
+      <TableCell className="text-muted-foreground text-sm">
+        {format(new Date(session.created_at), 'MMM d, yyyy')}
+      </TableCell>
+      <TableCell className="text-sm whitespace-nowrap">
+        <Badge variant={session.status === 'completed' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 capitalize">
+          {session.status === 'completed_with_errors' ? 'Partial' : session.status}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-sm tabular-nums">
+        {(() => {
+          const psi = (session as any).psi_data;
+          if (!psi?.categories) return <span className="text-muted-foreground/30">--</span>;
+          const perf = psi.categories.performance?.score;
+          if (perf == null) return <span className="text-muted-foreground/30">--</span>;
+          const score = Math.round(perf * 100);
+          return <span className={score >= 90 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400'}>{score}</span>;
+        })()}
       </TableCell>
     </TableRow>
   );
@@ -337,34 +336,76 @@ export default function HistoryPage() {
   return (
     <div>
       <main className="px-4 sm:px-6 py-6">
-        {/* Crawl input */}
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold tracking-tight mb-3">Crawls</h1>
-          <form onSubmit={handleStartCrawl}>
-            <div className="flex items-center gap-2 px-3 h-12 rounded-xl bg-card border border-border/40 shadow-sm hover:border-primary/25 transition-all">
-              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-              <Input
-                type="text"
-                value={crawlUrl}
-                onChange={(e) => setCrawlUrl(e.target.value)}
-                placeholder="Enter a URL to crawl…"
-                className="h-full border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-                disabled={isStarting}
-              />
+        {/* ── Row 1: Title + Count + Unified search/crawl input ── */}
+        <div className="flex items-center gap-3 mb-3">
+          <h1 className="text-2xl font-bold tracking-tight shrink-0">Crawls</h1>
+          {!loading && (
+            <Badge variant="secondary" className="text-sm px-2.5 py-0.5 tabular-nums shrink-0">
+              {sessions.length}
+            </Badge>
+          )}
+
+          <form onSubmit={(e) => { e.preventDefault(); if (looksLikeUrl) handleStartCrawl(e); }} className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              type="text"
+              value={crawlUrl}
+              onChange={(e) => { setCrawlUrl(e.target.value); setSearch(e.target.value); }}
+              placeholder="Search or enter URL to crawl..."
+              className="pl-8 pr-20 h-8 text-sm"
+              disabled={isStarting}
+            />
+            {looksLikeUrl && crawlUrl.trim() && (
               <Button
                 type="submit"
                 disabled={isStarting || !crawlUrl.trim()}
                 size="sm"
-                className="rounded-lg px-4 gap-1.5 shrink-0"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 rounded px-3 gap-1 text-xs shrink-0"
               >
                 {isStarting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <><span>Crawl</span><ArrowRight className="h-3.5 w-3.5" /></>
+                  <><span>Crawl</span><ArrowRight className="h-3 w-3" /></>
                 )}
               </Button>
-            </div>
+            )}
+            {crawlUrl && !looksLikeUrl && (
+              <button type="button" onClick={() => { setCrawlUrl(''); setSearch(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </form>
+
+          <div className="flex-1" />
+
+          <Select value={`${sortKey}_${sortDir}`} onValueChange={(v) => {
+            const [k, d] = v.split('_') as [SortKey, SortDir];
+            setSortKey(k); setSortDir(d);
+          }}>
+            <SelectTrigger className="w-fit h-8 text-sm">
+              <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-50 mr-1.5" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_desc">Newest</SelectItem>
+              <SelectItem value="date_asc">Oldest</SelectItem>
+              <SelectItem value="domain_asc">Domain (A-Z)</SelectItem>
+              <SelectItem value="domain_desc">Domain (Z-A)</SelectItem>
+              <SelectItem value="status_asc">Status</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-fit h-8 text-sm">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {statuses.map(s => (
+                <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (
@@ -383,82 +424,11 @@ export default function HistoryPage() {
           </div>
         ) : (
           <>
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search domains…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9"
-                />
-              </div>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px] h-9">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {statuses.map(s => (
-                    <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={groupBy} onValueChange={(v) => { setGroupBy(v as GroupBy); setCollapsedGroups(new Set()); }}>
-                <SelectTrigger className="w-[140px] h-9">
-                  <SelectValue placeholder="No grouping" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No grouping</SelectItem>
-                  <SelectItem value="domain">Group by domain</SelectItem>
-                  <SelectItem value="status">Group by status</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <span className="text-xs text-muted-foreground ml-auto">
-                {processedSessions.length} of {sessions.length} sites
-              </span>
-
-              {bulkMode ? (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={bulkSelected.size === 0}
-                    onClick={() => setBulkDeleteOpen(true)}
-                    className="gap-1.5"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete ({bulkSelected.size})
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { setBulkMode(false); setBulkSelected(new Set()); }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBulkMode(true)}
-                  className="gap-1.5"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Bulk Delete
-                </Button>
-              )}
-            </div>
-
-            <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
+                  <TableRow className="hover:bg-transparent">
                     {bulkMode && (
                       <TableHead className="w-10 pl-4">
                         <Checkbox
@@ -467,31 +437,41 @@ export default function HistoryPage() {
                         />
                       </TableHead>
                     )}
-                    <TableHead className="w-[40%]">
-                      <button onClick={() => toggleSort('domain')} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                        Domain <SortIcon col="domain" />
-                      </button>
+                    <TableHead
+                      className="cursor-pointer select-none hover:text-foreground transition-colors"
+                      onClick={() => toggleSort('domain')}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        Domain
+                        {sortKey === 'domain' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                      </span>
                     </TableHead>
-                    <TableHead>
-                      <span className="flex items-center gap-1">Group</span>
+                    <TableHead>Company</TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none hover:text-foreground transition-colors"
+                      onClick={() => toggleSort('date')}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        Date
+                        {sortKey === 'date' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                      </span>
                     </TableHead>
-                    <TableHead>
-                      <button onClick={() => toggleSort('date')} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                        Date <SortIcon col="date" />
-                      </button>
+                    <TableHead
+                      className="cursor-pointer select-none hover:text-foreground transition-colors"
+                      onClick={() => toggleSort('status')}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        Status
+                        {sortKey === 'status' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                      </span>
                     </TableHead>
-                    <TableHead className="text-center">
-                      <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                        Status <SortIcon col="status" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-right w-[100px]">Actions</TableHead>
+                    <TableHead>Score</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {processedSessions.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={bulkMode ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={bulkMode ? 6 : 5} className="text-center py-8 text-muted-foreground">
                         No sites match your search or filter.
                       </TableCell>
                     </TableRow>
@@ -501,7 +481,7 @@ export default function HistoryPage() {
                     Array.from(groupedSessions.entries()).map(([groupKey, items]) => (
                       <>
                         <TableRow key={`group-${groupKey}`} className="bg-muted/30 hover:bg-muted/40">
-                          <TableCell colSpan={bulkMode ? 7 : 6} className="py-1.5">
+                          <TableCell colSpan={bulkMode ? 6 : 5} className="py-1.5">
                             <button
                               onClick={() => toggleGroup(groupKey)}
                               className="flex items-center gap-2 text-xs font-semibold text-foreground w-full"

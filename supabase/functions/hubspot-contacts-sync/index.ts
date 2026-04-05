@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCompany } from "../_shared/company-resolution.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -101,8 +102,10 @@ serve(async (req) => {
       }
     }
 
-    // ── Step 3b: Create missing companies for unmatched HubSpot companies ──
+    // ── Step 3b: Resolve missing companies via shared resolution layer ──
     let companiesCreated = 0;
+    let companiesMatched = 0;
+    let namesUpgraded = 0;
     const unmatchedHsIds = hsCompanyIds.filter((id) => !companyIdMap[id]);
     if (unmatchedHsIds.length > 0) {
       // Fetch company details from HubSpot
@@ -120,37 +123,31 @@ serve(async (req) => {
         }
       }
 
-      const newCompanies = unmatchedHsIds
-        .filter((id) => hsCompanyDetails[id])
-        .map((hsId) => {
-          const p = hsCompanyDetails[hsId];
-          return {
+      for (const hsId of unmatchedHsIds) {
+        const p = hsCompanyDetails[hsId];
+        if (!p) continue;
+        const location = [p.city, p.state, p.country].filter(Boolean).join(", ") || null;
+        try {
+          const result = await resolveCompany(supabase, {
             user_id: userId,
-            name: p.name || `HubSpot Company ${hsId}`,
+            hubspot_company_id: hsId,
+            name: p.name || null,
             domain: p.domain || null,
             industry: p.industry || null,
             employee_count: p.numberofemployees || null,
-            location: [p.city, p.state, p.country].filter(Boolean).join(", ") || null,
+            location,
             website_url: p.website || null,
-            hubspot_company_id: hsId,
-            hubspot_lifecycle_stage: p.lifecyclestage || null,
             status: "prospect",
-            last_synced_at: new Date().toISOString(),
-          };
-        });
-
-      for (let i = 0; i < newCompanies.length; i += 100) {
-        const batch = newCompanies.slice(i, i + 100);
-        const { data: inserted, error } = await supabase.from("companies").insert(batch).select("id, hubspot_company_id");
-        if (error) {
-          console.error(`[hubspot-contacts-sync] Company create error: ${JSON.stringify(error)}`);
-        } else {
-          for (const c of inserted || []) {
-            if (c.hubspot_company_id) companyIdMap[c.hubspot_company_id] = c.id;
-            companiesCreated++;
-          }
+          });
+          companyIdMap[hsId] = result.companyId;
+          if (result.created) companiesCreated++;
+          else companiesMatched++;
+          if (result.nameUpgraded) namesUpgraded++;
+        } catch (e) {
+          console.error(`[hubspot-contacts-sync] Company resolve error for ${hsId}: ${e.message}`);
         }
       }
+      console.log(`[hubspot-contacts-sync] Resolved ${unmatchedHsIds.length} companies: ${companiesCreated} created, ${companiesMatched} matched existing, ${namesUpgraded} names upgraded`);
     }
 
     // ── Step 4: Fetch owners ──
@@ -234,6 +231,42 @@ serve(async (req) => {
       } catch (e) {
         console.error(`[hubspot-contacts-sync] Enrichment trigger failed: ${e.message}`);
       }
+    }
+
+    // ── Step 7c: Auto-crawl new lead companies with domains ──
+    try {
+      const leadCompanyIds = [...new Set(allRows.filter(r => r.company_id).map(r => r.company_id))];
+      if (leadCompanyIds.length > 0) {
+        const { data: leadCompanies } = await supabase
+          .from("companies")
+          .select("id, domain")
+          .in("id", leadCompanyIds)
+          .not("domain", "is", null);
+
+        const domains = (leadCompanies || []).filter(c => c.domain).map(c => c.domain);
+        const { data: existingCrawls } = await supabase
+          .from("crawl_sessions")
+          .select("domain")
+          .in("domain", domains);
+        const crawledDomains = new Set((existingCrawls || []).map(c => c.domain));
+
+        let crawlsCreated = 0;
+        for (const company of leadCompanies || []) {
+          if (!company.domain || crawledDomains.has(company.domain)) continue;
+          const { data: session } = await supabase
+            .from("crawl_sessions")
+            .insert({ domain: company.domain, base_url: `https://${company.domain}`, status: "analyzing", company_id: company.id, user_id: userId })
+            .select("id")
+            .single();
+          if (session) {
+            supabase.functions.invoke("crawl-start", { body: { session_id: session.id } }).catch(() => {});
+            crawlsCreated++;
+          }
+        }
+        if (crawlsCreated > 0) console.log(`[hubspot-contacts-sync] Auto-crawled ${crawlsCreated} lead company domains`);
+      }
+    } catch (e) {
+      console.error(`[hubspot-contacts-sync] Auto-crawl failed: ${e.message}`);
     }
 
     // ── Step 8: Summary ──
