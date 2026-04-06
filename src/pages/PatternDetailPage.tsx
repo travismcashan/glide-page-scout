@@ -34,6 +34,7 @@ import {
   BarChart3,
   Building2,
   Calendar,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -201,9 +202,16 @@ export default function PatternDetailPage() {
               {pattern.status}
             </Badge>
           )}
-          <Badge variant="outline" className="text-xs px-2 py-0.5 text-muted-foreground">
-            {pattern.source}
-          </Badge>
+          {pattern.source === 'ai_suggested' ? (
+            <Badge variant="outline" className="text-xs px-2 py-0.5 border-violet-500/40 text-violet-600 dark:text-violet-400 gap-1">
+              <Sparkles className="h-3 w-3" />
+              AI Suggested
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs px-2 py-0.5 text-muted-foreground">
+              {pattern.source}
+            </Badge>
+          )}
         </div>
 
         {/* Confidence bar */}

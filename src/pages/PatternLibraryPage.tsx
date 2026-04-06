@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePatterns, type PatternType, type PatternStatus } from '@/hooks/usePatterns';
+import { usePatterns, useGeneratePatterns, type PatternType, type PatternStatus, type PatternSource } from '@/hooks/usePatterns';
 import { BrandLoader } from '@/components/BrandLoader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Layers, Search, Plus, TrendingUp, BarChart3 } from 'lucide-react';
+import { Layers, Search, Plus, TrendingUp, BarChart3, Sparkles, Loader2 } from 'lucide-react';
 import { PATTERN_TYPE_COLORS, INDUSTRY_COLORS, PATTERN_STATUS_COLORS } from '@/config/badge-styles';
+import { toast } from 'sonner';
 
 const INDUSTRY_OPTIONS = [
   { value: 'all', label: 'All Industries' },
@@ -63,6 +64,14 @@ const STATUS_OPTIONS = [
   { value: 'deprecated', label: 'Deprecated' },
 ] as const;
 
+const SOURCE_OPTIONS = [
+  { value: 'all', label: 'All Sources' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'ai_suggested', label: 'AI Suggested' },
+  { value: 'detected', label: 'Detected' },
+  { value: 'imported', label: 'Imported' },
+] as const;
+
 function formatIndustry(industry: string): string {
   return industry
     .replace(/_/g, ' ')
@@ -83,14 +92,35 @@ export default function PatternLibraryPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [blockFilter, setBlockFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const generatePatterns = useGeneratePatterns();
 
   const { patterns, allPatterns, loading } = usePatterns({
     industry: industryFilter !== 'all' ? industryFilter : undefined,
     pattern_type: typeFilter !== 'all' ? typeFilter as PatternType : undefined,
     block_type: blockFilter !== 'all' ? blockFilter : undefined,
     status: statusFilter !== 'all' ? statusFilter as PatternStatus : undefined,
+    source: sourceFilter !== 'all' ? sourceFilter as PatternSource : undefined,
     search: search || undefined,
   });
+
+  const handleGenerate = async () => {
+    try {
+      const result = await generatePatterns.mutateAsync(
+        industryFilter !== 'all' ? industryFilter : undefined
+      );
+      if (result.stats.patternsSuggested > 0) {
+        toast.success(
+          `Generated ${result.stats.patternsSuggested} pattern${result.stats.patternsSuggested !== 1 ? 's' : ''} from ${result.stats.companiesAnalyzed} companies`
+        );
+        setSourceFilter('ai_suggested');
+      } else {
+        toast.info('No new patterns found. Need more companies with crawl data.');
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed to generate patterns');
+    }
+  };
 
   // Stats
   const stats = useMemo(() => {
@@ -98,6 +128,7 @@ export default function PatternLibraryPage() {
     return {
       total: all.length,
       validated: all.filter((p) => p.status === 'validated').length,
+      aiSuggested: all.filter((p) => p.source === 'ai_suggested').length,
       avgConfidence: all.length > 0
         ? Math.round((all.reduce((sum, p) => sum + Number(p.confidence_score), 0) / all.length) * 100)
         : 0,
@@ -129,6 +160,12 @@ export default function PatternLibraryPage() {
             <TrendingUp className="h-3 w-3" />
             {stats.validated} validated
           </span>
+          {stats.aiSuggested > 0 && (
+            <span className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400">
+              <Sparkles className="h-3 w-3" />
+              {stats.aiSuggested} AI suggested
+            </span>
+          )}
           <span className="inline-flex items-center gap-1">
             <BarChart3 className="h-3 w-3" />
             {stats.avgConfidence}% avg confidence
@@ -136,6 +173,19 @@ export default function PatternLibraryPage() {
         </div>
 
         <div className="flex-1" />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleGenerate}
+          disabled={generatePatterns.isPending}
+        >
+          {generatePatterns.isPending ? (
+            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4 mr-1" />
+          )}
+          {generatePatterns.isPending ? 'Analyzing...' : 'AI Suggest'}
+        </Button>
         <Button size="sm" onClick={() => navigate('/patterns/new')}>
           <Plus className="h-4 w-4 mr-1" />
           New Pattern
@@ -193,6 +243,16 @@ export default function PatternLibraryPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+          <SelectTrigger className="h-8 w-[130px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SOURCE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Pattern cards */}
@@ -234,6 +294,12 @@ export default function PatternLibraryPage() {
                 <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PATTERN_STATUS_COLORS[pattern.status] ?? ''}`}>
                   {pattern.status}
                 </Badge>
+                {pattern.source === 'ai_suggested' && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-violet-500/40 text-violet-600 dark:text-violet-400 gap-0.5">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    AI
+                  </Badge>
+                )}
               </div>
 
               {/* Description preview */}

@@ -10,7 +10,7 @@ import {
   ArrowLeft, Briefcase, Clock, TrendingUp, ChevronRight, DollarSign,
   MessageSquare, PhoneCall, Calendar, StickyNote, CheckSquare, Brain, Database,
   FileJson, ChevronDown, ChevronUp, RefreshCw, FolderOpen, Receipt, Headphones,
-  Timer, Search, Loader2, Sparkles
+  Timer, Search, Loader2, Sparkles, Map as MapIcon, FileText
 } from 'lucide-react';
 import { BrandLoader } from '@/components/BrandLoader';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,7 +38,7 @@ import { ApolloTeamContacts, type ApolloTeamData } from '@/components/apollo/Apo
 import { ApolloOrgCard, type ApolloOrgData } from '@/components/apollo/ApolloOrgCard';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
-import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS } from '@/config/badge-styles';
+import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS, TICKET_STATUS_COLORS, TICKET_PRIORITY_COLORS, PROJECT_STATUS_COLORS } from '@/config/badge-styles';
 import { CompanyPatternsTab } from '@/components/company/CompanyPatternsTab';
 
 type Company = {
@@ -516,22 +516,10 @@ export default function CompanyDetailPage() {
                 <>
                   {/* Metrics row */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                    <div className="bg-card border border-border rounded-lg p-4">
-                      <p className="text-xs text-muted-foreground">Deal Value</p>
-                      <p className="text-xl font-bold mt-1">{totalDealValue > 0 ? `$${totalDealValue.toLocaleString()}` : '—'}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-lg p-4">
-                      <p className="text-xs text-muted-foreground">Open Deals</p>
-                      <p className="text-xl font-bold mt-1">{deals.length > 0 ? openDeals : '—'}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-lg p-4">
-                      <p className="text-xs text-muted-foreground">Last Activity</p>
-                      <p className="text-xl font-bold mt-1 text-sm">{lastActivity || '—'}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-lg p-4">
-                      <p className="text-xs text-muted-foreground">Enrichment</p>
-                      <p className="text-xl font-bold mt-1">{enrichedCount}/{enrichmentSources.length}</p>
-                    </div>
+                    <StatCard label="Deal Value" value={totalDealValue > 0 ? `$${totalDealValue.toLocaleString()}` : '—'} icon={<DollarSign className="h-3.5 w-3.5" />} />
+                    <StatCard label="Open Deals" value={deals.length > 0 ? openDeals : '—'} icon={<Briefcase className="h-3.5 w-3.5" />} />
+                    <StatCard label="Last Activity" value={lastActivity || '—'} icon={<Clock className="h-3.5 w-3.5" />} />
+                    <StatCard label="Enrichment" value={`${enrichedCount}/${enrichmentSources.length}`} icon={<Database className="h-3.5 w-3.5" />} />
                   </div>
 
                   {/* Quick Actions */}
@@ -552,12 +540,6 @@ export default function CompanyDetailPage() {
                       <MessageSquare className="h-3.5 w-3.5" />
                       Start Chat
                     </Button>
-                    {company.domain && (
-                      <Button variant="ghost" size="sm" onClick={handleTeamSearch} disabled={teamSearching} className="gap-1.5 h-8 text-xs">
-                        {teamSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-                        Find Team
-                      </Button>
-                    )}
                   </div>
                 </>
               );
@@ -602,7 +584,11 @@ export default function CompanyDetailPage() {
                 )}
               </div>
               {contacts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No contacts yet. Use "Find Team" to discover key people.</p>
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Users className="h-10 w-10 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No contacts yet</p>
+                  <p className="text-xs mt-1 max-w-xs text-center">Use "Find Team" to discover key people at this company.</p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {contacts.map(contact => (
@@ -621,7 +607,7 @@ export default function CompanyDetailPage() {
                           <span className="text-sm font-semibold truncate">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
                           {contact.is_primary && <Badge variant="outline" className="text-xs px-2 py-0.5 text-foreground border-violet-500">Primary</Badge>}
                           {contact.lead_status && <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>{contact.lead_status}</Badge>}
-                          {contact.seniority && <Badge variant="secondary" className="text-xs px-2 py-0.5 capitalize">{contact.seniority.replace('_', ' ')}</Badge>}
+                          {contact.seniority && <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${SENIORITY_COLORS[contact.seniority] || ''}`}>{contact.seniority.replace('_', ' ')}</Badge>}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           {contact.title && <p className="text-xs text-muted-foreground truncate">{contact.title}</p>}
@@ -767,7 +753,7 @@ export default function CompanyDetailPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold truncate">{deal.name}</span>
-                        <Badge variant="outline" className={deal.status === 'won' ? 'bg-green-500/15 text-green-400' : deal.status === 'lost' ? 'bg-red-500/15 text-red-400' : 'bg-blue-500/15 text-blue-400'}>{deal.status}</Badge>
+                        <Badge variant="outline" className={`capitalize ${DEAL_STATUS_COLORS[deal.status] || ''}`}>{deal.status}</Badge>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
                         {deal.amount != null && <span className="font-semibold text-foreground">${deal.amount.toLocaleString()}</span>}
@@ -804,7 +790,7 @@ export default function CompanyDetailPage() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold truncate">{p.name}</span>
                         {p.code && <span className="text-sm text-muted-foreground">{p.code}</span>}
-                        <Badge variant="outline" className={p.is_active ? 'bg-green-500/15 text-green-400' : 'bg-zinc-500/15 text-zinc-400'}>
+                        <Badge variant="outline" className={PROJECT_STATUS_COLORS[p.is_active ? 'active' : 'archived']}>
                           {p.is_active ? 'Active' : 'Archived'}
                         </Badge>
                         {p.is_billable && <Badge variant="secondary" className="text-xs">Billable</Badge>}
@@ -989,7 +975,7 @@ export default function CompanyDetailPage() {
             ) : (() => {
               const open = freshdeskTickets.filter((t: any) => t.status === 2 || t.status === 3).length;
               const resolved = freshdeskTickets.filter((t: any) => t.status === 4 || t.status === 5).length;
-              const priorityColors: Record<string, string> = { Low: 'text-zinc-400', Medium: 'text-blue-400', High: 'text-amber-400', Urgent: 'text-red-400' };
+              const priorityColors = TICKET_PRIORITY_COLORS;
               return (
                 <div>
                   <div className="grid grid-cols-3 gap-3 mb-4">
@@ -1013,7 +999,7 @@ export default function CompanyDetailPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium truncate">{t.subject || 'No subject'}</span>
-                            <Badge variant="outline" className={t.status_label === 'Closed' || t.status_label === 'Resolved' ? 'bg-green-500/15 text-green-400' : 'bg-blue-500/15 text-blue-400'}>
+                            <Badge variant="outline" className={`text-xs px-2 py-0.5 ${TICKET_STATUS_COLORS[t.status_label] || ''}`}>
                               {t.status_label || `Status ${t.status}`}
                             </Badge>
                             {t.priority_label && (
@@ -1061,7 +1047,11 @@ export default function CompanyDetailPage() {
             {chatLoading ? (
               <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
             ) : !chatSession ? (
-              <div className="text-center py-20 text-muted-foreground">Loading roadmap...</div>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <MapIcon className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">Setting up roadmap</p>
+                <p className="text-xs mt-1">Initializing company workspace...</p>
+              </div>
             ) : (
               <ErrorBoundary fallback={
                 <div className="flex items-center justify-center py-20 text-center">
@@ -1086,7 +1076,11 @@ export default function CompanyDetailPage() {
             {chatLoading ? (
               <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
             ) : !chatSession ? (
-              <div className="text-center py-20 text-muted-foreground">No site linked yet. Crawl a site to enable estimates.</div>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <DollarSign className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No estimates yet</p>
+                <p className="text-xs mt-1 max-w-xs text-center">Crawl a site to enable cost and effort estimates for this company.</p>
+              </div>
             ) : (
               <ErrorBoundary>
                 <EstimateBuilderCard
@@ -1103,7 +1097,11 @@ export default function CompanyDetailPage() {
             {chatLoading ? (
               <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
             ) : !chatSession ? (
-              <div className="text-center py-20 text-muted-foreground">No site linked yet. Crawl a site to enable proposals.</div>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <FileText className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No proposals yet</p>
+                <p className="text-xs mt-1 max-w-xs text-center">Crawl a site to generate proposals for this company.</p>
+              </div>
             ) : (
               <ErrorBoundary>
                 <ProposalTab
@@ -1121,10 +1119,14 @@ export default function CompanyDetailPage() {
             {chatLoading ? (
               <div className="flex items-center justify-center py-20"><BrandLoader size={48} /></div>
             ) : !chatSession ? (
-              <div className="text-center py-20 text-muted-foreground">
-                {sites.length === 0
-                  ? 'No sites linked to this company yet. Analyze a site first to enable chat.'
-                  : 'Loading chat...'}
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <MessageSquare className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">{sites.length === 0 ? 'No sites linked yet' : 'Setting up chat'}</p>
+                <p className="text-xs mt-1 max-w-xs text-center">
+                  {sites.length === 0
+                    ? 'Analyze a site first to enable AI-powered chat with full company context.'
+                    : 'Initializing company workspace...'}
+                </p>
               </div>
             ) : (
               <ErrorBoundary fallback={
@@ -1313,17 +1315,6 @@ export default function CompanyDetailPage() {
   );
 }
 
-function StatCard({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-4">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-        {icon}
-        <span className="text-xs">{label}</span>
-      </div>
-      <p className="text-2xl font-bold">{value}</p>
-    </div>
-  );
-}
 
 function SourceDataTable({ data }: { data: any }) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());

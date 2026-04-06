@@ -74,6 +74,28 @@ export const TIER_COLORS: Record<string, string> = {
   '6': 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30',
 };
 
+// ── Ticket statuses (Freshdesk) ──
+export const TICKET_STATUS_COLORS: Record<string, string> = {
+  Open: 'bg-blue-500/15 text-blue-400',
+  Pending: 'bg-amber-500/15 text-amber-400',
+  Resolved: 'bg-green-500/15 text-green-400',
+  Closed: 'bg-green-500/15 text-green-400',
+};
+
+// ── Ticket priority (Freshdesk) ──
+export const TICKET_PRIORITY_COLORS: Record<string, string> = {
+  Low: 'text-zinc-400',
+  Medium: 'text-blue-400',
+  High: 'text-amber-400',
+  Urgent: 'text-red-400',
+};
+
+// ── Project statuses (Harvest) ──
+export const PROJECT_STATUS_COLORS: Record<string, string> = {
+  active: 'bg-green-500/15 text-green-400',
+  archived: 'bg-zinc-500/15 text-zinc-400',
+};
+
 // ── Seniority levels (Apollo contacts) ──
 export const SENIORITY_COLORS: Record<string, string> = {
   c_suite: 'bg-purple-500/15 text-purple-400',
@@ -123,6 +145,7 @@ export const PATTERN_STATUS_COLORS: Record<string, string> = {
   draft: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
   validated: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
   deprecated: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+  suggested: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
 };
 
 // ── Application outcomes ──

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 // ── Types ──────────────────────────────────────────────────────
 
 export type PatternType = 'conversion' | 'layout' | 'content' | 'navigation' | 'engagement' | 'seo' | 'accessibility';
-export type PatternStatus = 'draft' | 'validated' | 'deprecated';
+export type PatternStatus = 'draft' | 'validated' | 'deprecated' | 'suggested';
 export type PatternSource = 'manual' | 'detected' | 'imported' | 'ai_suggested';
 export type ApplicationOutcome = 'improved' | 'neutral' | 'declined' | 'pending';
 
@@ -58,6 +58,7 @@ export interface PatternFilters {
   pattern_type?: PatternType;
   block_type?: string;
   status?: PatternStatus;
+  source?: PatternSource;
   minConfidence?: number;
   search?: string;
 }
@@ -118,6 +119,7 @@ export function usePatterns(filters?: PatternFilters) {
     if (filters?.pattern_type && p.pattern_type !== filters.pattern_type) return false;
     if (filters?.block_type && p.block_type !== filters.block_type) return false;
     if (filters?.status && p.status !== filters.status) return false;
+    if (filters?.source && p.source !== filters.source) return false;
     if (filters?.minConfidence && p.confidence_score < filters.minConfidence) return false;
     if (filters?.search) {
       const q = filters.search.toLowerCase();
@@ -283,6 +285,38 @@ export function useRecordApplication() {
       qc.invalidateQueries({ queryKey: ['patterns'] });
       qc.invalidateQueries({ queryKey: ['patterns', data.pattern_id] });
       qc.invalidateQueries({ queryKey: ['pattern-applications', data.pattern_id] });
+    },
+  });
+}
+
+// ── AI Pattern Generation ─────────────────────────────────────
+
+export interface GeneratePatternsResult {
+  success: boolean;
+  patterns: Array<{ id: string; title: string; industry: string; pattern_type: string; confidence_score: number }>;
+  stats: { companiesAnalyzed: number; patternsSuggested: number; industries: string[] };
+  error?: string;
+}
+
+export function useGeneratePatterns() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (industry?: string): Promise<GeneratePatternsResult> => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('Not authenticated');
+
+      const res = await supabase.functions.invoke('generate-patterns', {
+        body: { industry },
+      });
+
+      if (res.error) throw new Error(res.error.message);
+      const result = res.data as GeneratePatternsResult;
+      if (!result.success) throw new Error(result.error ?? 'Pattern generation failed');
+      return result;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['patterns'] });
     },
   });
 }
