@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveUserId } from "../_shared/resolve-user.ts";
 import { startSyncRun, completeSyncRun, failSyncRun } from "../_shared/sync-logger.ts";
+import { findPrimarySession, ragAutoIngest, formatMeetingsForRag } from "../_shared/rag-auto-ingest.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -183,6 +184,25 @@ serve(async (req) => {
     }
 
     console.log(`[avoma-sync] Upserted ${upserted} meetings for company ${companyId}`);
+
+    // Auto-vectorize into RAG pipeline (non-blocking)
+    if (upserted > 0) {
+      try {
+        const sessionId = await findPrimarySession(supabase, companyId);
+        if (sessionId) {
+          const companyName = domain || companyId;
+          const doc = formatMeetingsForRag(rows, companyName);
+          if (doc) {
+            const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+            await ragAutoIngest(sessionId, [doc], SB_URL, anonKey);
+          }
+        } else {
+          console.log(`[avoma-sync] No crawl session found for company ${companyId}, skipping RAG ingest`);
+        }
+      } catch (ragErr: any) {
+        console.warn(`[avoma-sync] RAG ingest failed (non-blocking): ${ragErr?.message}`);
+      }
+    }
 
     await completeSyncRun(supabase, syncRunId, {
       recordsUpserted: upserted,
