@@ -212,18 +212,30 @@ export default function CompanyDetailPage() {
         const { data, error } = await supabase.from('freshdesk_tickets').select('*').eq('company_id', id).order('created_at', { ascending: false });
         if (error) throw error;
         setFreshdeskTickets(data || []);
-      } else {
-        // Edge function for entities not yet synced locally (engagements, projects, invoices)
+      } else if (artifactType === 'engagements') {
+        const { data, error } = await supabase.from('engagements').select('*').eq('company_id', id).order('occurred_at', { ascending: false });
+        if (error) throw error;
+        setEngagements((data || []).map((e: any) => ({
+          id: e.hubspot_engagement_id || e.id,
+          engagement_type: e.engagement_type,
+          subject: e.subject,
+          body_preview: e.body_preview,
+          direction: e.direction,
+          occurred_at: e.occurred_at,
+          status: e.metadata?.hs_task_status || null,
+          duration: e.metadata?.hs_call_duration || null,
+        })));
+      } else if (artifactType === 'projects') {
+        const { data, error } = await supabase.from('harvest_projects').select('*').eq('company_id', id).order('is_active', { ascending: false });
+        if (error) throw error;
+        setHarvestProjects(data || []);
+      } else if (artifactType === 'invoices') {
+        // Invoices still use edge function (not yet synced locally)
         const { data: result, error } = await supabase.functions.invoke('company-artifacts', {
           body: { companyId: id, artifact: artifactType },
         });
         if (error) throw error;
-        const items = result?.data || [];
-        switch (artifactType) {
-          case 'engagements': setEngagements(items); break;
-          case 'projects': setHarvestProjects(items); break;
-          case 'invoices': setHarvestInvoices(items); break;
-        }
+        setHarvestInvoices(result?.data || []);
       }
     } catch (err) {
       console.error(`[CompanyDetail] Failed to fetch ${artifactType}:`, err);
