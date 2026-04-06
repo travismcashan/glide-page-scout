@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { AudioLines, Video, Mail, MessageSquare, Loader2 } from 'lucide-react';
 import { AvomaCard } from '@/components/AvomaCard';
 import { GmailCard } from '@/components/GmailCard';
 import { SlackMessagesCard } from '@/components/company/SlackMessagesCard';
-import { useCompanyAvoma } from '@/hooks/useCompanyAvoma';
+import { useCompanyMeetings } from '@/hooks/useCompanyMeetings';
 import { cn } from '@/lib/utils';
 
 type SubTab = 'meetings' | 'emails' | 'messages';
@@ -25,21 +25,24 @@ interface CompanyVoiceTabProps {
 
 export function CompanyVoiceTab({ companyId, companyName, companyDomain, contactEmails, sessionId }: CompanyVoiceTabProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('meetings');
-  const avomaAutoSearched = useRef(false);
-  const { data: avomaData, loading: avomaLoading, progress: avomaProgress, error: avomaError, search: avomaSearch, loadCached: avomaLoadCached } = useCompanyAvoma(companyId, companyDomain, contactEmails);
+  const { data: meetings, isLoading: meetingsLoading } = useCompanyMeetings(companyId);
 
-  // Load cached Avoma data on mount
-  useEffect(() => {
-    avomaLoadCached();
-  }, [avomaLoadCached]);
-
-  // Auto-search Avoma on first activation if no cached data
-  useEffect(() => {
-    if (activeSubTab === 'meetings' && !avomaData && !avomaLoading && !avomaAutoSearched.current && companyDomain) {
-      avomaAutoSearched.current = true;
-      avomaSearch();
-    }
-  }, [activeSubTab, avomaData, avomaLoading, avomaSearch, companyDomain]);
+  // Build AvomaCard-compatible data shape from local meetings
+  const avomaData = meetings && meetings.length > 0
+    ? {
+        domain: companyDomain || '',
+        totalMatches: meetings.length,
+        meetings: meetings.map(m => ({
+          uuid: m.external_id || m.id,
+          subject: m.title || 'Untitled Meeting',
+          scheduled_at: m.date,
+          duration: m.duration_minutes ? m.duration_minutes * 60 : null,
+          attendees: m.attendees || [],
+          summary: m.summary,
+          transcript_url: m.recording_url,
+        })),
+      }
+    : null;
 
   return (
     <div>
@@ -69,39 +72,21 @@ export function CompanyVoiceTab({ companyId, companyName, companyDomain, contact
         ))}
       </div>
 
-      {/* Meetings sub-tab (Avoma) */}
+      {/* Meetings sub-tab */}
       {activeSubTab === 'meetings' && (
         <div>
-          {avomaLoading && (
+          {meetingsLoading && (
             <div className="flex items-center gap-3 py-8 justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              <div className="text-sm text-muted-foreground">
-                {avomaProgress
-                  ? `${avomaProgress.phase} — ${avomaProgress.matchesFound} matches found (scanned ${avomaProgress.meetingsScanned}/${avomaProgress.totalMeetings})`
-                  : 'Searching Avoma meetings...'}
-              </div>
+              <div className="text-sm text-muted-foreground">Loading meetings...</div>
             </div>
           )}
-          {avomaError && (
-            <div className="text-sm text-red-400 py-4">
-              {avomaError}
-              <button onClick={() => avomaSearch()} className="ml-2 underline hover:text-foreground">Retry</button>
-            </div>
+          {!meetingsLoading && avomaData && (
+            <AvomaCard data={avomaData} />
           )}
-          {!avomaLoading && !avomaError && avomaData && (
-            <AvomaCard
-              data={avomaData}
-              onSearchDomain={(domain) => avomaSearch(domain)}
-            />
-          )}
-          {!avomaLoading && !avomaError && !avomaData && !companyDomain && (
+          {!meetingsLoading && !avomaData && (
             <p className="text-sm text-muted-foreground py-8 text-center">
-              No domain set for this company. Add a domain to search Avoma meetings.
-            </p>
-          )}
-          {!avomaLoading && !avomaError && !avomaData && companyDomain && (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No Avoma meetings found for {companyDomain}.
+              No meetings found for this company. Use "Sync Meetings" to pull from Avoma.
             </p>
           )}
         </div>

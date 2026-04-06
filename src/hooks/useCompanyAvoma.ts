@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { avomaApi } from '@/lib/api/firecrawl';
 
 type AvomaProgress = {
@@ -18,27 +19,15 @@ type AvomaData = {
   excludedMeetings?: string[];
 };
 
+/**
+ * Hook for syncing Avoma meetings to the local company_meetings table.
+ * Reading is handled by useCompanyMeetings; this hook handles the sync/search action.
+ */
 export function useCompanyAvoma(companyId: string, companyDomain: string | null, contactEmails: string[]) {
-  const [data, setData] = useState<AvomaData | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<AvomaProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const loadedRef = useRef(false);
-
-  // Load cached data from companies.enrichment_data.avoma
-  const loadCached = useCallback(async () => {
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-    const { data: row } = await supabase
-      .from('companies')
-      .select('enrichment_data')
-      .eq('id', companyId)
-      .single();
-    const cached = (row as any)?.enrichment_data?.avoma;
-    if (cached?.meetings?.length) {
-      setData(cached);
-    }
-  }, [companyId]);
+  const queryClient = useQueryClient();
 
   const search = useCallback(async (overrideDomain?: string) => {
     const domain = overrideDomain || companyDomain;
@@ -64,16 +53,43 @@ export function useCompanyAvoma(companyId: string, companyDomain: string | null,
         return;
       }
 
+      const meetings = result.meetings || [];
+
+      // Get current user for RLS
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Store meetings locally in company_meetings table
+      if (meetings.length > 0) {
+        const rows = meetings.map((m: any) => ({
+          company_id: companyId,
+          external_id: m.uuid || m.id || null,
+          source: 'avoma',
+          title: m.subject || m.title || null,
+          date: m.scheduled_at || m.date || null,
+          duration_minutes: m.duration ? Math.round(m.duration / 60) : null,
+          attendees: m.attendees || [],
+          summary: m.summary || null,
+          recording_url: m.transcript_url || m.recording_url || null,
+          raw_data: m,
+          user_id: user.id,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('company_meetings' as any)
+          .upsert(rows as any, { onConflict: 'external_id,source,user_id' });
+
+        if (insertError) console.error('[avoma] Insert error:', insertError);
+      }
+
+      // Also save to enrichment_data for backwards compat
       const avomaData: AvomaData = {
         domain: result.domain || domain,
         totalMatches: result.totalMatches || 0,
-        meetings: result.meetings || [],
+        meetings,
         matchBreakdown: result.matchBreakdown,
       };
 
-      setData(avomaData);
-
-      // Save to companies.enrichment_data.avoma via JSONB merge
       const { data: current } = await supabase
         .from('companies')
         .select('enrichment_data')
@@ -88,13 +104,16 @@ export function useCompanyAvoma(companyId: string, companyDomain: string | null,
           updated_at: new Date().toISOString(),
         } as any)
         .eq('id', companyId);
+
+      // Refresh local meetings query
+      queryClient.invalidateQueries({ queryKey: ['company-meetings', companyId] });
     } catch (err: any) {
       setError(err.message || 'Unknown error');
     } finally {
       setLoading(false);
       setProgress(null);
     }
-  }, [companyId, companyDomain, contactEmails]);
+  }, [companyId, companyDomain, contactEmails, queryClient]);
 
-  return { data, loading, progress, error, search, loadCached };
+  return { loading, progress, error, search };
 }

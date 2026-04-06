@@ -1,18 +1,12 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompanyMessages, type CompanyMessage } from '@/hooks/useCompanyMessages';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, MessageSquare, ExternalLink, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-
-type SlackMessage = {
-  text: string;
-  channel: string;
-  username: string;
-  date: string;
-  permalink: string;
-};
 
 interface SlackMessagesCardProps {
   companyName: string;
@@ -22,16 +16,15 @@ interface SlackMessagesCardProps {
 }
 
 export function SlackMessagesCard({ companyName, companyId, sessionId }: SlackMessagesCardProps) {
-  const [messages, setMessages] = useState<SlackMessage[]>([]);
+  const { data: messages = [], isLoading } = useCompanyMessages(companyId);
+  const queryClient = useQueryClient();
   const [searching, setSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [total, setTotal] = useState(0);
   const [ingesting, setIngesting] = useState(false);
   const [ingested, setIngested] = useState(false);
 
+  // Manual sync: search Slack and store results locally
   const handleSearch = useCallback(async () => {
     setSearching(true);
-    setMessages([]);
     setIngested(false);
     try {
       const { data, error } = await supabase.functions.invoke('slack-search', {
@@ -44,16 +37,44 @@ export function SlackMessagesCard({ companyName, companyId, sessionId }: SlackMe
         return;
       }
       if (data?.error) throw new Error(data.error);
-      setMessages(data?.messages || []);
-      setTotal(data?.total || 0);
-      setHasSearched(true);
-      if (!data?.messages?.length) toast.info('No Slack messages found for this company.');
+
+      const slackMessages = data?.messages || [];
+      if (slackMessages.length === 0) {
+        toast.info('No Slack messages found for this company.');
+        setSearching(false);
+        return;
+      }
+
+      // Store messages locally in company_messages table
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const rows = slackMessages.map((msg: any) => ({
+        company_id: companyId,
+        channel_name: msg.channel || null,
+        message_ts: msg.ts || msg.date || new Date().toISOString(),
+        author: msg.username || null,
+        text: msg.text || null,
+        permalink: msg.permalink || null,
+        raw_data: msg,
+        user_id: user.id,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('company_messages' as any)
+        .upsert(rows as any, { onConflict: 'message_ts,channel_id,user_id' });
+
+      if (insertError) console.error('[voice/slack] Insert error:', insertError);
+
+      // Refresh local data
+      queryClient.invalidateQueries({ queryKey: ['company-messages', companyId] });
+      toast.success(`Synced ${slackMessages.length} Slack messages`);
     } catch (err) {
       console.error('[voice/slack] Search failed:', err);
       toast.error('Slack search failed. Check your connection in Connections.');
     }
     setSearching(false);
-  }, [companyName]);
+  }, [companyName, companyId, queryClient]);
 
   const handleIngest = useCallback(async () => {
     if (messages.length === 0) return;
@@ -64,9 +85,9 @@ export function SlackMessagesCard({ companyName, companyId, sessionId }: SlackMe
     }
     setIngesting(true);
     try {
-      const content = messages.map(msg => {
-        const date = msg.date ? new Date(msg.date).toLocaleString() : '';
-        return `[${date}] #${msg.channel} @${msg.username}: ${msg.text}`;
+      const content = messages.map((msg: CompanyMessage) => {
+        const date = msg.created_at ? new Date(msg.created_at).toLocaleString() : '';
+        return `[${date}] #${msg.channel_name || 'unknown'} @${msg.author || 'unknown'}: ${msg.text || ''}`;
       }).join('\n\n');
 
       const INGEST_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rag-ingest`;
@@ -110,9 +131,9 @@ export function SlackMessagesCard({ companyName, companyId, sessionId }: SlackMe
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Button onClick={handleSearch} disabled={searching} variant="outline" size="sm" className="gap-2">
-          {searching ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...</> : <><Search className="h-3.5 w-3.5" /> Search Slack</>}
+          {searching ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing...</> : <><Search className="h-3.5 w-3.5" /> Search Slack</>}
         </Button>
-        {hasSearched && messages.length > 0 && !ingested && sessionId && (
+        {messages.length > 0 && !ingested && sessionId && (
           <Button onClick={handleIngest} disabled={ingesting} variant="outline" size="sm" className="gap-2">
             {ingesting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Ingesting...</> : <><Database className="h-3.5 w-3.5" /> Ingest to Knowledge</>}
           </Button>
@@ -120,23 +141,32 @@ export function SlackMessagesCard({ companyName, companyId, sessionId }: SlackMe
         {ingested && <Badge variant="secondary" className="text-xs bg-green-500/15 text-green-400">Ingested</Badge>}
       </div>
 
-      {hasSearched && messages.length === 0 && !searching && (
-        <p className="text-sm text-muted-foreground py-4">No Slack messages found for "{companyName}".</p>
+      {isLoading && (
+        <div className="flex items-center gap-2 py-4 justify-center">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading messages...</span>
+        </div>
+      )}
+
+      {!isLoading && messages.length === 0 && !searching && (
+        <p className="text-sm text-muted-foreground py-8 text-center">
+          Search Slack for messages mentioning "{companyName}".
+        </p>
       )}
 
       {messages.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground">
-            Showing {messages.length} of {total} messages
+            {messages.length} messages stored locally
           </p>
-          {messages.map((msg, i) => (
-            <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg border border-border/50 bg-card hover:border-border transition-colors text-sm">
+          {messages.map((msg) => (
+            <div key={msg.id} className="flex items-start gap-2.5 p-2.5 rounded-lg border border-border/50 bg-card hover:border-border transition-colors text-sm">
               <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
-                  <span className="font-medium text-foreground">@{msg.username}</span>
-                  <span>in #{msg.channel}</span>
-                  {msg.date && <span>{format(new Date(msg.date), 'MMM d, yyyy h:mm a')}</span>}
+                  <span className="font-medium text-foreground">@{msg.author || 'unknown'}</span>
+                  {msg.channel_name && <span>in #{msg.channel_name}</span>}
+                  {msg.created_at && <span>{format(new Date(msg.created_at), 'MMM d, yyyy h:mm a')}</span>}
                   {msg.permalink && (
                     <a href={msg.permalink} target="_blank" rel="noopener noreferrer" className="hover:text-foreground ml-auto">
                       <ExternalLink className="h-3 w-3" />
@@ -148,12 +178,6 @@ export function SlackMessagesCard({ companyName, companyId, sessionId }: SlackMe
             </div>
           ))}
         </div>
-      )}
-
-      {!hasSearched && !searching && (
-        <p className="text-sm text-muted-foreground py-8 text-center">
-          Search Slack for messages mentioning "{companyName}".
-        </p>
       )}
     </div>
   );

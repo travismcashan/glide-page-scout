@@ -124,8 +124,6 @@ export default function PipelinePage() {
   const [showClosed, setShowClosed] = useState(() => loadSetting("showClosed", "false") === "true");
   const [showMetrics, setShowMetrics] = useState(() => loadSetting("showMetrics", "true") === "true");
   const [closedLoading, setClosedLoading] = useState(false);
-  const [stagePaging, setStagePaging] = useState<Record<string, { hasMore: boolean; nextCursor: string | null; total: number }>>({});
-  const [stageLoadingMore, setStageLoadingMore] = useState<Record<string, boolean>>({});
   const [showOtherOwners, setShowOtherOwners] = useState(true);
   // Scroll fade state: only show left/right fade when content is scrolled
   const [leadsFadeLeft, setLeadsFadeLeft] = useState(false);
@@ -207,40 +205,50 @@ export default function PipelinePage() {
     setShowClosed(false);
   }, [selectedPipeline]);
 
-  // Fetch closed deals on demand when toggle is turned on
+  // Fetch closed deals on demand from local DB
   const fetchClosedDeals = async () => {
     if (closedDeals.length > 0) return; // already loaded
     setClosedLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
-        body: { action: "deals", pipeline: selectedPipeline, closedOnly: true },
-      });
-      if (!error && data?.deals) setClosedDeals(data.deals);
-      if (data?.stagePaging) setStagePaging(data.stagePaging);
+      const { data: rows, error } = await supabase
+        .from("deals")
+        .select("*, contacts(id, first_name, last_name, email, photo_url, title), companies!company_id(id, name, domain)")
+        .eq("pipeline", selectedPipeline)
+        .in("status", ["won", "lost", "archived"])
+        .order("close_date", { ascending: false });
+
+      if (!error && rows) {
+        const mapped = rows.map((d: any) => {
+          const contact = d.contacts;
+          const company = d.companies;
+          return {
+            id: d.hubspot_deal_id || d.id,
+            dealname: d.name,
+            amount: d.amount != null ? String(d.amount) : null,
+            dealstage: d.stage,
+            pipeline: d.pipeline,
+            closedate: d.close_date,
+            createdate: d.properties?.createdate || d.created_at,
+            hs_lastmodifieddate: d.properties?.hs_lastmodifieddate || d.updated_at,
+            hubspot_owner_id: d.hubspot_owner_id,
+            companyName: company?.name || "",
+            companyDomain: company?.domain || null,
+            companyId: company?.id || null,
+            contactName: contact ? [contact.first_name, contact.last_name].filter(Boolean).join(" ") : null,
+            contactTitle: contact?.title || null,
+            contactPhotoUrl: contact?.photo_url || null,
+            contactEmail: contact?.email || null,
+            dealtype: d.deal_type,
+            hs_priority: d.priority,
+            deal_source_details: d.properties?.deal_source_details || null,
+            hs_forecast_probability: d.properties?.hs_forecast_probability || null,
+            notes_last_contacted: d.properties?.notes_last_contacted || null,
+          };
+        });
+        setClosedDeals(mapped);
+      }
     } catch { /* non-critical */ }
     setClosedLoading(false);
-  };
-
-  const loadMoreDeals = async (stageId: string) => {
-    const paging = stagePaging[stageId];
-    if (!paging?.hasMore || !paging.nextCursor) return;
-    setStageLoadingMore((prev) => ({ ...prev, [stageId]: true }));
-    try {
-      const { data, error } = await supabase.functions.invoke("hubspot-pipeline", {
-        body: { action: "deals", pipeline: selectedPipeline, closedOnly: true, stageId, after: paging.nextCursor },
-      });
-      if (!error && data?.deals) {
-        setClosedDeals((prev) => {
-          const existingIds = new Set(prev.map((d) => d.id));
-          const newDeals = data.deals.filter((d: Deal) => !existingIds.has(d.id));
-          return [...prev, ...newDeals];
-        });
-      }
-      if (data?.stagePaging?.[stageId]) {
-        setStagePaging((prev) => ({ ...prev, [stageId]: data.stagePaging[stageId] }));
-      }
-    } catch { /* non-critical */ }
-    setStageLoadingMore((prev) => ({ ...prev, [stageId]: false }));
   };
 
   useEffect(() => {
@@ -891,21 +899,6 @@ export default function PipelinePage() {
                                   </Card>
                                 </button>
                               ))}
-                              {stage.closed && stagePaging[stage.id]?.hasMore && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); loadMoreDeals(stage.id); }}
-                                  disabled={stageLoadingMore[stage.id]}
-                                  className="w-full text-center py-2 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
-                                >
-                                  {stageLoadingMore[stage.id] ? (
-                                    <span className="inline-flex items-center gap-1.5">
-                                      <Loader2 className="h-3 w-3 animate-spin" /> Loading…
-                                    </span>
-                                  ) : (
-                                    `Load more (${stagePaging[stage.id]?.total ? stagePaging[stage.id].total - stageDeals.length : ""}+)`
-                                  )}
-                                </button>
-                              )}
                               </>
                             )}
                           </div>
