@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { INTEGRATION_REGISTRY, getAutoIntegrations, type IntegrationDef } from "../_shared/integration-registry.ts";
+import { INTEGRATION_REGISTRY, getAutoIntegrations, getProfileAutoIntegrations, getProfileSkippedIntegrations, type IntegrationDef, type CrawlProfile } from "../_shared/integration-registry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,11 +60,13 @@ const BUILD_BODY: Record<string, (s: any) => Record<string, unknown>> = {
   "content-audit": (s) => ({ session_id: s.id }),
 };
 
-// Build the runtime integration list from the canonical registry + local buildBody map
-const INTEGRATIONS = getAutoIntegrations().map(def => ({
-  ...def,
-  buildBody: BUILD_BODY[def.key] || ((s: any) => ({ domain: s.domain })),
-}));
+// Helper: build runtime integration list from registry defs + local buildBody map
+function buildIntegrationList(defs: IntegrationDef[]) {
+  return defs.map(def => ({
+    ...def,
+    buildBody: BUILD_BODY[def.key] || ((s: any) => ({ domain: s.domain })),
+  }));
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -72,13 +74,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { session_id, integration_overrides } = await req.json();
+    const { session_id, integration_overrides, crawl_profile: rawProfile } = await req.json();
     if (!session_id) {
       return new Response(JSON.stringify({ error: "session_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Parse crawl profile — default to 'standard' (free + freemium, skip paid)
+    const validProfiles: CrawlProfile[] = ['free', 'standard', 'full', 'custom'];
+    const crawlProfile: CrawlProfile = validProfiles.includes(rawProfile) ? rawProfile : 'standard';
+
+    // Build integration list based on profile
+    const INTEGRATIONS = buildIntegrationList(getProfileAutoIntegrations(crawlProfile));
+
+    // Integrations excluded by profile (will be marked as 'skipped')
+    const profileSkipped = getProfileSkippedIntegrations(crawlProfile);
+    const profileSkippedKeys = new Set(profileSkipped.map(i => i.key));
+
+    console.log(`crawl-start: profile=${crawlProfile}, active=${INTEGRATIONS.length}, profile-skipped=${profileSkipped.length}`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -125,9 +140,11 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    const skippedKeys = INTEGRATIONS.filter(
-      (int) => pausedSet.has(int.key)
-    ).map((int) => int.key);
+    // Combine paused + profile-skipped keys for integration_runs rows
+    const skippedKeys = [
+      ...INTEGRATIONS.filter((int) => pausedSet.has(int.key)).map((int) => int.key),
+      ...profileSkipped.filter((int) => !pausedSet.has(int.key)).map((int) => int.key),
+    ];
 
     // 5. Insert integration_runs rows
     const runRows = [
@@ -195,7 +212,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ session_id }),
     }).catch(e => console.error("Failed to dispatch crawl-phase1:", e));
 
-    console.log(`crawl-start: firecrawl-map direct + dispatched phase pipeline, skipped ${skippedKeys.length} for session ${session_id}`);
+    console.log(`crawl-start: profile=${crawlProfile}, firecrawl-map direct + dispatched phase pipeline, skipped ${skippedKeys.length} for session ${session_id}`);
 
     return new Response(
       JSON.stringify({

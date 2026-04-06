@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePipelineDeals, usePipelineLeads, usePipelineStats, useInvalidatePipeline } from "@/hooks/useCachedQueries";
 import { formatDistanceToNow, format, isPast } from "date-fns";
 import { DomainLink } from "@/components/DomainLink";
+import { DealVelocityPanel } from "@/components/pipeline/DealVelocityPanel";
 
 const HUBSPOT_ACCOUNT = "3457789";
 
@@ -750,6 +751,10 @@ export default function PipelinePage() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {!dealsLoading && !dealsError && deals.length > 0 && (
+              <DealVelocityPanel deals={deals} pipelineId={selectedPipeline} />
             )}
 
             {dealsLoading ? (

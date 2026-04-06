@@ -2603,7 +2603,7 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🔍 SEO & Search ══════ */}
-        {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('ga4', !!(session as any)?.ga4_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('search-console', !!(session as any)?.search_console_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession)) && (
+        {(shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession)) && (
           <CollapsibleSection id="section-seo" title="SEO & Search" collapsed={isSectionCollapsed("section-seo") ?? false} onToggle={(c) => toggleSection("section-seo", c)} {...catGrade("section-seo")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('semrush', !!session?.semrush_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
@@ -2611,58 +2611,6 @@ export default function ResultsPage() {
                 {session?.semrush_data ? <SemrushCard data={session.semrush_data} isLoading={false} /> : null}
               </SectionCard>
               )}
-
-              <SectionCard collapsed={allCollapsed} sectionId="search-console" {...intGrade("search-console")} persistedCollapsed={isSectionCollapsed("search-console")} onCollapseChange={toggleSection} title="Google Search Console" icon={<Search className="h-5 w-5 text-foreground" />} loading={gscLoading && !(session as any)?.search_console_data} loadingText="Fetching Search Console data..." error={gscFailed} errorText={integrationErrors['search-console']} headerExtra={(session as any)?.search_console_data?.found ? rerunButton('search-console', 'search_console_data', gscLoading) : undefined}>
-                <SearchConsoleCard
-                  data={(session as any)?.search_console_data || null}
-                  isConnected={gscConnected}
-                  onConnect={handleConnectGSC}
-                  isConnecting={gscConnecting}
-                  availableSites={gscAvailableSites}
-                  onFetchSites={handleFetchGSCSites}
-                  isFetchingSites={gscFetchingSites}
-                  isSelecting={gscSelecting}
-                  onSelectSite={async (siteUrl) => {
-                    setGscSelecting(true);
-                    try {
-                      const result = await searchConsoleApi.lookup(session!.domain, siteUrl);
-                      if (result.success) {
-                        const saved = result.data || result;
-                        await supabase.from('crawl_sessions').update({ search_console_data: saved } as any).eq('id', session!.id);
-                        clearError('search-console');
-                        updateSession({ search_console_data: saved } as any);
-                      }
-                    } catch {}
-                    setGscSelecting(false);
-                  }}
-                />
-              </SectionCard>
-
-              <SectionCard collapsed={allCollapsed} sectionId="ga4" persistedCollapsed={isSectionCollapsed("ga4")} onCollapseChange={toggleSection} title="Google Analytics (GA4)" icon={<BarChart3 className="h-5 w-5 text-foreground" />} loading={ga4Loading && !(session as any)?.ga4_data} loadingText="Fetching GA4 analytics data..." error={ga4Failed} errorText={integrationErrors.ga4} headerExtra={(session as any)?.ga4_data?.found ? rerunButton('ga4', 'ga4_data', ga4Loading) : undefined}>
-                <GA4Card
-                  data={(session as any)?.ga4_data || null}
-                  isConnected={ga4Connected}
-                  onConnect={handleConnectGA4}
-                  isConnecting={ga4Connecting}
-                  availableProperties={ga4AvailableProperties}
-                  onFetchProperties={handleFetchGA4Properties}
-                  isFetchingProperties={ga4FetchingProperties}
-                  isSelecting={ga4Selecting}
-                  onSelectProperty={async (propertyId) => {
-                    setGa4Selecting(true);
-                    try {
-                      const result = await ga4Api.lookup(session!.domain, propertyId);
-                      if (result.success) {
-                        const saved = result.data || result;
-                        await supabase.from('crawl_sessions').update({ ga4_data: saved } as any).eq('id', session!.id);
-                        clearError('ga4');
-                        updateSession({ ga4_data: saved } as any);
-                      }
-                    } catch {}
-                    setGa4Selecting(false);
-                  }}
-                />
-              </SectionCard>
 
               {shouldShowIntegration('schema', !!session?.schema_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
               <SectionCard collapsed={allCollapsed} sectionId="schema" {...intGrade("schema")} persistedCollapsed={isSectionCollapsed("schema")} onCollapseChange={toggleSection} title="Schema.org" icon={<FileText className="h-5 w-5 text-foreground" />} loading={schemaLoading && !session?.schema_data} loadingText="Analyzing structured data markup..." error={schemaFailed} errorText={integrationErrors.schema} headerExtra={rerunButton('schema', 'schema_data', schemaLoading)} reportUrl={getReportUrl('schema')} paused={isIntegrationPaused('schema') && !session?.schema_data} onTogglePause={() => handleTogglePause('schema')}>
@@ -2758,7 +2706,7 @@ export default function ResultsPage() {
         )}
 
         {/* ══════ 🛡️ Security & Compliance ══════ */}
-        {(shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) || shouldShowIntegration('ssllabs', !!session?.ssllabs_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession)) && (
+        {shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
           <CollapsibleSection id="section-security" title="Security & Compliance" collapsed={isSectionCollapsed("section-security") ?? false} onToggle={(c) => toggleSection("section-security", c)} {...catGrade("section-security")}>
             <SortedIntegrationList className="space-y-6">
               {shouldShowIntegration('observatory', !!session?.observatory_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
@@ -2767,20 +2715,6 @@ export default function ResultsPage() {
               </SectionCard>
               )}
 
-              {shouldShowIntegration('ssllabs', !!session?.ssllabs_data, showAllIntegrations, isSharedView, freezeVisibilityForCompletedSession) && (
-              <SectionCard collapsed={allCollapsed} sectionId="ssllabs" {...intGrade("ssllabs")} persistedCollapsed={isSectionCollapsed("ssllabs")} onCollapseChange={toggleSection} title="SSL Labs" icon={<Lock className="h-5 w-5 text-foreground" />} loading={ssllabsLoading && !session?.ssllabs_data} loadingText="Running SSL Labs assessment (this may take 1-3 minutes)..." error={ssllabsFailed} errorText={integrationErrors.ssllabs} headerExtra={session?.ssllabs_data ? rerunButton('ssllabs', 'ssllabs_data', ssllabsLoading) : undefined} reportUrl={getReportUrl('ssllabs')} paused={isIntegrationPaused('ssllabs') && !session?.ssllabs_data} onTogglePause={() => handleTogglePause('ssllabs')}>
-                {session?.ssllabs_data ? (
-                  <SslLabsCard data={session.ssllabs_data} />
-                ) : !ssllabsLoading && !ssllabsFailed ? (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-muted-foreground mb-3">SSL Labs scans can take 1-3 minutes and are frequently at capacity. Run manually when needed.</p>
-                    <Button size="sm" onClick={runSslLabsScan} disabled={ssllabsLoading}>
-                      <Shield className="h-4 w-4 mr-1.5" />Run SSL Scan
-                    </Button>
-                  </div>
-                ) : null}
-              </SectionCard>
-              )}
             </SortedIntegrationList>
           </CollapsibleSection>
         )}

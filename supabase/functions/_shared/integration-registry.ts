@@ -84,6 +84,8 @@ export const INTEGRATION_REGISTRY: IntegrationDef[] = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+export type CrawlProfile = 'free' | 'standard' | 'full' | 'custom';
+
 const _map = new Map(INTEGRATION_REGISTRY.map(i => [i.key, i]));
 
 export function getIntegration(key: string): IntegrationDef | undefined {
@@ -98,6 +100,36 @@ export function getBatchIntegrations(batch: 1 | 2 | 3): IntegrationDef[] {
 /** Get all auto-running integrations */
 export function getAutoIntegrations(): IntegrationDef[] {
   return INTEGRATION_REGISTRY.filter(i => i.auto);
+}
+
+/**
+ * Get auto-running integrations filtered by crawl profile.
+ * - 'free'     = only cost:'free' integrations with auto:true
+ * - 'standard' = cost:'free' or cost:'freemium' with auto:true (skip cost:'paid')
+ * - 'full'     = all auto:true integrations
+ * - 'custom'   = returns all auto:true (caller applies overrides separately)
+ */
+export function getProfileAutoIntegrations(profile: CrawlProfile): IntegrationDef[] {
+  return INTEGRATION_REGISTRY.filter(i => {
+    if (!i.auto) return false;
+    if (profile === 'full' || profile === 'custom') return true;
+    if (profile === 'free') return i.cost === 'free';
+    if (profile === 'standard') return i.cost === 'free' || i.cost === 'freemium';
+    return true;
+  });
+}
+
+/**
+ * Get auto integrations that a profile EXCLUDES (for marking as skipped).
+ */
+export function getProfileSkippedIntegrations(profile: CrawlProfile): IntegrationDef[] {
+  if (profile === 'full' || profile === 'custom') return [];
+  return INTEGRATION_REGISTRY.filter(i => {
+    if (!i.auto) return false;
+    if (profile === 'free') return i.cost !== 'free';
+    if (profile === 'standard') return i.cost === 'paid';
+    return false;
+  });
 }
 
 /** Total count of auto-running integrations (for progress/status) */
