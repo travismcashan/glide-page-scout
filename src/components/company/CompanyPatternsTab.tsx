@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle2, Layers, TrendingUp, AlertTriangle, Sparkles, Info } from 'lucide-react';
+import { Loader2, CheckCircle2, Layers, TrendingUp, AlertTriangle, Sparkles, Info, Zap, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   usePatterns,
@@ -11,37 +11,20 @@ import {
   type Pattern,
   type PatternApplication,
 } from '@/hooks/usePatterns';
-
-const TYPE_COLORS: Record<string, string> = {
-  conversion: 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400',
-  layout: 'border-blue-500/40 text-blue-700 dark:text-blue-400',
-  content: 'border-purple-500/40 text-purple-700 dark:text-purple-400',
-  navigation: 'border-amber-500/40 text-amber-700 dark:text-amber-400',
-  engagement: 'border-pink-500/40 text-pink-700 dark:text-pink-400',
-  seo: 'border-cyan-500/40 text-cyan-700 dark:text-cyan-400',
-  accessibility: 'border-orange-500/40 text-orange-700 dark:text-orange-400',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  validated: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-  draft: 'bg-muted text-muted-foreground border-border',
-  deprecated: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30',
-};
-
-const OUTCOME_COLORS: Record<string, string> = {
-  improved: 'text-emerald-600',
-  neutral: 'text-muted-foreground',
-  declined: 'text-red-600',
-  pending: 'text-amber-600',
-};
+import {
+  usePatternSuggestions,
+  useGeneratePatternSuggestions,
+  type PatternSuggestion,
+} from '@/hooks/usePatternSuggestions';
+import { PATTERN_TYPE_COLORS, PATTERN_STATUS_COLORS, OUTCOME_COLORS } from '@/config/badge-styles';
 
 function normalizeIndustry(raw: string | null | undefined): string | null {
   if (!raw) return null;
   return raw.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 }
 
-function ConfidenceBar({ score }: { score: number }) {
-  const pct = Math.round(score * 100);
+function ConfidenceBar({ score, max = 1 }: { score: number; max?: number }) {
+  const pct = max === 1 ? Math.round(score * 100) : Math.round(score);
   const color = pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500';
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -74,7 +57,7 @@ function PatternCard({
           <div className="min-w-0 flex-1">
             <CardTitle className="text-sm font-medium leading-snug">{pattern.title}</CardTitle>
             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${TYPE_COLORS[pattern.pattern_type] ?? ''}`}>
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PATTERN_TYPE_COLORS[pattern.pattern_type] ?? ''}`}>
                 {pattern.pattern_type}
               </Badge>
               {pattern.block_type && (
@@ -82,7 +65,7 @@ function PatternCard({
                   {pattern.block_type}
                 </Badge>
               )}
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[pattern.status] ?? ''}`}>
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PATTERN_STATUS_COLORS[pattern.status] ?? ''}`}>
                 {pattern.status}
               </Badge>
               {lift && (
@@ -161,6 +144,93 @@ function PatternCard({
   );
 }
 
+function SuggestedPatternCard({
+  pattern,
+  suggestion,
+  applied,
+  onApply,
+  applying,
+}: {
+  pattern: Pattern;
+  suggestion: PatternSuggestion;
+  applied: boolean;
+  onApply: () => void;
+  applying: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card className="group border-purple-500/20 bg-purple-500/[0.02]">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-sm font-medium leading-snug">{pattern.title}</CardTitle>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PATTERN_TYPE_COLORS[pattern.pattern_type] ?? ''}`}>
+                {pattern.pattern_type}
+              </Badge>
+              {pattern.block_type && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  {pattern.block_type}
+                </Badge>
+              )}
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-500/30 text-purple-700 dark:text-purple-400">
+                AI suggested
+              </Badge>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ConfidenceBar score={suggestion.confidence_score} max={100} />
+            {applied ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-700 dark:text-emerald-400 gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Applied
+              </Badge>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                disabled={applying}
+                onClick={(e) => { e.stopPropagation(); onApply(); }}
+              >
+                {applying ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Apply
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {/* AI reasoning */}
+        <div className="rounded-md bg-purple-500/5 border border-purple-500/10 px-3 py-2 mb-2">
+          <p className="text-xs text-purple-800 dark:text-purple-300">
+            <Brain className="h-3 w-3 inline mr-1 -mt-0.5" />
+            {suggestion.reasoning}
+          </p>
+          {suggestion.suggested_customizations && (
+            <p className="text-xs text-muted-foreground mt-1">
+              <Zap className="h-3 w-3 inline mr-1 -mt-0.5" />
+              {suggestion.suggested_customizations}
+            </p>
+          )}
+        </div>
+
+        <p className={`text-xs text-muted-foreground ${expanded ? '' : 'line-clamp-2'}`}>
+          {pattern.description}
+        </p>
+        {pattern.description.length > 150 && (
+          <button
+            className="text-xs text-primary hover:underline mt-1"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ApplicationCard({ app }: { app: PatternApplication & { pattern: Pattern } }) {
   return (
     <div className="rounded-lg border border-border p-3 flex items-center justify-between gap-3">
@@ -189,7 +259,7 @@ interface CompanyPatternsTabProps {
 }
 
 export function CompanyPatternsTab({ companyId, companyIndustry, enrichmentData }: CompanyPatternsTabProps) {
-  // Resolve industry: explicit field → Apollo → Ocean.io
+  // Resolve industry: explicit field -> Apollo -> Ocean.io
   const rawIndustry =
     companyIndustry ||
     enrichmentData?.apollo_org?.industry ||
@@ -205,12 +275,22 @@ export function CompanyPatternsTab({ companyId, companyIndustry, enrichmentData 
   const recordApplication = useRecordApplication();
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
+  // AI suggestions
+  const { suggestions, data: suggestionsData, loading: suggestionsLoading } = usePatternSuggestions(companyId);
+  const generateSuggestions = useGeneratePatternSuggestions();
+
   const appliedPatternIds = new Set(applications.map((a) => a.pattern_id));
   const loading = patternsLoading || allLoading || appsLoading;
+
+  // Build a pattern lookup map for suggestion cards
+  const patternMap = new Map(allPatterns.map((p) => [p.id, p]));
 
   // If industry matched, show those. Otherwise show all.
   const industryMatched = industry && patterns.length > 0;
   const displayPatterns = industryMatched ? patterns : allPatterns;
+
+  // Filter out patterns already shown in AI suggestions from the library section
+  const suggestedPatternIds = new Set(suggestions.map((s) => s.pattern_id));
 
   const handleApply = async (patternId: string) => {
     setApplyingId(patternId);
@@ -229,6 +309,16 @@ export function CompanyPatternsTab({ companyId, companyIndustry, enrichmentData 
     }
   };
 
+  const handleGenerate = async () => {
+    try {
+      const result = await generateSuggestions.mutateAsync(companyId);
+      toast.success(`Generated ${result.length} pattern suggestions`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(`Failed to generate suggestions: ${message}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -239,6 +329,72 @@ export function CompanyPatternsTab({ companyId, companyIndustry, enrichmentData 
 
   return (
     <div className="space-y-8">
+      {/* AI Suggestions Section */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <Brain className="h-4 w-4 text-purple-600" />
+            AI Suggestions
+            {suggestions.length > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">
+                ({suggestions.length})
+              </span>
+            )}
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            disabled={generateSuggestions.isPending}
+            onClick={handleGenerate}
+          >
+            {generateSuggestions.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            {suggestions.length > 0 ? 'Regenerate' : 'Generate Suggestions'}
+          </Button>
+        </div>
+
+        {suggestionsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : suggestions.length > 0 ? (
+          <div className="space-y-3">
+            {suggestionsData?.generated_at && (
+              <p className="text-[10px] text-muted-foreground">
+                Generated {new Date(suggestionsData.generated_at).toLocaleDateString()} — {suggestionsData.patterns_analyzed} patterns analyzed
+                {suggestionsData.had_crawl_data ? ' with crawl data' : ''}
+              </p>
+            )}
+            {suggestions.map((suggestion) => {
+              const pattern = patternMap.get(suggestion.pattern_id);
+              if (!pattern) return null;
+              return (
+                <SuggestedPatternCard
+                  key={suggestion.pattern_id}
+                  pattern={pattern}
+                  suggestion={suggestion}
+                  applied={appliedPatternIds.has(suggestion.pattern_id)}
+                  onApply={() => handleApply(suggestion.pattern_id)}
+                  applying={applyingId === suggestion.pattern_id}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-purple-500/20 bg-purple-500/[0.02] p-6 text-center">
+            <Brain className="h-8 w-8 text-purple-500/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground mb-1">No AI suggestions yet</p>
+            <p className="text-xs text-muted-foreground">
+              Click "Generate Suggestions" to analyze this company against the pattern library.
+            </p>
+          </div>
+        )}
+      </section>
+
       {/* Applied Patterns */}
       {applications.length > 0 && (
         <section>

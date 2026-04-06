@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, TrendingUp, Clock, Target, DollarSign, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { PIPELINES, type PipelineStage } from '@/config/pipeline';
+import { PIPELINES } from '@/config/pipeline';
 
 interface Deal {
   dealstage: string;

@@ -38,7 +38,7 @@ import { ApolloTeamContacts, type ApolloTeamData } from '@/components/apollo/Apo
 import { ApolloOrgCard, type ApolloOrgData } from '@/components/apollo/ApolloOrgCard';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
-import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS, TICKET_STATUS_COLORS, TICKET_PRIORITY_COLORS, PROJECT_STATUS_COLORS } from '@/config/badge-styles';
+import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS, TICKET_STATUS_COLORS, TICKET_PRIORITY_COLORS, PROJECT_STATUS_COLORS, CONTACT_ROLE_COLORS } from '@/config/badge-styles';
 import { CompanyPatternsTab } from '@/components/company/CompanyPatternsTab';
 
 type Company = {
@@ -605,7 +605,7 @@ export default function CompanyDetailPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-sm font-semibold truncate">{[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'}</span>
-                          {contact.is_primary && <Badge variant="outline" className="text-xs px-2 py-0.5 text-foreground border-violet-500">Primary</Badge>}
+                          {contact.is_primary && <Badge variant="outline" className={`text-xs px-2 py-0.5 ${CONTACT_ROLE_COLORS.primary}`}>Primary</Badge>}
                           {contact.lead_status && <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${LEAD_STATUS_COLORS[contact.lead_status] || ''}`}>{contact.lead_status}</Badge>}
                           {contact.seniority && <Badge variant="outline" className={`text-xs px-2 py-0.5 capitalize ${SENIORITY_COLORS[contact.seniority] || ''}`}>{contact.seniority.replace('_', ' ')}</Badge>}
                         </div>
@@ -1315,6 +1315,17 @@ export default function CompanyDetailPage() {
   );
 }
 
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
+  return (
+    <Card className="p-3">
+      <div className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+        {icon} {label}
+      </div>
+      <p className="text-2xl font-bold mt-1">{value}</p>
+    </Card>
+  );
+}
 
 function SourceDataTable({ data }: { data: any }) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());

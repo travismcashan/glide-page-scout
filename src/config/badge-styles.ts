@@ -106,6 +106,11 @@ export const SENIORITY_COLORS: Record<string, string> = {
   owner: 'bg-orange-500/15 text-orange-400',
 };
 
+// ── Contact role badges ──
+export const CONTACT_ROLE_COLORS: Record<string, string> = {
+  primary: 'text-foreground border-violet-500',
+};
+
 // ── Effort t-shirt sizes ──
 export const EFFORT_LABELS: Record<string, string> = {
   small: 'S',

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePlan, usePlans, useUpdatePlan, useDeletePlan } from '@/hooks/usePlans';
+import { useRequestReview, type PlanReviewData, type PlanReview } from '@/hooks/usePlanReview';
 import { BrandLoader } from '@/components/BrandLoader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +24,8 @@ import {
 import {
   ArrowLeft, ChevronDown, ChevronRight, Copy, Pencil, Trash2,
   Check, Calendar, Monitor, Terminal, FileCode2, X, Plus,
-  Eye, Code2, Tag, ArrowRight, Layers,
+  Eye, Code2, Tag, ArrowRight, Layers, Users, Building, Palette, Target,
+  Loader2, CheckCircle2, AlertTriangle, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -58,6 +60,158 @@ function extractTier(plan: { tags?: string[]; summary?: string | null; title?: s
   const summaryMatch = plan.summary?.match(/tier[\s-]*(\d+)/i);
   if (summaryMatch) return summaryMatch[1];
   return null;
+}
+
+// ── Review helpers ──
+
+const VERDICT_CONFIG: Record<string, { label: string; color: string; Icon: typeof CheckCircle2 }> = {
+  approve: { label: 'Approved', color: 'text-emerald-500', Icon: CheckCircle2 },
+  revise: { label: 'Revise', color: 'text-amber-500', Icon: AlertTriangle },
+  rethink: { label: 'Rethink', color: 'text-red-500', Icon: XCircle },
+  error: { label: 'Error', color: 'text-muted-foreground', Icon: XCircle },
+};
+
+const REVIEWER_ICONS: Record<string, typeof Building> = {
+  building: Building,
+  palette: Palette,
+  target: Target,
+};
+
+function ScoreBar({ label, score }: { label: string; score: number }) {
+  const pct = Math.min(score * 10, 100);
+  const color = score >= 7 ? 'bg-emerald-500' : score >= 4 ? 'bg-amber-500' : 'bg-red-500';
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-muted-foreground w-16 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[11px] font-medium tabular-nums w-5 text-right">{score}</span>
+    </div>
+  );
+}
+
+function ReviewCard({ review }: { review: PlanReview }) {
+  const [expanded, setExpanded] = useState(false);
+  const verdictCfg = VERDICT_CONFIG[review.verdict] || VERDICT_CONFIG.error;
+  const ReviewerIcon = REVIEWER_ICONS[review.icon] || Building;
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+            <ReviewerIcon className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <div className="text-sm font-medium">{review.reviewer_name}</div>
+            <div className="text-[11px] text-muted-foreground">{review.reviewer_role}</div>
+          </div>
+        </div>
+        <Badge variant="outline" className={`text-[11px] ${verdictCfg.color}`}>
+          <verdictCfg.Icon className="h-3 w-3 mr-1" />
+          {verdictCfg.label}
+        </Badge>
+      </div>
+
+      {/* Scores */}
+      <div className="space-y-1 mb-3">
+        <ScoreBar label="Feasibility" score={review.scores.feasibility} />
+        <ScoreBar label="Impact" score={review.scores.impact} />
+        <ScoreBar label="Risk" score={review.scores.risk} />
+        <ScoreBar label="Overall" score={review.scores.overall} />
+      </div>
+
+      {/* Summary */}
+      <p className="text-[13px] text-muted-foreground leading-relaxed mb-2">{review.summary}</p>
+
+      {/* Expandable details */}
+      <Collapsible open={expanded} onOpenChange={setExpanded}>
+        <CollapsibleTrigger className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+          {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          Details
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2 space-y-3">
+          {review.strengths.length > 0 && (
+            <div>
+              <div className="text-[11px] font-medium text-emerald-500 mb-1">Strengths</div>
+              <ul className="space-y-0.5">
+                {review.strengths.map((s, i) => (
+                  <li key={i} className="text-[12px] text-muted-foreground flex gap-1.5">
+                    <span className="text-emerald-500 shrink-0">+</span> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {review.concerns.length > 0 && (
+            <div>
+              <div className="text-[11px] font-medium text-amber-500 mb-1">Concerns</div>
+              <ul className="space-y-0.5">
+                {review.concerns.map((c, i) => (
+                  <li key={i} className="text-[12px] text-muted-foreground flex gap-1.5">
+                    <span className="text-amber-500 shrink-0">!</span> {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {review.suggestions.length > 0 && (
+            <div>
+              <div className="text-[11px] font-medium text-blue-500 mb-1">Suggestions</div>
+              <ul className="space-y-0.5">
+                {review.suggestions.map((s, i) => (
+                  <li key={i} className="text-[12px] text-muted-foreground flex gap-1.5">
+                    <span className="text-blue-500 shrink-0">→</span> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+}
+
+function ConsensusHeader({ consensus, reviewedAt }: { consensus: PlanReviewData['consensus']; reviewedAt: string }) {
+  const verdictCfg = VERDICT_CONFIG[consensus.verdict] || VERDICT_CONFIG.error;
+
+  return (
+    <Card className="p-4 mb-4 border-l-4" style={{ borderLeftColor: consensus.verdict === 'approve' ? '#10b981' : consensus.verdict === 'revise' ? '#f59e0b' : '#ef4444' }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Users className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <div className="text-sm font-semibold">Council Verdict: <span className={verdictCfg.color}>{verdictCfg.label}</span></div>
+            <div className="text-[11px] text-muted-foreground">
+              {consensus.reviewers_completed}/{consensus.reviewers_total} reviewers completed
+              {' · '}
+              {new Date(reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-xs">
+          <div className="text-center">
+            <div className="font-semibold text-sm tabular-nums">{consensus.scores.overall}</div>
+            <div className="text-muted-foreground">Overall</div>
+          </div>
+          <div className="text-center">
+            <div className="font-semibold text-sm tabular-nums">{consensus.scores.feasibility}</div>
+            <div className="text-muted-foreground">Feasible</div>
+          </div>
+          <div className="text-center">
+            <div className="font-semibold text-sm tabular-nums">{consensus.scores.impact}</div>
+            <div className="text-muted-foreground">Impact</div>
+          </div>
+          <div className="text-center">
+            <div className="font-semibold text-sm tabular-nums">{consensus.scores.risk}</div>
+            <div className="text-muted-foreground">Risk</div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 const PROSE_CLASSES = `prose prose-sm dark:prose-invert max-w-none
@@ -100,6 +254,7 @@ export default function PlanDetailPage() {
   const [researchOpen, setResearchOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [previewMode, setPreviewMode] = useState<'edit' | 'preview' | 'split'>('split');
+  const requestReview = useRequestReview();
 
   const tier = plan ? extractTier(plan) : null;
 
@@ -423,6 +578,25 @@ export default function PlanDetailPage() {
             <h1 className="text-xl font-semibold leading-tight">{plan.title}</h1>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-xs gap-1.5"
+              disabled={requestReview.isPending || (!plan.plan_content && !plan.summary)}
+              onClick={() => {
+                requestReview.mutate(plan.id, {
+                  onSuccess: () => toast.success('Code Council review complete'),
+                  onError: (e) => toast.error(`Review failed: ${e.message}`),
+                });
+              }}
+            >
+              {requestReview.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Users className="h-3.5 w-3.5" />
+              )}
+              {requestReview.isPending ? 'Reviewing...' : 'Request Review'}
+            </Button>
             <Button variant="ghost" size="sm" className="h-8 px-2.5 text-muted-foreground" onClick={handleCopy}>
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
@@ -551,6 +725,25 @@ export default function PlanDetailPage() {
               </Card>
             </CollapsibleContent>
           </Collapsible>
+        </div>
+      )}
+
+      {/* Code Council Reviews */}
+      {(plan as any).reviews && (
+        <div className="mb-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+            <Users className="h-3.5 w-3.5" />
+            Code Council
+          </h2>
+          <ConsensusHeader
+            consensus={(plan as any).reviews.consensus}
+            reviewedAt={(plan as any).reviews.reviewed_at}
+          />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {((plan as any).reviews.reviews as PlanReview[]).map((review) => (
+              <ReviewCard key={review.reviewer_id} review={review} />
+            ))}
+          </div>
         </div>
       )}
 

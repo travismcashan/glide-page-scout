@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, ChevronRight, Building2, BookOpen, Brain, Globe, Gauge, Leaf, Cpu, Users, MessageCircle, Eye, Zap, Key, Hash, Clock, CheckSquare, Waves, ArrowRight, ArrowDown, ArrowLeftRight, Radio, Upload, Headphones, Receipt, CreditCard } from 'lucide-react';
+import { Mail, HardDrive, Plug, Trash2, Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, Search, ChevronDown, ChevronRight, Building2, BookOpen, Hash, Clock, CheckSquare, ArrowDown, Upload, Headphones, Receipt, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { BrandLoader } from '@/components/BrandLoader';
 import { getPausedIntegrations, toggleIntegrationPause, loadPausedIntegrations } from '@/lib/integrationState';
@@ -56,58 +54,7 @@ const apiHeaders = {
   'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
 };
 
-type ProviderDef = {
-  id: string;
-  name: string;
-  scope: string;
-  icon: any;
-  iconBg: string;
-  iconColor: string;
-  description: string;
-  connection?: Connection;
-  hasPropertyPicker: boolean;
-  propertyLabel?: string;
-};
-
 type ApiStatus = 'active' | 'inactive' | 'unknown';
-
-function ApiRow({ name, description, icon: Icon, iconBg, iconColor, status }: {
-  name: string;
-  description: string;
-  icon: any;
-  iconBg: string;
-  iconColor: string;
-  status: ApiStatus;
-}) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3">
-      <div className="flex items-center gap-3">
-        <div className={`h-8 w-8 rounded-md ${iconBg} flex items-center justify-center shrink-0`}>
-          <Icon className={`h-4 w-4 ${iconColor}`} />
-        </div>
-        <div>
-          <span className="text-sm font-medium">{name}</span>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      {status === 'active' ? (
-        <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs shrink-0">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Active
-        </Badge>
-      ) : status === 'inactive' ? (
-        <Badge variant="outline" className="text-amber-600 border-amber-600/30 bg-amber-600/10 text-xs shrink-0">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          Not configured
-        </Badge>
-      ) : (
-        <Badge variant="outline" className="text-muted-foreground text-xs shrink-0">
-          Server-managed
-        </Badge>
-      )}
-    </div>
-  );
-}
 
 // CRAWL_INTEGRATIONS derived from canonical registry (src/config/integrations.ts)
 const CRAWL_INTEGRATIONS = INTEGRATION_REGISTRY.map(i => ({
@@ -120,167 +67,7 @@ const CRAWL_INTEGRATIONS = INTEGRATION_REGISTRY.map(i => ({
 
 const CRAWL_CATEGORIES = INTEGRATION_CATEGORIES;
 
-function ProviderRow({ p, connectingProvider, disconnecting, pickerProvider, pickerProperties, pickerLoading, savingProperty, connectProvider, loadProperties, saveProperty, disconnectConnection, setPickerProvider }: {
-  p: ProviderDef;
-  connectingProvider: string | null;
-  disconnecting: string | null;
-  pickerProvider: string | null;
-  pickerProperties: PropertyOption[];
-  pickerLoading: boolean;
-  savingProperty: boolean;
-  connectProvider: (provider: string, scope: string) => Promise<void>;
-  loadProperties: (provider: string) => Promise<void>;
-  saveProperty: (provider: string, propertyId: string, propertyName: string) => Promise<void>;
-  disconnectConnection: (id: string) => Promise<void>;
-  setPickerProvider: (v: string | null) => void;
-}) {
-  const Icon = p.icon;
-  const conn = p.connection;
-  const isConnecting = connectingProvider === p.id;
-  const isDisconnecting = disconnecting === conn?.id;
-  const isPickerOpen = pickerProvider === p.id;
-  const selectedProperty = conn?.provider_config as { propertyId: string; propertyName: string } | undefined;
-
-  return (
-    <Card className="p-0 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4">
-        <div className="flex items-center gap-4">
-          <div className={`h-10 w-10 rounded-lg ${p.iconBg} flex items-center justify-center`}>
-            <Icon className={`h-5 w-5 ${p.iconColor}`} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{p.name}</span>
-              {conn ? (
-                <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-600/10 text-xs">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Connected
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-muted-foreground text-xs">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Not connected
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {conn ? (
-                <>Signed in as {conn.provider_email}</>
-              ) : p.description}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {conn ? (
-            <>
-              {p.hasPropertyPicker && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => isPickerOpen ? setPickerProvider(null) : loadProperties(p.id)}
-                  disabled={pickerLoading && isPickerOpen}
-                  className="text-xs"
-                >
-                  {pickerLoading && isPickerOpen ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3 mr-1" />
-                  )}
-                  {selectedProperty ? 'Change' : 'Select'} {p.propertyLabel}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => connectProvider(p.id, p.scope)}
-                disabled={isConnecting}
-                className="text-xs"
-              >
-                {isConnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                Reconnect
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => disconnectConnection(conn.id)}
-                disabled={isDisconnecting}
-                className="text-destructive hover:text-destructive text-xs"
-              >
-                {isDisconnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
-                Disconnect
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => connectProvider(p.id, p.scope)}
-              disabled={isConnecting}
-            >
-              {isConnecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Icon className="h-3 w-3 mr-1" />}
-              Connect {p.name}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {conn && isPickerOpen && (
-        <div className="border-t border-border bg-muted/30 px-5 py-4">
-          <p className="text-xs text-muted-foreground mb-3">
-            Select which {p.propertyLabel?.toLowerCase()} to use for scans. Only data from the selected {p.propertyLabel?.toLowerCase()} will be fetched.
-          </p>
-          {pickerLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading available {p.propertyLabel?.toLowerCase()}s...
-            </div>
-          ) : pickerProperties.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No {p.propertyLabel?.toLowerCase()}s found for this account.</p>
-          ) : (
-            <div className="space-y-2">
-              {pickerProperties.map((prop) => {
-                const isSelected = selectedProperty?.propertyId === prop.id;
-                return (
-                  <button
-                    key={prop.id}
-                    onClick={() => !isSelected && saveProperty(p.id, prop.id, prop.name)}
-                    disabled={savingProperty}
-                    className={`w-full text-left px-3 py-2.5 rounded-md border transition-colors text-sm ${
-                      isSelected
-                        ? 'border-primary/50 bg-primary/5 text-foreground'
-                        : 'border-border bg-card hover:bg-accent/50 text-foreground'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-medium">{prop.name}</span>
-                        {prop.account && (
-                          <span className="text-muted-foreground ml-2 text-xs">({prop.account})</span>
-                        )}
-                        {prop.permissionLevel && (
-                          <span className="text-muted-foreground ml-2 text-xs">{prop.permissionLevel}</span>
-                        )}
-                      </div>
-                      {isSelected && (
-                        <Badge variant="outline" className="text-primary border-primary/30 text-xs">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Selected
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 font-mono">{prop.id}</p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 export default function ConnectionsPage() {
-  const navigate = useNavigate();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
@@ -720,50 +507,6 @@ export default function ConnectionsPage() {
   const ga4Connection = connections.find(c => c.provider === 'google-analytics');
   const gscConnection = connections.find(c => c.provider === 'google-search-console');
   const slackConnection = connections.find(c => c.provider === 'slack');
-
-  const liveSources: ProviderDef[] = [];
-
-  const accountAccess = [
-    {
-      id: 'gmail',
-      name: 'Gmail',
-      scope: GMAIL_SCOPE,
-      icon: Mail,
-      iconBg: 'bg-destructive/10',
-      iconColor: 'text-destructive',
-      description: 'Read-only access to search email threads for prospect intelligence',
-      connection: gmailConnection,
-      hasPropertyPicker: false,
-    },
-    {
-      id: 'google-drive',
-      name: 'Google Drive',
-      scope: DRIVE_SCOPES,
-      icon: HardDrive,
-      iconBg: 'bg-primary/10',
-      iconColor: 'text-primary',
-      description: 'Import documents, spreadsheets, and files into the knowledge base',
-      connection: driveConnection,
-      hasPropertyPicker: false,
-    },
-    {
-      id: 'google-notebooklm',
-      name: 'NotebookLM',
-      scope: NOTEBOOKLM_SCOPE,
-      icon: BookOpen,
-      iconBg: 'bg-violet-500/10',
-      iconColor: 'text-violet-600',
-      description: 'Export knowledge base documents to Google NotebookLM notebooks',
-      connection: notebooklmConnection,
-      hasPropertyPicker: false,
-    },
-  ];
-
-  const rowProps = {
-    connectingProvider, disconnecting, pickerProvider, pickerProperties,
-    pickerLoading, savingProperty, connectProvider, loadProperties,
-    saveProperty, disconnectConnection, setPickerProvider,
-  };
 
   const apiStatus = (key: string | null): ApiStatus => {
     if (!key) return 'unknown';

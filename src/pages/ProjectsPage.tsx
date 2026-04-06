@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useCompanies } from '@/hooks/useCompanies';
+import { useProjects, type LocalAsanaProject, type LocalProjectMapping, type LocalProjectBudget } from '@/hooks/useProjects';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BrandLoader } from '@/components/BrandLoader';
@@ -22,59 +22,11 @@ import {
   ChevronRight,
   Circle,
   RefreshCw,
-  CheckCircle2,
   AlertTriangle,
   Building2,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────
-
-interface AsanaProject {
-  id: string;
-  name: string;
-  status: string;
-  statusColor: string;
-  statusUpdatedAt: string | null;
-  startDate: string | null;
-  dueDate: string | null;
-  owner: string | null;
-  teamMembers: string[];
-  customFields: Record<string, string | number | null>;
-  portfolioGid?: string;
-  portfolioName?: string;
-  milestoneGid?: string;
-  milestoneName?: string;
-  numCompletedTasks?: number;
-  numIncompleteTasks?: number;
-  numTasks?: number;
-}
-
-interface PortfolioGroup {
-  gid: string;
-  name: string;
-  displayName: string | null;
-  milestones: { gid: string; name: string; projects: AsanaProject[] }[];
-}
-
-interface ProjectBudget {
-  harvest_project_id: number;
-  project_name: string;
-  client_id: number;
-  client_name: string;
-  budget: number | null;
-  budget_spent: number | null;
-  budget_remaining: number | null;
-  budget_by: string;
-}
-
-interface ProjectMapping {
-  asana_project_gid: string;
-  asana_project_name: string;
-  harvest_project_id: number | null;
-  harvest_project_name: string | null;
-  client_display_name: string | null;
-  match_confidence: number | null;
-}
 
 // Merged: Asana project + Harvest budget, grouped by client
 interface UnifiedProject {
@@ -125,24 +77,20 @@ const statusRank: Record<string, number> = { red: 3, yellow: 2, blue: 1, green: 
 
 /** Extract service type from Asana project name: "Austex - CI (30 hrs)" → "CI" */
 function extractServiceType(name: string): string {
-  // Match pattern: "Client - ServiceType (hours)" or "Client ServiceType (hours)"
   const dashMatch = name.match(/\s*[-–—]\s*(CI|SEO|PPC|Web|Design|Dev|Development|Maintenance|Support|Content|Full Project|Audit)(?:\s|$|\()/i);
   if (dashMatch) return dashMatch[1].toUpperCase();
-  // Check for suffix patterns like "Austex PPC (9.5 hours)"
   const suffixMatch = name.match(/\b(CI|SEO|PPC|Audit)\b/i);
   if (suffixMatch) return suffixMatch[1].toUpperCase();
   return 'Project';
 }
 
 /** Extract clean client name from mapping or Asana project name */
-function extractCleanClientName(mapping: ProjectMapping | undefined, asanaName: string): string {
+function extractCleanClientName(mapping: LocalProjectMapping | undefined, asanaName: string): string {
   if (mapping?.client_display_name) {
-    // Clean up the AI-extracted name: remove trailing " - CI", etc.
     return mapping.client_display_name
       .replace(/\s*[-–—]\s*(CI|SEO|PPC|Web|Dev|Design).*$/i, '')
       .trim();
   }
-  // Fallback: extract from asana name
   return asanaName
     .replace(/\s*[-–—]\s*(CI|SEO|PPC|Web|Design|Dev|Development|Maintenance|Support|Retainer|Full Project|Audit).*$/i, '')
     .replace(/\s*\(.*\)$/, '')
@@ -181,13 +129,9 @@ function TaskProgress({ completed, total }: { completed: number; total: number }
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { companies } = useCompanies();
-  const [loading, setLoading] = useState(true);
-  const [portfolios, setPortfolios] = useState<PortfolioGroup[]>([]);
-  const [budgets, setBudgets] = useState<ProjectBudget[]>([]);
-  const [mappings, setMappings] = useState<ProjectMapping[]>([]);
+  const { projects, mappings, budgets, loading, error, refetch } = useProjects();
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [error, setError] = useState<string | null>(null);
 
   // Company lookup maps for linking projects → companies
   const { companyByHarvestId, companyByName } = useMemo(() => {
@@ -200,115 +144,80 @@ export default function ProjectsPage() {
     return { companyByHarvestId: byHarvestId, companyByName: byName };
   }, [companies]);
 
-  // Fetch all three data sources in parallel
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [asanaRes, budgetRes, mappingRes] = await Promise.all([
-          supabase.functions.invoke('asana-clients', { body: {} }),
-          supabase.functions.invoke('harvest-project-hours', { body: {} }),
-          supabase.functions.invoke('project-mapping', { body: { action: 'get-mappings' } }),
-        ]);
-
-        if (asanaRes.error) throw new Error(`Asana: ${asanaRes.error.message}`);
-        if (budgetRes.error) throw new Error(`Harvest: ${budgetRes.error.message}`);
-
-        setPortfolios(asanaRes.data?.portfolios || []);
-        setBudgets(budgetRes.data?.project_hours || []);
-        setMappings(mappingRes.data?.mappings || []);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load projects');
-        console.error('ProjectsPage fetch error:', e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
-
-  // Build lookup maps
+  // Build lookup maps from local data
   const mappingByAsanaGid = useMemo(() => {
-    const map = new Map<string, ProjectMapping>();
+    const map = new Map<string, LocalProjectMapping>();
     for (const m of mappings) map.set(m.asana_project_gid, m);
     return map;
   }, [mappings]);
 
   const budgetByHarvestId = useMemo(() => {
-    const map = new Map<number, ProjectBudget>();
-    for (const b of budgets) map.set(b.harvest_project_id, b);
+    const map = new Map<string, LocalProjectBudget>();
+    for (const b of budgets) map.set(String(b.harvest_project_id), b);
     return map;
   }, [budgets]);
 
-  // Build company-centric view: deduplicate + group by client
+  // Build company-centric view: group by client
   const clientGroups = useMemo(() => {
-    const seen = new Set<string>(); // deduplicate across portfolios
     const clientMap = new Map<string, UnifiedProject[]>();
 
-    for (const pf of portfolios) {
-      for (const ms of pf.milestones) {
-        for (const p of ms.projects) {
-          if (seen.has(p.id)) continue;
-          seen.add(p.id);
+    for (const p of projects) {
+      const mapping = mappingByAsanaGid.get(p.asana_project_gid);
+      const budget = mapping?.harvest_project_id
+        ? budgetByHarvestId.get(String(mapping.harvest_project_id))
+        : undefined;
 
-          const mapping = mappingByAsanaGid.get(p.id);
-          const budget = mapping?.harvest_project_id
-            ? budgetByHarvestId.get(mapping.harvest_project_id)
-            : undefined;
+      const clientName = extractCleanClientName(mapping, p.name);
+      const serviceType = extractServiceType(p.name);
 
-          const clientName = extractCleanClientName(mapping, p.name);
-          const serviceType = extractServiceType(p.name);
+      const unified: UnifiedProject = {
+        id: p.asana_project_gid,
+        asanaName: p.name,
+        clientName,
+        serviceType,
+        statusColor: p.status_color || 'none',
+        owner: p.owner,
+        numCompletedTasks: p.num_completed_tasks ?? undefined,
+        numTasks: p.num_tasks ?? undefined,
+        budget: budget?.budget,
+        budgetSpent: budget?.budget_spent,
+        budgetBy: budget?.budget_by ?? undefined,
+        portfolioName: p.portfolio_name ?? undefined,
+      };
 
-          const unified: UnifiedProject = {
-            id: p.id,
-            asanaName: p.name,
-            clientName,
-            serviceType,
-            statusColor: p.statusColor,
-            owner: p.owner,
-            numCompletedTasks: p.numCompletedTasks,
-            numTasks: p.numTasks,
-            budget: budget?.budget,
-            budgetSpent: budget?.budget_spent,
-            budgetBy: budget?.budget_by,
-            portfolioName: pf.displayName || pf.name,
-            harvestClientId: budget?.client_id,
-          };
-
-          const existing = clientMap.get(clientName) || [];
-          existing.push(unified);
-          clientMap.set(clientName, existing);
-        }
-      }
+      const existing = clientMap.get(clientName) || [];
+      existing.push(unified);
+      clientMap.set(clientName, existing);
     }
 
     // Build client groups with aggregate stats
     const groups: ClientGroup[] = [];
-    for (const [clientName, projects] of clientMap) {
+    for (const [clientName, clientProjects] of clientMap) {
       let worstStatus = 'none';
       let totalBudget = 0;
       let totalSpent = 0;
 
-      for (const p of projects) {
-        if (statusRank[p.statusColor] > statusRank[worstStatus]) {
-          worstStatus = p.statusColor;
+      for (const proj of clientProjects) {
+        if (statusRank[proj.statusColor] > statusRank[worstStatus]) {
+          worstStatus = proj.statusColor;
         }
-        if (p.budget != null) totalBudget += p.budget;
-        if (p.budgetSpent != null) totalSpent += p.budgetSpent;
+        if (proj.budget != null) totalBudget += proj.budget;
+        if (proj.budgetSpent != null) totalSpent += proj.budgetSpent;
       }
 
-      // Resolve company ID: try Harvest client_id first, then fuzzy name match
+      // Resolve company ID: asana_projects.company_id first, then mapping, then name match
       let companyId: string | null = null;
-      const firstHarvestId = projects.find(p => p.harvestClientId)?.harvestClientId;
-      if (firstHarvestId) {
-        companyId = companyByHarvestId.get(String(firstHarvestId))?.id || null;
+      const projectWithCompany = projects.find(
+        (ap) => clientProjects.some((cp) => cp.id === ap.asana_project_gid) && ap.company_id
+      );
+      if (projectWithCompany) {
+        companyId = projectWithCompany.company_id;
       }
       if (!companyId) {
         companyId = companyByName.get(clientName.toLowerCase().trim())?.id || null;
       }
 
-      groups.push({ clientName, projects, worstStatus, totalBudget, totalSpent, companyId });
+      groups.push({ clientName, projects: clientProjects, worstStatus, totalBudget, totalSpent, companyId });
     }
 
     // Sort: problems first (red > yellow > blue > green > none), then alphabetical
@@ -319,7 +228,7 @@ export default function ProjectsPage() {
     });
 
     return groups;
-  }, [portfolios, mappingByAsanaGid, budgetByHarvestId, companyByHarvestId, companyByName]);
+  }, [projects, mappingByAsanaGid, budgetByHarvestId, companyByName]);
 
   // Filtered groups
   const filteredGroups = useMemo(() => {
@@ -330,7 +239,7 @@ export default function ProjectsPage() {
     return clientGroups.filter(g => g.worstStatus === statusFilter);
   }, [clientGroups, statusFilter]);
 
-  // Summary stats (deduplicated)
+  // Summary stats
   const stats = useMemo(() => {
     let total = 0, onTrack = 0, atRisk = 0, offTrack = 0, budgetAtRisk = 0;
     for (const g of clientGroups) {
@@ -339,17 +248,15 @@ export default function ProjectsPage() {
         if (p.statusColor === 'green') onTrack++;
         else if (p.statusColor === 'yellow') atRisk++;
         else if (p.statusColor === 'red') offTrack++;
-        // Budget at risk: >80% spent
         if (p.budget && p.budgetSpent && p.budgetSpent / p.budget > 0.8) budgetAtRisk++;
       }
     }
     return { total, onTrack, atRisk, offTrack, budgetAtRisk, clients: clientGroups.length };
   }, [clientGroups]);
 
-  // Expand all by default on first load
+  // Expand multi-project clients by default on first load
   useEffect(() => {
     if (clientGroups.length > 0 && expandedClients.size === 0) {
-      // Only auto-expand clients with multiple projects
       const toExpand = new Set(
         clientGroups.filter(g => g.projects.length > 1).map(g => g.clientName)
       );
@@ -378,7 +285,7 @@ export default function ProjectsPage() {
       <div className="text-center py-20">
         <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
         <p className="text-muted-foreground mb-3">{error}</p>
-        <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="h-3.5 w-3.5 mr-2" /> Retry
         </Button>
       </div>
