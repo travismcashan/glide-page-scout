@@ -90,17 +90,6 @@ The compounding layer. Outcomes feed back into KB. Patterns sharpen. Confidence 
 
 An agency running this for 3 years is categorically better than one that just started. Not better people — a smarter system that learned from 200 clients while competitors start from scratch every time.
 
-### Naming Decisions (Apr 3 2026)
-
-- ~~Streams~~ → **Connections**
-- ~~Data River~~ → **Knowledge Base**
-- ~~Cognitive IQ~~ → **Patterns** + **Insights** (two distinct layers)
-- ~~Sync Engine~~ → still exists in code, not a brand concept (plumbing inside Connections)
-
-### Build Status
-
-Connections and Knowledge Base are largely built. Patterns is next. Insights, Actions, Outcomes, Learning are the roadmap.
-
 ---
 
 ## Agency Brain × GLIDE Pillars
@@ -155,36 +144,22 @@ Agency Brain is not a fourth pillar. It's the intelligence layer underneath all 
 
 ---
 
-## Navigation Architecture — Sidebar + Workspaces (SHIPPED Apr 4 2026)
+## Workspace Architecture
 
-Collapsible sidebar with workspace switcher. All three workspaces active. CrawlPage (/) is full-width with no sidebar.
-
-**Key files:**
-- `src/config/workspace-nav.ts` — single source of truth for per-workspace nav items + company tabs
-- `src/components/AppSidebar.tsx` — sidebar component (workspace switcher, nav, user footer)
-- `src/components/AppLayout.tsx` — layout wrapper (SidebarProvider + AppSidebar + SidebarInset + Outlet)
-- `src/components/ui/sidebar.tsx` — shadcn primitives (collapsible="icon", Cmd+B, cookie persistence)
-
-**Features:** Collapsible to icon rail, Cmd+B toggle, explicit toggle button, mobile Sheet drawer, shared views bypass sidebar.
-
-### What Each Workspace Shows
+Collapsible sidebar with workspace switcher (Growth / Delivery / Admin).
 
 | | **Growth** | **Delivery** | **Admin** |
 |---|---|---|---|
 | **Who uses it** | Sales, Travis | Strategists, designers, devs | Ops, Travis |
 | **Companies filtered to** | Prospects | Active clients | All (financial view) |
-| **Nav items** | Companies, Pipeline, Knowledge, Proposals | Clients, Projects, Knowledge, Analytics | Clients, Hours, Invoicing, Agreements |
-| **Company detail tabs** | Overview, Contacts, Sites, Knowledge, Chat, Roadmap, Proposal | Overview, Contacts, Deals, Sites, Knowledge, Chat, Roadmap, Analytics | Overview, Hours, Budget, Agreements |
 | **Brain layers emphasized** | Connections → Insights → Actions | All 7 | Connections, KB, Outcomes |
 
 ### Key Principles
-
-- **Role-based scoping** — A PM never sees Pipeline. A salesperson never sees Hours. Not "access denied" — just irrelevant tools hidden.
-- **Same data, different view** — Acme Corp exists in all three workspaces with different context surfaced.
-- **Knowledge is shared but filtered** — Growth KB = enrichment, audits, research. Delivery KB = strategy docs, transcripts, patterns. Admin KB = agreements, SOWs, budgets.
-- **Company detail tabs adapt** — Prospect gets Proposal tab. Active client gets Analytics. Past client gets Outcomes.
-- **Maps to Three Lenses** — Growth = Front Stage heavy. Delivery = all three. Admin = House lens.
-- **Scales to teams** — Assign people to workspaces. Travis sees all three. Junior PM = Delivery only. Account exec = Growth only.
+- **Role-based scoping** — irrelevant tools hidden, not access-denied
+- **Same data, different view** — Acme Corp exists in all three with different context
+- **Knowledge shared but filtered** — Growth KB = enrichment/audits. Delivery KB = strategy/transcripts. Admin KB = agreements/SOWs.
+- **Company detail tabs adapt** — Prospect gets Proposal. Active client gets Analytics.
+- **Scales to teams** — assign people to workspaces
 
 ---
 
@@ -215,7 +190,6 @@ Activities → Workflows → Phases/Cycles → Offerings → Stages (Define/Deli
 ## Service Hierarchy (The GLIDE Ladder)
 
 **Execution Core:** Activities → Workflows → Phases / Cycles
-
 **Planning Shell:** Offerings → Stages (Define / Deliver / Grow) → Roadmap
 
 - **Activity** = single Meeting or Task (a verb)
@@ -225,11 +199,6 @@ Activities → Workflows → Phases/Cycles → Offerings → Stages (Define/Deli
 - **Offering** = productized kit (Phase-based or Cycle-based)
 - **Stage** = lifecycle bucket: Define → Deliver → Grow
 - **Roadmap** = time-sequenced Stages filled with Offerings, tied to Goals/KPIs
-
-### Stage Definitions
-- **Define** (upfront, strategy only): Audits + Strategy → Roadmap v1
-- **Deliver** (one-time build): Strategy→Design→Dev→Content→QA→Optimization→Launch
-- **Grow** (ongoing, compounding): CI/CRO, SEO, PPC, Maintenance. Cadence: PLAN→EXECUTE→MEASURE→LEARN
 
 ### Services Catalog
 - 100s: Diagnostics/Audits
@@ -265,7 +234,7 @@ Rule: No IVs → no deploy. No Signals → no credit.
 Sequential causal chain. Failure at any stage invalidates subsequent stages.
 
 - **Context** = competitive pressures, market dynamics, internal politics. First principle.
-- **Intent** = the "Intent Constellation" — varied, conflicting needs across buying committee. 4 types: Informational, Commercial, Transactional, Navigational.
+- **Intent** = the "Intent Constellation" — varied, conflicting needs across buying committee.
 - **Relevance** = bridge between need and solution. 4 dimensions: Role-Based, Procurement-Stage, Organizational, Topical.
 - **Trust** = both prerequisite and outcome (recursive). T0 (threshold) → T1 (earned) → Trust Spiral.
 
@@ -274,7 +243,7 @@ Sequential causal chain. Failure at any stage invalidates subsequent stages.
 2. **Competition** — Direct, Indirect, Substitute, Status Quo, Asymmetric, Aspirational
 3. **Customers** — ICP → Personas → Empathy Map → Buyer Journey → Intent Signals
 4. **Company** — Gap Analysis: Desired State → Current State → The Gap
-5. **Culture** — Risk Appetite + Decision-Making patterns → source of stakeholders' hidden fears
+5. **Culture** — Risk Appetite + Decision-Making patterns
 
 ---
 
@@ -298,8 +267,6 @@ Sequential causal chain. Failure at any stage invalidates subsequent stages.
 6. **Purpose & Values** — reinforce the "why"
 7. **Call to Action** — direct CTA + transitional CTA
 
-Homepage wireframe: Hero → Problem → Guide → Plan → Success/Proof → Failure/Stakes → CTA band → Purpose/Mission → Footer
-
 ---
 
 ## BHAG & Meaningful Actions
@@ -308,14 +275,7 @@ Homepage wireframe: Hero → Problem → Guide → Plan → Success/Proof → Fa
 
 **Codified Purpose:** "Pair beauty with results to help people who help others."
 
-**Meaningful Actions:** Macro conversions only (GA4 Key Events). Quality filter: source/intent attributable, tracking passes QA.
-
 **NMA** = Σ wᵢ × (Postᵢ − Preᵢ) — net improvement per client.
-
-### Tiered Growth Promises
-- Moonshot (baseline low): up to 10×/36mo
-- Climb (mid): 3-5×/36mo
-- Defend (high baseline): +30-50% YoY
 
 ### Beauty × Results Index (BRI)
 BRI = Normalized CVR uplift × Craft Score (A11y + Performance + UX Hygiene).
@@ -343,399 +303,32 @@ Vision: Instead of 30-50 hours in strategy, spend 5 elite hours because 25-30 ho
 
 ---
 
-## Technical Architecture (Current State — Apr 4 2026)
+## Technical Architecture
 
-### Company-Centric Data Model (Phase 1 SHIPPED)
-- Company is the north star entity. Site is an artifact of a company.
-- **Tables live:** companies (2102), contacts (67), deals, engagements, company_source_data. All with user-scoped RLS.
-- **External ID mapping:** companies have `hubspot_company_id` (1900), `harvest_client_id` (408), `freshdesk_company_id` (587) for cross-system linking.
-- **Company detail page:** Workspace-driven tabs from `WORKSPACE_COMPANY_TABS` config. Growth: Overview, Contacts, Sites, Knowledge, Chat, Roadmap. Delivery: Overview, Contacts, Deals, Projects, Time, Tickets, Sites, Knowledge, Chat, Roadmap. Admin: Overview, Hours, Invoices, Contacts, Source Data. Conditional tabs (Projects/Time/Tickets) still require matching external IDs.
-- **Company Chat:** Multi-session hybrid RAG across all company sites.
+### Company-Centric Data Model
+Company is the north star entity. Site is an artifact of a company. All enrichment and communication lives at the company level.
 
-### On-Demand Artifact Fetching (deployed Apr 4 2026)
-- **`company-artifacts` edge function** — fetches external data live per-company when visiting tabs. No global batch sync needed.
-- **Supported artifacts:** tickets (Freshdesk search API), deals + engagements (HubSpot associations API), projects + time_entries + invoices (Harvest client_id filtering).
-- **Architecture:** Tab activation → `fetchArtifact()` → edge function → external API → state update. Cached via `artifactsFetched` ref Set (no re-fetch on tab revisit).
-- **Freshdesk:** Uses direct `/tickets?company_id=X` endpoint (search API no longer supports company_id filter).
+### Connection Types
+- **Static** — one-way read, cached (PageSpeed, Lighthouse, Ocean.io)
+- **Synced** — scheduled sync to local tables (HubSpot, Harvest, Asana, Freshdesk)
+- **Live** — real-time AI queries during Chat (edge functions now, MCP eventually)
+- **Backfill** — bulk import (CSV, PDF, URL)
 
-### Global Sync Engine (Connections)
-- **`global-sync`** — cross-references Harvest, HubSpot, Freshdesk, Asana to build unified company list. Domain-first matching, then name normalization.
-- **Batch sync functions** (freshdesk-sync, hubspot-sync, harvest-sync) — pull all artifacts for all mapped companies. Reference/fallback, not primary path.
-- **Per-source sync** — ConnectionsPage has individual sync buttons per integration.
-- **Raw source data** stored in `company_source_data` table for enrichment.
-
-### Active Clients Management
-- **Active tab** on CompaniesPage shows `status='active'` companies, sorted by last invoice date.
-- **Status lifecycle:** prospect → active (when invoiced) → past (when stale, 12+ months no invoice) → archived.
-- Stale detection is manual currently; wishlist item exists for auto-downgrade.
-
-### RAG System (deployed Apr 2 2026)
-- Hybrid search: BM25 + vector (70/30 weight) with Reciprocal Rank Fusion
-- Reranker: Gemini Flash cross-encoder on ~40 candidates → top 20
-- Markdown-aware chunking respecting code blocks, tables, headers, lists
-- Inline citations: `[doc:N]` with click-to-preview
-
-### Knowledge Ingestion
-- Avoma transcripts, HubSpot engagements, Gmail emails, Apollo/Ocean data
-- Google Drive folder sync (per-company)
-- Slack search + batch ingest (OAuth connected)
-
----
-
-## Known Issues
-
-### Council Chat Bug
-Model council returns "No synthesis available" — API calls failing silently (~135ms response = too fast). Debug: check API keys in Supabase secrets, verify model IDs, add error logging to catch blocks.
-
-### Lost Crawl Data (discovered Apr 4 2026)
-All ~80 historical site crawl sessions were lost — `crawl_sessions` and `crawl_pages` tables are empty (only 3 sentinel rows for chat). Cause unknown — possible DB reset or migration. Need to batch re-crawl company domains to rebuild.
-
-### AI Company Matching (Planned)
-`company-match-ai` edge function is deployed but not wired into Phase0Map UI. Plan exists in `kind-baking-mountain.md`.
-
-## Integration Status (verified Apr 4 2026)
-
-| Integration | Health | On-Demand Artifacts | Notes |
-|---|---|---|---|
-| **HubSpot** | OK | Deals, Engagements (emails/calls/meetings/notes/tasks) | deals/engagements tables empty by design — on-demand only, not persisted |
-| **Harvest** | OK (OAuth) | Projects, Time Entries | Invoices not used in Harvest — use QuickBooks. OAuth token expires in 14 days, refresh token stored. |
-| **Freshdesk** | OK | Tickets (direct list API) | Switched from search API to `/tickets?company_id=X` — search API no longer supports company_id filter |
-| **QuickBooks** | CSV Import | Invoice summaries on companies table | `quickbooks_invoice_summary` JSONB on companies (487 companies). Invoices tab reads from this, not Harvest. |
-
-**Linked companies:** HubSpot: 1,900 | Harvest: 408 | Freshdesk: 587 | QuickBooks: 487
-
----
-
-## Company-Centric Architecture + Agency Voice (shipped Apr 4 2026)
-
-Moved from site-centric to company-centric architecture. All enrichment and communication now lives on CompanyDetailPage instead of ResultsPage.
-
-**Agency Voice tab** added to Growth and Delivery workspaces with three sub-tabs:
-- **Meetings** (Avoma) — company-level meeting search, cached in `companies.enrichment_data.avoma`
-- **Emails** (Gmail) — GmailCard supports dual storage (site-level via sessionId OR company-level via companyId)
-- **Messages** (Slack) — standalone SlackMessagesCard extracted from CompanyKnowledgeTab
-
-**Contacts tab enhanced:**
-- "Find Team via Apollo" button — searches by company domain, syncs results into contacts table
-- Per-contact "Enrich" button — individual Apollo enrichment
-
-**Overview tab enhanced:**
-- Ocean.io company intelligence card — auto-displays if cached, "Enrich" button if not
-
-**ResultsPage stripped** — removed Apollo, Ocean, Avoma, Gmail (293 lines). Now audit-only (PageSpeed, SEO, accessibility, security, tech stack).
-
-**Lazy migration** — `migrateEnrichmentFromSessions()` copies legacy site-level enrichment data to `companies.enrichment_data` on first company page visit.
-
-**Key files:**
-- `src/components/company/CompanyVoiceTab.tsx` — unified Voice shell
-- `src/hooks/useCompanyAvoma.ts` — company-level Avoma fetch hook
-- `src/components/company/SlackMessagesCard.tsx` — standalone Slack search
-- `src/config/workspace-nav.ts` — Voice tab added to Growth + Delivery
-
-### TanStack Query Caching (shipped Apr 4 2026)
-
-All major data fetches now cached via TanStack Query. First load hits Supabase/APIs, subsequent visits within stale window are instant from memory.
-
-**Cached hooks:**
-- `useCompanies()` / `useCompany(id)` — companies list + detail (5 min stale)
-- `useSessions()` — crawl history (5 min stale)
-- `useSiteGroups()` — site groups (5 min stale)
-- `useWishlistItems()` — wishlist (5 min stale)
-- `usePipelineDeals(pipelineId)` / `usePipelineLeads()` / `usePipelineStats()` — HubSpot pipeline (5 min stale)
-- `useServiceOfferings()` — service catalog (30 min stale)
-- `useModelPricing()` — model pricing (1 hr stale)
-- `useChatThreads(sessionId)` — chat threads (5 min stale)
-
-**Pattern:** `useInvalidateX()` hooks for mutations. All in `src/hooks/useCachedQueries.ts` + `src/hooks/useCompanies.ts` + `src/hooks/useCompany.ts`.
-
-### Sidebar Redesign — Global → Contextual → Utility (shipped Apr 4 2026)
-
-Sidebar restructured per design expert analysis (Nielsen, Krug, Ive, Frog).
-
-**Global section (top):** Max 3-4 items per workspace.
-- Growth: Leads, Deals, Companies, Crawl
-- Delivery: Clients, Projects
-- Admin: Clients, Invoicing
-
-**Contextual section (middle):** Appears when inside `/companies/:id`. Shows company tabs (Overview, Voice, Knowledge, Chat, Roadmap) as sidebar nav items synced with page via `?tab=` URL param.
-
-**Utility section (bottom):** Single "Settings" item (absorbs Connections, Wishlist, Services, Usage). Admin link if admin user.
-
-**Page tabs killed** — CompanyDetailPage and PipelinePage no longer have page-level tab bars. Sidebar owns all navigation. Page titles are dynamic (Leads/Deals based on active tab).
-
-**CrawlPage merged into HistoryPage** — `/` now shows crawl input bar + full crawl history. No standalone CrawlPage. One page, one workflow.
-
-**All page headers compressed** — removed subtitle descriptions, tightened filter rows into title rows.
-
-**Key files:**
-- `src/components/AppSidebar.tsx` — Global + Contextual + Utility structure
-- `src/components/AppLayout.tsx` — `overflow-hidden` on SidebarInset fixes pipeline width blowout
-- `src/config/workspace-nav.ts` — `TAB_ICONS` export, `CompanyTab.icon` field
-
----
-
-## What Was Built (Apr 4 2026 — "Asana Port + Workspace Redesign" session)
-
-### Asana↔Harvest Integration (SHIPPED)
-- `project_mappings` + `asana_config` tables live. 47/51 Asana projects AI-matched to Harvest.
-- 3 new edge functions: `asana-clients`, `harvest-project-hours`, `project-mapping` (Claude Haiku AI matching).
-- `/projects` page — company-centric merged view (Asana status + Harvest budget).
-- `/projects/mapping` page — visible mapping table with edit/lock/unlink/Run AI Match.
-
-### CompaniesPage Workspace Redesign (SHIPPED)
-- One-row header: Title + Count + Search + Stats + Sort + View toggle. Killed: smart view tabs, status/sources/data filters, group dropdown, summary row, Mapping/Cleanup buttons.
-- **Growth**: Shows HubSpot-connected prospects. Columns: Name, Domain, Last Activity, Industry, Contact.
-- **Delivery**: Title says "Clients". Shows active only. Columns: Name, Services, Last Activity, Contacts.
-- **Admin**: Shows all non-archived. Columns: Name, Last Invoice, Revenue, Status.
-- Archived companies filtered out globally.
-
-### Other UI Changes (SHIPPED)
-- `/leads` and `/deals` clean routes (replace `/pipeline?tab=`). Filters merged onto title row.
-- Sidebar: removed workspace label, shows company name in contextual section.
-- User dropdown: Connections, Wishlist, Services, Usage, Project Mapping, Company Mapping, Cleanup.
-- Scroll fade edges on leads/deals (500ms, scroll-position-aware).
-- Roadmap/Proposal/Estimate: `company_id` is primary parent, `deal_id` added, `session_id` optional.
-
-## Data-First Architecture (SHIPPED Apr 4 2026)
-
-### Principle
-Every page reads from local Supabase tables. External APIs feed sync functions. No exceptions (except AI Chat Live connections).
-
-### Sync Pipeline (all deployed + running)
-- `hubspot-deals-sync` — 1,128 deals from 3 pipelines → `deals` table. Auto-creates missing companies + syncs deal contacts to `contacts` table.
-- `hubspot-contacts-sync` — lead contacts → `contacts` table with lead_status/lifecycle_stage. Auto-creates missing companies.
-- `enrich-contacts` — batch Apollo enrichment, stores full raw response in contacts.enrichment_data.apollo
-- `enrich-companies` — batch Ocean.io enrichment, stores full raw response in companies.enrichment_data.ocean
-- Auto-enrichment wired into both sync functions.
-
-### Pages Reading from DB (DONE)
-- Growth Companies → `deals` + `contacts` tables for pipeline company IDs, scoped query
-- Deals page → `deals` table (was: HubSpot API live every page load)
-- Leads page → `contacts` table (was: HubSpot API live every page load)
-- Company detail Deals/Time/Tickets tabs → local tables (was: company-artifacts edge fn)
-- Delivery/Admin Companies → scoped queries by status
-
-### Pages Still Hitting External APIs (TO FIX)
-- Projects page → Asana + Harvest APIs live (Phase 4 of plan)
-- Company detail Projects tab → company-artifacts edge fn
-- Company detail Engagements (overview) → company-artifacts edge fn
-
-### 13 Architecture Rules
-Saved in memory. Key ones:
+### Data-First Architecture Rules
 1. Every entity = own row in correct table. Never store as string on another row.
 2. Store ENTIRE raw API response. Never cherry-pick fields.
 3. When creating companies, also create child entities (contacts, deals).
 4. Pages NEVER call external APIs (except AI Chat Live connections / future MCP).
 5. Every query scoped to what's displayed. Never load all rows and filter in browser.
 
-### Connection Types (from Agency Brain vision)
-- **Static** — one-way read, cached (PageSpeed, Lighthouse)
-- **Synced** — scheduled sync to local tables (HubSpot, Harvest, Asana, Freshdesk)
-- **Live** — real-time AI queries during Chat (edge functions now, MCP eventually)
-- **Backfill** — bulk import (CSV, PDF, URL)
+### Company Enrichment
+Company intelligence lives on `companies.enrichment_data` JSONB. Site audit data stays on `crawl_sessions`. Sync functions auto-forward enrichment to company after crawl phases complete.
 
-### Schema Cleanup (shipped Apr 5 2026)
-13 denormalized string columns dropped. All entity names now come from JOINs, not copied strings.
-- **deals**: dropped `contact_name`, `contact_email`, `contact_photo_url`, `company_name` → use `contact_id`/`company_id` JOINs
-- **companies**: dropped `hubspot_lifecycle_stage`, `hubspot_has_active_deal` → superseded by contacts/deals tables
-- **proposals**: dropped `company_name`, `contact_name`, `contact_email`, `contact_title` → use `company_id` JOIN
-- **roadmaps**: dropped `client_name` → use `company_id` JOIN
-- **project_estimates**: dropped `client_name` → use `company_id` JOIN
-- **deals.contact_id** backfilled (892/1128 matched by email)
-- **proposals.contact_id** and **project_mappings.company_id** FKs added
-- **hubspot-lifecycle-sync** edge function deleted (dead code)
+### Automated Sync (pg_cron)
+7 scheduled jobs: hubspot-deals-sync (30min), hubspot-contacts-sync (30min), global-sync (6hr), asana-projects-sync (4hr), crawl-recover (5min), plus 2 cleanup jobs. All use Vault-stored service_role key via `invoke_edge_function()`.
 
-### Company Resolution Layer (shipped Apr 5 2026)
-Shared `_shared/company-resolution.ts` used by all sync functions.
-- `resolveCompany()`: external ID → domain match → create with best name
-- Name fallback: HubSpot → existing → Ocean.io → Harvest → Freshdesk → domain-derived
-- Self-healing: every sync run checks/upgrades placeholder names
-- 16 "HubSpot Company {id}" names repaired
-
-### Contact & Site Detail Drawers (shipped Apr 5 2026)
-- **ContactDetailDrawer**: click contact → right Sheet with Apollo data, employment, org intel, company deals
-- **SiteDetailDrawer**: click site → right Sheet with audit scores, tech stack, "View Full Audit" link
-- **ContactDetailPage** at `/contacts/:contactId`
-- **ContactsPage** at `/contacts` with table/card views, search, Pipeline/Active/Inactive/All filter
-
-### Crawl Auto-Link + ResultsPage Audit-Only (shipped Apr 5 2026)
-- Crawl sessions auto-linked to companies via domain on creation (find or create company)
-- **ensureCrawl** utility: shared find-or-create crawl for domain links across all pages
-- **DomainLink** component: Globe (crawled, purple) / Search (uncrawled, grey), click → ensure crawl → navigate
-- **ResultsPage** stripped to audit-only (removed Prospecting, Knowledge, Chat, Estimates, Roadmap, Proposal tabs)
-- **Estimates + Proposal tabs** added to CompanyDetailPage
-- Auto-crawl on `hubspot-deals-sync` and `hubspot-contacts-sync` for new pipeline/lead companies
-
-### Navigation Architecture (shipped Apr 5 2026)
-- **Growth sidebar**: Leads → Deals → Crawls → Contacts → Companies
-- **Default route**: `/leads` (was `/`)
-- **Crawls** at `/crawls` (was `/`)
-- **All list pages**: consistent header (Title + capsule count + search + filter/sort dropdowns)
-- **Pipeline footer**: fixed to viewport bottom with stage totals
-- **Sidebar/content alignment**: separator `mb-1` for pixel-perfect baseline alignment
-
-### Async Crawl Reliability (shipped Apr 5 2026)
-Hardened the 3-phase crawl pipeline for reliability, cancellation, and progress reporting.
-
-**Session lifecycle:**
-- Sessions start as `pending`, `crawl-start` sets `analyzing` after `integration_runs` created
-- Client awaits `crawl-start` (no longer fire-and-forget) — shows error toast on failure, marks session `failed`
-- `cancelled` status: Stop button writes to DB, all phase functions check before running/dispatching
-- Phase dispatch retry: `dispatchNextPhase()` retries once after 2s on failure
-- Phase 3 force-complete scoped to only `apollo-team` and `page-tags` keys (was blanket all running)
-
-**Watchdog:**
-- `crawl-recover` edge function (new): marks zombie `integration_runs` as failed, completes stuck sessions
-- Client-side timer: auto-calls `crawl-recover` if session `pending` >2min or `analyzing` >10min
-- Can also be called by pg_cron for server-side watchdog (not yet wired)
-
-**Progress:**
-- `useCrawlProgress(sessionId)` hook: computes `{ total, done, failed, percent, currentPhase, phaseLabel }` from realtime `integration_runs`
-- ResultsPage: "Initializing..." banner for `pending`, error banner for `failed`, realtime session status subscription
-- `use-active-crawl` includes `pending` in active check
-
-**Crawls list:**
-- Company column in HistoryPage (FK join + domain fallback for unlinked sessions)
-- Domain fallback lookup for sessions without `company_id`
-
-**Key files:**
-- `supabase/functions/_shared/phase-runner.ts` — `isSessionCancelled()`, retry dispatch
-- `supabase/functions/crawl-recover/index.ts` — zombie watchdog (new)
-- `src/hooks/useCrawlProgress.ts` — progress computation hook (new)
-- `src/pages/ResultsPage.tsx` — pending/failed/cancelled UI, client watchdog timer, server-side cancel
-
-## Company Enrichment Architecture (shipped Apr 5 2026)
-
-Company intelligence data now lives on `companies.enrichment_data` — the single source of truth. Previously scattered across `crawl_sessions` columns.
-
-**What moved to `companies.enrichment_data`:**
-- `apollo_org` — org fields (industry, revenue, headcount, technologies, keywords, growth)
-- `apollo_team` — team search results
-- `ocean` — Ocean.io demographics, traffic, departments, tech stack
-- `avoma` — sales meeting intelligence
-- `semrush` — domain rankings, keywords, traffic (currently empty — out of credits, paused)
-- `hubspot` — HubSpot company record
-
-**What stays on `crawl_sessions` (site-specific audits):**
-PSI, WAVE, W3C, Observatory, Carbon, GTmetrix, CrUX, HTTP Status, Link Check, SSL Labs, Schema, Sitemap, Forms, Readable, Content Types, Yellow Lab, GA4, Search Console.
-
-**Forward sync:** `syncEnrichmentToCompany()` in `phase-runner.ts` auto-syncs company intelligence after crawl-phase1 and crawl-phase3 complete.
-
-**Key files:**
-- `supabase/functions/_shared/phase-runner.ts` — `syncEnrichmentToCompany()` function
-- `supabase/functions/crawl-phase1/index.ts` — calls sync after runPool
-- `supabase/functions/crawl-phase3/index.ts` — calls sync for apollo_team
-- `src/lib/agencyBrain.ts` — `migrateEnrichmentFromSessions()` handles all 7 enrichment keys
-- `src/components/apollo/ApolloOrgCard.tsx` — Apollo org intelligence card with tabbed layout
-
-### Batch Crawl & Retry (shipped Apr 5 2026)
-
-- `batch-crawl` edge function — crawls all lead/deal domains in throttled batches (3 concurrent, 5s delay)
-- `crawl-retry` edge function — retries only failed integrations on `completed_with_errors` sessions. Clears error sentinels, deletes failed runs, re-invokes crawl-start.
-- SEMrush paused in `integration_settings` (out of credits). Unpause when credits restored.
-- Auto-crawl on `hubspot-deals-sync` and `hubspot-contacts-sync` handles future leads/deals.
-
-### UI Consistency (shipped Apr 5 2026)
-
-- **Status badges unified**: `text-xs px-2 py-0.5`, `variant="outline"`, colored borders at full opacity, `text-foreground`. Applied across Crawls, Contacts, Companies pages.
-- **Crawls page**: columns reordered to Domain → Crawl Date → Score → Company → Status. "Completed (with errors)" shows green "Completed" capsule + red "⚠ with errors" outside.
-- **View toggle height fix**: `h-8` on wrapper + `h-full` on buttons eliminates 2px alignment shift between pages.
-- **ResultsPage loader**: replaced frozen BrandLoader (Lottie) with CSS `Loader2` spinner + "Loading site audit..." text.
-- **Company detail sections**: Deals/Contacts/Sites removed outer Card wrapper — section title + item cards directly, no box-in-box.
-
-### ApolloOrgCard (shipped Apr 5 2026)
-
-New card component at `src/components/apollo/ApolloOrgCard.tsx`:
-- **Overview tab**: Industry, employees, revenue, founded, location, phone, Alexa rank, ticker, headcount growth (6/12/24mo with trend indicators), social links
-- **Industries tab**: Primary + secondary industries, SIC/NAICS codes
-- **Tech Stack tab**: Technologies as badges
-- **Keywords tab**: All Apollo keywords
-- Reads from `companies.enrichment_data.apollo_org` — no crawl session dependency
-- Purple "Apollo" source badge in header
-
-## What Was Built (Apr 5 2026 — "SUPER CRAWL" session)
-
-### SUPER CRAWL v1.0 Scoring Engine (SHIPPED)
-- `src/lib/siteScore.ts` rewritten: 6 weighted categories (Technology removed), authority-weighted integrations within categories
-- 4 new extractors: `extractLinkChecker`, `extractForms`, `extractContentTypes`, `extractSitemapCoverage`
-- Navigation extractor wired (was disconnected)
-- Strengths/gaps model: each integration classified as strength (≥80) / gap (≤50) / neutral with human-readable summaries
-- `OverallScore` includes `topStrengths[5]`, `topGaps[5]`, `version: '1.0'`
-- Category weights: Performance 25%, SEO 22%, Content & UX 15%, Accessibility 15%, Security 13%, URL Health 10%
-
-### Plans Page (SHIPPED)
-- `claude_code_plans` Supabase table with RLS + updated_at trigger
-- `/plans` list page + `/plans/:id` detail page with rendered markdown
-- `usePlans.ts` TanStack Query hooks (CRUD)
-- Sidebar user dropdown entry (ScrollText icon)
-- "save to plans" command convention for future sessions
-
-### SUPER CRAWL Visual Overhaul (SHIPPED)
-- `ExecutiveSummaryHero.tsx` — 140px score ring with grade-dependent glow, AI narrative, clickable category mini cards with grade-dependent left borders, "What's Working" + "Priority Actions" panels
-- `CategoryQuickNav.tsx` — sticky horizontal pill navigation with scroll tracking
-- `CollapsibleSection.tsx` enhanced — inline strengths/gaps badges, AI category insight text
-- `SectionCard.tsx` enhanced — card descriptions from registry, grade-dependent border accents (top for hero, left for supporting), cost badges (paid/freemium), hero/supporting variant prop
-- Sections reordered by scoring weight: Performance → SEO → Content & UX → A11y → Security → URL Health → Tech Detection
-- Section titles modernized: `text-2xl font-semibold tracking-tight` (was `text-4xl font-light`)
-- Animations: hero-fade (400ms), pill-pop stagger (60ms apart), card-entrance (300ms), A-grade shimmer (3s infinite)
-
-### Three Lanes Architecture (SHIPPED)
-- Two-tab ResultsPage: "Site Audit" + "Knowledge"
-- Site Audit tab: 6 scored health categories + Premium section + Technology Detection (collapsed)
-- Knowledge tab: URL Discovery, Page Content, Design & Templates (screenshots + content audit + template analysis)
-- Premium section at bottom of Site Audit: SSL Labs (manual), GA4 (OAuth), Search Console (OAuth) with CTAs
-- `PremiumInsightsSection.tsx` component
-
-### Integration Cost Registry (SHIPPED)
-- `src/lib/integrationRegistry.ts` — every integration tagged free/freemium/paid, lane (audit/intel/knowledge/premium), auto, description
-- Cost badges on SectionCard headers: "paid" (amber) / "credits" (blue) for non-free integrations
-- Crawl profile selector on Crawls page: Free Only / Standard / Full (localStorage persisted, passed to crawl-start)
-
-### AI Insights System (SHIPPED)
-- `ai_insights` JSONB column on `crawl_sessions`
-- `generate-crawl-insights` edge function (Gemini 2.0 Flash) — generates executive summary, per-category insights, priority actions
-- `useCrawlInsights` hook — auto-generates on crawl completion, caches in DB, template fallback when AI unavailable
-
-### Key Files
-- `src/lib/siteScore.ts` — scoring engine (CATEGORY_DEFS exported)
-- `src/lib/integrationRegistry.ts` — cost/lane/auto registry
-- `src/lib/cardDescriptions.ts` — legacy (descriptions now in registry)
-- `src/components/crawl/ExecutiveSummaryHero.tsx` — Tier 1 hero
-- `src/components/crawl/CategoryQuickNav.tsx` — sticky nav
-- `src/components/crawl/PremiumInsightsSection.tsx` — Premium unlock cards
-- `src/components/CollapsibleSection.tsx` — enhanced with signals
-- `src/components/SectionCard.tsx` — enhanced with cost/variant/description
-- `src/components/ScoreOverview.tsx` — still exists but replaced by ExecutiveSummaryHero in ResultsPage
-- `src/hooks/useCrawlInsights.ts` — AI insights hook
-- `src/hooks/usePlans.ts` — Plans CRUD
-- `src/pages/PlansPage.tsx` + `src/pages/PlanDetailPage.tsx`
-- `src/lib/sessionSlug.ts` — updated for Knowledge tab URL support
-- `supabase/functions/generate-crawl-insights/index.ts` — AI edge function
-
-## Next Session Priority
-
-**#1: SUPER CRAWL cleanup.** Remove SSL Labs/GA4/Search Console from their original scored sections (they're still duplicated in SEO/Security sections AND in Premium section). Wire `crawl_profile` reading in `crawl-start` edge function to actually skip paid integrations. Delete `cardDescriptions.ts` (superseded by registry).
-
-**#2: Projects page reads from DB.** Phase 4 of data-first plan.
-
-**#3: Company detail page UI audit.** Unify badge styles, design overview layout holistically.
-
-**#4: Crawl profile in Settings page.** Add dedicated Crawl Profile section to SettingsPage with profile selector + Custom per-integration toggles.
-
-**#5: Consolidate integration registry server-side.** Port `integrationRegistry.ts` concepts to `_shared/integration-registry.ts` for crawl-start/phase functions.
-
-**Other priorities:**
-- Pattern Library (Brain Pillar 3)
-- Pipeline page horizontal scroll sync
-- pg_cron for crawl-recover
-- Team utilization view
-- Scheduled sync
-- Supabase types regeneration
-
-### Custom Skills (shipped Apr 5 2026)
-- `/startup` and `/shutdown` session lifecycle skills at `~/.claude/skills/` (user-level)
-- Desktop machine needs manual copy of `~/.claude/skills/startup/` and `~/.claude/skills/shutdown/`
-- Project-level copies exist in `.claude/skills/` but worktree autocomplete discovery was unreliable
+### RAG System
+Hybrid search: BM25 + vector (70/30 weight) with Reciprocal Rank Fusion. Gemini Flash reranker. Markdown-aware chunking. Inline citations with click-to-preview.
 
 ---
 
