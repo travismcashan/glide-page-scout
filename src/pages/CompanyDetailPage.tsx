@@ -36,6 +36,8 @@ import { useCompany, useUpdateCompanyCache } from '@/hooks/useCompany';
 import OceanCard from '@/components/OceanCard';
 import { ApolloTeamContacts, type ApolloTeamData } from '@/components/apollo/ApolloTeamContacts';
 import { ApolloOrgCard, type ApolloOrgData } from '@/components/apollo/ApolloOrgCard';
+import { GA4SummaryCard } from '@/components/company/GA4SummaryCard';
+import { SearchConsoleSummaryCard } from '@/components/company/SearchConsoleSummaryCard';
 import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
 import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS, TICKET_STATUS_COLORS, TICKET_PRIORITY_COLORS, PROJECT_STATUS_COLORS, CONTACT_ROLE_COLORS } from '@/config/badge-styles';
@@ -502,7 +504,7 @@ export default function CompanyDetailPage() {
             {(() => {
               const totalDealValue = deals.reduce((sum, d) => sum + (d.amount || 0), 0);
               const openDeals = deals.filter(d => d.status === 'open' || d.status === 'active' || d.status === 'pending').length;
-              const enrichmentSources = ['apollo_org', 'ocean', 'avoma', 'apollo_team', 'hubspot', 'semrush'] as const;
+              const enrichmentSources = ['apollo_org', 'ocean', 'avoma', 'apollo_team', 'hubspot', 'semrush', 'ga4', 'search_console'] as const;
               const enrichedCount = enrichmentSources.filter(k => (company.enrichment_data as any)?.[k]).length;
               const allDates = [
                 ...engagements.map(e => e.occurred_at).filter(Boolean),
@@ -676,6 +678,16 @@ export default function CompanyDetailPage() {
                   <ApolloOrgCard data={apolloOrgData} />
                 </CardContent>
               </Card>
+            )}
+
+            {/* GA4 Analytics */}
+            {company.enrichment_data?.ga4 && (
+              <GA4SummaryCard data={company.enrichment_data.ga4} />
+            )}
+
+            {/* Search Console */}
+            {company.enrichment_data?.search_console && (
+              <SearchConsoleSummaryCard data={company.enrichment_data.search_console} />
             )}
 
             {/* Technologies (from Apollo org — only if no Ocean data) */}

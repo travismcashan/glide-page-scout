@@ -162,7 +162,11 @@ serve(async (req) => {
       const subject = p.hs_email_subject || p.hs_call_title || p.hs_meeting_title || p.hs_task_subject || null;
       const bodyRaw = p.hs_email_text || p.hs_call_body || p.hs_meeting_body || p.hs_note_body || p.hs_task_body || "";
       const bodyPreview = bodyRaw.substring(0, 500) || null;
-      const direction = p.hs_email_direction || p.hs_call_direction || null;
+      // Map HubSpot direction to CHECK constraint values (inbound/outbound) or null
+      const rawDir = (p.hs_email_direction || p.hs_call_direction || "").toUpperCase();
+      const direction = rawDir.includes("INBOUND") || rawDir.includes("INCOMING") ? "inbound"
+        : rawDir.includes("OUTBOUND") || rawDir.includes("OUTGOING") ? "outbound"
+        : null;
 
       return {
         user_id: userId,

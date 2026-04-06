@@ -229,6 +229,16 @@ export async function syncEnrichmentToCompany(session: any, sb: any): Promise<vo
     patch.hubspot = session.hubspot_data;
   }
 
+  // GA4: full response
+  if (session.ga4_data && typeof session.ga4_data === 'object' && !session.ga4_data._error) {
+    patch.ga4 = session.ga4_data;
+  }
+
+  // Search Console: full response
+  if (session.search_console_data && typeof session.search_console_data === 'object' && !session.search_console_data._error) {
+    patch.search_console = session.search_console_data;
+  }
+
   if (Object.keys(patch).length === 0) return;
 
   // Merge into existing enrichment_data (existing keys preserved, new keys added)
