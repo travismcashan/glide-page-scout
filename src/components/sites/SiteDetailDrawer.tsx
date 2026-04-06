@@ -166,7 +166,19 @@ export function SiteDetailDrawer({
                   )}
 
                   {!overallScore && !loading && (
-                    <p className="text-sm text-muted-foreground text-center py-8">No audit data available. Run a crawl to generate scores.</p>
+                    <div className="text-center py-8 space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        {session?.status === 'completed' || session?.status === 'complete'
+                          ? 'Crawl completed but no audit integrations have run yet.'
+                          : session?.status
+                            ? `Crawl status: ${session.status}`
+                            : 'No audit data available.'}
+                      </p>
+                      {session?.base_url && (
+                        <p className="text-xs text-muted-foreground">Base URL: {session.base_url}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">Run a full site audit to generate scores.</p>
+                    </div>
                   )}
                 </div>
               )}

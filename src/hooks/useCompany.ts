@@ -64,6 +64,8 @@ async function fetchCompanyBundle(id: string) {
       .from('crawl_sessions')
       .select('id, domain, base_url, status, created_at')
       .eq('company_id', id)
+      .not('domain', 'like', '_comms_%')
+      .not('domain', 'like', '__company_chat_%')
       .order('created_at', { ascending: false }),
   ]);
 
