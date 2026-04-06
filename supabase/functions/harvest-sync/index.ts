@@ -4,6 +4,7 @@
  * Uses batch upserts for performance.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { startSyncRun, completeSyncRun, failSyncRun } from "../_shared/sync-logger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -328,6 +329,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let supabase: any = null;
+  let syncRunId = '';
+  let syncRunStartedAt = 0;
+
   try {
     const { userId, artifacts } = await req.json();
 
@@ -337,9 +342,13 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    supabase = createClient(supabaseUrl, serviceRoleKey);
 
     if (!userId) throw new Error('userId required');
+
+    const syncRun = await startSyncRun(supabase, 'harvest-sync');
+    syncRunId = syncRun.id;
+    syncRunStartedAt = syncRun.startedAt;
 
     const headers = {
       Authorization: `Bearer ${harvestToken}`,
@@ -396,11 +405,23 @@ Deno.serve(async (req) => {
       console.log(`[harvest-sync] Client contacts: ${results.contacts.created} created, ${results.contacts.updated} updated`);
     }
 
+    const totalUpserted = (results.projects || 0) + (results.time_entries || 0) +
+      (results.invoices || 0) + (results.payments || 0) +
+      ((results.contacts?.created || 0) + (results.contacts?.updated || 0));
+
+    await completeSyncRun(supabase, syncRunId, {
+      recordsUpserted: totalUpserted,
+      metadata: results,
+    }, syncRunStartedAt);
+
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: any) {
     console.error('[harvest-sync] Error:', error);
+    if (syncRunId && supabase) {
+      try { await failSyncRun(supabase, syncRunId, error); } catch {}
+    }
     return new Response(JSON.stringify({ error: error.message || String(error) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

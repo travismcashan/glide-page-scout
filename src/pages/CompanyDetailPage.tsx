@@ -42,6 +42,9 @@ import { ContactDetailDrawer } from '@/components/contacts/ContactDetailDrawer';
 import { SiteDetailDrawer } from '@/components/sites/SiteDetailDrawer';
 import { COMPANY_STATUS_COLORS, LEAD_STATUS_COLORS, DEAL_STATUS_COLORS, SENIORITY_COLORS, TICKET_STATUS_COLORS, TICKET_PRIORITY_COLORS, PROJECT_STATUS_COLORS, CONTACT_ROLE_COLORS } from '@/config/badge-styles';
 import { CompanyPatternsTab } from '@/components/company/CompanyPatternsTab';
+import { FormSubmissionsCard } from '@/components/company/FormSubmissionsCard';
+import { EngagementTimeline } from '@/components/company/EngagementTimeline';
+import { TicketConversationDrawer } from '@/components/company/TicketConversationDrawer';
 
 type Company = {
   id: string;
@@ -134,6 +137,7 @@ export default function CompanyDetailPage() {
   // Drawer state for contact and site detail
   const [selectedContact, setSelectedContact] = useState<typeof contacts[number] | null>(null);
   const [selectedSite, setSelectedSite] = useState<{ id: string; domain: string; created_at: string } | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
 
   // Tab state synced with URL ?tab= param (so sidebar contextual nav works)
   const activeTab = searchParams.get('tab') || 'overview';
@@ -714,38 +718,11 @@ export default function CompanyDetailPage() {
               </Card>
             )}
 
-            {/* Recent Activity */}
-            {artifactLoading.engagements && (
-              <div className="flex items-center justify-center py-12"><BrandLoader size={36} /></div>
-            )}
-            {!artifactLoading.engagements && engagements.length > 0 && (
-              <Card className="mb-6">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Recent Activity ({engagements.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {engagements.map(eng => {
-                      const icon = { email: <Mail className="h-3.5 w-3.5" />, call: <PhoneCall className="h-3.5 w-3.5" />, meeting: <Calendar className="h-3.5 w-3.5" />, note: <StickyNote className="h-3.5 w-3.5" />, task: <CheckSquare className="h-3.5 w-3.5" /> }[eng.engagement_type] || <MessageSquare className="h-3.5 w-3.5" />;
-                      return (
-                        <div key={eng.id} className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-accent/5 transition-colors">
-                          <div className="text-muted-foreground mt-0.5 shrink-0">{icon}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium capitalize">{eng.engagement_type}</span>
-                              {eng.direction && <Badge variant="outline" className="text-[10px] py-0">{eng.direction}</Badge>}
-                              {eng.occurred_at && <span className="text-[10px] text-muted-foreground/60 ml-auto">{format(new Date(eng.occurred_at), 'MMM d, yyyy')}</span>}
-                            </div>
-                            {eng.subject && eng.subject !== eng.engagement_type.charAt(0).toUpperCase() + eng.engagement_type.slice(1) && <p className="text-xs text-muted-foreground truncate mt-0.5">{eng.subject}</p>}
-                            {eng.body_preview && <p className="text-xs text-muted-foreground/60 line-clamp-2 mt-0.5">{eng.body_preview}</p>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Engagement Timeline */}
+            <EngagementTimeline companyId={company.id} />
+
+            {/* Form Submissions */}
+            <FormSubmissionsCard companyId={company.id} />
 
             {company.notes && (
               <Card>
@@ -1018,7 +995,7 @@ export default function CompanyDetailPage() {
                   </div>
                   <div className="space-y-2">
                     {freshdeskTickets.map((t: any) => (
-                      <div key={t.id} className="flex items-start gap-4 p-3 rounded-lg border border-border/50 bg-card">
+                      <div key={t.id} onClick={() => setSelectedTicket(t)} className="flex items-start gap-4 p-3 rounded-lg border border-border/50 bg-card hover:border-foreground/20 transition-colors cursor-pointer">
                         <Headphones className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -1334,6 +1311,11 @@ export default function CompanyDetailPage() {
       <SiteDetailDrawer
         site={selectedSite}
         onClose={() => setSelectedSite(null)}
+      />
+      <TicketConversationDrawer
+        open={!!selectedTicket}
+        onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}
+        ticket={selectedTicket}
       />
     </div>
   );
